@@ -16,37 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.batch.sql
-import java.io.File
+package org.apache.flink.table.api.batch.sql.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.{TableEnvironment, TableException}
-import org.apache.flink.table.utils.CsvSQLTableSink
+import org.apache.flink.table.api.{QueryConfig, TableException}
+import org.apache.flink.table.utils.{MemoryTableSinkUtil, TableTestBase}
 import org.junit._
 
-class UnsupportedSQLTest {
+class InsertIntoValidationTest extends TableTestBase {
 
   /** test unsupported partial insert **/
   @Test(expected = classOf[TableException])
   def testUnsupportedPartialInsert(): Unit = {
-    val tmpFile = File.createTempFile("flink-sql-table-sink-test2", ".tmp")
-    tmpFile.deleteOnExit()
-    val path = tmpFile.toURI.toString
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    tEnv.registerTable("sourceTable", t)
-
-    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
+    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getTypes
     val fieldNames = Seq("d", "e", "f").toArray
-    val sink = new CsvSQLTableSink(path, fieldTypes, fieldNames, ",")
-    tEnv.registerTableSink("targetTable", sink)
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink(fieldTypes, fieldNames)
+    util.tableEnv.registerTableSink("targetTable", sink)
 
     val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
-    tEnv.sql(sql)
+    util.tableEnv.sqlUpdate(sql, QueryConfig.getQueryConfigFromTableEnv(util.tableEnv))
   }
 }

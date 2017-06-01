@@ -21,7 +21,7 @@ package org.apache.flink.table.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.table.sinks.{CsvTableSink, TableSink}
+import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.types.Row
 
 class CsvSQLTableSink(

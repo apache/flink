@@ -48,7 +48,7 @@ object WordCountSQL {
     tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
 
     // run a SQL query on the Table and retrieve the result as a new Table
-    val table = tEnv.sql("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
+    val table = tEnv.sqlQuery("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
 
     table.toDataSet[WC].print()
   }

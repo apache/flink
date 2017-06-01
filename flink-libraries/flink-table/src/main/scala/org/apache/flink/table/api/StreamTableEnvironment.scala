@@ -133,7 +133,26 @@ abstract class StreamTableEnvironment(
     * Registers an external [[TableSink]] in this [[TableEnvironment]]'s catalog.
     * Registered sink tables can be referenced in SQL DML clause.
     *
-    * @param name      The name under which the [[TableSink]] is registered.
+    * Examples:
+    *
+    * - predefine a table sink with schema
+    * {{{
+    *   val fieldTypes: Array[TypeInformation[_]]  = Array( #TODO )
+    *   val fieldNames: Array[String]  = Array("a", "b", "c")
+    *   val tableSink: TableSink = new YourTableSinkImpl(fieldTypes, Option(fieldNames))
+    * }}}
+    *
+    * -  register an alias for this table sink to catalog
+    * {{{
+    *   tableEnv.registerTableSink("example_sink_table", tableSink)
+    * }}}
+    *
+    * -  use the registered sink in SQL directly
+    * {{{
+    *   tableEnv.sqlInsert("INSERT INTO example_sink_table SELECT a, b, c FROM sourceTable")
+    * }}}
+    *
+    * @param name The name under which the [[TableSink]] is registered.
     * @param tableSink The [[TableSink]] to register.
     */
   override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = {

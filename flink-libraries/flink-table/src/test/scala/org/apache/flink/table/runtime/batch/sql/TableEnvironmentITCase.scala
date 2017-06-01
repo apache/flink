@@ -18,18 +18,18 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import java.io.File
+import java.util
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
-<<<<<<< HEAD:flink-libraries/flink-table/src/test/scala/org/apache/flink/table/runtime/batch/sql/TableEnvironmentITCase.scala
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.utils.CsvSQLTableSink
+import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -52,7 +52,7 @@ class TableEnvironmentITCase(
 
     val sqlQuery = "SELECT * FROM MyTable WHERE a > 9"
 
-    val result = tEnv.sql(sqlQuery).select('a.avg, 'b.sum, 'c.count)
+    val result = tEnv.sqlQuery(sqlQuery).select('a.avg, 'b.sum, 'c.count)
 
     val expected = "15,65,12"
     val results = result.toDataSet[Row].collect()
@@ -72,7 +72,7 @@ class TableEnvironmentITCase(
 
     val sqlQuery = "SELECT avg(a) as a1, sum(b) as b1, count(c) as c1 FROM MyTable"
 
-    val result = tEnv.sql(sqlQuery).select('a1 + 1, 'b1 - 5, 'c1)
+    val result = tEnv.sqlQuery(sqlQuery).select('a1 + 1, 'b1 - 5, 'c1)
 
     val expected = "16,60,12"
     val results = result.toDataSet[Row].collect()
@@ -89,11 +89,11 @@ class TableEnvironmentITCase(
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a as aa FROM MyTable WHERE b = 6"
-    val result1 = tEnv.sql(sqlQuery)
+    val result1 = tEnv.sqlQuery(sqlQuery)
     tEnv.registerTable("ResTable", result1)
 
     val sqlQuery2 = "SELECT count(aa) FROM ResTable"
-    val result2 = tEnv.sql(sqlQuery2)
+    val result2 = tEnv.sqlQuery(sqlQuery2)
 
     val expected = "6"
     val results = result2.toDataSet[Row].collect()
@@ -110,7 +110,7 @@ class TableEnvironmentITCase(
     val ds = env.fromElements(((12, true), "Hello")).toTable(tEnv).as('a1, 'a2)
     tEnv.registerTable("MyTable", ds)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hello,true\n"
 
@@ -118,30 +118,26 @@ class TableEnvironmentITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  /** test insert into **/
   @Test
-  def testInsertIntoTable(): Unit = {
-    val tmpFile = File.createTempFile("flink-sql-table-sink-test1", ".tmp")
-    tmpFile.deleteOnExit()
-    val path = tmpFile.toURI.toString
-
+  def testInsertIntoMemoryTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
+    MemoryTableSinkUtil.clear
 
     val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
 
     val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
     val fieldNames = Seq("d", "e", "f").toArray
-    val sink = new CsvSQLTableSink(path, fieldTypes, fieldNames, ",")
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink(fieldTypes, fieldNames)
     tEnv.registerTableSink("targetTable", sink)
 
     val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
-    tEnv.sql(sql)
+    tEnv.sqlUpdate(sql)
     env.execute()
 
-    val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world").mkString("\n")
-    TestBaseUtils.compareResultsByLinesInMemory(expected, path)
+    val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    assertEquals(expected.sorted, MemoryTableSinkUtil.results.sorted)
   }
 
 }

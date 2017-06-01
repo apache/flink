@@ -44,7 +44,7 @@ class TableSourceITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     tEnv.registerTableSource("csvTable", csvTable)
-    val results = tEnv.sql(
+    val results = tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
     val expected = Seq(
@@ -67,7 +67,7 @@ class TableSourceITCase(
 
     tableEnv.registerTableSource("NestedPersons", nestedTable)
 
-    val result = tableEnv.sql("SELECT NestedPersons.firstName, NestedPersons.lastName," +
+    val result = tableEnv.sqlQuery("SELECT NestedPersons.firstName, NestedPersons.lastName," +
         "NestedPersons.address.street, NestedPersons.address.city AS city " +
         "FROM NestedPersons " +
         "WHERE NestedPersons.address.city LIKE 'Dublin'").collect()

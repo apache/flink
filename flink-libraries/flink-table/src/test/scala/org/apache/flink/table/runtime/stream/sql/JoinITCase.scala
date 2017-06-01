@@ -60,7 +60,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
     tEnv.registerTable("T2", t2)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
   }
@@ -97,7 +97,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
     tEnv.registerTable("T2", t2)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
   }

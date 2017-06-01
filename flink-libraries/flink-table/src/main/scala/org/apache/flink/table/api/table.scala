@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionPar
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
+import org.apache.flink.table.plan.schema.TableSinkTable
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.annotation.varargs
@@ -790,6 +791,66 @@ class Table(
 
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink, conf)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableSink name
+    * represents a registered [[TableSink]] which defines an external storage location.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].*
+    *
+    * @param tableSink Name of the [[TableSink]] to which the [[Table]] is written.
+    * @tparam T The data type that the [[TableSink]] expects.
+    */
+  def insertInto[T](tableSink: String): Unit = {
+    insertInto(tableSink, QueryConfig.getQueryConfigFromTableEnv(this.tableEnv))
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableSink name
+    * represents a registered [[TableSink]] which defines an external storage location.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].*
+    *
+    * @param tableSink Name of the [[TableSink]] to which the [[Table]] is written.
+    * @param conf The [[QueryConfig]] to use.
+    * @tparam T The data type that the [[TableSink]] expects.
+    */
+  def insertInto[T](tableSink: String, conf: QueryConfig): Unit = {
+    require(tableSink != null && !tableSink.isEmpty, "tableSink must not be null or empty.")
+    // validate if the tableSink is registered
+    if (!tableEnv.isRegistered(tableSink)) {
+      throw TableException("tableSink must be registered.")
+    }
+    // find if the tableSink is registered //, include validation internally
+    tableEnv.getTable(tableSink) match {
+      case sink: TableSinkTable[_] => {
+        // get row type info of upstream table
+        val rowType = getRelNode.getRowType
+        val srcFieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
+          .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
+        // column count validation
+        if (srcFieldTypes.length != sink.fieldTypes.length) {
+          throw TableException(s"source column count doesn't match target table[$tableSink]'s.")
+        }
+        // column type validation, no need to validate field names
+        if (sink.fieldTypes.zipWithIndex.exists(f => f._1 != srcFieldTypes(f._2))) {
+          throw TableException(s"source row type doesn't match target table[$tableSink]'s.")
+        }
+        // emit the table to the configured table sink
+        tableEnv.writeToSink(this, sink.tableSink, conf)
+      }
+      case _ =>
+        throw new TableException("InsertInto operation needs a registered TableSink Table!")
+    }
   }
 
   /**

@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.stream.sql
-
-import java.io.File
+package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.utils.{StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.runtime.utils.StreamTestData
+import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.junit.Test
-import org.apache.flink.table.utils.CsvSQLTableSink
 
-class UnsupportedSqlTest extends StreamingWithStateTestBase {
+class InsertIntoValidationTest {
 
   /** test unsupported partial insert **/
   @Test(expected = classOf[TableException])
   def testUnsupportedPartialInsert(): Unit = {
-    val tmpFile = File.createTempFile("flink-sql-stream-table-sink-test2", ".tmp")
-    tmpFile.deleteOnExit()
-    val path = tmpFile.toURI.toString
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
@@ -44,10 +38,10 @@ class UnsupportedSqlTest extends StreamingWithStateTestBase {
 
     val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
     val fieldNames = Seq("d", "e", "f").toArray
-    val sink = new CsvSQLTableSink(path, fieldTypes, fieldNames, ",")
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink(fieldTypes, fieldNames)
     tEnv.registerTableSink("targetTable", sink)
 
     val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
-    tEnv.sql(sql)
+    tEnv.sqlQuery(sql)
   }
 }

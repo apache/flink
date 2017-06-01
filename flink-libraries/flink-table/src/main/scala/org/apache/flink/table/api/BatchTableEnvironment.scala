@@ -109,6 +109,25 @@ abstract class BatchTableEnvironment(
     * Registers an external [[TableSink]] in this [[TableEnvironment]]'s catalog.
     * Registered sink tables can be referenced in SQL DML clause.
     *
+    * Examples:
+    *
+    * - predefine a table sink with schema
+    * {{{
+    *   val fieldTypes: Array[TypeInformation[_]]  = Array( #TODO )
+    *   val fieldNames: Array[String]  = Array("a", "b", "c")
+    *   val tableSink: TableSink = new YourTableSinkImpl(fieldTypes, Option(fieldNames))
+    * }}}
+    *
+    * -  register an alias for this table sink to catalog
+    * {{{
+    *   tableEnv.registerTableSink("example_sink_table", tableSink)
+    * }}}
+    *
+    * -  use the registered sink in SQL directly
+    * {{{
+    *   tableEnv.sqlInsert("INSERT INTO example_sink_table SELECT a, b, c FROM sourceTable")
+    * }}}
+    *
     * @param name      The name under which the [[TableSink]] is registered.
     * @param tableSink The [[TableSink]] to register.
     */
@@ -342,7 +361,7 @@ abstract class BatchTableEnvironment(
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
-  def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val relNode = table.getRelNode
     val dataSetPlan = optimize(relNode)
     translate(dataSetPlan, relNode.getRowType)

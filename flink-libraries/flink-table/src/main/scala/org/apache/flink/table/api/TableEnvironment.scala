@@ -31,7 +31,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlOperatorTable}
+import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
@@ -49,13 +49,15 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference, _}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions, _}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, TableSinkTable, RowSchema}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -276,8 +278,8 @@ abstract class TableEnvironment(val config: TableConfig) {
             s"${t.msg}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
-        a.printStackTrace()
-        throw a.getCause
+        // keep original exception stack for caller
+        throw a
     }
     output
   }
@@ -497,7 +499,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Evaluates a SQL query or DML insert on registered tables and retrieves the result as a
+    * Evaluates a SQL query on registered tables and retrieves the result as a
     * [[Table]].
     *
     * All tables referenced by the query must be registered in the TableEnvironment. But
@@ -511,48 +513,130 @@ abstract class TableEnvironment(val config: TableConfig) {
     * }}}
     *
     * @param sql The SQL string to evaluate.
-    * @return The result of the query as Table or null of the DML insert operation.
+    * @return The result of the query as Table.
     */
+  @deprecated
   def sql(sql: String): Table = {
     val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
     val parsed = planner.parse(sql)
     // validate the sql query
     val validated = planner.validate(parsed)
+    // transform to a relational tree
+    val relational = planner.rel(validated)
+    new Table(this, LogicalRelNode(relational.rel))
+  }
 
-    // separate source translation if DML insert, considering sink operation has no output but all
-    // RelNodes' translation should return a DataSet/DataStream, and Calcite's TableModify
-    // defines output for DML(INSERT,DELETE,UPDATE) is a RowCount column of BigInt type. This a
-    // work around since we have no conclusion for the output type definition of sink operation
-    // (compare to traditional SQL insert).
-    if (parsed.isInstanceOf[SqlInsert]) {
-      val insert = parsed.asInstanceOf[SqlInsert]
-      // validate sink table
-      val targetName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
-      val targetTable = getTable(targetName)
-      if (null == targetTable || !targetTable.isInstanceOf[TableSinkTable[_]]) {
-        throw new TableException("SQL DML INSERT operation need a registered TableSink Table!")
-      }
-      // validate unsupported partial insertion to sink table
-      val sinkTable = targetTable.asInstanceOf[TableSinkTable[_]]
-      if (null != insert.getTargetColumnList && insert.getTargetColumnList.size() !=
-        sinkTable.fieldTypes.length) {
-        throw new TableException(
-          "SQL DML INSERT do not support insert partial columns of the target table due to table " +
-            "columns haven’t nullable property definition for now!")
-      }
-
-      writeToSink(
-        new Table(this, LogicalRelNode(planner.rel(insert.getSource).rel)),
-        sinkTable.tableSink,
-        QueryConfig.getQueryConfigFromTableEnv(this)
-        )
-      // do not return a Table after insert operation
-      null
-    } else {
+  /**
+    * Evaluates a SQL Select query on registered tables and retrieves the result as a
+    * [[Table]].
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment. But
+    * [[Table.toString]] will automatically register an unique table name and return the
+    * table name. So it allows to call SQL directly on tables like this:
+    *
+    * {{{
+    *   val table: Table = ...
+    *   // the table is not registered to the table environment
+    *   tEnv.sqlSelect(s"SELECT * FROM $table")
+    * }}}
+    *
+    * @param sql The SQL string to evaluate.
+    * @return The result of the query as Table or null of the DML insert operation.
+    */
+  def sqlQuery(sql: String): Table = {
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    // parse the sql query
+    val parsed = planner.parse(sql)
+    if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
+      // validate the sql query
+      val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
       new Table(this, LogicalRelNode(relational.rel))
+    } else {
+      throw new TableException(
+        "Unsupported sql query! sqlQuery Only accept SELECT, UNION, INTERSECT, EXCEPT, VALUES, " +
+          "WITH, ORDER_BY, EXPLICIT_TABLE")
+    }
+  }
+
+  /**
+    * Evaluates a SQL statement which must be an SQL Data Manipulation Language (DML) statement,
+    * such as INSERT, UPDATE or DELETE; or an SQL statement that returns nothing, such as a DDL
+    * statement;
+    * Currently only support a SQL INSERT statement on registered tables and has no return value.
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment. But
+    * [[Table.toString]] will automatically register an unique table name and return the
+    * table name. So it allows to call SQL directly on tables like this:
+    *
+    * {{{
+    *   /// register table sink for insertion
+    *   tEnv.registerTableSink("target_table", ...
+    *   val sourceTable: Table = ...
+    *   // sourceTable is not registered to the table environment
+    *   tEnv.sqlInsert(s"INSERT INTO target_table SELECT * FROM $sourceTable")
+    * }}}
+    *
+    * @param sql The SQL String to evaluate.
+    */
+  def sqlUpdate(sql: String): Unit = {
+    sqlUpdate(sql, QueryConfig.getQueryConfigFromTableEnv(this))
+  }
+
+  /**
+    * Evaluates a SQL statement which must be an SQL Data Manipulation Language (DML) statement,
+    * such as INSERT, UPDATE or DELETE; or an SQL statement that returns nothing, such as a DDL
+    * statement;
+    * Currently only support a SQL INSERT statement on registered tables and has no return value.
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment. But
+    * [[Table.toString]] will automatically register an unique table name and return the
+    * table name. So it allows to call SQL directly on tables like this:
+    *
+    * {{{
+    *   /// register table sink for insertion
+    *   tEnv.registerTableSink("target_table", ...
+    *   val sourceTable: Table = ...
+    *   // sourceTable is not registered to the table environment
+    *   tEnv.sqlInsert(s"INSERT INTO target_table SELECT * FROM $sourceTable")
+    * }}}
+    *
+    * @param sql The SQL String to evaluate.
+    * @param config The [[QueryConfig]] to use.
+    */
+  def sqlUpdate(sql: String, config: QueryConfig): Unit = {
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    // parse the sql query
+    val parsed = planner.parse(sql)
+    parsed match {
+      case insert: SqlInsert => {
+        // validate the sql query
+        planner.validate(parsed)
+
+        // validate sink table
+        val targetName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
+        val targetTable = getTable(targetName)
+        if (null == targetTable || !targetTable.isInstanceOf[TableSinkTable[_]]) {
+          throw new TableException("SQL INSERT operation need a registered TableSink Table!")
+        }
+        // validate unsupported partial insertion to sink table
+        val sinkTable = targetTable.asInstanceOf[TableSinkTable[_]]
+        if (null != insert.getTargetColumnList && insert.getTargetColumnList.size() !=
+          sinkTable.fieldTypes.length) {
+          throw new TableException(
+            "SQL INSERT do not support insert partial columns of the target table due to table " +
+              "columns haven’t nullable property definition for now!")
+        }
+
+        writeToSink(
+          new Table(this, LogicalRelNode(planner.rel(insert.getSource).rel)),
+          sinkTable.tableSink,
+          config)
+      }
+      case _ =>
+        throw new TableException("Unsupported sql query! sqlUpdate only accept INSERT currently.")
     }
   }
 
@@ -561,6 +645,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @param conf The [[QueryConfig]] to use.
     * @tparam T The data type that the [[TableSink]] expects.
     */
   private[flink] def writeToSink[T](table: Table, sink: TableSink[T], conf: QueryConfig): Unit
@@ -596,11 +681,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name The table name to check.
     * @return true, if a table is registered under the name, false otherwise.
     */
-  protected def isRegistered(name: String): Boolean = {
+  protected[flink] def isRegistered(name: String): Boolean = {
     rootSchema.getTableNames.contains(name)
   }
 
-  protected def getTable(name: String): org.apache.calcite.schema.Table = {
+  protected[flink] def getTable(name: String): org.apache.calcite.schema.Table = {
     rootSchema.getTable(name)
   }
 
