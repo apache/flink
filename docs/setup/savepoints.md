@@ -27,7 +27,7 @@ under the License.
 
 ## Overview
 
-Savepoints are externally stored checkpoints that you can use to stop-and-resume or update your Flink programs. They use Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) to create a snapshot of the state of your streaming program and write the checkpoint data and meta data out to an external file system.
+Savepoints are externally stored self-contained checkpoints that you can use to stop-and-resume or update your Flink programs. They use Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) to create a (non-incremental) snapshot of the state of your streaming program and write the checkpoint data and meta data out to an external file system.
 
 This page covers all steps involved in triggering, restoring, and disposing savepoints.
 For more details on how Flink handles state and failures in general, check out the [State in Streaming Programs]({{ site.baseurl }}/dev/stream/state.html) page.
@@ -144,7 +144,7 @@ $ bin/flink savepoint -d :savepointPath
 
 This disposes the savepoint stored in `:savepointPath`.
 
-Note that since savepoints always go to a file system it is possible to also manually delete the savepoint via a regular file system operation. Up to Flink 1.2, this way a more tedious task which was performed with the savepoint command above.
+Note that it is possible to also manually delete a savepoint via regular file system operations without affecting other savepoints or checkpoints (recall that each savepoint is self-contained). Up to Flink 1.2, this way a more tedious task which was performed with the savepoint command above.
 
 ### Configuration
 
