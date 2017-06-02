@@ -22,11 +22,15 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link ResultPartitionDeploymentDescriptor}.
+ */
 public class ResultPartitionDeploymentDescriptorTest {
 
 	/**

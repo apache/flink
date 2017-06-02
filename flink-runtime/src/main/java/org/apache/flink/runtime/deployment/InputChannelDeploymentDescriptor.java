@@ -31,9 +31,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -41,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Deployment descriptor for a single input channel instance.
  *
- * <p> Each input channel consumes a single subpartition. The index of the subpartition to consume
+ * <p>Each input channel consumes a single subpartition. The index of the subpartition to consume
  * is part of the {@link InputGateDeploymentDescriptor} as it is the same for each input channel of
  * the respective input gate.
  *
@@ -51,7 +48,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class InputChannelDeploymentDescriptor implements Serializable {
 
 	private static final long serialVersionUID = 373711381640454080L;
-	private static Logger LOG = LoggerFactory.getLogger(InputChannelDeploymentDescriptor.class);
 
 	/** The ID of the partition the input channel is going to consume. */
 	private final ResultPartitionID consumedPartitionId;
@@ -111,7 +107,7 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 						producerState == ExecutionState.FINISHED ||
 						producerState == ExecutionState.SCHEDULED ||
 						producerState == ExecutionState.DEPLOYING)) {
-				
+
 				final TaskManagerLocation partitionTaskManagerLocation = producerSlot.getTaskManagerLocation();
 				final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
 

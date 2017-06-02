@@ -432,7 +432,6 @@ under the License.
 						**/runtime/client/**,
 						**/runtime/clusterframework/**,       
 						**/runtime/concurrent/**,
-						**/runtime/deployment/**,
 						**/runtime/execution/**,
 						**/runtime/executiongraph/**,
 						**/runtime/heartbeat/**,
