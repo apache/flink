@@ -822,11 +822,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * FAILED, and, if the invokable code is running, starts an asynchronous thread
 	 * that aborts that code.
 	 *
-	 * <p>This method never blocks.</p>
+	 * <p>This method never blocks.
 	 */
 	@Override
 	public void handleAsyncException(String message, Throwable exception) {
-		getEnvironment().failExternally(exception);
+		if (isRunning) {
+			// only fail if the task is still running
+			getEnvironment().failExternally(exception);
+		}
 	}
 
 	// ------------------------------------------------------------------------
