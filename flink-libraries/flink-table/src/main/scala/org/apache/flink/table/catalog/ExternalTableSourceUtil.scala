@@ -24,7 +24,7 @@ import org.apache.commons.configuration.{ConfigurationException, ConversionExcep
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.annotation.TableType
 import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException}
-import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.util.InstantiationUtil
@@ -126,10 +126,7 @@ object ExternalTableSourceUtil {
           } else {
             FlinkStatistic.UNKNOWN
           }
-          convertedTableSource match {
-            case s : StreamTableSource[_] => new StreamTableSourceTable(s, flinkStatistic)
-            case _ => new TableSourceTable(convertedTableSource, flinkStatistic)
-          }
+          new TableSourceTable(convertedTableSource, flinkStatistic)
         }
       case None =>
         LOG.error(s"Cannot find any TableSourceConverter binded to table type [$tableType]. " +

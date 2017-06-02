@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
-import org.apache.flink.table.plan.schema.StreamTableSourceTable
+import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 import org.junit.Assert.assertTrue
@@ -42,7 +42,7 @@ class ExternalTableSourceUtilTest {
     val schema = new TableSchema(Array("foo"), Array(BasicTypeInfo.INT_TYPE_INFO))
     val table = ExternalCatalogTable("mock", schema)
     val tableSource = ExternalTableSourceUtil.fromExternalCatalogTable(table)
-    assertTrue(tableSource.isInstanceOf[StreamTableSourceTable[_]])
+    assertTrue(tableSource.isInstanceOf[TableSourceTable[_]])
   }
 }
 
