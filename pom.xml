@@ -723,6 +723,9 @@ under the License.
 		
 		<profile>
 			<id>release</id>
+			<properties>
+				<java.version>1.7</java.version>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -755,7 +758,31 @@ under the License.
 											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
 											<version>(,3.3)</version>
 										</requireMavenVersion>
+										<requireJavaVersion>
+											<version>1.8.0</version>
+										</requireJavaVersion>
 									</rules>
+
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+								<configuration>
+									<additionalparam>-Xdoclint:none</additionalparam>
+									<detectOfflineLinks>false</detectOfflineLinks>
 								</configuration>
 							</execution>
 						</executions>
