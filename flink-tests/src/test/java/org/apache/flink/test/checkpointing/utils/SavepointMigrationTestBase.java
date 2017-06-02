@@ -169,7 +169,13 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 		final String jobmanagerSavepointPath = ((JobManagerMessages.TriggerSavepointSuccess) savepointResult).savepointPath();
 		LOG.info("Saved savepoint: " + jobmanagerSavepointPath);
 
-		FileUtils.moveFile(new File(new URI(jobmanagerSavepointPath).getPath()), new File(savepointPath));
+		File jobManagerSavepoint = new File(new URI(jobmanagerSavepointPath).getPath());
+		// savepoints were changed to be directories in Flink 1.3
+		if (jobManagerSavepoint.isDirectory()) {
+			FileUtils.moveDirectory(jobManagerSavepoint, new File(savepointPath));
+		} else {
+			FileUtils.moveFile(jobManagerSavepoint, new File(savepointPath));
+		}
 	}
 
 	@SafeVarargs
