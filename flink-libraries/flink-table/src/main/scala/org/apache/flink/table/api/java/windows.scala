@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.java
 
-import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithOrderBy, SlideWithSize, SessionWithGap}
+import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**
@@ -98,7 +98,7 @@ object Over {
     */
   def orderBy(orderBy: String): OverWindowWithOrderBy = {
     val orderByExpr = ExpressionParser.parseExpression(orderBy)
-    new OverWindowWithOrderBy(Seq[Expression](), orderByExpr)
+    new OverWindowWithOrderBy(Array[Expression](), orderByExpr)
   }
 
   /**
@@ -126,4 +126,22 @@ class PartitionedOver(private val partitionByExpr: Array[Expression]) {
     val orderByExpr = ExpressionParser.parseExpression(orderBy)
     new OverWindowWithOrderBy(partitionByExpr, orderByExpr)
   }
+}
+
+
+class OverWindowWithOrderBy(
+  private val partitionByExpr: Array[Expression],
+  private val orderByExpr: Expression) {
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window.
+    *
+    * @param preceding preceding offset relative to the current row.
+    * @return this over window
+    */
+  def preceding(preceding: String): OverWindowWithPreceding = {
+    val precedingExpr = ExpressionParser.parseExpression(preceding)
+    new OverWindowWithPreceding(partitionByExpr, orderByExpr, precedingExpr)
+  }
+
 }
