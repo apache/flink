@@ -521,6 +521,12 @@ public class TypeExtractor {
 				throw new InvalidTypesException("Internal error occurred.", e);
 			}
 			if (exec != null) {
+				Preconditions.checkArgument(
+					lambdaInputTypeArgumentIndices != null && lambdaInputTypeArgumentIndices.length >= 1,
+					"Indices for input type arguments within lambda not provided");
+				Preconditions.checkArgument(
+					lambdaOutputTypeArgumentIndices != null,
+					"Indices for output type arguments within lambda not provided");
 				// check for lambda type erasure
 				validateLambdaGenericParameters(exec);
 
@@ -555,7 +561,7 @@ public class TypeExtractor {
 				return new TypeExtractor().privateCreateTypeInfo(output, inType, null);
 			} else {
 				Preconditions.checkArgument(inputTypeArgumentIndex >= 0, "Input type argument index was not provided");
-				Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Input type argument index was not provided");
+				Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
 				validateInputType(baseClass, function.getClass(), inputTypeArgumentIndex, inType);
 				if(function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
@@ -650,6 +656,15 @@ public class TypeExtractor {
 				throw new InvalidTypesException("Internal error occurred.", e);
 			}
 			if (exec != null) {
+				Preconditions.checkArgument(
+					lambdaInput1TypeArgumentIndices != null && lambdaInput1TypeArgumentIndices.length >= 1,
+					"Indices for first input type arguments within lambda not provided");
+				Preconditions.checkArgument(
+					lambdaInput2TypeArgumentIndices != null && lambdaInput1TypeArgumentIndices.length >= 1,
+					"Indices for second input type arguments within lambda not provided");
+				Preconditions.checkArgument(
+					lambdaOutputTypeArgumentIndices != null,
+					"Indices for output type arguments within lambda not provided");
 				// check for lambda type erasure
 				validateLambdaGenericParameters(exec);
 
@@ -681,6 +696,9 @@ public class TypeExtractor {
 					in2Type);
 			}
 			else {
+				Preconditions.checkArgument(input1TypeArgumentIndex >= 0, "Input 1 type argument index was not provided");
+				Preconditions.checkArgument(input2TypeArgumentIndex >= 0, "Input 2 type argument index was not provided");
+				Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
 				validateInputType(baseClass, function.getClass(), input1TypeArgumentIndex, in1Type);
 				validateInputType(baseClass, function.getClass(), input2TypeArgumentIndex, in2Type);
 				if(function instanceof ResultTypeQueryable) {
