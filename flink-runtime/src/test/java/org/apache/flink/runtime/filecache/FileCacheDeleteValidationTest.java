@@ -18,26 +18,25 @@
 
 package org.apache.flink.runtime.filecache;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.Future;
-
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.core.fs.Path;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.rules.TemporaryFolder;
 
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertTrue;
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.Future;
+
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test delete process of {@link FileCache}. The local cache file should not be deleted why another task comes in 5 seconds.
@@ -64,7 +63,7 @@ public class FileCacheDeleteValidationTest {
 
 	private FileCache fileCache;
 	private File f;
-	
+
 	@Before
 	public void setup() throws IOException {
 		String[] tmpDirectories = new String[]{temporaryFolder.newFolder().getAbsolutePath()};
@@ -75,7 +74,7 @@ public class FileCacheDeleteValidationTest {
 			e.printStackTrace();
 			fail("Cannot create FileCache: " + e.getMessage());
 		}
-		
+
 		f = temporaryFolder.newFile("cacheFile");
 		try {
 			Files.write(testFileContent, f, Charsets.UTF_8);
@@ -102,19 +101,19 @@ public class FileCacheDeleteValidationTest {
 		try {
 			final JobID jobID = new JobID();
 			final String fileName = "test_file";
-			
+
 			final String filePath = f.toURI().toString();
-			
+
 			// copy / create the file
 			Future<Path> copyResult = fileCache.createTmpFile(fileName, new DistributedCacheEntry(filePath, false), jobID);
 			copyResult.get();
-			
+
 			// get another reference to the file
 			Future<Path> copyResult2 = fileCache.createTmpFile(fileName, new DistributedCacheEntry(filePath, false), jobID);
-			
+
 			// this should be available immediately
 			assertTrue(copyResult2.isDone());
-			
+
 			// delete the file
 			fileCache.deleteTmpFile(fileName, jobID);
 			// file should not yet be deleted
@@ -124,10 +123,10 @@ public class FileCacheDeleteValidationTest {
 			fileCache.deleteTmpFile(fileName, jobID);
 			// file should still not be deleted, but remain for a bit
 			assertTrue(fileCache.holdsStillReference(fileName, jobID));
-			
+
 			fileCache.createTmpFile(fileName, new DistributedCacheEntry(filePath, false), jobID);
 			fileCache.deleteTmpFile(fileName, jobID);
-			
+
 			// after a while, the file should disappear
 			long deadline = System.currentTimeMillis() + 20000;
 			do {
