@@ -849,7 +849,7 @@ class Table(
   def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw TableException("Over-windows for batch tables are currently not supported..")
+      throw TableException("Over-windows for batch tables are currently not supported.")
     }
 
     if (overWindows.size != 1) {

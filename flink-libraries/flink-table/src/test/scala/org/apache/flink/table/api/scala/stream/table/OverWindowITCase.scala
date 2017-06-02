@@ -147,7 +147,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRangeOver(): Unit = {
+  def testProcTimeBoundedPartitionedRowsOver(): Unit = {
 
     val data = List(
       (1, 1L, 0, "Hallo", 1L),
