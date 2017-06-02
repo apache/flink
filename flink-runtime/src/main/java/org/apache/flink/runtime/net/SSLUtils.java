@@ -31,6 +31,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.TrustManagerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.ServerSocket;
@@ -38,13 +39,13 @@ import java.security.KeyStore;
 import java.util.Arrays;
 
 /**
- * Common utilities to manage SSL transport settings
+ * Common utilities to manage SSL transport settings.
  */
 public class SSLUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
 
 	/**
-	 * Retrieves the global ssl flag from configuration
+	 * Retrieves the global ssl flag from configuration.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -58,7 +59,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Sets SSl version and cipher suites for SSLServerSocket
+	 * Sets SSl version and cipher suites for SSLServerSocket.
 	 * @param socket
 	 *        Socket to be handled
 	 * @param config
@@ -81,7 +82,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Sets SSL version and cipher suites for SSLEngine
+	 * Sets SSL version and cipher suites for SSLEngine.
 	 * @param engine
 	 *        SSLEngine to be handled
 	 * @param config
@@ -93,7 +94,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Sets SSL options to verify peer's hostname in the certificate
+	 * Sets SSL options to verify peer's hostname in the certificate.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -112,7 +113,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Creates the SSL Context for the client if SSL is configured
+	 * Creates the SSL Context for the client if SSL is configured.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -160,7 +161,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Creates the SSL Context for the server if SSL is configured
+	 * Creates the SSL Context for the server if SSL is configured.
 	 *
 	 * @param sslConfig
 	 *        The application configuration

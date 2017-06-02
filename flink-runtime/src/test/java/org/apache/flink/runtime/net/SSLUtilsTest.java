@@ -15,26 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.net;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocket;
-import java.net.ServerSocket;
-import java.util.Random;
 
-/*
- * Tests for the SSL utilities
+import java.net.ServerSocket;
+
+/**
+ * Tests for the {@link SSLUtils}.
  */
 public class SSLUtilsTest {
 
 	/**
-	 * Tests if SSL Client Context is created given a valid SSL configuration
+	 * Tests if SSL Client Context is created given a valid SSL configuration.
 	 */
 	@Test
 	public void testCreateSSLClientContext() throws Exception {
@@ -49,7 +51,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSL Client Context is not created if SSL is not configured
+	 * Tests if SSL Client Context is not created if SSL is not configured.
 	 */
 	@Test
 	public void testCreateSSLClientContextWithSSLDisabled() throws Exception {
@@ -62,7 +64,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSL Client Context creation fails with bad SSL configuration
+	 * Tests if SSL Client Context creation fails with bad SSL configuration.
 	 */
 	@Test
 	public void testCreateSSLClientContextMisconfiguration() {
@@ -81,7 +83,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSL Server Context is created given a valid SSL configuration
+	 * Tests if SSL Server Context is created given a valid SSL configuration.
 	 */
 	@Test
 	public void testCreateSSLServerContext() throws Exception {
@@ -97,7 +99,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSL Server Context is not created if SSL is disabled
+	 * Tests if SSL Server Context is not created if SSL is disabled.
 	 */
 	@Test
 	public void testCreateSSLServerContextWithSSLDisabled() throws Exception {
@@ -110,7 +112,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSL Server Context creation fails with bad SSL configuration
+	 * Tests if SSL Server Context creation fails with bad SSL configuration.
 	 */
 	@Test
 	public void testCreateSSLServerContextMisconfiguration() {
@@ -130,7 +132,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSL Server Context creation fails with bad SSL configuration
+	 * Tests if SSL Server Context creation fails with bad SSL configuration.
 	 */
 	@Test
 	public void testCreateSSLServerContextWithMultiProtocols() {
@@ -151,7 +153,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLServerSocket
+	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLServerSocket.
 	 */
 	@Test
 	public void testSetSSLVersionAndCipherSuitesForSSLServerSocket() throws Exception {
@@ -192,7 +194,7 @@ public class SSLUtilsTest {
 	}
 
 	/**
-	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLEngine
+	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLEngine.
 	 */
 	@Test
 	public void testSetSSLVersionAndCipherSuitesForSSLEngine() throws Exception {
