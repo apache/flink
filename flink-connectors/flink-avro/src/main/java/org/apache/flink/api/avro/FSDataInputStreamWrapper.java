@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.avro;
+
+import org.apache.flink.core.fs.FSDataInputStream;
+
+import org.apache.avro.file.SeekableInput;
 
 import java.io.Closeable;
 import java.io.IOException;
 
-import org.apache.avro.file.SeekableInput;
-import org.apache.flink.core.fs.FSDataInputStream;
-
-
 /**
- * Code copy pasted from org.apache.avro.mapred.FSInput (which is Apache licensed as well)
- * 
- * The wrapper keeps track of the position in the data stream.
+ * Code copy pasted from org.apache.avro.mapred.FSInput (which is Apache licensed as well).
+ *
+ * <p>The wrapper keeps track of the position in the data stream.
  */
 public class FSDataInputStreamWrapper implements Closeable, SeekableInput {
 	private final FSDataInputStream stream;

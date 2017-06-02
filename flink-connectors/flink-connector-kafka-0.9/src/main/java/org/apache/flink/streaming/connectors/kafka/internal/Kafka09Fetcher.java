@@ -33,7 +33,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +43,7 @@ import java.util.Properties;
 
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.9 consumer API.
- * 
+ *
  * @param <T> The type of elements produced by the fetcher.
  */
 public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
@@ -53,16 +52,16 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	// ------------------------------------------------------------------------
 
-	/** The schema to convert between Kafka's byte messages, and Flink's objects */
+	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
 	private final KeyedDeserializationSchema<T> deserializer;
 
-	/** The handover of data and exceptions between the consumer thread and the task thread */
+	/** The handover of data and exceptions between the consumer thread and the task thread. */
 	private final Handover handover;
 
-	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher */
+	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher. */
 	private final KafkaConsumerThread consumerThread;
 
-	/** Flag to mark the main work loop as alive */
+	/** Flag to mark the main work loop as alive. */
 	private volatile boolean running = true;
 
 	// ------------------------------------------------------------------------
@@ -80,8 +79,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
-			boolean useMetrics) throws Exception
-	{
+			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -97,7 +95,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 		final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
 		addOffsetStateGauge(kafkaMetricGroup);
-		
+
 		this.consumerThread = new KafkaConsumerThread(
 				LOG,
 				handover,

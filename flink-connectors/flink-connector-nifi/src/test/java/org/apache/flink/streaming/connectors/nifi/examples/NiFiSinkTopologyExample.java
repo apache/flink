@@ -14,6 +14,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
+
 package org.apache.flink.streaming.connectors.nifi.examples;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -24,6 +25,7 @@ import org.apache.flink.streaming.connectors.nifi.NiFiDataPacket;
 import org.apache.flink.streaming.connectors.nifi.NiFiDataPacketBuilder;
 import org.apache.flink.streaming.connectors.nifi.NiFiSink;
 import org.apache.flink.streaming.connectors.nifi.StandardNiFiDataPacket;
+
 import org.apache.nifi.remote.client.SiteToSiteClient;
 import org.apache.nifi.remote.client.SiteToSiteClientConfig;
 
@@ -47,7 +49,7 @@ public class NiFiSinkTopologyExample {
 					@Override
 					public NiFiDataPacket createNiFiDataPacket(String s, RuntimeContext ctx) {
 						return new StandardNiFiDataPacket(s.getBytes(ConfigConstants.DEFAULT_CHARSET),
-							new HashMap<String,String>());
+							new HashMap<String, String>());
 					}
 				}));
 

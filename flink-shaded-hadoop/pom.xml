@@ -37,6 +37,7 @@ under the License.
 	<modules>
 		<module>flink-shaded-hadoop2</module>
 		<module>flink-shaded-hadoop2-uber</module>
+		<module>flink-shaded-yarn-tests</module>
 	</modules>
 
 	<dependencies>
@@ -62,15 +63,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
-
-	<profiles>
-		<profile>
-			<id>include-yarn-tests</id>
-			<modules>
-				<module>flink-shaded-include-yarn-tests</module>
-			</modules>
-		</profile>
-	</profiles>
 
 	<build>
 		<plugins>

@@ -34,6 +34,7 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.types.Row;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -47,6 +48,9 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Integration tests for batch SQL.
+ */
 @RunWith(Parameterized.class)
 public class SqlITCase extends TableProgramsCollectionTestBase {
 
@@ -141,7 +145,7 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
 		tableEnv.registerDataSet("t1", ds1, "a, b, c");
-		tableEnv.registerDataSet("t2",ds2, "d, e, f, g, h");
+		tableEnv.registerDataSet("t2", ds2, "d, e, f, g, h");
 
 		String sqlQuery = "SELECT c, g FROM t1, t2 WHERE b = e";
 		Table result = tableEnv.sql(sqlQuery);

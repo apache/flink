@@ -28,8 +28,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
-import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -52,19 +52,19 @@ import java.io.IOException;
 public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, V>, V>
 		implements InternalKvState<N>, State {
 
-	/** Serializer for the namespace */
+	/** Serializer for the namespace. */
 	final TypeSerializer<N> namespaceSerializer;
 
-	/** The current namespace, which the next value methods will refer to */
+	/** The current namespace, which the next value methods will refer to. */
 	private N currentNamespace;
 
-	/** Backend that holds the actual RocksDB instance where we store state */
+	/** Backend that holds the actual RocksDB instance where we store state. */
 	protected RocksDBKeyedStateBackend<K> backend;
 
-	/** The column family of this particular instance of state */
+	/** The column family of this particular instance of state. */
 	protected ColumnFamilyHandle columnFamily;
 
-	/** State descriptor from which to create this state instance */
+	/** State descriptor from which to create this state instance. */
 	protected final SD stateDesc;
 
 	/**
@@ -110,7 +110,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
 			backend.db.remove(columnFamily, writeOptions, key);
-		} catch (IOException|RocksDBException e) {
+		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}
 	}
@@ -220,7 +220,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			value >>>= 8;
 		} while (value != 0);
 	}
-	
+
 	protected Tuple3<Integer, K, N> readKeyWithGroupAndNamespace(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
 		int keyGroup = readKeyGroup(inputView);
 		K key = readKey(inputStream, inputView);

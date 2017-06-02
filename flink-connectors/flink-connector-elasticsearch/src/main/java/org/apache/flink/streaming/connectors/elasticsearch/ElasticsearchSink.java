@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
+
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.index.IndexRequest;
@@ -32,24 +33,20 @@ import java.util.Map;
  * Elasticsearch 1.x sink that requests multiple {@link ActionRequest ActionRequests}
  * against a cluster for each incoming element.
  *
- * <p>
- * When using the first constructor {@link #ElasticsearchSink(java.util.Map, ElasticsearchSinkFunction)}
+ * <p>When using the first constructor {@link #ElasticsearchSink(java.util.Map, ElasticsearchSinkFunction)}
  * the sink will create a local {@link Node} for communicating with the Elasticsearch cluster. When using the second
  * constructor {@link #ElasticsearchSink(java.util.Map, java.util.List, ElasticsearchSinkFunction)} a
  * {@link TransportClient} will be used instead.
  *
- * <p>
- * <b>Attention: </b> When using the {@code TransportClient} the sink will fail if no cluster
+ * <p><b>Attention: </b> When using the {@code TransportClient} the sink will fail if no cluster
  * can be connected to. When using the local {@code Node} for communicating, the sink will block and wait for a cluster
  * to come online.
  *
- * <p>
- * The {@link Map} passed to the constructor is used to create the {@link Node} or {@link TransportClient}. The config
+ * <p>The {@link Map} passed to the constructor is used to create the {@link Node} or {@link TransportClient}. The config
  * keys can be found in the <a href="https://www.elastic.io">Elasticsearch documentation</a>. An important setting is
  * {@code cluster.name}, which should be set to the name of the cluster that the sink should emit to.
  *
- * <p>
- * Internally, the sink will use a {@link BulkProcessor} to send {@link ActionRequest ActionRequests}.
+ * <p>Internally, the sink will use a {@link BulkProcessor} to send {@link ActionRequest ActionRequests}.
  * This will buffer elements before sending a request to the cluster. The behaviour of the
  * {@code BulkProcessor} can be configured using these config keys:
  * <ul>
@@ -59,8 +56,7 @@ import java.util.Map;
  *   settings in milliseconds
  * </ul>
  *
- * <p>
- * You also have to provide an {@link ElasticsearchSinkFunction}. This is used to create multiple
+ * <p>You also have to provide an {@link ElasticsearchSinkFunction}. This is used to create multiple
  * {@link ActionRequest ActionRequests} for each incoming element. See the class level documentation of
  * {@link ElasticsearchSinkFunction} for an example.
  *

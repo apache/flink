@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.cassandra.example;
 
 import com.datastax.driver.mapping.annotations.Column;
@@ -21,6 +22,9 @@ import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
+/**
+ * Pojo with DataStax annotations..
+ */
 @Table(keyspace = "test", name = "message")
 public class Message implements Serializable {
 

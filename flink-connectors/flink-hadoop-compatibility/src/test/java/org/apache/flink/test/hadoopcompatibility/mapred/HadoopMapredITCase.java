@@ -22,11 +22,15 @@ import org.apache.flink.test.hadoopcompatibility.mapred.example.HadoopMapredComp
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.OperatingSystem;
+
 import org.junit.Assume;
 import org.junit.Before;
 
+/**
+ * IT cases for mapred.
+ */
 public class HadoopMapredITCase extends JavaProgramTestBase {
-	
+
 	protected String textPath;
 	protected String resultPath;
 
@@ -47,7 +51,7 @@ public class HadoopMapredITCase extends JavaProgramTestBase {
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath, new String[]{".", "_"});
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		HadoopMapredCompatWordCount.main(new String[] { textPath, resultPath });

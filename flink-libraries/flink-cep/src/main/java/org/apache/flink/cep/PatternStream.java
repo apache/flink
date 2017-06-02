@@ -40,7 +40,7 @@ import java.util.Map;
  * {@link org.apache.flink.cep.nfa.NFA}. In order to process the detected sequences, the user
  * has to specify a {@link PatternSelectFunction} or a {@link PatternFlatSelectFunction}.
  *
- * Additionally it allows to handle partially matched event patterns which have timed out. For this
+ * <p>Additionally it allows to handle partially matched event patterns which have timed out. For this
  * the user has to specify a {@link PatternTimeoutFunction} or a {@link PatternFlatTimeoutFunction}.
  *
  * @param <T> Type of the events
@@ -119,7 +119,7 @@ public class PatternStream<T> {
 	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
 	 * exactly one resulting element.
 	 *
-	 * Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
 	 * partial pattern sequence the provided {@link PatternTimeoutFunction} is called. The pattern
 	 * timeout function can produce exactly one resulting element.
 	 *
@@ -220,7 +220,7 @@ public class PatternStream<T> {
 	 * the provided {@link PatternFlatSelectFunction} is called. The pattern flat select function
 	 * can produce an arbitrary number of resulting elements.
 	 *
-	 * Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
 	 * partial pattern sequence the provided {@link PatternFlatTimeoutFunction} is called. The
 	 * pattern timeout function can produce an arbitrary number of resulting elements.
 	 *
@@ -396,7 +396,6 @@ public class PatternStream<T> {
 		public PatternFlatSelectMapper(PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 			this.patternFlatSelectFunction = patternFlatSelectFunction;
 		}
-
 
 		@Override
 		public void flatMap(Map<String, List<T>> value, Collector<R> out) throws Exception {

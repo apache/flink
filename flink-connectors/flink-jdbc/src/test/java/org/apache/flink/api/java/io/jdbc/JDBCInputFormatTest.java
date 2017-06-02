@@ -23,6 +23,7 @@ import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.types.Row;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,6 +32,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
 
+/**
+ * Tests for the {@link JDBCInputFormat}.
+ */
 public class JDBCInputFormatTest extends JDBCTestBase {
 
 	private JDBCInputFormat jdbcInputFormat;
@@ -60,7 +64,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername("org.apache.derby.jdbc.idontexist")
 				.setDBUrl(DB_URL)
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -71,7 +75,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -82,7 +86,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery("iamnotsql")
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -92,7 +96,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.finish();
 	}
 
@@ -102,7 +106,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		//this query does not exploit parallelism
@@ -122,7 +126,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat.closeInputFormat();
 		Assert.assertEquals(TEST_DATA.length, recordCount);
 	}
-	
+
 	@Test
 	public void testJDBCInputFormatWithParallelismAndNumericColumnSplitting() throws IOException {
 		final int fetchSize = 1;
@@ -133,7 +137,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.setParametersProvider(pramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -163,13 +167,13 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	public void testJDBCInputFormatWithoutParallelismAndNumericColumnSplitting() throws IOException {
 		final long min = TEST_DATA[0].id;
 		final long max = TEST_DATA[TEST_DATA.length - 1].id;
-		final long fetchSize = max + 1;//generate a single split
+		final long fetchSize = max + 1; //generate a single split
 		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.setParametersProvider(pramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -194,7 +198,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat.closeInputFormat();
 		Assert.assertEquals(TEST_DATA.length, recordCount);
 	}
-	
+
 	@Test
 	public void testJDBCInputFormatWithParallelismAndGenericSplitting() throws IOException {
 		Serializable[][] queryParameters = new String[2][1];
@@ -205,7 +209,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.setParametersProvider(paramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -231,21 +235,21 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 
 			int id = ((int) row.getField(0));
 			int testDataIndex = id - 1001;
-			
+
 			assertEquals(TEST_DATA[testDataIndex], row);
 			sum += id;
 		}
-		
+
 		Assert.assertEquals(expectedIDSum, sum);
 	}
-	
+
 	@Test
 	public void testEmptyResults() throws IOException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(SELECT_EMPTY)
-				.setRowTypeInfo(rowTypeInfo)
+				.setRowTypeInfo(ROW_TYPE_INFO)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		try {

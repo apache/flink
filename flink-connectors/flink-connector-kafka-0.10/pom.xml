@@ -130,7 +130,7 @@ under the License.
 			<version>${kafka.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-tests_${scala.binary.version}</artifactId>
@@ -209,5 +209,5 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-	
+
 </project>

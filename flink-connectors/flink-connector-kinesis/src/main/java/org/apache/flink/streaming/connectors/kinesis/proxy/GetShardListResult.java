@@ -19,9 +19,9 @@ package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 

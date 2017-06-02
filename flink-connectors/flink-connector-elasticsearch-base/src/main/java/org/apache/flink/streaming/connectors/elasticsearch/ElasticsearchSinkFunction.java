@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
+
 import org.elasticsearch.action.ActionRequest;
 
 import java.io.Serializable;
@@ -27,11 +28,9 @@ import java.io.Serializable;
 /**
  * Creates multiple {@link ActionRequest ActionRequests} from an element in a stream.
  *
- * <p>
- * This is used by sinks to prepare elements for sending them to Elasticsearch.
+ * <p>This is used by sinks to prepare elements for sending them to Elasticsearch.
  *
- * <p>
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
  *					private static class TestElasticSearchSinkFunction implements

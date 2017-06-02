@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.streaming.connectors.fs.Clock;
+
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
@@ -28,27 +30,27 @@ import java.util.Date;
 /**
  * A {@link Bucketer} that assigns to buckets based on current system time.
  *
- * <p>
- * The {@code DateTimeBucketer} will create directories of the following form:
+ *
+ * <p>The {@code DateTimeBucketer} will create directories of the following form:
  * {@code /{basePath}/{dateTimePath}/}. The {@code basePath} is the path
  * that was specified as a base path when creating the
  * {@link BucketingSink}. The {@code dateTimePath}
  * is determined based on the current system time and the user provided format string.
  *
- * <p>
- * {@link SimpleDateFormat} is used to derive a date string from the current system time and
+ *
+ * <p>{@link SimpleDateFormat} is used to derive a date string from the current system time and
  * the date format string. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
  * files will have a granularity of hours.
  *
  *
- * <p>
- * Example:
+ *
+ * <p>Example:
  *
  * <pre>{@code
  *     Bucketer buck = new DateTimeBucketer("yyyy-MM-dd--HH");
  * }</pre>
  *
- * This will create for example the following bucket path:
+ * <p>This will create for example the following bucket path:
  * {@code /base/1976-12-31-14/}
  *
  */

@@ -18,12 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.Properties;
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
+
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
+
+import java.util.Properties;
 
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.9.

@@ -14,16 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
+
+import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 
+/**
+ * Tests for the{@link JSONKeyValueDeserializationSchema}.
+ */
 public class JSONKeyValueDeserializationSchemaTest {
 	@Test
 	public void testDeserializeWithoutMetadata() throws IOException {
@@ -38,7 +43,6 @@ public class JSONKeyValueDeserializationSchemaTest {
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
 		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0);
-
 
 		Assert.assertTrue(deserializedValue.get("metadata") == null);
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());

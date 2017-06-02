@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
+/**
+ * A lambda filter using a static method.
+ */
 public class FilterLambda1 {
 
 	public static void main(String[] args) throws Exception {

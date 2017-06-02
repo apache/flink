@@ -15,21 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -53,10 +55,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link FlinkKafkaProducerBase}.
+ */
 public class FlinkKafkaProducerBaseTest {
 
 	/**
-	 * Tests that the constructor eagerly checks bootstrap servers are set in config
+	 * Tests that the constructor eagerly checks bootstrap servers are set in config.
 	 */
 	@Test(expected = IllegalArgumentException.class)
 	public void testInstantiationFailsWhenBootstrapServersMissing() throws Exception {
@@ -67,7 +72,7 @@ public class FlinkKafkaProducerBaseTest {
 	}
 
 	/**
-	 * Tests that constructor defaults to key value serializers in config to byte array deserializers if not set
+	 * Tests that constructor defaults to key value serializers in config to byte array deserializers if not set.
 	 */
 	@Test
 	public void testKeyValueDeserializersSetIfMissing() throws Exception {
@@ -83,7 +88,7 @@ public class FlinkKafkaProducerBaseTest {
 	}
 
 	/**
-	 * Tests that partitions list is determinate and correctly provided to custom partitioner
+	 * Tests that partitions list is determinate and correctly provided to custom partitioner.
 	 */
 	@SuppressWarnings("unchecked")
 	@Test
@@ -93,7 +98,7 @@ public class FlinkKafkaProducerBaseTest {
 		RuntimeContext mockRuntimeContext = mock(RuntimeContext.class);
 		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
 		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
-		
+
 		// out-of-order list of 4 partitions
 		List<PartitionInfo> mockPartitionsList = new ArrayList<>(4);
 		mockPartitionsList.add(new PartitionInfo(DummyFlinkKafkaProducer.DUMMY_TOPIC, 3, null, null, null));
@@ -118,7 +123,7 @@ public class FlinkKafkaProducerBaseTest {
 	}
 
 	/**
-	 * Test ensuring that if an invoke call happens right after an async exception is caught, it should be rethrown
+	 * Test ensuring that if an invoke call happens right after an async exception is caught, it should be rethrown.
 	 */
 	@Test
 	public void testAsyncErrorRethrownOnInvoke() throws Throwable {
@@ -149,7 +154,7 @@ public class FlinkKafkaProducerBaseTest {
 	}
 
 	/**
-	 * Test ensuring that if a snapshot call happens right after an async exception is caught, it should be rethrown
+	 * Test ensuring that if a snapshot call happens right after an async exception is caught, it should be rethrown.
 	 */
 	@Test
 	public void testAsyncErrorRethrownOnCheckpoint() throws Throwable {
@@ -183,11 +188,11 @@ public class FlinkKafkaProducerBaseTest {
 	 * Test ensuring that if an async exception is caught for one of the flushed requests on checkpoint,
 	 * it should be rethrown; we set a timeout because the test will not finish if the logic is broken.
 	 *
-	 * Note that this test does not test the snapshot method is blocked correctly when there are pending recorrds.
+	 * <p>Note that this test does not test the snapshot method is blocked correctly when there are pending recorrds.
 	 * The test for that is covered in testAtLeastOnceProducer.
 	 */
 	@SuppressWarnings("unchecked")
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testAsyncErrorRethrownOnCheckpointAfterFlush() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
 			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
@@ -237,10 +242,10 @@ public class FlinkKafkaProducerBaseTest {
 
 	/**
 	 * Test ensuring that the producer is not dropping buffered records;
-	 * we set a timeout because the test will not finish if the logic is broken
+	 * we set a timeout because the test will not finish if the logic is broken.
 	 */
 	@SuppressWarnings("unchecked")
-	@Test(timeout=10000)
+	@Test(timeout = 10000)
 	public void testAtLeastOnceProducer() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
 			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
@@ -297,10 +302,10 @@ public class FlinkKafkaProducerBaseTest {
 	/**
 	 * This test is meant to assure that testAtLeastOnceProducer is valid by testing that if flushing is disabled,
 	 * the snapshot method does indeed finishes without waiting for pending records;
-	 * we set a timeout because the test will not finish if the logic is broken
+	 * we set a timeout because the test will not finish if the logic is broken.
 	 */
 	@SuppressWarnings("unchecked")
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
 			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
@@ -328,8 +333,8 @@ public class FlinkKafkaProducerBaseTest {
 
 	private static class DummyFlinkKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
 		private static final long serialVersionUID = 1L;
-		
-		private final static String DUMMY_TOPIC = "dummy-topic";
+
+		private static final String DUMMY_TOPIC = "dummy-topic";
 
 		private transient KafkaProducer<?, ?> mockProducer;
 		private transient List<Callback> pendingCallbacks;

@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
 import org.apache.flink.api.common.functions.Function;
@@ -24,11 +25,9 @@ import java.io.Serializable;
 /**
  * Method that creates multiple {@link org.elasticsearch.action.ActionRequest}s from an element in a Stream.
  *
- * <p>
- * This is used by {@link ElasticsearchSink} to prepare elements for sending them to Elasticsearch.
+ * <p>This is used by {@link ElasticsearchSink} to prepare elements for sending them to Elasticsearch.
  *
- * <p>
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
  *					private static class TestElasticSearchSinkFunction implements

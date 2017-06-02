@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.config;
 import com.amazonaws.auth.AWSCredentialsProvider;
 
 /**
- * Configuration keys for AWS service usage
+ * Configuration keys for AWS service usage.
  */
 public class AWSConfigConstants {
 
@@ -30,41 +30,41 @@ public class AWSConfigConstants {
 	 */
 	public enum CredentialProvider {
 
-		/** Look for the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to create AWS credentials */
+		/** Look for the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to create AWS credentials. */
 		ENV_VAR,
 
-		/** Look for Java system properties aws.accessKeyId and aws.secretKey to create AWS credentials */
+		/** Look for Java system properties aws.accessKeyId and aws.secretKey to create AWS credentials. */
 		SYS_PROP,
 
-		/** Use a AWS credentials profile file to create the AWS credentials */
+		/** Use a AWS credentials profile file to create the AWS credentials. */
 		PROFILE,
 
-		/** Simply create AWS credentials by supplying the AWS access key ID and AWS secret key in the configuration properties */
+		/** Simply create AWS credentials by supplying the AWS access key ID and AWS secret key in the configuration properties. */
 		BASIC,
 
-		/** A credentials provider chain will be used that searches for credentials in this order: ENV_VARS, SYS_PROPS, PROFILE in the AWS instance metadata **/
+		/** A credentials provider chain will be used that searches for credentials in this order: ENV_VARS, SYS_PROPS, PROFILE in the AWS instance metadata. **/
 		AUTO,
 	}
 
-	/** The AWS region of the Kinesis streams to be pulled ("us-east-1" is used if not set) */
+	/** The AWS region of the Kinesis streams to be pulled ("us-east-1" is used if not set). */
 	public static final String AWS_REGION = "aws.region";
 
-	/** The AWS access key ID to use when setting credentials provider type to BASIC */
+	/** The AWS access key ID to use when setting credentials provider type to BASIC. */
 	public static final String AWS_ACCESS_KEY_ID = "aws.credentials.provider.basic.accesskeyid";
 
-	/** The AWS secret key to use when setting credentials provider type to BASIC */
+	/** The AWS secret key to use when setting credentials provider type to BASIC. */
 	public static final String AWS_SECRET_ACCESS_KEY = "aws.credentials.provider.basic.secretkey";
 
-	/** The credential provider type to use when AWS credentials are required (BASIC is used if not set)*/
+	/** The credential provider type to use when AWS credentials are required (BASIC is used if not set). */
 	public static final String AWS_CREDENTIALS_PROVIDER = "aws.credentials.provider";
 
-	/** Optional configuration for profile path if credential provider type is set to be PROFILE */
+	/** Optional configuration for profile path if credential provider type is set to be PROFILE. */
 	public static final String AWS_PROFILE_PATH = "aws.credentials.provider.profile.path";
 
-	/** Optional configuration for profile name if credential provider type is set to be PROFILE */
+	/** Optional configuration for profile name if credential provider type is set to be PROFILE. */
 	public static final String AWS_PROFILE_NAME = "aws.credentials.provider.profile.name";
 
-	/** The AWS endpoint for Kinesis (derived from the AWS region setting if not set) */
+	/** The AWS endpoint for Kinesis (derived from the AWS region setting if not set). */
 	public static final String AWS_ENDPOINT = "aws.endpoint";
 
 }

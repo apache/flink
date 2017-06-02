@@ -24,7 +24,7 @@ import java.io.Serializable;
 import java.util.Comparator;
 
 /**
- * Compares two {@link StreamRecord}s based on their timestamp
+ * Compares two {@link StreamRecord}s based on their timestamp.
  *
  * @param <IN> Type of the value field of the StreamRecord
  */

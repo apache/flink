@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
-import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+
+import com.amazonaws.services.kinesis.model.GetRecordsResult;
 
 import java.util.Map;
 
@@ -46,7 +47,7 @@ public interface KinesisProxyInterface {
 	String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) throws InterruptedException;
 
 	/**
-	 * Get the next batch of data records using a specific shard iterator
+	 * Get the next batch of data records using a specific shard iterator.
 	 *
 	 * @param shardIterator a shard iterator that encodes info about which shard to read and where to start reading
 	 * @param maxRecordsToGet the maximum amount of records to retrieve for this batch
@@ -67,5 +68,5 @@ public interface KinesisProxyInterface {
 	 *                              operation has exceeded the rate limit; this exception will be thrown
 	 *                              if the backoff is interrupted.
 	 */
-	GetShardListResult getShardList(Map<String,String> streamNamesWithLastSeenShardIds) throws InterruptedException;
+	GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException;
 }

@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.Cluster;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -32,6 +32,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
+
+import com.datastax.driver.core.Cluster;
+
 import scala.Product;
 
 /**
@@ -79,10 +82,10 @@ public class CassandraSink<IN> {
 
 	/**
 	 * Sets an ID for this operator.
-	 * <p/>
+	 *
 	 * <p>The specified ID is used to assign the same operator ID across job
 	 * submissions (for example when starting a job from a savepoint).
-	 * <p/>
+	 *
 	 * <p><strong>Important</strong>: this ID needs to be unique per
 	 * transformation and job. Otherwise, job submission will fail.
 	 *
@@ -101,19 +104,17 @@ public class CassandraSink<IN> {
 
 	/**
 	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
-	 * <p/>
+	 *
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
 	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
-	 * <p/>
+	 *
 	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
 	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
 	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
 	 *
-	 * <p>
-	 * A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
 	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
 	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
-	 * <p/>
 	 *
 	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
 	 *                 logs and web ui.
@@ -168,10 +169,10 @@ public class CassandraSink<IN> {
 	 * Sets the slot sharing group of this operation. Parallel instances of
 	 * operations that are in the same slot sharing group will be co-located in the same
 	 * TaskManager slot, if possible.
-	 * <p/>
+	 *
 	 * <p>Operations inherit the slot sharing group of input operations if all input operations
 	 * are in the same slot sharing group and no slot sharing group was explicitly specified.
-	 * <p/>
+	 *
 	 * <p>Initially an operation is in the default slot sharing group. An operation can be put into
 	 * the default group explicitly by setting the slot sharing group to {@code "default"}.
 	 *
@@ -220,6 +221,10 @@ public class CassandraSink<IN> {
 		throw new IllegalArgumentException("No support for the type of the given DataStream: " + input.getType());
 	}
 
+	/**
+	 * Builder for a {@link CassandraSink}.
+	 * @param <IN>
+	 */
 	public abstract static class CassandraSinkBuilder<IN> {
 		protected final DataStream<IN> input;
 		protected final TypeSerializer<IN> serializer;
@@ -327,7 +332,7 @@ public class CassandraSink<IN> {
 				? createWriteAheadSink()
 				: createSink();
 		}
-		
+
 		protected abstract CassandraSink<IN> createSink() throws Exception;
 
 		protected abstract CassandraSink<IN> createWriteAheadSink() throws Exception;
@@ -339,6 +344,10 @@ public class CassandraSink<IN> {
 		}
 	}
 
+	/**
+	 * Builder for a {@link CassandraTupleSink}.
+	 * @param <IN>
+	 */
 	public static class CassandraTupleSinkBuilder<IN extends Tuple> extends CassandraSinkBuilder<IN> {
 		public CassandraTupleSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
@@ -365,6 +374,10 @@ public class CassandraSink<IN> {
 		}
 	}
 
+	/**
+	 * Builder for a {@link CassandraPojoSink}.
+	 * @param <IN>
+	 */
 	public static class CassandraPojoSinkBuilder<IN> extends CassandraSinkBuilder<IN> {
 		public CassandraPojoSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
@@ -389,6 +402,10 @@ public class CassandraSink<IN> {
 		}
 	}
 
+	/**
+	 * Builder for a {@link CassandraScalaProductSink}.
+	 * @param <IN>
+	 */
 	public static class CassandraScalaProductSinkBuilder<IN extends Product> extends CassandraSinkBuilder<IN> {
 
 		public CassandraScalaProductSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {

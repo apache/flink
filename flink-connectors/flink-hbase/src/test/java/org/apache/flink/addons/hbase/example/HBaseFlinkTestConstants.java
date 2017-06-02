@@ -20,11 +20,11 @@ package org.apache.flink.addons.hbase.example;
 
 import org.apache.flink.configuration.ConfigConstants;
 
-public class HBaseFlinkTestConstants {
-	
-	public static final byte[] CF_SOME = "someCf".getBytes(ConfigConstants.DEFAULT_CHARSET);
-	public static final byte[] Q_SOME = "someQual".getBytes(ConfigConstants.DEFAULT_CHARSET);
-	public static final String TEST_TABLE_NAME = "test-table";
-	public static final String TMP_DIR = "/tmp/test";
-	
+class HBaseFlinkTestConstants {
+
+	static final byte[] CF_SOME = "someCf".getBytes(ConfigConstants.DEFAULT_CHARSET);
+	static final byte[] Q_SOME = "someQual".getBytes(ConfigConstants.DEFAULT_CHARSET);
+	static final String TEST_TABLE_NAME = "test-table";
+	static final String TMP_DIR = "/tmp/test";
+
 }

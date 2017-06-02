@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -35,6 +34,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
+
+import org.apache.commons.collections.map.LinkedMap;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -61,6 +62,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link FlinkKafkaConsumerBase}.
+ */
 public class FlinkKafkaConsumerBaseTest {
 
 	/**
@@ -77,12 +81,12 @@ public class FlinkKafkaConsumerBaseTest {
 			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
-		
+
 		@SuppressWarnings("unchecked")
 		final AssignerWithPeriodicWatermarks<String> periodicAssigner = mock(AssignerWithPeriodicWatermarks.class);
 		@SuppressWarnings("unchecked")
 		final AssignerWithPunctuatedWatermarks<String> punctuatedAssigner = mock(AssignerWithPunctuatedWatermarks.class);
-		
+
 		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>();
 		c1.assignTimestampsAndWatermarks(periodicAssigner);
 		try {
@@ -189,7 +193,7 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	/**
-	 * Tests that on snapshots, states and offsets to commit to Kafka are correct
+	 * Tests that on snapshots, states and offsets to commit to Kafka are correct.
 	 */
 	@SuppressWarnings("unchecked")
 	@Test
@@ -301,7 +305,7 @@ public class FlinkKafkaConsumerBaseTest {
 		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
 
 		// --------------------------------------------------------------------
-		
+
 		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
 		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
 
@@ -356,7 +360,7 @@ public class FlinkKafkaConsumerBaseTest {
 		assertEquals(state2, snapshot2);
 		assertEquals(2, pendingOffsetsToCommit.size());
 		assertEquals(state2, pendingOffsetsToCommit.get(140L));
-		
+
 		// ack checkpoint 1
 		consumer.notifyCheckpointComplete(138L);
 		assertEquals(1, pendingOffsetsToCommit.size());
@@ -375,11 +379,10 @@ public class FlinkKafkaConsumerBaseTest {
 		assertEquals(state3, snapshot3);
 		assertEquals(2, pendingOffsetsToCommit.size());
 		assertEquals(state3, pendingOffsetsToCommit.get(141L));
-		
+
 		// ack checkpoint 3, subsumes number 2
 		consumer.notifyCheckpointComplete(141L);
 		assertEquals(0, pendingOffsetsToCommit.size());
-
 
 		consumer.notifyCheckpointComplete(666); // invalid checkpoint
 		assertEquals(0, pendingOffsetsToCommit.size());
@@ -504,7 +507,6 @@ public class FlinkKafkaConsumerBaseTest {
 		consumer.notifyCheckpointComplete(141L);
 		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
 
-
 		consumer.notifyCheckpointComplete(666); // invalid checkpoint
 		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
 
@@ -535,8 +537,7 @@ public class FlinkKafkaConsumerBaseTest {
 	// ------------------------------------------------------------------------
 
 	private static <T> FlinkKafkaConsumerBase<T> getConsumer(
-			AbstractFetcher<T, ?> fetcher, LinkedMap pendingOffsetsToCommit, boolean running) throws Exception
-	{
+			AbstractFetcher<T, ?> fetcher, LinkedMap pendingOffsetsToCommit, boolean running) throws Exception {
 		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>();
 		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
 		Mockito.when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true);

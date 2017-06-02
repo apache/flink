@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.elasticsearch.util;
 
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+
 import org.elasticsearch.action.ActionRequest;
 
 /**

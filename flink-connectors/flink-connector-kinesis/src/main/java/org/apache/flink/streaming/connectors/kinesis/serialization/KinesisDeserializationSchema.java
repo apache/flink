@@ -33,7 +33,7 @@ import java.io.Serializable;
 public interface KinesisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
-	 * Deserializes a Kinesis record's bytes
+	 * Deserializes a Kinesis record's bytes.
 	 *
 	 * @param recordValue the record's value as a byte array
 	 * @param partitionKey the record's partition key at the time of writing

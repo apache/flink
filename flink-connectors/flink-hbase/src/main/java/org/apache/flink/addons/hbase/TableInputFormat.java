@@ -15,16 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.addons.hbase;
 
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
+
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
-
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
@@ -72,7 +73,7 @@ public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInp
 	}
 
 	/**
-	 * Create an {@link HTable} instance and set it into this format
+	 * Create an {@link HTable} instance and set it into this format.
 	 */
 	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");

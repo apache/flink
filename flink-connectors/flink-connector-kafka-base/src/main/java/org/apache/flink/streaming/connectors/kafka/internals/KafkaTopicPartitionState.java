@@ -20,31 +20,31 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 /**
  * The state that the Flink Kafka Consumer holds for each Kafka partition.
  * Includes the Kafka descriptor for partitions.
- * 
+ *
  * <p>This class describes the most basic state (only the offset), subclasses
  * define more elaborate state, containing current watermarks and timestamp
  * extractors.
- * 
+ *
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
 public class KafkaTopicPartitionState<KPH> {
-	
+
 	// ------------------------------------------------------------------------
 
-	/** The Flink description of a Kafka partition */
+	/** The Flink description of a Kafka partition. */
 	private final KafkaTopicPartition partition;
 
-	/** The Kafka description of a Kafka partition (varies across different Kafka versions) */
+	/** The Kafka description of a Kafka partition (varies across different Kafka versions). */
 	private final KPH kafkaPartitionHandle;
-	
-	/** The offset within the Kafka partition that we already processed */
+
+	/** The offset within the Kafka partition that we already processed. */
 	private volatile long offset;
 
-	/** The offset of the Kafka partition that has been committed */
+	/** The offset of the Kafka partition that has been committed. */
 	private volatile long committedOffset;
 
 	// ------------------------------------------------------------------------
-	
+
 	public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
 		this.partition = partition;
 		this.kafkaPartitionHandle = kafkaPartitionHandle;
@@ -103,7 +103,6 @@ public class KafkaTopicPartitionState<KPH> {
 		return committedOffset;
 	}
 
-	
 	// ------------------------------------------------------------------------
 
 	@Override

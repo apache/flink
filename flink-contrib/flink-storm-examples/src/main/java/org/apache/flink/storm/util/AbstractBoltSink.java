@@ -50,7 +50,7 @@ public abstract class AbstractBoltSink implements IRichBolt {
 		}
 	}
 
-	protected abstract void prepareSimple(final Map<?, ?> stormConf, final TopologyContext context);
+	protected abstract void prepareSimple(Map<?, ?> stormConf, TopologyContext context);
 
 	@Override
 	public final void execute(final Tuple input) {
@@ -60,7 +60,7 @@ public abstract class AbstractBoltSink implements IRichBolt {
 		this.writeExternal(this.lineBuilder.toString());
 	}
 
-	protected abstract void writeExternal(final String line);
+	protected abstract void writeExternal(String line);
 
 	@Override
 	public void cleanup() {/* nothing to do */}

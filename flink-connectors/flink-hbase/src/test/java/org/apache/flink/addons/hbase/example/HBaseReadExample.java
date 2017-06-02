@@ -23,31 +23,32 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * Simple stub for HBase DataSet read
- * 
- * To run the test first create the test table with hbase shell.
- * 
- * Use the following commands:
+ *
+ * <p>To run the test first create the test table with hbase shell.
+ *
+ * <p>Use the following commands:
  * <ul>
  *     <li>create 'test-table', 'someCf'</li>
  *     <li>put 'test-table', '1', 'someCf:someQual', 'someString'</li>
  *     <li>put 'test-table', '2', 'someCf:someQual', 'anotherString'</li>
  * </ul>
- * 
- * The test should return just the first entry.
- * 
+ *
+ * <p>The test should return just the first entry.
+ *
  */
 public class HBaseReadExample {
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		@SuppressWarnings("serial")
 		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new TableInputFormat<Tuple2<String, String>>() {
-			
+
 				@Override
 				public String getTableName() {
 					return HBaseFlinkTestConstants.TEST_TABLE_NAME;
@@ -61,7 +62,7 @@ public class HBaseReadExample {
 				}
 
 				private Tuple2<String, String> reuse = new Tuple2<String, String>();
-				
+
 				@Override
 				protected Tuple2<String, String> mapResultToTuple(Result r) {
 					String key = Bytes.toString(r.getRow());
@@ -71,22 +72,23 @@ public class HBaseReadExample {
 					return reuse;
 				}
 		})
-		.filter(new FilterFunction<Tuple2<String,String>>() {
+		.filter(new FilterFunction<Tuple2<String, String>>() {
 
 			@Override
 			public boolean filter(Tuple2<String, String> t) throws Exception {
 				String val = t.getField(1);
-				if(val.startsWith("someStr"))
+				if (val.startsWith("someStr")) {
 					return true;
+				}
 				return false;
 			}
 		});
-		
+
 		hbaseDs.print();
-		
+
 		// kick off execution.
 		env.execute();
-				
+
 	}
 
 }

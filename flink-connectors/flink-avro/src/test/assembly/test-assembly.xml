@@ -26,7 +26,7 @@ under the License.
 	<fileSets>
 		<fileSet>
 			<directory>${project.build.testOutputDirectory}</directory>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory></outputDirectory>
 			<!--modify/add include to match your package(s) -->
 			<includes>
 				<include>org/apache/flink/api/avro/testjar/**</include>

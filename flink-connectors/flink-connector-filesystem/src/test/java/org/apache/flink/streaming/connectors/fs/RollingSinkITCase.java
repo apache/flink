@@ -18,15 +18,6 @@
 
 package org.apache.flink.streaming.connectors.fs;
 
-import org.apache.avro.Schema;
-import org.apache.avro.Schema.Type;
-import org.apache.avro.file.DataFileConstants;
-import org.apache.avro.file.DataFileStream;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericData.StringType;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -45,9 +36,18 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.avro.Schema;
+import org.apache.avro.Schema.Type;
+import org.apache.avro.file.DataFileConstants;
+import org.apache.avro.file.DataFileStream;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericData.StringType;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -55,7 +55,6 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -77,8 +76,8 @@ import java.util.Map;
  * tests test the different output methods as well as the rolling feature using a manual clock
  * that increases time in lockstep with element computation using latches.
  *
- * <p>
- * This only tests the rolling behaviour of the sink. There is a separate ITCase that verifies
+ *
+ * <p>This only tests the rolling behaviour of the sink. There is a separate ITCase that verifies
  * exactly once behaviour.
  *
  * @deprecated should be removed with the {@link RollingSink}.
@@ -128,13 +127,12 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	 */
 	@Test
 	public void testNonRollingStringWriter() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/string-non-rolling-out";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(2);
 
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(numElements))
 				.broadcast()
 				.filter(new OddEvenFilter());
 
@@ -145,7 +143,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 				.setPendingSuffix("");
 
 		source
-				.map(new MapFunction<Tuple2<Integer,String>, String>() {
+				.map(new MapFunction<Tuple2<Integer, String>, String>() {
 					private static final long serialVersionUID = 1L;
 					@Override
 					public String map(Tuple2<Integer, String> value) throws Exception {
@@ -160,7 +158,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(inStream));
 
-		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 0; i < numElements; i += 2) {
 			String line = br.readLine();
 			Assert.assertEquals("message #" + i, line);
 		}
@@ -171,7 +169,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		br = new BufferedReader(new InputStreamReader(inStream));
 
-		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 1; i < numElements; i += 2) {
 			String line = br.readLine();
 			Assert.assertEquals("message #" + i, line);
 		}
@@ -185,17 +183,16 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	 */
 	@Test
 	public void testNonRollingSequenceFileWithoutCompressionWriter() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/seq-no-comp-non-rolling-out";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(2);
 
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(numElements))
 				.broadcast()
 				.filter(new OddEvenFilter());
 
-		DataStream<Tuple2<IntWritable, Text>> mapped =  source.map(new MapFunction<Tuple2<Integer,String>, Tuple2<IntWritable, Text>>() {
+		DataStream<Tuple2<IntWritable, Text>> mapped =  source.map(new MapFunction<Tuple2<Integer, String>, Tuple2<IntWritable, Text>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -203,7 +200,6 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 				return Tuple2.of(new IntWritable(value.f0), new Text(value.f1));
 			}
 		});
-
 
 		RollingSink<Tuple2<IntWritable, Text>> sink = new RollingSink<Tuple2<IntWritable, Text>>(outPath)
 				.setWriter(new SequenceFileWriter<IntWritable, Text>())
@@ -227,7 +223,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		IntWritable intWritable = new IntWritable();
 		Text txt = new Text();
 
-		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 0; i < numElements; i += 2) {
 			reader.next(intWritable, txt);
 			Assert.assertEquals(i, intWritable.get());
 			Assert.assertEquals("message #" + i, txt.toString());
@@ -244,7 +240,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 				100000,
 				new Configuration());
 
-		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 1; i < numElements; i += 2) {
 			reader.next(intWritable, txt);
 			Assert.assertEquals(i, intWritable.get());
 			Assert.assertEquals("message #" + i, txt.toString());
@@ -260,17 +256,16 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	 */
 	@Test
 	public void testNonRollingSequenceFileWithCompressionWriter() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/seq-non-rolling-out";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(2);
 
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(numElements))
 				.broadcast()
 				.filter(new OddEvenFilter());
 
-		DataStream<Tuple2<IntWritable, Text>> mapped =  source.map(new MapFunction<Tuple2<Integer,String>, Tuple2<IntWritable, Text>>() {
+		DataStream<Tuple2<IntWritable, Text>> mapped =  source.map(new MapFunction<Tuple2<Integer, String>, Tuple2<IntWritable, Text>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -278,7 +273,6 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 				return Tuple2.of(new IntWritable(value.f0), new Text(value.f1));
 			}
 		});
-
 
 		RollingSink<Tuple2<IntWritable, Text>> sink = new RollingSink<Tuple2<IntWritable, Text>>(outPath)
 				.setWriter(new SequenceFileWriter<IntWritable, Text>("Default", SequenceFile.CompressionType.BLOCK))
@@ -302,7 +296,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		IntWritable intWritable = new IntWritable();
 		Text txt = new Text();
 
-		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 0; i < numElements; i += 2) {
 			reader.next(intWritable, txt);
 			Assert.assertEquals(i, intWritable.get());
 			Assert.assertEquals("message #" + i, txt.toString());
@@ -319,7 +313,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 				100000,
 				new Configuration());
 
-		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 1; i < numElements; i += 2) {
 			reader.next(intWritable, txt);
 			Assert.assertEquals(i, intWritable.get());
 			Assert.assertEquals("message #" + i, txt.toString());
@@ -328,24 +322,21 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		reader.close();
 		inStream.close();
 	}
-	
-	
+
 	/**
 	 * This tests {@link AvroKeyValueSinkWriter}
 	 * with non-rolling output and without compression.
 	 */
 	@Test
 	public void testNonRollingAvroKeyValueWithoutCompressionWriter() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/avro-kv-no-comp-non-rolling-out";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(2);
 
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(numElements))
 				.broadcast()
 				.filter(new OddEvenFilter());
-
 
 		Map<String, String> properties = new HashMap<>();
 		Schema keySchema = Schema.create(Type.INT);
@@ -369,7 +360,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
 		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<GenericRecord>(elementSchema);
 		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
-		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 0; i < numElements; i += 2) {
 			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
 			int key = wrappedEntry.getKey().intValue();
 			Assert.assertEquals(i, key);
@@ -383,7 +374,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		inStream = dfs.open(new Path(outPath + "/part-1-0"));
 		dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
 
-		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 1; i < numElements; i += 2) {
 			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
 			int key = wrappedEntry.getKey().intValue();
 			Assert.assertEquals(i, key);
@@ -394,23 +385,21 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		dataFileStream.close();
 		inStream.close();
 	}
-	
+
 	/**
 	 * This tests {@link AvroKeyValueSinkWriter}
 	 * with non-rolling output and with compression.
 	 */
 	@Test
 	public void testNonRollingAvroKeyValueWithCompressionWriter() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/avro-kv-no-comp-non-rolling-out";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(2);
 
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(numElements))
 				.broadcast()
 				.filter(new OddEvenFilter());
-
 
 		Map<String, String> properties = new HashMap<>();
 		Schema keySchema = Schema.create(Type.INT);
@@ -436,7 +425,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
 		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<GenericRecord>(elementSchema);
 		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
-		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 0; i < numElements; i += 2) {
 			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
 			int key = wrappedEntry.getKey().intValue();
 			Assert.assertEquals(i, key);
@@ -450,7 +439,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		inStream = dfs.open(new Path(outPath + "/part-1-0"));
 		dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
 
-		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 1; i < numElements; i += 2) {
 			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
 			int key = wrappedEntry.getKey().intValue();
 			Assert.assertEquals(i, key);
@@ -462,20 +451,18 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		inStream.close();
 	}
 
-
 	/**
-	 * This tests user defined hdfs configuration
+	 * This tests user defined hdfs configuration.
 	 * @throws Exception
      */
 	@Test
 	public void testUserDefinedConfiguration() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/string-non-rolling-with-config";
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(2);
 
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(numElements))
 			.broadcast()
 			.filter(new OddEvenFilter());
 
@@ -490,7 +477,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 			.setPendingSuffix("");
 
 		source
-			.map(new MapFunction<Tuple2<Integer,String>, String>() {
+			.map(new MapFunction<Tuple2<Integer, String>, String>() {
 				private static final long serialVersionUID = 1L;
 				@Override
 				public String map(Tuple2<Integer, String> value) throws Exception {
@@ -505,7 +492,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(inStream));
 
-		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 0; i < numElements; i += 2) {
 			String line = br.readLine();
 			Assert.assertEquals("message #" + i, line);
 		}
@@ -516,7 +503,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		br = new BufferedReader(new InputStreamReader(inStream));
 
-		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+		for (int i = 1; i < numElements; i += 2) {
 			String line = br.readLine();
 			Assert.assertEquals("message #" + i, line);
 		}
@@ -525,8 +512,8 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	// we use this to synchronize the clock changes to elements being processed
-	final static MultiShotLatch latch1 = new MultiShotLatch();
-	final static MultiShotLatch latch2 = new MultiShotLatch();
+	private static final MultiShotLatch latch1 = new MultiShotLatch();
+	private static final MultiShotLatch latch2 = new MultiShotLatch();
 
 	/**
 	 * This uses {@link org.apache.flink.streaming.connectors.fs.DateTimeBucketer} to
@@ -536,19 +523,16 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	 */
 	@Test
 	public void testDateTimeRollingStringWriter() throws Exception {
-		final int NUM_ELEMENTS = 20;
-		final int PARALLELISM = 2;
+		final int numElements = 20;
 		final String outPath = hdfsURI + "/rolling-out";
 		DateTimeBucketer.setClock(new ModifyableClock());
 		ModifyableClock.setCurrentTime(0);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
-
-
+		env.setParallelism(2);
 
 		DataStream<Tuple2<Integer, String>> source = env.addSource(new WaitingTestSourceFunction(
-				NUM_ELEMENTS))
+				numElements))
 				.broadcast();
 
 		// the parallel flatMap is chained to the sink, so when it has seen 5 elements it can
@@ -664,7 +648,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		testHarness.processElement(new StreamRecord<>("test1", 1L));
 		testHarness.processElement(new StreamRecord<>("test2", 1L));
-		checkFs(outDir, 1, 1 ,0, 0);
+		checkFs(outDir, 1, 1 , 0, 0);
 
 		testHarness.processElement(new StreamRecord<>("test3", 1L));
 		checkFs(outDir, 1, 2, 0, 0);
@@ -961,7 +945,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static class OddEvenFilter extends RichFilterFunction<Tuple2<Integer, String>> {
+	private static class OddEvenFilter extends RichFilterFunction<Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -974,7 +958,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static class ModifyableClock implements Clock {
+	private static class ModifyableClock implements Clock {
 
 		private static volatile long currentTime = 0;
 

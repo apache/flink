@@ -31,8 +31,8 @@ import java.util.Map;
  * Implements the string tokenizer that splits sentences into words as a bolt. The bolt takes a line (input tuple
  * schema: {@code <String>}) and splits it into multiple pairs in the form of "(word,1)" (output tuple schema:
  * {@code <String,Integer>}).
- * <p>
- * Same as {@link BoltTokenizer}, but accesses input attribute by name (instead of index).
+ *
+ * <p>Same as {@link BoltTokenizer}, but accesses input attribute by name (instead of index).
  */
 public final class BoltTokenizerByName implements IRichBolt {
 	private static final long serialVersionUID = -8589620297208175149L;

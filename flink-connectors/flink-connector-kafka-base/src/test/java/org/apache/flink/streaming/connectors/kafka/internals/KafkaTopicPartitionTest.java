@@ -27,8 +27,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link KafkaTopicPartition}.
+ */
 public class KafkaTopicPartitionTest {
-	
+
 	@Test
 	public void validateUid() {
 		Field uidField;
@@ -40,14 +43,14 @@ public class KafkaTopicPartitionTest {
 			fail("serialVersionUID is not defined");
 			return;
 		}
-		
+
 		assertTrue(Modifier.isStatic(uidField.getModifiers()));
 		assertTrue(Modifier.isFinal(uidField.getModifiers()));
 		assertTrue(Modifier.isPrivate(uidField.getModifiers()));
-		
+
 		assertEquals(long.class, uidField.getType());
-		
-		// the UID has to be constant to make sure old checkpoints/savepoints can be read 
+
+		// the UID has to be constant to make sure old checkpoints/savepoints can be read
 		try {
 			assertEquals(722083576322742325L, uidField.getLong(null));
 		}

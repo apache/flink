@@ -18,9 +18,14 @@
 
 package org.apache.flink.api.java.io;
 
-import static org.apache.flink.api.java.io.AvroOutputFormat.Codec;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.flink.api.io.avro.example.User;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+
+import org.apache.avro.Schema;
+import org.junit.Test;
+import org.mockito.internal.util.reflection.Whitebox;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,16 +34,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import org.apache.avro.Schema;
-import org.apache.flink.api.io.avro.example.User;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.junit.Test;
-import org.mockito.internal.util.reflection.Whitebox;
+import static org.apache.flink.api.java.io.AvroOutputFormat.Codec;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link AvroOutputFormat}
+ * Tests for {@link AvroOutputFormat}.
  */
 public class AvroOutputFormatTest {
 
@@ -116,12 +117,12 @@ public class AvroOutputFormatTest {
 	@Test
 	public void testCompression() throws Exception {
 		// given
-		final Path outputPath = new Path(File.createTempFile("avro-output-file","avro").getAbsolutePath());
-		final AvroOutputFormat<User> outputFormat = new AvroOutputFormat<>(outputPath,User.class);
+		final Path outputPath = new Path(File.createTempFile("avro-output-file", "avro").getAbsolutePath());
+		final AvroOutputFormat<User> outputFormat = new AvroOutputFormat<>(outputPath, User.class);
 		outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 
-		final Path compressedOutputPath = new Path(File.createTempFile("avro-output-file","compressed.avro").getAbsolutePath());
-		final AvroOutputFormat<User> compressedOutputFormat = new AvroOutputFormat<>(compressedOutputPath,User.class);
+		final Path compressedOutputPath = new Path(File.createTempFile("avro-output-file", "compressed.avro").getAbsolutePath());
+		final AvroOutputFormat<User> compressedOutputFormat = new AvroOutputFormat<>(compressedOutputPath, User.class);
 		compressedOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 		compressedOutputFormat.setCodec(Codec.SNAPPY);
 
@@ -144,9 +145,9 @@ public class AvroOutputFormatTest {
 
 	private void output(final AvroOutputFormat<User> outputFormat) throws IOException {
 		outputFormat.configure(new Configuration());
-		outputFormat.open(1,1);
+		outputFormat.open(1, 1);
 		for (int i = 0; i < 100; i++) {
-			outputFormat.writeRecord(new User("testUser",1,"blue"));
+			outputFormat.writeRecord(new User("testUser", 1, "blue"));
 		}
 		outputFormat.close();
 	}

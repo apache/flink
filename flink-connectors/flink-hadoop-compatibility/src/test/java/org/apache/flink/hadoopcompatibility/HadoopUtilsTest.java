@@ -20,10 +20,14 @@ package org.apache.flink.hadoopcompatibility;
 
 import org.apache.flink.api.java.utils.AbstractParameterToolTest;
 import org.apache.flink.api.java.utils.ParameterTool;
+
 import org.junit.Test;
 
 import java.io.IOException;
 
+/**
+ * Tests for the {@link HadoopUtils}.
+ */
 public class HadoopUtilsTest extends AbstractParameterToolTest {
 
 	@Test

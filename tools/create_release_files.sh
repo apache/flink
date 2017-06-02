@@ -91,7 +91,7 @@ fi
 
 usage() {
   set +x
-  echo "./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.2"
+  echo "./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.3"
   echo ""
   echo "usage:"
   echo "[--scala-version <version>] [--hadoop-version <version>]"
@@ -102,12 +102,12 @@ usage() {
   echo "  USER_NAME=APACHEID GPG_PASSPHRASE=XXX GPG_KEY=KEYID \ "
   echo "  GIT_AUTHOR=\"`git config --get user.name` <`git config --get user.email`>\" \ "
   echo "  GIT_REPO=github.com/apache/flink.git \ "
-  echo "  ./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.2"
+  echo "  ./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.3"
   echo ""
   echo "example 2: build local release"
   echo "  NEW_VERSION=1.2.0 RELEASE_BRANCH=master OLD_VERSION=1.2-SNAPSHOT \ "
   echo "  GPG_PASSPHRASE=XXX GPG_KEY=XXX IS_LOCAL_DIST=true \ "
-  echo "  ./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.2"
+  echo "  ./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.3"
 
   exit 1
 }
@@ -272,25 +272,25 @@ make_source_release
 
 # build dist by input parameter of "--scala-vervion xxx --hadoop-version xxx"
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
-  make_binary_release "hadoop2" "" 2.10
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.10"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "2.10"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "2.10"
+  make_binary_release "hadoop2" "" "2.10"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.10"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "2.10"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "2.10"
 
-  make_binary_release "hadoop2" "" 2.11
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "2.11"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "2.11"
+  make_binary_release "hadoop2" "" "2.11"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "2.11"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "2.11"
 elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
 then
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.10"
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
 elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
 then
-  make_binary_release "hadoop2" "" $SCALA_VERSION
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "$SCALA_VERSION"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "$SCALA_VERSION"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "$SCALA_VERSION"
+  make_binary_release "hadoop2" "" "$SCALA_VERSION"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "$SCALA_VERSION"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "$SCALA_VERSION"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "$SCALA_VERSION"
 else
   make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
 fi

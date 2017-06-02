@@ -28,30 +28,29 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PeriodicOffsetCommitter extends Thread {
 
-	/** The ZooKeeper handler */
+	/** The ZooKeeper handler. */
 	private final ZookeeperOffsetHandler offsetHandler;
-	
+
 	private final KafkaTopicPartitionState<?>[] partitionStates;
-	
-	/** The proxy to forward exceptions to the main thread */
+
+	/** The proxy to forward exceptions to the main thread. */
 	private final ExceptionProxy errorHandler;
-	
-	/** Interval in which to commit, in milliseconds */
+
+	/** Interval in which to commit, in milliseconds. */
 	private final long commitInterval;
-	
-	/** Flag to mark the periodic committer as running */
+
+	/** Flag to mark the periodic committer as running. */
 	private volatile boolean running = true;
 
 	PeriodicOffsetCommitter(ZookeeperOffsetHandler offsetHandler,
 			KafkaTopicPartitionState<?>[] partitionStates,
 			ExceptionProxy errorHandler,
-			long commitInterval)
-	{
+			long commitInterval) {
 		this.offsetHandler = checkNotNull(offsetHandler);
 		this.partitionStates = checkNotNull(partitionStates);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.commitInterval = commitInterval;
-		
+
 		checkArgument(commitInterval > 0);
 	}
 
@@ -66,7 +65,7 @@ public class PeriodicOffsetCommitter extends Thread {
 				for (KafkaTopicPartitionState<?> partitionState : partitionStates) {
 					offsetsToCommit.put(partitionState.getKafkaTopicPartition(), partitionState.getOffset());
 				}
-				
+
 				offsetHandler.prepareAndCommitOffsets(offsetsToCommit);
 			}
 		}

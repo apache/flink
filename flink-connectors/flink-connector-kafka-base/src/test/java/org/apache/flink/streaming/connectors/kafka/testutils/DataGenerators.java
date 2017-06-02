@@ -18,10 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
-import java.util.Collection;
-import java.util.Properties;
-import java.util.Random;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -43,14 +39,22 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWra
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
+import java.util.Collection;
+import java.util.Properties;
+import java.util.Random;
+
+/**
+ * Test data generators.
+ */
 @SuppressWarnings("serial")
 public class DataGenerators {
 
-	public static void generateRandomizedIntegerSequence(StreamExecutionEnvironment env,
-														 KafkaTestEnvironment testServer, String topic,
-														 final int numPartitions,
-														 final int numElements,
-														 final boolean randomizeOrder) throws Exception {
+	public static void generateRandomizedIntegerSequence(
+			StreamExecutionEnvironment env,
+			KafkaTestEnvironment testServer, String topic,
+			final int numPartitions,
+			final int numElements,
+			final boolean randomizeOrder) throws Exception {
 		env.setParallelism(numPartitions);
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.noRestart());
@@ -65,8 +69,8 @@ public class DataGenerators {
 						// create a sequence
 						int[] elements = new int[numElements];
 						for (int i = 0, val = getRuntimeContext().getIndexOfThisSubtask();
-							 i < numElements;
-							 i++, val += getRuntimeContext().getNumberOfParallelSubtasks()) {
+							i < numElements;
+							i++, val += getRuntimeContext().getNumberOfParallelSubtasks()) {
 
 							elements[i] = val;
 						}
@@ -99,7 +103,7 @@ public class DataGenerators {
 		Properties props = new Properties();
 		props.putAll(FlinkKafkaProducerBase.getPropertiesFromBrokerList(testServer.getBrokerConnectionString()));
 		Properties secureProps = testServer.getSecureProperties();
-		if(secureProps != null) {
+		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
 
@@ -119,6 +123,10 @@ public class DataGenerators {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * A generator that continuously writes strings into the configured topic. The generation is stopped if an exception
+	 * occurs or {@link #shutdown()} is called.
+	 */
 	public static class InfiniteStringsGenerator extends Thread {
 
 		private final KafkaTestEnvironment server;
@@ -128,7 +136,6 @@ public class DataGenerators {
 		private volatile Throwable error;
 
 		private volatile boolean running = true;
-
 
 		public InfiniteStringsGenerator(KafkaTestEnvironment server, String topic) {
 			this.server = server;
@@ -164,7 +171,7 @@ public class DataGenerators {
 
 					int len = rnd.nextInt(100) + 1;
 					for (int i = 0; i < len; i++) {
-						bld.append((char) (rnd.nextInt(20) + 'a') );
+						bld.append((char) (rnd.nextInt(20) + 'a'));
 					}
 
 					String next = bld.toString();
@@ -211,7 +218,7 @@ public class DataGenerators {
 			}
 		}
 
-		public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 			@Override
 			public JobExecutionResult execute(String jobName) throws Exception {

@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.batch.connectors.cassandra.example;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Cluster.Builder;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,12 +26,15 @@ import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Cluster.Builder;
+
 import java.util.ArrayList;
 
 /**
  * This is an example showing the to use the Cassandra Input-/OutputFormats in the Batch API.
- * 
- * The example assumes that a table exists in a local cassandra database, according to the following query: 
+ *
+ * <p>The example assumes that a table exists in a local cassandra database, according to the following query:
  * CREATE TABLE test.batches (number int, strings text, PRIMARY KEY(number, strings));
  */
 public class BatchExample {

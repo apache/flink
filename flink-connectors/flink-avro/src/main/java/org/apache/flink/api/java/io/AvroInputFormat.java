@@ -16,10 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
-import java.io.IOException;
+import org.apache.flink.api.avro.FSDataInputStreamWrapper;
+import org.apache.flink.api.common.io.CheckpointableInputFormat;
+import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
@@ -28,19 +37,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.flink.api.common.io.CheckpointableInputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.avro.FSDataInputStreamWrapper;
-import org.apache.flink.api.common.io.FileInputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
 
 /**
  * Provides a {@link FileInputFormat} for Avro records.
@@ -59,7 +59,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	private static final Logger LOG = LoggerFactory.getLogger(AvroInputFormat.class);
 
 	private final Class<E> avroValueType;
-	
+
 	private boolean reuseAvroValue = true;
 
 	private transient DataFileReader<E> dataFileReader;
@@ -68,7 +68,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	private transient long recordsReadSinceLastSync;
 
-	private long lastSync = -1l;
+	private long lastSync = -1L;
 
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
@@ -91,16 +91,16 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	public void setUnsplittable(boolean unsplittable) {
 		this.unsplittable = unsplittable;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Typing
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public TypeInformation<E> getProducedType() {
 		return TypeExtractor.getForClass(this.avroValueType);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Input Format Methods
 	// --------------------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 		// if we start a new block, then register the event, and
 		// restart the counter.
-		if(dataFileReader.previousSync() != lastSync) {
+		if (dataFileReader.previousSync() != lastSync) {
 			lastSync = dataFileReader.previousSync();
 			recordsReadSinceLastSync = 0;
 		}
@@ -199,7 +199,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 			// open and read until the record we were before
 			// the checkpoint and discard the values
 			dataFileReader.seek(lastSync);
-			for(int i = 0; i < recordsReadSinceLastSync; i++) {
+			for (int i = 0; i < recordsReadSinceLastSync; i++) {
 				dataFileReader.next(null);
 			}
 		}

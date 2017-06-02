@@ -23,13 +23,16 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
+/**
+ * Utilities for communicating with a jobmanager through a {@link ActorGateway}.
+ */
 public class JobManagerCommunicationUtils {
 
 	private static final FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
@@ -42,7 +45,6 @@ public class JobManagerCommunicationUtils {
 
 			Object result = Await.result(listResponse, askTimeout);
 			List<JobStatusMessage> jobs = ((JobManagerMessages.RunningJobsStatus) result).getStatusMessages();
-
 
 			if (jobs.isEmpty()) {
 				return;
@@ -84,13 +86,13 @@ public class JobManagerCommunicationUtils {
 
 	public static void cancelCurrentJob(ActorGateway jobManager, String name) throws Exception {
 		JobStatusMessage status = null;
-		
+
 		for (int i = 0; i < 200; i++) {
 			// find the jobID
 			Future<Object> listResponse = jobManager.ask(
 					JobManagerMessages.getRequestRunningJobsStatus(),
 					askTimeout);
-	
+
 			List<JobStatusMessage> jobs;
 			try {
 				Object result = Await.result(listResponse, askTimeout);
@@ -99,7 +101,7 @@ public class JobManagerCommunicationUtils {
 			catch (Exception e) {
 				throw new Exception("Could not cancel job - failed to retrieve running jobs from the JobManager.", e);
 			}
-		
+
 			if (jobs.isEmpty()) {
 				// try again, fall through the loop
 				Thread.sleep(50);
@@ -107,33 +109,33 @@ public class JobManagerCommunicationUtils {
 			else if (jobs.size() == 1) {
 				status = jobs.get(0);
 			}
-			else if(name != null) {
-				for(JobStatusMessage msg: jobs) {
-					if(msg.getJobName().equals(name)) {
+			else if (name != null) {
+				for (JobStatusMessage msg: jobs) {
+					if (msg.getJobName().equals(name)) {
 						status = msg;
 					}
 				}
-				if(status == null) {
-					throw new Exception("Could not cancel job - no job matched expected name = '" + name +"' in " + jobs);
+				if (status == null) {
+					throw new Exception("Could not cancel job - no job matched expected name = '" + name + "' in " + jobs);
 				}
 			} else {
 				String jobNames = "";
-				for(JobStatusMessage jsm: jobs) {
+				for (JobStatusMessage jsm: jobs) {
 					jobNames += jsm.getJobName() + ", ";
 				}
 				throw new Exception("Could not cancel job - more than one running job: " + jobNames);
 			}
 		}
-		
+
 		if (status == null) {
-			throw new Exception("Could not cancel job - no running jobs");	
+			throw new Exception("Could not cancel job - no running jobs");
 		}
 		else if (status.getJobState().isGloballyTerminalState()) {
 			throw new Exception("Could not cancel job - job is not running any more");
 		}
-		
+
 		JobID jobId = status.getJobId();
-		
+
 		Future<Object> response = jobManager.ask(new JobManagerMessages.CancelJob(jobId), askTimeout);
 		try {
 			Await.result(response, askTimeout);

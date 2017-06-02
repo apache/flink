@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.junit.Test;
 
+/**
+ * IT cases for Kafka 0.9 .
+ */
 public class Kafka09ITCase extends KafkaConsumerTestBase {
 
 	// ------------------------------------------------------------------------
@@ -34,7 +37,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
-
 
 	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {
@@ -57,7 +59,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	public void testFailOnDeploy() throws Exception {
 		runFailOnDeployTest();
 	}
-
 
 	// --- source to partition mappings and exactly once ---
 

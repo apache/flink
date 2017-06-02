@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.config;
  * The offset commit mode represents the behaviour of how offsets are externally committed
  * back to Kafka brokers / Zookeeper.
  *
- * The exact value of this is determined at runtime in the consumer subtasks.
+ * <p>The exact value of this is determined at runtime in the consumer subtasks.
  */
 public enum OffsetCommitMode {
 

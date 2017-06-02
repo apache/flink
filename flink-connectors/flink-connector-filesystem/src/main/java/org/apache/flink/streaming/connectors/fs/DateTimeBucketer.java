@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs;
 
 import org.apache.hadoop.fs.Path;
@@ -29,27 +30,27 @@ import java.util.Date;
 /**
  * A {@link Bucketer} that assigns to buckets based on current system time.
  *
- * <p>
- * The {@code DateTimeBucketer} will create directories of the following form:
+ *
+ * <p>The {@code DateTimeBucketer} will create directories of the following form:
  * {@code /{basePath}/{dateTimePath}/}. The {@code basePath} is the path
  * that was specified as a base path when creating the
  * {@link RollingSink}. The {@code dateTimePath}
  * is determined based on the current system time and the user provided format string.
  *
- * <p>
- * {@link SimpleDateFormat} is used to derive a date string from the current system time and
+ *
+ * <p>{@link SimpleDateFormat} is used to derive a date string from the current system time and
  * the date format string. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
  * files will have a granularity of hours.
  *
  *
- * <p>
- * Example:
+ *
+ * <p>Example:
  *
  * <pre>{@code
  *     Bucketer buck = new DateTimeBucketer("yyyy-MM-dd--HH");
  * }</pre>
  *
- * This will create for example the following bucket path:
+ * <p>This will create for example the following bucket path:
  * {@code /base/1976-12-31-14/}
  *
  * @deprecated use {@link org.apache.flink.streaming.connectors.fs.bucketing.DateTimeBucketer} instead.
@@ -57,7 +58,7 @@ import java.util.Date;
 @Deprecated
 public class DateTimeBucketer implements Bucketer {
 
-	private static Logger LOG = LoggerFactory.getLogger(DateTimeBucketer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DateTimeBucketer.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -94,7 +95,6 @@ public class DateTimeBucketer implements Bucketer {
 
 		this.dateFormatter = new SimpleDateFormat(formatString);
 	}
-
 
 	@Override
 	public boolean shouldStartNewBucket(Path basePath, Path currentBucketPath) {

@@ -201,7 +201,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
     val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int, 'proctime.proctime)
     val func = new TableFunc
 
-    val result = t.join(func('rowtime, 'proctime) as 's).select('rowtime, 'proctime, 's)
+    val result = t.join(func('rowtime, 'proctime, "") as 's).select('rowtime, 'proctime, 's)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -209,7 +209,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation",
-          s"${func.functionIdentifier}(TIME_MATERIALIZATION($$0), TIME_MATERIALIZATION($$3))"),
+          s"${func.functionIdentifier}(TIME_MATERIALIZATION($$0), TIME_MATERIALIZATION($$3), '')"),
         term("function", func),
         term("rowType", "RecordType(TIMESTAMP(3) rowtime, BIGINT long, INTEGER int, " +
           "TIMESTAMP(3) proctime, VARCHAR(2147483647) s)"),
@@ -391,8 +391,8 @@ object RelTimeIndicatorConverterTest {
 
   class TableFunc extends TableFunction[String] {
     val t = new Timestamp(0L)
-    def eval(time1: Long, time2: Timestamp): Unit = {
-      collect(time1.toString + time2.after(t))
+    def eval(time1: Long, time2: Timestamp, string: String): Unit = {
+      collect(time1.toString + time2.after(t) + string)
     }
   }
 }

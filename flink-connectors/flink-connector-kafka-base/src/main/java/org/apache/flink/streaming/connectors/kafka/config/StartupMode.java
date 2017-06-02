@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka.config;
 
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
@@ -23,13 +24,13 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
  */
 public enum StartupMode {
 
-	/** Start from committed offsets in ZK / Kafka brokers of a specific consumer group (default) */
+	/** Start from committed offsets in ZK / Kafka brokers of a specific consumer group (default). */
 	GROUP_OFFSETS(KafkaTopicPartitionStateSentinel.GROUP_OFFSET),
 
-	/** Start from the earliest offset possible */
+	/** Start from the earliest offset possible. */
 	EARLIEST(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET),
 
-	/** Start from the latest offset */
+	/** Start from the latest offset. */
 	LATEST(KafkaTopicPartitionStateSentinel.LATEST_OFFSET),
 
 	/**
@@ -39,7 +40,7 @@ public enum StartupMode {
 	 */
 	SPECIFIC_OFFSETS(Long.MIN_VALUE);
 
-	/** The sentinel offset value corresponding to this startup mode */
+	/** The sentinel offset value corresponding to this startup mode. */
 	private long stateSentinel;
 
 	StartupMode(long stateSentinel) {

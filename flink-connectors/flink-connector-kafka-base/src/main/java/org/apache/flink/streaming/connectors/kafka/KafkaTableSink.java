@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.types.Row;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
@@ -44,8 +45,8 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	protected TypeInformation[] fieldTypes;
 
 	/**
-	 * Creates KafkaTableSink
-	 * 
+	 * Creates KafkaTableSink.
+	 *
 	 * @param topic                 Kafka topic to write to.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param partitioner           Partitioner to select Kafka partition for each item

@@ -76,6 +76,7 @@ under the License.
 		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
+		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 	</modules>
 
@@ -84,19 +85,22 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<!-- Internal property to reduce build times on TravisCi -->
 		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<hadoop.version>2.3.0</hadoop.version>
+		<hadoop.version>2.4.1</hadoop.version>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
 		<flink.forkCount>1C</flink.forkCount>
+		<!-- Allow overriding the fork behaviour for the expensive tests in flink-tests
+			 to avoid process kills due to container limits on TravisCI -->
+		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
-		<scala.macros.version>2.0.1</scala.macros.version>
+		<scala.macros.version>2.1.0</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
-		<scala.version>2.10.4</scala.version>
+		<scala.version>2.10.6</scala.version>
 		<scala.binary.version>2.10</scala.binary.version>
 		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
@@ -485,19 +489,11 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<scala.version>2.11.7</scala.version>
+				<scala.version>2.11.11</scala.version>
 				<scala.binary.version>2.11</scala.binary.version>
 			</properties>
 		</profile>
 
-		<!-- Profile to deactivate the YARN tests -->
-		<profile>
-			<id>include-yarn-tests</id>
-			<modules>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-		
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->

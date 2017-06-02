@@ -14,22 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kinesis;
 
+package org.apache.flink.streaming.connectors.kinesis;
 
 import java.io.Serializable;
 
+/**
+ * An interface for partitioning records.
+ *
+ * @param <T> record type
+ */
 public abstract class KinesisPartitioner<T> implements Serializable {
 
 	/**
-	 * Return a partition id based on the input
+	 * Return a partition id based on the input.
 	 * @param element Element to partition
 	 * @return A string representing the partition id
 	 */
 	public abstract String getPartitionId(T element);
 
 	/**
-	 * Optional method for setting an explicit hash key
+	 * Optional method for setting an explicit hash key.
 	 * @param element Element to get the hash key for
 	 * @return the hash key for the element
 	 */

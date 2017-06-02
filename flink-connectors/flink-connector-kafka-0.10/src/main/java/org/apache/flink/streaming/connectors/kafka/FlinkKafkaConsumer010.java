@@ -29,21 +29,21 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import java.util.Collections;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
-
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
  * Apache Kafka 0.10.x. The consumer can run in multiple parallel instances, each of which will pull
- * data from one or more Kafka partitions. 
- * 
+ * data from one or more Kafka partitions.
+ *
  * <p>The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
- * during a failure, and that the computation processes elements "exactly once". 
+ * during a failure, and that the computation processes elements "exactly once".
  * (Note: These guarantees naturally assume that Kafka itself does not loose any data.)</p>
  *
  * <p>Please note that Flink snapshots the offsets internally as part of its distributed checkpoints. The offsets
@@ -62,11 +62,10 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
 
-
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x.
 	 *
 	 * @param topic
 	 *           The name of the topic that should be consumed.
@@ -82,7 +81,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
 	 *
-	 * This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param topic
@@ -99,7 +98,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
 	 *
-	 * This constructor allows passing multiple topics to the consumer.
+	 * <p>This constructor allows passing multiple topics to the consumer.
 	 *
 	 * @param topics
 	 *           The Kafka topics to read from.
@@ -115,7 +114,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
 	 *
-	 * This constructor allows passing multiple topics and a key/value deserialization schema.
+	 * <p>This constructor allows passing multiple topics and a key/value deserialization schema.
 	 *
 	 * @param topics
 	 *           The Kafka topics to read from.

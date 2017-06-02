@@ -21,6 +21,9 @@ package org.apache.flink.runtime.util.jartestprogram;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
+/**
+ * Similar to {@link FilterLambda2}, but uses a getter to retrieve a lambda filter instance.
+ */
 public class FilterLambda3 {
 
 	public static void main(String[] args) throws Exception {

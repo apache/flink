@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.junit.AfterClass;
@@ -45,7 +46,7 @@ import static org.junit.Assert.fail;
  */
 public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgramsTestBase {
 
-	protected final static String CLUSTER_NAME = "test-cluster";
+	protected static final String CLUSTER_NAME = "test-cluster";
 
 	protected static EmbeddedElasticsearchNodeEnvironment embeddedNodeEnv;
 
@@ -116,7 +117,7 @@ public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgram
 
 		try {
 			createElasticsearchSink(userConfig, null, new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
-		} catch(IllegalArgumentException expectedException) {
+		} catch (IllegalArgumentException expectedException) {
 			// test passes
 			return;
 		}
@@ -137,7 +138,7 @@ public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgram
 				userConfig,
 				Collections.<InetSocketAddress>emptyList(),
 				new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
-		} catch(IllegalArgumentException expectedException) {
+		} catch (IllegalArgumentException expectedException) {
 			// test passes
 			return;
 		}
@@ -162,7 +163,7 @@ public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgram
 
 		try {
 			env.execute("Elasticsearch Transport Client Test");
-		} catch(JobExecutionException expectedException) {
+		} catch (JobExecutionException expectedException) {
 			assertTrue(expectedException.getCause().getMessage().contains("not connected to any Elasticsearch nodes"));
 			return;
 		}
@@ -170,7 +171,7 @@ public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgram
 		fail();
 	}
 
-	/** Creates a version-specific Elasticsearch sink, using arbitrary transport addresses */
+	/** Creates a version-specific Elasticsearch sink, using arbitrary transport addresses. */
 	protected abstract <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
 																			List<InetSocketAddress> transportAddresses,
 																			ElasticsearchSinkFunction<T> elasticsearchSinkFunction);
@@ -178,7 +179,7 @@ public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgram
 	/**
 	 * Creates a version-specific Elasticsearch sink to connect to a local embedded Elasticsearch node.
 	 *
-	 * This case is singled out from {@link ElasticsearchSinkTestBase#createElasticsearchSink(Map, List, ElasticsearchSinkFunction)}
+	 * <p>This case is singled out from {@link ElasticsearchSinkTestBase#createElasticsearchSink(Map, List, ElasticsearchSinkFunction)}
 	 * because the Elasticsearch Java API to do so is incompatible across different versions.
 	 */
 	protected abstract <T> ElasticsearchSinkBase<T> createElasticsearchSinkForEmbeddedNode(

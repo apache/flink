@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
+/**
+ * Static filter method for lambda tests.
+ */
 public class WordFilter {
 	public static boolean filter(String value) {
 		return !value.contains("not");

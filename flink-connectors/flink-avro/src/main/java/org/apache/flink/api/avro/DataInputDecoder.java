@@ -18,20 +18,22 @@
 
 package org.apache.flink.api.avro;
 
+import org.apache.avro.io.Decoder;
+import org.apache.avro.util.Utf8;
+
 import java.io.DataInput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import org.apache.avro.io.Decoder;
-import org.apache.avro.util.Utf8;
-
-
+/**
+ * A {@link Decoder} that reads from a {@link DataInput}.
+ */
 public class DataInputDecoder extends Decoder {
-	
+
 	private final Utf8 stringDecoder = new Utf8();
-	
+
 	private DataInput in;
-	
+
 	public void setIn(DataInput in) {
 		this.in = in;
 	}
@@ -39,10 +41,9 @@ public class DataInputDecoder extends Decoder {
 	// --------------------------------------------------------------------------------------------
 	// primitives
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void readNull() {}
-	
 
 	@Override
 	public boolean readBoolean() throws IOException {
@@ -68,12 +69,12 @@ public class DataInputDecoder extends Decoder {
 	public double readDouble() throws IOException {
 		return in.readDouble();
 	}
-	
+
 	@Override
 	public int readEnum() throws IOException {
 		return readInt();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// bytes
 	// --------------------------------------------------------------------------------------------
@@ -82,7 +83,7 @@ public class DataInputDecoder extends Decoder {
 	public void readFixed(byte[] bytes, int start, int length) throws IOException {
 		in.readFully(bytes, start, length);
 	}
-	
+
 	@Override
 	public ByteBuffer readBytes(ByteBuffer old) throws IOException {
 		int length = readInt();
@@ -97,34 +98,32 @@ public class DataInputDecoder extends Decoder {
 		result.limit(length);
 		return result;
 	}
-	
-	
+
 	@Override
 	public void skipFixed(int length) throws IOException {
 		skipBytes(length);
 	}
-	
+
 	@Override
 	public void skipBytes() throws IOException {
 		int num = readInt();
 		skipBytes(num);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// strings
 	// --------------------------------------------------------------------------------------------
-	
-	
+
 	@Override
 	public Utf8 readString(Utf8 old) throws IOException {
 		int length = readInt();
 		Utf8 result = (old != null ? old : new Utf8());
 		result.setByteLength(length);
-		
+
 		if (length > 0) {
 			in.readFully(result.getBytes(), 0, length);
 		}
-		
+
 		return result;
 	}
 
@@ -172,7 +171,7 @@ public class DataInputDecoder extends Decoder {
 	public long skipMap() throws IOException {
 		return readVarLongCount(in);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// union
 	// --------------------------------------------------------------------------------------------
@@ -181,17 +180,17 @@ public class DataInputDecoder extends Decoder {
 	public int readIndex() throws IOException {
 		return readInt();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// utils
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void skipBytes(int num) throws IOException {
 		while (num > 0) {
 			num -= in.skipBytes(num);
 		}
 	}
-	
+
 	public static long readVarLongCount(DataInput in) throws IOException {
 		long value = in.readUnsignedByte();
 

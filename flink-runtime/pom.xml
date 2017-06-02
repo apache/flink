@@ -401,6 +401,93 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+					<excludes>
+						**/migration/api/**,
+						**/migration/runtime/**,
+						**/migration/state/**,
+						**/migration/streaming/**,
+						**/migration/*,
+						**/runtime/akka/**,
+						**/runtime/blob/**,
+						**/runtime/broadcast/**,
+						**/runtime/checkpoint/**,
+						**/runtime/client/**,
+						**/runtime/clusterframework/**,       
+						**/runtime/concurrent/**,
+						**/runtime/deployment/**,
+						**/runtime/event/**,
+						**/runtime/execution/**,
+						**/runtime/executiongraph/**,
+						**/runtime/filecache/**,
+						**/runtime/fs/**,
+						**/runtime/heartbeat/**,
+						**/runtime/highavailability/**,
+						**/runtime/history/**,
+						**/runtime/instance/**,
+						**/runtime/io/**,
+						**/runtime/iterative/**,
+						**/runtime/jobgraph/**,
+						**/runtime/jobmanager/**,
+						**/runtime/jobmaster/**,
+						**/runtime/leaderelection/**,
+						**/runtime/leaderretrieval/**,
+						**/runtime/memory/**,
+						**/runtime/messages/**,
+						**/runtime/metrics/**,
+						**/runtime/minicluster/**,
+						**/runtime/net/**,
+						**/runtime/operators/**,
+						**/runtime/plugable/**,
+						**/runtime/process/**,
+						**/runtime/query/**,
+						**/runtime/registration/**,
+						**/runtime/resourcemanager/**,
+						**/runtime/rpc/**,
+						**/runtime/security/**,
+						**/runtime/state/**,
+						**/runtime/taskexecutor/**,
+						**/runtime/taskmanager/**,
+						**/runtime/testutils/**,
+						**/runtime/util/**,
+						**/runtime/webmonitor/**,
+						**/runtime/zookeeper/**,
+						**/runtime/*
+					</excludes>
+				</configuration>
+				<executions>
+					<!--
+					Execute checkstyle after compilation but before tests.
+
+					This ensures that any parsing or type checking errors are from
+					javac, so they look as expected. Beyond that, we want to
+					fail as early as possible.
+					-->
+					<execution>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>

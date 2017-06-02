@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class AllGroupReduceITCase extends JavaProgramTestBase {
+/**
+ * IT cases for lambda map functions.
+ */
+public class MapITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "aaabacad\n";
+	private static class Trade {
+
+		public String v;
+
+		public Trade(String v) {
+			this.v = v;
+		}
+
+		@Override
+		public String toString() {
+			return v;
+		}
+	}
+
+	private static final String EXPECTED_RESULT = "22\n" +
+			"22\n" +
+			"23\n" +
+			"24\n";
 
 	private String resultPath;
 
@@ -37,15 +57,13 @@ public class AllGroupReduceITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-		DataSet<String> concatDs = stringDs.reduceGroup((values, out) -> {
-			String conc = "";
-			for (String s : values) {
-				conc = conc.concat(s);
-			}
-			out.collect(conc);
-		});
-		concatDs.writeAsText(resultPath);
+		DataSet<Integer> stringDs = env.fromElements(11, 12, 13, 14);
+		DataSet<String> mappedDs = stringDs
+			.map(Object::toString)
+			.map (s -> s.replace("1", "2"))
+			.map(Trade::new)
+			.map(Trade::toString);
+		mappedDs.writeAsText(resultPath);
 		env.execute();
 	}
 

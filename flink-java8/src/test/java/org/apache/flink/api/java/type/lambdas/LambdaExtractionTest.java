@@ -18,14 +18,6 @@
 
 package org.apache.flink.api.java.type.lambdas;
 
-import org.apache.flink.api.java.typeutils.TypeExtractionUtils;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
-
-import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -44,8 +36,18 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+
+import org.junit.Assert;
 import org.junit.Test;
 
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests the type extractor for lambda functions.
+ */
 @SuppressWarnings("serial")
 public class LambdaExtractionTest {
 
@@ -54,12 +56,16 @@ public class LambdaExtractionTest {
 		try {
 			MapFunction<?, ?> anonymousFromInterface = new MapFunction<String, Integer>() {
 				@Override
-				public Integer map(String value) { return Integer.parseInt(value); }
+				public Integer map(String value) {
+					return Integer.parseInt(value);
+				}
 			};
 
 			MapFunction<?, ?> anonymousFromClass = new RichMapFunction<String, Integer>() {
 				@Override
-				public Integer map(String value) { return Integer.parseInt(value); }
+				public Integer map(String value) {
+					return Integer.parseInt(value);
+				}
 			};
 
 			MapFunction<?, ?> fromProperClass = new StaticMapper();
@@ -90,19 +96,21 @@ public class LambdaExtractionTest {
 		}
 	}
 
-	public static class StaticMapper implements MapFunction<String, Integer> {
+	private static class StaticMapper implements MapFunction<String, Integer> {
 		@Override
-		public Integer map(String value) { return Integer.parseInt(value); }
+		public Integer map(String value) {
+			return Integer.parseInt(value);
+		}
 	}
 
-	public interface ToTuple<T> extends MapFunction<T, Tuple2<T, Long>> {
+	private interface ToTuple<T> extends MapFunction<T, Tuple2<T, Long>> {
 		@Override
 		Tuple2<T, Long> map(T value) throws Exception;
 	}
 
 	private static final MapFunction<String, Integer> STATIC_LAMBDA = Integer::parseInt;
 
-	public static class MyClass {
+	private static class MyClass {
 		private String s = "mystring";
 
 		public MapFunction<Integer, String> getMapFunction() {
@@ -253,7 +261,7 @@ public class LambdaExtractionTest {
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 	}
 
-	public static class MyType {
+	private static class MyType {
 		private int key;
 
 		public int getKey() {
@@ -283,7 +291,7 @@ public class LambdaExtractionTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}
 
-	public static class MySubtype extends MyType {
+	private static class MySubtype extends MyType {
 		public boolean test;
 	}
 

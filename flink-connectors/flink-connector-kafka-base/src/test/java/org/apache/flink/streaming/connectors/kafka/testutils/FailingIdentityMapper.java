@@ -22,30 +22,35 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
 
-
-public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
+/**
+ * A {@link RichMapFunction} that fails after the configured number of records have been processed.
+ *
+ * @param <T>
+ */
+public class FailingIdentityMapper<T> extends RichMapFunction<T, T> implements
 	ListCheckpointed<Integer>, CheckpointListener, Runnable {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(FailingIdentityMapper.class);
-	
+
 	private static final long serialVersionUID = 6334389850158707313L;
-	
+
 	public static volatile boolean failedBefore;
 	public static volatile boolean hasBeenCheckpointedBeforeFailure;
 
 	private final int failCount;
 	private int numElementsTotal;
 	private int numElementsThisTime;
-	
+
 	private boolean failer;
 	private boolean hasBeenCheckpointed;
-	
+
 	private Thread printer;
 	private volatile boolean printerRunning = true;
 
@@ -64,10 +69,10 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
 	public T map(T value) throws Exception {
 		numElementsTotal++;
 		numElementsThisTime++;
-		
+
 		if (!failedBefore) {
 			Thread.sleep(10);
-			
+
 			if (failer && numElementsTotal >= failCount) {
 				hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
 				failedBefore = true;

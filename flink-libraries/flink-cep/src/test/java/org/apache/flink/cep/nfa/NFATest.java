@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
@@ -29,6 +28,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -44,6 +45,9 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link NFA}.
+ */
 public class NFATest extends TestLogger {
 	@Test
 	public void testSimpleNFA() {
@@ -147,7 +151,7 @@ public class NFATest extends TestLogger {
 
 	/**
 	 * Tests that pruning shared buffer elements and computations state use the same window border
-	 * semantics (left side inclusive and right side exclusive)
+	 * semantics (left side inclusive and right side exclusive).
 	 */
 	@Test
 	public void testTimeoutWindowPruningWindowBorders() {

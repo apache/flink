@@ -18,21 +18,25 @@
 
 package org.apache.flink.api.avro;
 
-import java.io.File;
-import java.net.URL;
-import java.util.Collections;
-
+import org.apache.flink.api.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
+import java.net.URL;
+import java.util.Collections;
+
+/**
+ * IT case for the {@link AvroExternalJarProgram}.
+ */
 public class AvroExternalJarProgramITCase extends TestLogger {
 
 	private static final String JAR_FILE = "maven-test-jar.jar";

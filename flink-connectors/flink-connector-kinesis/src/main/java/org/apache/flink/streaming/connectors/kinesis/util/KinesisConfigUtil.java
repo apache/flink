@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import com.amazonaws.regions.Regions;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
@@ -25,6 +24,8 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.C
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
+
+import com.amazonaws.regions.Regions;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -141,7 +142,7 @@ public class KinesisConfigUtil {
 	}
 
 	/**
-	 * Validate configuration properties related to Amazon AWS service
+	 * Validate configuration properties related to Amazon AWS service.
 	 */
 	public static void validateAwsConfiguration(Properties config) {
 		if (config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {

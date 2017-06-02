@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.tests;
 
-import org.apache.storm.Config;
-import org.apache.storm.topology.TopologyBuilder;
-import org.apache.storm.tuple.Fields;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.tests.operators.FiniteRandomSpout;
@@ -28,6 +26,10 @@ import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.util.MathUtils;
+
+import org.apache.storm.Config;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -41,10 +43,10 @@ import java.util.List;
  */
 public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 
-	private final static String topologyId = "FieldsGrouping Test";
-	private final static String spoutId = "spout";
-	private final static String boltId = "bolt";
-	private final static String sinkId = "sink";
+	private static final String topologyId = "FieldsGrouping Test";
+	private static final String spoutId = "spout";
+	private static final String boltId = "bolt";
+	private static final String sinkId = "sink";
 	private String resultPath;
 
 	@Override
@@ -62,19 +64,19 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 		readAllResultLines(actualResults, resultPath, new String[0], false);
 
 		//remove potential operator id prefix
-		for(int i = 0; i < actualResults.size(); ++i) {
+		for (int i = 0; i < actualResults.size(); ++i) {
 			String s = actualResults.get(i);
-			if(s.contains(">")) {
+			if (s.contains(">")) {
 				s = s.substring(s.indexOf(">") + 2);
 				actualResults.set(i, s);
 			}
 		}
 
-		Assert.assertEquals(expectedResults.size(),actualResults.size());
+		Assert.assertEquals(expectedResults.size(), actualResults.size());
 		Collections.sort(actualResults);
 		Collections.sort(expectedResults);
 		System.out.println(actualResults);
-		for(int i=0; i< actualResults.size(); ++i) {
+		for (int i = 0; i < actualResults.size(); ++i) {
 			//compare against actual results with removed prefex (as it depends e.g. on the hash function used)
 			Assert.assertEquals(expectedResults.get(i), actualResults.get(i));
 		}

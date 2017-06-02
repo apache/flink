@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
-import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.util.Preconditions;
+
+import com.amazonaws.services.kinesis.model.Shard;
 
 /**
  * A wrapper class that bundles a {@link StreamShardHandle} with its last processed sequence number.

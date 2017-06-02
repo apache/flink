@@ -16,24 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class CrossITCase extends JavaProgramTestBase {
+/**
+ * IT cases for lambda cogroup functions.
+ */
+public class CoGroupITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "2,hello not\n" +
-			"3,what's not\n" +
-			"3,up not\n" +
-			"2,hello much\n" +
-			"3,what's much\n" +
-			"3,up much\n" +
-			"3,hello really\n" +
-			"4,what's really\n" +
-			"4,up really";
+	private static final String EXPECTED_RESULT = "6\n3\n";
 
 	private String resultPath;
 
@@ -48,18 +43,27 @@ public class CrossITCase extends JavaProgramTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple2<Integer, String>> left = env.fromElements(
-				new Tuple2<Integer, String>(1, "hello"),
-				new Tuple2<Integer, String>(2, "what's"),
-				new Tuple2<Integer, String>(2, "up")
-				);
+			new Tuple2<Integer, String>(1, "hello"),
+			new Tuple2<Integer, String>(2, "what's"),
+			new Tuple2<Integer, String>(2, "up")
+		);
 		DataSet<Tuple2<Integer, String>> right = env.fromElements(
-				new Tuple2<Integer, String>(1, "not"),
-				new Tuple2<Integer, String>(1, "much"),
-				new Tuple2<Integer, String>(2, "really")
-				);
-		DataSet<Tuple2<Integer,String>> joined = left.cross(right)
-				.with((t,s) -> new Tuple2<Integer, String> (t.f0 + s.f0, t.f1 + " " + s.f1));
-		joined.writeAsCsv(resultPath);
+			new Tuple2<Integer, String>(1, "not"),
+			new Tuple2<Integer, String>(1, "much"),
+			new Tuple2<Integer, String>(2, "really")
+		);
+		DataSet<Integer> joined = left.coGroup(right).where(0).equalTo(0)
+			.with((values1, values2, out) -> {
+				int sum = 0;
+				for (Tuple2<Integer, String> next : values1) {
+					sum += next.f0;
+				}
+				for (Tuple2<Integer, String> next : values2) {
+					sum += next.f0;
+				}
+				out.collect(sum);
+			});
+		joined.writeAsText(resultPath);
 		env.execute();
 	}
 

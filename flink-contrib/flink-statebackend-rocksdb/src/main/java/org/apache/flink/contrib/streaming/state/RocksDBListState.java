@@ -50,7 +50,7 @@ public class RocksDBListState<K, N, V>
 	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, List<V>>
 	implements InternalListState<N, V> {
 
-	/** Serializer for the values */
+	/** Serializer for the values. */
 	private final TypeSerializer<V> valueSerializer;
 
 	/**
@@ -100,7 +100,7 @@ public class RocksDBListState<K, N, V>
 				}
 			}
 			return result;
-		} catch (IOException|RocksDBException e) {
+		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while retrieving data from RocksDB", e);
 		}
 	}
@@ -131,7 +131,7 @@ public class RocksDBListState<K, N, V>
 		final int keyGroup = backend.getCurrentKeyGroupIndex();
 
 		try {
-			// create the target full-binary-key 
+			// create the target full-binary-key
 			writeKeyWithGroupAndNamespace(
 					keyGroup, key, target,
 					keySerializationStream, keySerializationDataOutputView);

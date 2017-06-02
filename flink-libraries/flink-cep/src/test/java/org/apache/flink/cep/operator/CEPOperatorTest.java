@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.operator;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -42,12 +41,12 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
+
+import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
-import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,6 +56,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+/**
+ * Tests for {@link KeyedCEPPatternOperator} and {@link TimeoutKeyedCEPPatternOperator}.
+ */
 public class CEPOperatorTest extends TestLogger {
 
 	@Rule
@@ -269,7 +274,7 @@ public class CEPOperatorTest extends TestLogger {
 			assertTrue(resultObject instanceof StreamRecord);
 
 			StreamRecord<Either<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>>> streamRecord =
-					(StreamRecord<Either<Tuple2<Map<String,List<Event>>,Long>,Map<String,List<Event>>>>) resultObject;
+					(StreamRecord<Either<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>>>) resultObject;
 
 			assertTrue(streamRecord.getValue() instanceof Either.Left);
 
@@ -299,8 +304,8 @@ public class CEPOperatorTest extends TestLogger {
 		SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
 		SubEvent middleEvent2 = new SubEvent(42, "foo2", 1.0, 10.0);
 		SubEvent middleEvent3 = new SubEvent(42, "foo3", 1.0, 10.0);
-		Event endEvent1 =  new Event(42, "end", 1.0);
-		Event endEvent2 =  new Event(42, "end", 2.0);
+		Event endEvent1 = new Event(42, "end", 1.0);
+		Event endEvent2 = new Event(42, "end", 2.0);
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
@@ -493,8 +498,8 @@ public class CEPOperatorTest extends TestLogger {
 		SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
 		SubEvent middleEvent2 = new SubEvent(42, "foo2", 1.0, 10.0);
 		SubEvent middleEvent3 = new SubEvent(42, "foo3", 1.0, 10.0);
-		Event endEvent1 =  new Event(42, "end", 1.0);
-		Event endEvent2 =  new Event(42, "end", 2.0);
+		Event endEvent1 = new Event(42, "end", 1.0);
+		Event endEvent2 = new Event(42, "end", 2.0);
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
@@ -746,7 +751,6 @@ public class CEPOperatorTest extends TestLogger {
 		Collections.sort(expected, new ListEventComparator());
 		Assert.assertArrayEquals(expected.toArray(), actual.toArray());
 	}
-
 
 	private class ListEventComparator implements Comparator<List<Event>> {
 

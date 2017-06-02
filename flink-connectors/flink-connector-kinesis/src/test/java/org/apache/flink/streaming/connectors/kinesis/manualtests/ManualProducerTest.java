@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -32,14 +33,14 @@ import java.util.Properties;
 /**
  * This is a manual test for the AWS Kinesis connector in Flink.
  *
- * It uses:
+ * <p>It uses:
  *  - A custom KinesisSerializationSchema
  *  - A custom KinesisPartitioner
  *
- *  The streams "test-flink" and "flink-test-2" must exist.
+ * <p>The streams "test-flink" and "flink-test-2" must exist.
  *
- * Invocation:
- * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
+ * <p>Invocation:
+ * --region eu-central-1 --accessKey X --secretKey X
  */
 public class ManualProducerTest {
 
@@ -66,7 +67,7 @@ public class ManualProducerTest {
 					// every 10th element goes into a different stream
 					@Override
 					public String getTargetStream(String element) {
-						if(element.split("-")[0].endsWith("0")) {
+						if (element.split("-")[0].endsWith("0")) {
 							return "flink-test-2";
 						}
 						return null; // send to default stream

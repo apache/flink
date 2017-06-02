@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis.examples;
 
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -26,7 +27,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import java.util.Properties;
 
 /**
- * This is an example on how to consume data from Kinesis
+ * This is an example on how to consume data from Kinesis.
  */
 public class ConsumeFromKinesis {
 

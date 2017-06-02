@@ -14,16 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
+
+import org.apache.flink.streaming.util.serialization.JSONDeserializationSchema;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.streaming.util.serialization.JSONDeserializationSchema;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 
+/**
+ * Tests for the {@link JSONDeserializationSchema}.
+ */
 public class JSONDeserializationSchemaTest {
 	@Test
 	public void testDeserialize() throws IOException {

@@ -34,7 +34,7 @@ public class StreamShardHandle {
 	private final int cachedHash;
 
 	/**
-	 * Create a new StreamShardHandle
+	 * Create a new StreamShardHandle.
 	 *
 	 * @param streamName
 	 *           the name of the Kinesis stream that this shard belongs to
@@ -93,7 +93,7 @@ public class StreamShardHandle {
 	}
 
 	/**
-	 * Utility function to compare two shard ids
+	 * Utility function to compare two shard ids.
 	 *
 	 * @param firstShardId first shard id to compare
 	 * @param secondShardId second shard id to compare
@@ -123,7 +123,9 @@ public class StreamShardHandle {
 	 * @return whether the shard id is valid
 	 */
 	public static boolean isValidShardId(String shardId) {
-		if (shardId == null) { return false; }
+		if (shardId == null) {
+			return false;
+		}
 		return shardId.matches("^shardId-\\d{12}");
 	}
 }

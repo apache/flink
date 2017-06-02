@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class FlatMapITCase extends JavaProgramTestBase {
+/**
+ * IT cases for lambda groupreduce functions.
+ */
+public class GroupReduceITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "bb\n" +
-			"bb\n" +
-			"bc\n" +
-			"bd\n";
+	private static final String EXPECTED_RESULT = "abad\n" +
+			"aaac\n";
 
 	private String resultPath;
 
@@ -36,13 +38,27 @@ public class FlatMapITCase extends JavaProgramTestBase {
 		resultPath = getTempDirPath("result");
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-		DataSet<String> flatMappedDs = stringDs.flatMap((s, out) -> out.collect(s.replace("a", "b")));
-		flatMappedDs.writeAsText(resultPath);
+		DataSet<Tuple2<Integer, String>> stringDs = env.fromElements(
+				new Tuple2<>(1, "aa"),
+				new Tuple2<>(2, "ab"),
+				new Tuple2<>(1, "ac"),
+				new Tuple2<>(2, "ad")
+				);
+		DataSet<String> concatDs = stringDs
+				.groupBy(0)
+				.reduceGroup((values, out) -> {
+					String conc = "";
+					for (Tuple2<Integer, String> next : values) {
+						conc = conc.concat(next.f1);
+					}
+					out.collect(conc);
+				});
+		concatDs.writeAsText(resultPath);
 		env.execute();
 	}
 

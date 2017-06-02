@@ -20,7 +20,6 @@ package org.apache.flink.api.java;
  */
 
 import org.apache.flink.api.common.PlanExecutor;
-
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
 
@@ -40,7 +39,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	private FlinkILoop flinkILoop;
 
 	/**
-	 * Creates new ScalaShellRemoteEnvironment that has a reference to the FlinkILoop
+	 * Creates new ScalaShellRemoteEnvironment that has a reference to the FlinkILoop.
 	 *
 	 * @param host	   The host name or address of the master (JobManager), where the program should be executed.
 	 * @param port	   The port of the master (JobManager), where the program should be executed.
@@ -83,7 +82,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	}
 
 	public static void disableAllContextAndOtherEnvironments() {
-		
+
 		// we create a context environment that prevents the instantiation of further
 		// context environments. at the same time, setting the context environment prevents manual
 		// creation of local and remote environments
@@ -96,7 +95,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		};
 		initializeContextEnvironment(factory);
 	}
-	
+
 	public static void resetContextEnvironments() {
 		ExecutionEnvironment.resetContextEnvironment();
 	}

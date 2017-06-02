@@ -23,6 +23,7 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.Client;
 
 import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Map;
 
@@ -31,7 +32,7 @@ import java.util.Map;
  * This includes calls to create Elasticsearch clients, handle failed item responses, etc. Any incompatible Elasticsearch
  * Java APIs should be bridged using this interface.
  *
- * Implementations are allowed to be stateful. For example, for Elasticsearch 1.x, since connecting via an embedded node
+ * <p>Implementations are allowed to be stateful. For example, for Elasticsearch 1.x, since connecting via an embedded node
  * is allowed, the call bridge will hold reference to the created embedded node. Each instance of the sink will hold
  * exactly one instance of the call bridge, and state cleanup is performed when the sink is closed.
  */

@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+
+import org.apache.hadoop.io.Writable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
-import org.apache.hadoop.io.Writable;
 
 /**
  * Test for {@link WritableTypeInfo}.
@@ -41,7 +43,7 @@ public class WritableTypeInfoTest extends TypeInformationTestBase<WritableTypeIn
 	//  test types
 	// ------------------------------------------------------------------------
 
-	public static class TestClass implements Writable {
+	private static class TestClass implements Writable {
 
 		@Override
 		public void write(DataOutput dataOutput) throws IOException {}
@@ -50,7 +52,7 @@ public class WritableTypeInfoTest extends TypeInformationTestBase<WritableTypeIn
 		public void readFields(DataInput dataInput) throws IOException {}
 	}
 
-	public static class AlternateClass implements Writable {
+	private static class AlternateClass implements Writable {
 
 		@Override
 		public void write(DataOutput dataOutput) throws IOException {}

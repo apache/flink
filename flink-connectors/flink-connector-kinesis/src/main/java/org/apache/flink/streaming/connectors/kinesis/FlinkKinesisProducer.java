@@ -14,16 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis;
 
-import com.amazonaws.services.kinesis.producer.Attempt;
-import com.amazonaws.services.kinesis.producer.KinesisProducer;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
-import com.amazonaws.services.kinesis.producer.UserRecordResult;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -33,6 +26,15 @@ import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.PropertiesUtil;
+
+import com.amazonaws.services.kinesis.producer.Attempt;
+import com.amazonaws.services.kinesis.producer.KinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
+import com.amazonaws.services.kinesis.producer.UserRecordResult;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,9 +72,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	/* Optional custom partitioner */
 	private KinesisPartitioner<OUT> customPartitioner = null;
 
-
 	// --------------------------- Runtime fields ---------------------------
-
 
 	/* Our Kinesis instance for each parallel Flink sink */
 	private transient KinesisProducer producer;
@@ -83,9 +83,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	/* Field for async exception */
 	private transient volatile Throwable thrownException;
 
-
 	// --------------------------- Initialization and configuration  ---------------------------
-
 
 	/**
 	 * Create a new FlinkKinesisProducer.
@@ -104,6 +102,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 				return ByteBuffer.wrap(schema.serialize(element));
 			}
 			// use default stream and hash key
+
 			@Override
 			public String getTargetStream(OUT element) {
 				return null;
@@ -147,7 +146,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	}
 
 	/**
-	 * Set default partition id
+	 * Set default partition id.
 	 * @param defaultPartition Name of the default partition
 	 */
 	public void setDefaultPartition(String defaultPartition) {
@@ -160,9 +159,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		this.customPartitioner = partitioner;
 	}
 
-
 	// --------------------------- Lifecycle methods ---------------------------
-
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
@@ -186,7 +183,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 			@Override
 			public void onSuccess(UserRecordResult result) {
 				if (!result.isSuccessful()) {
-					if(failOnError) {
+					if (failOnError) {
 						thrownException = new RuntimeException("Record was not sent successful");
 					} else {
 						LOG.warn("Record was not sent successful");
@@ -222,7 +219,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 				List<Attempt> attempts = ((UserRecordFailedException) thrownException).getResult().getAttempts();
 				for (Attempt attempt: attempts) {
 					if (attempt.getErrorMessage() != null) {
-						errorMessages += attempt.getErrorMessage() +"\n";
+						errorMessages += attempt.getErrorMessage() + "\n";
 					}
 				}
 			}

@@ -18,38 +18,43 @@
 
 package org.apache.flink.table.api.java.batch;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.calcite.tools.RuleSets;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.calcite.CalciteConfig;
-import org.apache.flink.table.calcite.CalciteConfigBuilder;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
+import org.apache.flink.table.calcite.CalciteConfig;
+import org.apache.flink.table.calcite.CalciteConfigBuilder;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.types.Row;
+
+import org.apache.calcite.tools.RuleSets;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Integration tests for {@link BatchTableEnvironment}.
+ */
 @RunWith(Parameterized.class)
 public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 
@@ -401,7 +406,7 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		// use null value the enforce GenericType
-		DataSet<Row> dataSet = env.fromElements(Row.of((Integer)null));
+		DataSet<Row> dataSet = env.fromElements(Row.of((Integer) null));
 		assertTrue(dataSet.getType() instanceof GenericTypeInfo);
 		assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
 
@@ -482,10 +487,16 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Non-static class.
+	 */
 	public class MyNonStatic {
 		public int number;
 	}
 
+	/**
+	 * Small POJO.
+	 */
 	@SuppressWarnings("unused")
 	public static class SmallPojo {
 
@@ -506,6 +517,9 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		public Integer[] roles;
 	}
 
+	/**
+	 * POJO with generic fields.
+	 */
 	@SuppressWarnings("unused")
 	public static class PojoWithGeneric {
 		public String name;
@@ -531,6 +545,9 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		}
 	}
 
+	/**
+	 * Small POJO with private fields.
+	 */
 	@SuppressWarnings("unused")
 	public static class PrivateSmallPojo {
 
@@ -581,6 +598,9 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		}
 	}
 
+	/**
+	 * Another small POJO.
+	 */
 	@SuppressWarnings("unused")
 	public static class SmallPojo2 {
 
@@ -606,6 +626,9 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		}
 	}
 
+	/**
+	 * Another small POJO with private fields.
+	 */
 	@SuppressWarnings("unused")
 	public static class PrivateSmallPojo2 {
 

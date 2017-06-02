@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
+
 import org.elasticsearch.action.index.IndexRequest;
 
 import java.io.Serializable;
@@ -26,14 +28,12 @@ import java.io.Serializable;
 /**
  * Function that creates an {@link IndexRequest} from an element in a Stream.
  *
- * <p>
- * This is used by {@link org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink}
+ * <p>This is used by {@link org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink}
  * to prepare elements for sending them to Elasticsearch. See
  * <a href="https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/index_.html">Index API</a>
  * for information about how to format data for adding it to an Elasticsearch index.
  *
- * <p>
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
  *     private static class MyIndexRequestBuilder implements IndexRequestBuilder<String> {

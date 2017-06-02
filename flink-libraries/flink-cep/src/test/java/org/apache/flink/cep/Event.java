@@ -25,6 +25,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.util.Objects;
 
+/**
+ * Exemplary event for usage in tests of CEP. See also {@link SubEvent}
+ */
 public class Event {
 	private String name;
 	private double price;

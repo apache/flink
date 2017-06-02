@@ -23,10 +23,10 @@ import org.apache.flink.api.common.functions.MapFunction;
 /**
  * An identity map function that sleeps between elements, throttling the
  * processing speed.
- * 
+ *
  * @param <T> The type mapped.
  */
-public class ThrottledMapper<T> implements MapFunction<T,T> {
+public class ThrottledMapper<T> implements MapFunction<T, T> {
 
 	private static final long serialVersionUID = 467008933767159126L;
 

@@ -17,13 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.cluster.Broker;
-import kafka.common.ErrorMapping;
-import kafka.javaapi.PartitionMetadata;
-import kafka.javaapi.TopicMetadata;
-import kafka.javaapi.TopicMetadataRequest;
-import kafka.javaapi.consumer.SimpleConsumer;
-
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -39,6 +32,12 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
+import kafka.cluster.Broker;
+import kafka.common.ErrorMapping;
+import kafka.javaapi.PartitionMetadata;
+import kafka.javaapi.TopicMetadata;
+import kafka.javaapi.TopicMetadataRequest;
+import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 
@@ -46,25 +45,25 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
-import java.util.Collections;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
-import static org.apache.flink.util.PropertiesUtil.getInt;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.PropertiesUtil.getInt;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
  * Apache Kafka 0.8.x. The consumer can run in multiple parallel instances, each of which will pull
- * data from one or more Kafka partitions. 
- * 
+ * data from one or more Kafka partitions.
+ *
  * <p>The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
- * during a failure, and that the computation processes elements "exactly once". 
+ * during a failure, and that the computation processes elements "exactly once".
  * (Note: These guarantees naturally assume that Kafka itself does not loose any data.)</p>
- * 
+ *
  * <p>Flink's Kafka Consumer is designed to be compatible with Kafka's High-Level Consumer API (0.8.x).
  * Most of Kafka's configuration variables can be used with this consumer as well:
  *         <ul>
@@ -74,11 +73,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *             <li>auto.offset.reset with the values "largest", "smallest"</li>
  *             <li>fetch.wait.max.ms</li>
  *         </ul>
- *     </li>
- * </ul>
- * 
+ *
  * <h1>Offset handling</h1>
- * 
+ *
  * <p>Offsets whose records have been read and are checkpointed will be committed back to ZooKeeper
  * by the offset handler. In addition, the offset handler finds the point where the source initially
  * starts reading from the stream, when the streaming job is started.</p>
@@ -93,7 +90,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>When using a Kafka topic to send data between Flink jobs, we recommend using the
  * {@see TypeInformationSerializationSchema} and {@see TypeInformationKeyValueSerializationSchema}.</p>
- * 
+ *
  * <p><b>NOTE:</b> The implementation currently accesses partition metadata when the consumer
  * is constructed. That means that the client that submits the program needs to be able to
  * reach the Kafka brokers or ZooKeeper.</p>
@@ -102,7 +99,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 	private static final long serialVersionUID = -6272159445203409112L;
 
-	/** Configuration key for the number of retries for getting the partition info */
+	/** Configuration key for the number of retries for getting the partition info. */
 	public static final String GET_PARTITIONS_RETRIES_KEY = "flink.get-partitions.retry";
 
 	/** Default number of retries for getting the partition info. One retry means going through the full list of brokers */
@@ -110,13 +107,13 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 	// ------------------------------------------------------------------------
 
-	/** The properties to parametrize the Kafka consumer and ZooKeeper client */ 
+	/** The properties to parametrize the Kafka consumer and ZooKeeper client. */
 	private final Properties kafkaProperties;
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x.
 	 *
 	 * @param topic
 	 *           The name of the topic that should be consumed.
@@ -132,7 +129,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
-	 * This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param topic
@@ -149,7 +146,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
-	 * This constructor allows passing multiple topics to the consumer.
+	 * <p>This constructor allows passing multiple topics to the consumer.
 	 *
 	 * @param topics
 	 *           The Kafka topics to read from.
@@ -165,8 +162,8 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
-	 * This constructor allows passing multiple topics and a key/value deserialization schema.
-	 * 
+	 * <p>This constructor allows passing multiple topics and a key/value deserialization schema.
+	 *
 	 * @param topics
 	 *           The Kafka topics to read from.
 	 * @param deserializer
@@ -245,14 +242,14 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 	/**
 	 * Send request to Kafka to get partitions for topic.
-	 * 
+	 *
 	 * @param topics The name of the topics.
-	 * @param properties The properties for the Kafka Consumer that is used to query the partitions for the topic. 
+	 * @param properties The properties for the Kafka Consumer that is used to query the partitions for the topic.
 	 */
 	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(List<String> topics, Properties properties) {
 		String seedBrokersConfString = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		final int numRetries = getInt(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
-		
+
 		checkNotNull(seedBrokersConfString, "Configuration property %s not set", ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		String[] seedBrokers = seedBrokersConfString.split(",");
 		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
@@ -328,7 +325,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	/**
-	 * Turn a broker instance into a node instance
+	 * Turn a broker instance into a node instance.
 	 * @param broker broker instance
 	 * @return Node representing the given broker
 	 */
@@ -337,7 +334,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	/**
-	 * Validate the ZK configuration, checking for required parameters
+	 * Validate the ZK configuration, checking for required parameters.
 	 * @param props Properties to check
 	 */
 	protected static void validateZooKeeperConfig(Properties props) {
@@ -348,7 +345,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			throw new IllegalArgumentException("Required property '" + ConsumerConfig.GROUP_ID_CONFIG
 					+ "' has not been set in the properties");
 		}
-		
+
 		try {
 			//noinspection ResultOfMethodCallIgnored
 			Integer.parseInt(props.getProperty("zookeeper.session.timeout.ms", "0"));
@@ -356,7 +353,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Property 'zookeeper.session.timeout.ms' is not a valid integer");
 		}
-		
+
 		try {
 			//noinspection ResultOfMethodCallIgnored
 			Integer.parseInt(props.getProperty("zookeeper.connection.timeout.ms", "0"));
@@ -369,7 +366,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Validate that at least one seed broker is valid in case of a
 	 * ClosedChannelException.
-	 * 
+	 *
 	 * @param seedBrokers
 	 *            array containing the seed brokers e.g. ["host1:port1",
 	 *            "host2:port2"]

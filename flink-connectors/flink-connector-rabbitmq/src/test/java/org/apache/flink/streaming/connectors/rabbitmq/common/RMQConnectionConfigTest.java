@@ -26,7 +26,9 @@ import java.security.NoSuchAlgorithmException;
 
 import static org.junit.Assert.assertEquals;
 
-
+/**
+ * Tests for the {@link RMQConnectionConfig}.
+ */
 public class RMQConnectionConfigTest {
 
 	@Test(expected = NullPointerException.class)
@@ -37,6 +39,7 @@ public class RMQConnectionConfigTest {
 			.setPassword("guest").setVirtualHost("/").build();
 		connectionConfig.getConnectionFactory();
 	}
+
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfPortIsNull() throws NoSuchAlgorithmException,
 		KeyManagementException, URISyntaxException {

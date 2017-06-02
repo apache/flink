@@ -18,12 +18,13 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
-import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -35,6 +36,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link JsonRowDeserializationSchema}.
+ */
 public class JsonRowDeserializationSchemaTest {
 
 	/**

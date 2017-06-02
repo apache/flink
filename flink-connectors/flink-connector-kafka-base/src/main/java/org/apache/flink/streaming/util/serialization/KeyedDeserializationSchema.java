@@ -26,7 +26,7 @@ import java.io.Serializable;
  * The deserialization schema describes how to turn the byte key / value messages delivered by certain
  * data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
  * processed by Flink.
- * 
+ *
  * @param <T> The type created by the keyed deserialization schema.
  */
 public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
@@ -46,7 +46,7 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
 	 * true is returned the element won't be emitted.
-	 * 
+	 *
 	 * @param nextElement The element to test for the end-of-stream signal.
 	 *
 	 * @return True, if the element signals end of stream, false otherwise.

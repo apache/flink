@@ -16,17 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class GroupReduceITCase extends JavaProgramTestBase {
+/**
+ * IT cases for lambda cross functions.
+ */
+public class CrossITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "abad\n" +
-			"aaac\n";
+	private static final String EXPECTED_RESULT = "2,hello not\n" +
+			"3,what's not\n" +
+			"3,up not\n" +
+			"2,hello much\n" +
+			"3,what's much\n" +
+			"3,up much\n" +
+			"3,hello really\n" +
+			"4,what's really\n" +
+			"4,up really";
 
 	private String resultPath;
 
@@ -40,22 +50,19 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Integer,String>> stringDs = env.fromElements(
-				new Tuple2<Integer,String>(1, "aa"),
-				new Tuple2<Integer,String>(2, "ab"),
-				new Tuple2<Integer,String>(1, "ac"),
-				new Tuple2<Integer,String>(2, "ad")
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+				new Tuple2<Integer, String>(1, "hello"),
+				new Tuple2<Integer, String>(2, "what's"),
+				new Tuple2<Integer, String>(2, "up")
 				);
-		DataSet<String> concatDs = stringDs
-				.groupBy(0)
-				.reduceGroup((values, out) -> {
-					String conc = "";
-					for (Tuple2<Integer,String> next : values) {
-						conc = conc.concat(next.f1);
-					}
-					out.collect(conc);
-				});
-		concatDs.writeAsText(resultPath);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+				new Tuple2<Integer, String>(1, "not"),
+				new Tuple2<Integer, String>(1, "much"),
+				new Tuple2<Integer, String>(2, "really")
+				);
+		DataSet<Tuple2<Integer, String>> joined = left.cross(right)
+				.with((t, s) -> new Tuple2<> (t.f0 + s.f0, t.f1 + " " + s.f1));
+		joined.writeAsCsv(resultPath);
 		env.execute();
 	}
 

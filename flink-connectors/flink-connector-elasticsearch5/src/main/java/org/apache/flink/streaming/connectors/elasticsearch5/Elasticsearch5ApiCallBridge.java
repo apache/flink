@@ -21,6 +21,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallB
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +54,7 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 	/**
 	 * User-provided transport addresses.
 	 *
-	 * We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 5.x.
+	 * <p>We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 5.x.
 	 */
 	private final List<InetSocketAddress> transportAddresses;
 

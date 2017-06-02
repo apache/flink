@@ -20,6 +20,7 @@ package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
+
 import org.apache.hadoop.mapred.OutputCollector;
 
 import java.io.IOException;
@@ -28,24 +29,24 @@ import java.io.IOException;
  * A Hadoop OutputCollector that wraps a Flink OutputCollector.
  * On each call of collect() the data is forwarded to the wrapped Flink collector.
  */
-public final class HadoopOutputCollector<KEY,VALUE> implements OutputCollector<KEY,VALUE> {
+public final class HadoopOutputCollector<KEY, VALUE> implements OutputCollector<KEY, VALUE> {
 
-	private Collector<Tuple2<KEY,VALUE>> flinkCollector;
+	private Collector<Tuple2<KEY, VALUE>> flinkCollector;
 
-	private final Tuple2<KEY,VALUE> outTuple = new Tuple2<KEY, VALUE>();
+	private final Tuple2<KEY, VALUE> outTuple = new Tuple2<KEY, VALUE>();
 
 	/**
 	 * Set the wrapped Flink collector.
-	 * 
+	 *
 	 * @param flinkCollector The wrapped Flink OutputCollector.
 	 */
 	public void setFlinkCollector(Collector<Tuple2<KEY, VALUE>> flinkCollector) {
 		this.flinkCollector = flinkCollector;
 	}
-	
+
 	/**
-	 * Use the wrapped Flink collector to collect a key-value pair for Flink. 
-	 * 
+	 * Use the wrapped Flink collector to collect a key-value pair for Flink.
+	 *
 	 * @param key the key to collect
 	 * @param val the value to collect
 	 * @throws IOException unexpected of key or value in key-value pair.

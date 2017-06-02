@@ -18,23 +18,29 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.Properties;
-import org.apache.avro.Schema;
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.testutils.AvroTestUtils;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+
+import org.apache.avro.Schema;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.junit.Test;
+
+import java.util.Properties;
+
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Abstract test base for all Kafka table sources.
+ */
 public abstract class KafkaTableSourceTestBase {
 
 	private static final String TOPIC = "testTopic";
@@ -47,10 +53,14 @@ public abstract class KafkaTableSourceTestBase {
 		BasicTypeInfo.LONG_TYPE_INFO };
 	private static final Properties PROPERTIES = createSourceProperties();
 
-	// Avro record that matches above schema
+	/**
+	 * Avro record that matches above schema.
+	 */
 	public static class AvroSpecificRecord extends SpecificRecordBase {
 
+		//CHECKSTYLE.OFF: StaticVariableNameCheck - Avro accesses this field by name via reflection.
 		public static Schema SCHEMA$ = AvroTestUtils.createFlatAvroSchema(FIELD_NAMES, FIELD_TYPES);
+		//CHECKSTYLE.ON: StaticVariableNameCheck
 
 		public Long mylong;
 		public String mystring;

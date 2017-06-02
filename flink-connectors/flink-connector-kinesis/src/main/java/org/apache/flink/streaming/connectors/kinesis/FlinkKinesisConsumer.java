@@ -44,13 +44,14 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeseri
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -82,24 +83,24 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	//  Consumer properties
 	// ------------------------------------------------------------------------
 
-	/** The names of the Kinesis streams that we will be consuming from */
+	/** The names of the Kinesis streams that we will be consuming from. */
 	private final List<String> streams;
 
 	/** Properties to parametrize settings such as AWS service region, initial position in stream,
-	 * shard list retrieval behaviours, etc */
+	 * shard list retrieval behaviours, etc. */
 	private final Properties configProps;
 
-	/** User supplied deserialization schema to convert Kinesis byte messages to Flink objects */
+	/** User supplied deserialization schema to convert Kinesis byte messages to Flink objects. */
 	private final KinesisDeserializationSchema<T> deserializer;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
 	// ------------------------------------------------------------------------
 
-	/** Per-task fetcher for Kinesis data records, where each fetcher pulls data from one or more Kinesis shards */
+	/** Per-task fetcher for Kinesis data records, where each fetcher pulls data from one or more Kinesis shards. */
 	private transient KinesisDataFetcher<T> fetcher;
 
-	/** The sequence numbers to restore to upon restore from failure */
+	/** The sequence numbers to restore to upon restore from failure. */
 	private transient HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean running = true;
@@ -108,7 +109,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	//  State for Checkpoint
 	// ------------------------------------------------------------------------
 
-	/** State name to access shard sequence number states; cannot be changed */
+	/** State name to access shard sequence number states; cannot be changed. */
 	private static final String sequenceNumsStateStoreName = "Kinesis-Stream-Shard-State";
 
 	private transient ListState<Tuple2<StreamShardMetadata, SequenceNumber>> sequenceNumsStateForCheckpoint;

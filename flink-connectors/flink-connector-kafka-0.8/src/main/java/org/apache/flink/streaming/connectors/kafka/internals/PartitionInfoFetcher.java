@@ -31,7 +31,6 @@ class PartitionInfoFetcher extends Thread {
 	private volatile List<KafkaTopicPartitionLeader> result;
 	private volatile Throwable error;
 
-
 	PartitionInfoFetcher(List<String> topics, Properties properties) {
 		this.topics = topics;
 		this.properties = properties;

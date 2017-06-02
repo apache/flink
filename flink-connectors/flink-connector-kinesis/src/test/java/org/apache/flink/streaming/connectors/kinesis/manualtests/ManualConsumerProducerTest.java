@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -37,12 +38,12 @@ import java.util.Properties;
 /**
  * This is a manual test for the AWS Kinesis connector in Flink.
  *
- * It uses:
+ * <p>It uses:
  *  - A custom KinesisSerializationSchema
  *  - A custom KinesisPartitioner
  *
- * Invocation:
- * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
+ * <p>Invocation:
+ * --region eu-central-1 --accessKey X --secretKey X
  */
 public class ManualConsumerProducerTest {
 
@@ -69,7 +70,7 @@ public class ManualConsumerProducerTest {
 					// every 10th element goes into a different stream
 					@Override
 					public String getTargetStream(String element) {
-						if(element.split("-")[0].endsWith("0")) {
+						if (element.split("-")[0].endsWith("0")) {
 							return "flink-test-2";
 						}
 						return null; // send to default stream
@@ -90,7 +91,6 @@ public class ManualConsumerProducerTest {
 		});
 		simpleStringStream.addSink(kinesis);
 
-
 		// consuming topology
 		Properties consumerProps = new Properties();
 		consumerProps.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accessKey"));
@@ -104,13 +104,13 @@ public class ManualConsumerProducerTest {
 				String[] parts = value.split("-");
 				try {
 					long l = Long.parseLong(parts[0]);
-					if(l < 0) {
+					if (l < 0) {
 						throw new RuntimeException("Negative");
 					}
-				} catch(NumberFormatException nfe) {
+				} catch (NumberFormatException nfe) {
 					throw new RuntimeException("First part of '" + value + "' is not a valid numeric type");
 				}
-				if(parts[1].length() != 12) {
+				if (parts[1].length() != 12) {
 					throw new RuntimeException("Second part of '" + value + "' doesn't have 12 characters");
 				}
 			}

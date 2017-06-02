@@ -17,29 +17,29 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Serializable;
-import java.util.Objects;
-import java.util.Properties;
-
-import com.twitter.hbc.common.DelimitedStreamReader;
-import com.twitter.hbc.core.endpoint.StreamingEndpoint;
-import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.twitter.hbc.ClientBuilder;
+import com.twitter.hbc.common.DelimitedStreamReader;
 import com.twitter.hbc.core.Constants;
 import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
+import com.twitter.hbc.core.endpoint.StreamingEndpoint;
+import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
 import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Serializable;
+import java.util.Objects;
+import java.util.Properties;
 
 /**
  * Implementation of {@link SourceFunction} specialized to emit tweets from
@@ -81,10 +81,9 @@ public class TwitterSource extends RichSourceFunction<String> implements Stoppab
 	private transient Object waitLock;
 	private transient boolean running = true;
 
-
 	/**
-	 * Create {@link TwitterSource} for streaming
-	 * 
+	 * Create {@link TwitterSource} for streaming.
+	 *
 	 * @param properties For the source
 	 */
 	public TwitterSource(Properties properties) {
@@ -97,11 +96,10 @@ public class TwitterSource extends RichSourceFunction<String> implements Stoppab
 	}
 
 	private static void checkProperty(Properties p, String key) {
-		if(!p.containsKey(key)) {
+		if (!p.containsKey(key)) {
 			throw new IllegalArgumentException("Required property '" + key + "' not set.");
 		}
 	}
-
 
 	/**
 	 * Set a custom endpoint initializer.
@@ -118,7 +116,6 @@ public class TwitterSource extends RichSourceFunction<String> implements Stoppab
 	public void open(Configuration parameters) throws Exception {
 		waitLock = new Object();
 	}
-
 
 	@Override
 	public void run(final SourceContext<String> ctx) throws Exception {
@@ -159,7 +156,7 @@ public class TwitterSource extends RichSourceFunction<String> implements Stoppab
 		LOG.info("Twitter Streaming API connection established successfully");
 
 		// just wait now
-		while(running) {
+		while (running) {
 			synchronized (waitLock) {
 				waitLock.wait(100L);
 			}

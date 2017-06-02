@@ -17,21 +17,22 @@
 
 package org.apache.flink.streaming.connectors.cassandra.example;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Cluster.Builder;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Cluster.Builder;
+
 import java.util.ArrayList;
 
 /**
  * This is an example showing the to use the Pojo Cassandra Sink in the Streaming API.
- * 
- * Pojo's have to be annotated with datastax annotations to work with this sink.
  *
- * The example assumes that a table exists in a local cassandra database, according to the following query:
+ * <p>Pojo's have to be annotated with datastax annotations to work with this sink.
+ *
+ * <p>The example assumes that a table exists in a local cassandra database, according to the following query:
  * CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY)
  */
 public class CassandraPojoSinkExample {

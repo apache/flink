@@ -14,11 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
+
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -27,6 +29,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * IT cases for the {@link ElasticsearchSink}.
+ */
 public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 	@Test

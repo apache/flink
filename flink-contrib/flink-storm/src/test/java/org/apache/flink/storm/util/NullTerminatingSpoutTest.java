@@ -15,25 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.util;
 
-import java.util.HashMap;
-import java.util.Map;
+package org.apache.flink.storm.util;
 
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichSpout;
 import org.apache.storm.topology.OutputFieldsDeclarer;
-
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.mockito.Matchers.same;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.same;
-import static org.mockito.Mockito.any;
 
+/**
+ * Tests for the NullTerminatingSpout.
+ */
 public class NullTerminatingSpoutTest {
 
 	@Test
@@ -43,7 +46,7 @@ public class NullTerminatingSpoutTest {
 		IRichSpout spoutMock = mock(IRichSpout.class);
 		when(spoutMock.getComponentConfiguration()).thenReturn(compConfig);
 
-		Map<?,?> conf = mock(Map.class);
+		Map<?, ?> conf = mock(Map.class);
 		TopologyContext context = mock(TopologyContext.class);
 		Object msgId = mock(Object.class);
 		OutputFieldsDeclarer declarer = mock(OutputFieldsDeclarer.class);

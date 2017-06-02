@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.addons.hbase;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -27,7 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Helps to specify an HBase Table's schema
+ * Helps to specify an HBase Table's schema.
  */
 public class HBaseTableSchema implements Serializable {
 
@@ -52,7 +53,7 @@ public class HBaseTableSchema implements Serializable {
 
 		if (!HBaseRowInputFormat.isSupportedType(clazz)) {
 			// throw exception
-			throw new IllegalArgumentException("Unsupported class type found " + clazz+". " +
+			throw new IllegalArgumentException("Unsupported class type found " + clazz + ". " +
 				"Better to use byte[].class and deserialize using user defined scalar functions");
 		}
 
@@ -91,7 +92,7 @@ public class HBaseTableSchema implements Serializable {
 
 		byte[][] familyKeys = new byte[this.familyMap.size()][];
 		int i = 0;
-		for(String name : this.familyMap.keySet()) {
+		for (String name : this.familyMap.keySet()) {
 			familyKeys[i++] = name.getBytes(c);
 		}
 		return familyKeys;
@@ -135,7 +136,7 @@ public class HBaseTableSchema implements Serializable {
 
 		byte[][] qualifierKeys = new byte[qualifierMap.size()][];
 		int i = 0;
-		for(String name : qualifierMap.keySet()) {
+		for (String name : qualifierMap.keySet()) {
 			qualifierKeys[i++] = name.getBytes(c);
 		}
 		return qualifierKeys;

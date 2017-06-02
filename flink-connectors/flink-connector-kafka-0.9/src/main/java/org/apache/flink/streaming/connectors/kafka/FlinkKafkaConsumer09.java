@@ -34,7 +34,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,10 +48,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
  * Apache Kafka 0.9.x. The consumer can run in multiple parallel instances, each of which will pull
- * data from one or more Kafka partitions. 
- * 
+ * data from one or more Kafka partitions.
+ *
  * <p>The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
- * during a failure, and that the computation processes elements "exactly once". 
+ * during a failure, and that the computation processes elements "exactly once".
  * (Note: These guarantees naturally assume that Kafka itself does not loose any data.)</p>
  *
  * <p>Please note that Flink snapshots the offsets internally as part of its distributed checkpoints. The offsets
@@ -73,9 +72,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer09.class);
 
-	/**  Configuration key to change the polling timeout **/
+	/**  Configuration key to change the polling timeout. **/
 	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
-
 
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
 	 * available. If 0, returns immediately with any records that are available now. */
@@ -83,7 +81,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 	// ------------------------------------------------------------------------
 
-	/** User-supplied properties for Kafka **/
+	/** User-supplied properties for Kafka. **/
 	protected final Properties properties;
 
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
@@ -93,7 +91,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x .
 	 *
 	 * @param topic
 	 *           The name of the topic that should be consumed.
@@ -109,7 +107,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
 	 *
-	 * This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param topic
@@ -126,7 +124,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
 	 *
-	 * This constructor allows passing multiple topics to the consumer.
+	 * <p>This constructor allows passing multiple topics to the consumer.
 	 *
 	 * @param topics
 	 *           The Kafka topics to read from.
@@ -142,7 +140,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
 	 *
-	 * This constructor allows passing multiple topics and a key/value deserialization schema.
+	 * <p>This constructor allows passing multiple topics and a key/value deserialization schema.
 	 *
 	 * @param topics
 	 *           The Kafka topics to read from.
@@ -216,7 +214,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				if (partitionsForTopic != null) {
 					partitions.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
 				}
-				else{
+				else {
 					LOG.info("Unable to retrieve any partitions for the requested topic: {}", topic);
 				}
 			}
@@ -243,12 +241,12 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Utilities 
+	//  Utilities
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable)
-	 * 
+	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable).
+	 *
 	 * @param partitions A list of Kafka PartitionInfos.
 	 * @return A list of KafkaTopicPartitions
 	 */
@@ -264,7 +262,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 	/**
 	 * Makes sure that the ByteArrayDeserializer is registered in the Kafka properties.
-	 * 
+	 *
 	 * @param props The Kafka properties to register the serializer in.
 	 */
 	private static void setDeserializer(Properties props) {

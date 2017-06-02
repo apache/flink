@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class JoinITCase extends JavaProgramTestBase {
-	
+/**
+ * IT cases for lambda join functions.
+ */
+public class FlatJoinITCase extends JavaProgramTestBase {
+
 	private static final String EXPECTED_RESULT = "2,what's really\n" +
 			"2,up really\n" +
 			"1,hello not\n" +
@@ -52,8 +55,8 @@ public class JoinITCase extends JavaProgramTestBase {
 				new Tuple2<Integer, String>(1, "much"),
 				new Tuple2<Integer, String>(2, "really")
 				);
-		DataSet<Tuple2<Integer,String>> joined = left.join(right).where(0).equalTo(0)
-				.with((t,s) -> new Tuple2<Integer,String>(t.f0, t.f1 + " " + s.f1));
+		DataSet<Tuple2<Integer, String>> joined = left.join(right).where(0).equalTo(0)
+				.with((t, s, out) -> out.collect(new Tuple2<Integer, String>(t.f0, t.f1 + " " + s.f1)));
 		joined.writeAsCsv(resultPath);
 		env.execute();
 	}
@@ -63,4 +66,3 @@ public class JoinITCase extends JavaProgramTestBase {
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
 }
-

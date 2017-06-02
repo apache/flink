@@ -45,14 +45,15 @@ object UserDefinedFunctionUtils {
     */
   def checkForInstantiation(clazz: Class[_]): Unit = {
     if (!InstantiationUtil.isPublic(clazz)) {
-      throw ValidationException("Function class is not public.")
+      throw ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
     }
     else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw ValidationException("Function class is no proper class, it is either abstract," +
-        " an interface, or a primitive type.")
+      throw ValidationException(s"Function class ${clazz.getCanonicalName} is no proper class," +
+        " it is either abstract, an interface, or a primitive type.")
     }
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw ValidationException("The class is an inner class, but not statically accessible.")
+      throw ValidationException(s"The class ${clazz.getCanonicalName} is an inner class, but" +
+        " not statically accessible.")
     }
   }
 
@@ -178,7 +179,7 @@ object UserDefinedFunctionUtils {
           s"add a @scala.annotation.varargs annotation.")
     } else if (found.length > 1) {
       throw new ValidationException(
-        "Found multiple '${methodName}' methods which match the signature.")
+        s"Found multiple '${methodName}' methods which match the signature.")
     }
     found.headOption
   }

@@ -19,12 +19,16 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link DeweyNumber}.
+ */
 public class DeweyNumberTest extends TestLogger {
 
 	@Test

@@ -18,10 +18,11 @@ package org.apache.flink.streaming.connectors.fs;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.Map;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -31,14 +32,14 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Map;
 
 /**
 * Implementation of AvroKeyValue writer that can be used in Sink.
@@ -49,7 +50,7 @@ Usage:
 		BucketingSink<Tuple2<Long, Long>> sink = new BucketingSink<Tuple2<Long, Long>>("/tmp/path");
 		sink.setBucketer(new DateTimeBucketer<Tuple2<Long, Long>>("yyyy-MM-dd/HH/mm/"));
 		sink.setPendingSuffix(".avro");
-		Map<String,String> properties = new HashMap<>();
+		Map<String, String> properties = new HashMap<>();
 		Schema longSchema = Schema.create(Type.LONG);
 		String keySchema = longSchema.toString();
 		String valueSchema = longSchema.toString();
@@ -57,7 +58,7 @@ Usage:
 		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_VALUE_SCHEMA, valueSchema);
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, Boolean.toString(true));
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
-		
+
 		sink.setWriter(new AvroSinkWriter<Long, Long>(properties));
 		sink.setBatchSize(1024 * 1024 * 64); // this is 64 MB,
 }
@@ -77,37 +78,37 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 	private final Map<String, String> properties;
 
 	/**
-	 * C'tor for the writer
-	 * <p>
-	 * You can provide different properties that will be used to configure avro key-value writer as simple properties map(see example above)
+	 * C'tor for the writer.
+	 *
+	 * <p>You can provide different properties that will be used to configure avro key-value writer as simple properties map(see example above)
 	 * @param properties
 	 */
 	@SuppressWarnings("deprecation")
 	public AvroKeyValueSinkWriter(Map<String, String> properties) {
 		this.properties = properties;
-		
+
 		String keySchemaString = properties.get(CONF_OUTPUT_KEY_SCHEMA);
 		if (keySchemaString == null) {
 			throw new IllegalStateException("No key schema provided, set '" + CONF_OUTPUT_KEY_SCHEMA + "' property");
 		}
-		Schema.parse(keySchemaString);//verifying that schema valid
-		
+		Schema.parse(keySchemaString); //verifying that schema valid
+
 		String valueSchemaString = properties.get(CONF_OUTPUT_VALUE_SCHEMA);
 		if (valueSchemaString == null) {
 			throw new IllegalStateException("No value schema provided, set '" + CONF_OUTPUT_VALUE_SCHEMA + "' property");
 		}
-		Schema.parse(valueSchemaString);//verifying that schema valid
+		Schema.parse(valueSchemaString); //verifying that schema valid
 	}
 
-	private boolean getBoolean(Map<String,String> conf, String key, boolean def) {
+	private boolean getBoolean(Map<String, String> conf, String key, boolean def) {
 		String value = conf.get(key);
 		if (value == null) {
 			return def;
 		}
 		return Boolean.parseBoolean(value);
 	}
-	
-	private int getInt(Map<String,String> conf, String key, int def) {
+
+	private int getInt(Map<String, String> conf, String key, int def) {
 		String value = conf.get(key);
 		if (value == null) {
 			return def;
@@ -116,7 +117,7 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 	}
 
 	//this derived from AvroOutputFormatBase.getCompressionCodec(..)
-	private CodecFactory getCompressionCodec(Map<String,String> conf) {
+	private CodecFactory getCompressionCodec(Map<String, String> conf) {
 		if (getBoolean(conf, CONF_COMPRESS, false)) {
 			int deflateLevel = getInt(conf, CONF_DEFLATE_LEVEL, CodecFactory.DEFAULT_DEFLATE_LEVEL);
 			int xzLevel = getInt(conf, CONF_XZ_LEVEL, CodecFactory.DEFAULT_XZ_LEVEL);
@@ -147,12 +148,12 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 
 	@Override
 	public void close() throws IOException {
-		super.close();//the order is important since super.close flushes inside
+		super.close(); //the order is important since super.close flushes inside
 		if (keyValueWriter != null) {
 			keyValueWriter.close();
 		}
 	}
-	
+
 	@Override
 	public long flush() throws IOException {
 		if (keyValueWriter != null) {
@@ -184,7 +185,7 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 	public Writer<Tuple2<K, V>> duplicate() {
 		return new AvroKeyValueSinkWriter<K, V>(properties);
 	}
-	
+
 	// taken from m/r avro lib to remove dependency on it
 	private static final class AvroKeyValueWriter<K, V> {
 		/** A writer for the Avro container file. */
@@ -245,7 +246,12 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 		}
 	}
 
-	// taken from AvroKeyValue avro-mapr lib
+	/**
+	 * A reusable Avro generic record for writing key/value pairs to the
+	 * file.
+	 *
+	 * <p>taken from AvroKeyValue avro-mapr lib
+	 */
 	public static class AvroKeyValue<K, V> {
 		/** The name of the key value pair generic record. */
 		public static final String KEY_VALUE_PAIR_RECORD_NAME = "KeyValuePair";
@@ -293,7 +299,7 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 
 		/**
 		 * Creates a KeyValuePair generic record schema.
-		 * 
+		 *
 		 * @return A schema for a generic record with two fields: 'key' and
 		 *         'value'.
 		 */

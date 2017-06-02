@@ -22,6 +22,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
+
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -30,7 +31,6 @@ import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
-
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -45,53 +45,52 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The thread the runs the {@link KafkaConsumer}, connecting to the brokers and polling records.
  * The thread pushes the data into a {@link Handover} to be picked up by the fetcher that will
  * deserialize and emit the records.
- * 
+ *
  * <p><b>IMPORTANT:</b> This thread must not be interrupted when attempting to shut it down.
  * The Kafka consumer code was found to not always handle interrupts well, and to even
  * deadlock in certain situations.
- * 
+ *
  * <p>Implementation Note: This code is written to be reusable in later versions of the KafkaConsumer.
  * Because Kafka is not maintaining binary compatibility, we use a "call bridge" as an indirection
  * to the KafkaConsumer calls that change signature.
  */
 public class KafkaConsumerThread extends Thread {
 
-	/** Logger for this consumer */
+	/** Logger for this consumer. */
 	private final Logger log;
 
-	/** The handover of data and exceptions between the consumer thread and the task thread */
+	/** The handover of data and exceptions between the consumer thread and the task thread. */
 	private final Handover handover;
 
-	/** The next offsets that the main thread should commit */
+	/** The next offsets that the main thread should commit. */
 	private final AtomicReference<Map<TopicPartition, OffsetAndMetadata>> nextOffsetsToCommit;
 
-	/** The configuration for the Kafka consumer */
+	/** The configuration for the Kafka consumer. */
 	private final Properties kafkaProperties;
 
-	/** The partitions that this consumer reads from */ 
+	/** The partitions that this consumer reads from. */
 	private final KafkaTopicPartitionState<TopicPartition>[] subscribedPartitionStates;
 
 	/** We get this from the outside to publish metrics. **/
 	private final MetricGroup kafkaMetricGroup;
 
-	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken */
+	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken. */
 	private final KafkaConsumerCallBridge consumerCallBridge;
 
-	/** The maximum number of milliseconds to wait for a fetch batch */
+	/** The maximum number of milliseconds to wait for a fetch batch. */
 	private final long pollTimeout;
 
-	/** Flag whether to add Kafka's metrics to the Flink metrics */
+	/** Flag whether to add Kafka's metrics to the Flink metrics. */
 	private final boolean useMetrics;
 
-	/** Reference to the Kafka consumer, once it is created */
+	/** Reference to the Kafka consumer, once it is created. */
 	private volatile KafkaConsumer<byte[], byte[]> consumer;
 
-	/** Flag to mark the main work loop as alive */
+	/** Flag to mark the main work loop as alive. */
 	private volatile boolean running;
 
-	/** Flag tracking whether the latest commit request has completed */
+	/** Flag tracking whether the latest commit request has completed. */
 	private volatile boolean commitInProgress;
-
 
 	public KafkaConsumerThread(
 			Logger log,
@@ -271,7 +270,7 @@ public class KafkaConsumerThread extends Thread {
 		// this wakes up the consumer if it is blocked handing over records
 		handover.wakeupProducer();
 
-		// this wakes up the consumer if it is blocked in a kafka poll 
+		// this wakes up the consumer if it is blocked in a kafka poll
 		if (consumer != null) {
 			consumer.wakeup();
 		}
@@ -280,11 +279,11 @@ public class KafkaConsumerThread extends Thread {
 	/**
 	 * Tells this thread to commit a set of offsets. This method does not block, the committing
 	 * operation will happen asynchronously.
-	 * 
+	 *
 	 * <p>Only one commit operation may be pending at any time. If the committing takes longer than
 	 * the frequency with which this method is called, then some commits may be skipped due to being
 	 * superseded  by newer ones.
-	 * 
+	 *
 	 * @param offsetsToCommit The offsets to commit
 	 */
 	public void setOffsetsToCommit(Map<TopicPartition, OffsetAndMetadata> offsetsToCommit) {
