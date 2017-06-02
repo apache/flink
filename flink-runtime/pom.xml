@@ -436,7 +436,6 @@ under the License.
 						**/runtime/deployment/**,
 						**/runtime/execution/**,
 						**/runtime/executiongraph/**,
-						**/runtime/fs/**,
 						**/runtime/heartbeat/**,
 						**/runtime/highavailability/**,
 						**/runtime/instance/**,

@@ -16,19 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.fs.hdfs;
+
+import org.apache.flink.core.fs.BlockLocation;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.core.fs.BlockLocation;
-
 /**
  * Implementation of the {@link BlockLocation} interface for the
  * Hadoop Distributed File System.
- * 
  */
 public final class HadoopBlockLocation implements BlockLocation {
 
@@ -53,8 +51,8 @@ public final class HadoopBlockLocation implements BlockLocation {
 	private String[] hostnames;
 
 	/**
-	 * Creates a new block location
-	 * 
+	 * Creates a new block location.
+	 *
 	 * @param blockLocation
 	 *        the original HDFS block location
 	 */
@@ -62,7 +60,6 @@ public final class HadoopBlockLocation implements BlockLocation {
 
 		this.blockLocation = blockLocation;
 	}
-
 
 	@Override
 	public String[] getHosts() throws IOException {
@@ -88,7 +85,7 @@ public final class HadoopBlockLocation implements BlockLocation {
 
 	/**
 	 * Looks for a domain suffix in a FQDN and strips it if present.
-	 * 
+	 *
 	 * @param originalHostname
 	 *        the original hostname, possibly an FQDN
 	 * @return the stripped hostname without the domain suffix
@@ -114,20 +111,17 @@ public final class HadoopBlockLocation implements BlockLocation {
 		return originalHostname.substring(0, index);
 	}
 
-
 	@Override
 	public long getLength() {
 
 		return this.blockLocation.getLength();
 	}
 
-
 	@Override
 	public long getOffset() {
 
 		return this.blockLocation.getOffset();
 	}
-
 
 	@Override
 	public int compareTo(final BlockLocation o) {

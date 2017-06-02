@@ -35,6 +35,9 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for the {@link HadoopDataInputStream}.
+ */
 public class HadoopDataInputStreamTest {
 
 	private FSDataInputStream verifyInputStream;
