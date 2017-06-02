@@ -66,9 +66,11 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
@@ -81,17 +83,20 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the StreamTask termination.
+ */
 public class StreamTaskTerminationTest extends TestLogger {
 
-	public static final OneShotLatch runLatch = new OneShotLatch();
-	public static final OneShotLatch checkpointingLatch = new OneShotLatch();
-	private static final OneShotLatch cleanupLatch = new OneShotLatch();
-	private static final OneShotLatch handleAsyncExceptionLatch = new OneShotLatch();
+	public static final OneShotLatch RUN_LATCH = new OneShotLatch();
+	public static final OneShotLatch CHECKPOINTING_LATCH = new OneShotLatch();
+	private static final OneShotLatch CLEANUP_LATCH = new OneShotLatch();
+	private static final OneShotLatch HANDLE_ASYNC_EXCEPTION_LATCH = new OneShotLatch();
 
 	/**
 	 * FLINK-6833
 	 *
-	 * Tests that a finished stream task cannot be failed by an asynchronous checkpointing operation after
+	 * <p>Tests that a finished stream task cannot be failed by an asynchronous checkpointing operation after
 	 * the stream task has stopped running.
 	 */
 	@Test
@@ -165,7 +170,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		}, TestingUtils.defaultExecutor());
 
 		// wait until the stream task started running
-		runLatch.await();
+		RUN_LATCH.await();
 
 		// trigger a checkpoint
 		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forFullCheckpoint());
@@ -182,6 +187,10 @@ public class StreamTaskTerminationTest extends TestLogger {
 		assertEquals(ExecutionState.FINISHED, task.getExecutionState());
 	}
 
+	/**
+	 * Blocking stream task which waits on and triggers a set of one shot latches to establish a certain
+	 * interleaving with a concurrently running checkpoint operation.
+	 */
 	public static class BlockingStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
 		public BlockingStreamTask() {
@@ -194,40 +203,39 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		@Override
 		protected void run() throws Exception {
-			runLatch.trigger();
+			RUN_LATCH.trigger();
 			// wait until we have started an asynchronous checkpoint
-			checkpointingLatch.await();
+			CHECKPOINTING_LATCH.await();
 		}
-
-
 
 		@Override
 		protected void cleanup() throws Exception {
 			// notify the asynchronous checkpoint operation that we have reached the cleanup stage --> the task
 			// has been stopped
-			cleanupLatch.trigger();
+			CLEANUP_LATCH.trigger();
 
 			// wait until handle async exception has been called to proceed with the termination of the
 			// StreamTask
-			handleAsyncExceptionLatch.await();
+			HANDLE_ASYNC_EXCEPTION_LATCH.await();
 		}
 
 		@Override
-		protected void cancelTask() throws Exception {}
+		protected void cancelTask() throws Exception {
+		}
 
 		@Override
 		public void handleAsyncException(String message, Throwable exception) {
 			super.handleAsyncException(message, exception);
 
-			handleAsyncExceptionLatch.trigger();
+			HANDLE_ASYNC_EXCEPTION_LATCH.trigger();
 		}
 	}
 
-	public static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
+	static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
 		private static final long serialVersionUID = 4517845269225218312L;
 	}
 
-	public static class BlockingStateBackend extends AbstractStateBackend {
+	static class BlockingStateBackend extends AbstractStateBackend {
 
 		private static final long serialVersionUID = -5053068148933314100L;
 
@@ -243,13 +251,13 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		@Override
 		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-				Environment env,
-				JobID jobID,
-				String operatorIdentifier,
-				TypeSerializer<K> keySerializer,
-				int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws IOException {
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
 			return null;
 		}
 
@@ -263,14 +271,14 @@ public class StreamTaskTerminationTest extends TestLogger {
 		}
 	}
 
-	public static class BlockingCallable implements Callable<OperatorStateHandle> {
+	static class BlockingCallable implements Callable<OperatorStateHandle> {
 
 		@Override
 		public OperatorStateHandle call() throws Exception {
 			// notify that we have started the asynchronous checkpointint operation
-			checkpointingLatch.trigger();
+			CHECKPOINTING_LATCH.trigger();
 			// wait until we have reached the StreamTask#cleanup --> This will already cancel this FutureTask
-			cleanupLatch.await();
+			CLEANUP_LATCH.await();
 
 			// now throw exception to fail the async checkpointing operation if it has not already been cancelled
 			// by the StreamTask in the meantime
