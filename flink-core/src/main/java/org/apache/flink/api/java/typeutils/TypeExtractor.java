@@ -528,7 +528,7 @@ public class TypeExtractor {
 				final int paramLen = exec.getParameterTypes().length;
 
 				final Method sam = getSingleAbstractMethod(baseClass);
-				final int baseParametersLen = sam.getParameterCount();
+				final int baseParametersLen = sam.getParameterTypes().length;
 
 				// executable references "this" implicitly
 				if (paramLen <= 0) {
@@ -654,7 +654,7 @@ public class TypeExtractor {
 				validateLambdaGenericParameters(exec);
 
 				final Method sam = getSingleAbstractMethod(baseClass);
-				final int baseParametersLen = sam.getParameterCount();
+				final int baseParametersLen = sam.getParameterTypes().length;
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = exec.getParameterTypes().length;
