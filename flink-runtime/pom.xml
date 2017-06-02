@@ -434,7 +434,6 @@ under the License.
 						**/runtime/concurrent/**,
 						**/runtime/execution/**,
 						**/runtime/executiongraph/**,
-						**/runtime/heartbeat/**,
 						**/runtime/highavailability/**,
 						**/runtime/instance/**,
 						**/runtime/io/**,

@@ -21,8 +21,12 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 
+/**
+ * A {@link HeartbeatServices} that allows the injection of a {@link ScheduledExecutor}.
+ */
 public class TestingHeartbeatServices extends HeartbeatServices {
 
 	private final ScheduledExecutor scheduledExecutorToUse;
