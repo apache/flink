@@ -18,10 +18,6 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import fi.iki.elonen.NanoHTTPD;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.CharacterFilter;
@@ -36,6 +32,11 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+
+import fi.iki.elonen.NanoHTTPD;
+import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.common.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+/**
+ * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus.
+ */
 @PublicEvolving
 public class PrometheusReporter implements MetricReporter {
 	private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporter.class);
