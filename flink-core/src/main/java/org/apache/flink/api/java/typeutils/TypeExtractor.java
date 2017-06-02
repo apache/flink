@@ -372,7 +372,7 @@ public class TypeExtractor {
 			2,
 			new int[]{0},
 			new int[]{1},
-			NO_OUTPUT_INDEX,,
+			NO_OUTPUT_INDEX,
 			in1Type,
 			in2Type,
 			functionName,
