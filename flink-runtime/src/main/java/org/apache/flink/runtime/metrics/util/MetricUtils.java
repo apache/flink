@@ -21,6 +21,7 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.util.Hardware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -181,6 +182,20 @@ public class MetricUtils {
 				}
 			});
 		}
+
+		MetricGroup process = metrics.addGroup("Process");
+		process.gauge("VmSize", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return Hardware.getSizeOfProcessVirtualMemory();
+			}
+		});
+		process.gauge("VmRSS", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return Hardware.getSizeOfProcessPhysicalMemory();
+			}
+		});
 	}
 
 	private static void instantiateThreadMetrics(MetricGroup metrics) {
@@ -245,5 +260,12 @@ public class MetricUtils {
 				}
 			});
 		}
+
+		metrics.gauge("Usage", new Gauge<Double>() {
+			@Override
+			public Double getValue() {
+				return Hardware.getProcessCpuUsage();
+			}
+		});
 	}
 }

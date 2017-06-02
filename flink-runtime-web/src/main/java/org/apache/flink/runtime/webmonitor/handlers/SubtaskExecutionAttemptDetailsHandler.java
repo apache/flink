@@ -136,6 +136,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		gen.writeNumberField("start-time", startTime);
 		gen.writeNumberField("end-time", endTime);
 		gen.writeNumberField("duration", duration);
+		gen.writeStringField("exception", execAttempt.getFailureCauseAsString());
 
 		MutableIOMetrics counts = new MutableIOMetrics();
 

@@ -265,6 +265,12 @@ class TaskManager(
       case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
     }
 
+    try {
+      Hardware.shutdown()
+    } catch {
+      case t: Exception => log.error("Hardware did not shutdown properly.", t)
+    }
+
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
 
