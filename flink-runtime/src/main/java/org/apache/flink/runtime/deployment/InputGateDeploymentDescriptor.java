@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Deployment descriptor for a single input gate instance.
  *
- * <p> Each input gate consumes partitions of a single intermediate result. The consumed
+ * <p>Each input gate consumes partitions of a single intermediate result. The consumed
  * subpartition index is the same for each consumed partition.
  *
  * @see SingleInputGate

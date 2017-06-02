@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Partial deployment descriptor for a single input channel instance.
  *
- * <p> This deployment descriptor is created in {@link Execution#scheduleOrUpdateConsumers(java.util.List)},
+ * <p>This deployment descriptor is created in {@link Execution#scheduleOrUpdateConsumers(java.util.List)},
  * if the consumer instance is not yet clear. Once the instance on which the consumer runs is known,
  * the deployment descriptor is updated by completing the partition location.
  */
