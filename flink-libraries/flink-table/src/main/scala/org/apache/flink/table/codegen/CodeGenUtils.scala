@@ -243,7 +243,7 @@ object CodeGenUtils {
         val fieldName = pt.getFieldNames()(index)
         getFieldAccessor(pt.getTypeClass, fieldName)
 
-      case _ => throw new CodeGenException("Unsupported composite type.")
+      case _ => throw new CodeGenException(s"Unsupported composite type: '${compType}'")
     }
   }
 

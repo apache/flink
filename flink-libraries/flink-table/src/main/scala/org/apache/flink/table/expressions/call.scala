@@ -67,7 +67,7 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
 case class UnresolvedOverCall(agg: Expression, alias: Expression) extends Expression {
 
   override private[flink] def validateInput() =
-    ValidationFailure("Over window with alias $alias could not be resolved.")
+    ValidationFailure(s"Over window with alias $alias could not be resolved.")
 
   override private[flink] def resultType = agg.resultType
 
