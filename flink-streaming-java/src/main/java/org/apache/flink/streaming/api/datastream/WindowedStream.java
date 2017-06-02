@@ -661,8 +661,6 @@ public class WindowedStream<T, K, W extends Window> {
 				Utils.getCallLocationName(), true);
 
 		TypeInformation<R> windowResultType = getProcessWindowFunctionReturnType(windowFunction, foldResultType, Utils.getCallLocationName());
-			TypeExtractor.getUnaryOperatorReturnType(
-				windowFunction, ProcessWindowFunction.class, 0, 1, foldResultType, Utils.getCallLocationName(), false);
 
 		return fold(initialValue, foldFunction, windowFunction, foldResultType, windowResultType);
 	}

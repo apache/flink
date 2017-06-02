@@ -234,7 +234,15 @@ public class TypeExtractor {
 			boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType(
-			function, AggregateFunction.class, 0, 1, inType, functionName, allowMissing);
+			function,
+			AggregateFunction.class,
+			0,
+			1,
+			new int[]{0},
+			NO_OUTPUT_INDEX,
+			inType,
+			functionName,
+			allowMissing);
 	}
 
 	@PublicEvolving
@@ -245,7 +253,15 @@ public class TypeExtractor {
 			boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType(
-				function, AggregateFunction.class, 0, 2, inType, functionName, allowMissing);
+			function,
+			AggregateFunction.class,
+			0,
+			2,
+			new int[]{0},
+			NO_OUTPUT_INDEX,
+			inType,
+			functionName,
+			allowMissing);
 	}
 
 	@PublicEvolving
@@ -262,8 +278,8 @@ public class TypeExtractor {
 			MapPartitionFunction.class,
 			0,
 			1,
-			new int[]{0, 1},
-			new int[]{0, 1},
+			new int[]{0, 0},
+			new int[]{1, 0},
 			inType,
 			functionName,
 			allowMissing);
@@ -283,8 +299,8 @@ public class TypeExtractor {
 			GroupReduceFunction.class,
 			0,
 			1,
-			new int[]{0, 1},
-			new int[]{0, 1},
+			new int[]{0, 0},
+			new int[]{1, 0},
 			inType,
 			functionName,
 			allowMissing);
@@ -304,8 +320,8 @@ public class TypeExtractor {
 			GroupCombineFunction.class,
 			0,
 			1,
-			new int[]{0, 1},
-			new int[]{0, 1},
+			new int[]{0, 0},
+			new int[]{1, 0},
 			inType,
 			functionName,
 			allowMissing);
@@ -322,8 +338,19 @@ public class TypeExtractor {
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getFlatJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
-		return getBinaryOperatorReturnType((Function) joinInterface, FlatJoinFunction.class, false, true,
-				in1Type, in2Type, functionName, allowMissing);
+		return getBinaryOperatorReturnType(
+			(Function) joinInterface,
+			FlatJoinFunction.class,
+			0,
+			1,
+			2,
+			new int[]{0},
+			new int[]{1},
+			new int[]{2, 0},
+			in1Type,
+			in2Type,
+			functionName,
+			allowMissing);
 	}
 
 	@PublicEvolving
@@ -337,8 +364,19 @@ public class TypeExtractor {
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
-		return getBinaryOperatorReturnType((Function) joinInterface, JoinFunction.class, false, false,
-				in1Type, in2Type, functionName, allowMissing);
+		return getBinaryOperatorReturnType(
+			(Function) joinInterface,
+			JoinFunction.class,
+			0,
+			1,
+			2,
+			new int[]{0},
+			new int[]{1},
+			NO_OUTPUT_INDEX,,
+			in1Type,
+			in2Type,
+			functionName,
+			allowMissing);
 	}
 
 	@PublicEvolving
@@ -352,8 +390,19 @@ public class TypeExtractor {
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
-		return getBinaryOperatorReturnType((Function) coGroupInterface, CoGroupFunction.class, true, true,
-				in1Type, in2Type, functionName, allowMissing);
+		return getBinaryOperatorReturnType(
+			(Function) coGroupInterface,
+			CoGroupFunction.class,
+			0,
+			1,
+			2,
+			new int[]{0, 0},
+			new int[]{1, 0},
+			new int[]{2, 0},
+			in1Type,
+			in2Type,
+			functionName,
+			allowMissing);
 	}
 
 	@PublicEvolving
@@ -367,8 +416,19 @@ public class TypeExtractor {
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
-		return getBinaryOperatorReturnType((Function) crossInterface, CrossFunction.class, false, false,
-				in1Type, in2Type, functionName, allowMissing);
+		return getBinaryOperatorReturnType(
+			(Function) crossInterface,
+			CrossFunction.class,
+			0,
+			1,
+			2,
+			new int[]{0},
+			new int[]{1},
+			NO_OUTPUT_INDEX,
+			in1Type,
+			in2Type,
+			functionName,
+			allowMissing);
 	}
 
 	@PublicEvolving
@@ -419,85 +479,6 @@ public class TypeExtractor {
 	/**
 	 * Returns the unary operator's return type.
 	 *
-	 * @param function Function to extract the return type from
-	 * @param baseClass Base class of the function
-	 * @param hasIterable True if the first function parameter is an iterable, otherwise false
-	 * @param hasCollector True if the function has an additional collector parameter, otherwise false
-	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
-	 * @param functionName Function name
-	 * @param allowMissing Can the type information be missing
-	 * @param <IN> Input type
-	 * @param <OUT> Output type
-	 * @return TypeInformation of the return type of the function
-	 * @deprecated Use version explicitly specyifing types indices.
-	 */
-	@SuppressWarnings("unchecked")
-	@PublicEvolving
-	@Deprecated
-	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(
-		Function function,
-		Class<?> baseClass,
-		boolean hasIterable,
-		boolean hasCollector,
-		TypeInformation<IN> inType,
-		String functionName,
-		boolean allowMissing) {
-
-		return getUnaryOperatorReturnType(
-			function,
-			baseClass,
-			0,
-			1,
-			hasIterable ? new int[]{0, 0} : new int[]{0},
-			hasCollector ? new int[]{1, 0} : NO_OUTPUT_INDEX,
-			inType,
-			functionName,
-			allowMissing);
-	}
-
-	/**
-	 * Returns the unary operator's return type.
-	 *
-	 * @param function Function to extract the return type from
-	 * @param baseClass Base class of the function
-	 * @param inputTypeArgumentIndex Index of the type argument of function's first parameter
-	 *                               specifying the input type if it is wrapped (Iterable, Map,
-	 *                               etc.). Otherwise -1.
-	 * @param outputTypeArgumentIndex Index of the type argument of function's second parameter
-	 *                                specifying the output type if it is wrapped in a Collector.
-	 *                                Otherwise -1.
-	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
-	 * @param functionName Function name
-	 * @param allowMissing Can the type information be missing
-	 * @param <IN> Input type
-	 * @param <OUT> Output type
-	 * @return TypeInformation of the return type of the function
-	 */
-	@SuppressWarnings("unchecked")
-	@PublicEvolving
-	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(
-		Function function,
-		Class<?> baseClass,
-		int inputTypeArgumentIndex,
-		int outputTypeArgumentIndex,
-		TypeInformation<IN> inType,
-		String functionName,
-		boolean allowMissing) {
-		return getUnaryOperatorReturnType(
-			function,
-			baseClass,
-			inputTypeArgumentIndex,
-			outputTypeArgumentIndex,
-			new int[]{0},
-			new int[]{},
-			inType,
-			functionName,
-			allowMissing);
-	}
-
-	/**
-	 * Returns the unary operator's return type.
-	 *
 	 * <p><b>NOTE:</b> lambda type indices allows extraction of Type from lambdas. To extract input type <b>IN</b>
 	 * from the function given below one should pass {@code new int[] {0,1,0}} as lambdaInputTypeArgumentIndices.
 	 *
@@ -544,13 +525,13 @@ public class TypeExtractor {
 				validateLambdaGenericParameters(exec);
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
-				final int paramLen = exec.getParameterTypes().length - 1;
+				final int paramLen = exec.getParameterTypes().length;
 
 				final Method sam = getSingleAbstractMethod(baseClass);
 				final int baseParametersLen = sam.getParameterCount();
 
 				// executable references "this" implicitly
-				if (paramLen < 0) {
+				if (paramLen <= 0) {
 					// executable declaring class can also be a super class of the input type
 					// we only validate if the executable exists in input type
 					validateInputContainsExecutable(exec, inType);
@@ -620,56 +601,12 @@ public class TypeExtractor {
 	/**
 	 * Returns the binary operator's return type.
 	 *
-	 * @param function Function to extract the return type from
-	 * @param baseClass Base class of the function
-	 * @param hasIterables True if the first function parameter is an iterable, otherwise false
-	 * @param hasCollector True if the function has an additional collector parameter, otherwise false
-	 * @param in1Type Type of the left side input elements (In case of an iterable, it is the element type)
-	 * @param in2Type Type of the right side input elements (In case of an iterable, it is the element type)
-	 * @param functionName Function name
-	 * @param allowMissing Can the type information be missing
-	 * @param <IN1> Left side input type
-	 * @param <IN2> Right side input type
-	 * @param <OUT> Output type
-	 * @return TypeInformation of the return type of the function
-	 */
-	@SuppressWarnings("unchecked")
-	@PublicEvolving
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(
-		Function function,
-		Class<?> baseClass,
-		boolean hasIterables,
-		boolean hasCollector,
-		TypeInformation<IN1> in1Type,
-		TypeInformation<IN2> in2Type,
-		String functionName,
-		boolean allowMissing) {
-
-		return getBinaryOperatorReturnType(
-			function,
-			baseClass,
-			0,
-			1,
-			2,
-			hasIterables ? new int[]{0, 0} : new int[]{0},
-			hasIterables ? new int[]{1, 0} : new int[]{1},
-			hasCollector ? new int[]{2, 0} : NO_OUTPUT_INDEX,
-			in1Type,
-			in2Type,
-			functionName,
-			allowMissing
-		);
-	}
-
-	/**
-	 * Returns the binary operator's return type.
-	 *
-	 * <p><b>NOTE:</b> lambda type indices allows extraction of Type from lambdas. To extract input type <b>IN</b>
-	 * from the function given below one should pass {@code new int[] {0,1,0}} as lambdaInputTypeArgumentIndices.
+	 * <p><b>NOTE:</b> lambda type indices allows extraction of Type from lambdas. To extract input type <b>IN1</b>
+	 * from the function given below one should pass {@code new int[] {0,1,0}} as lambdaInput1TypeArgumentIndices.
 	 *
 	 * <pre>
 	 * <code>
-	 * OUT apply(Map<String, List<IN>> value)
+	 * OUT apply(Map<String, List<IN1>> value1, List<IN2> value2)
 	 * </code>
 	 * </pre>
 	 *
@@ -720,7 +657,7 @@ public class TypeExtractor {
 				final int baseParametersLen = sam.getParameterCount();
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
-				final int paramLen = exec.getParameterTypes().length - 1;
+				final int paramLen = exec.getParameterTypes().length;
 
 				final Type input1 = extractType(exec, lambdaInput1TypeArgumentIndices, paramLen, baseParametersLen);
 				final Type input2 = extractType(exec, lambdaInput2TypeArgumentIndices, paramLen, baseParametersLen);

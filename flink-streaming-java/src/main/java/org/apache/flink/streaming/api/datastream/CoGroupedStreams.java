@@ -231,14 +231,18 @@ public class CoGroupedStreams<T1, T2> {
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
 
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
-					function,
-					CoGroupFunction.class,
-					true,
-					true,
-					input1.getType(),
-					input2.getType(),
-					"CoGroup",
-					false);
+				function,
+				CoGroupFunction.class,
+				0,
+				1,
+				2,
+				new int[]{0, 0},
+				new int[]{1, 0},
+				new int[]{2, 0},
+				input1.getType(),
+				input2.getType(),
+				"CoGroup",
+				false);
 
 			return apply(function, resultType);
 		}
