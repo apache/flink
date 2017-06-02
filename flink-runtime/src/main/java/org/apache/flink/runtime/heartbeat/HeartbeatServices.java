@@ -23,6 +23,7 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 
 /**
@@ -31,10 +32,10 @@ import org.slf4j.Logger;
  */
 public class HeartbeatServices {
 
-	/** Heartbeat interval for the created services */
+	/** Heartbeat interval for the created services. */
 	protected final long heartbeatInterval;
 
-	/** Heartbeat timeout for the created services */
+	/** Heartbeat timeout for the created services. */
 	protected final long heartbeatTimeout;
 
 	public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
