@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.metrics;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
+package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -34,18 +30,25 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
 import org.junit.Assert;
 import org.junit.Test;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.concurrent.duration.FiniteDuration;
+
+/**
+ * Tests for the behavior of the metric system on a task manager.
+ */
 public class TaskManagerMetricsTest extends TestLogger {
 
 	/**
@@ -78,7 +81,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 			final Configuration config = new Configuration();
 			final ResourceID tmResourceID = ResourceID.generate();
 
-			TaskManagerServicesConfiguration taskManagerServicesConfiguration = 
+			TaskManagerServicesConfiguration taskManagerServicesConfiguration =
 					TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), false);
 
 			TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(config);
@@ -87,7 +90,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 					taskManagerServicesConfiguration, tmResourceID);
 
 			final MetricRegistry tmRegistry = taskManagerServices.getMetricRegistry();
-			
+
 			// create the task manager
 			final Props tmProps = TaskManager.getTaskManagerProps(
 				TaskManager.class,

@@ -46,7 +46,7 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	public final TaskMetricGroup parent() {
 		return parent;
 	}
@@ -68,7 +68,7 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	public OperatorIOMetricGroup getIOMetricGroup() {
 		return ioMetrics;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Component Metric Group Specifics
 	// ------------------------------------------------------------------------

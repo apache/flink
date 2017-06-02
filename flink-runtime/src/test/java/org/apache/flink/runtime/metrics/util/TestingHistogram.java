@@ -15,11 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 
+/**
+ * Stateless test histogram for which all methods return a static value.
+ */
 public class TestingHistogram implements Histogram {
 
 	@Override

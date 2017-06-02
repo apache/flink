@@ -26,6 +26,7 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.Map;
@@ -34,6 +35,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+/**
+ * Tests for the {@link OperatorMetricGroup}.
+ */
 public class OperatorGroupTest extends TestLogger {
 
 	@Test
@@ -81,7 +85,7 @@ public class OperatorGroupTest extends TestLogger {
 		JobID jid = new JobID();
 		AbstractID tid = new AbstractID();
 		AbstractID eid = new AbstractID();
-		
+
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
 		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(

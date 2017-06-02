@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
 import org.junit.Test;
@@ -25,6 +26,9 @@ import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_H
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_METER;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the {@link MetricDump} classes.
+ */
 public class MetricDumpTest {
 	@Test
 	public void testDumpedCounter() {

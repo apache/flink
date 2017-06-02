@@ -23,6 +23,9 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 
+/**
+ * No-op reporter implementation.
+ */
 public class TestReporter extends AbstractReporter {
 
 	@Override

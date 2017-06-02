@@ -451,7 +451,6 @@ under the License.
 						**/runtime/leaderretrieval/**,
 						**/runtime/memory/**,
 						**/runtime/messages/**,
-						**/runtime/metrics/**,
 						**/runtime/minicluster/**,
 						**/runtime/net/**,
 						**/runtime/operators/**,

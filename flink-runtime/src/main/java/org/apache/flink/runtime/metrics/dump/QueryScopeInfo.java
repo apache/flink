@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
 /**
@@ -28,7 +29,7 @@ public abstract class QueryScopeInfo {
 	public static final byte INFO_CATEGORY_TASK = 3;
 	public static final byte INFO_CATEGORY_OPERATOR = 4;
 
-	/** The remaining scope not covered by specific fields */
+	/** The remaining scope not covered by specific fields. */
 	public final String scope;
 
 	private QueryScopeInfo(String scope) {
@@ -45,7 +46,7 @@ public abstract class QueryScopeInfo {
 
 	/**
 	 * Returns the category for this QueryScopeInfo.
-	 * 
+	 *
 	 * @return category
      */
 	public abstract byte getCategory();

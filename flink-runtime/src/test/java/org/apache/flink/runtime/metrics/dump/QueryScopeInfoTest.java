@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
 import org.junit.Test;
@@ -26,6 +27,9 @@ import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_TM;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the {@link QueryScopeInfo} classes.
+ */
 public class QueryScopeInfoTest {
 	@Test
 	public void testJobManagerMetricInfo() {
