@@ -639,7 +639,7 @@ under the License.
 								<compilerPlugin>
 									<groupId>com.typesafe.genjavadoc</groupId>
 									<artifactId>genjavadoc-plugin_${scala.version}</artifactId>
-									<version>0.8</version>
+									<version>0.10</version>
 								</compilerPlugin>
 							</compilerPlugins>
 						</configuration>
