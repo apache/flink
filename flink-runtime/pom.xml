@@ -428,7 +428,6 @@ under the License.
 					<excludes>
 						**/runtime/akka/**,
 						**/runtime/blob/**,
-						**/runtime/broadcast/**,
 						**/runtime/checkpoint/**,
 						**/runtime/client/**,
 						**/runtime/clusterframework/**,       
