@@ -67,7 +67,7 @@ class ProcTimeBoundedRowsOver(
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n " +
+    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n" +
                 s"Code:\n${genAggregations.code}")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
