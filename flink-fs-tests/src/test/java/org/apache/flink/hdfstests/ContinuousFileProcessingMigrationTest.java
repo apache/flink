@@ -40,26 +40,58 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 
 import org.apache.commons.io.FileUtils;
+
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Tests that verify the migration from 1.2 snapshots.
+ * Tests that verify the migration from previous Flink version snapshots.
  */
-public class ContinuousFileProcessingFrom12MigrationTest {
+@RunWith(Parameterized.class)
+public class ContinuousFileProcessingMigrationTest {
 
 	private static final int LINES_PER_FILE = 10;
 
 	private static final long INTERVAL = 100;
+
+	@Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
+	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
+		return Arrays.asList(
+			Tuple2.of(MigrationVersion.v1_1, 1482144479339L),
+			Tuple2.of(MigrationVersion.v1_2, 1493116191000L),
+			Tuple2.of(MigrationVersion.v1_3, 1496532000000L));
+	}
+
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
+
+	private final MigrationVersion testMigrateVersion;
+	private final Long expectedModTime;
+
+	public ContinuousFileProcessingMigrationTest(Tuple2<MigrationVersion, Long> migrationVersionAndModTime) {
+		this.testMigrateVersion = migrationVersionAndModTime.f0;
+		this.expectedModTime = migrationVersionAndModTime.f1;
+	}
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -112,7 +144,7 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 			snapshot = testHarness.snapshot(0L, 0L);
 		}
 
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/reader-migration-test-flink1.2-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/reader-migration-test-flink" + flinkGenerateSavepointVersion + "-snapshot");
 	}
 
 	@Test
@@ -132,10 +164,13 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		testHarness.setup();
-		OperatorStateHandles operatorStateHandles = OperatorSnapshotUtil.readStateHandle(
-				OperatorSnapshotUtil.getResourceFilename(
-						"reader-migration-test-flink1.2-snapshot"));
-		testHarness.initializeState(operatorStateHandles);
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		latch.trigger();
@@ -161,10 +196,17 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 		// compare if the results contain what they should contain and also if
 		// they are the same, as they should.
 
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
+		if (testMigrateVersion == MigrationVersion.v1_1) {
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split1))));
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split2))));
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split3))));
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split4))));
+		} else {
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
+			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
+		}
 	}
 
 	/**
@@ -235,7 +277,7 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 
 		OperatorSnapshotUtil.writeStateHandle(
 				snapshot,
-				"src/test/resources/monitoring-function-migration-test-" + fileModTime + "-flink1.2-snapshot");
+				"src/test/resources/monitoring-function-migration-test-" + fileModTime + "-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		monitoringFunction.cancel();
 		runner.join();
@@ -248,7 +290,6 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 
 		File testFolder = tempFolder.newFolder();
 
-		Long expectedModTime = Long.parseLong("1493116191000");
 		TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
@@ -261,11 +302,13 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
 
 		testHarness.setup();
-		OperatorStateHandles operatorStateHandles = OperatorSnapshotUtil.readStateHandle(
-				OperatorSnapshotUtil.getResourceFilename(
-						"monitoring-function-migration-test-1493116191000-flink1.2-snapshot"));
 
-		testHarness.initializeState(operatorStateHandles);
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		Assert.assertEquals((long) expectedModTime, monitoringFunction.getGlobalModificationTime());
@@ -365,5 +408,17 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 
 		Assert.assertTrue("No result file present", file.exists());
 		return new Tuple2<>(file, str.toString());
+	}
+
+	private FileInputSplit createSplitFromTimestampedSplit(TimestampedFileInputSplit split) {
+		checkNotNull(split);
+
+		return new FileInputSplit(
+			split.getSplitNumber(),
+			split.getPath(),
+			split.getStart(),
+			split.getLength(),
+			split.getHostnames()
+		);
 	}
 }
