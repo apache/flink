@@ -592,9 +592,12 @@ public class CoGroupedStreams<T1, T2> {
 		}
 	}
 
+	/**
+	 * The {@link TypeSerializerConfigSnapshot} for the {@link UnionSerializer}.
+	 */
 	public static class UnionSerializerConfigSnapshot<T1, T2> extends CompositeTypeSerializerConfigSnapshot {
 
-		private final int VERSION = 1;
+		private static final int VERSION = 1;
 
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public UnionSerializerConfigSnapshot() {}
