@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -329,6 +330,12 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		Assert.assertEquals(expectedResult, testResults);
 	}
 
+	/**
+	 * Verifies that pipelines including {@link CoGroupedStreams} can be checkpointed properly,
+	 * which includes snapshotting configurations of any involved serializers.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6808">FLINK-6808</a>
+	 */
 	@Test
 	public void testCoGroupOperatorWithCheckpoint() throws Exception {
 
