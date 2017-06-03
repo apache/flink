@@ -451,7 +451,6 @@ under the License.
 						**/runtime/minicluster/**,
 						**/runtime/net/**,
 						**/runtime/operators/**,
-						**/runtime/plugable/**,
 						**/runtime/query/**,
 						**/runtime/registration/**,
 						**/runtime/resourcemanager/**,
