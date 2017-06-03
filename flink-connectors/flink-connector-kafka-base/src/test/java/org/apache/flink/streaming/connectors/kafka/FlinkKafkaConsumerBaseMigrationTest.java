@@ -43,22 +43,35 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.Collection;
+
 /**
  * Tests for checking whether {@link FlinkKafkaConsumerBase} can restore from snapshots that were
- * done using the Flink 1.2 {@link FlinkKafkaConsumerBase}.
+ * done using previous Flink versions' {@link FlinkKafkaConsumerBase}.
  *
- * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the Flink 1.2
- * branch.
+ * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the corresponding
+ * Flink release-* branch.
  */
-public class FlinkKafkaConsumerBaseFrom12MigrationTest {
+@RunWith(Parameterized.class)
+public class FlinkKafkaConsumerBaseMigrationTest {
+
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
 	final static HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
@@ -67,16 +80,27 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		PARTITION_STATE.put(new KafkaTopicPartition("def", 7), 987654321L);
 	}
 
+	private final MigrationVersion testMigrateVersion;
+
+	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
+	public static Collection<MigrationVersion> parameters () {
+		return Arrays.asList(MigrationVersion.v1_1, MigrationVersion.v1_2, MigrationVersion.v1_3);
+	}
+
+	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
+		this.testMigrateVersion = testMigrateVersion;
+	}
+
 	/**
 	 * Manually run this to write binary snapshot data.
 	 */
 	@Ignore
 	@Test
 	public void writeSnapshot() throws Exception {
-		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-snapshot", PARTITION_STATE);
+		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-snapshot", PARTITION_STATE);
 
 		final HashMap<KafkaTopicPartition, Long> emptyState = new HashMap<>();
-		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-empty-state-snapshot", emptyState);
+		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-empty-state-snapshot", emptyState);
 	}
 
 	private void writeSnapshot(String path, HashMap<KafkaTopicPartition, Long> state) throws Exception {
@@ -163,10 +187,14 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		testHarness.setup();
+
 		// restore state from binary snapshot file
-		testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-empty-state-snapshot")));
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		// assert that no partitions were found and is empty
@@ -181,7 +209,7 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 	}
 
 	/**
-	 * Test restoring from an empty state taken using Flink 1.2, when some partitions could be
+	 * Test restoring from an empty state taken using a previous Flink version, when some partitions could be
 	 * found for topics.
 	 */
 	@Test
@@ -199,13 +227,17 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		testHarness.setup();
+
 		// restore state from binary snapshot file
-		testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-empty-state-snapshot")));
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
-		// the expected state in "kafka-consumer-migration-test-flink1.2-empty-state-snapshot";
+		// the expected state in "kafka-consumer-migration-test-flink*-empty-state-snapshot";
 		// since the state is empty, the consumer should reflect on the startup mode to determine start offsets.
 		final HashMap<KafkaTopicPartition, Long> expectedSubscribedPartitionsWithStartOffsets = new HashMap<>();
 		for (KafkaTopicPartition partition : PARTITION_STATE.keySet()) {
@@ -224,7 +256,7 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 	}
 
 	/**
-	 * Test restoring from a non-empty state taken using Flink 1.2, when some partitions could be
+	 * Test restoring from a non-empty state taken using a previous Flink version, when some partitions could be
 	 * found for topics.
 	 */
 	@Test
@@ -242,10 +274,14 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		testHarness.setup();
+
 		// restore state from binary snapshot file
-		testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-snapshot")));
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		// assert that there are partitions and is identical to expected list
