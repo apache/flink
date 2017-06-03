@@ -33,6 +33,10 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
  */
 public class ChainOrderTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
+	public ChainOrderTest(String savepointPath) {
+		super(savepointPath);
+	}
+
 	@Override
 	public void createRestoredJob(StreamExecutionEnvironment env) {
 		/**

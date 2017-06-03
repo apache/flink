@@ -37,7 +37,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Savepoint generator to create the job used by the {@link AbstractNonKeyedOperatorRestoreTestBase}.
+ * Savepoint generator to create the savepoint used by the {@link AbstractNonKeyedOperatorRestoreTestBase}.
+ * Switch to specific version branches and run this job to create savepoints of different Flink versions.
  *
  * The job should be cancelled manually through the REST API using the cancel-with-savepoint operation.
  */
@@ -191,8 +192,5 @@ public class NonKeyedJob {
 				this.notifyAll();
 			}
 		}
-	}
-
-	private NonKeyedJob() {
 	}
 }

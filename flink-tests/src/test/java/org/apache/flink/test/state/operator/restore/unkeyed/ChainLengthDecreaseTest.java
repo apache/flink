@@ -32,6 +32,10 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
  */
 public class ChainLengthDecreaseTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
+	public ChainLengthDecreaseTest(String savepointPath) {
+		super(savepointPath);
+	}
+
 	@Override
 	public void createRestoredJob(StreamExecutionEnvironment env) {
 		/**
