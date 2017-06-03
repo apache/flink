@@ -19,8 +19,10 @@
 package org.apache.flink.table.api.scala.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.api.java.{Over => JOver}
 import org.apache.flink.table.api.scala.{Over => SOver, _}
+import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
@@ -143,6 +145,39 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val resJava = t
       .window(JOver.orderBy("rowtime").preceding("4.hours").following("current_range").as("w"))
       .select("a, SUM(b) OVER w")
+
+    verifyTableEquals(resScala, resJava)
+  }
+
+  @Test
+  def testScalarFunctionsOnOverWindow(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+
+    val weightedAvg = new WeightedAvgWithRetract
+    val plusOne = Func1
+    util.addFunction("plusOne", plusOne)
+    util.addFunction("weightedAvg", weightedAvg)
+
+    val resScala = t
+      .window(SOver partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
+      .select(
+        array('a.sum over 'w, 'a.count over 'w),
+        plusOne('b.sum over 'w as 'wsum) as 'd,
+        ('a.count over 'w).exp(),
+        (weightedAvg('a, 'b) over 'w) + 1,
+        "AVG:".toExpr + (weightedAvg('a, 'b) over 'w))
+
+    val resJava = t
+      .window(JOver.partitionBy("a").orderBy("rowtime").preceding("unbounded_row").as("w"))
+      .select(
+        s"""
+           |ARRAY(SUM(a) OVER w, COUNT(a) OVER w),
+           |plusOne(SUM(b) OVER w AS wsum) AS d,
+           |EXP(COUNT(a) OVER w),
+           |(weightedAvg(a, b) OVER w) + 1,
+           |'AVG:' + (weightedAvg(a, b) OVER w)
+         """.stripMargin)
 
     verifyTableEquals(resScala, resJava)
   }

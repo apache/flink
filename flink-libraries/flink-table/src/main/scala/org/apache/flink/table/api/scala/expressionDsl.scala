@@ -456,7 +456,7 @@ trait ImplicitExpressionOperations {
     *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
     *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
     */
-  def over(alias: Expression) = {
+  def over(alias: Expression): Expression = {
     expr match {
       case _: Aggregation => UnresolvedOverCall(
         expr.asInstanceOf[Aggregation],
