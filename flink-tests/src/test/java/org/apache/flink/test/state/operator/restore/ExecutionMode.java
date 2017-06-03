@@ -20,9 +20,9 @@ package org.apache.flink.test.state.operator.restore;
 /**
  * Enum to control function behavior for the different test stages.
  * 
- * {@link ExecutionMode#GENERATE} should be used when creating the 1.2 savepoint.
- * {@link ExecutionMode#MIGRATE} should be used when migrating the 1.2 savepoint to 1.3.
- * {@link ExecutionMode#RESTORE} should be used when restoring from the migrated 1.3 savepoint.
+ * {@link ExecutionMode#GENERATE} should be used when creating the savepoint.
+ * {@link ExecutionMode#MIGRATE} should be used when migrating the savepoint to a newer version.
+ * {@link ExecutionMode#RESTORE} should be used when restoring from the migrated newer version savepoint.
  */
 public enum ExecutionMode {
 	GENERATE,
