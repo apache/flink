@@ -30,7 +30,8 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /**
- * All classes extending this class will use the same savepoint and migration job.
+ * Base class for all non-keyed operator restore tests. Subclasses should define the paths of the
+ * savepoints to be tested against.
  */
 public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
@@ -50,10 +51,5 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOp
 		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
 
 		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.MIGRATE, stateless);
-	}
-
-	@Override
-	protected final String getMigrationSavepointName() {
-		return "nonKeyed";
 	}
 }

@@ -44,7 +44,8 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Savepoint generator to create the job used by the {@link KeyedComplexChainTest}.
+ * Savepoint generator to create the savepoint used by the {@link AbstractKeyedOperatorRestoreTestBase}.
+ * Switch to specific version branches and run this job to create savepoints of different Flink versions.
  *
  * The job should be cancelled manually through the REST API using the cancel-with-savepoint operation.
  */
@@ -233,9 +234,5 @@ public class KeyedJob {
 					Assert.assertEquals(valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
 			}
 		}
-	}
-
-
-	private KeyedJob() {
 	}
 }
