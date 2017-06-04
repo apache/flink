@@ -1313,7 +1313,8 @@ class CodeGenerator(
         if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
         } else {
-          throw new CodeGenException("Decimal can not be converted to interval of months.")
+          throw new CodeGenException(
+            s"Decimal '${decimal}' can not be converted to interval of months.")
         }
 
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
@@ -1321,7 +1322,8 @@ class CodeGenerator(
         if (decimal.isValidLong) {
           generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
         } else {
-          throw new CodeGenException("Decimal can not be converted to interval of milliseconds.")
+          throw new CodeGenException(
+            s"Decimal '${decimal}' can not be converted to interval of milliseconds.")
         }
 
       case t@_ =>
@@ -1387,6 +1389,13 @@ class CodeGenerator(
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
+        requireNumeric(right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+
+      case MULTIPLY if isTimeInterval(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireTimeInterval(left)
         requireNumeric(right)
         generateArithmeticOperator("*", nullCheck, resultType, left, right)
 
