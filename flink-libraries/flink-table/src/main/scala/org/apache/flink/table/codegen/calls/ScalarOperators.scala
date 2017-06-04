@@ -1101,6 +1101,10 @@ object ScalarOperators {
         && !isDecimal(operandType) && !isDecimal(resultType)) {
       (operandTerm) => s"(($resultTypeTerm) $operandTerm)"
     }
+    // result type is time interval and operand type is integer
+    else if (isTimeInterval(resultType) && isInteger(operandType)){
+      (operandTerm) => s"(($resultTypeTerm) $operandTerm)"
+    }
     else {
       throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
     }

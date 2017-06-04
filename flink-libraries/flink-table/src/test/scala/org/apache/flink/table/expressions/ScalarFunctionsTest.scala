@@ -1537,6 +1537,113 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "4")
   }
 
+  @Test
+  def testTimestampAdd(): Unit = {
+    val data = Seq(
+      (1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (3, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'")
+    )
+
+    val YEAR = Seq(
+      "2018-11-29 22:58:58.998",
+      "2020-11-29 22:58:58.998",
+      "2016-11-29 22:58:58.998",
+      "1956-11-29 22:58:58.998",
+      "1017-11-29 22:58:58.998")
+
+    val QUARTER = Seq(
+      "2018-03-01 22:58:58.998",
+      "2018-08-31 22:58:58.998",
+      "2017-08-29 22:58:58.998",
+      "2002-08-29 22:58:58.998",
+      "1767-11-29 22:58:58.998")
+
+    val MONTH = Seq(
+      "2017-12-29 22:58:58.998",
+      "2018-03-01 22:58:58.998",
+      "2017-10-29 22:58:58.998",
+      "2012-10-29 22:58:58.998",
+      "1934-07-29 22:58:58.998")
+
+    val WEEK = Seq(
+      "2017-12-06 22:58:58.998",
+      "2017-12-20 22:58:58.998",
+      "2017-11-22 22:58:58.998",
+      "2016-09-28 22:58:58.998",
+      "1998-09-30 22:58:58.998")
+
+    val DAY = Seq(
+      "2017-11-30 22:58:58.998",
+      "2017-12-02 22:58:58.998",
+      "2017-11-28 22:58:58.998",
+      "2017-09-29 22:58:58.998",
+      "2015-03-05 22:58:58.998")
+
+    val HOUR = Seq(
+      "2017-11-29 23:58:58.998",
+      "2017-11-30 01:58:58.998",
+      "2017-11-29 21:58:58.998",
+      "2017-11-27 09:58:58.998",
+      "2017-10-19 06:58:58.998")
+
+    val MINUTE = Seq(
+      "2017-11-29 22:59:58.998",
+      "2017-11-29 23:01:58.998",
+      "2017-11-29 22:57:58.998",
+      "2017-11-29 21:57:58.998",
+      "2017-11-29 06:18:58.998")
+
+    val SECOND = Seq(
+      "2017-11-29 22:58:59.998",
+      "2017-11-29 22:59:01.998",
+      "2017-11-29 22:58:57.998",
+      "2017-11-29 22:57:57.998",
+      "2017-11-29 22:42:18.998")
+
+    // we do not supported FRAC_SECOND, MICROSECOND, SQL_TSI_FRAC_SECOND, SQL_TSI_MICROSECOND
+    val intervalMapResults = Map(
+      "YEAR" -> YEAR,
+      "SQL_TSI_YEAR" -> YEAR,
+      "QUARTER" -> QUARTER,
+      "SQL_TSI_QUARTER" -> QUARTER,
+      "MONTH" -> MONTH,
+      "SQL_TSI_MONTH" -> MONTH,
+      "WEEK" -> WEEK,
+      "SQL_TSI_WEEK" -> WEEK,
+      "DAY" -> DAY,
+      "SQL_TSI_DAY" -> DAY,
+      "HOUR" -> HOUR,
+      "SQL_TSI_HOUR" -> HOUR,
+      "MINUTE" -> MINUTE,
+      "SQL_TSI_MINUTE" -> MINUTE,
+      "SECOND" -> SECOND,
+      "SQL_TSI_SECOND" -> SECOND
+    )
+
+    for ((interval, result) <- intervalMapResults) {
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})", result.head)
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})", result(1))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})", result(2))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})", result(3))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
+    }
+
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+
+    testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+
+    testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
+
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Other functions
   // ----------------------------------------------------------------------------------------------

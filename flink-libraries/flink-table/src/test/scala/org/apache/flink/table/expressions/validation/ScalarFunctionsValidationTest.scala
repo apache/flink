@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions.validation
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{SqlParserException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
@@ -39,5 +39,29 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   def testInvalidSubstring2(): Unit = {
     // Must fail. Parameter of substring must be an Integer not a String.
     testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Temporal functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test(expected = classOf[ValidationException])
+  def testTimestampAddWithDate(): Unit ={
+    testSqlApi("TIMESTAMPADD(DAY, 1, date '2016-06-15')", "2016-06-16")
+  }
+
+  @Test(expected = classOf[SqlParserException])
+  def testTimestampAddWithrongTimestampInterval(): Unit ={
+    testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
+  }
+
+  @Test(expected = classOf[SqlParserException])
+  def testTimestampAddWithrongTimestampFormat(): Unit ={
+    testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testTimestampAddWithWrongQuantity(): Unit ={
+    testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 }

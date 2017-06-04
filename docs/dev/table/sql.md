@@ -1937,6 +1937,7 @@ QUARTER(date)
         <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)</code> leads to true; <code>(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)</code> leads to false.</p>
       </td>
     </tr>
+
     <tr>
       <td>
         {% highlight text %}
@@ -1944,10 +1945,22 @@ DATE_FORMAT(timestamp, format)
 {% endhighlight %}
       </td>
       <td>
-        <p>Formats <code>timestamp</code> as a string using a specified <code>format</code>. The format must be compatible with MySQL's date formatting syntax as used by the <code>date_parse</code> function. The format specification is given in the <a href="#date-format-specifier">Date Format Specifier table</a> below.</p>
+        <p>Formats <code>timestamp</code> as a string using a specified <code>format</code> string. The format must be compatible with MySQL's date formatting syntax as used by the <code>date_parse</code> function. The format specification is given in the <a href="#date-format-specifier">Date Format Specifier table</a> below.</p>
         <p>For example <code>DATE_FORMAT(ts, '%Y, %d %M')</code> results in strings formatted as <code>"2017, 05 May"</code>.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TIMESTAMPADD(unit, interval, timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Adds a (signed) integer interval to a timestamp. The unit for the interval is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>. E.g. <code>TIMESTAMPADD(WEEK, 1, '2003-01-02')</code> leads to <code>2003-01-09</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 

@@ -410,6 +410,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.E,
     ScalarSqlFunctions.CONCAT,
     ScalarSqlFunctions.CONCAT_WS,
+    SqlStdOperatorTable.TIMESTAMP_ADD,
 
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,
