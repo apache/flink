@@ -184,7 +184,10 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(environment);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		when(mockTask.getUserCodeClassLoader()).thenReturn(environment.getUserClassLoader());
+
+		ClassLoader cl = environment.getUserClassLoader();
+		when(mockTask.getUserCodeClassLoader()).thenReturn(cl);
+
 		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
 		when(mockTask.getStreamStatusMaintainer()).thenReturn(mockStreamStatusMaintainer);
 
