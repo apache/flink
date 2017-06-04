@@ -34,7 +34,6 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -52,7 +51,6 @@ import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -74,7 +72,6 @@ import static org.apache.flink.runtime.state.filesystem.FsStateBackendFactory.CH
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 
 @RunWith(Parameterized.class)
 public class PojoSerializerUpgradeTest extends TestLogger {
@@ -181,7 +178,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	/**
 	 * We should be able to handle a changed field order of a POJO as operator state
 	 */
-	@Ignore("Ignore this test until FLINK-6804 has been fixed.")
 	@Test
 	public void testChangedFieldOrderWithOperatorState() throws Exception {
 		testPojoSerializerUpgrade(SOURCE_A, SOURCE_B, true, false);
@@ -192,7 +188,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void testChangedFieldTypesWithKeyedState() throws Exception {
-		assumeTrue("Running only for RocksDBStateBackend until FLINK-6804 has been fixed.", stateBackend instanceof RocksDBStateBackend);
 		try {
 			testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, true);
 			fail("Expected a state migration exception.");
@@ -208,7 +203,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	/**
 	 * Changing field types of a POJO as operator state should require a state migration
 	 */
-	@Ignore("Ignore this test until FLINK-6804 has been fixed.")
 	@Test
 	public void testChangedFieldTypesWithOperatorState() throws Exception {
 		try {
@@ -228,7 +222,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void testAdditionalFieldWithKeyedState() throws Exception {
-		assumeTrue("Running only for RocksDBStateBackend until FLINK-6804 has been fixed.", stateBackend instanceof RocksDBStateBackend);
 		try {
 			testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
 			fail("Expected a state migration exception.");
@@ -244,7 +237,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	/**
 	 * Adding fields to a POJO as operator state should require a state migration
 	 */
-	@Ignore("Ignore this test until FLINK-6804 has been fixed.")
 	@Test
 	public void testAdditionalFieldWithOperatorState() throws Exception {
 		try {
@@ -262,7 +254,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	/**
 	 * Removing fields from a POJO as keyed state should require a state migration
 	 */
-	@Ignore("Ignore this test until FLINK-6801 has been fixed.")
 	@Test
 	public void testMissingFieldWithKeyedState() throws Exception {
 		try {
@@ -280,7 +271,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	/**
 	 * Removing fields from a POJO as operator state should require a state migration
 	 */
-	@Ignore("Ignore this test until FLINK-6804 has been fixed.")
 	@Test
 	public void testMissingFieldWithOperatorState() throws Exception {
 		try {
