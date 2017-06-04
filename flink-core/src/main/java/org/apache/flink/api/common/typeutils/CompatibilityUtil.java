@@ -66,13 +66,11 @@ public class CompatibilityUtil {
 			} else {
 				if (precedingSerializer != null && !(precedingSerializer.getClass().equals(dummySerializerClassTag))) {
 					// if the preceding serializer exists and is not a dummy, use
-					// that for converting instead of the provided convert deserializer
+					// that for converting instead of any provided convert deserializer
 					return CompatibilityResult.requiresMigration((TypeSerializer<T>) precedingSerializer);
-				} else if (initialResult.getConvertDeserializer() != null) {
-					return initialResult;
 				} else {
-					throw new RuntimeException(
-						"State migration required, but there is no available serializer capable of reading previous data.");
+					// requires migration (may or may not have a convert deserializer)
+					return initialResult;
 				}
 			}
 		} else {
