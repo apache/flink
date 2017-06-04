@@ -105,7 +105,6 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    println(StreamITCase.testResults)
     assertEquals(true, StreamITCase.testResults.isEmpty)
   }
 
