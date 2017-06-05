@@ -22,13 +22,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink supports specifying DataStream or DataSet programs with SQL queries using the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in the subsequent SQL / Table API queries, be converted into a `DataSet` or `DataStream`, used in subsequent Table API queries or written to a `TableSink` (see [Writing Tables to External Sinks](common.html#emit-to-a-tablesink)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
+Flink supports specifying DataStream or DataSet programs with SQL queries using the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in subsequent SQL / Table API queries, be converted into a `DataSet` or `DataStream`, or written to a `TableSink` (see [Writing Tables to External Sinks](common.html#emit-to-a-tablesink)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
 
-To access the data in the SQL queries, users must register data sources, including `Table`, `DataSet`, `DataStream` or external `TableSource`, in the `TableEnvironment` (see [Registering Tables](common.html#register-a-table-in-the-catalog)). Alternatively, users can also register external catalogs in the `TableEnvironment` to specify the location of the data sources.
+Before using data in a SQL query, the data source(s) must first be registered in the `TableEnvironment` (see see [Registering Tables](common.html#register-a-table-in-the-catalog)). Possible data sources include Tables, DataSets, DataStreams, and external TableSources. Alternatively, users can also register external catalogs in the `TableEnvironment` to specify the location of the data sources.
 
-For convenience `Table.toString()` will automatically register an unique table name under the `Table`'s `TableEnvironment` and return the table name. So it allows to call SQL directly on tables in a string concatenation (see examples below).
+For convenience `Table.toString()` will automatically register a unique table name under the `Table`'s `TableEnvironment` and return the table name. This allows SQL to be called directly on tables in a string concatenation (see examples below).
 
-*Note: Flink's SQL support is not feature complete, yet. Queries that include unsupported SQL features will cause a `TableException`. The limitations of SQL on batch and streaming tables are listed in the following sections.*
+*Note: Flink's SQL support is not yet feature complete. Queries that include unsupported SQL features will cause a `TableException`. The limitations of SQL on batch and streaming tables are listed in the following sections.*
 
 * This will be replaced by the TOC
 {:toc}
@@ -36,7 +36,7 @@ For convenience `Table.toString()` will automatically register an unique table n
 Specifying a Query
 ---------------
 
-Here are a few examples on how to specify a DataStream / DataSet program using SQL:
+Here are a few examples on specifying a DataStream / DataSet program using SQL:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -89,7 +89,7 @@ val result2 = tableEnv.sql(
 Supported Syntax
 ----------------
 
-Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html). Flink supports the standard ANSI SQL but it provides no supports for DML and DDL. The following BNF-grammar describes the supported SQL features:
+Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html). Flink supports standard ANSI SQL, but it provides no supports for DML and DDL. The following BNF-grammar describes the supported SQL features:
 
 ```
 
