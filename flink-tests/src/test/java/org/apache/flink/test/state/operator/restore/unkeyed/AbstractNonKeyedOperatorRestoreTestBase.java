@@ -22,6 +22,10 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
@@ -34,6 +38,19 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
  * savepoints to be tested against.
  */
 public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
+
+	private final String savepointPath;
+
+	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
+	public static Collection<String> parameters () {
+		return Arrays.asList(
+			"nonKeyed-flink1.2",
+			"nonKeyed-flink1.3");
+	}
+
+	public AbstractNonKeyedOperatorRestoreTestBase(String savepointPath) {
+		this.savepointPath = savepointPath;
+	}
 
 	@Override
 	public void createMigrationJob(StreamExecutionEnvironment env) {
@@ -51,5 +68,10 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOp
 		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
 
 		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.MIGRATE, stateless);
+	}
+
+	@Override
+	protected String getMigrationSavepointName() {
+		return savepointPath;
 	}
 }

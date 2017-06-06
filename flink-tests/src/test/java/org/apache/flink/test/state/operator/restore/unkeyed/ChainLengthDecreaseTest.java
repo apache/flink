@@ -24,9 +24,6 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.Collection;
-
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSource;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createStatelessMap;
@@ -38,17 +35,8 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 @RunWith(Parameterized.class)
 public class ChainLengthDecreaseTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-	private final String savepointPath;
-
-	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-	public static Collection<String> parameters () {
-		return Arrays.asList(
-			"nonKeyed-flink1.2",
-			"nonKeyed-flink1.3");
-	}
-
 	public ChainLengthDecreaseTest(String savepointPath) {
-		this.savepointPath = savepointPath;
+		super(savepointPath);
 	}
 
 	@Override
@@ -66,10 +54,5 @@ public class ChainLengthDecreaseTest extends AbstractNonKeyedOperatorRestoreTest
 		stateless.startNewChain();
 
 		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.RESTORE, stateless);
-	}
-
-	@Override
-	protected String getMigrationSavepointName() {
-		return savepointPath;
 	}
 }

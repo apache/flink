@@ -23,12 +23,29 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Base class for all keyed operator restore tests. Subclasses should define the paths of the
  * savepoints to be tested against.
  */
 public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
+
+	private final String savepointPath;
+
+	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
+	public static Collection<String> parameters () {
+		return Arrays.asList(
+			"complexKeyed-flink1.2",
+			"complexKeyed-flink1.3");
+	}
+
+	public AbstractKeyedOperatorRestoreTestBase(String savepointPath) {
+		this.savepointPath = savepointPath;
+	}
 
 	@Override
 	public void createMigrationJob(StreamExecutionEnvironment env) {
@@ -42,5 +59,10 @@ public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOpera
 		SingleOutputStreamOperator<Integer> first = KeyedJob.createFirstStatefulMap(ExecutionMode.MIGRATE, window);
 
 		SingleOutputStreamOperator<Integer> second = KeyedJob.createSecondStatefulMap(ExecutionMode.MIGRATE, first);
+	}
+
+	@Override
+	protected String getMigrationSavepointName() {
+		return savepointPath;
 	}
 }

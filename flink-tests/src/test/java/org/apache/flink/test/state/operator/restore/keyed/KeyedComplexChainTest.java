@@ -24,23 +24,11 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.Collection;
-
 @RunWith(Parameterized.class)
 public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
 
-	private final String savepointPath;
-
-	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-	public static Collection<String> parameters () {
-		return Arrays.asList(
-			"complexKeyed-flink1.2",
-			"complexKeyed-flink1.3");
-	}
-
 	public KeyedComplexChainTest(String savepointPath) {
-		this.savepointPath = savepointPath;
+		super(savepointPath);
 	}
 
 	@Override
@@ -56,10 +44,5 @@ public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase 
 
 		SingleOutputStreamOperator<Integer> first = KeyedJob.createFirstStatefulMap(ExecutionMode.RESTORE, second);
 		first.startNewChain();
-	}
-
-	@Override
-	protected final String getMigrationSavepointName() {
-		return savepointPath;
 	}
 }
