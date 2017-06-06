@@ -43,6 +43,8 @@ import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 
 import org.apache.commons.io.FileUtils;
 
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -70,21 +72,23 @@ public class ContinuousFileProcessingMigrationTest {
 	private static final long INTERVAL = 100;
 
 	@Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
-	public static Collection<Tuple2<String, Long>> parameters () {
+	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
 		return Arrays.asList(
-			Tuple2.of("1.1", 1482144479339L),
-			Tuple2.of("1.2", 1493116191000L),
-			Tuple2.of("1.3", 1496532000000L));
+			Tuple2.of(MigrationVersion.v1_1, 1482144479339L),
+			Tuple2.of(MigrationVersion.v1_2, 1493116191000L),
+			Tuple2.of(MigrationVersion.v1_3, 1496532000000L));
 	}
 
-	// TODO change this to the corresponding savepoint version to be written (e.g. 1.3),
-	// TODO and remove all @Ignore annotations on write*() methods to generate savepoints
-	private final String flinkGenerateSavepointVersion = "";
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
-	private final String testMigrateVersion;
+	private final MigrationVersion testMigrateVersion;
 	private final Long expectedModTime;
 
-	public ContinuousFileProcessingMigrationTest(Tuple2<String, Long> migrationVersionAndModTime) {
+	public ContinuousFileProcessingMigrationTest(Tuple2<MigrationVersion, Long> migrationVersionAndModTime) {
 		this.testMigrateVersion = migrationVersionAndModTime.f0;
 		this.expectedModTime = migrationVersionAndModTime.f1;
 	}
@@ -161,14 +165,11 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "reader-migration-test-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -195,7 +196,7 @@ public class ContinuousFileProcessingMigrationTest {
 		// compare if the results contain what they should contain and also if
 		// they are the same, as they should.
 
-		if (testMigrateVersion.equals("1.1")) {
+		if (testMigrateVersion == MigrationVersion.v1_1) {
 			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split1))));
 			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split2))));
 			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split3))));
@@ -302,14 +303,11 @@ public class ContinuousFileProcessingMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 

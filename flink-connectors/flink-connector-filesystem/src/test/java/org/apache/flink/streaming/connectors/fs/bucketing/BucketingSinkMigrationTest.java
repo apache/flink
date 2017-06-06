@@ -30,6 +30,8 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -58,9 +60,11 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class BucketingSinkMigrationTest {
 
-	// TODO change this to the corresponding savepoint version to be written (e.g. 1.3),
-	// TODO and remove all @Ignore annotations on write*() methods to generate savepoint
-	private final String flinkGenerateSavepointVersion = "";
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -71,16 +75,16 @@ public class BucketingSinkMigrationTest {
 	private static final String VALID_LENGTH_SUFFIX = ".valid";
 
 	@Parameterized.Parameters(name = "Migration Savepoint / Bucket Files Prefix: {0}")
-	public static Collection<Tuple2<String, String>> parameters () {
+	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
-			Tuple2.of("1.2", "/var/folders/v_/ry2wp5fx0y7c1rvr41xy9_700000gn/T/junit9160378385359106772/junit479663758539998903/1970-01-01--01/part-0-"),
-			Tuple2.of("1.3", "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit4273542175898623023/junit3801102997056424640/1970-01-01--01/part-0-"));
+			Tuple2.of(MigrationVersion.v1_2, "/var/folders/v_/ry2wp5fx0y7c1rvr41xy9_700000gn/T/junit9160378385359106772/junit479663758539998903/1970-01-01--01/part-0-"),
+			Tuple2.of(MigrationVersion.v1_3, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit4273542175898623023/junit3801102997056424640/1970-01-01--01/part-0-"));
 	}
 
-	private final String testMigrateVersion;
+	private final MigrationVersion testMigrateVersion;
 	private final String expectedBucketFilesPrefix;
 
-	public BucketingSinkMigrationTest(Tuple2<String, String> migrateVersionAndExpectedBucketFilesPrefix) {
+	public BucketingSinkMigrationTest(Tuple2<MigrationVersion, String> migrateVersionAndExpectedBucketFilesPrefix) {
 		this.testMigrateVersion = migrateVersionAndExpectedBucketFilesPrefix.f0;
 		this.expectedBucketFilesPrefix = migrateVersionAndExpectedBucketFilesPrefix.f1;
 	}
@@ -147,9 +151,13 @@ public class BucketingSinkMigrationTest {
 		OneInputStreamOperatorTestHarness<String, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
 			new StreamSink<>(sink), 10, 1, 0);
 		testHarness.setup();
-		testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("bucketing-sink-migration-test-flink" + testMigrateVersion + "-snapshot")));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"bucketing-sink-migration-test-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		assertTrue(sink.initializeCalled);

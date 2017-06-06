@@ -33,6 +33,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
@@ -67,9 +69,11 @@ import static org.mockito.Mockito.when;
 @RunWith(Parameterized.class)
 public class FlinkKafkaConsumerBaseMigrationTest {
 
-	// TODO change this to the corresponding savepoint version to be written (e.g. 1.3),
-	// TODO and remove all @Ignore annotations on write*() methods to generate savepoints
-	private final String flinkGenerateSavepointVersion = "";
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
 	private static final HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
@@ -78,14 +82,14 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		PARTITION_STATE.put(new KafkaTopicPartition("def", 7), 987654321L);
 	}
 
-	private final String testMigrateVersion;
+	private final MigrationVersion testMigrateVersion;
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
-	public static Collection<String> parameters () {
-		return Arrays.asList("1.1", "1.2", "1.3");
+	public static Collection<MigrationVersion> parameters () {
+		return Arrays.asList(MigrationVersion.v1_1, MigrationVersion.v1_2, MigrationVersion.v1_3);
 	}
 
-	public FlinkKafkaConsumerBaseMigrationTest(String testMigrateVersion) {
+	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
 		this.testMigrateVersion = testMigrateVersion;
 	}
 
@@ -186,14 +190,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setup();
 
 		// restore state from binary snapshot file
-		String savepointFile = "kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-					OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		// assert that no partitions were found and is empty
@@ -228,14 +230,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setup();
 
 		// restore state from binary snapshot file
-		String savepointFile = "kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		// the expected state in "kafka-consumer-migration-test-flink*-empty-state-snapshot";
@@ -277,14 +277,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setup();
 
 		// restore state from binary snapshot file
-		String savepointFile = "kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		// assert that there are partitions and is identical to expected list

@@ -52,6 +52,8 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
 import org.junit.Ignore;
@@ -81,17 +83,19 @@ import static org.junit.Assert.fail;
 public class WindowOperatorMigrationTest {
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
-	public static Collection<String> parameters () {
-		return Arrays.asList("1.1", "1.2", "1.3");
+	public static Collection<MigrationVersion> parameters () {
+		return Arrays.asList(MigrationVersion.v1_1, MigrationVersion.v1_2, MigrationVersion.v1_3);
 	}
 
-	// TODO change this to the corresponding savepoint version to be written (e.g. 1.3)
-	// TODO and remove all @Ignore annotations on write*Snapshot methods to generate savepoints
-	private final String flinkGenerateSavepointVersion = "";
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
-	private final String testMigrateVersion;
+	private final MigrationVersion testMigrateVersion;
 
-	public WindowOperatorMigrationTest(String testMigrateVersion) {
+	public WindowOperatorMigrationTest(MigrationVersion testMigrateVersion) {
 		this.testMigrateVersion = testMigrateVersion;
 	}
 
@@ -137,7 +141,9 @@ public class WindowOperatorMigrationTest {
 		// do snapshot and save to file
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-session-with-stateful-trigger-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-session-with-stateful-trigger-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 	}
@@ -170,14 +176,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-session-with-stateful-trigger-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-session-with-stateful-trigger-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -232,7 +235,9 @@ public class WindowOperatorMigrationTest {
 
 		// do snapshot and save to file
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 	}
@@ -269,14 +274,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-session-with-stateful-trigger-mint-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-session-with-stateful-trigger-mint-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -365,7 +367,9 @@ public class WindowOperatorMigrationTest {
 
 		// do snapshot and save to file
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-reduce-event-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-reduce-event-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 	}
@@ -398,14 +402,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-reduce-event-time-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-reduce-event-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -482,7 +483,9 @@ public class WindowOperatorMigrationTest {
 
 		// do snapshot and save to file
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-apply-event-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-apply-event-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 	}
@@ -514,14 +517,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-apply-event-time-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-apply-event-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -592,7 +592,9 @@ public class WindowOperatorMigrationTest {
 
 		// do snapshot and save to file
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-reduce-processing-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-reduce-processing-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 
@@ -626,14 +628,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-reduce-processing-time-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-reduce-processing-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -698,7 +697,9 @@ public class WindowOperatorMigrationTest {
 
 		// do snapshot and save to file
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-apply-processing-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-apply-processing-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 	}
@@ -730,14 +731,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-apply-processing-time-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-apply-processing-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -796,7 +794,9 @@ public class WindowOperatorMigrationTest {
 
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-aggr-aligned-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-aggr-aligned-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		testHarness.close();
 	}
 
@@ -829,14 +829,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-aggr-aligned-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-aggr-aligned-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
@@ -906,7 +903,9 @@ public class WindowOperatorMigrationTest {
 
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/win-op-migration-test-accum-aligned-flink" + flinkGenerateSavepointVersion + "-snapshot");
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-accum-aligned-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		testHarness.close();
 	}
 
@@ -939,14 +938,11 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.setup();
 
-		String savepointFile = "win-op-migration-test-accum-aligned-flink" + testMigrateVersion + "-snapshot";
-		if (testMigrateVersion.equals("1.1")) {
-			// Flink 1.1 savepoints should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(OperatorSnapshotUtil.getResourceFilename(savepointFile));
-		} else {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.readStateHandle(OperatorSnapshotUtil.getResourceFilename(savepointFile)));
-		}
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-accum-aligned-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
 
 		testHarness.open();
 
