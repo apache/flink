@@ -25,7 +25,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DateTimeSqlFunction, ScalarFunction, TableFunction}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
@@ -237,6 +237,7 @@ object FunctionCatalog {
     "quarter" -> classOf[Quarter],
     "temporalOverlaps" -> classOf[TemporalOverlaps],
     "dateTimePlus" -> classOf[Plus],
+    "dateFormat" -> classOf[DateFormat],
 
     // array
     "array" -> classOf[ArrayConstructor],
@@ -374,6 +375,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CURRENT_TIME,
     SqlStdOperatorTable.CURRENT_TIMESTAMP,
     SqlStdOperatorTable.CURRENT_DATE,
+    DateTimeSqlFunction.DATE_FORMAT,
     SqlStdOperatorTable.CAST,
     SqlStdOperatorTable.EXTRACT,
     SqlStdOperatorTable.QUARTER,

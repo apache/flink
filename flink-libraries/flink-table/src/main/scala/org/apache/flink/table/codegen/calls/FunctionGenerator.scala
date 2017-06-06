@@ -28,8 +28,10 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.table.functions.sql.DateTimeSqlFunction
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
+
 import scala.collection.mutable
 
 /**
@@ -481,6 +483,13 @@ object FunctionGenerator {
     LOCALTIMESTAMP,
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
+
+  addSqlFunctionMethod(
+    DateTimeSqlFunction.DATE_FORMAT,
+    Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.DATE_FORMAT
+  )
 
   // ----------------------------------------------------------------------------------------------
 
