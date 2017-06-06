@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.migration.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
@@ -285,26 +286,34 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
 	@Override
 	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig;
+
+		// we are compatible for data written by ourselves or the legacy MultiplexingStreamRecordSerializer
 		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
-			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig =
+			previousTypeSerializerAndConfig =
 				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
-
-			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousTypeSerializerAndConfig.f0,
-					UnloadableDummyTypeSerializer.class,
-					previousTypeSerializerAndConfig.f1,
-					typeSerializer);
-
-			if (!compatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			} else if (compatResult.getConvertDeserializer() != null) {
-				return CompatibilityResult.requiresMigration(
-					new StreamElementSerializer<>(
-						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
-			}
+		} else if (configSnapshot instanceof MultiplexingStreamRecordSerializer.MultiplexingStreamRecordSerializerConfigSnapshot) {
+			previousTypeSerializerAndConfig =
+				((MultiplexingStreamRecordSerializer.MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+		} else {
+			return CompatibilityResult.requiresMigration();
 		}
 
-		return CompatibilityResult.requiresMigration();
+		CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+				previousTypeSerializerAndConfig.f0,
+				UnloadableDummyTypeSerializer.class,
+				previousTypeSerializerAndConfig.f1,
+				typeSerializer);
+
+		if (!compatResult.isRequiresMigration()) {
+			return CompatibilityResult.compatible();
+		} else if (compatResult.getConvertDeserializer() != null) {
+			return CompatibilityResult.requiresMigration(
+				new StreamElementSerializer<>(
+					new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
+		} else {
+			return CompatibilityResult.requiresMigration();
+		}
 	}
 
 	/**
