@@ -1501,13 +1501,7 @@ object AggregateUtil {
     case _ => throw new IllegalArgumentException()
   }
 
-  private[flink] def determineLargestTumblingSize(size: Long, slide: Long): Long = {
-    if (slide > size) {
-      gcd(slide, size)
-    } else {
-      gcd(size, slide)
-    }
-  }
+  private[flink] def determineLargestTumblingSize(size: Long, slide: Long) = gcd(size, slide)
 
   private def gcd(a: Long, b: Long): Long = {
     if (b == 0) a else gcd(b, a % b)
