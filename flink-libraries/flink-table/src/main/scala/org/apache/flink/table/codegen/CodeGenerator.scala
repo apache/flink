@@ -2008,6 +2008,33 @@ class CodeGenerator(
   }
 
   /**
+    * Adds a reusable [[java.util.Random]] to the member area of the generated [[Function]].
+    *
+    * The seed parameter must be a literal/constant expression.
+    *
+    * @return member variable term
+    */
+  def addReusableDateFormatter(format: GeneratedExpression): String = {
+    val fieldTerm = newName("dateFormatter")
+
+    val field =
+      s"""
+         |transient org.joda.time.format.DateTimeFormatter $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit =
+      s"""
+         |${format.code}
+         |$fieldTerm = org.apache.flink.table.runtime.functions.
+         |DateTimeFunctions$$.MODULE$$.createDateTimeFormatter(${format.resultTerm});
+         |""".stripMargin
+
+    reusableInitStatements.add(fieldInit)
+    fieldTerm
+  }
+
+  /**
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime

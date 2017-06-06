@@ -113,7 +113,6 @@ under the License.
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-			<scope>provided</scope>
 		</dependency>
 
 		<!-- test dependencies -->

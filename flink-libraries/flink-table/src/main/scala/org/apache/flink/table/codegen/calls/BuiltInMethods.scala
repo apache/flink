@@ -23,7 +23,6 @@ import java.math.{BigDecimal => JBigDecimal}
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.table.runtime.functions.ScalarFunctions
-import org.apache.flink.table.runtime.DateTimeFunctions
 
 object BuiltInMethods {
   val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
@@ -90,7 +89,4 @@ object BuiltInMethods {
   val CONCAT_WS =
     Types.lookupMethod(
       classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
-
-  val DATE_FORMAT = Types.lookupMethod(classOf[DateTimeFunctions], "dateFormat",
-    classOf[Long], classOf[String])
 }

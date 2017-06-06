@@ -25,25 +25,42 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
+import org.joda.time.{DateTime, DateTimeZone}
 import org.junit.Test
 
 class DateTimeFunctionTest extends ExpressionTestBase {
+  private val INSTANT = DateTime.parse("1990-01-02T03:04:05.678Z")
+  private val LOCAL_ZONE = DateTimeZone.getDefault
+  private val LOCAL_TIME = INSTANT.toDateTime(LOCAL_ZONE)
 
   @Test
   def testDateFormat(): Unit = {
+    val expected = LOCAL_TIME.toString("MM/dd/yyyy HH:mm:ss.SSSSSS")
     testAllApis(
-      DateFormat('f0, "%Y"),
-      "dateFormat(f0, \"%Y\")",
-      "DATE_FORMAT(f0, '%Y')",
-      "1990")
+      DateFormat('f0, "%m/%d/%Y %H:%i:%s.%f"),
+      "dateFormat(f0, \"%m/%d/%Y %H:%i:%s.%f\")",
+      "DATE_FORMAT(f0, '%m/%d/%Y %H:%i:%s.%f')",
+      expected)
+  }
+
+  @Test
+  def testDateFormatNonConstantFormatter(): Unit = {
+    val expected = LOCAL_TIME.toString("MM/dd/yyyy")
+    testAllApis(
+      DateFormat('f0, 'f1),
+      "dateFormat(f0, f1)",
+      "DATE_FORMAT(f0, f1)",
+      expected)
   }
 
   override def testData: Any = {
-    val testData = new Row(1)
-    testData.setField(0, Timestamp.valueOf("1990-10-14 12:10:10"))
+    val testData = new Row(2)
+    // SQL expect a timestamp in the local timezone
+    testData.setField(0, new Timestamp(LOCAL_ZONE.convertLocalToUTC(INSTANT.getMillis, true)))
+    testData.setField(1, "%m/%d/%Y")
     testData
   }
 
   override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo(Types.SQL_TIMESTAMP).asInstanceOf[TypeInformation[Any]]
+    new RowTypeInfo(Types.SQL_TIMESTAMP, Types.STRING).asInstanceOf[TypeInformation[Any]]
 }

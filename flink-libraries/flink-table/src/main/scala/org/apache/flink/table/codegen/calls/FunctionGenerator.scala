@@ -484,11 +484,10 @@ object FunctionGenerator {
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     DateTimeSqlFunction.DATE_FORMAT,
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
-    STRING_TYPE_INFO,
-    BuiltInMethods.DATE_FORMAT
+    new DateFormatCallGen
   )
 
   // ----------------------------------------------------------------------------------------------
