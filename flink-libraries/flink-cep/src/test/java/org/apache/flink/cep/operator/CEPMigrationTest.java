@@ -48,7 +48,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests for checking whether CEP operator can restore from snapshots that were done
@@ -59,6 +58,10 @@ import static org.junit.Assume.assumeTrue;
  */
 @RunWith(Parameterized.class)
 public class CEPMigrationTest {
+
+	// TODO to generate savepoints, change this to the corresponding savepoint version
+	// TODO to be written and remove all @Ignore annotations on write*() methods
+	private final String flinkBranchVersion = "";
 
 	private final String migrateVersion;
 
@@ -77,9 +80,6 @@ public class CEPMigrationTest {
 	@Ignore
 	@Test
 	public void writeAfterBranchingPatternSnapshot() throws Exception {
-
-		// TODO change this to the corresponding savepoint version to be written
-		final String flinkBranchVersion = "";
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
@@ -129,8 +129,6 @@ public class CEPMigrationTest {
 
 	@Test
 	public void testRestoreAfterBranchingPattern() throws Exception {
-		// TODO this should be fixed
-		assumeTrue("This test currently doesn't pass when restoring from 1.3.", migrateVersion.equals("1.2"));
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
@@ -261,9 +259,6 @@ public class CEPMigrationTest {
 	@Test
 	public void writeStartingNewPatternAfterMigrationSnapshot() throws Exception {
 
-		// TODO change this to the corresponding savepoint version to be written
-		final String flinkBranchVersion = "";
-
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
 
@@ -308,8 +303,6 @@ public class CEPMigrationTest {
 
 	@Test
 	public void testRestoreStartingNewPatternAfterMigration() throws Exception {
-		// TODO this should be fixed
-		assumeTrue("This test currently doesn't pass when restoring from 1.3.", migrateVersion.equals("1.2"));
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
@@ -455,9 +448,6 @@ public class CEPMigrationTest {
 	@Test
 	public void writeSinglePatternAfterMigrationSnapshot() throws Exception {
 
-		// TODO change this to the corresponding savepoint version to be written
-		final String flinkBranchVersion = "";
-
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
 
@@ -593,10 +583,10 @@ public class CEPMigrationTest {
 		public NFA<Event> createNFA() {
 
 			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new StartFilter())
-					.followedBy("middle")
+					.followedByAny("middle")
 					.subtype(SubEvent.class)
 					.where(new MiddleFilter())
-					.followedBy("end")
+					.followedByAny("end")
 					.where(new EndFilter())
 					// add a window timeout to test whether timestamps of elements in the
 					// priority queue in CEP operator are correctly checkpointed/restored
