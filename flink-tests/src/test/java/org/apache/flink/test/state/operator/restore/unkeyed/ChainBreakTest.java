@@ -21,6 +21,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
@@ -31,7 +33,12 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 /**
  * Verifies that the state of all operators is restored if a topology change breaks up a chain.
  */
+@RunWith(Parameterized.class)
 public class ChainBreakTest extends AbstractNonKeyedOperatorRestoreTestBase {
+
+	public ChainBreakTest(String savepointPath) {
+		super(savepointPath);
+	}
 
 	@Override
 	public void createRestoredJob(StreamExecutionEnvironment env) {

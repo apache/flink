@@ -76,7 +76,6 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		// we only test memory state backend yet
 		env.setStateBackend(new MemoryStateBackend());
 		env.enableCheckpointing(500);
 		env.setParallelism(4);
@@ -103,7 +102,7 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 
 		executeAndSavepoint(
 				env,
-				"src/test/resources/stateful-udf-migration-itcase-flink1.2-savepoint",
+				"src/test/resources/" + getSavepointPath(),
 				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS));
 	}
 
@@ -144,7 +143,7 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 
 		executeAndSavepoint(
 				env,
-				"src/test/resources/stateful-udf-migration-itcase-flink1.2-rocksdb-savepoint",
+				"src/test/resources/" + getRocksDBSavepointPath(),
 				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS));
 	}
 
@@ -155,7 +154,6 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		// we only test memory state backend yet
 		env.setStateBackend(new MemoryStateBackend());
 		env.enableCheckpointing(500);
 		env.setParallelism(4);
@@ -182,7 +180,7 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 
 		restoreAndExecute(
 				env,
-				getResourceFilename("stateful-udf-migration-itcase-flink1.2-savepoint"),
+				getResourceFilename(getSavepointPath()),
 				new Tuple2<>(CheckingRestoringSource.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
 				new Tuple2<>(CheckingRestoringFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS),
 				new Tuple2<>(CheckingRestoringFlatMapWithKeyedState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS),
@@ -201,7 +199,6 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		// we only test memory state backend yet
 		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 		env.enableCheckpointing(500);
 		env.setParallelism(4);
@@ -228,7 +225,7 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 
 		restoreAndExecute(
 				env,
-				getResourceFilename("stateful-udf-migration-itcase-flink1.2-rocksdb-savepoint"),
+				getResourceFilename(getRocksDBSavepointPath()),
 				new Tuple2<>(CheckingRestoringSource.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
 				new Tuple2<>(CheckingRestoringFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS),
 				new Tuple2<>(CheckingRestoringFlatMapWithKeyedState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS),
@@ -239,6 +236,14 @@ public class StatefulJobSavepointFrom12MigrationITCase extends SavepointMigratio
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS),
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS),
 				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS));
+	}
+
+	protected String getSavepointPath() {
+		return "stateful-udf-migration-itcase-flink1.2-savepoint";
+	}
+
+	protected String getRocksDBSavepointPath() {
+		return "stateful-udf-migration-itcase-flink1.2-rocksdb-savepoint";
 	}
 
 	private static class LegacyCheckpointedSource

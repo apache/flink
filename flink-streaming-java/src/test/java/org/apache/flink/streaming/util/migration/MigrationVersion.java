@@ -15,17 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.test.state.operator.restore;
+
+package org.apache.flink.streaming.util.migration;
 
 /**
- * Enum to control function behavior for the different test stages.
- * 
- * {@link ExecutionMode#GENERATE} should be used when creating the savepoint.
- * {@link ExecutionMode#MIGRATE} should be used when migrating the savepoint to a newer version.
- * {@link ExecutionMode#RESTORE} should be used when restoring from the migrated newer version savepoint.
+ * Enumeration for Flink versions, used in migration integration tests
+ * to indicate the migrated snapshot version.
  */
-public enum ExecutionMode {
-	GENERATE,
-	MIGRATE,
-	RESTORE
+public enum MigrationVersion {
+
+	// NOTE: the version strings must not change,
+	// as they are used to locate snapshot file paths
+	v1_1("1.1"),
+	v1_2("1.2"),
+	v1_3("1.3");
+
+	private String versionStr;
+
+	MigrationVersion(String versionStr) {
+		this.versionStr = versionStr;
+	}
+
+	@Override
+	public String toString() {
+		return versionStr;
+	}
 }
