@@ -162,6 +162,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val resScala = t
       .window(SOver partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
       .select(
+        array('a.sum over 'w, 'a.count over 'w),
         plusOne('b.sum over 'w as 'wsum) as 'd,
         ('a.count over 'w).exp(),
         (weightedAvg('a, 'b) over 'w) + 1,
@@ -169,8 +170,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
 
     val resJava = t
       .window(JOver.partitionBy("a").orderBy("rowtime").preceding("unbounded_row").as("w"))
-      .select("plusOne(SUM(b) OVER w AS wsum) AS d, EXP(COUNT(a) OVER w), " +
-                "(weightedAvg(a, b) OVER w) + 1, 'AVG:' + (weightedAvg(a, b) OVER w)")
+      .select(
+        s"""
+           |ARRAY(SUM(a) OVER w, COUNT(a) OVER w),
+           |plusOne(SUM(b) OVER w AS wsum) AS d,
+           |EXP(COUNT(a) OVER w),
+           |(weightedAvg(a, b) OVER w) + 1,
+           |'AVG:' + (weightedAvg(a, b) OVER w)
+         """.stripMargin)
 
     verifyTableEquals(resScala, resJava)
   }

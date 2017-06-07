@@ -119,7 +119,8 @@ class OverWindowTest extends TableTestBase {
         plusOne('a.sum over 'w as 'wsum) as 'd,
         ('a.count over 'w).exp(),
         (weightedAvg('c, 'a) over 'w) + 1,
-        "AVG:".toExpr + (weightedAvg('c, 'a) over 'w))
+        "AVG:".toExpr + (weightedAvg('c, 'a) over 'w),
+        array(weightedAvg('c, 'a) over 'w, 'a.count over 'w))
 
     val expected =
       unaryNode(
@@ -143,7 +144,8 @@ class OverWindowTest extends TableTestBase {
              s"${plusOne.functionIdentifier}(w0$$o0) AS d",
              "EXP(CAST(w0$o1)) AS _c1",
              "+(w0$o2, 1) AS _c2",
-             "||('AVG:', CAST(w0$o2)) AS _c3")
+             "||('AVG:', CAST(w0$o2)) AS _c3",
+             "ARRAY(w0$o2, w0$o1) AS _c4")
       )
     streamUtil.verifyTable(result, expected)
   }
