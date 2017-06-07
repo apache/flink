@@ -101,18 +101,14 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 1. Checkstyle will now give warnings in the editor for any Checkstyle
    violations.
 
-You can also scan an entire module by opening the Checkstyle tools window and
+Once the plugin is installed you can directly import `"tools/maven/checkstyle.xml"` by going to Settings -> Editor -> Code Style -> Java -> Gear Icon next to Scheme dropbox. This will for example automatically adjust the imports layout.
+
+You can scan an entire module by opening the Checkstyle tools window and
 clicking the "Check Module" button. The scan should report no errors.
 
-<span class="label label-info">Note</span> Selecting "Check Project" may report some errors from the archetype
-modules as they are not configured for Checkstyle validation.
-
-<span class="label label-info">Note</span> Some modules use a more strict `checkstyle.xml` file called
-`strict-checkstyle.xml`. You should setup an additional configuration by following the above
-steps for this file as well and activate it on a per-module basis. To set a per-module checkstyle
-configuration go to File -> Project Structure. Then select the module for which you want to change
-the checkstyle configuration in the modules list and change the checkstyle configuration in the
-Checkstyle tab.
+<span class="label label-info">Note</span> Some modules are not fully covered by checkstyle,
+which include `flink-core`, `flink-java`, `flink-optimizer`, and `flink-runtime`.
+Nevertheless please make sure that code you add/modify in these modules still conforms to the checkstyle rules.
 
 ## Eclipse
 
