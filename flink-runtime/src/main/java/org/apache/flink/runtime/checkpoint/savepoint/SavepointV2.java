@@ -205,8 +205,8 @@ public class SavepointV2 implements Savepoint {
 				for (int chainIndex = 0; chainIndex < taskState.getChainLength(); chainIndex++) {
 
 					// task consists of multiple operators so we have to break the state apart
-					for (int o = 0; o < operatorIDs.size(); o++) {
-						OperatorID operatorID = operatorIDs.get(o);
+					for (int operatorIndex = 0; operatorIndex < operatorIDs.size(); operatorIndex++) {
+						OperatorID operatorID = operatorIDs.get(operatorIndex);
 						OperatorState operatorState = operatorStates.get(operatorID);
 
 						if (operatorState == null) {
@@ -221,15 +221,15 @@ public class SavepointV2 implements Savepoint {
 						KeyedStateHandle rawKeyedState = null;
 
 						// only the head operator retains the keyed state
-						if (o == operatorIDs.size() - 1) {
+						if (operatorIndex == operatorIDs.size() - 1) {
 							managedKeyedState = subtaskState.getManagedKeyedState();
 							rawKeyedState = subtaskState.getRawKeyedState();
 						}
 
 						OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-							nonPartitionedState != null ? nonPartitionedState.get(o) : null,
-							partitioneableState != null ? partitioneableState.get(o) : null,
-							rawOperatorState != null ? rawOperatorState.get(o) : null,
+							nonPartitionedState != null ? nonPartitionedState.get(operatorIndex) : null,
+							partitioneableState != null ? partitioneableState.get(operatorIndex) : null,
+							rawOperatorState != null ? rawOperatorState.get(operatorIndex) : null,
 							managedKeyedState,
 							rawKeyedState);
 
