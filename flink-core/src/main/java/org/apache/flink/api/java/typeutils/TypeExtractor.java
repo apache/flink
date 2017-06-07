@@ -116,7 +116,7 @@ public class TypeExtractor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
-	public static final int[] NO_OUTPUT_INDEX = new int[] {};
+	public static final int[] NO_INDEX = new int[] {};
 
 	protected TypeExtractor() {
 		// only create instances for special use cases
@@ -169,7 +169,7 @@ public class TypeExtractor {
 			0,
 			1,
 			new int[]{0},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
 			inType,
 			functionName,
 			allowMissing);
@@ -220,7 +220,7 @@ public class TypeExtractor {
 			0,
 			1,
 			new int[]{1},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
 			inType,
 			functionName,
 			allowMissing);
@@ -239,7 +239,7 @@ public class TypeExtractor {
 			0,
 			1,
 			new int[]{0},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
 			inType,
 			functionName,
 			allowMissing);
@@ -257,8 +257,8 @@ public class TypeExtractor {
 			AggregateFunction.class,
 			0,
 			2,
-			new int[]{0},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
+			NO_INDEX,
 			inType,
 			functionName,
 			allowMissing);
@@ -372,7 +372,7 @@ public class TypeExtractor {
 			2,
 			new int[]{0},
 			new int[]{1},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
 			in1Type,
 			in2Type,
 			functionName,
@@ -424,7 +424,7 @@ public class TypeExtractor {
 			2,
 			new int[]{0},
 			new int[]{1},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
 			in1Type,
 			in2Type,
 			functionName,
@@ -446,7 +446,7 @@ public class TypeExtractor {
 			0,
 			1,
 			new int[]{0},
-			NO_OUTPUT_INDEX,
+			NO_INDEX,
 			inType,
 			functionName,
 			allowMissing);
@@ -458,8 +458,50 @@ public class TypeExtractor {
 	}
 
 	@PublicEvolving
-	public static <T> TypeInformation<T> getPartitionerTypes(Partitioner<T> partitioner, String functionName, boolean allowMissing) {
-		return new TypeExtractor().privateCreateTypeInfo(Partitioner.class, partitioner.getClass(), 0, null, null);
+	public static <T> TypeInformation<T> getPartitionerTypes(
+		Partitioner<T> partitioner,
+		String functionName,
+		boolean allowMissing) {
+		try {
+			final LambdaExecutable exec;
+			try {
+				exec = checkAndExtractLambda(partitioner);
+			} catch (TypeExtractionException e) {
+				throw new InvalidTypesException("Internal error occurred.", e);
+			}
+			if (exec != null) {
+				// check for lambda type erasure
+				validateLambdaGenericParameters(exec);
+
+				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
+				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
+				final int paramLen = exec.getParameterTypes().length;
+
+				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(Partitioner.class);
+				// number of parameters the SAM of implemented interface has, the parameter indexing aplicates to this range
+				final int baseParametersLen = sam.getParameterTypes().length;
+
+				final Type keyType = TypeExtractionUtils.extractTypeFromLambda(
+					exec,
+					new int[]{0},
+					paramLen,
+					baseParametersLen);
+				return new TypeExtractor().privateCreateTypeInfo(keyType, null, null);
+			} else {
+				return new TypeExtractor().privateCreateTypeInfo(
+					Partitioner.class,
+					partitioner.getClass(),
+					0,
+					null,
+					null);
+			}
+		} catch (InvalidTypesException e) {
+			if (allowMissing) {
+				return (TypeInformation<T>) new MissingTypeInfo(functionName != null ? functionName : partitioner.toString(), e);
+			} else {
+				throw e;
+			}
+		}
 	}
 
 
@@ -479,7 +521,7 @@ public class TypeExtractor {
 	/**
 	 * Returns the unary operator's return type.
 	 *
-	 * <p><b>NOTE:</b> lambda type indices allows extraction of Type from lambdas. To extract input type <b>IN</b>
+	 * <p><b>NOTE:</b> lambda type indices allow extraction of Type from lambdas. To extract input type <b>IN</b>
 	 * from the function given below one should pass {@code new int[] {0,1,0}} as lambdaInputTypeArgumentIndices.
 	 *
 	 * <pre>
@@ -531,9 +573,12 @@ public class TypeExtractor {
 				validateLambdaGenericParameters(exec);
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
+				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
 				final int paramLen = exec.getParameterTypes().length;
 
-				final Method sam = getSingleAbstractMethod(baseClass);
+				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(baseClass);
+
+				// number of parameters the SAM of implemented interface has, the parameter indexing aplicates to this range
 				final int baseParametersLen = sam.getParameterTypes().length;
 
 				// executable references "this" implicitly
@@ -543,7 +588,11 @@ public class TypeExtractor {
 					validateInputContainsExecutable(exec, inType);
 				}
 				else {
-					final Type input = extractType(exec, lambdaInputTypeArgumentIndices, paramLen, baseParametersLen);
+					final Type input = TypeExtractionUtils.extractTypeFromLambda(
+						exec,
+						lambdaInputTypeArgumentIndices,
+						paramLen,
+						baseParametersLen);
 					validateInputType(input, inType);
 				}
 
@@ -553,7 +602,11 @@ public class TypeExtractor {
 
 				final Type output;
 				if (lambdaOutputTypeArgumentIndices.length > 0) {
-					output = extractType(exec, lambdaOutputTypeArgumentIndices, paramLen, baseParametersLen);
+					output = TypeExtractionUtils.extractTypeFromLambda(
+						exec,
+						lambdaOutputTypeArgumentIndices,
+						paramLen,
+						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
 				}
@@ -576,32 +629,6 @@ public class TypeExtractor {
 				throw e;
 			}
 		}
-	}
-
-	private static Type extractType(
-			LambdaExecutable exec,
-			int[] lambdaTypeArgumentIndices,
-			int paramLen,
-			int baseParametersLen) {
-		Type output = exec.getParameterTypes()[paramLen - baseParametersLen + lambdaTypeArgumentIndices[0]];
-		for (int i = 1; i < lambdaTypeArgumentIndices.length; i++) {
-			output = extractTypeArgument(output, lambdaTypeArgumentIndices[i]);
-		}
-		return output;
-	}
-
-	private static Method getSingleAbstractMethod(Class<?> baseClass) {
-		Method sam = null;
-		for (Method method : baseClass.getMethods()) {
-			if (Modifier.isAbstract(method.getModifiers())) {
-				if (sam == null) {
-					sam = method;
-				} else {
-					throw new InvalidTypesException("Lambda type does not match provided baseClass: " + baseClass);
-				}
-			}
-		}
-		return sam;
 	}
 
 	/**
@@ -668,14 +695,22 @@ public class TypeExtractor {
 				// check for lambda type erasure
 				validateLambdaGenericParameters(exec);
 
-				final Method sam = getSingleAbstractMethod(baseClass);
+				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(baseClass);
 				final int baseParametersLen = sam.getParameterTypes().length;
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = exec.getParameterTypes().length;
 
-				final Type input1 = extractType(exec, lambdaInput1TypeArgumentIndices, paramLen, baseParametersLen);
-				final Type input2 = extractType(exec, lambdaInput2TypeArgumentIndices, paramLen, baseParametersLen);
+				final Type input1 = TypeExtractionUtils.extractTypeFromLambda(
+					exec,
+					lambdaInput1TypeArgumentIndices,
+					paramLen,
+					baseParametersLen);
+				final Type input2 = TypeExtractionUtils.extractTypeFromLambda(
+					exec,
+					lambdaInput2TypeArgumentIndices,
+					paramLen,
+					baseParametersLen);
 
 				validateInputType(input1, in1Type);
 				validateInputType(input2, in2Type);
@@ -685,7 +720,11 @@ public class TypeExtractor {
 
 				final Type output;
 				if (lambdaOutputTypeArgumentIndices.length > 0) {
-					output = extractType(exec, lambdaOutputTypeArgumentIndices, paramLen, baseParametersLen);
+					output = TypeExtractionUtils.extractTypeFromLambda(
+						exec,
+						lambdaOutputTypeArgumentIndices,
+						paramLen,
+						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
 				}
@@ -1592,33 +1631,6 @@ public class TypeExtractor {
 			}
 		}
 		return fieldCount;
-	}
-
-	/**
-	 * * This method extracts the n-th type argument from the given type. An InvalidTypesException
-	 * is thrown if the type does not have any type arguments or if the index exceeds the number
-	 * of type arguments.
-	 *
-	 * @param t Type to extract the type arguments from
-	 * @param index Index of the type argument to extract
-	 * @return The extracted type argument
-	 * @throws InvalidTypesException if the given type does not have any type arguments or if the
-	 * index exceeds the number of type arguments.
-	 */
-	private static Type extractTypeArgument(Type t, int index) throws InvalidTypesException {
-		if(t instanceof ParameterizedType) {
-			Type[] actualTypeArguments = ((ParameterizedType) t).getActualTypeArguments();
-
-			if (index < 0 || index >= actualTypeArguments.length) {
-				throw new InvalidTypesException("Cannot extract the type argument with index " +
-					index + " because the type has only " + actualTypeArguments.length +
-					" type arguments.");
-			} else {
-				return actualTypeArguments[index];
-			}
-		} else {
-			throw new InvalidTypesException("The given type " + t + " is not a parameterized type.");
-		}
 	}
 
 	private static void validateLambdaGenericParameters(LambdaExecutable exec) {
