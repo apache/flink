@@ -21,12 +21,13 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Concrete implementation of the {@link FSDataInputStream} for the Hadoop's input streams.
+ * Concrete implementation of the {@link FSDataInputStream} for Hadoop's input streams.
  * This supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
  */
 public final class HadoopDataInputStream extends FSDataInputStream {
@@ -34,14 +35,13 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	private final org.apache.hadoop.fs.FSDataInputStream fsDataInputStream;
 
 	/**
-	 * Creates a new data input stream from the given Hadoop input stream
-	 * 
+	 * Creates a new data input stream from the given Hadoop input stream.
+	 *
 	 * @param fsDataInputStream The Hadoop input stream
 	 */
 	public HadoopDataInputStream(org.apache.hadoop.fs.FSDataInputStream fsDataInputStream) {
 		this.fsDataInputStream = checkNotNull(fsDataInputStream);
 	}
-
 
 	@Override
 	public void seek(long desired) throws IOException {
@@ -71,7 +71,7 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	public int read(@Nonnull byte[] buffer, int offset, int length) throws IOException {
 		return fsDataInputStream.read(buffer, offset, length);
 	}
-	
+
 	@Override
 	public int available() throws IOException {
 		return fsDataInputStream.available();

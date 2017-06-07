@@ -18,17 +18,6 @@
 
 package org.apache.flink.runtime.fs.maprfs;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -39,6 +28,18 @@ import org.apache.flink.runtime.fs.hdfs.HadoopBlockLocation;
 import org.apache.flink.runtime.fs.hdfs.HadoopDataInputStream;
 import org.apache.flink.runtime.fs.hdfs.HadoopDataOutputStream;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileStatus;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Concrete implementation of the {@link FileSystem} base class for the MapR
@@ -94,7 +95,7 @@ public final class MapRFileSystem extends FileSystem {
 
 	/**
 	 * Creates a new MapRFileSystem object to access the MapR file system.
-	 * 
+	 *
 	 * @throws IOException
 	 *             throw if the required MapR classes cannot be found
 	 */
@@ -180,8 +181,8 @@ public final class MapRFileSystem extends FileSystem {
 	}
 
 	/**
-	 * Retrieves the CLDB locations for the given MapR cluster name
-	 * 
+	 * Retrieves the CLDB locations for the given MapR cluster name.
+	 *
 	 * @param authority
 	 *            the name of the MapR cluster
 	 * @return a list of CLDB locations
