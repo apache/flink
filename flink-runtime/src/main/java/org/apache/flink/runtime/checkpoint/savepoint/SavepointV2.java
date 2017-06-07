@@ -168,10 +168,27 @@ public class SavepointV2 implements Savepoint {
 				expandedToLegacyIds = true;
 			}
 
+			if (jobVertex == null) {
+				throw new IllegalStateException(
+					"Could not find task for state with ID " + taskState.getJobVertexID() + ". " +
+					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
+					"changed through removal of a stateful operator or modification of a chain containing a stateful " +
+					"operator.");
+			}
+
 			List<OperatorID> operatorIDs = jobVertex.getOperatorIDs();
 
 			for (int subtaskIndex = 0; subtaskIndex < jobVertex.getParallelism(); subtaskIndex++) {
-				SubtaskState subtaskState = taskState.getState(subtaskIndex);
+				SubtaskState subtaskState;
+				try {
+					subtaskState = taskState.getState(subtaskIndex);
+				} catch (Exception e) {
+					throw new IllegalStateException(
+						"Could not find subtask with index " + subtaskIndex + " for task " + jobVertex.getJobVertexId() + ". " +
+						"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
+						"to the parallelism of stateful operators.",
+						e);
+				}
 
 				if (subtaskState == null) {
 					continue;
