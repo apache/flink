@@ -28,11 +28,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
+
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
