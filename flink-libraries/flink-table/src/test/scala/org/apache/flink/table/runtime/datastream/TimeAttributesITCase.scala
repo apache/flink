@@ -58,7 +58,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
   }
 
@@ -69,7 +68,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
       .select('rowtime.rowtime)
   }
@@ -81,12 +79,92 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     stream
       .toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
       .window(Tumble over 2.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end.rowtime, 'int.count as 'int) // no rowtime on non-window reference
+  }
+
+  @Test(expected = classOf[TableException])
+  def test1(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val stream = env
+      .fromCollection(data).assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+  }
+
+  @Test(expected = classOf[TableException])
+  def test2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+    val table = stream.toTable(
+      tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string, 'rowtime.rowtime)
+  }
+
+  @Test
+  def testDefaultTimestampAssigner(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val t = table.select('rowtime.cast(Types.STRING))
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.001",
+      "1970-01-01 00:00:00.002",
+      "1970-01-01 00:00:00.003",
+      "1970-01-01 00:00:00.004",
+      "1970-01-01 00:00:00.007",
+      "1970-01-01 00:00:00.008",
+      "1970-01-01 00:00:00.016")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDefaultTimestampAssigner2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+    val table = stream.toTable(
+      tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proc.proctime)
+
+    val t = table.select('rowtime.cast(Types.STRING))
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.001",
+      "1970-01-01 00:00:00.002",
+      "1970-01-01 00:00:00.003",
+      "1970-01-01 00:00:00.004",
+      "1970-01-01 00:00:00.007",
+      "1970-01-01 00:00:00.008",
+      "1970-01-01 00:00:00.016")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -99,7 +177,8 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream.toTable(
+      tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string, 'rowtime.rowtime)
 
     val t = table.select('rowtime.cast(Types.STRING))
 
@@ -127,7 +206,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val t = table
@@ -154,7 +232,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
     val func = new TableFunc
@@ -185,7 +262,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
     val func = new TableFunc
@@ -216,7 +292,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
@@ -253,7 +328,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("MyTable", table)
 
@@ -282,7 +356,6 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val t = table
