@@ -281,6 +281,8 @@ public class InterruptSensitiveRestoreTest {
 	@SuppressWarnings("serial")
 	private static class InterruptLockingStateHandle implements StreamStateHandle {
 
+		private static final long serialVersionUID = 1L;
+
 		private volatile boolean closed;
 
 		@Override
