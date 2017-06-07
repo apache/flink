@@ -44,7 +44,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class DelimitedInputFormatTest {
 	
@@ -399,6 +398,33 @@ public class DelimitedInputFormatTest {
 
 		assertEquals(4, result.size());
 		assertEquals(Arrays.asList(myString.split("\n")), result);
+	}
+
+	@Test
+	public void testDelimiterOnBufferBoundary() throws IOException {
+
+		String[] records = new String[]{"1234567890<DEL?NO!>1234567890", "1234567890<DEL?NO!>1234567890", "<DEL?NO!>"};
+		String delimiter = "<DELIM>";
+		String fileContent = StringUtils.join(records, delimiter);
+
+
+		final FileInputSplit split = createTempFile(fileContent);
+		final Configuration parameters = new Configuration();
+
+		format.setBufferSize(12);
+		format.setDelimiter(delimiter);
+		format.configure(parameters);
+		format.open(split);
+
+		for (String record : records) {
+			String value = format.nextRecord(null);
+			assertEquals(record, value);
+		}
+
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+
+		format.close();
 	}
 
 	static FileInputSplit createTempFile(String contents) throws IOException {
