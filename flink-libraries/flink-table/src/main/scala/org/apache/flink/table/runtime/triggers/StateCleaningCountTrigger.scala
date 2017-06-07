@@ -72,10 +72,6 @@ class StateCleaningCountTrigger(queryConfig: StreamQueryConfig, maxCount: Long)
         // register timer and remember clean-up time
         ctx.registerProcessingTimeTimer(cleanupTime)
 
-        if (null != curCleanupTime) {
-          ctx.deleteProcessingTimeTimer(curCleanupTime)
-        }
-
         ctx.getPartitionedState(cleanupStateDesc).update(cleanupTime)
       }
     }
