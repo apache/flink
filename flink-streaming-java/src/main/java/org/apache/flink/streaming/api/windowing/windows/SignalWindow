@@ -1,0 +1,320 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package wedo.datapump.windowing.windows;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.streaming.api.windowing.windows.Window;
+
+/**
+ * A {@link Window} that represents a time interval from {@code start} (inclusive) to
+ * {@code end} (exclusive).
+ */
+@PublicEvolving
+public class SignalWindow extends Window {
+
+  private final long start;
+  private final long end;
+  private boolean signaled;
+  private long signal;
+
+  public SignalWindow(long start, long end) {
+    this.start = start;
+    this.end = end;
+  }
+
+  public SignalWindow(long start, long end, boolean signaled, long signal) {
+    this(start, end);
+    this.signaled = signaled;
+    this.signal = signal;
+  }
+
+  /**
+   * Merge overlapping {@link SignalWindow}s. For use by merging
+   * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}.
+   */
+  public static void mergeWindows(Collection<SignalWindow> windows, MergingWindowAssigner.MergeCallback<SignalWindow> c) {
+
+    // sort the windows by the start time and then merge overlapping windows
+
+    List<SignalWindow> sortedWindows = new ArrayList<>(windows);
+
+    Collections.sort(sortedWindows, new Comparator<SignalWindow>() {
+      @Override
+      public int compare(SignalWindow o1, SignalWindow o2) {
+        return Long.compare(o1.getStart(), o2.getStart());
+      }
+    });
+
+    List<Tuple2<SignalWindow, Set<SignalWindow>>> merged = new ArrayList<>();
+    Tuple2<SignalWindow, Set<SignalWindow>> currentMerge = null;
+
+    for (SignalWindow candidate : sortedWindows) {
+      if (currentMerge == null) {
+        currentMerge = new Tuple2<>();
+        currentMerge.f0 = candidate;
+        currentMerge.f1 = new HashSet<>();
+        currentMerge.f1.add(candidate);
+      } else if (currentMerge.f0.intersects(candidate)) {
+        currentMerge.f0 = currentMerge.f0.cover(candidate);
+        currentMerge.f1.add(candidate);
+      } else {
+        merged.add(currentMerge);
+        currentMerge = new Tuple2<>();
+        currentMerge.f0 = candidate;
+        currentMerge.f1 = new HashSet<>();
+        currentMerge.f1.add(candidate);
+      }
+    }
+
+    if (currentMerge != null) {
+      merged.add(currentMerge);
+    }
+
+    for (Tuple2<SignalWindow, Set<SignalWindow>> m : merged) {
+      if (m.f1.size() > 1) {
+        c.merge(m.f1, m.f0);
+      }
+    }
+  }
+
+  /**
+   * Method to get the window start for a timestamp.
+   *
+   * @param timestamp epoch millisecond to get the window start.
+   * @param offset The offset which window start would be shifted by.
+   * @param windowSize The size of the generated windows.
+   * @return window start
+   */
+  public static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
+    return timestamp - (timestamp - offset + windowSize) % windowSize;
+  }
+
+  /**
+   * Gets the starting timestamp of the window. This is the first timestamp that belongs
+   * to this window.
+   *
+   * @return The starting timestamp of this window.
+   */
+  public long getStart() {
+    return this.start;
+  }
+
+  // --------------------------------------------------------------------------------------------
+
+  /**
+   * Gets the end timestamp of this window. The end timestamp is exclusive, meaning it
+   * is the first timestamp that does not belong to this window any more.
+   *
+   * @return The exclusive end timestamp of this window.
+   */
+  public long getEnd() {
+    return this.end;
+  }
+
+  /**
+   * Gets the largest timestamp that still belongs to this window.
+   *
+   * <p>This timestamp is identical to {@code getEnd() - 1}.
+   *
+   * @return The largest timestamp that still belongs to this window.
+   * @see #getEnd()
+   */
+  @Override
+  public long maxTimestamp() {
+    if (this.signaled) {
+      return this.signal - 1;
+    }
+    return this.end - 1;
+  }
+
+  /**
+   *
+   * @return
+   */
+  public long signal(){
+    return this.signal - 1;
+  }
+
+  /**
+   *
+   * @param timestamp
+   */
+  public void update(long timestamp) {
+    this.signaled = true;
+    if (this.signal < timestamp) {
+      this.signal = timestamp;
+    }
+  }
+
+  /**
+   * @return true if window was signaled by event, false otherwise
+   */
+  public boolean isSignaled() {
+    return this.signaled;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    SignalWindow window = (SignalWindow) o;
+
+    return end == window.end && start == window.start;
+  }
+
+  @Override
+  public int hashCode() {
+    long in = this.start + this.end;
+    in = (in ^ (in >>> 30)) * 0xbf58476d1ce4e5b9L;
+    in = (in ^ (in >>> 27)) * 0x94d049bb133111ebL;
+    in = in ^ (in >>> 31);
+    return (int) in;
+  }
+
+  @Override
+  public String toString() {
+    return "SignalWindow{" +
+        "start=" + start +
+        ", end=" + end +
+        '}';
+  }
+
+  // ------------------------------------------------------------------------
+  // Serializer
+  // ------------------------------------------------------------------------
+
+  /**
+   * Returns {@code true} if this window intersects the given window.
+   */
+  public boolean intersects(SignalWindow other) {
+    return this.start <= other.end && this.end >= other.start;
+  }
+
+  // ------------------------------------------------------------------------
+  //  Utilities
+  // ------------------------------------------------------------------------
+
+  /**
+   * Returns the minimal window covers both this window and the given window.
+   */
+  public SignalWindow cover(SignalWindow other) {
+    return new SignalWindow(Math.min(this.start, other.start), Math.max(this.end, other.end), this.signaled || other.signaled,
+        Math.max(this.signal, other.signal));
+  }
+
+  /**
+   * The serializer used to write the TimeWindow type.
+   */
+  public static class Serializer extends TypeSerializer<SignalWindow> {
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public boolean isImmutableType() {
+      return true;
+    }
+
+    @Override
+    public TypeSerializer<SignalWindow> duplicate() {
+      return this;
+    }
+
+    @Override
+    public SignalWindow createInstance() {
+      return null;
+    }
+
+    @Override
+    public SignalWindow copy(SignalWindow from) {
+      return from;
+    }
+
+    @Override
+    public SignalWindow copy(SignalWindow from, SignalWindow reuse) {
+      return from;
+    }
+
+    @Override
+    public int getLength() {
+      return 0;
+    }
+
+    @Override
+    public void serialize(SignalWindow record, DataOutputView target) throws IOException {
+      target.writeLong(record.start);
+      target.writeLong(record.end);
+      target.writeBoolean(record.signaled);
+      target.writeLong(record.signal);
+    }
+
+    @Override
+    public SignalWindow deserialize(DataInputView source) throws IOException {
+      long start = source.readLong();
+      long end = source.readLong();
+      boolean signaled = source.readBoolean();
+      long signal = source.readLong();
+      return new SignalWindow(start, end, signaled, signal);
+    }
+
+    @Override
+    public SignalWindow deserialize(SignalWindow reuse, DataInputView source) throws IOException {
+      return deserialize(source);
+    }
+
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+      target.writeLong(source.readLong());
+      target.writeLong(source.readLong());
+      target.writeBoolean(source.readBoolean());
+      target.writeLong(source.readLong());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof Serializer;
+    }
+
+    @Override
+    public boolean canEqual(Object obj) {
+      return obj instanceof Serializer;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+  }
+}
