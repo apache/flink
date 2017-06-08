@@ -43,5 +43,6 @@ under the License.
 		<module>flink-tweet-inputformat</module>
 		<module>flink-connector-wikiedits</module>
 		<module>flink-statebackend-rocksdb</module>
+		<module>flink-statebackend-redis</module>
 	</modules>
 </project>
