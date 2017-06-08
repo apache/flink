@@ -33,6 +33,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterClient;
 import org.apache.flink.yarn.YarnClusterDescriptor;
@@ -759,7 +760,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
 		String currentUser = System.getProperty("user.name");
 		String propertiesFileLocation =
-			conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+			conf.getString(YarnConfigOptions.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
 
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}

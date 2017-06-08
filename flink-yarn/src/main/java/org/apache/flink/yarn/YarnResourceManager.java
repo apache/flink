@@ -38,6 +38,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -133,8 +135,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
 		this.env = env;
-		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(
-				ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, DEFAULT_YARN_HEARTBEAT_INTERVAL_MS / 1000) * 1000;
+		final int yarnHeartbeatIntervalMS = (int)Duration.create(flinkConfig.getString(
+				YarnConfigOptions.YARN_HEARTBEAT_DELAY_SECONDS)).toMillis();
 
 		final long yarnExpiryIntervalMS = yarnConfig.getLong(
 				YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
