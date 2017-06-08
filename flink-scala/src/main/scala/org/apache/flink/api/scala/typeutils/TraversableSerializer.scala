@@ -151,16 +151,16 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     obj.isInstanceOf[TraversableSerializer[_, _]]
   }
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
-    new TraversableSerializer.TraversableSerializerConfigSnapshot[E](elementSerializer)
+  override def snapshotConfiguration(): TraversableSerializerConfigSnapshot[E] = {
+    new TraversableSerializerConfigSnapshot[E](elementSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
 
     configSnapshot match {
-      case traversableSerializerConfigSnapshot:
-          TraversableSerializer.TraversableSerializerConfigSnapshot[E] =>
+      case traversableSerializerConfigSnapshot
+          : TraversableSerializerConfigSnapshot[E] =>
 
         val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
           traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
@@ -176,22 +176,5 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
 
       case _ => CompatibilityResult.requiresMigration()
     }
-  }
-}
-
-object TraversableSerializer {
-
-  class TraversableSerializerConfigSnapshot[E](
-      private var elementSerializer: TypeSerializer[E])
-    extends CompositeTypeSerializerConfigSnapshot(elementSerializer) {
-
-    /** This empty nullary constructor is required for deserializing the configuration. */
-    def this() = this(null)
-
-    override def getVersion = TraversableSerializerConfigSnapshot.VERSION
-  }
-
-  object TraversableSerializerConfigSnapshot {
-    val VERSION = 1
   }
 }
