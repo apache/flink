@@ -47,7 +47,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{AcceptFunction, ApplyFunction, BiFunction, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.executiongraph.restart.{RestartStrategyFactory, NoRestartStrategy}
 import org.apache.flink.runtime.executiongraph._
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
@@ -1288,62 +1288,63 @@ class JobManager(
             case None => restartStrategyFactory.createRestartStrategy()
           }
 
-        log.info(s"Using restart strategy $restartStrategy for $jobId.")
+        if (!restartStrategy.isInstanceOf[NoRestartStrategy]) {
+          log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
-        val jobMetrics = jobManagerMetricGroup match {
-          case Some(group) =>
-            group.addJob(jobGraph) match {
-              case (jobGroup:Any) => jobGroup
-              case null => new UnregisteredMetricsGroup()
-            }
-          case None =>
-            new UnregisteredMetricsGroup()
+          val jobMetrics = jobManagerMetricGroup match {
+            case Some(group) =>
+              group.addJob(jobGraph) match {
+                case (jobGroup:Any) => jobGroup
+                case null => new UnregisteredMetricsGroup()
+              }
+            case None =>
+              new UnregisteredMetricsGroup()
+          }
+
+          val numSlots = scheduler.getTotalNumberOfSlots()
+
+          // see if there already exists an ExecutionGraph for the corresponding job ID
+          val registerNewGraph = currentJobs.get(jobGraph.getJobID) match {
+            case Some((graph, currentJobInfo)) =>
+              executionGraph = graph
+              currentJobInfo.setLastActive()
+              false
+            case None =>
+              true
+          }
+
+          executionGraph = ExecutionGraphBuilder.buildGraph(
+            executionGraph,
+            jobGraph,
+            flinkConfiguration,
+            futureExecutor,
+            ioExecutor,
+            scheduler,
+            userCodeLoader,
+            checkpointRecoveryFactory,
+            Time.of(timeout.length, timeout.unit),
+            restartStrategy,
+            jobMetrics,
+            numSlots,
+            log.logger)
+
+          if (registerNewGraph) {
+            currentJobs.put(jobGraph.getJobID, (executionGraph, jobInfo))
+          }
+
+          // get notified about job status changes
+          executionGraph.registerJobStatusListener(
+            new StatusListenerMessenger(self, leaderSessionID.orNull))
+
+          jobInfo.clients foreach {
+            // the sender wants to be notified about state changes
+            case (client, ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES) =>
+              val listener  = new StatusListenerMessenger(client, leaderSessionID.orNull)
+              executionGraph.registerExecutionListener(listener)
+              executionGraph.registerJobStatusListener(listener)
+            case _ => // do nothing
+          }
         }
-
-        val numSlots = scheduler.getTotalNumberOfSlots()
-
-        // see if there already exists an ExecutionGraph for the corresponding job ID
-        val registerNewGraph = currentJobs.get(jobGraph.getJobID) match {
-          case Some((graph, currentJobInfo)) =>
-            executionGraph = graph
-            currentJobInfo.setLastActive()
-            false
-          case None =>
-            true
-        }
-
-        executionGraph = ExecutionGraphBuilder.buildGraph(
-          executionGraph,
-          jobGraph,
-          flinkConfiguration,
-          futureExecutor,
-          ioExecutor,
-          scheduler,
-          userCodeLoader,
-          checkpointRecoveryFactory,
-          Time.of(timeout.length, timeout.unit),
-          restartStrategy,
-          jobMetrics,
-          numSlots,
-          log.logger)
-        
-        if (registerNewGraph) {
-          currentJobs.put(jobGraph.getJobID, (executionGraph, jobInfo))
-        }
-
-        // get notified about job status changes
-        executionGraph.registerJobStatusListener(
-          new StatusListenerMessenger(self, leaderSessionID.orNull))
-
-        jobInfo.clients foreach {
-          // the sender wants to be notified about state changes
-          case (client, ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES) =>
-            val listener  = new StatusListenerMessenger(client, leaderSessionID.orNull)
-            executionGraph.registerExecutionListener(listener)
-            executionGraph.registerJobStatusListener(listener)
-          case _ => // do nothing
-        }
-
       } catch {
         case t: Throwable =>
           log.error(s"Failed to submit job $jobId ($jobName)", t)
