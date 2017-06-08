@@ -95,7 +95,7 @@ When a savepoint is manually triggered, it may be in process concurrently with a
 ## Tuning Network Buffers
 
 Before Flink 1.3, an increased number of network buffers also caused increased checkpointing times since
-keeping more in-flight data also meant that checkpoint barriers got delayed. Since Flink 1.3, the
+keeping more in-flight data meant that checkpoint barriers got delayed. Since Flink 1.3, the
 number of network buffers used per outgoing/incoming channel is limited and thus network buffers
 may be configured without affecting checkpoint times
 (see [network buffer configuration](../setup/config.html#configuring-the-network-buffers)).
