@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.SinkJoiner;
@@ -33,6 +29,9 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkJoinerPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  *

@@ -33,14 +33,15 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -459,7 +460,6 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 		OptimizedPlan oPlan = compileNoStats(plan);
 	}
 
-
 	public static class IdMap<T> implements MapFunction<T,T> {
 
 		@Override
@@ -502,7 +502,5 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 		}
 	}
 
-
 }
-
 

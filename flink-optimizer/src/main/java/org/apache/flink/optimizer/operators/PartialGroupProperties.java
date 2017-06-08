@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.dag.GroupReduceNode;
@@ -33,6 +30,9 @@ import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
+
+import java.util.Collections;
+import java.util.List;
 
 public final class PartialGroupProperties extends OperatorDescriptorSingle {
 	

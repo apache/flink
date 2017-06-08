@@ -18,28 +18,29 @@
 
 package org.apache.flink.optimizer;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.dag.TempMode;
-import org.apache.flink.optimizer.testfunctions.IdentityMapper;
-import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
-import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
+import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
+import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests in this class validate that the {@link ExecutionMode#PIPELINED} execution mode
@@ -63,8 +64,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 											.withBroadcastSet(source, "bc");
 			
 			result.output(new DiscardingOutputFormat<Long>());
-			
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
@@ -149,8 +149,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 			
 			DataSet<Long> initialSource = env.generateSequence(1, 10);
 			IterativeDataSet<Long> iteration = initialSource.iterate(100);
-			
-			
+
 			DataSet<Long> sourceWithMapper = env.generateSequence(1, 10).map(new IdentityMapper<Long>());
 			
 			DataSet<Long> bcInput1 = sourceWithMapper
@@ -161,8 +160,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 							.withBroadcastSet(iteration, "bc2")
 							.withBroadcastSet(bcInput1, "bc1");
-							
-			
+
 			iteration.closeWith(result).output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
@@ -221,8 +219,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
 					.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
-				
-				
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				
@@ -248,8 +245,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
 					.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
-				
-				
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				
@@ -275,8 +271,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
 					.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
-				
-				
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				

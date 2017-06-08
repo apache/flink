@@ -37,6 +37,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -349,7 +350,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 	}
 
-
 	@Test
 	public void checkSinglePartitionedGroupedSource3() {
 
@@ -451,7 +451,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 	}
 
-
 	@Test
 	public void checkSinglePartitionedGroupedSource6() {
 
@@ -484,7 +483,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 		Assert.assertTrue(lprops.getOrdering() == null);
 
 	}
-
 
 	@Test
 	public void checkSinglePartitionedGroupedSource7() {
@@ -551,7 +549,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 		Assert.assertTrue(lprops.getOrdering() == null);
 
 	}
-
 
 	@Test
 	public void checkSinglePartitionedOrderedSource1() {
@@ -620,7 +617,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 		Assert.assertTrue(lprops.getOrdering() == null);
 
 	}
-
 
 	@Test
 	public void checkSinglePartitionedOrderedSource3() {
@@ -723,7 +719,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 	}
 
-
 	@Test
 	public void checkSinglePartitionedOrderedSource6() {
 
@@ -789,7 +784,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 		Assert.assertTrue(lprops.getOrdering() == null);
 
 	}
-
 
 	@Test
 	public void checkCoPartitionedSources1() {
@@ -887,7 +881,6 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 		Assert.assertTrue(!gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
 	}
 
-
 	public static class SomePojo {
 		public double doubleField;
 		public int intField;
@@ -895,5 +888,4 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	}
 
 }
-
 

@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.util.Utils;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 

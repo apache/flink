@@ -18,21 +18,21 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.CoGroupDescriptor;
 import org.apache.flink.optimizer.operators.CoGroupWithSolutionSetFirstDescriptor;
 import org.apache.flink.optimizer.operators.CoGroupWithSolutionSetSecondDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
-import org.apache.flink.api.common.operators.util.FieldSet;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The Optimizer representation of a <i>CoGroup</i> operator.

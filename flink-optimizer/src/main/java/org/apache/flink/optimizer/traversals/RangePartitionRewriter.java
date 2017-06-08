@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.optimizer.traversals;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -30,32 +31,32 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.java.functions.IdPartitioner;
-import org.apache.flink.optimizer.costs.Costs;
-import org.apache.flink.optimizer.dataproperties.GlobalProperties;
-import org.apache.flink.optimizer.dataproperties.LocalProperties;
-import org.apache.flink.optimizer.plan.IterationPlanNode;
-import org.apache.flink.runtime.io.network.DataExchangeMode;
-import org.apache.flink.runtime.operators.udf.AssignRangeIndex;
-import org.apache.flink.runtime.operators.udf.RemoveRangeIndex;
-import org.apache.flink.runtime.operators.udf.RangeBoundaryBuilder;
 import org.apache.flink.api.java.functions.SampleInCoordinator;
 import org.apache.flink.api.java.functions.SampleInPartition;
 import org.apache.flink.api.java.sampling.IntermediateSampleData;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.GroupReduceNode;
 import org.apache.flink.optimizer.dag.MapNode;
 import org.apache.flink.optimizer.dag.MapPartitionNode;
 import org.apache.flink.optimizer.dag.TempMode;
+import org.apache.flink.optimizer.dataproperties.GlobalProperties;
+import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
+import org.apache.flink.optimizer.plan.IterationPlanNode;
 import org.apache.flink.optimizer.plan.NamedChannel;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.util.Utils;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.udf.AssignRangeIndex;
+import org.apache.flink.runtime.operators.udf.RangeBoundaryBuilder;
+import org.apache.flink.runtime.operators.udf.RemoveRangeIndex;
 import org.apache.flink.util.Visitor;
 
 import java.util.ArrayList;

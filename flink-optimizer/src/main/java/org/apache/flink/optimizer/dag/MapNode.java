@@ -18,13 +18,13 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.MapDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer's internal representation of a <i>Map</i> operator node.

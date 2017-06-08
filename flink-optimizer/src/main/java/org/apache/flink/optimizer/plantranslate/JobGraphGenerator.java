@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
-import com.fasterxml.jackson.core.JsonFactory;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
@@ -30,6 +28,8 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
@@ -48,8 +48,6 @@ import org.apache.flink.optimizer.plan.SolutionSetPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -58,11 +56,11 @@ import org.apache.flink.runtime.iterative.task.IterationHeadTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediateTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailTask;
-import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -82,6 +80,8 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
+
+import com.fasterxml.jackson.core.JsonFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -479,8 +479,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			final JobVertex targetVertex = this.vertices.get(node);
-			
-			
+
 			// --------- Main Path: Translation of channels ----------
 			// 
 			// There are two paths of translation: One for chained tasks (or merged tasks in general),
@@ -557,8 +556,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			// -------- Here, we translate non-chained tasks -------------
-			
-			
+
 			if (this.currentIteration != null) {
 				JobVertex head = this.iterations.get(this.currentIteration).getHeadTask();
 				// Exclude static code paths from the co-location constraint, because otherwise
@@ -567,8 +565,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					targetVertex.setStrictlyCoLocatedWith(head);
 				}
 			}
-			
-			
+
 			// create the config that will contain all the description of the inputs
 			final TaskConfig targetVertexConfig = new TaskConfig(targetVertex.getConfiguration());
 						
@@ -1334,15 +1331,13 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			
 			tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
 		}
-		
-		
+
 		// create the fake output task for termination criterion, if needed
 		final TaskConfig tailConfigOfTerminationCriterion;
 		// If we have a termination criterion and it is not an intermediate node
 		if(rootOfTerminationCriterion != null && rootOfTerminationCriterion.getOutgoingChannels().isEmpty()) {
 			JobVertex rootOfTerminationCriterionVertex = this.vertices.get(rootOfTerminationCriterion);
-			
-			
+
 			if (rootOfTerminationCriterionVertex == null) {
 				// last op is chained
 				final TaskInChain taskInChain = this.chainedTasks.get(rootOfTerminationCriterion);
@@ -1707,7 +1702,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			this.taskConfig = taskConfig;
 			this.taskName = taskName;
 		}
-
 
 		public PlanNode getPlanNode() {
 			return planNode;

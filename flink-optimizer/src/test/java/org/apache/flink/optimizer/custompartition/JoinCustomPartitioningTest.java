@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.custompartition;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -39,7 +37,12 @@ import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class JoinCustomPartitioningTest extends CompilerTestBase {
@@ -238,8 +241,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 					public int partition(Long key, int numPartitions) { return 0; }
 				}, 0)
 				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2");
-				
-			
+
 			DataSet<Tuple3<Long, Long, Long>> grouped = partitioned
 				.distinct(0, 1)
 				.groupBy(1)

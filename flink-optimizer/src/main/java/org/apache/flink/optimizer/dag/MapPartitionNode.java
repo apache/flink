@@ -16,19 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.MapPartitionDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
-import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
-import org.apache.flink.api.common.operators.util.FieldSet;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer's internal representation of a <i>MapPartition</i> operator node.

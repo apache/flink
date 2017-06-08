@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.costs.Costs;
@@ -38,8 +35,12 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.List;
 
 public final class ReduceProperties extends OperatorDescriptorSingle {
 	private static final Logger LOG = LoggerFactory.getLogger(ReduceProperties.class);

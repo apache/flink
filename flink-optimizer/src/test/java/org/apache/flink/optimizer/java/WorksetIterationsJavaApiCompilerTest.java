@@ -18,21 +18,17 @@
 
 package org.apache.flink.optimizer.java;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -41,7 +37,12 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
@@ -81,8 +82,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getInput2().getShipStrategy());
 			assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
-			
-			
+
 			// verify reducer
 			assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
 			assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
@@ -153,8 +153,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			Plan plan = getJavaTestPlan(true, false);
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
-	
-			
+
 			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(oPlan);
 			DualInputPlanNode joinWithInvariantNode = resolver.getNode(JOIN_WITH_INVARIANT_NAME);
 			DualInputPlanNode joinWithSolutionSetNode = resolver.getNode(JOIN_WITH_SOLUTION_SET);
@@ -177,8 +176,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			// verify reducer
 			assertEquals(ShipStrategyType.FORWARD, worksetReducer.getInput().getShipStrategy());
 			assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
-			
-			
+
 			// verify solution delta
 			assertEquals(1, joinWithSolutionSetNode.getOutgoingChannels().size());
 			assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
@@ -191,8 +189,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			fail("Test errored: " + e.getMessage());
 		}
 	}
-	
-	
+
 	@Test
 	public void testRejectPlanIfSolutionSetKeysAndJoinKeysDontMatch() {
 		try {
@@ -207,8 +204,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			DataSet<Tuple3<Long, Long, Long>> invariantInput = env.fromElements(new Tuple3<Long, Long, Long>(1L, 2L, 3L)).name("Invariant Input");
 			
 			DeltaIteration<Tuple3<Long, Long, Long>, Tuple3<Long, Long, Long>> iter = solutionSetInput.iterateDelta(worksetInput, 100, 1, 2);
-			
-			
+
 			DataSet<Tuple3<Long, Long, Long>> result = 
 			
 			iter.getWorkset().join(invariantInput)
@@ -256,8 +252,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 		DataSet<Tuple3<Long, Long, Long>> invariantInput = env.fromElements(new Tuple3<Long, Long, Long>(1L, 2L, 3L)).name("Invariant Input");
 		
 		DeltaIteration<Tuple3<Long, Long, Long>, Tuple3<Long, Long, Long>> iter = solutionSetInput.iterateDelta(worksetInput, 100, 1, 2);
-		
-		
+
 		DataSet<Tuple3<Long, Long, Long>> joinedWithSolutionSet = 
 		
 		iter.getWorkset().join(invariantInput)
@@ -287,8 +282,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			})
 			.name(NEXT_WORKSET_REDUCER_NAME)
 			.withForwardedFields("1->1","2->2","0->0");
-		
-		
+
 		DataSet<Tuple3<Long, Long, Long>> nextSolutionSet = mapBeforeSolutionDelta ?
 				joinedWithSolutionSet.map(new RichMapFunction<Tuple3<Long, Long, Long>,Tuple3<Long, Long, Long>>() { public Tuple3<Long, Long, Long> map(Tuple3<Long, Long, Long> value) { return value; } })
 					.name(SOLUTION_DELTA_MAPPER_NAME).withForwardedFields("0->0","1->1","2->2") :

@@ -31,6 +31,7 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -379,7 +380,6 @@ public class GlobalProperties implements Cloneable {
 
 		return gp;
 	}
-
 
 	public void parameterizeChannel(Channel channel, boolean globalDopChange,
 									ExecutionMode exchangeMode, boolean breakPipeline) {

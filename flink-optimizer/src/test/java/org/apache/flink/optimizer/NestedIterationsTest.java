@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -33,7 +31,11 @@ import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
 import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class NestedIterationsTest extends CompilerTestBase {
@@ -117,8 +119,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			IterativeDataSet<Long> firstIteration = data1.iterate(100);
 			
 			DataSet<Long> firstResult = firstIteration.closeWith(firstIteration.map(new IdentityMapper<Long>()));
-			
-			
+
 			IterativeDataSet<Long> mainIteration = data2.map(new IdentityMapper<Long>()).iterate(100);
 			
 			DataSet<Long> joined = mainIteration.join(firstResult)
@@ -156,8 +157,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Long>> inFirst = firstIteration.getWorkset().map(new IdentityMapper<Tuple2<Long, Long>>());
 			
 			DataSet<Tuple2<Long, Long>> firstResult = firstIteration.closeWith(inFirst, inFirst).map(new IdentityMapper<Tuple2<Long,Long>>());
-			
-			
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> mainIteration = data2.iterateDelta(data2, 100, 0);
 			
 			DataSet<Tuple2<Long, Long>> joined = mainIteration.getWorkset().join(firstResult).where(0).equalTo(0)

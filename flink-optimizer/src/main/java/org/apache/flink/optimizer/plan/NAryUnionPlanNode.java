@@ -16,12 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
-
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
 
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.BinaryUnionNode;
@@ -30,6 +25,10 @@ import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.Visitor;
+
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * A union operation over multiple inputs (2 or more).

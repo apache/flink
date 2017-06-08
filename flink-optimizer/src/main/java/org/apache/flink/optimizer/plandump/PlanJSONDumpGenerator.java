@@ -18,7 +18,6 @@
 
 package org.apache.flink.optimizer.plandump;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.BinaryUnionNode;
@@ -42,6 +41,8 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -54,7 +55,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
 
 public class PlanJSONDumpGenerator {
 	
@@ -73,8 +73,7 @@ public class PlanJSONDumpGenerator {
 	public boolean isEncodeForHTML() {
 		return encodeForHTML;
 	}
-	
-	
+
 	public void dumpPactPlanAsJSON(List<DataSinkNode> nodes, PrintWriter writer) {
 		@SuppressWarnings("unchecked")
 		List<DumpableNode<?>> n = (List<DumpableNode<?>>) (List<?>) nodes;
@@ -255,8 +254,7 @@ public class PlanJSONDumpGenerator {
 			contents = StringEscapeUtils.escapeHtml4(contents);
 			contents = contents.replace("\\", "&#92;");
 		}
-		
-		
+
 		String name = n.getOperatorName();
 		if (name.equals("Reduce") && (node instanceof SingleInputPlanNode) && 
 				((SingleInputPlanNode) node).getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE) {

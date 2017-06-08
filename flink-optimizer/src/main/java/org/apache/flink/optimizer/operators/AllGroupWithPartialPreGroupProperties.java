@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.GroupReduceNode;
 import org.apache.flink.optimizer.dag.SingleInputNode;
@@ -34,6 +31,9 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
+import java.util.Collections;
+import java.util.List;
 
 public final class AllGroupWithPartialPreGroupProperties extends OperatorDescriptorSingle {
 

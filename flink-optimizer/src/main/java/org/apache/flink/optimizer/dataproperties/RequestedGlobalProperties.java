@@ -83,7 +83,6 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
 	}
-	
 
 	public void setRangePartitioned(Ordering ordering) {
 		this.setRangePartitioned(ordering, null);

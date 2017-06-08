@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -35,13 +32,15 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
+import java.util.Collections;
+import java.util.List;
+
 public final class GroupReduceProperties extends OperatorDescriptorSingle {
 	
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 
 	private final Partitioner<?> customPartitioner;
-	
-	
+
 	public GroupReduceProperties(FieldSet keys) {
 		this(keys, null, null);
 	}

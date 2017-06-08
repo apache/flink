@@ -263,7 +263,6 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		}
 	}
 
-	
 	/**
 	 * Sets the basic cost for this node to the given value, and sets the cumulative costs
 	 * to those costs plus the cost shares of all inputs (regular and broadcast).
@@ -518,7 +517,6 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public String toString() {
@@ -558,9 +556,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	public static enum SourceAndDamReport {
 		NOT_FOUND, FOUND_SOURCE, FOUND_SOURCE_AND_DAM
 	}
-	
-	
-	
+
 	public static enum FeedbackPropertiesMeetRequirementsReport {
 		/** Indicates that the path is irrelevant */
 		NO_PARTIAL_SOLUTION,

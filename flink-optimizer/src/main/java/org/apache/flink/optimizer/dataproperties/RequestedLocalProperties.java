@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dataproperties;
-
-import java.util.Arrays;
 
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -27,6 +24,8 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+
+import java.util.Arrays;
 
 /**
  * This class represents the local properties of the data that are requested by an operator.

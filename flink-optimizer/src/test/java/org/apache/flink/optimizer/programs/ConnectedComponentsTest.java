@@ -35,11 +35,11 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -60,8 +60,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 	private static final String SINK = "Result";
 	
 	private final FieldList set0 = new FieldList(0);
-	
-	
+
 	@Test
 	public void testWorksetConnectedComponents() {
 		Plan plan = getConnectedComponentsPlan(DEFAULT_PARALLELISM, 100, false);
@@ -214,8 +213,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
 	}
-	
-	
+
 	private static Plan getConnectedComponentsPlan(int parallelism, int iterations, boolean solutionSetFirst) {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.java;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
@@ -30,7 +28,10 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
+
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class OpenIterationTest extends CompilerTestBase {

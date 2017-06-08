@@ -114,7 +114,6 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		this.partialSolution = partialSolution;
 	}
 
-	
 	/**
 	 * Gets the nextPartialSolution from this BulkIterationNode.
 	 *

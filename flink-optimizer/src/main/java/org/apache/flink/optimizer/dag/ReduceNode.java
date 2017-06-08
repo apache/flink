@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.optimizer.DataStatistics;
@@ -28,6 +24,9 @@ import org.apache.flink.optimizer.operators.AllReduceProperties;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
 import org.apache.flink.optimizer.operators.ReduceProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The Optimizer representation of a <i>Reduce</i> operator.
@@ -37,7 +36,6 @@ public class ReduceNode extends SingleInputNode {
 	private final List<OperatorDescriptorSingle> possibleProperties;
 	
 	private ReduceNode preReduceUtilityNode;
-	
 
 	public ReduceNode(ReduceOperatorBase<?, ?> operator) {
 		super(operator);

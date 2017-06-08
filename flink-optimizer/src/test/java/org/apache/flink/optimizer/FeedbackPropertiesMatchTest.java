@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
-
-import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.*;
-import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -35,28 +31,36 @@ import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.dag.DataSourceNode;
-import org.apache.flink.optimizer.dag.MapNode;
 import org.apache.flink.optimizer.dag.JoinNode;
+import org.apache.flink.optimizer.dag.MapNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
+import org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
-import org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
 import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.junit.Test;
-import org.apache.flink.api.java.io.TextInputFormat;
 
+import org.junit.Test;
+
+import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.MET;
+import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.NOT_MET;
+import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.NO_PARTIAL_SOLUTION;
+import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.PENDING;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class FeedbackPropertiesMatchTest {
 
@@ -680,8 +684,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
-				
-				
+
 				toMap1.setRequiredGlobalProps(null);
 				toMap1.setRequiredLocalProps(null);
 				
@@ -706,8 +709,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				toMap2.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 5), DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
-				
-				
+
 				toMap1.setRequiredGlobalProps(reqGp);
 				toMap1.setRequiredLocalProps(null);
 				
@@ -757,8 +759,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.SORT, new FieldList(5, 7), new boolean[] {false, false});
-				
-				
+
 				toMap1.setRequiredGlobalProps(null);
 				toMap1.setRequiredLocalProps(reqLp);
 				
@@ -990,8 +991,7 @@ public class FeedbackPropertiesMatchTest {
 				FeedbackPropertiesMeetRequirementsReport report = join.checkPartialSolutionPropertiesMet(target, gp, lp);
 				assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
 			}
-			
-			
+
 			// produced properties match relevant input
 			{
 				GlobalProperties gp = new GlobalProperties();
@@ -1399,8 +1399,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				RequestedGlobalProperties rgp = new RequestedGlobalProperties();
 				rgp.setHashPartitioned(new FieldList(3));
-				
-				
+
 				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(3), new boolean[] { false });
 				

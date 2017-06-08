@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;

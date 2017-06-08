@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.java;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
@@ -36,7 +34,12 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class JoinTranslationTest extends CompilerTestBase {
@@ -125,8 +128,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 			fail(e.getClass().getSimpleName() + ": " + e.getMessage());
 		}
 	}
-	
-	
+
 	private DualInputPlanNode createPlanAndGetJoinNode(JoinHint hint) {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
@@ -157,9 +159,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 		
 		return (DualInputPlanNode) ((SinkPlanNode) op.getDataSinks().iterator().next()).getInput().getSource();
 	}
-	
-	
-	
+
 	private static final class IdentityKeySelector<T> implements KeySelector<T, T> {
 		
 		@Override

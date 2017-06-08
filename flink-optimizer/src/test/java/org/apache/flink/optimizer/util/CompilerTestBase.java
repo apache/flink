@@ -18,12 +18,6 @@
 
 package org.apache.flink.optimizer.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
@@ -40,7 +34,14 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.Visitor;
+
 import org.junit.Before;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Base class for Optimizer tests. Offers utility methods to trigger optimization
@@ -108,7 +109,6 @@ public abstract class CompilerTestBase extends TestLogger implements java.io.Ser
 		source.setStatisticsKey(key);
 	}
 
-
 	public static OptimizerPlanNodeResolver getOptimizerPlanNodeResolver(OptimizedPlan plan) {
 		return new OptimizerPlanNodeResolver(plan);
 	}
@@ -161,7 +161,6 @@ public abstract class CompilerTestBase extends TestLogger implements java.io.Ser
 
 			this.map = map;
 		}
-
 
 		@SuppressWarnings("unchecked")
 		public <T extends PlanNode> T getNode(String name) {

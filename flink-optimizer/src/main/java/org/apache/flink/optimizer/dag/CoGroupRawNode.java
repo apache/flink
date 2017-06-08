@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.CoGroupRawDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The Optimizer representation of a <i>CoGroupRaw</i> operator.

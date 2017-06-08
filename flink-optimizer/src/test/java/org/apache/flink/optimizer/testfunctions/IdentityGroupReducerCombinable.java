@@ -18,7 +18,6 @@
 
 package org.apache.flink.optimizer.testfunctions;
 
-
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;

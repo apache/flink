@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.postpass;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
@@ -62,6 +58,10 @@ import org.apache.flink.optimizer.plan.WorksetPlanNode;
 import org.apache.flink.optimizer.util.NoOpUnaryUdfOp;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * The post-optimizer plan traversal. This traversal fills in the API specific utilities (serializers and
  * comparators).
@@ -81,7 +81,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			traverse(sink);
 		}
 	}
-	
 
 	protected void traverse(PlanNode node) {
 		if (!alreadyDone.add(node)) {
@@ -236,7 +235,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 		TypeInformation<?> type = javaOp.getOperatorInfo().getOutputType();
 
-
 		if(javaOp instanceof GroupReduceOperatorBase &&
 				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_REDUCE_COMBINE)) {
 			GroupReduceOperatorBase<?, ?, ?> groupNode = (GroupReduceOperatorBase<?, ?, ?>) javaOp;
@@ -266,8 +264,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		// descend to the channel's source
 		traverse(channel.getSource());
 	}
-	
-	
+
 	@SuppressWarnings("unchecked")
 	private static <T> TypeInformation<T> getTypeInfoFromSource(SourcePlanNode node) {
 		Operator<?> op = node.getOptimizerNode().getOperator();

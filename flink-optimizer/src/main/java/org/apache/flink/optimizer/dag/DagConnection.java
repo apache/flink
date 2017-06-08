@@ -240,7 +240,6 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 	
 	// --------------------------------------------------------------------------------------------
 
-	
 	public TempMode getMaterializationMode() {
 		return this.materializationMode;
 	}

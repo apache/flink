@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -38,14 +34,17 @@ import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 public class CoGroupDescriptor extends OperatorDescriptorDual {
 	
 	private final Ordering ordering1;		// ordering on the first input 
 	private final Ordering ordering2;		// ordering on the second input 
 	
 	private Partitioner<?> customPartitioner;
-	
-	
+
 	public CoGroupDescriptor(FieldList keys1, FieldList keys2) {
 		this(keys1, keys2, null, null);
 	}

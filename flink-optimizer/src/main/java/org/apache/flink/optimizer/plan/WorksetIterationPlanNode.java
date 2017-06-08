@@ -18,12 +18,6 @@
 
 package org.apache.flink.optimizer.plan;
 
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -33,6 +27,12 @@ import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.optimizer.dag.WorksetIterationNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 
 /**
  * A node in the execution, representing a workset iteration (delta iteration).
@@ -202,7 +202,6 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	@Override
 	protected void mergeBranchPlanMaps(Map<OptimizerNode, PlanNode> branchPlan1, Map<OptimizerNode,PlanNode> branchPlan2) {}
 
-	
 	protected void mergeBranchPlanMaps() {
 		Map<OptimizerNode, PlanNode> branchPlan1 = input1.getSource().branchPlan;
 		Map<OptimizerNode, PlanNode> branchPlan2 = input2.getSource().branchPlan;

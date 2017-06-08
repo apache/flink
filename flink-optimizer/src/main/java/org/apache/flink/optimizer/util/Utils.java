@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.util;
-
-import java.util.Arrays;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Operator;
@@ -37,6 +34,7 @@ import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
 
+import java.util.Arrays;
 
 /**
  * Utility class that contains helper methods for optimizer.

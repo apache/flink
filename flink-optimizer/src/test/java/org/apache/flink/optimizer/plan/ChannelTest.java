@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.optimizer.dag.DataSourceNode;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.optimizer.dag.DataSourceNode;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.apache.flink.api.java.io.TextInputFormat;
 
 public class ChannelTest {
 	
@@ -72,8 +72,7 @@ public class ChannelTest {
 		Assert.assertEquals(SIZE * REPLICATION, channel.getEstimatedOutputSize());
 		Assert.assertEquals(NUM_RECORD * REPLICATION, channel.getEstimatedNumRecords());
 	}
-	
-	
+
 //	private static final OptimizerNode getSingleInputNode() {
 //		return new MapNode(new MapOperatorBase<String, String, GenericMap<String,String>>(
 //				new IdentityMapper<String>(),

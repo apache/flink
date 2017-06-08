@@ -21,7 +21,6 @@ package org.apache.flink.optimizer.operators;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-
 public class CrossBlockOuterFirstDescriptor extends CartesianProductDescriptor {
 	
 	public CrossBlockOuterFirstDescriptor() {

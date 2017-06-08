@@ -18,14 +18,13 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -34,8 +33,9 @@ import org.apache.flink.optimizer.operators.AllGroupWithPartialPreGroupPropertie
 import org.apache.flink.optimizer.operators.GroupReduceProperties;
 import org.apache.flink.optimizer.operators.GroupReduceWithCombineProperties;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
-import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.configuration.Configuration;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer representation of a <i>GroupReduce</i> operation.

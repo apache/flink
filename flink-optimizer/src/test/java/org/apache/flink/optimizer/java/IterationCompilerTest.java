@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.java;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -37,7 +35,11 @@ import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class IterationCompilerTest extends CompilerTestBase {
@@ -73,8 +75,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 						@Override
 						public Tuple2<Long, Long> map(Long value){ return null; }
 					});
-					
-					
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 100, 0);
 			iter.closeWith(iter.getWorkset(), iter.getWorkset())
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
@@ -140,8 +141,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 						@Override
 						public Tuple2<Long, Long> map(Long value){ return null; }
 					});
-					
-					
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 100, 0);
 			iter.closeWith(
 					iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>())

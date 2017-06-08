@@ -94,7 +94,6 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 
 	private final boolean forceParallelism;
 
-
 	public GraphCreatingVisitor(int defaultParallelism, ExecutionMode defaultDataExchangeMode) {
 		this(null, false, defaultParallelism, defaultDataExchangeMode, null);
 	}
@@ -290,7 +289,6 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 			if (partialSolution == null) {
 				throw new CompilerException("Error: The step functions result does not depend on the partial solution.");
 			}
-
 
 			OptimizerNode terminationCriterion = null;
 

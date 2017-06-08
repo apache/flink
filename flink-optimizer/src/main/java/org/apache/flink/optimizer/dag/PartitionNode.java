@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -40,6 +36,9 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer's internal representation of a <i>Partition</i> operator node.

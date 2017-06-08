@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.postpass;
-
-import java.util.Map;
 
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -46,14 +43,15 @@ import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
 
+import java.util.Map;
+
 /**
  * 
  */
 public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> implements OptimizerPostPass {
 	
 	private boolean propagateParentSchemaDown = true;
-	
-	
+
 	public boolean isPropagateParentSchemaDown() {
 		return propagateParentSchemaDown;
 	}

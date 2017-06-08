@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -30,6 +26,10 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.util.Visitor;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.

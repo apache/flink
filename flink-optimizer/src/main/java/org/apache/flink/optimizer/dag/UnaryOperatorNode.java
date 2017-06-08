@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
@@ -29,6 +25,9 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class UnaryOperatorNode extends SingleInputNode {
 	

@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import org.apache.flink.optimizer.DataStatistics;
@@ -30,14 +26,16 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
  */
 public class WorksetNode extends AbstractPartialSolutionNode {
 	
 	private final WorksetIterationNode iterationNode;
-	
-	
+
 	public WorksetNode(WorksetPlaceHolder<?> psph, WorksetIterationNode iterationNode) {
 		super(psph);
 		this.iterationNode = iterationNode;

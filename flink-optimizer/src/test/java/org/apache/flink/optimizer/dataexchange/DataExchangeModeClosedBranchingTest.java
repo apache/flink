@@ -36,6 +36,7 @@ import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
+
 import org.junit.Test;
 
 import java.util.Collection;
@@ -188,7 +189,6 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
 					.where(0).equalTo(0)
 					.with(new DummyCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>())
 					.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>()).name("cgSink");
-
 
 			OptimizedPlan optPlan = compileNoStats(env.createProgramPlan());
 

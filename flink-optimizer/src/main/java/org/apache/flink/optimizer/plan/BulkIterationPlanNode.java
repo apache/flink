@@ -16,13 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
-
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
-
-import java.util.HashMap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.optimizer.CompilerException;
@@ -31,6 +25,11 @@ import org.apache.flink.optimizer.dag.BulkIterationNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
+
+import java.util.HashMap;
+
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 
 public class BulkIterationPlanNode extends SingleInputPlanNode implements IterationPlanNode {
 	
@@ -85,7 +84,6 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	
 	// --------------------------------------------------------------------------------------------
 
-	
 	public TypeSerializerFactory<?> getSerializerForIterationChannel() {
 		return serializerForIterationChannel;
 	}
@@ -110,7 +108,6 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	public int getMemoryConsumerWeight() {
 		return 1;
 	}
-	
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {

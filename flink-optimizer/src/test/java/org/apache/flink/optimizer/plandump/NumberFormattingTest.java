@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plandump;
 
-import static org.junit.Assert.assertEquals;
-
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class NumberFormattingTest {
 
@@ -48,6 +47,5 @@ public class NumberFormattingTest {
 
 		assertEquals("1.44 M", PlanJSONDumpGenerator.formatNumber(1435126.0));
 	}
-	
-	
+
 }

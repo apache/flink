@@ -16,15 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
-
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
-
-import java.util.Collections;
-import java.util.HashMap;
 
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.OptimizerNode;
@@ -34,6 +26,13 @@ import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
+
+import java.util.Collections;
+import java.util.HashMap;
+
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
 
 /**
  * Plan candidate node for partial solution of a bulk iteration.
@@ -47,8 +46,7 @@ public class WorksetPlanNode extends PlanNode {
 	private final Channel initialInput;
 	
 	public Object postPassHelper;
-	
-	
+
 	public WorksetPlanNode(WorksetNode template, String nodeName,
 			GlobalProperties gProps, LocalProperties lProps,
 			Channel initialInput)
@@ -87,7 +85,6 @@ public class WorksetPlanNode extends PlanNode {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
@@ -96,18 +93,15 @@ public class WorksetPlanNode extends PlanNode {
 		}
 	}
 
-
 	@Override
 	public Iterable<PlanNode> getPredecessors() {
 		return Collections.<PlanNode>emptyList();
 	}
 
-
 	@Override
 	public Iterable<Channel> getInputs() {
 		return Collections.<Channel>emptyList();
 	}
-
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {

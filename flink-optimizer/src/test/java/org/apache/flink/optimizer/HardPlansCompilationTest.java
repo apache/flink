@@ -28,6 +28,7 @@ import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
 
 /**

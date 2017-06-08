@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.postpass;
 
 public final class ConflictingFieldTypeInfoException extends Exception {
@@ -27,15 +26,13 @@ public final class ConflictingFieldTypeInfoException extends Exception {
 	
 	private final Object previousType, newType;
 
-	
 	public ConflictingFieldTypeInfoException(int fieldNumber, Object previousType, Object newType) {
 		super("Conflicting type info for field " + fieldNumber + ": Old='" + previousType + "', new='" + newType + "'.");
 		this.fieldNumber = fieldNumber;
 		this.previousType = previousType;
 		this.newType = newType;
 	}
-	
-	
+
 	public int getFieldNumber() {
 		return fieldNumber;
 	}
