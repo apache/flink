@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
  * Serializer for [[Either]].
  */
 @Internal
+@SerialVersionUID(9219995873023657525L)
 class EitherSerializer[A, B, T <: Either[A, B]](
     val leftSerializer: TypeSerializer[A],
     val rightSerializer: TypeSerializer[B])

@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
  * Serializer for [[Option]].
  */
 @Internal
+@SerialVersionUID(-8635243274072627338L)
 class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   extends TypeSerializer[Option[A]] {
 
