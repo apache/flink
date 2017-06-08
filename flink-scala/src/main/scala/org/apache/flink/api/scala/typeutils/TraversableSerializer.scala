@@ -29,6 +29,7 @@ import scala.collection.generic.CanBuildFrom
  * Serializer for Scala Collections.
  */
 @Internal
+@SerialVersionUID(7522917416391312410L)
 abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     var elementSerializer: TypeSerializer[E])
   extends TypeSerializer[T] with Cloneable {
