@@ -18,27 +18,31 @@
 
 package org.apache.flink.cep.nfa;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.cep.Event;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link SharedBuffer}.
+ */
 public class SharedBufferTest extends TestLogger {
 
 	@Test
@@ -52,28 +56,43 @@ public class SharedBufferTest extends TestLogger {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
 		}
 
-		ListMultimap<String, Event> expectedPattern1 = ArrayListMultimap.create();
-		expectedPattern1.put("a1", events[2]);
-		expectedPattern1.put("a[]", events[3]);
-		expectedPattern1.put("b", events[5]);
+		Map<String, List<Event>> expectedPattern1 = new HashMap<>();
+		expectedPattern1.put("a1", new ArrayList<Event>());
+		expectedPattern1.get("a1").add(events[2]);
 
-		ListMultimap<String, Event> expectedPattern2 = ArrayListMultimap.create();
-		expectedPattern2.put("a1", events[0]);
-		expectedPattern2.put("a[]", events[1]);
-		expectedPattern2.put("a[]", events[2]);
-		expectedPattern2.put("a[]", events[3]);
-		expectedPattern2.put("a[]", events[4]);
-		expectedPattern2.put("b", events[5]);
+		expectedPattern1.put("a[]", new ArrayList<Event>());
+		expectedPattern1.get("a[]").add(events[3]);
 
-		ListMultimap<String, Event> expectedPattern3 = ArrayListMultimap.create();
-		expectedPattern3.put("a1", events[0]);
-		expectedPattern3.put("a[]", events[1]);
-		expectedPattern3.put("a[]", events[2]);
-		expectedPattern3.put("a[]", events[3]);
-		expectedPattern3.put("a[]", events[4]);
-		expectedPattern3.put("a[]", events[5]);
-		expectedPattern3.put("a[]", events[6]);
-		expectedPattern3.put("b", events[7]);
+		expectedPattern1.put("b", new ArrayList<Event>());
+		expectedPattern1.get("b").add(events[5]);
+
+		Map<String, List<Event>> expectedPattern2 = new HashMap<>();
+		expectedPattern2.put("a1", new ArrayList<Event>());
+		expectedPattern2.get("a1").add(events[0]);
+
+		expectedPattern2.put("a[]", new ArrayList<Event>());
+		expectedPattern2.get("a[]").add(events[1]);
+		expectedPattern2.get("a[]").add(events[2]);
+		expectedPattern2.get("a[]").add(events[3]);
+		expectedPattern2.get("a[]").add(events[4]);
+
+		expectedPattern2.put("b", new ArrayList<Event>());
+		expectedPattern2.get("b").add(events[5]);
+
+		Map<String, List<Event>> expectedPattern3 = new HashMap<>();
+		expectedPattern3.put("a1", new ArrayList<Event>());
+		expectedPattern3.get("a1").add(events[0]);
+
+		expectedPattern3.put("a[]", new ArrayList<Event>());
+		expectedPattern3.get("a[]").add(events[1]);
+		expectedPattern3.get("a[]").add(events[2]);
+		expectedPattern3.get("a[]").add(events[3]);
+		expectedPattern3.get("a[]").add(events[4]);
+		expectedPattern3.get("a[]").add(events[5]);
+		expectedPattern3.get("a[]").add(events[6]);
+
+		expectedPattern3.put("b", new ArrayList<Event>());
+		expectedPattern3.get("b").add(events[7]);
 
 		sharedBuffer.put("a1", events[0], timestamp, null, null, 0, 0, DeweyNumber.fromString("1"));
 		sharedBuffer.put("a[]", events[1], timestamp, "a1", events[0], timestamp, 0, DeweyNumber.fromString("1.0"));
@@ -88,12 +107,12 @@ public class SharedBufferTest extends TestLogger {
 		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, 5, DeweyNumber.fromString("1.1"));
 		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, 6, DeweyNumber.fromString("1.1.0"));
 
-		Collection<ListMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, 7, DeweyNumber.fromString("1.1.0"));
+		Collection<Map<String, List<Event>>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, 7, DeweyNumber.fromString("1.1.0"));
 		sharedBuffer.release("b", events[7], timestamp, 7);
-		Collection<ListMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, 7, DeweyNumber.fromString("1.1.0"));
+		Collection<Map<String, List<Event>>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, 7, DeweyNumber.fromString("1.1.0"));
 
-		Collection<ListMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, 2, DeweyNumber.fromString("2.0.0"));
-		Collection<ListMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, 5, DeweyNumber.fromString("1.0.0"));
+		Collection<Map<String, List<Event>>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, 2, DeweyNumber.fromString("2.0.0"));
+		Collection<Map<String, List<Event>>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, 5, DeweyNumber.fromString("1.0.0"));
 		sharedBuffer.release("b", events[5], timestamp, 2);
 		sharedBuffer.release("b", events[5], timestamp, 5);
 

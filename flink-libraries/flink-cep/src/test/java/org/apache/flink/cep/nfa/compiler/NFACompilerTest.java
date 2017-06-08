@@ -76,7 +76,7 @@ public class NFACompilerTest extends TestLogger {
 
 		// adjust the rule
 		expectedException.expect(MalformedPatternException.class);
-		expectedException.expectMessage("Duplicate pattern name: start. Pattern names must be unique.");
+		expectedException.expectMessage("Duplicate pattern name: start. Names must be unique.");
 
 		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start").where(new TestFilter())
 			.followedBy("middle").where(new TestFilter())
