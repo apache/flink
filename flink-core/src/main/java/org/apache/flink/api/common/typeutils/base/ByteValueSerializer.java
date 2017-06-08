@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.ByteValue;
+
+import java.io.IOException;
 
 @Internal
 public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue> {

@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.Function;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -26,8 +29,7 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.Function;
+
 import static org.objectweb.asm.Type.getConstructorDescriptor;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 

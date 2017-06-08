@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
@@ -83,7 +84,6 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 
 		this(arity, keyPositions, makeNullAware(comparators, orders), serializers);
 	}
-
 
 	/**
 	 * Intermediate constructor for creating auxiliary fields.
@@ -407,7 +407,6 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 		}
 		return localIndex - index;
 	}
-
 
 	private Object[] instantiateDeserializationFields() {
 		Object[] newFields = new Object[serializers.length];

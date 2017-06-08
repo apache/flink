@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.ByteValue;
-
 
 public class ByteValueParserTest extends ParserTestBase<ByteValue> {
 

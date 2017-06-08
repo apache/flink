@@ -18,13 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.FloatComparator;
-import org.apache.flink.api.common.typeutils.base.FloatSerializer;
+
+import java.util.Random;
 
 public class FloatComparatorTest extends ComparatorTestBase<Float> {
 

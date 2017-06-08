@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Abstract superclass for all contracts that represent actual operators.

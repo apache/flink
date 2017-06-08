@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -24,8 +25,8 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.api.java.typeutils.runtime.RowComparator;
 import org.apache.flink.types.Row;
+
 import org.junit.BeforeClass;
 
 import static org.apache.flink.util.Preconditions.checkArgument;

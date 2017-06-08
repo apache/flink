@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.types.Record;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class BinaryInputFormatTest {
 	
@@ -41,7 +41,6 @@ public class BinaryInputFormatTest {
 			return record;
 		}
 	}
-
 
 	@Test
 	public void testCreateInputSplitsWithOneFile() throws IOException {

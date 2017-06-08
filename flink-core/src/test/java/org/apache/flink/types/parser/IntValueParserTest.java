@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.IntValue;
-
 
 public class IntValueParserTest extends ParserTestBase<IntValue> {
 

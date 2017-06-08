@@ -19,9 +19,9 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.api.common.ExecutionConfig;
-
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.fs.Path;
+
 import org.junit.Assert;
 import org.junit.Test;
 

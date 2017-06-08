@@ -18,8 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.util.ArrayList;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+
+import java.util.ArrayList;
 
 /**
  * Test for {@link ObjectArrayTypeInfo}.

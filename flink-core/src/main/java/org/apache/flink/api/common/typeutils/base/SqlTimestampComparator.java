@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.sql.Timestamp;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
+import java.sql.Timestamp;
 
 /**
  * Comparator for comparing Java SQL Timestamps.

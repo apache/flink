@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.StringUtils;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -157,7 +158,6 @@ abstract public class AbstractGenericTypeSerializerTest {
 
 	abstract protected <T> TypeSerializer<T> createSerializer(Class<T> type);
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Test Objects
 	// --------------------------------------------------------------------------------------------
@@ -170,7 +170,6 @@ abstract public class AbstractGenericTypeSerializerTest {
 			map1 = new HashMap<String, Integer>();
 			list = new ArrayList<String>();
 		}
-
 
 		public SimpleWithNestedInterfaces(String str, Integer i) {
 			map1 = new HashMap<String, Integer>();
@@ -208,7 +207,6 @@ abstract public class AbstractGenericTypeSerializerTest {
 		private final String sVal;
 		private final short rVal;
 		private final double dVal;
-
 
 		public SimpleTypes() {
 			this(0, 0, (byte) 0, "", (short) 0, 0);

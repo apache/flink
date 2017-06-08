@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common.operators.util;
 
-import java.lang.annotation.Annotation;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.InstantiationUtil;
+
+import java.lang.annotation.Annotation;
 
 /**
  * This holds a class containing user defined code.

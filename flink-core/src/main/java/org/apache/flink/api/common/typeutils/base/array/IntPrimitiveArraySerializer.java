@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * A serializer for int arrays.
@@ -63,7 +63,6 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(int[] record, DataOutputView target) throws IOException {

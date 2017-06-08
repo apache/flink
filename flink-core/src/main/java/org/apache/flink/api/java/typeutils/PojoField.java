@@ -18,16 +18,16 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.runtime.FieldSerializer;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Objects;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.runtime.FieldSerializer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

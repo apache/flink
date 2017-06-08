@@ -18,19 +18,19 @@
 
 package org.apache.flink.types;
 
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.util.Random;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.util.Random;
 
 public class RecordITCase extends TestLogger {
 	

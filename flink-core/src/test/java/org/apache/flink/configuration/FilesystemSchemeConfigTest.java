@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 import java.io.File;

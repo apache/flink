@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.common.operators;
 
+import org.apache.flink.api.common.operators.ExpressionKeysTest.Pojo1;
+import org.apache.flink.api.common.operators.ExpressionKeysTest.Pojo2;
+import org.apache.flink.api.common.operators.ExpressionKeysTest.PojoWithMultiplePojos;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -25,9 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.common.operators.ExpressionKeysTest.PojoWithMultiplePojos;
-import org.apache.flink.api.common.operators.ExpressionKeysTest.Pojo1;
-import org.apache.flink.api.common.operators.ExpressionKeysTest.Pojo2;
 
 import org.junit.Assert;
 import org.junit.Test;

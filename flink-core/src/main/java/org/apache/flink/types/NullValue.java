@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
-
-import java.io.IOException;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 /**
  * Null base type for programs that implements the Key interface.

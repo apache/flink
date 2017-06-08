@@ -18,11 +18,14 @@
 
 package org.apache.flink.api.common.operators;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticAnnotationException;
 import org.apache.flink.api.common.operators.util.FieldSet;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class SingleInputSemanticPropertiesTest {
 

@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.math.BigDecimal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
+import java.math.BigDecimal;
 
 /**
  * Comparator for comparing BigDecimal values. Does not support null values.

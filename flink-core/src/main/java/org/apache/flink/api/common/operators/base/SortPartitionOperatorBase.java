@@ -44,7 +44,6 @@ public class SortPartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, N
 
 	private final Ordering partitionOrdering;
 
-
 	public SortPartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, Ordering partitionOrdering, String name) {
 		super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, name);
 		this.partitionOrdering = partitionOrdering;

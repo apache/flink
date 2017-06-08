@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -30,7 +27,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
+
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;

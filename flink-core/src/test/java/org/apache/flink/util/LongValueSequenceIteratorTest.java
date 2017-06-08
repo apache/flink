@@ -18,11 +18,10 @@
 
 package org.apache.flink.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class LongValueSequenceIteratorTest extends TestLogger {
 
@@ -65,7 +64,6 @@ public class LongValueSequenceIteratorTest extends TestLogger {
 
 		testMaxSplitDiff(splits);
 	}
-
 
 	private static final void testMaxSplitDiff(org.apache.flink.util.LongValueSequenceIterator[] iters) {
 		long minSplitSize = Long.MAX_VALUE;

@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongComparator;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
-
 import org.apache.flink.api.java.typeutils.runtime.tuple.base.TupleComparatorTestBase;
 
 public class TupleComparatorILDXC2Test extends TupleComparatorTestBase<Tuple3<Integer, Long, Double>> {

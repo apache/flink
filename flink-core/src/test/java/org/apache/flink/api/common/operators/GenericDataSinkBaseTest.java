@@ -23,8 +23,8 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.util.TestIOData;
-import org.apache.flink.api.common.operators.util.TestNonRichOutputFormat;
 import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
+import org.apache.flink.api.common.operators.util.TestNonRichOutputFormat;
 import org.apache.flink.api.common.operators.util.TestRichOutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.fs.Path;
@@ -50,7 +50,6 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
 	GenericDataSourceBase<String, TestNonRichInputFormat> source =
 			new GenericDataSourceBase<String, TestNonRichInputFormat>(
 					in, new OperatorInformation<String>(BasicTypeInfo.STRING_TYPE_INFO), "testSource");
-
 
 	@Test
 	public void testDataSourcePlain() {

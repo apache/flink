@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
-
-import java.util.List;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,6 +24,8 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Visitor;
+
+import java.util.List;
 
 /**
  * Abstract superclass for for all operators that have one input like "map" or "reduce".

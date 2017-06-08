@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+
+import org.apache.avro.specific.SpecificRecordBase;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;

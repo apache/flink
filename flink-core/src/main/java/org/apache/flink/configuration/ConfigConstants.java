@@ -342,7 +342,6 @@ public final class ConfigConstants {
 	 */
 	public static final String USE_LARGE_RECORD_HANDLER_KEY = "taskmanager.runtime.large-record-handler";
 
-
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
@@ -480,7 +479,6 @@ public final class ConfigConstants {
 	 * A comma-separated list of strings to use as YARN application tags.
 	 */
 	public static final String YARN_APPLICATION_TAGS = "yarn.tags";
-
 
 	// ------------------------ Mesos Configuration ------------------------
 
@@ -1092,7 +1090,6 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String METRICS_LATENCY_HISTORY_SIZE = "metrics.latency.history-size";
 
-
 	// ---------------------------- Checkpoints -------------------------------
 
 	/** The default directory for savepoints. */
@@ -1294,7 +1291,6 @@ public final class ConfigConstants {
 	 * Whether to use the LargeRecordHandler when spilling.
 	 */
 	public static final boolean DEFAULT_USE_LARGE_RECORD_HANDLER = false;
-
 
 	// ------ Common Resource Framework Configuration (YARN & Mesos) ------
 

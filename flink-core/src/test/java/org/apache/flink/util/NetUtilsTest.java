@@ -30,7 +30,8 @@ import java.util.Set;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class NetUtilsTest {
 
@@ -103,7 +104,6 @@ public class NetUtilsTest {
 	}
 
 
-
 	@Test
 	public void testFreePortRangeUtility() {
 		// inspired by Hadoop's example for "yarn.app.mapreduce.am.job.client.port-range"
@@ -122,7 +122,6 @@ public class NetUtilsTest {
 		// check that only ranges are included
 		Assert.assertThat(ports, not(hasItems(50051, 50052, 1337, 50201, 49999, 50099)));
 
-
 		// test single port "range":
 		portsIter = NetUtils.getPortRangeFromString(" 51234");
 		Assert.assertTrue(portsIter.hasNext());
@@ -138,7 +137,6 @@ public class NetUtilsTest {
 		Assert.assertEquals(3, (int)portsIter.next());
 		Assert.assertEquals(4, (int)portsIter.next());
 		Assert.assertFalse(portsIter.hasNext());
-
 
 		Throwable error = null;
 

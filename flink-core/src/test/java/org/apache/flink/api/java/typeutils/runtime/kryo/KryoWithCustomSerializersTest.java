@@ -18,21 +18,21 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import java.util.Collection;
-import java.util.HashSet;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest;
-import org.joda.time.LocalDate;
-import org.junit.Test;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import org.joda.time.LocalDate;
+import org.junit.Test;
+
+import java.util.Collection;
+import java.util.HashSet;
 
 @SuppressWarnings("unchecked")
 public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {

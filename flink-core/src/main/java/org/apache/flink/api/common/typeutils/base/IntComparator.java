@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class IntComparator extends BasicTypeComparator<Integer> {
@@ -41,7 +41,6 @@ public final class IntComparator extends BasicTypeComparator<Integer> {
 		int comp = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1)); 
 		return ascendingComparison ? comp : -comp; 
 	}
-
 
 	@Override
 	public boolean supportsNormalizedKey() {

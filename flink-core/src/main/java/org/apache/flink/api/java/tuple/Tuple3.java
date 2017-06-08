@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple;
 
@@ -122,7 +120,6 @@ public class Tuple3<T0, T1, T2> extends Tuple {
 		this.f1 = value1;
 		this.f2 = value2;
 	}
-
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities

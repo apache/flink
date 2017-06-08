@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
-
-import java.io.File;
-import java.io.IOException;
 
 import org.apache.flink.api.common.io.FileOutputFormat.OutputDirectoryMode;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.IntValue;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
 
 import static org.junit.Assert.fail;
 

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.VisibleForTesting;
@@ -121,7 +122,6 @@ public class ConfigOptionsDocGenerator {
 			throw new RuntimeException("Failed to extract config options from class " + clazz + ".", e);
 		}
 	}
-
 
 	/**
 	 * Transforms this configuration group into HTML formatted table.

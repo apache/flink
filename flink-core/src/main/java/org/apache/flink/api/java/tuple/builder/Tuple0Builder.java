@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
-//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
+//  THIS IS _NOT_ A GENERATED SOURCE FILE, BUT HAS TO BE KEPT IN SYNC WITH OTHER BUILDERS THAT ARE
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
 
-
 package org.apache.flink.api.java.tuple.builder;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple0;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Public
 public class Tuple0Builder {

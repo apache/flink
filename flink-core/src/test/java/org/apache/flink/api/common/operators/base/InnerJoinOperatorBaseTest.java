@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -42,6 +40,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class InnerJoinOperatorBaseTest implements Serializable {
@@ -118,7 +120,6 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 		final List<String> inputData1 = new ArrayList<String>(Arrays.asList("foo", "bar", "foobar"));
 		final List<String> inputData2 = new ArrayList<String>(Arrays.asList("foobar", "foo"));
 		final List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6, 6));
-
 
 		try {
 			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);

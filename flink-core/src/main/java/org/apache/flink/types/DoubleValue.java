@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
-
-import java.io.IOException;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * Boxed serializable and comparable double precision floating point type, representing the primitive

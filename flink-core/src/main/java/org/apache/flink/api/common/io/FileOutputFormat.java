@@ -18,19 +18,20 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.Path;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 /**
  * The abstract base class for all Rich output formats that are file based. Contains the logic to
@@ -170,7 +171,6 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 		return this.outputDirectoryMode;
 	}
 
-
 	// ----------------------------------------------------------------
 
 	@Override
@@ -242,7 +242,6 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 				}
 			}
 		}
-
 
 
 		// Suffix the path with the parallel instance index, if needed

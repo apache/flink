@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,6 +25,8 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Visitable;
+
+import java.util.List;
 
 /**
 * Abstract base class for all operators. An operator is a source, sink, or it applies an operation to

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
@@ -199,7 +198,6 @@ public final class ReflectionUtil {
 	public static class FullTypeInfo {
 		private final Class<?> clazz;
 		private final FullTypeInfo[] templateTypeInfos;
-
 
 		public FullTypeInfo(Class<?> clazz, FullTypeInfo[] templateTypeInfos) {
 			this.clazz = Preconditions.checkNotNull(clazz);

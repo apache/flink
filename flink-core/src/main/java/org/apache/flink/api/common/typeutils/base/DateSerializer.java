@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.util.Date;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.util.Date;
 
 @Internal
 public final class DateSerializer extends TypeSerializerSingleton<Date> {

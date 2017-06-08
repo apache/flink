@@ -15,14 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
+
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.List;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class ConfigOptionsDocGeneratorTest {
 

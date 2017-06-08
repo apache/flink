@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,6 +29,8 @@ import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
 import org.objenesis.strategy.StdInstantiatorStrategy;
+
+import java.io.IOException;
 
 /**
  * Comparator for all Value types that extend Key

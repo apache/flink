@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.operators.util.FieldSet;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -250,6 +251,5 @@ public class DualInputSemanticPropertiesTest {
 		sp.addForwardedField(1, 0, 2);
 		sp.addForwardedField(1, 1, 2);
 	}
-
 
 }

@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.InputStream;
-
 import org.junit.Test;
+
+import java.io.InputStream;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;

@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.functions.util;
 
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
+
+import java.util.List;
 
 @Internal
 public class CopyingListCollector<T> implements Collector<T> {

@@ -18,8 +18,9 @@
 
 package org.apache.flink.types;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import org.apache.flink.util.StringUtils;
+
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,10 +29,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import org.apache.flink.types.StringValue;
-import org.apache.flink.util.StringUtils;
-import org.junit.Test;
-
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Test for the serialization of Strings through the StringValue class.

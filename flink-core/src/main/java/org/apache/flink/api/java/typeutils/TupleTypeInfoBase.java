@@ -18,14 +18,14 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

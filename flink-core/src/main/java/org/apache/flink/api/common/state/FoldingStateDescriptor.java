@@ -40,7 +40,6 @@ import static java.util.Objects.requireNonNull;
 public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState<T, ACC>, ACC> {
 	private static final long serialVersionUID = 1L;
 
-
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**

@@ -18,8 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.util.TraversableOnceException;
-import org.apache.flink.util.UnionIterator;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -27,7 +25,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class UnionIteratorTest {
 

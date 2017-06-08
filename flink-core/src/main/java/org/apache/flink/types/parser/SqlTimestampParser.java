@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
-import java.sql.Timestamp;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
+
+import java.sql.Timestamp;
 
 /**
  * Parses a text field into a {@link Timestamp}.

@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.typeutils;
-
-import static org.junit.Assert.assertTrue;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
 
 public class PojoTypeInformationTest {
 

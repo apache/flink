@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.functions.util;
 
-import java.util.Iterator;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.TraversableOnceException;
+
+import java.util.Iterator;
 
 @Internal
 public class CopyingIterator<E> implements Iterator<E>, Iterable<E> {

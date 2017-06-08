@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 /**
  * Serializer for serializing/deserializing BigDecimal values including null values.

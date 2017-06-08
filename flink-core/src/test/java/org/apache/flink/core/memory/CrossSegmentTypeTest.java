@@ -104,7 +104,6 @@ public class CrossSegmentTypeTest {
 		}
 	}
 
-
 	@Test
 	public void testSwapBytesMixedSegments() {
 		try {

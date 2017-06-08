@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * A serializer for short arrays.
@@ -63,7 +63,6 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(short[] record, DataOutputView target) throws IOException {

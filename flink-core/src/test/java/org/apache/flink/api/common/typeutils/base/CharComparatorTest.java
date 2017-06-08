@@ -18,13 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.CharComparator;
-import org.apache.flink.api.common.typeutils.base.CharSerializer;
+
+import java.util.Random;
 
 public class CharComparatorTest extends ComparatorTestBase<Character> {
 

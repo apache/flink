@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Date;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.sql.Date;
 
 /**
  * A test for the {@link SqlDateSerializer}.

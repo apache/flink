@@ -28,7 +28,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -40,8 +39,8 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.powermock.api.mockito.PowerMockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LocalFileSystem.class)

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 /*
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
@@ -33,6 +32,7 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.OperatingSystem;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -436,7 +436,6 @@ public abstract class FileSystem {
 		}
 		return hadoopWrapper.getHadoopWrapperClassNameForFileSystem(scheme);
 	}
-
 
 	// ------------------------------------------------------------------------
 	//  File System Methods

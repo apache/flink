@@ -78,7 +78,6 @@ public class PojoSubclassSerializerTest extends SerializerTestBase<PojoSubclassS
 		public int dumm1;
 		public String dumm2;
 
-
 		public TestUserClassBase() {
 		}
 

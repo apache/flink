@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.distributions;
-
-import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.io.IOReadableWritable;
+
+import java.io.Serializable;
 
 @PublicEvolving
 public interface DataDistribution extends IOReadableWritable, Serializable {

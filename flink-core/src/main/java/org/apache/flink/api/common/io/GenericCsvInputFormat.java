@@ -25,6 +25,7 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +93,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	// current charset.
 	protected byte[] commentPrefix = null;
 	private String commentPrefixString = null;
-
 
 	// --------------------------------------------------------------------------------------------
 	//  Constructors and getters/setters for the configurable parameters

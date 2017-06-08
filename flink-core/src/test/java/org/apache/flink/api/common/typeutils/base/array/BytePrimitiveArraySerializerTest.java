@@ -18,12 +18,10 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
+
+import java.util.Random;
 
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.

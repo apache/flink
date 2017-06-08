@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -34,6 +30,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.util.Visitor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Abstract superclass for data sources in a Pact plan.
@@ -251,7 +250,6 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	public String toString() {
 		return this.name;
 	}
-
 
 	public static interface SplitDataProperties<T> {
 

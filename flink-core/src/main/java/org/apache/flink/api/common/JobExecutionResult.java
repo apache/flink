@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Collections;
 import java.util.Map;
@@ -119,7 +119,6 @@ public class JobExecutionResult extends JobSubmissionResult {
 		}
 		return (Integer) result;
 	}
-
 
 	/**
 	 * Returns a dummy object for wrapping a JobSubmissionResult

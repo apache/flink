@@ -18,15 +18,14 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.FilterOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
 @Public
 public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
@@ -44,7 +43,6 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 	private transient BlockBasedOutput blockBasedOutput;
 	
 	private transient DataOutputViewStreamWrapper outView;
-
 
 	@Override
 	public void close() throws IOException {

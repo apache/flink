@@ -18,15 +18,13 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Value;
-import org.junit.Assert;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.CharValue;
@@ -39,7 +37,9 @@ import org.apache.flink.types.MapValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Value;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;

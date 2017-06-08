@@ -18,19 +18,6 @@
 
 package org.apache.flink.api.common;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
@@ -40,8 +27,21 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * This class represents Flink programs, in the form of dataflow plans.
  *

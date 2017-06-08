@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
 
 import org.apache.flink.annotation.Internal;
@@ -255,7 +254,6 @@ public class FieldSet implements Iterable<Integer> {
 			return false;
 		}
 	}
-
 
 	@Override
 	public String toString() {

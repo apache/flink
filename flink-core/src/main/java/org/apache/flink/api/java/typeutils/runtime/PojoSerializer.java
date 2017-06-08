@@ -18,18 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Objects;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -49,6 +37,18 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -299,7 +299,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -876,7 +875,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				fieldSerializerOffsets[i * 2] = in.readInt();
 				fieldSerializerOffsets[i * 2 + 1] = in.readInt();
 			}
-
 
 			int numRegisteredSubclasses = in.readInt();
 			int[] registeredSerializerOffsets = new int[numRegisteredSubclasses * 2];

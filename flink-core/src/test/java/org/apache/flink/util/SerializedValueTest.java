@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

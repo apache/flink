@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common;
 
-import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.TaskManagerOptions;
+
+import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -784,7 +785,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		return registeredTypesWithKryoSerializerClasses;
 	}
 
-
 	/**
 	 * Returns the registered default Kryo Serializers.
 	 */
@@ -825,7 +825,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public LinkedHashSet<Class<?>> getRegisteredPojoTypes() {
 		return registeredPojoTypes;
 	}
-
 
 	public boolean isAutoTypeRegistrationDisabled() {
 		return !autoTypeRegistrationEnabled;
@@ -903,7 +902,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public ArchivedExecutionConfig archive() {
 		return new ArchivedExecutionConfig(this);
 	}
-
 
 	// ------------------------------ Utilities  ----------------------------------
 

@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common.io.compression;
 
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.flink.annotation.Internal;
+
+import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;

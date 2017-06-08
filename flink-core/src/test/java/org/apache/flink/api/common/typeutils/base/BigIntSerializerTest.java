@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.math.BigInteger;
-import java.util.Random;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.math.BigInteger;
+import java.util.Random;
 
 /**
  * A test for the {@link BigIntSerializer}.

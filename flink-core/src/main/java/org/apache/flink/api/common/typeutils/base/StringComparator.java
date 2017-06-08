@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.StringValue;
+
+import java.io.IOException;
 
 @Internal
 public final class StringComparator extends BasicTypeComparator<String> {
@@ -49,12 +49,10 @@ public final class StringComparator extends BasicTypeComparator<String> {
 		return ascendingComparison ? comp : -comp;
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;
 	}
-
 
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
@@ -70,7 +68,6 @@ public final class StringComparator extends BasicTypeComparator<String> {
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return true;
 	}
-
 
 	@Override
 	public void putNormalizedKey(String record, MemorySegment target, int offset, int len) {;
@@ -103,7 +100,6 @@ public final class StringComparator extends BasicTypeComparator<String> {
 			target.put(offset++, (byte) 0);
 		}
 	}
-
 
 	@Override
 	public StringComparator duplicate() {

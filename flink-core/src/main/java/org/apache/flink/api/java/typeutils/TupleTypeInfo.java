@@ -18,31 +18,32 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.types.Value;
 
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link TypeInformation} for the tuple types of the Java API.
@@ -265,7 +266,6 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 			}
 			infos[i] = info;
 		}
-
 
 		return (TupleTypeInfo<X>) new TupleTypeInfo<>(infos);
 	}

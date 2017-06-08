@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
@@ -34,6 +31,9 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *

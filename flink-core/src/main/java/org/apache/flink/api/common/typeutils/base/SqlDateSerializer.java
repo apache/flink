@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Date;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.sql.Date;
 
 @Internal
 public final class SqlDateSerializer extends TypeSerializerSingleton<Date> {

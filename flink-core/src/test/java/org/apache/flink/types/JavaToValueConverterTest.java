@@ -18,13 +18,16 @@
 
 package org.apache.flink.types;
 
-import static org.junit.Assert.*;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import org.junit.Test;
 
 import java.util.ArrayList;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 public class JavaToValueConverterTest {
 

@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * Generic interface used for combine functions ("combiners"). Combiners act as auxiliaries to a {@link GroupReduceFunction}

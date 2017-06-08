@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,6 +28,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
+
 import org.junit.BeforeClass;
 
 import java.io.Serializable;

@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
-import java.math.BigInteger;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
+
+import java.math.BigInteger;
 
 /**
  * Parses a text field into a {@link java.math.BigInteger}.

@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.commons.lang3.ArrayUtils;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -38,6 +36,8 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -52,7 +52,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 @Internal
 public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
-
 
 	/** The ordering for the order inside a reduce group. */
 	private Ordering groupOrder;

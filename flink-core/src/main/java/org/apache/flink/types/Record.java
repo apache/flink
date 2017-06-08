@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
 import org.apache.flink.annotation.Public;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.io.UTFDataFormatException;
 import java.nio.ByteOrder;
-
 
 /**
  * The Record represents a multi-valued data record.

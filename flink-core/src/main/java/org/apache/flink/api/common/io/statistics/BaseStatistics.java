@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io.statistics;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Interface describing the basic statistics that can be obtained from the input.

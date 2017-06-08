@@ -50,7 +50,6 @@ public class SecurityOptions {
 		key("security.kerberos.login.contexts")
 			.noDefaultValue();
 
-
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Security Options
 	// ------------------------------------------------------------------------

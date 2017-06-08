@@ -75,7 +75,6 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 		}
 	}
 
-
 	@Override
 	public Either<L, R> createInstance() {
 		// We arbitrarily always create a Right value instance.

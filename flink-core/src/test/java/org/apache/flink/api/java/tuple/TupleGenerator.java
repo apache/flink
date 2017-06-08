@@ -242,7 +242,6 @@ class TupleGenerator {
 		w.println("\t}");
 		w.println();
 
-
 		// arity accessor
 		w.println("\t@Override");
 		w.println("\tpublic int getArity() { return " + numFields + "; }");
@@ -289,10 +288,10 @@ class TupleGenerator {
 			w.println("\t\tthis.f" + i + " = value" + i + ';');
 		}
 		w.println("\t}");
-		w.println();
 
 		// swap method only for Tuple2
 		if (numFields == 2) {
+			w.println();
 			w.println("\t/**");
 			w.println("\t* Returns a shallow copy of the tuple with swapped values.");
 			w.println("\t*");
@@ -358,7 +357,6 @@ class TupleGenerator {
 		}
 		w.println("\t\treturn result;");
 		w.println("\t}");
-
 
 		String tupleTypes = "<";
 		for (int i = 0; i < numFields; i++) {
@@ -448,11 +446,11 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
-		w.println("import java.util.ArrayList;");
-		w.println("import java.util.List;");
-		w.println();
 		w.println("import org.apache.flink.annotation.Public;");
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
+		w.println();
+		w.println("import java.util.ArrayList;");
+		w.println("import java.util.List;");
 		w.println();
 
 		// class declaration
@@ -520,12 +518,11 @@ class TupleGenerator {
 		+ " * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
 		+ " * See the License for the specific language governing permissions and\n"
 		+ " * limitations under the License.\n"
-		+ " */" +
-		"\n" +
-		"\n" +
+		+ " */\n" +
 		"\n" +
 		"// --------------------------------------------------------------\n" +
 		"//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!\n" +
 		"//  GENERATED FROM " + TupleGenerator.class.getName() + ".\n" +
-		"// --------------------------------------------------------------\n\n\n";
+		"// --------------------------------------------------------------\n" +
+		"\n";
 }

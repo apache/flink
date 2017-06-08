@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;

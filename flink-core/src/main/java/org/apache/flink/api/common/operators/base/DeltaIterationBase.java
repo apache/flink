@@ -18,10 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
@@ -35,6 +31,10 @@ import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Visitor;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A DeltaIteration is similar to a {@link BulkIterationBase},

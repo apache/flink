@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.common.io;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+
+import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +46,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class DelimitedInputFormatTest {
 	
@@ -380,7 +380,6 @@ public class DelimitedInputFormatTest {
 
 		String next;
 		List<String> result = new ArrayList<String>();
-
 
 		format.open(split1);
 		while ((next = format.nextRecord(null)) != null) {

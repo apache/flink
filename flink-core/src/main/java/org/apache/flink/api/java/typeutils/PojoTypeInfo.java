@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -31,6 +30,8 @@ import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -104,7 +105,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	public boolean isBasicType() {
 		return false;
 	}
-
 
 	@Override
 	@PublicEvolving
@@ -366,7 +366,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			fieldComparators = new ArrayList<TypeComparator>();
 			keyFields = new ArrayList<Field>();
 		}
-
 
 		@Override
 		public void initializeTypeComparatorBuilder(int size) {

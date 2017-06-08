@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators;
 
-import org.apache.commons.lang3.StringUtils;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -29,6 +27,8 @@ import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -457,11 +457,9 @@ public abstract class Keys<T> {
 	// --------------------------------------------------------------------------------------------
 
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
-
 
 	private static int[] createIncrIntArray(int numKeys) {
 		int[] keyFields = new int[numKeys];

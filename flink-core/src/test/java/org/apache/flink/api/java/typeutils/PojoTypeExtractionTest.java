@@ -18,13 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -37,6 +30,13 @@ import org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyValue;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 
 /**
  *  Pojo Type tests
@@ -165,7 +165,6 @@ public class PojoTypeExtractionTest {
 
 		Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
 	}
-
 
 	// in this test, the location of the getters and setters is mixed across the type hierarchy.
 	public static class TypedPojoGetterSetterCheck extends GenericPojoGetterSetterCheck<String> {
@@ -535,7 +534,6 @@ public class PojoTypeExtractionTest {
 			}
 		}
 	}
-
 
 	@Test
 	public void testPojoWithComplexHierarchy() {

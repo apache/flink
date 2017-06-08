@@ -44,7 +44,6 @@ public class UnmodifiableConfiguration extends Configuration {
 	//  All mutating methods must fail
 	// --------------------------------------------------------------------------------------------
 
-
 	@Override
 	public void addAllToProperties(Properties props) {
 		// override to make the UnmodifiableConfigurationTest happy

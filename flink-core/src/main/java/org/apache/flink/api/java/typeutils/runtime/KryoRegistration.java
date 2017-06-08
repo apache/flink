@@ -18,14 +18,16 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.util.Preconditions;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
+
 import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**

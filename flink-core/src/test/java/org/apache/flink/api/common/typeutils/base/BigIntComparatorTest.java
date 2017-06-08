@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.math.BigInteger;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.math.BigInteger;
 
 public class BigIntComparatorTest extends ComparatorTestBase<BigInteger> {
 

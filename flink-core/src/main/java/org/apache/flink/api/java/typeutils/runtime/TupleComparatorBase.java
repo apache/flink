@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-import java.util.List;
+package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
@@ -28,6 +26,9 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.NullKeyFieldException;
+
+import java.io.IOException;
+import java.util.List;
 
 @Internal
 public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> implements java.io.Serializable {
@@ -49,7 +50,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 
 	protected boolean invertNormKey;
 
-
 	/** serializers to deserialize the first n fields for comparison */
 	@SuppressWarnings("rawtypes")
 	protected TypeSerializer[] serializers;
@@ -57,7 +57,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	// cache for the deserialized field objects
 	protected transient Object[] deserializedFields1;
 	protected transient Object[] deserializedFields2;
-
 
 	@SuppressWarnings("unchecked")
 	public TupleComparatorBase(int[] keyPositions, TypeComparator<?>[] comparators, TypeSerializer<?>[] serializers) {
@@ -157,7 +156,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	// --------------------------------------------------------------------------------------------
 	//  Comparator Methods
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public int compareToReference(TypeComparator<T> referencedComparator) {

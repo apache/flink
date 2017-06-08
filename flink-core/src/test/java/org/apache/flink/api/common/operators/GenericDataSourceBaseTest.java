@@ -27,8 +27,8 @@ import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.common.operators.util.TestRichInputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.fs.Path;
-
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+
 import org.junit.Test;
 
 import java.util.HashMap;

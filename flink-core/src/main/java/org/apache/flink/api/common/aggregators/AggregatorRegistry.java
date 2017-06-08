@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.common.aggregators;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.types.Value;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Value;
 
 /**
  * A registry for iteration {@link Aggregator}s.

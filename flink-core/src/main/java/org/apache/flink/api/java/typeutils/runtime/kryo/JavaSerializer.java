@@ -17,13 +17,14 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.util.ObjectMap;
-import org.apache.flink.util.InstantiationUtil;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;

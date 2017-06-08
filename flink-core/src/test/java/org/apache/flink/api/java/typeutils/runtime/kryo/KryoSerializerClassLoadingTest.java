@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

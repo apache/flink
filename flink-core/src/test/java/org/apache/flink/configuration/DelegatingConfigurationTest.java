@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 import org.junit.Test;
@@ -26,9 +25,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
-
+import static org.junit.Assert.assertTrue;
 
 public class DelegatingConfigurationTest {
 

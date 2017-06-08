@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
 
-import java.io.IOException;
-
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
+
+import java.io.IOException;
 
 /**
  * Generic base class for all inputs that are not based on files.

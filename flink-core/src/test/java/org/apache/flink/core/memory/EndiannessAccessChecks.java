@@ -18,11 +18,13 @@
 
 package org.apache.flink.core.memory;
 
-import java.nio.ByteBuffer;
-import java.util.Random;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.nio.ByteBuffer;
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class EndiannessAccessChecks {
 	

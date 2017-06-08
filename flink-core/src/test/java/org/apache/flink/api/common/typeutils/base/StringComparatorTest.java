@@ -21,8 +21,6 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.StringComparator;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 public class StringComparatorTest extends ComparatorTestBase<String> {
 

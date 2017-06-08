@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+
 import org.junit.Assert;
 
 public class DoublePrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<double[]> {

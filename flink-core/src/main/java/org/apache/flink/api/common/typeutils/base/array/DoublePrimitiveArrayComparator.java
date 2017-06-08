@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.common.typeutils.base.array;
 
-import static java.lang.Math.min;
+package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.DoubleComparator;
+
+import static java.lang.Math.min;
 
 @Internal
 public class DoublePrimitiveArrayComparator extends PrimitiveArrayComparator<double[], DoubleComparator> {

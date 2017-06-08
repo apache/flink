@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 /**
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
@@ -148,7 +147,6 @@ public class LocalFileSystem extends FileSystem {
 		return new File(path.toUri().getPath());
 	}
 
-
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
 
@@ -173,7 +171,6 @@ public class LocalFileSystem extends FileSystem {
 
 		return results;
 	}
-
 
 	@Override
 	public boolean delete(final Path f, final boolean recursive) throws IOException {
@@ -262,7 +259,6 @@ public class LocalFileSystem extends FileSystem {
 			Path f, boolean overwrite, int bufferSize, short replication, long blockSize) throws IOException {
 		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
 	}
-
 
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {

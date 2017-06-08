@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class ShortParserTest extends ParserTestBase<Short> {
 

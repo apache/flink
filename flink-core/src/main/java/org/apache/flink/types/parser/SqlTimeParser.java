@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
-import java.sql.Time;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
+
+import java.sql.Time;
 
 /**
  * Parses a text field into a {@link Time}.

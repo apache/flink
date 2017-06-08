@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -28,7 +30,6 @@ import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 
 /**
  * Test for {@link RowTypeInfo}.
@@ -106,7 +107,6 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 	@Test
 	public void testGetTypeAt() {
 		RowTypeInfo typeInfo = new RowTypeInfo(typeList);
-
 
 		assertArrayEquals(new String[]{"f0", "f1", "f2"}, typeInfo.getFieldNames());
 
