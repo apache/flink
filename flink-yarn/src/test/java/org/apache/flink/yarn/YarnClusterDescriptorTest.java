@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -87,7 +88,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	public void testConfigOverwrite() {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
-		configuration.setInteger(ConfigConstants.YARN_VCORES, Integer.MAX_VALUE);
+		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
