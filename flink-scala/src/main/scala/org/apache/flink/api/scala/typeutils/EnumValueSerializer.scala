@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerialize
 import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.typeutils.runtime.{DataInputViewStream, DataOutputViewStream}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
-import org.apache.flink.util.InstantiationUtil
+import org.apache.flink.util.{InstantiationUtil, Preconditions}
 
 /**
  * Serializer for [[Enumeration]] values.
@@ -111,13 +111,17 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 
 object EnumValueSerializer {
 
-  class ScalaEnumSerializerConfigSnapshot[E <: Enumeration](private var enumClass: Class[E])
+  class ScalaEnumSerializerConfigSnapshot[E <: Enumeration]
       extends TypeSerializerConfigSnapshot {
 
-    var enumConstants: Array[E] = enumClass.getEnumConstants
+    var enumClass: Class[E] = _
+    var enumConstants: Array[E] = _
 
-    /** This empty nullary constructor is required for deserializing the configuration. */
-    def this() = this(null)
+    def this(enumClass: Class[E]) = {
+      this()
+      this.enumClass = Preconditions.checkNotNull(enumClass)
+      this.enumConstants = enumClass.getEnumConstants
+    }
 
     override def write(out: DataOutputView): Unit = {
       super.write(out)
