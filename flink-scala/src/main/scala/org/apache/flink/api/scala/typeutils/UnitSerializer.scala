@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 @Internal
+@SerialVersionUID(5413377487955047394L)
 class UnitSerializer extends TypeSerializerSingleton[Unit] {
 
   def isImmutableType(): Boolean = true

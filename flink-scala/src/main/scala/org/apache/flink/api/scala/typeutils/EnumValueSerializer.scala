@@ -30,6 +30,7 @@ import org.apache.flink.util.{InstantiationUtil, Preconditions}
  * Serializer for [[Enumeration]] values.
  */
 @Internal
+@SerialVersionUID(-2403076635594572920L)
 class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[E#Value] {
 
   type T = E#Value

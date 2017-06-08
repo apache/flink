@@ -29,6 +29,7 @@ import scala.util.{Failure, Success, Try}
  * Serializer for [[scala.util.Try]].
  */
 @Internal
+@SerialVersionUID(-3052182891252564491L)
 class TrySerializer[A](
     private val elemSerializer: TypeSerializer[A],
     private val executionConfig: ExecutionConfig)
