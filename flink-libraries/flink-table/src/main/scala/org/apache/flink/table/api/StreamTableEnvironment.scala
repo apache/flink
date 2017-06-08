@@ -32,12 +32,14 @@ import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.tuple.{Tuple, Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, ProctimeAttribute, RowtimeAttribute, UnresolvedFieldReference}
@@ -50,8 +52,8 @@ import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowIn
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TypeCheckUtils
-import org.apache.flink.types.Row
-
+import org.apache.flink.types.{LongValue, Record, Row}
+import org.apache.flink.streaming.api.datastream.{DataStreamSource,SingleOutputStreamOperator}
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -398,7 +400,8 @@ abstract class StreamTableEnvironment(
     val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
 
     // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+    val (rowtime, proctime, needDefaultTimestampAssigner) =
+      validateAndExtractTimeAttributes(streamType, fields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
@@ -407,13 +410,44 @@ abstract class StreamTableEnvironment(
           s"But is: ${execEnv.getStreamTimeCharacteristic}")
     }
 
-    val dataStreamTable = new DataStreamTable[T](
-      dataStream,
-      fieldIndexes,
-      fieldNames,
-      rowtime,
-      proctime
-    )
+    if (rowtime.isDefined) {
+      if (dataStream.isInstanceOf[DataStreamSource[_]] && !needDefaultTimestampAssigner) {
+        throw new TableException(
+          "[.rowtime] on virtual column must call [assignTimestampsAndWatermarks] method.")
+      } else if (!dataStream.isInstanceOf[DataStreamSource[_]] && needDefaultTimestampAssigner) {
+        throw new TableException(
+          "[.rowtime] on already existing column must must not call " +
+            "[assignTimestampsAndWatermarks] method.")
+      }
+
+      if (needDefaultTimestampAssigner) {
+        val streamOperator = dataStream.assignTimestampsAndWatermarks(
+          new AssignerWithPunctuatedWatermarks[T] {
+            override def checkAndGetNextWatermark(
+                lastElement: T, extractedTimestamp: Long): Watermark = {
+              new Watermark(extractedTimestamp)
+            }
+            override def extractTimestamp(
+                element: T,
+                previousElementTimestamp: Long): Long = {
+              element match {
+                case e: Product => e.productElement(rowtime.get._1).asInstanceOf[Long]
+                case e: Row => e.getField(rowtime.get._1).asInstanceOf[Long]
+                case e: Tuple => e.getField(rowtime.get._1).asInstanceOf[Long]
+                case e: Record => e.getField(rowtime.get._1, classOf[LongValue]).getValue
+                case _ =>
+                  throw TableException("xxxxxxxxxxxxxxxx")
+              }
+            }
+          })
+        val dataStreamTable =
+          new DataStreamTable[T](streamOperator, fieldIndexes, fieldNames, rowtime, proctime)
+        return registerTableInternal(name, dataStreamTable)
+      }
+    }
+
+    val dataStreamTable =
+      new DataStreamTable[T](dataStream, fieldIndexes, fieldNames, rowtime, proctime)
     registerTableInternal(name, dataStreamTable)
   }
 
@@ -426,7 +460,7 @@ abstract class StreamTableEnvironment(
   private def validateAndExtractTimeAttributes(
     streamType: TypeInformation[_],
     exprs: Array[Expression])
-  : (Option[(Int, String)], Option[(Int, String)]) = {
+  : (Option[(Int, String)], Option[(Int, String)], Boolean) = {
 
     val fieldTypes: Array[TypeInformation[_]] = streamType match {
       case c: CompositeType[_] => (0 until c.getArity).map(i => c.getTypeAt(i)).toArray
@@ -482,7 +516,13 @@ abstract class StreamTableEnvironment(
         "The proctime attribute may not have the same name as an another field.")
     }
 
-    (rowtime, proctime)
+    val needDefaultTimestampAssigner = if (proctime.isDefined) {
+      rowtime.isDefined && exprs.length == (fieldTypes.length + 1)
+    } else {
+      rowtime.isDefined && exprs.length == fieldTypes.length
+    }
+
+    (rowtime, proctime, needDefaultTimestampAssigner)
   }
 
   /**
