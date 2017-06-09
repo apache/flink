@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.rpc.RpcGateway;
 
 import org.slf4j.Logger;
 
@@ -46,35 +46,30 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class RegisteredRpcConnection<Gateway extends RpcGateway, Success extends RegistrationResponse.Success> {
 
-	/** the logger for all log messages of this class */
+	/** The logger for all log messages of this class. */
 	protected final Logger log;
 
-	/** the target component leaderID, for example the ResourceManager leaderID */
+	/** The target component leaderID, for example the ResourceManager leaderID. */
 	private final UUID targetLeaderId;
 
-	/** the target component Address, for example the ResourceManager Address */
+	/** The target component Address, for example the ResourceManager Address. */
 	private final String targetAddress;
 
-	/** Execution context to be used to execute the on complete action of the ResourceManagerRegistration */
+	/** Execution context to be used to execute the on complete action of the ResourceManagerRegistration. */
 	private final Executor executor;
 
-	/** the Registration of this RPC connection */
+	/** The Registration of this RPC connection. */
 	private RetryingRegistration<Gateway, Success> pendingRegistration;
 
-	/** the gateway to register, it's null until the registration is completed */
+	/** The gateway to register, it's null until the registration is completed. */
 	private volatile Gateway targetGateway;
 
-	/** flag indicating that the RPC connection is closed */
+	/** Flag indicating that the RPC connection is closed. */
 	private volatile boolean closed;
 
 	// ------------------------------------------------------------------------
 
-	public RegisteredRpcConnection(
-		Logger log,
-		String targetAddress,
-		UUID targetLeaderId,
-		Executor executor)
-	{
+	public RegisteredRpcConnection(Logger log, String targetAddress, UUID targetLeaderId, Executor executor) {
 		this.log = checkNotNull(log);
 		this.targetAddress = checkNotNull(targetAddress);
 		this.targetLeaderId = checkNotNull(targetLeaderId);
@@ -114,22 +109,22 @@ public abstract class RegisteredRpcConnection<Gateway extends RpcGateway, Succes
 	}
 
 	/**
-	 * This method generate a specific Registration, for example TaskExecutor Registration at the ResourceManager
+	 * This method generate a specific Registration, for example TaskExecutor Registration at the ResourceManager.
 	 */
 	protected abstract RetryingRegistration<Gateway, Success> generateRegistration();
 
 	/**
-	 * This method handle the Registration Response
+	 * This method handle the Registration Response.
 	 */
 	protected abstract void onRegistrationSuccess(Success success);
 
 	/**
-	 * This method handle the Registration failure
+	 * This method handle the Registration failure.
 	 */
 	protected abstract void onRegistrationFailure(Throwable failure);
 
 	/**
-	 * close connection
+	 * Close connection.
 	 */
 	public void close() {
 		closed = true;
