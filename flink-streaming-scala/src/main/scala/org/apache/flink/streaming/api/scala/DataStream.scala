@@ -32,7 +32,7 @@ import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
+import org.apache.flink.streaming.api.functions.timestamps.{AscendingTimestampExtractor, BoundedOutOfOrdernessTimestampExtractor}
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction, TimestampExtractor}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
@@ -788,7 +788,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * For the second case and when the watermarks are required to lag behind the maximum
    * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
    * amount is known in advance, use the
-   * [[org.apache.flink.streaming.api.functions.TimestampExtractorWithFixedAllowedLateness]].
+   * [[BoundedOutOfOrdernessTimestampExtractor]].
    *
    * For cases where watermarks should be created in an irregular fashion, for example
    * based on certain markers that some element carry, use the
