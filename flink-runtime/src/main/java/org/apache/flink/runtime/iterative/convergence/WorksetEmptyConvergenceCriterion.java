@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.convergence;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.types.LongValue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
- * A workset iteration is by definition converged if no records have been updated in the solutionset
+ * A workset iteration is by definition converged if no records have been updated in the solutionset.
  */
 public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger log = LoggerFactory.getLogger(WorksetEmptyConvergenceCriterion.class);
-	
+
 	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
 
 	@Override

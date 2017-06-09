@@ -16,21 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.event;
-
-import java.io.IOException;
-import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 
+import java.io.IOException;
+import java.util.Map;
+
+/**
+ * Completion event sent from each {@code IterationHead} to the
+ * {@code IterationSynchronizationSinkTask}.
+ */
 public class WorkerDoneEvent extends IterationEventWithAggregators {
-	
+
 	private int workerIndex;
-	
+
 	public WorkerDoneEvent() {
 		super();
 	}
@@ -39,22 +42,22 @@ public class WorkerDoneEvent extends IterationEventWithAggregators {
 		super(aggregatorName, aggregate);
 		this.workerIndex = workerIndex;
 	}
-	
+
 	public WorkerDoneEvent(int workerIndex, Map<String, Aggregator<?>> aggregators) {
 		super(aggregators);
 		this.workerIndex = workerIndex;
 	}
-	
+
 	public int getWorkerIndex() {
 		return workerIndex;
 	}
-	
+
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.workerIndex);
 		super.write(out);
 	}
-	
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.workerIndex = in.readInt();

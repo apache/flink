@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
 
-import java.util.concurrent.CountDownLatch;
-
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.types.Value;
+
+import java.util.concurrent.CountDownLatch;
 
 /**
  * A resettable one-shot latch.
  */
 public class SuperstepBarrier implements EventListener<TaskEvent> {
-	
+
 	private final ClassLoader userCodeClassLoader;
 
 	private boolean terminationSignaled = false;
@@ -40,19 +39,17 @@ public class SuperstepBarrier implements EventListener<TaskEvent> {
 
 	private String[] aggregatorNames;
 	private Value[] aggregates;
-	
-	
+
 	public SuperstepBarrier(ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = userCodeClassLoader;
 	}
-	
 
-	/** setup the barrier, has to be called at the beginning of each superstep */
+	/** Setup the barrier, has to be called at the beginning of each superstep. */
 	public void setup() {
 		latch = new CountDownLatch(1);
 	}
 
-	/** wait on the barrier */
+	/** Wait on the barrier. */
 	public void waitForOtherWorkers() throws InterruptedException {
 		latch.await();
 	}
@@ -60,13 +57,12 @@ public class SuperstepBarrier implements EventListener<TaskEvent> {
 	public String[] getAggregatorNames() {
 		return aggregatorNames;
 	}
-	
+
 	public Value[] getAggregates() {
 		return aggregates;
 	}
 
-	/** barrier will release the waiting thread if an event occurs
-	 * @param event*/
+	/** Barrier will release the waiting thread if an event occurs. */
 	@Override
 	public void onEvent(TaskEvent event) {
 		if (event instanceof TerminationEvent) {

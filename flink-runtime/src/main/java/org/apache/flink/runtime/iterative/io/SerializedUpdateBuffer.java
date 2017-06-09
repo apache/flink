@@ -16,8 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.io;
+
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
+import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.memory.AbstractPagedInputView;
+import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -28,14 +35,10 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-
+/**
+ * {@link AbstractPagedOutputView} used by the {@code BlockingBackChannel} for
+ * transmitting superstep results.
+ */
 public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 	private static final int HEADER_LENGTH = 4;
