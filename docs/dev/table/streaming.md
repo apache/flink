@@ -27,8 +27,12 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Dynamic table
+Dynamic Table
 -------------
+
+This section will be reworked soon. Until then, please read the [introductory blog post about Dynamic Tables](http://flink.apache.org/news/2017/04/04/dynamic-tables.html).
+
+**TODO:**
 
 * Stream -> Table
 * Table -> Stream
@@ -74,7 +78,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime) // default
 </div>
 </div>
 
-Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#windows) and [SQL]({{ site.baseurl }}/dev/table/sql.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
+Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
 
 Time attributes can be part of every table schema. They are defined when creating a table from a `DataStream` or are pre-defined when using a `TableSource`. Once a time attribute has been defined at the beginning, it can be referenced as a field and can used in time-based operations.
 

@@ -231,56 +231,204 @@ Provided TableSinks
 Define a TableSource
 --------------------
 
+A `TableSource` specifies how to obtain an external table by providing schema information and used to produce a `DataSet` or `DataStream`. There are different table sources for batch tabls and streaming tables.
+
+Schema information consists of a data type, field names, and corresponding indices of these names in the data type.
+
+The general interface looks as follows:
+
+{% highlight text %}
+TableSource<T> {
+
+  getReturnType: TypeInformation<T>
+
+  explainSource(): String
+}
+{% endhighlight %}
+
+To define a table source one needs to implement `TableSource#getReturnType`. In this case field names and field indices are derived from the returned type.
+
+In case if custom field names are required one need to additionally implement the `DefinedFieldNames` interface.
+
 ### BatchTableSource
 
-**TODO**
+Defines an external `TableSource` to create a batch table and provides access to its data.
+
+The interface looks as follows:
+
+{% highlight text %}
+BatchTableSource<T> extends TableSource<T> {
+
+  getDataSet(execEnv: ExecutionEnvironment): DataSet<T>
+}
+{% endhighlight %}
 
 {% top %}
 
 ### StreamTableSource
-* TimestampAssigner
-* DefinedRowtimeAttribute / DefinedProctimeAttribute
 
-**TODO**
+Defines an external `TableSource` to create a streaming table and provides access to its data.
+
+The interface looks as follows:
+
+{% highlight text %}
+StreamTableSource<T> extends TableSource<T> {
+
+  getDataStream(execEnv: StreamExecutionEnvironment): DataStream<T>
+}
+{% endhighlight %}
+
+Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql.html#group-windows) require information about the notion of time and its origin. Therefore, table sources can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
+
+The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttribute` interface. The processing time attribute is defined by a `TableSource` that implements the `DefinedProctimeAttribute` interface.
+
+Please see also the [streaming-specific documentation]({{ site.baseurl }}/dev/table/streaming.html#time-attributes) about how to define time attributes in a table source.
 
 {% top %}
 
 ### ProjectableTableSource
 
-**TODO**
+Adds support for projection push-down to a `TableSource`. A table source extending this interface is able to project the fields of the return table.
+
+The interface looks as follows:
+
+{% highlight text %}
+ProjectableTableSource<T> {
+
+  projectFields(fields: Int[]): TableSource<T>
+}
+{% endhighlight %}
 
 {% top %}
 
+### NestedFieldsProjectableTableSource
+
+Adds support for projection push-down to a `TableSource` with nested fields. A table source extending this interface is able to project the nested fields of the returned table.
+
+The interface looks as follows:
+
+{% highlight text %}
+NestedFieldsProjectableTableSource<T> {
+
+  projectNestedFields(fields: Int[], nestedFields: String[][]): TableSource<T>
+}
+{% endhighlight %}
+
 ### FilterableTableSource
 
-**TODO**
+Adds support for filtering push-down to a `TableSource`. A table source extending this interface is able to filter records before returning.
+
+The interface looks as follows:
+
+{% highlight text %}
+FilterableTableSource<T> {
+
+  applyPredicate(predicates: List<Expression>): TableSource<T>
+
+  isFilterPushedDown(): Boolean
+
+}
+{% endhighlight %}
 
 {% top %}
 
 Define a TableSink
 ------------------
 
+A `TableSink` specifies how to emit a `Table` to an external system or location. The interface is generic such that it can support different storage locations and formats. There are different table sinks for batch tables and streaming tables.
+
+The general interface looks as follows:
+
+{% highlight text %}
+TableSink<T> {
+
+  getOutputType(): TypeInformation<T>
+
+  getFieldNames(): String[]
+
+  getFieldTypes(): TypeInformation[]
+
+  configure(fieldNames: String[], fieldTypes: TypeInformation[]): TableSink<T>
+}
+{% endhighlight %}
+
 ### BatchTableSink
 
-**TODO**
+Defines an external `TableSink` to emit a batch table.
+
+The interface looks as follows:
+
+{% highlight text %}
+BatchTableSink<T> extends TableSink<T> {
+
+  emitDataSet(dataSet: DataSet<T>)
+}
+{% endhighlight %}
 
 {% top %}
 
 ### AppendStreamTableSink
 
-**TODO**
+Defines an external `TableSink` to emit streaming table with only insert changes.
+
+The interface looks as follows:
+
+{% highlight text %}
+AppendStreamTableSink<T> extends TableSink<T> {
+
+  emitDataStream(dataStream: DataStream<T>)
+}
+{% endhighlight %}
+
+If the table is also modified by update or delete changes, a `TableException` will be thrown.
 
 {% top %}
 
 ### RetractStreamTableSink
 
-**TODO**
+Defines an external `TableSink` to emit a streaming table with insert, update, and delete changes.
+
+The interface looks as follows:
+
+{% highlight text %}
+RetractStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+
+  getRecordType(): TypeInformation<T>
+
+  emitDataStream(dataStream: DataStream<Tuple2<Boolean, T>>)
+}
+{% endhighlight %}
+
+The table will be converted into a stream of accumulate and retraction messages which are encoded as Java `Tuple2`. The first field is a boolean flag to indicate the message type. The second field holds the record of the requested type `T`.
+
+A message with true boolean flag is an accumulate (or add) message. A message with false flag is a retract message.
 
 {% top %}
 
-### UpsertStreamTableSInk
+### UpsertStreamTableSink
 
-**TODO**
+Defines an external `TableSink` to emit a streaming table with insert, update, and delete changes.
+
+The interface looks as follows:
+
+{% highlight text %}
+UpsertStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+
+  setKeyFields(keys: String[])
+
+  setIsAppendOnly(isAppendOnly: Boolean)
+
+  getRecordType(): TypeInformation<T>
+
+  emitDataStream(dataStream: DataStream<Tuple2<Boolean, T>>)
+}
+{% endhighlight %}
+
+The table must be have unique key fields (atomic or composite) or be append-only. If the table does not have a unique key and is not append-only, a `TableException` will be thrown. The unique key of the table is configured by the `UpsertStreamTableSink#setKeyFields()` method.
+
+The table will be converted into a stream of upsert and delete messages which are encoded as a Java `Tuple2`. The first field is a boolean flag to indicate the message type. The second field holds the record of the requested type `T`.
+
+A message with true boolean field is an upsert message for the configured key. A message with false flag is a delete message for the configured key. If the table is append-only, all messages will have a true flag and must be interpreted as insertions.
 
 {% top %}
 
