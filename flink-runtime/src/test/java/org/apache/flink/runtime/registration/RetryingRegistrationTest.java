@@ -26,7 +26,6 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
@@ -36,8 +35,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.atMost;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the generic retrying registration class, validating the failure, retry, and back-off behavior.
@@ -298,7 +306,7 @@ public class RetryingRegistrationTest extends TestLogger {
 	//  test registration
 	// ------------------------------------------------------------------------
 
-	protected static class TestRegistrationSuccess extends RegistrationResponse.Success {
+	static class TestRegistrationSuccess extends RegistrationResponse.Success {
 		private static final long serialVersionUID = 5542698790917150604L;
 
 		private final String correlationId;
@@ -312,7 +320,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 	}
 
-	protected static class TestRetryingRegistration extends RetryingRegistration<TestRegistrationGateway, TestRegistrationSuccess> {
+	static class TestRetryingRegistration extends RetryingRegistration<TestRegistrationGateway, TestRegistrationSuccess> {
 
 		// we use shorter timeouts here to speed up the tests
 		static final long INITIAL_TIMEOUT = 20;
