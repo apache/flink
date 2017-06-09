@@ -22,94 +22,129 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Table API is a language-integrated relational API for Scala and Java. The Table API is a unified API for stream and batch processing. 
+The Table API is a language-integrated relational API for Scala and Java. It is a unified API for both stream and batch processing. The Table API is a super set of the SQL language and is specially designed for working with Apache Flink. Instead of defining table programs as a large SQL string, the Table API allows for specifying programs in Java or Scala with support by the IDE (e.g. by autocompletion of available operations and functions, and by syntax validation). 
 
-Please have a look at the [Common Concepts & API]({{ site.baseurl }}/dev/table/common.html) and the [Streaming Concepts]({{ site.baseurl }}/dev/table/streaming.html) if you work with streaming data.
+SQL and the Table API have much in common. Please have a look at the [Common Concepts & API]({{ site.baseurl }}/dev/table/common.html) to learn how to create a `Table` object from DataSet API, DataStream API, or a table source. Have a look at the [Streaming Concepts]({{ site.baseurl }}/dev/table/streaming.html) to learn about *Dynamic Tables* and *Time Attributes* if you work with streaming data.
 
-The following examples assume a registered table called `Orders` with attributes `a, b, c, rowtime`.
-
-**TODO: Extend**
+The following examples assume a registered table called `Orders` with attributes `a, b, c, rowtime`. The `rowtime` field is either a logical time attribute in streaming or a regular timestamp field in batch.
 
 * This will be replaced by the TOC
 {:toc}
 
-Table API Overview
-------------------
+Overview & Examples
+-----------------------------
 
-The Table API is available for Scala and Java. The Scala Table API is based on Scala Expressions, the Java Table API on Strings which are parsed and converted into Expressions.
+The Table API is available for Scala and Java. The Scala Table API uses Scala expressions that are converted implicitly, the Java Table API uses strings which are parsed and converted into expressions.
 
-The following example shows the differences between the Scala and Java Table API. 
-
-**TODO: Extend**
+The following example shows the differences between the Scala and Java Table API. The table program is executed in a batch environment. It scans the `Orders` table, groups by field `a`, and counts the resulting rows per group. For debugging reasons, we convert the result of the table program to a DataSet program of `Row` objects and print it.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. The following example shows how a Java Table API program is constructed.
+The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. The following example shows how a Java Table API program is constructed. With Java, expressions must be specified by strings. The embedded expression DSL is not supported.
 
 {% highlight java %}
-
+// environment configuration
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
 
+// register Orders table in table environment
+// ...
+
+// specify table program
 Table orders = tEnv.scan("Orders"); // schema (a, b, c, rowtime)
 
 Table counts = orders
         .groupBy("a")
         .select("a, b.count as cnt");
 
+// conversion to underlying API
 DataSet<Row> result = tableEnv.toDataSet(wordCounts, Row.class);
-{% endhighlight %}
-
-With Java, expressions must be specified by Strings. The embedded expression DSL is not supported.
-
-{% highlight java %}
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-// register the DataSet cust as table "Customers" with fields derived from the dataset
-tableEnv.registerDataSet("Customers", cust)
-
-// register the DataSet ord as table "Orders" with fields user, product, and amount
-tableEnv.registerDataSet("Orders", ord, "user, product, amount");
+result.print();
 {% endhighlight %}
 
 </div>
 
 <div data-lang="scala" markdown="1">
 
-The Scala Table API is enabled by importing `org.apache.flink.table.api.scala._`. The following example shows how a Scala Table API program is constructed.
+The Scala Table API is enabled by importing `org.apache.flink.table.api.scala._`. If you also use non-relational APIs make sure to also import `org.apache.flink.api.scala._`. 
+
+The following example shows how a Scala Table API program is constructed. Fields in the Scala Table API are referenced using Scala Symbols (start with `'`).
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 
+// environment configuration
 val env = ExecutionEnvironment.getExecutionEnvironment
 val tEnv = TableEnvironment.getTableEnvironment(env)
 
+// register Orders table in table environment
+// ...
+
+// specify table program
 val orders = tEnv.scan("Orders") // schema (a, b, c, rowtime)
+
 val result = orders
                .groupBy('a)
                .select('a, 'b.count as 'cnt)
-               .toDataSet[Row]
+               .toDataSet[Row] // conversion to underlying API
+               .print()
 {% endhighlight %}
 
-The expression DSL uses Scala symbols to refer to field names and code generation to
-transform expressions to efficient runtime code. Please note that the conversion to and from
-Tables only works when using Scala case classes or Java POJOs. Please refer to the [Type Extraction and Serialization]({{ site.baseurl }}/internals/types_serialization.html) section
-to learn the characteristics of a valid POJO.
+</div>
+</div>
+
+The following code shows a more complex Table API program. The program scans again the `Orders` table. It filters null values, normalizes string field `a`, and calculates the average billing amount `b` that was made per hour for a certain product `a`.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+{% highlight java %}
+// environment configuration
+// ...
+
+// specify table program
+Table orders = tEnv.scan("Orders"); // schema (a, b, c, rowtime)
+
+Table result = orders
+        .filter("a.isNotNull && b.isNotNull && c.isNotNull")
+        .select("a.lowerCase(), b, rowtime")
+        .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow"))
+        .groupBy("hourlyWindow, a")
+        .select("a, b.avg as averageBillingAmount");
+{% endhighlight %}
+
+</div>
+
+<div data-lang="scala" markdown="1">
+
+{% highlight scala %}
+// environment configuration
+// ...
+
+// specify table program
+val orders: Table = tEnv.scan("Orders") // schema (a, b, c, rowtime)
+
+val result: Table = orders
+        .filter('a.isNotNull && 'b.isNotNull && 'c.isNotNull)
+        .select('a.lowerCase(), 'b, rowtime)
+        .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
+        .groupBy('hourlyWindow, 'a)
+        .select('a, 'b.avg as 'averageBillingAmount);
+{% endhighlight %}
 
 </div>
 </div>
 
-**TODO**
+Since the Table API aims to unify batch and streaming, the program above is runnable in both a batch and streaming environment without any modification of the table program itself. This is particularly interesting if we want to compute exact results from time-to-time, so that late events that are heavily out-of-order can be included in the computation.
 
 {% top %}
 
 Operations
 ----------
 
-**TODO: Add Tags for Batch and Streaming support**
+The Table API supports the following operations. Please note that not all operations are possible in both batch and streaming yet; they are tagged accordingly.
 
 ### Scan, Projection, and Filter
 
@@ -131,6 +166,7 @@ Operations
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
   	</tr>
     <tr>
@@ -145,6 +181,7 @@ Table result = orders.select("a, c as d");
 {% highlight java %}
 Table result = orders.select("*");
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
 
@@ -156,6 +193,7 @@ Table result = orders.select("*");
 Table orders = tableEnv.scan("Orders");
 Table result = orders.as("x, y, z, t");
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
 
@@ -165,13 +203,14 @@ Table result = orders.as("x, y, z, t");
         <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
-Table result = orders.where("b = 'red'");
+Table result = orders.where("b === 'red'");
 {% endhighlight %}
 or
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
-Table result = orders.filter("a % 2 = 0");
+Table result = orders.filter("a % 2 === 0");
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
   </tbody>
@@ -195,6 +234,7 @@ Table result = orders.filter("a % 2 = 0");
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
   	</tr>
   	<tr>
@@ -210,6 +250,7 @@ val result = orders.select('a, 'c as 'd)
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.select('*)
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
 
@@ -220,6 +261,7 @@ val result = orders.select('*)
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders").as('x, 'y, 'z, 't')
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
 
@@ -236,6 +278,7 @@ or
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.where('b === "red")
 {% endhighlight %}
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
   </tbody>
@@ -259,23 +302,50 @@ val result = orders.where('b === "red")
   </thead>
   <tbody>
     <tr>
-      <td><strong>GroupBy</strong></td>
+      <td><strong>GroupBy Aggregation</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Groups the rows on the grouping keys, with a following aggregation
-        operator to aggregate rows group-wise.</p>
+        <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.groupBy("a").select("a, b.sum as d");
 {% endhighlight %}
+        <p>For streaming: Depending on the type of aggregation, the accumulated state might grow infinitely within this operation. Please provide a query configuration with valid retention interval to prevent excessive state size.</p>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span> <span class="label label-info">Result Updating</span>
       </td>
     </tr>
     <tr>
-    	<td><strong>GroupBy Window</strong></td>
-    	<td>TODO</td>
+    	<td><strong>GroupBy Window Aggregation</strong></td>
+    	<td>
+        <p>Groups the rows on the grouping keys and a window with a following aggregation to compute a single result row per group. A group window splits a possibly infinite number of rows into pieces of finite size, over which computations can be applied. See the <a href="#group-windows">group windows section</a> for more details.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
+    .groupBy("a, w") // group by key and window
+    .select("w.start, w.end, b.sum as d"); // access window properties and aggregate
+{% endhighlight %}
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span> 
+      </td>
     </tr>
     <tr>
-    	<td><strong>Over Window</strong></td>
-    	<td>TODO</td>
+    	<td><strong>Over Window Aggregation</strong></td>
+      <td>
+       <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
+       {% highlight scala %}
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    // define window
+    .window(Over  
+      .partitionBy("a")
+      .orderBy("rowtime)
+      .preceding("UNBOUNDED_RANGE")
+      .following("CURRENT_RANGE")
+      .as("w")
+    .select("a, b.avg over w, b.max over w, b.min over w") // sliding aggregate
+{% endhighlight %}
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming.html#time-attributes">time attribute</a></p>
+       <span class="label label-primary">Streaming</span> 
+      </td>
     </tr>
     <tr>
       <td><strong>Distinct</strong></td>
@@ -285,6 +355,7 @@ Table result = orders.groupBy("a").select("a, b.sum as d");
 Table orders = tableEnv.scan("Orders");
 Table result = orders.distinct();
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
   </tbody>
@@ -303,23 +374,50 @@ Table result = orders.distinct();
   <tbody>
 
     <tr>
-      <td><strong>GroupBy</strong></td>
+      <td><strong>GroupBy Window Aggregation</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Groups rows on the grouping keys, with a following aggregation
-        operator to aggregate rows group-wise.</p>
+        <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.groupBy('a).select('a, 'b.sum as 'd)
 {% endhighlight %}
+        <p>For streaming: Depending on the type of aggregation, the accumulated state might grow infinitely within this operation. Please provide a query configuration with valid retention interval to prevent excessive state size.</p>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span> <span class="label label-info">Result Updating</span>
       </td>
     </tr>
     <tr>
-    	<td><strong>GroupBy Window</strong></td>
-    	<td>TODO</td>
+    	<td><strong>GroupBy Window Aggregation</strong></td>
+    	<td>
+        <p>Groups the rows on the grouping keys and a window with a following aggregation to compute a single result row per group. A group window splits a possibly infinite number of rows into pieces of finite size, over which computations can be applied. See the <a href="#group-windows">group windows section</a> for more details.</p>
+{% highlight scala %}
+val orders: Table = tableEnv.scan("Orders")
+val result: Table = orders
+    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
+    .groupBy('a, 'w) // group by key and window
+    .select('w.start, 'w.end, 'b.sum as 'd) // access window properties and aggregate
+{% endhighlight %}
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
     </tr>
     <tr>
-    	<td><strong>Over Window</strong></td>
-    	<td>TODO</td>
+    	<td><strong>Over Window Aggregation</strong></td>
+    	<td>
+       <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
+       {% highlight scala %}
+val orders: Table = tableEnv.scan("Orders")
+val result: Table = orders
+    // define window
+    .window(Over  
+      partitionBy 'a
+      orderBy 'rowtime
+      preceding UNBOUNDED_RANGE
+      following CURRENT_RANGE
+      as 'w)
+    .select('a, 'b.avg over 'w, 'b.max over 'w, 'b.min over 'w,) // sliding aggregate
+{% endhighlight %}
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming.html#time-attributes">time attribute</a></p>
+       <span class="label label-primary">Streaming</span> 
+      </td>
     </tr>
     <tr>
       <td><strong>Distinct</strong></td>
@@ -329,6 +427,7 @@ val result = orders.groupBy('a).select('a, 'b.sum as 'd)
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.distinct()
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
   </tbody>
@@ -360,6 +459,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.join(right).where("a = d").select("a, b, e");
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -372,6 +472,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.leftOuterJoin(right, "a = d").select("a, b, e");
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -384,6 +485,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.rightOuterJoin(right, "a = d").select("a, b, e");
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -396,15 +498,45 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.fullOuterJoin(right, "a = d").select("a, b, e");
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
     <tr>
-    	<td><strong>TableFunction CrossJoin</strong></td>
-    	<td>TODO</td>
+    	<td><strong>TableFunction Join</strong></td>
+    	<td>
+        <p>Similar to a SQL JOIN. Joins a table with a table function. Each row of the left table is joined with all rows produced by the table function. If the table function does not produce any row, the join does not produce a result row.
+        </p>
+{% highlight java %}
+// register function
+TableFunction<String> split = new MySplitUDTF();
+tEnv.registerFunction("split", split);
+
+// join
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .join(new Table(tEnv, "split(c)").as("s", "t", "v")))
+    .select("a, b, s, t, v");
+{% endhighlight %}
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
     </tr>
     <tr>
     	<td><strong>TableFunction LeftOuterJoin</strong></td>
-    	<td>TODO</td>
+      <td>
+        <p>Similar to a SQL LEFT OUTER JOIN with ON TRUE predicate. Joins a table with a table function. Each row of the outer table is joined with all rows produced by the table function. If the table function does not produce any row, the outer row is padded with nulls.</p>
+{% highlight java %}
+// register function
+TableFunction<String> split = new MySplitUDTF();
+tEnv.registerFunction("split", split);
+
+// join
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .leftOuterJoin(new Table(tEnv, "split(c)").as("s", "t", "v")))
+    .select("a, b, s, t, v");
+{% endhighlight %}
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
     </tr>
 
   </tbody>
@@ -431,6 +563,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'd, 'e, 'f);
 val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -443,6 +576,7 @@ val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
 val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
 val result = left.leftOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -455,6 +589,7 @@ val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
 val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
 val result = left.rightOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -467,15 +602,40 @@ val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
 val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
 val result = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 {% endhighlight %}
+        <span class="label label-primary">Batch</span>
       </td>
     </tr>
     <tr>
-    	<td><strong>TableFunction CrossJoin</strong></td>
-    	<td>TODO</td>
+    	<td><strong>TableFunction Join</strong></td>
+    	<td>
+        <p>Similar to a SQL JOIN. Joins a table with a table function. Each row of the left table is joined with all rows produced by the table function. If the table function does not produce any row, the join does not produce a result row.</p>
+        {% highlight scala %}
+// instantiate function
+val split: TableFunction[_] = new MySplitUDTF()
+
+// join
+val result: Table = table
+    .join(split('c) as ('s, 't, 'v))
+    .select('a, 'b, 's, 't, 'v)
+{% endhighlight %}
+          <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        </td>
     </tr>
     <tr>
     	<td><strong>TableFunction LeftOuterJoin</strong></td>
-    	<td>TODO</td>
+    	<td>
+        <p>Similar to a SQL LEFT OUTER JOIN with ON TRUE predicate. Joins a table with a table function. Each row of the outer table is joined with all rows produced by the table function. If the table function does not produce any row, the outer row is padded with nulls.</p>
+{% highlight scala %}
+// instantiate function
+val split: TableFunction[_] = new MySplitUDTF()
+
+// join
+val result: Table = table
+    .leftOuterJoin(split('c) as ('s, 't, 'v))
+    .select('a, 'b, 's, 't, 'v)
+{% endhighlight %}
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
     </tr>
 
   </tbody>
@@ -507,6 +667,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
 Table result = left.union(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -519,6 +680,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
 Table result = left.unionAll(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
 
@@ -531,6 +693,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.intersect(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -543,6 +706,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.intersectAll(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -555,6 +719,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
 Table result = left.minus(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -567,6 +732,7 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
 Table result = left.minusAll(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
   </tbody>
@@ -592,6 +758,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
 val result = left.union(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -604,6 +771,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
 val result = left.unionAll(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     </tr>
 
@@ -616,6 +784,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
 val result = left.intersect(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -628,6 +797,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
 val result = left.intersectAll(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -640,6 +810,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
 val result = left.minus(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -652,6 +823,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
 val result = left.minusAll(right);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -683,6 +855,7 @@ val result = left.minusAll(right);
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.orderBy('a.asc);
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -699,6 +872,7 @@ or
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.orderBy('a.asc).limit(3, 5); // returns 5 records beginning with the 4th record
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -724,6 +898,7 @@ val result = in.orderBy('a.asc).limit(3, 5); // returns 5 records beginning with
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.orderBy("a.asc");
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -740,6 +915,7 @@ or
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.orderBy("a.asc").limit(3, 5); // returns 5 records beginning with the 4th record
 {% endhighlight %}
+<span class="label label-primary">Batch</span>
       </td>
     </tr>
 
@@ -748,9 +924,7 @@ Table result = in.orderBy("a.asc").limit(3, 5); // returns 5 records beginning w
 </div>
 </div>
 
-### Windows
-
-**TODO: Figure out where to put this stuff. I think it would be good to have it in the "Operations" section for a brief overview. A more detailed discussion of windows should go somewhere else, maybe into the "Common Concepts"?**
+### Group Windows
 
 The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
@@ -1008,6 +1182,10 @@ A session window is defined by using the `Session` class as follows:
 </div>
 
 {% top %}
+
+### Over Windows
+
+**TODO**
 
 Data Types
 ----------
@@ -3553,7 +3731,7 @@ The following operations are not supported yet:
 - Binary string operators and functions
 - System functions
 - Collection functions
-- Aggregate functions like STDDEV_xxx, VAR_xxx, and REGR_xxx
+- Aggregate functions like REGR_xxx
 - Distinct aggregate functions like COUNT DISTINCT
 
 {% top %}
