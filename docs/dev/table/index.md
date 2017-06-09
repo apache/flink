@@ -29,7 +29,7 @@ Apache Flink features two relational APIs - the Table API and SQL - for unified 
 
 The Table API and the SQL interfaces are tightly integrated with each other as well as Flink's DataStream and DataSet APIs. You can easily switch between all APIs and libraries which build upon the APIs. For instance, you can extract patterns from a DataStream using the [CEP library]({{ site.baseurl }}/dev/libs/cep.html) and later use the Table API to analyze the patterns, or you might scan, filter, and aggregate a batch table using a SQL query before running a [Gelly graph algorithm]({{ site.baseurl }}/dev/libs/gelly) on the preprocessed data.
 
-**Please note that the Table API and SQL are not yet feature complete and are being active developed. Not all operations are supported by every combination of \[Table API, SQL\] and \[stream, batch\] input.**
+**Please note that the Table API and SQL are not yet feature complete and are being actively developed. Not all operations are supported by every combination of \[Table API, SQL\] and \[stream, batch\] input.**
 
 Setup
 -----
