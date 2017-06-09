@@ -18,20 +18,24 @@
 
 package org.apache.flink.storm.exclamation.operators;
 
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Tuple;
-import backtype.storm.tuple.Values;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Values;
 
 import java.util.Map;
 
+/**
+ * A Bolt implementation that appends exclamation marks to incoming tuples. The number of added exclamation marks can
+ * be controlled by setting <code>exclamation.count</code>.
+ */
 public class ExclamationBolt implements IRichBolt {
-	private final static long serialVersionUID = -6364882114201311380L;
+	private static final long serialVersionUID = -6364882114201311380L;
 
-	public final static String EXCLAMATION_COUNT = "exclamation.count";
+	public static final String EXCLAMATION_COUNT = "exclamation.count";
 
 	private OutputCollector collector;
 	private String exclamation;

@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.metrics;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -34,6 +33,12 @@ import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Kill;
+import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +47,13 @@ import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
@@ -50,7 +61,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class MetricRegistry {
 	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
-	
+
+	private final Object lock = new Object();
+
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
 	private ActorRef queryService;
@@ -73,7 +86,7 @@ public class MetricRegistry {
 
 		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
-		this.executor = Executors.newSingleThreadScheduledExecutor();
+		this.executor = Executors.newSingleThreadScheduledExecutor(new MetricRegistryThreadFactory());
 
 		if (reporterConfigurations.isEmpty()) {
 			// no reporters defined
@@ -114,6 +127,7 @@ public class MetricRegistry {
 
 					MetricConfig metricConfig = new MetricConfig();
 					reporterConfig.addAllToProperties(metricConfig);
+					LOG.info("Configuring {} with {}.", reporterClass.getSimpleName(), metricConfig);
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
@@ -142,15 +156,19 @@ public class MetricRegistry {
 
 	/**
 	 * Initializes the MetricQueryService.
-	 * 
+	 *
 	 * @param actorSystem ActorSystem to create the MetricQueryService on
 	 * @param resourceID resource ID used to disambiguate the actor name
      */
 	public void startQueryService(ActorSystem actorSystem, ResourceID resourceID) {
-		try {
-			queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
-		} catch (Exception e) {
-			LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
+		synchronized (lock) {
+			Preconditions.checkState(!isShutdown(), "The metric registry has already been shut down.");
+
+			try {
+				queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
+			} catch (Exception e) {
+				LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
+			}
 		}
 	}
 
@@ -183,28 +201,64 @@ public class MetricRegistry {
 	}
 
 	/**
+	 * Returns whether this registry has been shutdown.
+	 *
+	 * @return true, if this registry was shutdown, otherwise false
+	 */
+	public boolean isShutdown() {
+		synchronized (lock) {
+			return reporters == null && executor.isShutdown();
+		}
+	}
+
+	/**
 	 * Shuts down this registry and the associated {@link MetricReporter}.
 	 */
 	public void shutdown() {
-		if (reporters != null) {
-			for (MetricReporter reporter : reporters) {
+		synchronized (lock) {
+			Future<Boolean> stopFuture = null;
+			FiniteDuration stopTimeout = null;
+
+			if (queryService != null) {
+				stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+				stopFuture = Patterns.gracefulStop(queryService, stopTimeout);
+			}
+
+			if (reporters != null) {
+				for (MetricReporter reporter : reporters) {
+					try {
+						reporter.close();
+					} catch (Throwable t) {
+						LOG.warn("Metrics reporter did not shut down cleanly", t);
+					}
+				}
+				reporters = null;
+			}
+			shutdownExecutor();
+
+			if (stopFuture != null) {
+				boolean stopped = false;
+
 				try {
-					reporter.close();
-				} catch (Throwable t) {
-					LOG.warn("Metrics reporter did not shut down cleanly", t);
+					stopped = Await.result(stopFuture, stopTimeout);
+				} catch (Exception e) {
+					LOG.warn("Query actor did not properly stop.", e);
+				}
+
+				if (!stopped) {
+					// the query actor did not stop in time, let's kill him
+					queryService.tell(Kill.getInstance(), ActorRef.noSender());
 				}
 			}
-			reporters = null;
 		}
-		shutdownExecutor();
 	}
-	
+
 	private void shutdownExecutor() {
 		if (executor != null) {
 			executor.shutdown();
 
 			try {
-				if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+				if (!executor.awaitTermination(1L, TimeUnit.SECONDS)) {
 					executor.shutdownNow();
 				}
 			} catch (InterruptedException e) {
@@ -229,27 +283,33 @@ public class MetricRegistry {
 	 * @param group       the group that contains the metric
 	 */
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-		try {
-			if (reporters != null) {
-				for (int i = 0; i < reporters.size(); i++) {
-					MetricReporter reporter = reporters.get(i);
-					if (reporter != null) {
-						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
-						reporter.notifyOfAddedMetric(metric, metricName, front);
+		synchronized (lock) {
+			if (isShutdown()) {
+				LOG.warn("Cannot register metric, because the MetricRegistry has already been shut down.");
+			} else {
+				try {
+					if (reporters != null) {
+						for (int i = 0; i < reporters.size(); i++) {
+							MetricReporter reporter = reporters.get(i);
+							if (reporter != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+								reporter.notifyOfAddedMetric(metric, metricName, front);
+							}
+						}
 					}
+					if (queryService != null) {
+						MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
+					}
+					if (metric instanceof View) {
+						if (viewUpdater == null) {
+							viewUpdater = new ViewUpdater(executor);
+						}
+						viewUpdater.notifyOfAddedView((View) metric);
+					}
+				} catch (Exception e) {
+					LOG.error("Error while registering metric.", e);
 				}
 			}
-			if (queryService != null) {
-				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
-			}
-			if (metric instanceof View) {
-				if (viewUpdater == null) {
-					viewUpdater = new ViewUpdater(executor);
-				}
-				viewUpdater.notifyOfAddedView((View) metric);
-			}
-		} catch (Exception e) {
-			LOG.error("Error while registering metric.", e);
 		}
 	}
 
@@ -261,27 +321,40 @@ public class MetricRegistry {
 	 * @param group       the group that contains the metric
 	 */
 	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
-		try {
-			if (reporters != null) {
-				for (int i = 0; i < reporters.size(); i++) {
-					MetricReporter reporter = reporters.get(i);
-					if (reporter != null) {
-						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
-						reporter.notifyOfRemovedMetric(metric, metricName, front);
+		synchronized (lock) {
+			if (isShutdown()) {
+				LOG.warn("Cannot unregister metric, because the MetricRegistry has already been shut down.");
+			} else {
+				try {
+					if (reporters != null) {
+						for (int i = 0; i < reporters.size(); i++) {
+							MetricReporter reporter = reporters.get(i);
+							if (reporter != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+								reporter.notifyOfRemovedMetric(metric, metricName, front);
+							}
+						}
 					}
+					if (queryService != null) {
+						MetricQueryService.notifyOfRemovedMetric(queryService, metric);
+					}
+					if (metric instanceof View) {
+						if (viewUpdater != null) {
+							viewUpdater.notifyOfRemovedView((View) metric);
+						}
+					}
+				} catch (Exception e) {
+					LOG.error("Error while registering metric.", e);
 				}
 			}
-			if (queryService != null) {
-				MetricQueryService.notifyOfRemovedMetric(queryService, metric);
-			}
-			if (metric instanceof View) {
-				if (viewUpdater != null) {
-					viewUpdater.notifyOfRemovedView((View) metric);
-				}
-			}
-		} catch (Exception e) {
-			LOG.error("Error while registering metric.", e);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	public ActorRef getQueryService() {
+		return queryService;
 	}
 
 	// ------------------------------------------------------------------------
@@ -290,7 +363,7 @@ public class MetricRegistry {
 	 * This task is explicitly a static class, so that it does not hold any references to the enclosing
 	 * MetricsRegistry instance.
 	 *
-	 * This is a subtle difference, but very important: With this static class, the enclosing class instance
+	 * <p>This is a subtle difference, but very important: With this static class, the enclosing class instance
 	 * may become garbage-collectible, whereas with an anonymous inner class, the timer thread
 	 * (which is a GC root) will hold a reference via the timer task and its enclosing instance pointer.
 	 * Making the MetricsRegistry garbage collectible makes the java.util.Timer garbage collectible,
@@ -311,6 +384,27 @@ public class MetricRegistry {
 			} catch (Throwable t) {
 				LOG.warn("Error while reporting metrics", t);
 			}
+		}
+	}
+
+	private static final class MetricRegistryThreadFactory implements ThreadFactory {
+		private final ThreadGroup group;
+		private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+		MetricRegistryThreadFactory() {
+			SecurityManager s = System.getSecurityManager();
+			group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+		}
+
+		public Thread newThread(Runnable r) {
+			Thread t = new Thread(group, r, "Flink-MetricRegistry-" + threadNumber.getAndIncrement(), 0);
+			if (t.isDaemon()) {
+				t.setDaemon(false);
+			}
+			if (t.getPriority() != Thread.NORM_PRIORITY) {
+				t.setPriority(Thread.NORM_PRIORITY);
+			}
+			return t;
 		}
 	}
 }

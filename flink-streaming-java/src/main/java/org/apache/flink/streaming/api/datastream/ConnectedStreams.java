@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -26,9 +27,12 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
+import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
 import static java.util.Objects.requireNonNull;
@@ -40,13 +44,13 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>An example for the use of connected streams would be to apply rules that change over time
  * onto another stream. One of the connected streams has the rules, the other stream the
- * elements to apply the rules to. The operation on the connected stream maintains the 
+ * elements to apply the rules to. The operation on the connected stream maintains the
  * current set of rules in the state. It may receive either a rule update and update the state
  * or a data element and apply the rules in the state to the element.
  *
  * <p>The connected stream can be conceptually viewed as a union stream of an Either type, that
  * holds either the first stream's type or the second stream's type.
- * 
+ *
  * @param <IN1> Type of the first input data steam.
  * @param <IN2> Type of the second input data stream.
  */
@@ -86,7 +90,7 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
-	 * Gets the type of the first input
+	 * Gets the type of the first input.
 	 *
 	 * @return The type of the first input
 	 */
@@ -95,7 +99,7 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
-	 * Gets the type of the second input
+	 * Gets the type of the second input.
 	 *
 	 * @return The type of the second input
 	 */
@@ -193,15 +197,25 @@ public class ConnectedStreams<IN1, IN2> {
 	 * {@link CoMapFunction#map1} for each element of the first input and
 	 * {@link CoMapFunction#map2} for each element of the second input. Each
 	 * CoMapFunction call returns exactly one element.
-	 * 
+	 *
 	 * @param coMapper The CoMapFunction used to jointly transform the two input DataStreams
 	 * @return The transformed {@link DataStream}
 	 */
 	public <R> SingleOutputStreamOperator<R> map(CoMapFunction<IN1, IN2, R> coMapper) {
 
-		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coMapper,
-				CoMapFunction.class, false, true, getType1(), getType2(),
-				Utils.getCallLocationName(), true);
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coMapper,
+			CoMapFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
 
 		return transform("Co-Map", outTypeInfo, new CoStreamMap<>(inputStream1.clean(coMapper)));
 
@@ -214,7 +228,7 @@ public class ConnectedStreams<IN1, IN2> {
 	 * and {@link CoFlatMapFunction#flatMap2} for each element of the second
 	 * input. Each CoFlatMapFunction call returns any number of elements
 	 * including none.
-	 * 
+	 *
 	 * @param coFlatMapper
 	 *            The CoFlatMapFunction used to jointly transform the two input
 	 *            DataStreams
@@ -223,11 +237,90 @@ public class ConnectedStreams<IN1, IN2> {
 	public <R> SingleOutputStreamOperator<R> flatMap(
 			CoFlatMapFunction<IN1, IN2, R> coFlatMapper) {
 
-		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
-				CoFlatMapFunction.class, false, true, getType1(), getType2(),
-				Utils.getCallLocationName(), true);
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coFlatMapper,
+			CoFlatMapFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
 
 		return transform("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<>(inputStream1.clean(coFlatMapper)));
+	}
+
+	/**
+	 * Applies the given {@link CoProcessFunction} on the connected input streams,
+	 * thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero or
+	 * more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function, this
+	 * function can also query the time and set timers. When reacting to the firing of set timers
+	 * the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code CoProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> process(
+			CoProcessFunction<IN1, IN2, R> coProcessFunction) {
+
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coProcessFunction,
+			CoProcessFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
+
+		return process(coProcessFunction, outTypeInfo);
+	}
+
+	/**
+	 * Applies the given {@link CoProcessFunction} on the connected input streams,
+	 * thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function,
+	 * this function can also query the time and set timers. When reacting to the firing of set
+	 * timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code CoProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> process(
+			CoProcessFunction<IN1, IN2, R> coProcessFunction,
+			TypeInformation<R> outputType) {
+
+		TwoInputStreamOperator<IN1, IN2, R> operator;
+
+		if ((inputStream1 instanceof KeyedStream) && (inputStream2 instanceof KeyedStream)) {
+			operator = new KeyedCoProcessOperator<>(inputStream1.clean(coProcessFunction));
+		} else {
+			operator = new CoProcessOperator<>(inputStream1.clean(coProcessFunction));
+		}
+
+		return transform("Co-Process", outputType, operator);
 	}
 
 	@PublicEvolving

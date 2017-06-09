@@ -21,15 +21,15 @@ package org.apache.flink.runtime.query;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.netty.KvStateServer;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskmanager.Task;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A registry for {@link KvState} instances per task manager.
+ * A registry for {@link InternalKvState} instances per task manager.
  *
  * <p>This is currently only used for KvState queries: KvState instances, which
  * are marked as queryable in their state descriptor are registered here and
@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class KvStateRegistry {
 
 	/** All registered KvState instances. */
-	private final ConcurrentHashMap<KvStateID, KvState<?>> registeredKvStates =
+	private final ConcurrentHashMap<KvStateID, InternalKvState<?>> registeredKvStates =
 			new ConcurrentHashMap<>();
 
 	/** Registry listener to be notified on registration/unregistration. */
@@ -91,7 +91,7 @@ public class KvStateRegistry {
 			JobVertexID jobVertexId,
 			KeyGroupRange keyGroupRange,
 			String registrationName,
-			KvState<?> kvState) {
+			InternalKvState<?> kvState) {
 
 		KvStateID kvStateId = new KvStateID();
 
@@ -145,7 +145,7 @@ public class KvStateRegistry {
 	 * @param kvStateId KvStateID to identify the KvState instance
 	 * @return KvState instance identified by the KvStateID or <code>null</code>
 	 */
-	public KvState<?> getKvState(KvStateID kvStateId) {
+	public InternalKvState<?> getKvState(KvStateID kvStateId) {
 		return registeredKvStates.get(kvStateId);
 	}
 

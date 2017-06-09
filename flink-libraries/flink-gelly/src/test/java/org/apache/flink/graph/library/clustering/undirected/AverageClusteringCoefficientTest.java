@@ -23,10 +23,14 @@ import org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoe
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link AverageClusteringCoefficient}.
+ */
 public class AverageClusteringCoefficientTest
 extends AsmTestBase {
 
@@ -34,7 +38,7 @@ extends AsmTestBase {
 	public void testWithSimpleGraph()
 			throws Exception {
 		// see results in LocalClusteringCoefficientTest.testSimpleGraph
-		Result expectedResult = new Result(6, 1.0/1 + 2.0/3 + 2.0/3 + 1.0/6);
+		Result expectedResult = new Result(6, 1.0 / 1 + 2.0 / 3 + 2.0 / 3 + 1.0 / 6);
 
 		Result averageClusteringCoefficient = new AverageClusteringCoefficient<IntValue, NullValue, NullValue>()
 			.run(undirectedSimpleGraph)
@@ -73,7 +77,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(902, 380.40109);
 
 		Result averageClusteringCoefficient = new AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(undirectedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult.getNumberOfVertices(), averageClusteringCoefficient.getNumberOfVertices());

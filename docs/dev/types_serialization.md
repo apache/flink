@@ -2,7 +2,8 @@
 title: "Data Types & Serialization"
 nav-id: types
 nav-parent_id: dev
-nav-pos: 9
+nav-show_overview: true
+nav-pos: 50
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -61,7 +62,7 @@ The most frequent issues where users need to interact with Flink's data type han
   by itself. Not all types are seamlessly handled by Kryo (and thus by Flink). For example, many Google Guava collection types do not work well
   by default. The solution is to register additional serializers for the types that cause problems.
   Call `.getConfig().addDefaultKryoSerializer(clazz, serializer)` on the `StreamExecutionEnvironment` or `ExecutionEnvironment`.
-  Additional Kryo serializers are available in many libraries.
+  Additional Kryo serializers are available in many libraries. See [Custom Serializers]({{ site.baseurl }}/dev/custom_serializers.html) for more details on working with custom serializers.
 
 * **Adding Type Hints:** Sometimes, when Flink cannot infer the generic types despits all tricks, a user must pass a *type hint*. That is generally
   only necessary in the Java API. The [Type Hints Section](#type-hints-in-the-java-api) describes that in more detail.
@@ -86,9 +87,11 @@ Internally, Flink makes the following distinctions between types:
 
 * Composite types
 
-  * Flink Java Tuples (part of the Flink Java API)
+  * Flink Java Tuples (part of the Flink Java API): max 25 fields, null fields not supported
 
-  * Scala *case classes* (including Scala tuples)
+  * Scala *case classes* (including Scala tuples): max 22 fields, null fields not supported
+
+  * Row: tuples with arbitrary number of fields and support for null fields
 
   * POJOs: classes that follow a certain bean-like pattern
 
@@ -302,6 +305,19 @@ env.getConfig().addDefaultKryoSerializer(Class<?> type, Class<? extends Serializ
 {% endhighlight %}
 
 There are different variants of these methods available.
+
+
+## Disabling Kryo Fallback
+
+There are cases when programs may want to explicitly avoid using Kryo as a fallback for generic types. The most
+common one is wanting to ensure that all types are efficiently serialized either through Flink's own serializers,
+or via user-defined custom serializers.
+
+The setting below will raise an exception whenever a data type is encountered that would go through Kryo:
+{% highlight java %}
+env.getConfig().disableGenericTypes();
+{% endhighlight %}
+
 
 ## Defining Type Information using a Factory
 

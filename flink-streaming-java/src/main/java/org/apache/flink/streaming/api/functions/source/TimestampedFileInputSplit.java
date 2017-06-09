@@ -44,10 +44,6 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 	 * */
 	private Serializable splitState;
 
-	/** A special {@link TimestampedFileInputSplit} signaling the end of the stream of splits.*/
-	public static final TimestampedFileInputSplit EOS =
-		new TimestampedFileInputSplit(Long.MAX_VALUE, -1, null, -1, -1, null);
-
 	/**
 	 * Creates a {@link TimestampedFileInputSplit} based on the file modification time and
 	 * the rest of the information of the {@link FileInputSplit}, as returned by the
@@ -64,19 +60,18 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 		super(num, file, start, length, hosts);
 
 		Preconditions.checkArgument(modificationTime >= 0 || modificationTime == Long.MIN_VALUE,
-			"Invalid File Split Modification Time: "+ modificationTime +".");
+			"Invalid File Split Modification Time: " + modificationTime + ".");
 
 		this.modificationTime = modificationTime;
 	}
 
 	/**
-	 * Sets the state of the split. This information is used when
-	 * restoring from a checkpoint and allows to resume reading the
-	 * underlying file from the point we left off.
-	 * <p>
-	 * This is applicable to {@link org.apache.flink.api.common.io.FileInputFormat FileInputFormats}
-	 * that implement the {@link org.apache.flink.api.common.io.CheckpointableInputFormat
-	 * CheckpointableInputFormat} interface.
+	 * Sets the state of the split. This information is used when restoring from a checkpoint and
+	 * allows to resume reading the underlying file from the point we left off.
+	 *
+	 * <p>* This is applicable to
+	 * {@link org.apache.flink.api.common.io.FileInputFormat FileInputFormats} that implement the
+	 * {@link org.apache.flink.api.common.io.CheckpointableInputFormat} interface.
 	 * */
 	public void setSplitState(Serializable state) {
 		this.splitState = state;
@@ -101,24 +96,23 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	@Override
 	public int compareTo(TimestampedFileInputSplit o) {
-		long modTimeComp = this.modificationTime - o.modificationTime;
+		int modTimeComp = Long.compare(this.modificationTime, o.modificationTime);
 		if (modTimeComp != 0L) {
-			// we cannot just cast the modTimeComp to int
-			// because it may overflow
-			return modTimeComp > 0 ? 1 : -1;
+			return modTimeComp;
 		}
 
-		// the file input split allows for null paths
-		if (this.getPath() == o.getPath()) {
-			return 0;
-		} else if (this.getPath() == null) {
+		// the file input split does not prevent null paths.
+		if (this.getPath() == null && o.getPath() != null) {
 			return 1;
-		} else if (o.getPath() == null) {
+		} else if (this.getPath() != null && o.getPath() == null) {
 			return -1;
 		}
 
-		int pathComp = this.getPath().compareTo(o.getPath());
-		return pathComp != 0 ? pathComp : this.getSplitNumber() - o.getSplitNumber();
+		int pathComp = this.getPath() == o.getPath() ? 0 :
+			this.getPath().compareTo(o.getPath());
+
+		return pathComp != 0 ? pathComp :
+			this.getSplitNumber() - o.getSplitNumber();
 	}
 
 	@Override
@@ -134,13 +128,13 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	@Override
 	public int hashCode() {
-		int res = 37 * (int)(this.modificationTime ^ (this.modificationTime >>> 32));
+		int res = 37 * (int) (this.modificationTime ^ (this.modificationTime >>> 32));
 		return 37 * res + super.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return "[" + getSplitNumber() + "] " + getPath() +" mod@ "+
+		return "[" + getSplitNumber() + "] " + getPath() + " mod@ " +
 			modificationTime + " : " + getStart() + " + " + getLength();
 	}
 }

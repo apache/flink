@@ -18,16 +18,19 @@
 
 package org.apache.flink.client;
 
-import akka.actor.*;
-import akka.testkit.JavaTestKit;
-
-import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.Status;
+import akka.testkit.JavaTestKit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -35,8 +38,11 @@ import org.junit.Test;
 import java.util.UUID;
 
 import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the STOP command.
+ */
 public class CliFrontendStopTest extends TestLogger {
 
 	private static ActorSystem actorSystem;
@@ -105,7 +111,7 @@ public class CliFrontendStopTest extends TestLogger {
 		}
 	}
 
-	protected static final class StopTestCliFrontend extends CliFrontend {
+	private static final class StopTestCliFrontend extends CliFrontend {
 
 		private ActorGateway jobManagerGateway;
 
@@ -120,7 +126,7 @@ public class CliFrontendStopTest extends TestLogger {
 		}
 	}
 
-	protected static final class CliJobManager extends FlinkUntypedActor {
+	private static final class CliJobManager extends FlinkUntypedActor {
 		private final JobID jobID;
 		private final UUID leaderSessionID;
 

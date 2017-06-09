@@ -81,7 +81,8 @@ public class FlatMapDriver<IT, OT> implements Driver<FlatMapFunction<IT, OT>, OT
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("FlatMapDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
-		}	}
+		}
+	}
 
 	@Override
 	public void run() throws Exception {

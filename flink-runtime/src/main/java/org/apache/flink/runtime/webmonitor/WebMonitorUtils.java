@@ -18,28 +18,32 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorSystem;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import akka.actor.ActorSystem;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -54,7 +58,7 @@ public final class WebMonitorUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(WebMonitorUtils.class);
 
 	/**
-	 * Singleton to hold the log and stdout file
+	 * Singleton to hold the log and stdout file.
 	 */
 	public static class LogFileLocation {
 
@@ -65,7 +69,6 @@ public final class WebMonitorUtils {
 			this.logFile = logFile;
 			this.stdOutFile = stdOutFile;
 		}
-		
 
 		/**
 		 * Finds the Flink log directory using log.file Java property that is set during startup.
@@ -73,30 +76,31 @@ public final class WebMonitorUtils {
 		public static LogFileLocation find(Configuration config) {
 			final String logEnv = "log.file";
 			String logFilePath = System.getProperty(logEnv);
-			
+
 			if (logFilePath == null) {
 				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-				logFilePath = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
+				logFilePath = config.getString(JobManagerOptions.WEB_LOG_PATH);
 			}
-			
+
 			// not configured, cannot serve log files
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY);
+					logEnv, JobManagerOptions.WEB_LOG_PATH.key());
 				return new LogFileLocation(null, null);
 			}
-			
+
 			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
 
 			LOG.info("Determined location of JobManager log file: {}", logFilePath);
 			LOG.info("Determined location of JobManager stdout file: {}", outFilePath);
-			
+
 			return new LogFileLocation(resolveFileLocation(logFilePath), resolveFileLocation(outFilePath));
 		}
 
 		/**
-		 * Verify log file location
+		 * Verify log file location.
+		 *
 		 * @param logFilePath Path to log file
 		 * @return File or null if not a valid log file
 		 */
@@ -109,26 +113,33 @@ public final class WebMonitorUtils {
 	/**
 	 * Starts the web runtime monitor. Because the actual implementation of the runtime monitor is
 	 * in another project, we load the runtime monitor dynamically.
-	 * <p>
-	 * Because failure to start the web runtime monitor is not considered fatal, this method does
+	 *
+	 * <p>Because failure to start the web runtime monitor is not considered fatal, this method does
 	 * not throw any exceptions, but only logs them.
 	 *
-	 * @param config                 The configuration for the runtime monitor.
-	 * @param leaderRetrievalService Leader retrieval service to get the leading JobManager
+	 * @param config The configuration for the runtime monitor.
+	 * @param highAvailabilityServices HighAvailabilityServices used to start the WebRuntimeMonitor
+	 * @param actorSystem ActorSystem used to connect to the JobManager
+	 *
 	 */
 	public static WebMonitor startWebRuntimeMonitor(
 			Configuration config,
-			LeaderRetrievalService leaderRetrievalService,
+			HighAvailabilityServices highAvailabilityServices,
 			ActorSystem actorSystem) {
 		// try to load and instantiate the class
 		try {
 			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
 			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
-			
+
 			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(Configuration.class,
-					LeaderRetrievalService.class,
-					ActorSystem.class);
-			return constructor.newInstance(config, leaderRetrievalService, actorSystem);
+				LeaderRetrievalService.class,
+				BlobView.class,
+				ActorSystem.class);
+			return constructor.newInstance(
+				config,
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+				highAvailabilityServices.createBlobStore(),
+				actorSystem);
 		} catch (ClassNotFoundException e) {
 			LOG.error("Could not load web runtime monitor. " +
 					"Probably reason: flink-runtime-web is not in the classpath");
@@ -143,12 +154,30 @@ public final class WebMonitorUtils {
 		}
 	}
 
+	public static JsonArchivist[] getJsonArchivists() {
+		try {
+			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
+			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
+			Method method = clazz.getMethod("getJsonArchivists");
+			JsonArchivist[] result = (JsonArchivist[]) method.invoke(null);
+			return result;
+		} catch (ClassNotFoundException e) {
+			LOG.error("Could not load web runtime monitor. " +
+				"Probably reason: flink-runtime-web is not in the classpath");
+			LOG.debug("Caught exception", e);
+			return new JsonArchivist[0];
+		} catch (Throwable t) {
+			LOG.error("Failed to retrieve archivers from web runtime monitor.", t);
+			return new JsonArchivist[0];
+		}
+	}
+
 	public static Map<String, String> fromKeyValueJsonArray(String jsonString) {
 		try {
 			Map<String, String> map = new HashMap<>();
 			ObjectMapper m = new ObjectMapper();
 			ArrayNode array = (ArrayNode) m.readTree(jsonString);
-			
+
 			Iterator<JsonNode> elements = array.elements();
 			while (elements.hasNext()) {
 				JsonNode node = elements.next();
@@ -156,7 +185,7 @@ public final class WebMonitorUtils {
 				String value = node.get("value").asText();
 				map.put(key, value);
 			}
-			
+
 			return map;
 		}
 		catch (Exception e) {
@@ -190,6 +219,32 @@ public final class WebMonitorUtils {
 		return new JobDetails(job.getJobID(), job.getJobName(),
 				started, finished, status, lastChanged,
 				countsPerStatus, numTotalTasks);
+	}
+
+	/**
+	 * Checks and normalizes the given URI. This method first checks the validity of the
+	 * URI (scheme and path are not null) and then normalizes the URI to a path.
+	 *
+	 * @param archiveDirUri The URI to check and normalize.
+	 * @return A normalized URI as a Path.
+	 *
+	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path.
+	 */
+	public static Path validateAndNormalizeUri(URI archiveDirUri) {
+		final String scheme = archiveDirUri.getScheme();
+		final String path = archiveDirUri.getPath();
+
+		// some validity checks
+		if (scheme == null) {
+			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
+				"Please specify the file system scheme explicitly in the URI.");
+		}
+		if (path == null) {
+			throw new IllegalArgumentException("The path to store the job archive data in is null. " +
+				"Please specify a directory path for the archiving the job data.");
+		}
+
+		return new Path(archiveDirUri);
 	}
 
 	/**

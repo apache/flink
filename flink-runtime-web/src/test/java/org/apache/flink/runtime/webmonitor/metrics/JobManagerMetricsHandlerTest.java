@@ -15,22 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorSystem;
+import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import scala.concurrent.ExecutionContext;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+/**
+ * Tests for the JobManagerMetricsHandler.
+ */
 public class JobManagerMetricsHandlerTest extends TestLogger {
+	@Test
+	public void testGetPaths() {
+		JobManagerMetricsHandler handler = new JobManagerMetricsHandler(mock(MetricFetcher.class));
+		String[] paths = handler.getPaths();
+		Assert.assertEquals(1, paths.length);
+		Assert.assertEquals("/jobmanager/metrics", paths[0]);
+	}
+
 	@Test
 	public void getMapFor() {
 		MetricFetcher fetcher = new MetricFetcher(mock(ActorSystem.class), mock(JobManagerRetriever.class), mock(ExecutionContext.class));

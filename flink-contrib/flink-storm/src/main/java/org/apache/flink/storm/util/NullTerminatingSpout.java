@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
-import java.util.Map;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichSpout;
+import org.apache.storm.topology.OutputFieldsDeclarer;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.OutputFieldsDeclarer;
+import java.util.Map;
 
 /**
  * {@link NullTerminatingSpout} in a finite spout (ie, implements {@link FiniteSpout} interface) that wraps an
@@ -37,13 +38,9 @@ public class NullTerminatingSpout implements FiniteSpout {
 	/** The observer that checks if the given spouts emit a tuple or not on nextTuple(). */
 	private SpoutOutputCollectorObserver observer;
 
-
-
 	public NullTerminatingSpout(IRichSpout spout) {
 		this.spout = spout;
 	}
-
-
 
 	@Override
 	public void open(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, SpoutOutputCollector collector) {
@@ -95,7 +92,7 @@ public class NullTerminatingSpout implements FiniteSpout {
 
 	@Override
 	public boolean reachedEnd() {
-		return this.observer.emitted == false;
+		return !this.observer.emitted;
 	}
 
 }

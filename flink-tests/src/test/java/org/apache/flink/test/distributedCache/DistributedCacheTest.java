@@ -15,28 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.test.distributedCache;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+package org.apache.flink.test.distributedCache;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 
-/**
- * Tests the distributed cache by comparing a text file with a distributed copy.
- */
-public class DistributedCacheTest extends JavaProgramTestBase {
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertTrue;
+
+
+public class DistributedCacheTest extends AbstractTestBase {
 
 	public static final String data
 			= "machen\n"
@@ -45,47 +53,71 @@ public class DistributedCacheTest extends JavaProgramTestBase {
 			+ "keiner\n"
 			+ "meine\n";
 
-	protected String textPath;
+	private static final int PARALLELISM = 4;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("count.txt", data);
+	private static LocalFlinkMiniCluster cluster;
+
+	@BeforeClass
+	public static void setup() throws Exception {
+		cluster = TestBaseUtils.startCluster(1, PARALLELISM, false, false, true);
+		TestStreamEnvironment.setAsContext(cluster, PARALLELISM);
+		TestEnvironment.setAsContext(cluster, PARALLELISM);
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
+	@AfterClass
+	public static void teardown() throws Exception {
+		TestStreamEnvironment.unsetAsContext();
+		TestEnvironment.unsetAsContext();
+		TestBaseUtils.stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
+	}
+
+	// ------------------------------------------------------------------------
+
+	public DistributedCacheTest() {
+		super(new Configuration());
+	}
+	
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testStreamingDistributedCache() throws Exception {
+		String textPath = createTempFile("count.txt", data);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.registerCachedFile(textPath, "cache_test");
+		env.readTextFile(textPath).flatMap(new WordChecker());
+		env.execute();
+	}
+
+	@Test
+	public void testBatchDistributedCache() throws Exception {
+		String textPath = createTempFile("count.txt", data);
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.registerCachedFile(textPath, "cache_test");
-
-		List<Tuple1<String>> result = env
-				.readTextFile(textPath)
-				.flatMap(new WordChecker())
-				.collect();
-
-		compareResultAsTuples(result, data);
+		env.readTextFile(textPath).flatMap(new WordChecker()).count();
 	}
 
 	public static class WordChecker extends RichFlatMapFunction<String, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
-		private final Set<String> wordList = new HashSet<>();
+		private final List<String> wordList = new ArrayList<>();
 
 		@Override
-		public void open(Configuration conf) throws FileNotFoundException, IOException {
+		public void open(Configuration conf) throws IOException {
 			File file = getRuntimeContext().getDistributedCache().getFile("cache_test");
-			BufferedReader reader = new BufferedReader(new FileReader(file));
-			String tempString;
-			while ((tempString = reader.readLine()) != null) {
-				wordList.add(tempString);
+			try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+				String tempString;
+				while ((tempString= reader.readLine()) != null) {
+					wordList.add(tempString);
+				}
 			}
-			reader.close();
 		}
 
 		@Override
 		public void flatMap(String word, Collector<Tuple1<String>> out) throws Exception {
-			if (wordList.contains(word)) {
-				out.collect(new Tuple1<>(word));
-			}
+			assertTrue("Unexpected word in stream! wordFromStream: " + word + ", shouldBeOneOf: " +
+				wordList.toString(), wordList.contains(word));
+
+			out.collect(new Tuple1<>(word));
 		}
 	}
 }

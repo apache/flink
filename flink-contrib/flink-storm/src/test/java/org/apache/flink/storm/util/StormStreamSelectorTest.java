@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
 import org.junit.Assert;
@@ -22,6 +23,9 @@ import org.junit.Test;
 
 import java.util.Iterator;
 
+/**
+ * Tests for the StormStreamSelector.
+ */
 public class StormStreamSelectorTest {
 
 	@Test

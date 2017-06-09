@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.Map;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,14 +40,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 
+	private static final String CLUSTER_OVERVIEW_REST_PATH = "/overview";
+
 	private static final String version = EnvironmentInformation.getVersion();
 
 	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
 	private final FiniteDuration timeout;
-	
+
 	public ClusterOverviewHandler(FiniteDuration timeout) {
 		this.timeout = checkNotNull(timeout);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CLUSTER_OVERVIEW_REST_PATH};
 	}
 
 	@Override
@@ -57,7 +66,7 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 				StatusOverview overview = (StatusOverview) Await.result(future, timeout);
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());

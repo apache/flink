@@ -31,53 +31,49 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-public class ReduceOnEdgesWithExceptionITCase {
+/**
+ * Test expected exceptions for {@link Graph#groupReduceOnEdges}.
+ */
+public class ReduceOnEdgesWithExceptionITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
 	private static LocalFlinkMiniCluster cluster;
 
-
 	@BeforeClass
 	public static void setupCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
-			cluster = new LocalFlinkMiniCluster(config, false);
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error starting test cluster: " + e.getMessage());
-		}
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+		cluster = new LocalFlinkMiniCluster(config, false);
+		cluster.start();
+
+		TestEnvironment.setAsContext(cluster, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void tearDownCluster() {
-		try {
-			cluster.stop();
-		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
-		}
+		cluster.stop();
+
+		TestEnvironment.unsetAsContext();
 	}
 
 	/**
-	 * Test groupReduceOnEdges() with an edge having a srcId that does not exist in the vertex DataSet
+	 * Test groupReduceOnEdges() with an edge having a srcId that does not exist in the vertex DataSet.
 	 */
 	@Test
 	public void testGroupReduceOnEdgesInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -90,19 +86,20 @@ public class ReduceOnEdgesWithExceptionITCase {
 
 			verticesWithAllNeighbors.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("Expected an exception.");
 		} catch (Exception e) {
 			// We expect the job to fail with an exception
 		}
 	}
 
 	/**
-	 * Test groupReduceOnEdges() with an edge having a trgId that does not exist in the vertex DataSet
+	 * Test groupReduceOnEdges() with an edge having a trgId that does not exist in the vertex DataSet.
 	 */
 	@Test
 	public void testGroupReduceOnEdgesInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -115,11 +112,12 @@ public class ReduceOnEdgesWithExceptionITCase {
 
 			verticesWithAllNeighbors.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("Expected an exception.");
 		} catch (Exception e) {
 			// We expect the job to fail with an exception
 		}
 	}
-
 
 	@SuppressWarnings("serial")
 	private static final class SelectNeighborsValueGreaterThanFour implements
@@ -127,10 +125,10 @@ public class ReduceOnEdgesWithExceptionITCase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
-			for(Edge<Long, Long> edge : edges) {
-				if(v.getValue() > 4) {
-					if(v.getId().equals(edge.getTarget())) {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
+			for (Edge<Long, Long> edge : edges) {
+				if (v.getValue() > 4) {
+					if (v.getId().equals(edge.getTarget())) {
 						out.collect(new Tuple2<>(v.getId(), edge.getSource()));
 					} else {
 						out.collect(new Tuple2<>(v.getId(), edge.getTarget()));

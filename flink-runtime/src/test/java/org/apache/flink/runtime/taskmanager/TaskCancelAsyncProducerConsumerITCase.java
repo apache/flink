@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -43,6 +44,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -77,8 +79,8 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 8);
+			config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
+			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 8);
 
 			flink = new TestingCluster(config, true);
 			flink.start();
@@ -91,7 +93,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			JobVertex consumer = new JobVertex("AsyncConsumer");
 			consumer.setParallelism(1);
 			consumer.setInvokableClass(AsyncConsumer.class);
-			consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE);
+			consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 			SlotSharingGroup slot = new SlotSharingGroup(producer.getID(), consumer.getID());
 			producer.setSlotSharingGroup(slot);
@@ -129,18 +131,17 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			}
 
 			// Verify that async producer is in blocking request
-			assertTrue("Producer thread is not blocked.", producerBlocked);
+			assertTrue("Producer thread is not blocked: " + Arrays.toString(ASYNC_CONSUMER_THREAD.getStackTrace()), producerBlocked);
 
-			boolean consumerBlocked = false;
+			boolean consumerWaiting = false;
 			for (int i = 0; i < 50; i++) {
 				Thread thread = ASYNC_CONSUMER_THREAD;
 
 				if (thread != null && thread.isAlive()) {
-					StackTraceElement[] stackTrace = thread.getStackTrace();
-					consumerBlocked = isInBlockingQueuePoll(stackTrace);
+					consumerWaiting = thread.getState() == Thread.State.WAITING;
 				}
 
-				if (consumerBlocked) {
+				if (consumerWaiting) {
 					break;
 				} else {
 					// Retry
@@ -149,7 +150,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			}
 
 			// Verify that async consumer is in blocking request
-			assertTrue("Consumer thread is not blocked.", consumerBlocked);
+			assertTrue("Consumer thread is not blocked.", consumerWaiting);
 
 			msg = new CancelJob(jobGraph.getJobID());
 			Future<?> cancelFuture = jobManager.ask(msg, deadline.timeLeft());
@@ -183,27 +184,6 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 		return stackTrace.length >= 3 && stackTrace[0].getMethodName().equals("wait") &&
 				stackTrace[1].getMethodName().equals("requestBuffer") &&
 				stackTrace[2].getMethodName().equals("requestBufferBlocking");
-	}
-
-	/**
-	 * Returns whether the stack trace represents a Thread in a blocking queue
-	 * poll call.
-	 *
-	 * @param stackTrace Stack trace of the Thread to check
-	 *
-	 * @return Flag indicating whether the Thread is in a blocking queue poll
-	 * call.
-	 */
-	private boolean isInBlockingQueuePoll(StackTraceElement[] stackTrace) {
-		for (StackTraceElement elem : stackTrace) {
-			if (elem.getMethodName().equals("poll") &&
-					elem.getClassName().equals("java.util.concurrent.LinkedBlockingQueue")) {
-
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	/**

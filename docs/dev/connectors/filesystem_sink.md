@@ -2,7 +2,7 @@
 title: "HDFS Connector"
 nav-title: Rolling File Sink
 nav-parent_id: connectors
-nav-pos: 6
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,7 +24,7 @@ under the License.
 -->
 
 This connector provides a Sink that writes partitioned files to any filesystem supported by
-Hadoop FileSystem. To use this connector, add the
+[Hadoop FileSystem](http://hadoop.apache.org). To use this connector, add the
 following dependency to your project:
 
 {% highlight xml %}
@@ -37,14 +37,14 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
+[here]({{site.baseurl}}/dev/linking.html)
 for information about how to package the program with the libraries for
 cluster execution.
 
 #### Bucketing File Sink
 
 The bucketing behaviour as well as the writing can be configured but we will get to that later.
-This is how you can create a bucketing sick which by default, sinks to rolling files that are split by time:
+This is how you can create a bucketing sink which by default, sinks to rolling files that are split by time:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

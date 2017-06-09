@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -85,32 +87,24 @@ public class TimestampITCase extends TestLogger {
 
 	@BeforeClass
 	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
 
-			cluster = new LocalFlinkMiniCluster(config, false);
+		cluster = new LocalFlinkMiniCluster(config, false);
 
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
+		cluster.start();
+
+		TestStreamEnvironment.setAsContext(cluster, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
+		cluster.shutdown();
+		cluster = null;
+
+		TestStreamEnvironment.unsetAsContext();
 	}
 
 	/**
@@ -131,8 +125,7 @@ public class TimestampITCase extends TestLogger {
 
 		long initialTime = 0L;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
@@ -181,8 +174,7 @@ public class TimestampITCase extends TestLogger {
 
 		long initialTime = 0L;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
@@ -204,16 +196,29 @@ public class TimestampITCase extends TestLogger {
 					// try until we get the running jobs
 					List<JobID> running;
 					while ((running = cluster.getCurrentlyRunningJobsJava()).isEmpty()) {
-						Thread.sleep(50);
+						Thread.sleep(10);
 					}
 
 					JobID id = running.get(0);
 					
 					// send stop until the job is stopped
 					do {
-						cluster.stopJob(id);
-						Thread.sleep(50);
-					} while (!cluster.getCurrentlyRunningJobsJava().isEmpty());
+						try {
+							cluster.stopJob(id);
+						}
+						catch (Exception e) {
+							if (e.getCause() instanceof IllegalStateException) {
+								// this means the job is not yet ready to be stopped,
+								// for example because it is still in CREATED state
+								// we ignore the exception 
+							} else {
+								// other problem
+								throw e;
+							}
+						}
+						Thread.sleep(10);
+					}
+					while (!cluster.getCurrentlyRunningJobsJava().isEmpty());
 				}
 				catch (Throwable t) {
 					t.printStackTrace();
@@ -256,8 +261,7 @@ public class TimestampITCase extends TestLogger {
 		final int NUM_ELEMENTS = 10;
 
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
@@ -283,8 +287,7 @@ public class TimestampITCase extends TestLogger {
 	public void testDisabledTimestamps() throws Exception {
 		final int NUM_ELEMENTS = 10;
 		
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(PARALLELISM);
@@ -311,7 +314,7 @@ public class TimestampITCase extends TestLogger {
 	public void testTimestampExtractorWithAutoInterval() throws Exception {
 		final int NUM_ELEMENTS = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
@@ -375,7 +378,7 @@ public class TimestampITCase extends TestLogger {
 	public void testTimestampExtractorWithCustomWatermarkEmit() throws Exception {
 		final int NUM_ELEMENTS = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
@@ -437,7 +440,7 @@ public class TimestampITCase extends TestLogger {
 	public void testTimestampExtractorWithDecreasingCustomWatermarkEmit() throws Exception {
 		final int NUM_ELEMENTS = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
@@ -499,7 +502,7 @@ public class TimestampITCase extends TestLogger {
 	public void testTimestampExtractorWithLongMaxWatermarkFromSource() throws Exception {
 		final int NUM_ELEMENTS = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
@@ -560,7 +563,7 @@ public class TimestampITCase extends TestLogger {
 		final int NUM_ELEMENTS = 10;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+				.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
@@ -616,7 +619,7 @@ public class TimestampITCase extends TestLogger {
 	@Test
 	public void testEventTimeSourceWithProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = 
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+				StreamExecutionEnvironment.getExecutionEnvironment();
 		
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
@@ -637,8 +640,7 @@ public class TimestampITCase extends TestLogger {
 	
 	@Test
 	public void testErrorOnEventTimeOverProcessingTime() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
@@ -668,8 +670,7 @@ public class TimestampITCase extends TestLogger {
 
 	@Test
 	public void testErrorOnEventTimeWithoutTimestamps() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();

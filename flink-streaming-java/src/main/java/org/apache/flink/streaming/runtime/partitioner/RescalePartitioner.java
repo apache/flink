@@ -55,11 +55,11 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 		this.returnArray[0] = (this.returnArray[0] + 1) % numberOfOutputChannels;
 		return this.returnArray;
 	}
-	
+
 	public StreamPartitioner<T> copy() {
 		return this;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "RESCALE";

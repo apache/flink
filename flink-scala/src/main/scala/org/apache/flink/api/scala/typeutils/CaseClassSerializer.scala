@@ -20,7 +20,8 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.NullFieldException
 
 /**
  * Serializer for Case Classes. Creation and access is different from
@@ -97,7 +98,13 @@ abstract class CaseClassSerializer[T <: Product](
     var i = 0
     while (i < arity) {
       val serializer = fieldSerializers(i).asInstanceOf[TypeSerializer[Any]]
-      serializer.serialize(value.productElement(i), target)
+      val o = value.productElement(i)
+      try
+        serializer.serialize(o, target)
+      catch {
+        case e: NullPointerException =>
+          throw new NullFieldException(i, e)
+      }
       i += 1
     }
   }

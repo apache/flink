@@ -18,7 +18,6 @@
 
 package org.apache.flink.client;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -70,16 +69,14 @@ import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.commons.cli.CommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -97,7 +94,13 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
@@ -127,15 +130,16 @@ public class CliFrontend {
 	private static final List<CustomCommandLine> customCommandLine = new LinkedList<>();
 
 	static {
-		/** command line interface of the YARN session, with a special initialization here
-		 *  to prefix all options with y/yarn. */
+		//	Command line interface of the YARN session, with a special initialization here
+		//	to prefix all options with y/yarn.
+		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
+		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
+		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnCLI", "y", "yarn");
 		customCommandLine.add(new DefaultCLI());
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-
 
 	private final Configuration config;
 
@@ -169,13 +173,12 @@ public class CliFrontend {
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Getter & Setter
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Getter which returns a copy of the associated configuration
+	 * Getter which returns a copy of the associated configuration.
 	 *
 	 * @return Copy of the associated configuration
 	 */
@@ -187,14 +190,13 @@ public class CliFrontend {
 		return copiedConfiguration;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Execute Actions
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Executions the run action.
-	 * 
+	 *
 	 * @param args Command line arguments for the run action.
 	 */
 	protected int run(String[] args) {
@@ -247,7 +249,7 @@ public class CliFrontend {
 			LOG.debug("User parallelism is set to {}", userParallelism);
 			if (client.getMaxSlots() != -1 && userParallelism == -1) {
 				logAndSysout("Using the parallelism provided by the remote cluster ("
-					+ client.getMaxSlots()+"). "
+					+ client.getMaxSlots() + "). "
 					+ "To use another parallelism, set it at the ./bin/flink client.");
 				userParallelism = client.getMaxSlots();
 			}
@@ -259,7 +261,11 @@ public class CliFrontend {
 		}
 		finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown();
+				} catch (Exception e) {
+					LOG.warn("Could not properly shut down the cluster client.", e);
+				}
 			}
 			if (program != null) {
 				program.deleteExtractedLibraries();
@@ -269,7 +275,7 @@ public class CliFrontend {
 
 	/**
 	 * Executes the info action.
-	 * 
+	 *
 	 * @param args Command line arguments for the info action.
 	 */
 	protected int info(String[] args) {
@@ -315,7 +321,7 @@ public class CliFrontend {
 
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 			FlinkPlan flinkPlan = ClusterClient.getOptimizedPlan(compiler, program, parallelism);
-			
+
 			String jsonPlan = null;
 			if (flinkPlan instanceof OptimizedPlan) {
 				jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
@@ -353,7 +359,7 @@ public class CliFrontend {
 
 	/**
 	 * Executes the list action.
-	 * 
+	 *
 	 * @param args Command line arguments for the list action.
 	 */
 	protected int list(String[] args) {
@@ -429,12 +435,12 @@ public class CliFrontend {
 				Comparator<JobStatusMessage> njec = new Comparator<JobStatusMessage>(){
 					@Override
 					public int compare(JobStatusMessage o1, JobStatusMessage o2) {
-						return (int)(o1.getStartTime()-o2.getStartTime());
+						return (int) (o1.getStartTime() - o2.getStartTime());
 					}
 				};
 
 				if (running) {
-					if(runningJobs.size() == 0) {
+					if (runningJobs.size() == 0) {
 						System.out.println("No running jobs.");
 					}
 					else {
@@ -456,7 +462,7 @@ public class CliFrontend {
 						Collections.sort(scheduledJobs, njec);
 
 						System.out.println("----------------------- Scheduled Jobs -----------------------");
-						for(JobStatusMessage rj : scheduledJobs) {
+						for (JobStatusMessage rj : scheduledJobs) {
 							System.out.println(df.format(new Date(rj.getStartTime()))
 									+ " : " + rj.getJobId() + " : " + rj.getJobName());
 						}
@@ -477,7 +483,7 @@ public class CliFrontend {
 
 	/**
 	 * Executes the STOP action.
-	 * 
+	 *
 	 * @param args Command line arguments for the stop action.
 	 */
 	protected int stop(String[] args) {
@@ -536,7 +542,7 @@ public class CliFrontend {
 
 	/**
 	 * Executes the CANCEL action.
-	 * 
+	 *
 	 * @param args Command line arguments for the cancel action.
 	 */
 	protected int cancel(String[] args) {
@@ -838,6 +844,12 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
+		if (null == result) {
+			logAndSysout("No JobSubmissionResult returned, please make sure you called " +
+				"ExecutionEnvironment.execute()");
+			return 1;
+		}
+
 		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");
 			JobExecutionResult execResult = result.getJobExecutionResult();
@@ -846,7 +858,7 @@ public class CliFrontend {
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
 			if (accumulatorsResult.size() > 0) {
 				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+				System.out.println(AccumulatorHelper.getResultsFormatted(accumulatorsResult));
 			}
 		} else {
 			logAndSysout("Job has been submitted with JobID " + result.getJobID());
@@ -863,8 +875,7 @@ public class CliFrontend {
 	 * @throws org.apache.flink.client.program.ProgramInvocationException
 	 */
 	protected PackagedProgram buildProgram(ProgramOptions options)
-			throws FileNotFoundException, ProgramInvocationException
-	{
+			throws FileNotFoundException, ProgramInvocationException {
 		String[] programArgs = options.getProgramArgs();
 		String jarFilePath = options.getJarFilePath();
 		List<URL> classpaths = options.getClasspaths();
@@ -896,7 +907,7 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Updates the associated configuration with the given command line options
+	 * Updates the associated configuration with the given command line options.
 	 *
 	 * @param options Command line options
 	 */
@@ -1009,7 +1020,7 @@ public class CliFrontend {
 
 	/**
 	 * Displays an exception message.
-	 * 
+	 *
 	 * @param t The exception to display.
 	 * @return The return code for the process.
 	 */
@@ -1047,7 +1058,7 @@ public class CliFrontend {
 
 	/**
 	 * Parses the command line arguments and starts the requested action.
-	 * 
+	 *
 	 * @param args command line arguments of the client.
 	 * @return The return code of the program
 	 */
@@ -1069,7 +1080,7 @@ public class CliFrontend {
 		// do action
 		switch (action) {
 			case ACTION_RUN:
-				return CliFrontend.this.run(params);
+				return run(params);
 			case ACTION_LIST:
 				return list(params);
 			case ACTION_INFO:
@@ -1104,18 +1115,18 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Submits the job based on the arguments
+	 * Submits the job based on the arguments.
 	 */
 	public static void main(final String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
 		try {
 			final CliFrontend cli = new CliFrontend();
-			SecurityContext.install(new SecurityContext.SecurityConfiguration().setFlinkConfiguration(cli.config));
-			int retCode = SecurityContext.getInstalled()
-					.runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.install(new SecurityUtils.SecurityConfiguration(cli.config));
+			int retCode = SecurityUtils.getInstalledContext()
+					.runSecured(new Callable<Integer>() {
 						@Override
-						public Integer run() {
+						public Integer call() {
 							return cli.parseParameters(args);
 						}
 					});
@@ -1158,9 +1169,8 @@ public class CliFrontend {
 		return location;
 	}
 
-
 	/**
-	 * Writes the given job manager address to the associated configuration object
+	 * Writes the given job manager address to the associated configuration object.
 	 *
 	 * @param address Address to write to the configuration
 	 * @param config The config to write to

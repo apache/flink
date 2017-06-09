@@ -26,7 +26,7 @@ import org.apache.flink.annotation.Public;
 @Public
 public class JobSubmissionResult {
 
-	private JobID jobID;
+	private final JobID jobID;
 
 	public JobSubmissionResult(JobID jobID) {
 		this.jobID = jobID;

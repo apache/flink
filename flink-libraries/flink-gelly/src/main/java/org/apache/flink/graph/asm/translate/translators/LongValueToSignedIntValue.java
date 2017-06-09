@@ -26,10 +26,12 @@ import org.apache.flink.util.MathUtils;
 /**
  * Translate {@link LongValue} to {@link IntValue}.
  *
- * Throws {@link RuntimeException} for integer overflow.
+ * <p>Throws {@link RuntimeException} for integer overflow.
  */
 public class LongValueToSignedIntValue
 implements TranslateFunction<LongValue, IntValue> {
+
+	public static final long MAX_VERTEX_COUNT = 1L << 32;
 
 	@Override
 	public IntValue translate(LongValue value, IntValue reuse)

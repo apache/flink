@@ -19,38 +19,44 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.DynamicConfiguration;
+import org.apache.flink.runtime.security.KerberosUtils;
+import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.modules.JaasModule;
+
+import javax.security.auth.login.AppConfigurationEntry;
 
 import java.util.Map;
 
-/*
- * Test security context to support handling both client and server principals in MiniKDC
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+/**
+ * Test security context to support handling both client and server principals in MiniKDC.
  * This class is used only in integration test code for connectors like Kafka, HDFS etc.,
  */
 @Internal
 public class TestingSecurityContext {
 
-	public static void install(SecurityContext.SecurityConfiguration config,
+	public static void install(SecurityUtils.SecurityConfiguration config,
 						Map<String, ClientSecurityConfiguration> clientSecurityConfigurationMap)
 			throws Exception {
 
-		SecurityContext.install(config);
+		SecurityUtils.install(config);
 
-		// establish the JAAS config for Test environment
-		TestingJaasConfiguration jaasConfig = new TestingJaasConfiguration(config.getKeytab(),
-				config.getPrincipal(), clientSecurityConfigurationMap);
-		javax.security.auth.login.Configuration.setConfiguration(jaasConfig);
+		// install dynamic JAAS entries
+		checkArgument(config.getSecurityModules().contains(JaasModule.class));
+		DynamicConfiguration jaasConf = (DynamicConfiguration) javax.security.auth.login.Configuration.getConfiguration();
+		for (Map.Entry<String, ClientSecurityConfiguration> e : clientSecurityConfigurationMap.entrySet()) {
+			AppConfigurationEntry entry = KerberosUtils.keytabEntry(e.getValue().getKeytab(), e.getValue().getPrincipal());
+			jaasConf.addAppConfigurationEntry(e.getKey(), entry);
+		}
 	}
 
-	public static class ClientSecurityConfiguration {
+	static class ClientSecurityConfiguration {
 
-		private String principal;
+		private final String principal;
 
-		private String keytab;
-
-		private String moduleName;
-
-		private String jaasServiceName;
+		private final String keytab;
 
 		public String getPrincipal() {
 			return principal;
@@ -60,21 +66,10 @@ public class TestingSecurityContext {
 			return keytab;
 		}
 
-		public String getModuleName() {
-			return moduleName;
-		}
-
-		public String getJaasServiceName() {
-			return jaasServiceName;
-		}
-
-		public ClientSecurityConfiguration(String principal, String keytab, String moduleName, String jaasServiceName) {
+		public ClientSecurityConfiguration(String principal, String keytab) {
 			this.principal = principal;
 			this.keytab = keytab;
-			this.moduleName = moduleName;
-			this.jaasServiceName = jaasServiceName;
 		}
-
 	}
 
 }

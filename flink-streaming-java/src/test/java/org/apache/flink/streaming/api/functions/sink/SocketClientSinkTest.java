@@ -18,10 +18,12 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.commons.io.IOUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -55,7 +57,7 @@ public class SocketClientSinkTest extends TestLogger {
 	private SerializationSchema<String> simpleSchema = new SerializationSchema<String>() {
 		@Override
 		public byte[] serialize(String element) {
-			return element.getBytes();
+			return element.getBytes(ConfigConstants.DEFAULT_CHARSET);
 		}
 	};
 

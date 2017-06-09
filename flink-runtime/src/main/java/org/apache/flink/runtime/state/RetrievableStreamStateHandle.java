@@ -53,7 +53,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	}
 
 	@Override
-	public T retrieveState() throws Exception {
+	public T retrieveState() throws IOException, ClassNotFoundException {
 		try (FSDataInputStream in = openInputStream()) {
 			return InstantiationUtil.deserializeObject(in, Thread.currentThread().getContextClassLoader());
 		}
@@ -70,7 +70,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return wrappedStreamStateHandle.getStateSize();
 	}
 

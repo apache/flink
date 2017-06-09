@@ -48,7 +48,7 @@ public class SerializedThrowable extends Exception implements Serializable {
 	private final String originalErrorClassName;
 	
 	/** The original stack trace, to be printed */
-	private final String fullStingifiedStackTrace;
+	private final String fullStringifiedStackTrace;
 
 	/** The original exception, not transported via serialization, 
 	 * because the class may not be part of the system class loader.
@@ -83,7 +83,7 @@ public class SerializedThrowable extends Exception implements Serializable {
 
 			// record the original exception's properties (name, stack prints)
 			this.originalErrorClassName = exception.getClass().getName();
-			this.fullStingifiedStackTrace = ExceptionUtils.stringifyException(exception);
+			this.fullStringifiedStackTrace = ExceptionUtils.stringifyException(exception);
 
 			// mimic the original exception's stack trace
 			setStackTrace(exception.getStackTrace());
@@ -106,8 +106,10 @@ public class SerializedThrowable extends Exception implements Serializable {
 			SerializedThrowable other = (SerializedThrowable) exception;
 			this.serializedException = other.serializedException;
 			this.originalErrorClassName = other.originalErrorClassName;
-			this.fullStingifiedStackTrace = other.fullStingifiedStackTrace;
+			this.fullStringifiedStackTrace = other.fullStringifiedStackTrace;
 			this.cachedException = other.cachedException;
+			this.setStackTrace(other.getStackTrace());
+			this.initCause(other.getCause());
 		}
 	}
 
@@ -133,19 +135,23 @@ public class SerializedThrowable extends Exception implements Serializable {
 		return cached;
 	}
 
+	public String getOriginalErrorClassName() {
+		return originalErrorClassName;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Override the behavior of Throwable
 	// ------------------------------------------------------------------------
 
 	@Override
 	public void printStackTrace(PrintStream s) {
-		s.print(fullStingifiedStackTrace);
+		s.print(fullStringifiedStackTrace);
 		s.flush();
 	}
 	
 	@Override
 	public void printStackTrace(PrintWriter s) {
-		s.print(fullStingifiedStackTrace);
+		s.print(fullStringifiedStackTrace);
 		s.flush();
 	}
 	

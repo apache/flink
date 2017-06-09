@@ -25,10 +25,10 @@ under the License.
 	<parent>
 		<groupId>org.apache</groupId>
 		<artifactId>apache</artifactId>
-		<version>14</version>
+		<version>18</version>
 	</parent>
 
-	<!---
+	<!--
 	This module is used a dependency in the root pom. It activates shading for all sub modules
 	through an include rule in the shading configuration. This assures that Maven always generates
 	an effective pom for all modules, i.e. get rid of Maven properties. In particular, this is needed
@@ -38,7 +38,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>force-shading</artifactId>
-	<version>1.2-SNAPSHOT</version>
+	<version>1.4-SNAPSHOT</version>
 
 	<packaging>jar</packaging>
 

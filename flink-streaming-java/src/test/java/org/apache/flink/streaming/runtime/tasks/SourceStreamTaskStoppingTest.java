@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,11 +52,11 @@ public class SourceStreamTaskStoppingTest {
 
 		final StoppableSourceStreamTask<Object, StoppableFailingSource> sourceTask = new StoppableSourceStreamTask<>();
 		sourceTask.stop();
-		
+
 		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableFailingSource());
 		sourceTask.run();
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class StoppableSource extends RichSourceFunction<Object> implements StoppableFunction {

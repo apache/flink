@@ -57,24 +57,18 @@ public class BlobClientTest {
 	 * Starts the BLOB server.
 	 */
 	@BeforeClass
-	public static void startServer() {
-		try {
-			blobServiceConfig = new Configuration();
-			BLOB_SERVER = new BlobServer(blobServiceConfig);
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public static void startServer() throws IOException {
+		blobServiceConfig = new Configuration();
+		BLOB_SERVER = new BlobServer(blobServiceConfig, new VoidBlobStore());
 	}
 
 	/**
 	 * Shuts the BLOB server down.
 	 */
 	@AfterClass
-	public static void stopServer() {
+	public static void stopServer() throws IOException {
 		if (BLOB_SERVER != null) {
-			BLOB_SERVER.shutdown();
+			BLOB_SERVER.close();
 		}
 	}
 

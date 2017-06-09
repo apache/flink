@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.flink.configuration.Configuration;
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -38,20 +42,71 @@ import static org.junit.Assert.fail;
  */
 public class BlobCacheSuccessTest {
 
-	@Test
-	public void testBlobCache() {
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	/**
+	 * BlobCache with no HA. BLOBs need to be downloaded form a working
+	 * BlobServer.
+	 */
+	@Test
+	public void testBlobCache() throws IOException {
+		Configuration config = new Configuration();
+		uploadFileGetTest(config, false, false);
+	}
+
+	/**
+	 * BlobCache is configured in HA mode and the cache can download files from
+	 * the file system directly and does not need to download BLOBs from the
+	 * BlobServer.
+	 */
+	@Test
+	public void testBlobCacheHa() throws IOException {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, true, true);
+	}
+
+	/**
+	 * BlobCache is configured in HA mode but the cache itself cannot access the
+	 * file system and thus needs to download BLOBs from the BlobServer.
+	 */
+	@Test
+	public void testBlobCacheHaFallback() throws IOException {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, false, false);
+	}
+
+	private void uploadFileGetTest(final Configuration config, boolean cacheWorksWithoutServer,
+		boolean cacheHasAccessToFs) throws IOException {
 		// First create two BLOBs and upload them to BLOB server
 		final byte[] buf = new byte[128];
 		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
 
 		BlobServer blobServer = null;
 		BlobCache blobCache = null;
+		BlobStoreService blobStoreService = null;
 		try {
+			final Configuration cacheConfig;
+			if (cacheHasAccessToFs) {
+				cacheConfig = config;
+			} else {
+				// just in case parameters are still read from the server,
+				// create a separate configuration object for the cache
+				cacheConfig = new Configuration(config);
+				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+					temporaryFolder.getRoot().getPath() + "/does-not-exist");
+			}
+
+			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
 
 			// Start the BLOB server
-			Configuration config = new Configuration();
-			blobServer = new BlobServer(config);
+			blobServer = new BlobServer(config, blobStoreService);
 			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
 
 			// Upload BLOBs
@@ -69,15 +124,23 @@ public class BlobCacheSuccessTest {
 				}
 			}
 
-			blobCache = new BlobCache(serverAddress, new Configuration());
+			if (cacheWorksWithoutServer) {
+				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
+				blobServer.close();
+				blobServer = null;
+			}
+
+			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
 
 			for (BlobKey blobKey : blobKeys) {
 				blobCache.getURL(blobKey);
 			}
 
-			// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-			blobServer.shutdown();
-			blobServer = null;
+			if (blobServer != null) {
+				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
+				blobServer.close();
+				blobServer = null;
+			}
 
 			final URL[] urls = new URL[blobKeys.size()];
 
@@ -102,18 +165,17 @@ public class BlobCacheSuccessTest {
 					fail(e.getMessage());
 				}
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (blobServer != null) {
-				blobServer.shutdown();
+				blobServer.close();
 			}
 
 			if(blobCache != null){
-				blobCache.shutdown();
+				blobCache.close();
+			}
+
+			if (blobStoreService != null) {
+				blobStoreService.closeAndCleanupAllData();
 			}
 		}
 	}

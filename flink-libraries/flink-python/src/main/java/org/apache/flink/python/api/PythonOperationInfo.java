@@ -10,17 +10,23 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api;
 
-import java.io.IOException;
-import java.util.Arrays;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
-import static org.apache.flink.api.java.typeutils.TypeExtractor.getForObject;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 
+import java.io.IOException;
+import java.util.Arrays;
+
+import static org.apache.flink.api.java.typeutils.TypeExtractor.getForObject;
+
+/**
+ * Generic container for all information required to an operation to the DataSet API.
+ */
 public class PythonOperationInfo {
 	public String identifier;
 	public int parentID; //DataSet that an operation is applied on
@@ -44,8 +50,9 @@ public class PythonOperationInfo {
 	public String name;
 	public boolean usesUDF;
 	public int parallelism;
+	public int envID;
 
-	public PythonOperationInfo(PythonPlanStreamer streamer) throws IOException {
+	public PythonOperationInfo(PythonPlanStreamer streamer, int environmentID) throws IOException {
 		identifier = (String) streamer.getRecord();
 		parentID = (Integer) streamer.getRecord(true);
 		otherID = (Integer) streamer.getRecord(true);
@@ -92,6 +99,8 @@ public class PythonOperationInfo {
 			values[x] = streamer.getRecord();
 		}
 		parallelism = (Integer) streamer.getRecord(true);
+
+		envID = environmentID;
 	}
 
 	@Override
@@ -118,7 +127,7 @@ public class PythonOperationInfo {
 		return sb.toString();
 	}
 
-	public enum DatasizeHint {
+	enum DatasizeHint {
 		NONE,
 		TINY,
 		HUGE

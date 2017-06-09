@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -31,6 +32,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
@@ -51,7 +55,13 @@ import org.junit.Test;
 public abstract class SerializerTestBase<T> extends TestLogger {
 	
 	protected abstract TypeSerializer<T> createSerializer();
-	
+
+	/**
+	 * Gets the expected length for the serializer's {@link TypeSerializer#getLength()} method.
+	 * 
+	 * <p>The expected length should be positive, for fix-length data types, or {@code -1} for
+	 * variable-length types.
+	 */
 	protected abstract int getLength();
 	
 	protected abstract Class<T> getTypeClass();
@@ -73,8 +83,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			
 			Class<T> type = getTypeClass();
 			assertNotNull("The test is corrupt: type class is null.", type);
-			
-			assertEquals("Type of the instantiated object is wrong.", type, instance.getClass());
+
+			if (!type.isAssignableFrom(instance.getClass())) {
+				fail("Type of the instantiated object is wrong. " +
+						"Expected Type: " + type + " present type " + instance.getClass());
+			}
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -82,12 +95,50 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
+
+	@Test
+	public void testConfigSnapshotInstantiation() {
+		TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+
+		InstantiationUtil.instantiate(configSnapshot.getClass());
+	}
+
+	@Test
+	public void testSnapshotConfigurationAndReconfigure() throws Exception {
+		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+
+		byte[] serializedConfig;
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), configSnapshot);
+			serializedConfig = out.toByteArray();
+		}
+
+		TypeSerializerConfigSnapshot restoredConfig;
+		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+			restoredConfig = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
+		assertFalse(strategy.isRequiresMigration());
+
+		// also verify that the serializer's reconfigure implementation detects incompatibility
+		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
+		assertTrue(strategy.isRequiresMigration());
+	}
 	
 	@Test
 	public void testGetLength() {
+		final int len = getLength();
+
+		if (len == 0) {
+			fail("Broken serializer test base - zero length cannot be the expected length");
+		}
+
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			assertEquals(getLength(), serializer.getLength());
+			assertEquals(len, serializer.getLength());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -472,6 +523,23 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				int skipped = skipBytes(numBytes);
 				numBytes -= skipped;
 			}
+		}
+	}
+
+	public static final class TestIncompatibleSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+		@Override
+		public int getVersion() {
+			return 0;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestIncompatibleSerializerConfigSnapshot;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
 		}
 	}
 }

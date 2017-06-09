@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.scala.function.util
 
-import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{IterationRuntimeContext, RichFunction, RuntimeContext}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.api.java.operators.translation.WrappingFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction => JAllWindowFunction}
 import org.apache.flink.streaming.api.scala.function.AllWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -35,34 +34,20 @@ import scala.collection.JavaConverters._
  *   - Scala WindowFunction: scala.Iterable
  *   - Java WindowFunction: java.lang.Iterable
  */
-final class ScalaAllWindowFunctionWrapper[IN, OUT, W <: Window](
-        private[this] val func: AllWindowFunction[IN, OUT, W])
-    extends JAllWindowFunction[IN, OUT, W] with RichFunction {
+final class ScalaAllWindowFunctionWrapper[IN, OUT, W <: Window](func: AllWindowFunction[IN, OUT, W])
+  extends WrappingFunction[AllWindowFunction[IN, OUT, W]](func)
+    with JAllWindowFunction[IN, OUT, W] with RichFunction {
   
   @throws(classOf[Exception])
   override def apply(window: W, input: java.lang.Iterable[IN], out: Collector[OUT]) {
-    func.apply(window, input.asScala, out)
+    wrappedFunction.apply(window, input.asScala, out)
   }
 
-  @throws(classOf[Exception])
-  override def open(parameters: Configuration) {
-    FunctionUtils.openFunction(func, parameters)
-  }
-
-  @throws(classOf[Exception])
-  override def close() {
-    FunctionUtils.closeFunction(func)
-  }
-
-  override def setRuntimeContext(t: RuntimeContext) {
-    FunctionUtils.setFunctionRuntimeContext(func, t)
-  }
-
-  override def getRuntimeContext(): RuntimeContext = {
+  override def getRuntimeContext: RuntimeContext = {
     throw new RuntimeException("This should never be called")
   }
 
-  override def getIterationRuntimeContext(): IterationRuntimeContext = {
+  override def getIterationRuntimeContext: IterationRuntimeContext = {
     throw new RuntimeException("This should never be called")
   }
 }

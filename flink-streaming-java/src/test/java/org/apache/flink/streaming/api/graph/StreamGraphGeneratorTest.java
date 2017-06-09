@@ -22,13 +22,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -37,7 +36,6 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -62,8 +60,7 @@ public class StreamGraphGeneratorTest {
 	/**
 	 * This tests whether virtual Transformations behave correctly.
 	 *
-	 * <p>
-	 * Verifies that partitioning, output selector, selected names are correctly set in the
+	 * <p>Verifies that partitioning, output selector, selected names are correctly set in the
 	 * StreamGraph when they are intermixed.
 	 */
 	@Test
@@ -114,7 +111,6 @@ public class StreamGraphGeneratorTest {
 				.select("even")
 				.shuffle();
 
-
 		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
 				.map(new NoOpIntMap());
 
@@ -146,7 +142,7 @@ public class StreamGraphGeneratorTest {
 	/**
 	 * This tests whether virtual Transformations behave correctly.
 	 *
-	 * Checks whether output selector, partitioning works correctly when applied on a union.
+	 * <p>Checks whether output selector, partitioning works correctly when applied on a union.
 	 */
 	@Test
 	public void testVirtualTransformations2() throws Exception {
@@ -273,7 +269,7 @@ public class StreamGraphGeneratorTest {
 	}
 
 	/**
-	 * Tests that the global and operator-wide max parallelism setting is respected
+	 * Tests that the global and operator-wide max parallelism setting is respected.
 	 */
 	@Test
 	public void testMaxParallelismForwarding() {
@@ -368,13 +364,9 @@ public class StreamGraphGeneratorTest {
 
 		StreamGraph graph = env.getStreamGraph();
 
-		StreamNode keyedResult1Node = graph.getStreamNode(keyedResult1.getId());
-		StreamNode keyedResult2Node = graph.getStreamNode(keyedResult2.getId());
 		StreamNode keyedResult3Node = graph.getStreamNode(keyedResult3.getId());
 		StreamNode keyedResult4Node = graph.getStreamNode(keyedResult4.getId());
 
-		assertEquals(KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM, keyedResult1Node.getMaxParallelism());
-		assertEquals(KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM, keyedResult2Node.getMaxParallelism());
 		assertEquals(maxParallelism, keyedResult3Node.getMaxParallelism());
 		assertEquals(maxParallelism, keyedResult4Node.getMaxParallelism());
 	}
@@ -394,13 +386,13 @@ public class StreamGraphGeneratorTest {
 		env.getConfig().setMaxParallelism(maxParallelism);
 
 		DataStream<Integer> keyedResult = input1.connect(input2).keyBy(
-			 new KeySelector<Integer, Integer>() {
-				 private static final long serialVersionUID = -6908614081449363419L;
+			new KeySelector<Integer, Integer>() {
+				private static final long serialVersionUID = -6908614081449363419L;
 
-				 @Override
-				 public Integer getKey(Integer value) throws Exception {
-					 return value;
-				 }
+				@Override
+				public Integer getKey(Integer value) throws Exception {
+					return value;
+				}
 			},
 			new KeySelector<Integer, Integer>() {
 				private static final long serialVersionUID = 3195683453223164931L;
@@ -508,6 +500,5 @@ public class StreamGraphGeneratorTest {
 			return value;
 		}
 
-	};
-
+	}
 }

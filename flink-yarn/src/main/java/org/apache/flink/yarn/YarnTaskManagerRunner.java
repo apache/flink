@@ -18,26 +18,28 @@
 
 package org.apache.flink.yarn;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Map;
-
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.Callable;
 
 /**
  * The entry point for running a TaskManager in a YARN container.
@@ -89,19 +91,19 @@ public class YarnTaskManagerRunner {
 		}
 
 		// tell akka to die in case of an error
-		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);
+		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String keytabPath = null;
-		if(remoteKeytabPath != null) {
+		String localKeytabPath = null;
+		if (remoteKeytabPath != null) {
 			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-			keytabPath = f.getAbsolutePath();
-			LOG.info("keytabPath: {}", keytabPath);
+			localKeytabPath = f.getAbsolutePath();
+			LOG.info("localKeytabPath: {}", localKeytabPath);
 		}
 
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
 		LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
-				currentUser.getShortUserName(), yarnClientUsername );
+				currentUser.getShortUserName(), yarnClientUsername);
 
 		// Infer the resource identifier from the environment variable
 		String containerID = Preconditions.checkNotNull(envs.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID));
@@ -110,29 +112,36 @@ public class YarnTaskManagerRunner {
 
 		try {
 
-			SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
+			org.apache.hadoop.conf.Configuration hadoopConfiguration = null;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
-			if(krb5Conf.exists() && krb5Conf.canRead()) {
+			if (krb5Conf.exists() && krb5Conf.canRead()) {
 				String krb5Path = krb5Conf.getAbsolutePath();
 				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-				conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-				sc.setHadoopConfiguration(conf);
+				hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
+				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
 			}
 
-			if(keytabPath != null && remoteKeytabPrincipal != null) {
-				configuration.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
-				configuration.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
+			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
+			if (localKeytabPath != null && remoteKeytabPrincipal != null) {
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, localKeytabPath);
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			SecurityContext.install(sc.setFlinkConfiguration(configuration));
+			SecurityUtils.SecurityConfiguration sc;
+			if (hadoopConfiguration != null) {
+				sc = new SecurityUtils.SecurityConfiguration(configuration, hadoopConfiguration);
+			} else {
+				sc = new SecurityUtils.SecurityConfiguration(configuration);
+			}
 
-			SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.install(sc);
+
+			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
-				public Integer run() {
+				public Integer call() {
 					try {
 						TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
 					}
@@ -143,7 +152,7 @@ public class YarnTaskManagerRunner {
 					return null;
 				}
 			});
-		} catch(Exception e) {
+		} catch (Exception e) {
 			LOG.error("Exception occurred while launching Task Manager", e);
 			throw new RuntimeException(e);
 		}

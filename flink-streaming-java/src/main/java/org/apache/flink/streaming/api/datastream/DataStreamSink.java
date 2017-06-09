@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -32,7 +34,7 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 @Public
 public class DataStreamSink<T> {
 
-	SinkTransformation<T> transformation;
+	private final SinkTransformation<T> transformation;
 
 	@SuppressWarnings("unchecked")
 	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
@@ -77,6 +79,30 @@ public class DataStreamSink<T> {
 	}
 
 	/**
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
+	 *
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
+	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
+	 *
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
+	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
+	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
+	 *
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
+	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
+	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
+	 *
+	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
+	 *                 logs and web ui.
+	 * @return The operator with the user provided hash.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> setUidHash(String uidHash) {
+		transformation.setUidHash(uidHash);
+		return this;
+	}
+
+	/**
 	 * Sets the parallelism for this sink. The degree must be higher than zero.
 	 *
 	 * @param parallelism The parallelism for this sink.
@@ -87,12 +113,50 @@ public class DataStreamSink<T> {
 		return this;
 	}
 
+	//	---------------------------------------------------------------------------
+	//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+	//	 The setters are hence private at this point.
+	//	---------------------------------------------------------------------------
+
+	/**
+	 * Sets the minimum and preferred resources for this sink, and the lower and upper resource limits will
+	 * be considered in resource resize feature for future plan.
+	 *
+	 * @param minResources The minimum resources for this sink.
+	 * @param preferredResources The preferred resources for this sink
+	 * @return The sink with set minimum and preferred resources.
+	 */
+	private DataStreamSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+
+		transformation.setResources(minResources, preferredResources);
+
+		return this;
+	}
+
+	/**
+	 * Sets the resources for this sink, the minimum and preferred resources are the same by default.
+	 *
+	 * @param resources The resources for this sink.
+	 * @return The sink with set minimum and preferred resources.
+	 */
+	private DataStreamSink<T> setResources(ResourceSpec resources) {
+		Preconditions.checkNotNull(resources, "The resources must be not null.");
+		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+
+		transformation.setResources(resources, resources);
+
+		return this;
+	}
+
 	/**
 	 * Turns off chaining for this operator so thread co-location will not be
 	 * used as an optimization.
 	 *
-	 * <p>
-	 * Chaining can be turned off for the whole
+	 * <p>Chaining can be turned off for the whole
 	 * job by {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#disableOperatorChaining()}
 	 * however it is not advised for performance considerations.
 	 *

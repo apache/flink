@@ -18,16 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.BackPressureStatsTracker;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.OperatorBackPressureStats;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.Assert;
 import org.junit.Test;
-import scala.Option;
 
 import java.util.Collections;
+
+import scala.Option;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -41,8 +44,15 @@ import static org.mockito.Mockito.when;
  * Tests for back pressure handler responses.
  */
 public class JobVertexBackPressureHandlerTest {
+	@Test
+	public void testGetPaths() {
+		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(null, mock(BackPressureStatsTracker.class), 0);
+		String[] paths = handler.getPaths();
+		Assert.assertEquals(1, paths.length);
+		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/backpressure", paths[0]);
+	}
 
-	/** Tests the response when no stats are available */
+	/** Tests the response when no stats are available. */
 	@Test
 	public void testResponseNoStatsAvailable() throws Exception {
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
@@ -72,7 +82,7 @@ public class JobVertexBackPressureHandlerTest {
 		verify(statsTracker).triggerStackTraceSample(any(ExecutionJobVertex.class));
 	}
 
-	/** Tests the response when stats are available */
+	/** Tests the response when stats are available. */
 	@Test
 	public void testResponseStatsAvailable() throws Exception {
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);

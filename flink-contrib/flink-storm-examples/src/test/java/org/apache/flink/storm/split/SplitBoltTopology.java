@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.split;
 
-import backtype.storm.topology.TopologyBuilder;
 import org.apache.flink.storm.split.operators.RandomSpout;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
 import org.apache.flink.storm.util.BoltFileSink;
@@ -25,13 +25,18 @@ import org.apache.flink.storm.util.BoltPrintSink;
 import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 
+import org.apache.storm.topology.TopologyBuilder;
+
+/**
+ * A simple topology that splits a stream of numbers based on their parity, and verifies the result.
+ */
 public class SplitBoltTopology {
-	public final static String spoutId = "randomSource";
-	public final static String boltId = "splitBolt";
-	public final static String evenVerifierId = "evenVerifier";
-	public final static String oddVerifierId = "oddVerifier";
-	public final static String sinkId = "sink";
-	private final static OutputFormatter formatter = new TupleOutputFormatter();
+	private static final String spoutId = "randomSource";
+	private static final String boltId = "splitBolt";
+	private static final String evenVerifierId = "evenVerifier";
+	private static final String oddVerifierId = "oddVerifier";
+	private static final String sinkId = "sink";
+	private static final OutputFormatter formatter = new TupleOutputFormatter();
 
 	public static TopologyBuilder buildTopology() {
 		final TopologyBuilder builder = new TopologyBuilder();

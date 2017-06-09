@@ -114,7 +114,7 @@ public class CoGroupRawDescriptor extends OperatorDescriptorDual {
 		Ordering prod2 = produced2.getOrdering();
 
 		if (prod1 == null || prod2 == null || prod1.getNumberOfFields() < numRelevantFields
-				|| prod2.getNumberOfFields() < prod2.getNumberOfFields()) {
+				|| prod2.getNumberOfFields() < numRelevantFields) {
 			throw new CompilerException("The given properties do not meet this operators requirements.");
 		}
 

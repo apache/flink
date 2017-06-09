@@ -35,7 +35,7 @@ To use this connector, add the following dependency to your project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
 
 #### Installing Apache Cassandra
 Follow the instructions from the [Cassandra Getting Started page](http://wiki.apache.org/cassandra/GettingStarted).
@@ -100,12 +100,11 @@ CassandraSink.addSink(input)
 CassandraSink.addSink(input)
   .setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
   .setClusterBuilder(new ClusterBuilder() {
-    @Override
-    public Cluster buildCluster(Cluster.Builder builder) {
-      return builder.addContactPoint("127.0.0.1").build();
+    override def buildCluster(builder: Cluster.Builder): Cluster = {
+      builder.addContactPoint("127.0.0.1").build()
     }
   })
-  .build();
+  .build()
 {% endhighlight %}
 </div>
 </div>

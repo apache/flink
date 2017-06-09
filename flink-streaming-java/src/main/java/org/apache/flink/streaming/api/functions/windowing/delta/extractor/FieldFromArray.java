@@ -23,21 +23,19 @@ import java.lang.reflect.Array;
 
 /**
  * Extracts a single field out of an array.
- * 
+ *
  * @param <OUT>
  *            The type of the extracted field.
  */
 @Internal
 public class FieldFromArray<OUT> implements Extractor<Object, OUT> {
 
-	/**
-	 * Auto-gernated version id
-	 */
 	private static final long serialVersionUID = -5161386546695574359L;
+
 	private int fieldId = 0;
 
 	/**
-	 * Extracts the first field (id 0) from the array
+	 * Extracts the first field (id 0) from the array.
 	 */
 	public FieldFromArray() {
 		// noting to do => will use default 0
@@ -45,7 +43,7 @@ public class FieldFromArray<OUT> implements Extractor<Object, OUT> {
 
 	/**
 	 * Extracts the field with the given id from the array.
-	 * 
+	 *
 	 * @param fieldId
 	 *            The id of the field which will be extracted from the array.
 	 */

@@ -18,8 +18,12 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.tuple.Tuple;
 
+/**
+ * {@link OutputFormatter} implementation that converts {@link Tuple Tuples} of arbitrary size to a string. For a given
+ * tuple the output is <code>(field1,field2,...,fieldX)</code>.
+ */
 public class TupleOutputFormatter implements OutputFormatter {
 	private static final long serialVersionUID = -599665757723851761L;
 

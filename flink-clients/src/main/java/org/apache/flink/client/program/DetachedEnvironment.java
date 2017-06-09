@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +77,9 @@ public class DetachedEnvironment extends ContextEnvironment {
 		return client.run(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
 	}
 
+	/**
+	 * The {@link JobExecutionResult} returned by a {@link DetachedEnvironment}.
+	 */
 	public static final class DetachedJobExecutionResult extends JobExecutionResult {
 
 		public static final DetachedJobExecutionResult INSTANCE = new DetachedJobExecutionResult();

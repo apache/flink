@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.tests;
 
-import backtype.storm.Config;
-import backtype.storm.topology.TopologyBuilder;
+package org.apache.flink.storm.tests;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
@@ -27,6 +25,12 @@ import org.apache.flink.storm.tests.operators.MergerBolt;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+import org.apache.storm.Config;
+import org.apache.storm.topology.TopologyBuilder;
+
+/**
+ * Test for the {@link MergerBolt}.
+ */
 public class StormUnionITCase extends StreamingProgramTestBase {
 
 	private static final String RESULT = "-1154715079\n" + "-1155869325\n" + "-1155484576\n"
@@ -37,12 +41,12 @@ public class StormUnionITCase extends StreamingProgramTestBase {
 			+ "-624140595\n" + "-60658084\n" + "142959438\n" + "-613647601\n" + "-330177159\n"
 			+ "-54027108\n" + "1945002173\n" + "979930868";
 
-	private final static String topologyId = "Multiple Input Streams Test";
-	private final static String spoutId1 = "spout1";
-	private final static String spoutId2 = "spout2";
-	private final static String spoutId3 = "spout3";
-	private final static String boltId = "merger";
-	private final static String sinkId = "sink";
+	private static final String topologyId = "Multiple Input Streams Test";
+	private static final String spoutId1 = "spout1";
+	private static final String spoutId2 = "spout2";
+	private static final String spoutId3 = "spout3";
+	private static final String boltId = "merger";
+	private static final String sinkId = "sink";
 	private String resultPath;
 
 	@Override

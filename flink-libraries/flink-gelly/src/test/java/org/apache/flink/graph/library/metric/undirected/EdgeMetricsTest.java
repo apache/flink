@@ -18,23 +18,27 @@
 
 package org.apache.flink.graph.library.metric.undirected;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.metric.undirected.EdgeMetrics.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link EdgeMetrics}.
+ */
 public class EdgeMetricsTest
 extends AsmTestBase {
 
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		Result expectedResult = new Result(6, 7, 2, 6, 13, 4, 1, 3, 6);
+		Result expectedResult = new Result(2, 6, 1, 3);
 
 		Result edgeMetrics = new EdgeMetrics<IntValue, NullValue, NullValue>()
 			.run(undirectedSimpleGraph)
@@ -47,12 +51,11 @@ extends AsmTestBase {
 	public void testWithCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedEdges = completeGraphVertexCount * expectedDegree / 2;
-		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
 
-		Result expectedResult = new Result(completeGraphVertexCount, expectedEdges, expectedTriplets / 3, 2 * expectedTriplets / 3, expectedTriplets,
-			expectedDegree, expectedMaximumTriplets, expectedMaximumTriplets, expectedMaximumTriplets);
+		Result expectedResult = new Result(expectedTriplets / 3, 2 * expectedTriplets / 3,
+			expectedMaximumTriplets, expectedMaximumTriplets);
 
 		Result edgeMetrics = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(completeGraph)
@@ -66,7 +69,7 @@ extends AsmTestBase {
 			throws Exception {
 		Result expectedResult;
 
-		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0, 0, 0);
+		expectedResult = new Result(0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(emptyGraph)
@@ -78,10 +81,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Result expectedResult = new Result(902, 10442, 107817, 315537, 1003442, 463, 820, 3822, 106953);
+		Result expectedResult = new Result(107817, 315537, 820, 3822);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(undirectedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, withoutZeroDegreeVertices);

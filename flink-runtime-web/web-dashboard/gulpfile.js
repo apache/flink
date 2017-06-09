@@ -40,7 +40,7 @@ var mainBowerFiles = require('main-bower-files');
 var less = require('gulp-less');
 var path = require('path');
 
-var environment = 'development';
+var environment = 'production';
 var paths = {
   src: './app/',
   dest: './web/',
@@ -50,17 +50,23 @@ var paths = {
   tmp: './tmp/'
 }
 
-gulp.task('set-production', function() {
-  environment = 'production';
+gulp.task('set-development', function() {
+  environment = 'development';
 });
 
 gulp.task('fonts', function() {
   return gulp.src(paths.vendor + "font-awesome/fonts/*")
-    .pipe(plumber())
-    .pipe(gulp.dest(paths.assets + 'fonts'));
+      .pipe(plumber())
+      .pipe(gulp.dest(paths.assets + 'fonts'));
 });
 
-gulp.task('assets', ['fonts'], function() {
+gulp.task('images', function() {
+  return gulp.src(paths.vendor + "Split.js/grips/*")
+    .pipe(plumber())
+    .pipe(gulp.dest(paths.assets + 'images/grips'));
+});
+
+gulp.task('assets', ['fonts', 'images'], function() {
   return gulp.src(paths.assets + "**")
     .pipe(plumber())
     .pipe(gulp.dest(paths.dest));
@@ -105,7 +111,7 @@ gulp.task('vendor-scripts', function() {
  });
 
 gulp.task('scripts', function() {
-  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee'] )
+  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee', '!' + paths.src + 'scripts/index_hs.coffee'] )
     .pipe(plumber())
     .pipe(sourcemaps.init())
     .pipe(coffee({ bare: true }))
@@ -120,8 +126,33 @@ gulp.task('scripts', function() {
   stream.pipe(gulp.dest(paths.dest + 'js/'))
 });
 
+gulp.task('scripts_hs', function() {
+  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee', '!' + paths.src + 'scripts/index.coffee'] )
+    .pipe(plumber())
+    .pipe(sourcemaps.init())
+    .pipe(coffee({ bare: true }))
+    .pipe(ngAnnotate())
+    .pipe(concat('index.js'))
+    .pipe(sourcemaps.write());
+
+  if (environment == 'production') {
+    stream.pipe(uglify())
+  }
+
+  stream.pipe(gulp.dest(paths.dest + 'js/hs'))
+});
+
 gulp.task('html', function() {
   gulp.src(paths.src + 'index.jade')
+    .pipe(plumber())
+    .pipe(jade({
+      pretty: true
+    }))
+    .pipe(gulp.dest(paths.dest))
+});
+
+gulp.task('html_hs', function() {
+  gulp.src(paths.src + 'index_hs.jade')
     .pipe(plumber())
     .pipe(jade({
       pretty: true
@@ -151,6 +182,7 @@ gulp.task('styles', function () {
 });
 
 gulp.task('watch', function () {
+  environment = 'development';
   livereload.listen();
 
   gulp.watch(paths.vendorLocal + '**', ['vendor-scripts']);
@@ -172,8 +204,8 @@ gulp.task('serve', serve({
 }));
 
 gulp.task('vendor', ['vendor-styles', 'vendor-scripts']);
-gulp.task('compile', ['html', 'partials','styles', 'scripts']);
+gulp.task('compile', ['html', 'html_hs', 'partials','styles', 'scripts', 'scripts_hs']);
 
 gulp.task('default', ['fonts', 'assets', 'vendor', 'compile']);
-gulp.task('production', ['set-production', 'default']);
+gulp.task('dev', ['set-development', 'default']);
 

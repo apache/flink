@@ -45,7 +45,7 @@ object JobManagerMessages {
     * [[RequiresLeaderSessionID]] interface and have to be wrapped in a [[LeaderSessionMessage]],
     * which also contains the current leader session ID.
     *
-    * @param leaderSessionID Current leader session ID or null, if no leader session ID was set
+    * @param leaderSessionID Current leader session ID
     * @param message [[RequiresLeaderSessionID]] message to be wrapped in a [[LeaderSessionMessage]]
     */
   case class LeaderSessionMessage(leaderSessionID: UUID, message: Any)
@@ -157,20 +157,18 @@ object JobManagerMessages {
   case class NextInputSplit(splitData: Array[Byte])
 
   /**
-   * Requests the current state of the partition.
-   *
-   * The state of a partition is currently bound to the state of the producing execution.
-   *
-   * @param jobId The job ID of the job, which produces the partition.
-   * @param partitionId The partition ID of the partition to request the state of.
-   * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
-   * @param taskResultId The input gate ID of the task requesting the partition state.
-   */
-  case class RequestPartitionState(
+    * Requests the execution state of the execution producing a result partition.
+    *
+    * @param jobId                 ID of the job the partition belongs to.
+    * @param intermediateDataSetId ID of the parent intermediate data set.
+    * @param resultPartitionId     ID of the result partition to check. This
+    *                              identifies the producing execution and
+    *                              partition.
+    */
+  case class RequestPartitionProducerState(
       jobId: JobID,
-      partitionId: ResultPartitionID,
-      taskExecutionId: ExecutionAttemptID,
-      taskResultId: IntermediateDataSetID)
+      intermediateDataSetId: IntermediateDataSetID,
+      resultPartitionId: ResultPartitionID)
     extends RequiresLeaderSessionID
 
   /**
@@ -237,8 +235,8 @@ object JobManagerMessages {
     * @param requiredClasspaths The urls of the required classpaths
     */
   case class ClassloadingProps(blobManagerPort: Integer,
-                               requiredJarFiles: java.util.List[BlobKey],
-                               requiredClasspaths: java.util.List[URL])
+                               requiredJarFiles: java.util.Collection[BlobKey],
+                               requiredClasspaths: java.util.Collection[URL])
 
   /**
    * Requests the port of the blob manager from the job manager. The result is sent back to the
@@ -496,7 +494,12 @@ object JobManagerMessages {
     * @param jobId The job ID for which the savepoint was triggered.
     * @param savepointPath The path of the savepoint.
     */
-  case class TriggerSavepointSuccess(jobId: JobID, savepointPath: String)
+  case class TriggerSavepointSuccess(
+    jobId: JobID,
+    checkpointId: Long,
+    savepointPath: String,
+    triggerTime: Long
+  )
 
   /**
     * Response after a failed savepoint trigger containing the failure cause.

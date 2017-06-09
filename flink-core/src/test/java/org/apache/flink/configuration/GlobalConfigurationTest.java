@@ -56,7 +56,8 @@ public class GlobalConfigurationTest extends TestLogger {
 				pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
 				pw.println(" some nonsense without colon and whitespace separator"); // SKIP
 				pw.println(" :  "); // SKIP
-				pw.println("   "); // SKIP
+				pw.println("   "); // SKIP (silently)
+				pw.println(" "); // SKIP (silently)
 				pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
 				pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
 				pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator

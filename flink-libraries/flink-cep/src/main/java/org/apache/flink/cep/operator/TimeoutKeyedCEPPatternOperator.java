@@ -19,7 +19,6 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
@@ -27,46 +26,65 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Either;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
-public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> {
+/**
+ * CEP pattern operator which returns fully and partially matched (timed-out) event patterns stored in a
+ * {@link Map}. The events are indexed by the event names associated in the pattern specification. The
+ * operator works on keyed input data.
+ *
+ * @param <IN> Type of the input events
+ * @param <KEY> Type of the key
+ */
+public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Either<Tuple2<Map<String, List<IN>>, Long>, Map<String, List<IN>>>> {
 	private static final long serialVersionUID = 3570542177814518158L;
 
 	public TimeoutKeyedCEPPatternOperator(
-		TypeSerializer<IN> inputSerializer,
-		boolean isProcessingTime,
-		KeySelector<IN, KEY> keySelector,
-		TypeSerializer<KEY> keySerializer,
-		NFACompiler.NFAFactory<IN> nfaFactory) {
+			TypeSerializer<IN> inputSerializer,
+			boolean isProcessingTime,
+			TypeSerializer<KEY> keySerializer,
+			NFACompiler.NFAFactory<IN> nfaFactory,
+			boolean migratingFromOldKeyedOperator) {
 
-		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
+		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator);
 	}
 
 	@Override
 	protected void processEvent(NFA<IN> nfa, IN event, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns = nfa.process(
-			event,
-			timestamp);
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
+			nfa.process(event, timestamp);
 
-		Collection<Map<String, IN>> matchedPatterns = patterns.f0;
-		Collection<Tuple2<Map<String, IN>, Long>> partialPatterns = patterns.f1;
+		emitMatchedSequences(patterns.f0, timestamp);
+		emitTimedOutSequences(patterns.f1, timestamp);
+	}
 
-		StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> streamRecord = new StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>>(
-			null,
-			timestamp);
+	@Override
+	protected void advanceTime(NFA<IN> nfa, long timestamp) {
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
+			nfa.process(null, timestamp);
 
-		if (!matchedPatterns.isEmpty()) {
-			for (Map<String, IN> matchedPattern : matchedPatterns) {
-				streamRecord.replace(Either.Right(matchedPattern));
-				output.collect(streamRecord);
-			}
+		emitMatchedSequences(patterns.f0, timestamp);
+		emitTimedOutSequences(patterns.f1, timestamp);
+	}
+
+	private void emitTimedOutSequences(Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences, long timestamp) {
+		StreamRecord<Either<Tuple2<Map<String, List<IN>>, Long>, Map<String, List<IN>>>> streamRecord =
+			new StreamRecord<>(null, timestamp);
+
+		for (Tuple2<Map<String, List<IN>>, Long> partialPattern: timedOutSequences) {
+			streamRecord.replace(Either.Left(partialPattern));
+			output.collect(streamRecord);
 		}
+	}
 
-		if (!partialPatterns.isEmpty()) {
-			for (Tuple2<Map<String, IN>, Long> partialPattern: partialPatterns) {
-				streamRecord.replace(Either.Left(partialPattern));
-				output.collect(streamRecord);
-			}
+	protected void emitMatchedSequences(Iterable<Map<String, List<IN>>> matchedSequences, long timestamp) {
+		StreamRecord<Either<Tuple2<Map<String, List<IN>>, Long>, Map<String, List<IN>>>> streamRecord =
+			new StreamRecord<>(null, timestamp);
+
+		for (Map<String, List<IN>> matchedPattern : matchedSequences) {
+			streamRecord.replace(Either.Right(matchedPattern));
+			output.collect(streamRecord);
 		}
 	}
 }

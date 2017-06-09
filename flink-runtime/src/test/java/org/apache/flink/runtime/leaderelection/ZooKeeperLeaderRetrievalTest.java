@@ -22,10 +22,15 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
@@ -34,7 +39,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -52,29 +56,44 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	private TestingServer testingServer;
 
+	private Configuration config;
+
+	private HighAvailabilityServices highAvailabilityServices;
+
 	@Before
-	public void before() {
-		try {
-			testingServer = new TestingServer();
-		} catch (Exception e) {
-			throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
-		}
+	public void before() throws Exception {
+		testingServer = new TestingServer();
+
+		config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+
+		CuratorFramework client = ZooKeeperUtils.startCuratorFramework(config);
+
+		highAvailabilityServices = new ZooKeeperHaServices(
+			client,
+			TestingUtils.defaultExecutor(),
+			config,
+			new VoidBlobStore());
 	}
 
 	@After
-	public void after() {
+	public void after() throws Exception {
 		if(testingServer != null) {
-			try {
-				testingServer.stop();
-			} catch (IOException e) {
-				throw new RuntimeException("Could not stop ZooKeeper testing cluster.", e);
-			}
+			testingServer.stop();
+
 			testingServer = null;
+		}
+
+		if (highAvailabilityServices != null) {
+			highAvailabilityServices.closeAndCleanupAllData();
+
+			highAvailabilityServices = null;
 		}
 	}
 
 	/**
-	 * Tests that LeaderRetrievalUtils.findConnectingAdress finds the correct connecting address
+	 * Tests that LeaderRetrievalUtils.findConnectingAddress finds the correct connecting address
 	 * in case of an old leader address in ZooKeeper and a subsequent election of a new leader.
 	 * The findConnectingAddress should block until the new leader has been elected and his
 	 * address has been written to ZooKeeper.
@@ -82,12 +101,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	@Test
 	public void testConnectingAddressRetrievalWithDelayedLeaderElection() throws Exception {
 		FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
-		Configuration config = new Configuration();
 
 		long sleepingTime = 1000;
-
-		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
 		LeaderElectionService leaderElectionService = null;
 		LeaderElectionService faultyLeaderElectionService;
@@ -97,16 +112,13 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 		Thread thread;
 
-		CuratorFramework[] client = new CuratorFramework[2];
-
 		try {
-			client[0] = ZooKeeperUtils.startCuratorFramework(config);
-			client[1] = ZooKeeperUtils.startCuratorFramework(config);
-
-			InetSocketAddress wrongInetSocketAddress = new InetSocketAddress(InetAddress.getByName("1.1.1.1"), 1234);
-
-			String wrongAddress = JobManager.getRemoteJobManagerAkkaURL(AkkaUtils.getAkkaProtocol(config),
-					wrongInetSocketAddress, Option.<String>empty());
+			String wrongAddress = AkkaRpcServiceUtils.getRpcUrl(
+				"1.1.1.1",
+				1234,
+				"foobar",
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+				config);
 
 			try {
 				localHost = InetAddress.getLocalHost();
@@ -124,21 +136,28 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 			InetSocketAddress correctInetSocketAddress = new InetSocketAddress(localHost, serverSocket.getLocalPort());
 
-			String correctAddress = JobManager.getRemoteJobManagerAkkaURL(AkkaUtils.getAkkaProtocol(config),
-					correctInetSocketAddress, Option.<String>empty());
+			String correctAddress = AkkaRpcServiceUtils.getRpcUrl(
+				localHost.getHostName(),
+				correctInetSocketAddress.getPort(),
+				JobMaster.JOB_MANAGER_NAME,
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+				config);
 
-			faultyLeaderElectionService = ZooKeeperUtils.createLeaderElectionService(client[0], config);
+			faultyLeaderElectionService = highAvailabilityServices.getJobManagerLeaderElectionService(
+				HighAvailabilityServices.DEFAULT_JOB_ID);
 			TestingContender wrongLeaderAddressContender = new TestingContender(wrongAddress, faultyLeaderElectionService);
 
 			faultyLeaderElectionService.start(wrongLeaderAddressContender);
 
-			FindConnectingAddress findConnectingAddress = new FindConnectingAddress(config, timeout);
+			FindConnectingAddress findConnectingAddress = new FindConnectingAddress(
+				timeout,
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID));
 
 			thread = new Thread(findConnectingAddress);
 
 			thread.start();
 
-			leaderElectionService = ZooKeeperUtils.createLeaderElectionService(client[1], config);
+			leaderElectionService = highAvailabilityServices.getJobManagerLeaderElectionService(HighAvailabilityServices.DEFAULT_JOB_ID);
 			TestingContender correctLeaderAddressContender = new TestingContender(correctAddress, leaderElectionService);
 
 			Thread.sleep(sleepingTime);
@@ -166,14 +185,6 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 			if (leaderElectionService != null) {
 				leaderElectionService.stop();
 			}
-
-			if (client[0] != null) {
-				client[0].close();
-			}
-
-			if (client[1] != null) {
-				client[1].close();
-			}
 		}
 	}
 
@@ -184,13 +195,9 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	 */
 	@Test
 	public void testTimeoutOfFindConnectingAddress() throws Exception {
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+		FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
 
-		FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
-
-		LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+		LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 		InetAddress result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
 
 		assertEquals(InetAddress.getLocalHost(), result);
@@ -198,22 +205,25 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	static class FindConnectingAddress implements Runnable {
 
-		private final Configuration config;
 		private final FiniteDuration timeout;
+		private final LeaderRetrievalService leaderRetrievalService;
 
 		private InetAddress result;
 		private Exception exception;
 
-		public FindConnectingAddress(Configuration config, FiniteDuration timeout) {
-			this.config = config;
+		public FindConnectingAddress(
+				FiniteDuration timeout,
+				LeaderRetrievalService leaderRetrievalService) {
 			this.timeout = timeout;
+			this.leaderRetrievalService = leaderRetrievalService;
 		}
 
 		@Override
 		public void run() {
 			try {
-				LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-				result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
+				result = LeaderRetrievalUtils.findConnectingAddress(
+					leaderRetrievalService,
+					timeout);
 			} catch (Exception e) {
 				exception = e;
 			}

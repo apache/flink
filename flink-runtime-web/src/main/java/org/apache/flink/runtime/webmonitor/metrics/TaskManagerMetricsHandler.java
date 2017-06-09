@@ -15,31 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
+
+import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 
 import java.util.Map;
 
 /**
  * Request handler that returns for a given task manager a list of all available metrics or the values for a set of metrics.
  *
- * If the query parameters do not contain a "get" parameter the list of all metrics is returned.
+ * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
  *
- * If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
+ * <p>If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
  * {@code /get?X,Y}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public class TaskManagerMetricsHandler extends AbstractMetricsHandler {
-	public static final String PARAMETER_TM_ID = "tmid";
+
+	private static final String TASKMANAGER_METRICS_REST_PATH = "/taskmanagers/:taskmanagerid/metrics";
 
 	public TaskManagerMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{TASKMANAGER_METRICS_REST_PATH};
+	}
+
+	@Override
 	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.TaskManagerMetricStore taskManager = metrics.getTaskManagerMetricStore(pathParams.get(PARAMETER_TM_ID));
+		MetricStore.TaskManagerMetricStore taskManager = metrics.getTaskManagerMetricStore(pathParams.get(TaskManagersHandler.TASK_MANAGER_ID_KEY));
 		if (taskManager == null) {
 			return null;
 		} else {

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing a Flink runtime Task.
- * 
+ *
  * <p>Contains extra logic for adding operators.
  */
 @Internal
@@ -42,13 +43,13 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
 	private final TaskIOMetricGroup ioMetrics;
-	
-	/** The execution Id uniquely identifying the executed task represented by this metrics group */
+
+	/** The execution Id uniquely identifying the executed task represented by this metrics group. */
 	private final AbstractID executionId;
 
 	@Nullable
 	protected final AbstractID vertexId;
-	
+
 	@Nullable
 	private final String taskName;
 

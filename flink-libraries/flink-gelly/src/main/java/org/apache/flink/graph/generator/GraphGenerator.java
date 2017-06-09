@@ -26,11 +26,11 @@ import org.apache.flink.graph.Graph;
  * - scale-free, generating the same graph regardless of parallelism
  * - thrifty, using as few operators as possible
  *
- * Graph generators should prefer to emit edges sorted by the source label.
+ * <p>Graph generators should prefer to emit edges sorted by the source label.
  *
- * @param <K> the key type for edge and vertex identifiers
- * @param <VV> the value type for vertices
- * @param <EV> the value type for edges
+ * @param <K> graph ID type
+ * @param <VV> vertex value type
+ * @param <EV> edge value type
  */
 public interface GraphGenerator<K, VV, EV> {
 
@@ -39,7 +39,7 @@ public interface GraphGenerator<K, VV, EV> {
 	 *
 	 * @return generated graph
 	 */
-	Graph<K,VV,EV> generate();
+	Graph<K, VV, EV> generate();
 
 	/**
 	 * Override the operator parallelism.
@@ -47,5 +47,5 @@ public interface GraphGenerator<K, VV, EV> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	GraphGenerator<K,VV,EV> setParallelism(int parallelism);
+	GraphGenerator<K, VV, EV> setParallelism(int parallelism);
 }

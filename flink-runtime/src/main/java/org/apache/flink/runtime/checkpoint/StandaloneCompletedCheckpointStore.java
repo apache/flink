@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,15 +57,22 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		// Nothing to do
 	}
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-		checkpoints.add(checkpoint);
+
+		checkpoints.addLast(checkpoint);
+
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			checkpoints.remove().subsume();
+			try {
+				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
+				checkpointToSubsume.discardOnSubsume();
+			} catch (Exception e) {
+				LOG.warn("Fail to subsume the old checkpoint.", e);
+			}
 		}
 	}
 
@@ -84,16 +92,25 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
+	public int getMaxNumberOfRetainedCheckpoints() {
+		return maxNumberOfCheckpointsToRetain;
+	}
+
+	@Override
 	public void shutdown(JobStatus jobStatus) throws Exception {
 		try {
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				checkpoint.discard(jobStatus);
+				checkpoint.discardOnShutdown(jobStatus);
 			}
 		} finally {
 			checkpoints.clear();
 		}
 	}
 
+	@Override
+	public boolean requiresExternalizedCheckpoints() {
+		return false;
+	}
 }

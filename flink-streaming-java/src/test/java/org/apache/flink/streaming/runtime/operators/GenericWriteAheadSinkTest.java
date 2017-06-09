@@ -15,29 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
+/**
+ * Tests for {@link GenericWriteAheadSink}.
+ */
 public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
+
 	@Override
 	protected ListSink createSink() throws Exception {
 		return new ListSink();
@@ -53,11 +53,8 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		return new Tuple1<>(counter);
 	}
 
-
 	@Override
-	protected void verifyResultsIdealCircumstances(
-		OneInputStreamOperatorTestHarness<Tuple1<Integer>, Tuple1<Integer>> harness,
-		ListSink sink) {
+	protected void verifyResultsIdealCircumstances(ListSink sink) {
 
 		ArrayList<Integer> list = new ArrayList<>();
 		for (int x = 1; x <= 60; x++) {
@@ -72,9 +69,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 	}
 
 	@Override
-	protected void verifyResultsDataPersistenceUponMissedNotify(
-		OneInputStreamOperatorTestHarness<Tuple1<Integer>, Tuple1<Integer>> harness,
-		ListSink sink) {
+	protected void verifyResultsDataPersistenceUponMissedNotify(ListSink sink) {
 
 		ArrayList<Integer> list = new ArrayList<>();
 		for (int x = 1; x <= 60; x++) {
@@ -89,9 +84,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 	}
 
 	@Override
-	protected void verifyResultsDataDiscardingUponRestore(
-		OneInputStreamOperatorTestHarness<Tuple1<Integer>, Tuple1<Integer>> harness,
-		ListSink sink) {
+	protected void verifyResultsDataDiscardingUponRestore(ListSink sink) {
 
 		ArrayList<Integer> list = new ArrayList<>();
 		for (int x = 1; x <= 20; x++) {
@@ -106,6 +99,18 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 		Assert.assertTrue("The following ID's where not found in the result list: " + list.toString(), list.isEmpty());
 		Assert.assertTrue("The sink emitted to many values: " + (sink.values.size() - 40), sink.values.size() == 40);
+	}
+
+	@Override
+	protected void verifyResultsWhenReScaling(ListSink sink, int startElementCounter, int endElementCounter) throws Exception {
+
+		ArrayList<Integer> list = new ArrayList<>();
+		for (int i = startElementCounter; i <= endElementCounter; i++) {
+			list.add(i);
+		}
+
+		Collections.sort(sink.values);
+		Assert.assertArrayEquals(list.toArray(), sink.values.toArray());
 	}
 
 	@Test
@@ -129,33 +134,33 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 			elementCounter++;
 		}
 
-		testHarness.snapshotLegacy(0, 0);
+		testHarness.snapshot(0, 0);
 		testHarness.notifyOfCompletedCheckpoint(0);
 
 		//isCommitted should have failed, thus sendValues() should never have been called
-		Assert.assertTrue(sink.values.size() == 0);
+		Assert.assertEquals(0, sink.values.size());
 
-		for (int x = 0; x < 10; x++) {
+		for (int x = 0; x < 11; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
 			elementCounter++;
 		}
 
-		testHarness.snapshotLegacy(1, 0);
+		testHarness.snapshot(1, 0);
 		testHarness.notifyOfCompletedCheckpoint(1);
 
 		//previous CP should be retried, but will fail the CP commit. Second CP should be skipped.
-		Assert.assertTrue(sink.values.size() == 10);
+		Assert.assertEquals(10, sink.values.size());
 
-		for (int x = 0; x < 10; x++) {
+		for (int x = 0; x < 12; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
 			elementCounter++;
 		}
 
-		testHarness.snapshotLegacy(2, 0);
+		testHarness.snapshot(2, 0);
 		testHarness.notifyOfCompletedCheckpoint(2);
 
-		//all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 + 10 + 10 = 40 values
-		Assert.assertTrue(sink.values.size() == 40);
+		//all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 + 11 + 12 = 43 values
+		Assert.assertEquals(43, sink.values.size());
 	}
 
 	/**
@@ -179,10 +184,10 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 	}
 
-	public static class SimpleCommitter extends CheckpointCommitter {
+	private static class SimpleCommitter extends CheckpointCommitter {
 		private static final long serialVersionUID = 1L;
 
-		private List<Long> checkpoints;
+		private List<Tuple2<Long, Integer>> checkpoints;
 
 		@Override
 		public void open() throws Exception {
@@ -198,13 +203,13 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public void commitCheckpoint(long checkpointID) {
-			checkpoints.add(checkpointID);
+		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
+			checkpoints.add(new Tuple2<>(checkpointID, subtaskIdx));
 		}
 
 		@Override
-		public boolean isCheckpointCommitted(long checkpointID) {
-			return checkpoints.contains(checkpointID);
+		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
+			return checkpoints.contains(new Tuple2<>(checkpointID, subtaskIdx));
 		}
 	}
 
@@ -229,10 +234,10 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 	}
 
-	public static class FailingCommitter extends CheckpointCommitter {
+	private static class FailingCommitter extends CheckpointCommitter {
 		private static final long serialVersionUID = 1L;
 
-		private List<Long> checkpoints;
+		private List<Tuple2<Long, Integer>> checkpoints;
 		private boolean failIsCommitted = true;
 		private boolean failCommit = true;
 
@@ -250,17 +255,17 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public void commitCheckpoint(long checkpointID) {
+		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
 			if (failCommit) {
 				failCommit = false;
 				throw new RuntimeException("Expected exception");
 			} else {
-				checkpoints.add(checkpointID);
+				checkpoints.add(new Tuple2<>(checkpointID, subtaskIdx));
 			}
 		}
 
 		@Override
-		public boolean isCheckpointCommitted(long checkpointID) {
+		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
 			if (failIsCommitted) {
 				failIsCommitted = false;
 				throw new RuntimeException("Expected exception");

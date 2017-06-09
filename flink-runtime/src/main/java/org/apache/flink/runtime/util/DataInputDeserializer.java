@@ -45,7 +45,11 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	// ------------------------------------------------------------------------
 	
 	public DataInputDeserializer() {}
-	
+
+	public DataInputDeserializer(byte[] buffer) {
+		setBuffer(buffer, 0, buffer.length);
+	}
+
 	public DataInputDeserializer(byte[] buffer, int start, int len) {
 		setBuffer(buffer, start, len);
 	}
@@ -55,7 +59,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	}
 
 	// ------------------------------------------------------------------------
-	//  Chaning buffers
+	//  Changing buffers
 	// ------------------------------------------------------------------------
 	
 	public void setBuffer(ByteBuffer buffer) {
@@ -98,7 +102,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 
 	public int available() {
 		if (position < end) {
-			return end - position - 1;
+			return end - position;
 		} else {
 			return 0;
 		}

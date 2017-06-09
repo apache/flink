@@ -24,6 +24,7 @@ import akka.util.Timeout;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.messages.LeaderSessionMessageDecorator;
 import org.apache.flink.runtime.messages.MessageDecorator;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -48,8 +49,8 @@ public class AkkaActorGateway implements ActorGateway, Serializable {
 	private final MessageDecorator decorator;
 
 	public AkkaActorGateway(ActorRef actor, UUID leaderSessionID) {
-		this.actor = actor;
-		this.leaderSessionID = leaderSessionID;
+		this.actor = Preconditions.checkNotNull(actor);
+		this.leaderSessionID = Preconditions.checkNotNull(leaderSessionID);
 		// we want to wrap RequiresLeaderSessionID messages in a LeaderSessionMessage
 		this.decorator = new LeaderSessionMessageDecorator(leaderSessionID);
 	}

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.junit.Test;
 
@@ -114,11 +113,11 @@ public class InputChannelTest {
 	private static class MockInputChannel extends InputChannel {
 
 		private MockInputChannel(
-				SingleInputGate inputGate,
-				int channelIndex,
-				ResultPartitionID partitionId,
-				int initialBackoff,
-				int maxBackoff) {
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			int initialBackoff,
+			int maxBackoff) {
 
 			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter());
 		}
@@ -128,7 +127,7 @@ public class InputChannelTest {
 		}
 
 		@Override
-		Buffer getNextBuffer() throws IOException, InterruptedException {
+		BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
 			return null;
 		}
 

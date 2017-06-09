@@ -279,6 +279,10 @@ element using a user-defined reduce function.
 For each group of input elements, a reduce function successively combines pairs of elements into one
 element until only a single element for each group remains.
 
+Note that for a `ReduceFunction` the keyed fields of the returned object should match the input
+values. This is because reduce is implicitly combinable and objects emitted from the combine
+operator are again grouped by key when passed to the reduce operator.
+
 #### Reduce on DataSet Grouped by Key Expression
 
 Key expressions specify one or more fields of each element of a DataSet. Each key expression is
@@ -616,6 +620,7 @@ val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
         for (t <- in) {
           if (prev == null || prev != t)
             out.collect(t)
+            prev = t
         }
     }
 

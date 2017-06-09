@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -34,6 +35,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -56,6 +58,7 @@ public class SourceStreamTaskTest {
 	public void testOpenClose() throws Exception {
 		final SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>();
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
@@ -75,22 +78,22 @@ public class SourceStreamTaskTest {
 	 * and element emission. This also verifies that there are no concurrent invocations
 	 * of the checkpoint method on the source operator.
 	 *
-	 * The source emits elements and performs checkpoints. We have several checkpointer threads
+	 * <p>The source emits elements and performs checkpoints. We have several checkpointer threads
 	 * that fire checkpoint requests at the source task.
 	 *
-	 * If element emission and checkpointing are not in series the count of elements at the
+	 * <p>If element emission and checkpointing are not in series the count of elements at the
 	 * beginning of a checkpoint and at the end of a checkpoint are not the same because the
 	 * source kept emitting elements while the checkpoint was ongoing.
 	 */
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testCheckpointing() throws Exception {
-		final int NUM_ELEMENTS = 100;
-		final int NUM_CHECKPOINTS = 100;
-		final int NUM_CHECKPOINTERS = 1;
-		final int CHECKPOINT_INTERVAL = 5; // in ms
-		final int SOURCE_CHECKPOINT_DELAY = 1000; // how many random values we sum up in storeCheckpoint
-		final int SOURCE_READ_DELAY = 1; // in ms
+		final int numElements = 100;
+		final int numCheckpoints = 100;
+		final int numCheckpointers = 1;
+		final int checkpointInterval = 5; // in ms
+		final int sourceCheckpointDelay = 1000; // how many random values we sum up in storeCheckpoint
+		final int sourceReadDelay = 1; // in ms
 
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		try {
@@ -98,27 +101,28 @@ public class SourceStreamTaskTest {
 			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
 				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>();
 			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
+			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
-			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
+			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(numElements, sourceCheckpointDelay, sourceReadDelay));
 			streamConfig.setStreamOperator(sourceOperator);
 
 			// prepare the
 
-			Future<Boolean>[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
+			Future<Boolean>[] checkpointerResults = new Future[numCheckpointers];
 
 			// invoke this first, so the tasks are actually running when the checkpoints are scheduled
 			testHarness.invoke();
 
-			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
-				checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));
+			for (int i = 0; i < numCheckpointers; i++) {
+				checkpointerResults[i] = executor.submit(new Checkpointer(numCheckpoints, checkpointInterval, sourceTask));
 			}
 
 			testHarness.waitForTaskCompletion();
 
 			// Get the result from the checkpointers, if these threw an exception it
 			// will be rethrown here
-			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
+			for (int i = 0; i < numCheckpointers; i++) {
 				if (!checkpointerResults[i].isDone()) {
 					checkpointerResults[i].cancel(true);
 				}
@@ -128,14 +132,14 @@ public class SourceStreamTaskTest {
 			}
 
 			List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-			Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
+			Assert.assertEquals(numElements, resultElements.size());
 		}
 		finally {
 			executor.shutdown();
 		}
 	}
 
-	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed<Serializable> {
+	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, ListCheckpointed<Serializable> {
 		private static final long serialVersionUID = 1;
 
 		private int maxElements;
@@ -164,8 +168,10 @@ public class SourceStreamTaskTest {
 				// simulate some work
 				try {
 					Thread.sleep(readDelay);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				}
+				catch (InterruptedException e) {
+					// ignore and reset interruption state
+					Thread.currentThread().interrupt();
 				}
 
 				synchronized (lockObject) {
@@ -181,7 +187,7 @@ public class SourceStreamTaskTest {
 		}
 
 		@Override
-		public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		public List<Serializable> snapshotState(long checkpointId, long timestamp) throws Exception {
 			if (!semaphore.tryAcquire()) {
 				Assert.fail("Concurrent invocation of snapshotState.");
 			}
@@ -199,11 +205,12 @@ public class SourceStreamTaskTest {
 				Assert.fail("Count is different at start end end of snapshot.");
 			}
 			semaphore.release();
-			return sum;
+			return Collections.<Serializable>singletonList(sum);
 		}
 
 		@Override
-		public void restoreState(Serializable state) {}
+		public void restoreState(List<Serializable> state) throws Exception {
+		}
 	}
 
 	/**
@@ -227,14 +234,14 @@ public class SourceStreamTaskTest {
 			for (int i = 0; i < numCheckpoints; i++) {
 				long currentCheckpointId = checkpointId.getAndIncrement();
 				CheckpointMetaData checkpointMetaData = new CheckpointMetaData(currentCheckpointId, 0L);
-				sourceTask.triggerCheckpoint(checkpointMetaData);
+				sourceTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
 				Thread.sleep(checkpointInterval);
 			}
 			return true;
 		}
 	}
 
-	public static class OpenCloseTestSource extends RichSourceFunction<String> {
+	private static class OpenCloseTestSource extends RichSourceFunction<String> {
 		private static final long serialVersionUID = 1L;
 
 		public static boolean openCalled = false;

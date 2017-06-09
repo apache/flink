@@ -10,18 +10,20 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.configuration.ConfigConstants;
 
-/*
-Utility function to deserialize strings, used for CSV sinks.
-*/
+/**
+ * Utility function to deserialize strings, used for CSV sinks.
+ */
 public class StringTupleDeserializerMap implements MapFunction<byte[], Tuple1<String>> {
 	@Override
 	public Tuple1<String> map(byte[] value) throws Exception {
 		//5 = string type byte + string size
-		return new Tuple1<>(new String(value, 5, value.length - 5));
+		return new Tuple1<>(new String(value, 5, value.length - 5, ConfigConstants.DEFAULT_CHARSET));
 	}
 }

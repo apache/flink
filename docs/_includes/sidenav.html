@@ -101,6 +101,8 @@ level is determined by 'nav-pos'.
     {% capture target %}"{{ site.baseurl }}{{ this.url }}"{% if active %} class="active"{% endif %}{% endcapture %}
     {% capture overview_target %}"{{ site.baseurl }}{{ this.url }}"{% if this.url == page.url %} class="active"{% endif %}{% endcapture %}
 
+    {% if this.section-break %}<hr class="section-break"></hr>{% endif %}
+
     {% assign pos = pos | plus: 1 %}
     {% if this.nav-id %}
       {% assign children = (site.pages | where: "nav-parent_id" , this.nav-id | sort: "nav-pos") %}
@@ -124,7 +126,7 @@ level is determined by 'nav-pos'.
   {% endif %}
 {% endfor %}
   <li class="divider"></li>
-  <li><a href="http://flink.apache.org"><i class="fa fa-external-link" aria-hidden="true"></i> Project Page</a></li>
+  <li><a href="http://flink.apache.org"><i class="fa fa-external-link title" aria-hidden="true"></i> Project Page</a></li>
 </ul>
 
 <div class="sidenav-search-box">

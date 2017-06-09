@@ -18,6 +18,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -140,17 +141,48 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		see.execute();
 	}
 
+	@Test
+	public void testNestedPojoFieldAccessor() throws Exception {
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.getConfig().disableObjectReuse();
+		see.setParallelism(4);
 
-	/**
-	 * As per FLINK-3702 Flink doesn't support nested pojo fields for sum()
-	 */
-	@Test(expected = IllegalArgumentException.class)
+		DataStream<Data> dataStream = see.fromCollection(elements);
+
+		DataStream<Data> summedStream = dataStream
+			.keyBy("aaa")
+			.sum("stats.count")
+			.keyBy("aaa")
+			.flatMap(new FlatMapFunction<Data, Data>() {
+				Data[] first = new Data[3];
+				@Override
+				public void flatMap(Data value, Collector<Data> out) throws Exception {
+					if(first[value.aaa] == null) {
+						first[value.aaa] = value;
+						if(value.stats.count != 123) {
+							throw new RuntimeException("Expected stats.count to be 123");
+						}
+					} else {
+						if(value.stats.count != 2 * 123) {
+							throw new RuntimeException("Expected stats.count to be 2 * 123");
+						}
+					}
+				}
+			});
+
+		summedStream.print();
+
+		see.execute();
+	}
+
+	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
 	public void testFailOnNestedPojoFieldAccessor() throws Exception {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Data> dataStream = see.fromCollection(elements);
-		dataStream.keyBy("aaa", "stats.count").sum("stats.count");
+		dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
 	}
+
 
 	public static class Data {
 		public int sum; // sum

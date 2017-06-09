@@ -45,13 +45,11 @@ import java.util.HashMap;
 public final class InstantiationUtil {
 	
 	/**
-	 * A custom ObjectInputStream that can also load user-code using a
-	 * user-code ClassLoader.
-	 *
+	 * A custom ObjectInputStream that can load classes using a specific ClassLoader.
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 
-		private final ClassLoader classLoader;
+		protected final ClassLoader classLoader;
 
 		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
 			super(in);
@@ -59,7 +57,7 @@ public final class InstantiationUtil {
 		}
 
 		@Override
-		public Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			if (classLoader != null) {
 				String name = desc.getName();
 				try {
@@ -323,6 +321,16 @@ public final class InstantiationUtil {
 	public static void serializeObject(OutputStream out, Object o) throws IOException {
 		ObjectOutputStream oos = new ObjectOutputStream(out);
 		oos.writeObject(o);
+	}
+
+	public static boolean isSerializable(Object o) {
+		try {
+			serializeObject(o);
+		} catch (IOException e) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

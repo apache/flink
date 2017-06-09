@@ -1,7 +1,7 @@
 ---
-title: Build Flink from Source
-nav-parent_id: setup
-nav-pos: 1
+title: Building Flink from Source
+nav-parent_id: start
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -52,35 +52,35 @@ This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all exis
 
 The default build includes the YARN Client for Hadoop 2.
 
+## Dependency Shading
+
+Flink [shades away](https://maven.apache.org/plugins/maven-shade-plugin/) some of the libraries it uses, in order to avoid version clashes with user programs that use different versions of these libraries. Among the shaded libraries are *Google Guava*, *Asm*, *Apache Curator*, *Apache HTTP Components*, and others.
+
+The dependency shading mechanism was recently changed in Maven and requires users to build Flink slightly differently, depending on their Maven version:
+
+**Maven 3.0.x, 3.1.x, and 3.2.x**
+It is sufficient to call `mvn clean install -DskipTests` in the root directory of Flink code base.
+
+**Maven 3.3.x**
+The build has to be done in two steps: First in the base directory, then in the distribution project:
+
+~~~bash
+mvn clean install -DskipTests
+cd flink-dist
+mvn clean install
+~~~
+
+*Note:* To check your Maven version, run `mvn --version`.
+
 {% top %}
 
 ## Hadoop Versions
 
-{% info %} Most users do not need to do this manually. The [download page]({{ site.download_url }})  contains binary packages for common Hadoop versions.
+{% info %} Most users do not need to do this manually. The [download page]({{ site.download_url }}) contains binary packages for common Hadoop versions.
 
 Flink has dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
 
-There are two main versions of Hadoop that we need to differentiate:
-- **Hadoop 1**, with all versions starting with zero or one, like *0.20*, *0.23* or *1.2.1*.
-- **Hadoop 2**, with all versions starting with 2, like *2.6.0*.
-
-The main differentiation between Hadoop 1 and Hadoop 2 is the availability of [Hadoop YARN](https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/YARN.html), Hadoop's cluster resource manager.
-
-**By default, Flink is using the Hadoop 2 dependencies**.
-
-### Hadoop 1
-
-To build Flink for Hadoop 1, issue the following command:
-
-~~~bash
-mvn clean install -DskipTests -Dhadoop.profile=1
-~~~
-
-The `-Dhadoop.profile=1` flag instructs Maven to build Flink for Hadoop 1. Note that the features included in Flink change when using a different Hadoop profile. In particular, there is no support for YARN and HBase in Hadoop 1 builds.
-
-### Hadoop 2.x
-
-Hadoop 2.X versions are only supported from version 2.3.0 upwards.
+Hadoop is only supported from version 2.3.0 upwards.
 You can also specify a specific Hadoop version to build against:
 
 ~~~bash
@@ -156,12 +156,3 @@ in the compiler configuration of the `pom.xml` file of the module causing the er
 
 {% top %}
 
-## Internals
-
-The builds with Maven are controlled by [properties](http://maven.apache.org/pom.html#Properties) and [build profiles](http://maven.apache.org/guides/introduction/introduction-to-profiles.html). There are two profiles, one for `hadoop1` and one for `hadoop2`. When the `hadoop2` profile is enabled (default), the system will also build the YARN client.
-
-To enable the `hadoop1` profile, set `-Dhadoop.profile=1` when building. Depending on the profile, there are two Hadoop versions, set via properties. For `hadoop1`, we use 1.2.1 by default, for `hadoop2` it is 2.3.0.
-
-You can change these versions with the `hadoop-two.version` (or `hadoop-one.version`) property. For example `-Dhadoop-two.version=2.4.0`.
-
-{% top %}

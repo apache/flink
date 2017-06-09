@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
-import java.util.List;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.utils.Utils;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.utils.Utils;
+import java.util.List;
 
 /**
  * Observes if a call to any {@code emit(...)} or {@code emitDirect(...)} method is made.
@@ -33,14 +34,10 @@ class SpoutOutputCollectorObserver extends SpoutOutputCollector {
 	/** The internal flag that it set to {@code true} if a tuple gets emitted. */
 	boolean emitted;
 
-
-
 	public SpoutOutputCollectorObserver(SpoutOutputCollector delegate) {
 		super(null);
 		this.delegate = delegate;
 	}
-
-
 
 	@Override
 	public List<Integer> emit(String streamId, List<Object> tuple, Object messageId) {

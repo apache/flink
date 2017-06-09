@@ -18,16 +18,20 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link GlobalClusteringCoefficient}.
+ */
 public class GlobalClusteringCoefficientTest
 extends AsmTestBase {
 
@@ -47,7 +51,7 @@ extends AsmTestBase {
 	public void testWithCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 
 		Result expectedResult = new Result(expectedCount, expectedCount);
 
@@ -76,7 +80,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(1003442, 225147);
 
 		Result globalClusteringCoefficient = new GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph)
+			.run(directedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, globalClusteringCoefficient);

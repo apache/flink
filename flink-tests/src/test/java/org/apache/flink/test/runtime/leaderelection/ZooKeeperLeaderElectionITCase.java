@@ -23,17 +23,18 @@ import akka.actor.Kill;
 import akka.actor.PoisonPill;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -79,6 +79,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	public static void tearDown() throws Exception {
 		if (zkServer != null) {
 			zkServer.close();
+			zkServer = null;
 		}
 	}
 
@@ -111,8 +112,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 				cluster.waitForTaskManagersToBeRegisteredAtJobManager(leadingJM.actor());
 
 				Future<Object> registeredTMs = leadingJM.ask(
-						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-						timeout);
+					JobManagerMessages.getRequestNumberRegisteredTaskManager(),
+					timeout);
 
 				int numRegisteredTMs = (Integer) Await.result(registeredTMs, timeout);
 
@@ -121,8 +122,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 				cluster.clearLeader();
 				leadingJM.tell(PoisonPill.getInstance());
 			}
-		}
-		finally {
+		} finally {
 			cluster.stop();
 		}
 	}
@@ -152,7 +152,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 		// we "effectively" disable the automatic RecoverAllJobs message and sent it manually to make
 		// sure that all TMs have registered to the JM prior to issueing the RecoverAllJobs message
-		configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, AkkaUtils.INF_TIMEOUT().toString());
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, AkkaUtils.INF_TIMEOUT().toString());
 
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
@@ -165,7 +165,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		sender.setParallelism(parallelism);
 		receiver.setParallelism(parallelism);
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE);
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+			ResultPartitionType.PIPELINED);
 
 		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 		sender.setSlotSharingGroup(slotSharingGroup);
@@ -271,14 +272,10 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		@Override
 		public void run() {
 			try {
-				LeaderRetrievalService lrService =
-						LeaderRetrievalUtils.createLeaderRetrievalService(
-								cluster.configuration());
-
 				JobExecutionResult result = JobClient.submitJobAndWait(
 						clientActorSystem,
 						cluster.configuration(),
-						lrService,
+						cluster.highAvailabilityServices(),
 						graph,
 						timeout,
 						false,

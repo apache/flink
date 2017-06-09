@@ -20,71 +20,30 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
- * Encapsulation of TaskManager runtime information, like hostname and configuration.
+ * Interface to access {@link TaskManager} information.
  */
-public class TaskManagerRuntimeInfo implements java.io.Serializable {
-
-	private static final long serialVersionUID = 5598219619760274072L;
-	
-	/** host name of the interface that the TaskManager uses to communicate */
-	private final String hostname;
-
-	/** configuration that the TaskManager was started with */
-	private final Configuration configuration;
-
-	/** list of temporary file directories */
-	private final String[] tmpDirectories;
-	
-	/**
-	 * Creates a runtime info.
-	 * 
-	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
-	 * @param configuration The configuration that the TaskManager was started with.
-	 * @param tmpDirectory The temporary file directory.   
-	 */
-	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String tmpDirectory) {
-		this(hostname, configuration, new String[] { tmpDirectory });
-	}
-	
-	/**
-	 * Creates a runtime info.
-	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
-	 * @param configuration The configuration that the TaskManager was started with.
-	 * @param tmpDirectories The list of temporary file directories.   
-	 */
-	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String[] tmpDirectories) {
-		checkArgument(tmpDirectories.length > 0);
-		this.hostname = checkNotNull(hostname);
-		this.configuration = checkNotNull(configuration);
-		this.tmpDirectories = tmpDirectories;
-		
-	}
-
-	/**
-	 * Gets host name of the interface that the TaskManager uses to communicate.
-	 * @return The host name of the interface that the TaskManager uses to communicate.
-	 */
-	public String getHostname() {
-		return hostname;
-	}
+public interface TaskManagerRuntimeInfo {
 
 	/**
 	 * Gets the configuration that the TaskManager was started with.
+	 *
 	 * @return The configuration that the TaskManager was started with.
 	 */
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+	Configuration getConfiguration();
 
 	/**
 	 * Gets the list of temporary file directories.
+	 * 
 	 * @return The list of temporary file directories.
 	 */
-	public String[] getTmpDirectories() {
-		return tmpDirectories;
-	}
+	String[] getTmpDirectories();
+
+	/**
+	 * Checks whether the TaskManager should exit the JVM when the task thread throws
+	 * an OutOfMemoryError.
+	 * 
+	 * @return True to terminate the JVM on an OutOfMemoryError, false otherwise.
+	 */
+	boolean shouldExitJvmOnOutOfMemoryError();
 }

@@ -27,9 +27,11 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.operator.CEPOperatorUtils;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.Collector;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,7 +40,7 @@ import java.util.Map;
  * {@link org.apache.flink.cep.nfa.NFA}. In order to process the detected sequences, the user
  * has to specify a {@link PatternSelectFunction} or a {@link PatternFlatSelectFunction}.
  *
- * Additionally it allows to handle partially matched event patterns which have timed out. For this
+ * <p>Additionally it allows to handle partially matched event patterns which have timed out. For this
  * the user has to specify a {@link PatternTimeoutFunction} or a {@link PatternFlatTimeoutFunction}.
  *
  * @param <T> Type of the events
@@ -74,15 +76,17 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern select
 	 *         function.
 	 */
-	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction) {
+	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction) {
 		// we have to extract the output type from the provided pattern selection function manually
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 
 		TypeInformation<R> returnType = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{},
 			inputStream.getType(),
 			null,
 			false);
@@ -102,8 +106,9 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern select
 	 *         function.
 	 */
-	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern);
+	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
+		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
+				CEPOperatorUtils.createPatternStream(inputStream, pattern);
 
 		return patternStream.map(
 			new PatternSelectMapper<>(
@@ -116,7 +121,7 @@ public class PatternStream<T> {
 	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
 	 * exactly one resulting element.
 	 *
-	 * Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
 	 * partial pattern sequence the provided {@link PatternTimeoutFunction} is called. The pattern
 	 * timeout function can produce exactly one resulting element.
 	 *
@@ -129,17 +134,20 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements or the resulting timeout
 	 * elements wrapped in an {@link Either} type.
 	 */
-	public <L, R> DataStream<Either<L, R>> select(
+	public <L, R> SingleOutputStreamOperator<Either<L, R>> select(
 		final PatternTimeoutFunction<T, L> patternTimeoutFunction,
 		final PatternSelectFunction<T, R> patternSelectFunction) {
 
-		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
+				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternTimeoutFunction,
 			PatternTimeoutFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{},
 			inputStream.getType(),
 			null,
 			false);
@@ -147,8 +155,10 @@ public class PatternStream<T> {
 		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{},
 			inputStream.getType(),
 			null,
 			false);
@@ -174,14 +184,16 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
 	 *         function.
 	 */
-	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
+	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 		// we have to extract the output type from the provided pattern selection function manually
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
-			1,
 			0,
+			1,
+			new int[] {0, 1, 0},
+			new int[] {1, 0},
 			inputStream.getType(),
 			null,
 			false);
@@ -201,8 +213,9 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
 	 *         function.
 	 */
-	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
-		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern);
+	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
+		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
+				CEPOperatorUtils.createPatternStream(inputStream, pattern);
 
 		return patternStream.flatMap(
 			new PatternFlatSelectMapper<>(
@@ -215,7 +228,7 @@ public class PatternStream<T> {
 	 * the provided {@link PatternFlatSelectFunction} is called. The pattern flat select function
 	 * can produce an arbitrary number of resulting elements.
 	 *
-	 * Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
 	 * partial pattern sequence the provided {@link PatternFlatTimeoutFunction} is called. The
 	 * pattern timeout function can produce an arbitrary number of resulting elements.
 	 *
@@ -229,17 +242,20 @@ public class PatternStream<T> {
 	 * function or the resulting timeout events from the pattern flat timeout function wrapped in an
 	 * {@link Either} type.
 	 */
-	public <L, R> DataStream<Either<L, R>> flatSelect(
+	public <L, R> SingleOutputStreamOperator<Either<L, R>> flatSelect(
 		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
 		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 
-		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
+				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatTimeoutFunction,
 			PatternFlatTimeoutFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{2, 0},
 			inputStream.getType(),
 			null,
 			false);
@@ -247,8 +263,10 @@ public class PatternStream<T> {
 		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{1, 0},
 			inputStream.getType(),
 			null,
 			false);
@@ -269,7 +287,7 @@ public class PatternStream<T> {
 	 * @param <T> Type of the input elements
 	 * @param <R> Type of the resulting elements
 	 */
-	private static class PatternSelectMapper<T, R> implements MapFunction<Map<String, T>, R> {
+	private static class PatternSelectMapper<T, R> implements MapFunction<Map<String, List<T>>, R> {
 		private static final long serialVersionUID = 2273300432692943064L;
 
 		private final PatternSelectFunction<T, R> patternSelectFunction;
@@ -279,12 +297,12 @@ public class PatternStream<T> {
 		}
 
 		@Override
-		public R map(Map<String, T> value) throws Exception {
+		public R map(Map<String, List<T>> value) throws Exception {
 			return patternSelectFunction.select(value);
 		}
 	}
 
-	private static class PatternSelectTimeoutMapper<T, L, R> implements MapFunction<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>, Either<L, R>> {
+	private static class PatternSelectTimeoutMapper<T, L, R> implements MapFunction<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>, Either<L, R>> {
 
 		private static final long serialVersionUID = 8259477556738887724L;
 
@@ -300,9 +318,9 @@ public class PatternStream<T> {
 		}
 
 		@Override
-		public Either<L, R> map(Either<Tuple2<Map<String, T>, Long>, Map<String, T>> value) throws Exception {
+		public Either<L, R> map(Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>> value) throws Exception {
 			if (value.isLeft()) {
-				Tuple2<Map<String, T>, Long> timeout = value.left();
+				Tuple2<Map<String, List<T>>, Long> timeout = value.left();
 
 				return Either.Left(patternTimeoutFunction.timeout(timeout.f0, timeout.f1));
 			} else {
@@ -311,7 +329,7 @@ public class PatternStream<T> {
 		}
 	}
 
-	private static class PatternFlatSelectTimeoutWrapper<T, L, R> implements FlatMapFunction<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>, Either<L, R>> {
+	private static class PatternFlatSelectTimeoutWrapper<T, L, R> implements FlatMapFunction<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>, Either<L, R>> {
 
 		private static final long serialVersionUID = 7483674669662261667L;
 
@@ -326,9 +344,9 @@ public class PatternStream<T> {
 		}
 
 		@Override
-		public void flatMap(Either<Tuple2<Map<String, T>, Long>, Map<String, T>> value, Collector<Either<L, R>> out) throws Exception {
+		public void flatMap(Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>> value, Collector<Either<L, R>> out) throws Exception {
 			if (value.isLeft()) {
-				Tuple2<Map<String, T>, Long> timeout = value.left();
+				Tuple2<Map<String, List<T>>, Long> timeout = value.left();
 
 				patternFlatTimeoutFunction.timeout(timeout.f0, timeout.f1, new LeftCollector<>(out));
 			} else {
@@ -381,7 +399,7 @@ public class PatternStream<T> {
 	 * @param <T> Type of the input elements
 	 * @param <R> Type of the resulting elements
 	 */
-	private static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, T>, R> {
+	private static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, List<T>>, R> {
 
 		private static final long serialVersionUID = -8610796233077989108L;
 
@@ -391,9 +409,8 @@ public class PatternStream<T> {
 			this.patternFlatSelectFunction = patternFlatSelectFunction;
 		}
 
-
 		@Override
-		public void flatMap(Map<String, T> value, Collector<R> out) throws Exception {
+		public void flatMap(Map<String, List<T>> value, Collector<R> out) throws Exception {
 			patternFlatSelectFunction.flatSelect(value, out);
 		}
 	}

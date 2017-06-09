@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime;
 
+/**
+ * Indicates that a job has failed.
+ */
 public class JobException extends Exception {
 
 	private static final long serialVersionUID = 1275864691743020176L;

@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,22 +36,62 @@ import static org.junit.Assert.*;
  */
 public class BlobCacheRetriesTest {
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	/**
 	 * A test where the connection fails twice and then the get operation succeeds.
 	 */
 	@Test
-	public void testBlobFetchRetries() {
+	public void testBlobFetchRetries() throws IOException {
+		final Configuration config = new Configuration();
 
+		testBlobFetchRetries(config, new VoidBlobStore());
+	}
+
+	/**
+	 * A test where the connection fails twice and then the get operation succeeds
+	 * (with high availability set).
+	 */
+	@Test
+	public void testBlobFetchRetriesHa() throws IOException {
+		final Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+
+		BlobStoreService blobStoreService = null;
+
+		try {
+			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
+			testBlobFetchRetries(config, blobStoreService);
+		} finally {
+			if (blobStoreService != null) {
+				blobStoreService.closeAndCleanupAllData();
+			}
+		}
+	}
+
+	/**
+	 * A test where the BlobCache must use the BlobServer and the connection
+	 * fails twice and then the get operation succeeds.
+	 *
+	 * @param config
+	 * 		configuration to use (the BlobCache will get some additional settings
+	 * 		set compared to this one)
+	 */
+	private void testBlobFetchRetries(final Configuration config, final BlobStore blobStore) throws IOException {
 		final byte[] data = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
 
 		BlobServer server = null;
 		BlobCache cache = null;
 		try {
-			final Configuration config = new Configuration();
 
-			server = new TestingFailingBlobServer(config, 2);
+			server = new TestingFailingBlobServer(config, blobStore, 2);
 
-			final InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			final InetSocketAddress
+				serverAddress = new InetSocketAddress("localhost", server.getPort());
 
 			// upload some blob
 			BlobClient blobClient = null;
@@ -64,9 +107,9 @@ public class BlobCacheRetriesTest {
 				}
 			}
 
-			cache = new BlobCache(serverAddress, config);
+			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
 
-			// trigger a download - it should fail on the first time, but retry, and succeed at the second time
+			// trigger a download - it should fail the first two times, but retry, and succeed eventually
 			URL url = cache.getURL(key);
 			InputStream is = url.openStream();
 			try {
@@ -77,17 +120,12 @@ public class BlobCacheRetriesTest {
 			finally {
 				is.close();
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (cache != null) {
-				cache.shutdown();
+				cache.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
@@ -96,18 +134,55 @@ public class BlobCacheRetriesTest {
 	 * A test where the connection fails too often and eventually fails the GET request.
 	 */
 	@Test
-	public void testBlobFetchWithTooManyFailures() {
+	public void testBlobFetchWithTooManyFailures() throws IOException {
+		final Configuration config = new Configuration();
 
+		testBlobFetchWithTooManyFailures(config, new VoidBlobStore());
+	}
+
+	/**
+	 * A test where the connection fails twice and then the get operation succeeds
+	 * (with high availability set).
+	 */
+	@Test
+	public void testBlobFetchWithTooManyFailuresHa() throws IOException {
+		final Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+
+		BlobStoreService blobStoreService = null;
+
+		try {
+			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
+			testBlobFetchWithTooManyFailures(config, blobStoreService);
+		} finally {
+			if (blobStoreService != null) {
+				blobStoreService.closeAndCleanupAllData();
+			}
+		}
+	}
+
+	/**
+	 * A test where the BlobCache must use the BlobServer and the connection
+	 * fails too often which eventually fails the GET request.
+	 *
+	 * @param config
+	 * 		configuration to use (the BlobCache will get some additional settings
+	 * 		set compared to this one)
+	 */
+	private void testBlobFetchWithTooManyFailures(final Configuration config, final BlobStore blobStore) throws IOException {
 		final byte[] data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
 
 		BlobServer server = null;
 		BlobCache cache = null;
 		try {
-			final Configuration config = new Configuration();
 
-			server = new TestingFailingBlobServer(config, 10);
+			server = new TestingFailingBlobServer(config, blobStore, 10);
 
-			final InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			final InetSocketAddress
+				serverAddress = new InetSocketAddress("localhost", server.getPort());
 
 			// upload some blob
 			BlobClient blobClient = null;
@@ -123,7 +198,7 @@ public class BlobCacheRetriesTest {
 				}
 			}
 
-			cache = new BlobCache(serverAddress, config);
+			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
 
 			// trigger a download - it should fail eventually
 			try {
@@ -134,16 +209,12 @@ public class BlobCacheRetriesTest {
 				// as we expected
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			if (cache != null) {
-				cache.shutdown();
+				cache.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}

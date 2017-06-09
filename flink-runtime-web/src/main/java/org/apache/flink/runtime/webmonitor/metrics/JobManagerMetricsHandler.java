@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
 import java.util.Map;
@@ -22,17 +23,25 @@ import java.util.Map;
 /**
  * Request handler that returns for the job manager a list of all available metrics or the values for a set of metrics.
  *
- * If the query parameters do not contain a "get" parameter the list of all metrics is returned.
+ * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
  *
- * If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
+ * <p>If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
  * {@code /get?X,Y}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public class JobManagerMetricsHandler extends AbstractMetricsHandler {
+
+	private static final String JOBMANAGER_METRICS_REST_PATH = "/jobmanager/metrics";
+
 	public JobManagerMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOBMANAGER_METRICS_REST_PATH};
 	}
 
 	@Override

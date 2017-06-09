@@ -15,31 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
-import akka.actor.ActorRef;
-
-import akka.actor.Props;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.messages.ShutdownClusterAfterJob;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -48,10 +48,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
@@ -59,6 +55,11 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Java representation of a running Flink cluster within YARN.
@@ -73,9 +74,6 @@ public class YarnClusterClient extends ClusterClient {
 
 	private Thread clientShutdownHook = new ClientShutdownHook();
 	private PollingThread pollingRunner;
-	private final Configuration hadoopConfig;
-	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
-	private final Path sessionFilesDir;
 
 	//---------- Class internal fields -------------------
 
@@ -88,7 +86,7 @@ public class YarnClusterClient extends ClusterClient {
 
 	private boolean isConnected = true;
 
-	/** Indicator whether this cluster has just been created */
+	/** Indicator whether this cluster has just been created. */
 	private final boolean newlyCreatedCluster;
 
 	/**
@@ -98,7 +96,6 @@ public class YarnClusterClient extends ClusterClient {
 	 * @param yarnClient Client to talk to YARN
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
-	 * @param sessionFilesDir Location of files required for YARN session
 	 * @param newlyCreatedCluster Indicator whether this cluster has just been created
 	 * @throws IOException
 	 * @throws YarnException
@@ -107,23 +104,23 @@ public class YarnClusterClient extends ClusterClient {
 		final AbstractYarnClusterDescriptor clusterDescriptor,
 		final YarnClient yarnClient,
 		final ApplicationReport appReport,
-		org.apache.flink.configuration.Configuration flinkConfig,
-		Path sessionFilesDir,
-		boolean newlyCreatedCluster) throws IOException, YarnException {
+		Configuration flinkConfig,
+		boolean newlyCreatedCluster) throws Exception {
 
 		super(flinkConfig);
 
 		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
 		this.clusterDescriptor = clusterDescriptor;
 		this.yarnClient = yarnClient;
-		this.hadoopConfig = yarnClient.getConfig();
-		this.sessionFilesDir = sessionFilesDir;
 		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
 		this.newlyCreatedCluster = newlyCreatedCluster;
 
-		this.applicationClient = new LazApplicationClientLoader(flinkConfig, actorSystemLoader);
+		this.applicationClient = new LazApplicationClientLoader(
+			flinkConfig,
+			actorSystemLoader,
+			highAvailabilityServices);
 
 		this.pollingRunner = new PollingThread(yarnClient, appId);
 		this.pollingRunner.setDaemon(true);
@@ -133,7 +130,7 @@ public class YarnClusterClient extends ClusterClient {
 	}
 
 	/**
-	 * Disconnect from the Yarn cluster
+	 * Disconnect from the Yarn cluster.
 	 */
 	public void disconnect() {
 
@@ -141,7 +138,7 @@ public class YarnClusterClient extends ClusterClient {
 			return;
 		}
 
-		if(!isConnected) {
+		if (!isConnected) {
 			throw new IllegalStateException("Can not disconnect from an unconnected cluster.");
 		}
 
@@ -156,14 +153,13 @@ public class YarnClusterClient extends ClusterClient {
 		try {
 			pollingRunner.stopRunner();
 			pollingRunner.join(1000);
-		} catch(InterruptedException e) {
+		} catch (InterruptedException e) {
 			LOG.warn("Shutdown of the polling runner was interrupted", e);
 			Thread.currentThread().interrupt();
 		}
 
 		isConnected = false;
 	}
-
 
 	// -------------------------- Interaction with the cluster ------------------------
 
@@ -214,7 +210,7 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public String getWebInterfaceURL() {
 		// there seems to be a difference between HD 2.2.0 and 2.6.0
-		if(!trackingURL.startsWith("http://")) {
+		if (!trackingURL.startsWith("http://")) {
 			return "http://" + trackingURL;
 		} else {
 			return trackingURL;
@@ -231,10 +227,10 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	@Override
 	public GetClusterStatusResponse getClusterStatus() {
-		if(!isConnected) {
+		if (!isConnected) {
 			throw new IllegalStateException("The cluster is not connected to the cluster.");
 		}
-		if(hasBeenShutdown()) {
+		if (hasBeenShutdown()) {
 			throw new IllegalStateException("The cluster has already been shutdown.");
 		}
 
@@ -250,17 +246,17 @@ public class YarnClusterClient extends ClusterClient {
 	}
 
 	public ApplicationStatus getApplicationStatus() {
-		if(!isConnected) {
+		if (!isConnected) {
 			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
 		}
 		ApplicationReport lastReport = null;
-		if(pollingRunner == null) {
+		if (pollingRunner == null) {
 			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on an uninitialized cluster." +
 					"The system might be in an erroneous state");
 		} else {
 			lastReport = pollingRunner.getLastReport();
 		}
-		if(lastReport == null) {
+		if (lastReport == null) {
 			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on a cluster that didn't receive a status so far." +
 					"The system might be in an erroneous state");
 			return ApplicationStatus.UNKNOWN;
@@ -269,7 +265,7 @@ public class YarnClusterClient extends ClusterClient {
 			ApplicationStatus status =
 				(appState == YarnApplicationState.FAILED || appState == YarnApplicationState.KILLED) ?
 					ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
-			if(status != ApplicationStatus.SUCCEEDED) {
+			if (status != ApplicationStatus.SUCCEEDED) {
 				LOG.warn("YARN reported application state {}", appState);
 				LOG.warn("Diagnostics: {}", lastReport.getDiagnostics());
 			}
@@ -280,17 +276,17 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public List<String> getNewMessages() {
 
-		if(hasBeenShutdown()) {
+		if (hasBeenShutdown()) {
 			throw new RuntimeException("The YarnClusterClient has already been stopped");
 		}
 
-		if(!isConnected) {
+		if (!isConnected) {
 			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
 		}
 
 		List<String> ret = new ArrayList<String>();
 		// get messages from ApplicationClient (locally)
-		while(true) {
+		while (true) {
 			Object result;
 			try {
 				Future<Object> response =
@@ -299,23 +295,23 @@ public class YarnClusterClient extends ClusterClient {
 						YarnMessages.getLocalGetYarnMessage(),
 						new Timeout(akkaDuration));
 				result = Await.result(response, akkaDuration);
-			} catch(Exception ioe) {
+			} catch (Exception ioe) {
 				LOG.warn("Error retrieving the YARN messages locally", ioe);
 				break;
 			}
 
-			if(!(result instanceof Option)) {
+			if (!(result instanceof Option)) {
 				throw new RuntimeException("LocalGetYarnMessage requires a response of type " +
 						"Option. Instead the response is of type " + result.getClass() + ".");
 			} else {
 				Option messageOption = (Option) result;
 				LOG.debug("Received message option {}", messageOption);
-				if(messageOption.isEmpty()) {
+				if (messageOption.isEmpty()) {
 					break;
 				} else {
 					Object obj = messageOption.get();
 
-					if(obj instanceof InfoMessage) {
+					if (obj instanceof InfoMessage) {
 						InfoMessage msg = (InfoMessage) obj;
 						ret.add("[" + msg.date() + "] " + msg.message());
 					} else {
@@ -344,7 +340,7 @@ public class YarnClusterClient extends ClusterClient {
 	}
 
 	/**
-	 * Shuts down the Yarn application
+	 * Shuts down the Yarn application.
 	 */
 	public void shutdownCluster() {
 
@@ -370,7 +366,7 @@ public class YarnClusterClient extends ClusterClient {
 							"Flink YARN Client requested shutdown"),
 					new Timeout(akkaDuration));
 			Await.ready(response, akkaDuration);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			LOG.warn("Error while stopping YARN cluster.", e);
 		}
 
@@ -387,23 +383,10 @@ public class YarnClusterClient extends ClusterClient {
 			LOG.warn("Exception while deleting the JobManager address file", e);
 		}
 
-		if (sessionFilesDir != null) {
-			LOG.info("Deleting files in " + sessionFilesDir);
-			try {
-				FileSystem shutFS = FileSystem.get(hadoopConfig);
-				shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
-				shutFS.close();
-			} catch (IOException e) {
-				LOG.error("Could not delete the Flink jar and configuration files in HDFS..", e);
-			}
-		} else {
-			LOG.warn("Session file directory not set. Not deleting session files");
-		}
-
 		try {
 			pollingRunner.stopRunner();
 			pollingRunner.join(1000);
-		} catch(InterruptedException e) {
+		} catch (InterruptedException e) {
 			LOG.warn("Shutdown of the polling runner was interrupted", e);
 			Thread.currentThread().interrupt();
 		}
@@ -438,12 +421,16 @@ public class YarnClusterClient extends ClusterClient {
 		return hasBeenShutDown.get();
 	}
 
-
 	private class ClientShutdownHook extends Thread {
 		@Override
 		public void run() {
 			LOG.info("Shutting down YarnClusterClient from the client shutdown hook");
-			shutdown();
+
+			try {
+				shutdown();
+			} catch (Throwable t) {
+				LOG.warn("Could not properly shut down the yarn cluster client.", t);
+			}
 		}
 	}
 
@@ -459,14 +446,13 @@ public class YarnClusterClient extends ClusterClient {
 		private final Object lock = new Object();
 		private ApplicationReport lastReport;
 
-
 		public PollingThread(YarnClient yarnClient, ApplicationId appId) {
 			this.yarnClient = yarnClient;
 			this.appId = appId;
 		}
 
 		public void stopRunner() {
-			if(!running.get()) {
+			if (!running.get()) {
 				LOG.warn("Polling thread was already stopped");
 			}
 			running.set(false);
@@ -497,7 +483,7 @@ public class YarnClusterClient extends ClusterClient {
 					stopRunner();
 				}
 			}
-			if(running.get() && !yarnClient.isInState(Service.STATE.STARTED)) {
+			if (running.get() && !yarnClient.isInState(Service.STATE.STARTED)) {
 				// == if the polling thread is still running but the yarn client is stopped.
 				LOG.warn("YARN client is unexpected in state " + yarnClient.getServiceState());
 			}
@@ -545,39 +531,46 @@ public class YarnClusterClient extends ClusterClient {
 
 		private final org.apache.flink.configuration.Configuration flinkConfig;
 		private final LazyActorSystemLoader actorSystemLoader;
+		private final HighAvailabilityServices highAvailabilityServices;
 
 		private ActorRef applicationClient;
 
 		private LazApplicationClientLoader(
 				org.apache.flink.configuration.Configuration flinkConfig,
-				LazyActorSystemLoader actorSystemLoader) {
-			this.flinkConfig = flinkConfig;
-			this.actorSystemLoader = actorSystemLoader;
+				LazyActorSystemLoader actorSystemLoader,
+				HighAvailabilityServices highAvailabilityServices) {
+			this.flinkConfig = Preconditions.checkNotNull(flinkConfig, "flinkConfig");
+			this.actorSystemLoader = Preconditions.checkNotNull(actorSystemLoader, "actorSystemLoader");
+			this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices, "highAvailabilityServices");
 		}
 
 		/**
 		 * Creates a new ApplicationClient actor or returns an existing one. May start an ActorSystem.
 		 * @return ActorSystem
 		 */
-		public ActorRef get() {
+		public ActorRef get() throws FlinkException {
 			if (applicationClient == null) {
-				/* The leader retrieval service for connecting to the cluster and finding the active leader. */
-				LeaderRetrievalService leaderRetrievalService;
-				try {
-					leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
-				} catch (Exception e) {
-					throw new RuntimeException("Could not create the leader retrieval service.", e);
-				}
-
 				// start application client
 				LOG.info("Start application client.");
 
-				applicationClient = actorSystemLoader.get().actorOf(
-					Props.create(
-						ApplicationClient.class,
-						flinkConfig,
-						leaderRetrievalService),
-					"applicationClient");
+				final ActorSystem actorSystem;
+
+				try {
+					actorSystem = actorSystemLoader.get();
+				} catch (FlinkException fle) {
+					throw new FlinkException("Could not start the ClusterClient's ActorSystem.", fle);
+				}
+
+				try {
+					applicationClient = actorSystem.actorOf(
+						Props.create(
+							ApplicationClient.class,
+							flinkConfig,
+							highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID)),
+						"applicationClient");
+				} catch (Exception e) {
+					throw new FlinkException("Could not start the ApplicationClient.", e);
+				}
 			}
 
 			return applicationClient;

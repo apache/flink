@@ -29,6 +29,8 @@ import java.util.UUID;
  */
 public class JarUploadHandler extends AbstractJsonRequestHandler {
 
+	static final String JAR_UPLOAD_REST_PATH = "/jars/upload";
+
 	private final File jarDir;
 
 	public JarUploadHandler(File jarDir) {
@@ -36,14 +38,19 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_UPLOAD_REST_PATH};
+	}
+
+	@Override
 	public String handleJsonRequest(
 				Map<String, String> pathParams,
 				Map<String, String> queryParams,
 				ActorGateway jobManager) throws Exception {
-		
+
 		String tempFilePath = queryParams.get("filepath");
 		String filename = queryParams.get("filename");
-		
+
 		File tempFile;
 		if (tempFilePath != null && (tempFile = new File(tempFilePath)).exists()) {
 			if (!tempFile.getName().endsWith(".jar")) {
@@ -51,18 +58,19 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 				tempFile.delete();
 				return "{\"error\": \"Only Jar files are allowed.\"}";
 			}
-			
-			File newFile = new File(jarDir, UUID.randomUUID() + "_" + filename);
+
+			String filenameWithUUID = UUID.randomUUID() + "_" + filename;
+			File newFile = new File(jarDir, filenameWithUUID);
 			if (tempFile.renameTo(newFile)) {
 				// all went well
-				return "{}";
+				return "{\"status\": \"success\", \"filename\": \"" + filenameWithUUID + "\"}";
 			}
 			else {
 				//noinspection ResultOfMethodCallIgnored
 				tempFile.delete();
 			}
 		}
-		
+
 		return "{\"error\": \"Failed to upload the file.\"}";
 	}
 }

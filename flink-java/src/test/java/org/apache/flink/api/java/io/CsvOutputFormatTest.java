@@ -22,6 +22,7 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -34,6 +35,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
+import static org.junit.Assert.fail;
+
 public class CsvOutputFormatTest {
 
 	private String path = null;
@@ -45,14 +48,17 @@ public class CsvOutputFormatTest {
 
 	@Test
 	public void testNullAllow() throws Exception {
-
-		CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
-		csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
-		csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
-		csvOutputFormat.setAllowNullValues(true);
-		csvOutputFormat.open(0, 1);
-		csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
-		csvOutputFormat.close();
+		final CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
+		try {
+			csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+			csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
+			csvOutputFormat.setAllowNullValues(true);
+			csvOutputFormat.open(0, 1);
+			csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
+		}
+		finally {
+			csvOutputFormat.close();
+		}
 
 		java.nio.file.Path p = Paths.get(path);
 		Assert.assertTrue(Files.exists(p));
@@ -61,19 +67,28 @@ public class CsvOutputFormatTest {
 		Assert.assertEquals("One,,8", lines.get(0));
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test
 	public void testNullDisallowOnDefault() throws Exception {
-		CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
-		csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
-		csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
-		csvOutputFormat.open(0, 1);
-		csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
-		csvOutputFormat.close();
+		final CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
+		try {
+			csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+			csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
+			csvOutputFormat.open(0, 1);
+			try {
+				csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
+				fail("should fail with an exception");
+			} catch (RuntimeException e) {
+				// expected
+			}
+			
+		}
+		finally {
+			csvOutputFormat.close();
+		}
 	}
 
 	@After
 	public void cleanUp() throws IOException {
 		Files.deleteIfExists(Paths.get(path));
 	}
-
 }

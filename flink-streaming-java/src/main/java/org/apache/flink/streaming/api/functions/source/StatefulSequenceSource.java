@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,27 +15,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.util.Preconditions;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 /**
  * A stateful streaming source that emits each number from a given interval exactly once,
  * possibly in parallel.
+ *
+ * <p>For the source to be re-scalable, the first time the job is run, we precompute all the elements
+ * that each of the tasks should emit and upon checkpointing, each element constitutes its own
+ * partition. When rescaling, these partitions will be randomly re-assigned to the new tasks.
+ *
+ * <p>This strategy guarantees that each element will be emitted exactly-once, but elements will not
+ * necessarily be emitted in ascending order, even for the same tasks.
  */
 @PublicEvolving
-public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements Checkpointed<Long> {
-	
+public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements CheckpointedFunction {
+
 	private static final long serialVersionUID = 1L;
 
 	private final long start;
 	private final long end;
 
-	private long collected;
-
 	private volatile boolean isRunning = true;
+
+	private transient Deque<Long> valuesToEmit;
+
+	private transient ListState<Long> checkpointedState;
 
 	/**
 	 * Creates a source that emits all numbers from the given interval exactly once.
@@ -49,24 +67,47 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 	}
 
 	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+
+		Preconditions.checkState(this.checkpointedState == null,
+			"The " + getClass().getSimpleName() + " has already been initialized.");
+
+		this.checkpointedState = context.getOperatorStateStore().getListState(
+			new ListStateDescriptor<>(
+				"stateful-sequence-source-state",
+				LongSerializer.INSTANCE
+			)
+		);
+
+		this.valuesToEmit = new ArrayDeque<>();
+		if (context.isRestored()) {
+			// upon restoring
+
+			for (Long v : this.checkpointedState.get()) {
+				this.valuesToEmit.add(v);
+			}
+		} else {
+			// the first time the job is executed
+
+			final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
+			final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
+			final long congruence = start + taskIdx;
+
+			long totalNoOfElements = Math.abs(end - start + 1);
+			final int baseSize = safeDivide(totalNoOfElements, stepSize);
+			final int toCollect = (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
+
+			for (long collected = 0; collected < toCollect; collected++) {
+				this.valuesToEmit.add(collected * stepSize + congruence);
+			}
+		}
+	}
+
+	@Override
 	public void run(SourceContext<Long> ctx) throws Exception {
-		final Object checkpointLock = ctx.getCheckpointLock();
-
-		RuntimeContext context = getRuntimeContext();
-
-		final long stepSize = context.getNumberOfParallelSubtasks();
-		final long congruence = start + context.getIndexOfThisSubtask();
-
-		final long toCollect =
-				((end - start + 1) % stepSize > (congruence - start)) ?
-					((end - start + 1) / stepSize + 1) :
-					((end - start + 1) / stepSize);
-		
-
-		while (isRunning && collected < toCollect) {
-			synchronized (checkpointLock) {
-				ctx.collect(collected * stepSize + congruence);
-				collected++;
+		while (isRunning && !this.valuesToEmit.isEmpty()) {
+			synchronized (ctx.getCheckpointLock()) {
+				ctx.collect(this.valuesToEmit.poll());
 			}
 		}
 	}
@@ -77,12 +118,20 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 	}
 
 	@Override
-	public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-		return collected;
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		Preconditions.checkState(this.checkpointedState != null,
+			"The " + getClass().getSimpleName() + " state has not been properly initialized.");
+
+		this.checkpointedState.clear();
+		for (Long v : this.valuesToEmit) {
+			this.checkpointedState.add(v);
+		}
 	}
 
-	@Override
-	public void restoreState(Long state) {
-		collected = state;
+	private static int safeDivide(long left, long right) {
+		Preconditions.checkArgument(right > 0);
+		Preconditions.checkArgument(left >= 0);
+		Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
+		return (int) (left / right);
 	}
 }

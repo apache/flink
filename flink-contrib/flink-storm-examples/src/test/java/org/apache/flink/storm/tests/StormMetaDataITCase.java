@@ -15,24 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.tests;
 
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
+package org.apache.flink.storm.tests;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.tests.operators.MetaDataSpout;
 import org.apache.flink.storm.tests.operators.VerifyMetaDataBolt;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
+
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.utils.Utils;
 import org.junit.Assert;
 
+/**
+ * Test for meta data spouts/bolts.
+ */
 public class StormMetaDataITCase extends StreamingProgramTestBase {
 
-	private final static String topologyId = "FieldsGrouping Test";
-	private final static String spoutId = "spout";
-	private final static String boltId1 = "bolt1";
-	private final static String boltId2 = "bolt2";
+	private static final String topologyId = "FieldsGrouping Test";
+	private static final String spoutId = "spout";
+	private static final String boltId1 = "bolt1";
+	private static final String boltId2 = "bolt2";
 
 	@Override
 	protected void testProgram() throws Exception {

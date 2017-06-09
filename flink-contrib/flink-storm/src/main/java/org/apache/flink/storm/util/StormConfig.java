@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
-import backtype.storm.Config;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
+
+import org.apache.storm.Config;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -44,7 +46,7 @@ public final class StormConfig extends GlobalJobParameters implements Map {
 
 	/**
 	 * Creates an configuration with initial values provided by the given {@code Map}.
-	 * 
+	 *
 	 * @param config
 	 *            Initial values for this configuration.
 	 */
@@ -52,7 +54,6 @@ public final class StormConfig extends GlobalJobParameters implements Map {
 	public StormConfig(Map config) {
 		this.config.putAll(config);
 	}
-
 
 	@Override
 	public int size() {

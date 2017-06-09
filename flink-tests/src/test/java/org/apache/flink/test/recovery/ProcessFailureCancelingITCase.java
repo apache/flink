@@ -29,16 +29,21 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import scala.Some;
@@ -65,15 +70,16 @@ import static org.junit.Assert.fail;
  * the task manager went down and did not respond to cancel messages.
  */
 @SuppressWarnings("serial")
-public class ProcessFailureCancelingITCase {
+public class ProcessFailureCancelingITCase extends TestLogger {
 	
 	@Test
-	public void testCancelingOnProcessFailure() {
+	public void testCancelingOnProcessFailure() throws Exception {
 		final StringWriter processOutput = new StringWriter();
 
 		ActorSystem jmActorSystem = null;
 		Process taskManagerProcess = null;
-		
+		HighAvailabilityServices highAvailabilityServices = null;
+
 		try {
 			// check that we run this test only if the java command
 			// is available on this machine
@@ -95,15 +101,25 @@ public class ProcessFailureCancelingITCase {
 			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
 
 			Configuration jmConfig = new Configuration();
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "5 s");
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2000 s");
-			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 10);
-			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+			jmConfig.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "5 s");
+			jmConfig.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "2000 s");
+			jmConfig.setInteger(AkkaOptions.WATCH_THRESHOLD, 10);
+			jmConfig.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+			jmConfig.setString(JobManagerOptions.ADDRESS, localAddress._1());
+			jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
+
+			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				jmConfig,
+				TestingUtils.defaultExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
@@ -189,12 +205,10 @@ public class ProcessFailureCancelingITCase {
 			// all seems well :-)
 		}
 		catch (Exception e) {
-			e.printStackTrace();
 			printProcessLog("TaskManager", processOutput.toString());
-			fail(e.getMessage());
+			throw e;
 		}
 		catch (Error e) {
-			e.printStackTrace();
 			printProcessLog("TaskManager 1", processOutput.toString());
 			throw e;
 		}
@@ -204,6 +218,10 @@ public class ProcessFailureCancelingITCase {
 			}
 			if (jmActorSystem != null) {
 				jmActorSystem.shutdown();
+			}
+
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}
@@ -246,7 +264,11 @@ public class ProcessFailureCancelingITCase {
 		}
 		
 		// tell the JobManager to cancel the job
-		jobManager.tell(new JobManagerMessages.CancelJob(jobId), ActorRef.noSender());
+		jobManager.tell(
+			new JobManagerMessages.LeaderSessionMessage(
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				new JobManagerMessages.CancelJob(jobId)),
+			ActorRef.noSender());
 	}
 
 	private void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelay)

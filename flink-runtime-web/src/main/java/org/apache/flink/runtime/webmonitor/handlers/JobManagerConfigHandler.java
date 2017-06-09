@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.ActorGateway;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -30,6 +31,8 @@ import java.util.Map;
  */
 public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 
+	private static final String JOBMANAGER_CONFIG_REST_PATH = "/jobmanager/config";
+
 	private final Configuration config;
 
 	public JobManagerConfigHandler(Configuration config) {
@@ -37,9 +40,14 @@ public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JOBMANAGER_CONFIG_REST_PATH};
+	}
+
+	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		gen.writeStartArray();
 		for (String key : config.keySet()) {
@@ -47,9 +55,9 @@ public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 			gen.writeStringField("key", key);
 
 			// Mask key values which contain sensitive information
-			if(key.toLowerCase().contains("password")) {
+			if (key.toLowerCase().contains("password")) {
 				String value = config.getString(key, null);
-				if(value != null) {
+				if (value != null) {
 					value = "******";
 				}
 				gen.writeStringField("value", value);

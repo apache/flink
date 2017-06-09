@@ -19,14 +19,13 @@
 package org.apache.flink.api.scala.typeutils
 
 import java.util
-import java.util.regex.{Pattern, Matcher}
+import java.util.regex.{Matcher, Pattern}
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType.{TypeComparatorBuilder,
-InvalidFieldReferenceException, FlatFieldDescriptor}
+import org.apache.flink.api.common.typeutils.CompositeType.{FlatFieldDescriptor, InvalidFieldReferenceException, TypeComparatorBuilder}
 import org.apache.flink.api.common.typeutils._
 import Keys.ExpressionKeys
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
@@ -202,7 +201,7 @@ abstract class CaseClassTypeInfo[T <: Product](
   override def getFieldIndex(fieldName: String): Int = {
     val result = fieldNames.indexOf(fieldName)
     if (result != fieldNames.lastIndexOf(fieldName)) {
-      -2
+      -1
     } else {
       result
     }

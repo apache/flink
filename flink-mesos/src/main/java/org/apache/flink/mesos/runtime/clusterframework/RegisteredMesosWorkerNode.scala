@@ -22,7 +22,7 @@ import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore
 import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
 
 /**
-  * A representation of a registered Mesos task managed by the {@link MesosFlinkResourceManager}.
+  * A representation of a registered Mesos task managed by the [[MesosFlinkResourceManager]].
   */
 case class RegisteredMesosWorkerNode(task: MesosWorkerStore.Worker) extends ResourceIDRetrievable {
 

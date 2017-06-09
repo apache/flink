@@ -30,10 +30,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import akka.dispatch.Futures;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -54,9 +52,9 @@ import org.apache.flink.runtime.instance.InstanceListener;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.ExecutionContext;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -102,16 +100,16 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	/** The number of slot allocations where locality could not be respected */
 	private int nonLocalizedAssignments;
 
-	/** The ExecutionContext which is used to execute newSlotAvailable futures. */
-	private final ExecutionContext executionContext;
+	/** The Executor which is used to execute newSlotAvailable futures. */
+	private final Executor executor;
 
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new scheduler.
 	 */
-	public Scheduler(ExecutionContext executionContext) {
-		this.executionContext = executionContext;
+	public Scheduler(Executor executor) {
+		this.executor = Preconditions.checkNotNull(executor);
 	}
 	
 	/**
@@ -136,18 +134,25 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 
 	@Override
-	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued)
-			throws NoResourceAvailableException {
+	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+		try {
+			final Object ret = scheduleTask(task, allowQueued);
 
-		final Object ret = scheduleTask(task, allowQueued);
-		if (ret instanceof SimpleSlot) {
-			return FlinkCompletableFuture.completed((SimpleSlot) ret);
+			if (ret instanceof SimpleSlot) {
+				return FlinkCompletableFuture.completed((SimpleSlot) ret);
+			}
+			else if (ret instanceof Future) {
+				@SuppressWarnings("unchecked")
+				Future<SimpleSlot> typed = (Future<SimpleSlot>) ret;
+				return typed;
+			}
+			else {
+				// this should never happen, simply guard this case with an exception
+				throw new RuntimeException();
+			}
 		}
-		else if (ret instanceof Future) {
-			return (Future) ret;
-		}
-		else {
-			throw new RuntimeException();
+		catch (NoResourceAvailableException e) {
+			return FlinkCompletableFuture.completedExceptionally(e);
 		}
 	}
 
@@ -164,8 +169,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 		
-		final Iterable<TaskManagerLocation> preferredLocations = vertex.getPreferredLocations();
-		final boolean forceExternalLocation = vertex.isScheduleLocalOnly() &&
+		final Iterable<TaskManagerLocation> preferredLocations = vertex.getPreferredLocationsBasedOnInputs();
+		final boolean forceExternalLocation = false &&
 									preferredLocations != null && preferredLocations.iterator().hasNext();
 	
 		synchronized (globalLock) {
@@ -230,7 +235,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						localOnly = true;
 					}
 					else {
-						locations = vertex.getPreferredLocations();
+						locations = vertex.getPreferredLocationsBasedOnInputs();
 						localOnly = forceExternalLocation;
 					}
 					
@@ -527,15 +532,14 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 		// 
 		// that leads with a high probability to deadlocks, when scheduling fast
 
-		this.newlyAvailableInstances.add(instance);
+		newlyAvailableInstances.add(instance);
 
-		Futures.future(new Callable<Object>() {
+		executor.execute(new Runnable() {
 			@Override
-			public Object call() throws Exception {
+			public void run() {
 				handleNewSlot();
-				return null;
 			}
-		}, executionContext);
+		});
 	}
 	
 	private void handleNewSlot() {
@@ -566,7 +570,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 								queued.getFuture().complete(newSlot);
 							}
 							catch (Throwable t) {
-								LOG.error("Error calling allocation future for task " + vertex.getSimpleName(), t);
+								LOG.error("Error calling allocation future for task " + vertex.getTaskNameWithSubtaskIndex(), t);
 								task.getTaskToExecute().fail(t);
 							}
 						}

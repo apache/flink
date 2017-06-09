@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.topology.IRichSpout;
+import org.apache.storm.topology.IRichSpout;
 
 /**
  * This interface represents a spout that emits a finite number of records. Common spouts emit infinite streams by
@@ -31,6 +31,6 @@ public interface FiniteSpout extends IRichSpout {
 	 *
 	 * @return true, if the spout's stream reached its end, false otherwise
 	 */
-	public boolean reachedEnd();
+	boolean reachedEnd();
 
 }

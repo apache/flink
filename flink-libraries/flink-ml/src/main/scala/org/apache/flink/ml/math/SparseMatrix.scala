@@ -47,7 +47,6 @@ class SparseMatrix(
     * @return matrix entry at (row, col)
     */
   override def apply(row: Int, col: Int): Double = {
-
     val index = locate(row, col)
 
     if(index < 0){
@@ -152,10 +151,11 @@ object SparseMatrix{
 
   /** Constructs a sparse matrix from a coordinate list (COO) representation where each entry
     * is stored as a tuple of (rowIndex, columnIndex, value).
-    * @param numRows
-    * @param numCols
-    * @param entries
-    * @return
+    *
+    * @param numRows Number of rows
+    * @param numCols Number of columns
+    * @param entries Data entries in the matrix
+    * @return Newly constructed sparse matrix
     */
   def fromCOO(numRows: Int, numCols: Int, entries: (Int, Int, Double)*): SparseMatrix = {
     fromCOO(numRows, numCols, entries)
@@ -164,10 +164,10 @@ object SparseMatrix{
   /** Constructs a sparse matrix from a coordinate list (COO) representation where each entry
     * is stored as a tuple of (rowIndex, columnIndex, value).
     *
-    * @param numRows
-    * @param numCols
-    * @param entries
-    * @return
+    * @param numRows Number of rows
+    * @param numCols Number of columns
+    * @param entries Data entries in the matrix
+    * @return Newly constructed sparse matrix
     */
   def fromCOO(numRows: Int, numCols: Int, entries: Iterable[(Int, Int, Double)]): SparseMatrix = {
     val entryArray = entries.toArray
@@ -256,10 +256,10 @@ object SparseMatrix{
     * cannot infer that the tuple has to be of type (Int, Int, Double) because of the overloading
     * with the Iterable type.
     *
-    * @param numRows
-    * @param numCols
-    * @param entry
-    * @return
+    * @param numRows Number of rows
+    * @param numCols Number of columns
+    * @param entry Data entries in the matrix
+    * @return Newly constructed sparse matrix
     */
   def fromCOO(numRows: Int, numCols: Int, entry: (Int, Int, Int)): SparseMatrix = {
     fromCOO(numRows, numCols, (entry._1, entry._2, entry._3.toDouble))

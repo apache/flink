@@ -31,20 +31,26 @@ import org.apache.flink.streaming.api.windowing.time.Time
  * <pre>
  * nc -l 12345
  * </pre>
- * and run this example with the port as an argument.
+ * and run this example with the hostname and the port as arguments..
  */
 object SocketWindowWordCount {
 
   /** Main program method */
   def main(args: Array[String]) : Unit = {
-    
-    // the port to connect to
-    val port: Int = try {
-      ParameterTool.fromArgs(args).getInt("port")
+
+    // the host and the port to connect to
+    var hostname: String = "localhost"
+    var port: Int = 0
+
+    try {
+      val params = ParameterTool.fromArgs(args)
+      hostname = if (params.has("hostname")) params.get("hostname") else "localhost"
+      port = params.getInt("port")
     } catch {
       case e: Exception => {
-        System.err.println("No port specified. Please run 'SocketWindowWordCount --port <port>', " +
-          "where port is the address of the text server")
+        System.err.println("No port specified. Please run 'SocketWindowWordCount " +
+          "--hostname <hostname> --port <port>', where hostname (localhost by default) and port " +
+          "is the address of the text server")
         System.err.println("To start a simple text server, run 'netcat -l <port>' " +
           "and type the input text into the command line")
         return
@@ -55,14 +61,14 @@ object SocketWindowWordCount {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     
     // get input data by connecting to the socket
-    val text = env.socketTextStream("localhost", port, '\n')
+    val text = env.socketTextStream(hostname, port, '\n')
 
     // parse the data, group it, window it, and aggregate the counts 
     val windowCounts = text
           .flatMap { w => w.split("\\s") }
           .map { w => WordWithCount(w, 1) }
           .keyBy("word")
-          .timeWindow(Time.seconds(5), Time.seconds(1))
+          .timeWindow(Time.seconds(5))
           .sum("count")
 
     // print the results with a single thread, rather than in parallel

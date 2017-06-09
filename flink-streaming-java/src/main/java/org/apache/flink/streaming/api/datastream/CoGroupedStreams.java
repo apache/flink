@@ -17,16 +17,23 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -47,17 +54,13 @@ import static java.util.Objects.requireNonNull;
  *{@code CoGroupedStreams} represents two {@link DataStream DataStreams} that have been co-grouped.
  * A streaming co-group operation is evaluated over elements in a window.
  *
- * <p>
- * To finalize co-group operation you also need to specify a {@link KeySelector} for
+ * <p>To finalize co-group operation you also need to specify a {@link KeySelector} for
  * both the first and second input and a {@link WindowAssigner}.
  *
- * <p>
- * Note: Right now, the groups are being built in memory so you need to ensure that they don't
+ * <p>Note: Right now, the groups are being built in memory so you need to ensure that they don't
  * get too big. Otherwise the JVM might crash.
  *
- * <p>
- * Example:
- *
+ * <p>Example:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> one = ...;
  * DataStream<Tuple2<String, Integer>> two = ...;
@@ -72,15 +75,16 @@ import static java.util.Objects.requireNonNull;
 @Public
 public class CoGroupedStreams<T1, T2> {
 
-	/** The first input stream */
+	/** The first input stream. */
 	private final DataStream<T1> input1;
 
-	/** The second input stream */
+	/** The second input stream. */
 	private final DataStream<T2> input2;
 
 	/**
-	 * Creates new CoGroped data streams, which are the first step towards building a streaming co-group.
-	 * 
+	 * Creates new CoGrouped data streams, which are the first step towards building a streaming
+	 * co-group.
+	 *
 	 * @param input1 The first data stream.
 	 * @param input2 The second data stream.
 	 */
@@ -98,10 +102,10 @@ public class CoGroupedStreams<T1, T2> {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * CoGrouped streams that have the key for one side defined.
-	 * 
+	 *
 	 * @param <KEY> The type of the key.
 	 */
 	@Public
@@ -114,22 +118,22 @@ public class CoGroupedStreams<T1, T2> {
 			this.keySelector1 = keySelector1;
 			this.keyType = keyType;
 		}
-	
+
 		/**
 		 * Specifies a {@link KeySelector} for elements from the second input.
 		 */
 		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
 			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
 			if (!otherKey.equals(this.keyType)) {
-				throw new IllegalArgumentException("The keys for the two inputs are not equal: " + 
+				throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
 						"first key = " + this.keyType + " , second key = " + otherKey);
 			}
-			
+
 			return new EqualTo(input2.clean(keySelector));
 		}
 
 		// --------------------------------------------------------------------
-		
+
 		/**
 		 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
 		 */
@@ -153,7 +157,7 @@ public class CoGroupedStreams<T1, T2> {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs as
 	 * well as a {@link WindowAssigner}.
@@ -170,7 +174,7 @@ public class CoGroupedStreams<T1, T2> {
 
 		private final KeySelector<T1, KEY> keySelector1;
 		private final KeySelector<T2, KEY> keySelector2;
-		
+
 		private final TypeInformation<KEY> keyType;
 
 		private final WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner;
@@ -193,7 +197,7 @@ public class CoGroupedStreams<T1, T2> {
 			this.keySelector1 = keySelector1;
 			this.keySelector2 = keySelector2;
 			this.keyType = keyType;
-			
+
 			this.windowAssigner = windowAssigner;
 			this.trigger = trigger;
 			this.evictor = evictor;
@@ -209,10 +213,10 @@ public class CoGroupedStreams<T1, T2> {
 		}
 
 		/**
-		 * Sets the {@code Evictor} that should be used to evict elements from a window before emission.
+		 * Sets the {@code Evictor} that should be used to evict elements from a window before
+		 * emission.
 		 *
-		 * <p>
-		 * Note: When using an evictor window performance will degrade significantly, since
+		 * <p>Note: When using an evictor window performance will degrade significantly, since
 		 * pre-aggregation of window results cannot be used.
 		 */
 		@PublicEvolving
@@ -224,22 +228,19 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the {@link #with(CoGroupFunction)}
 		 * method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
 
-			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
-					function,
-					CoGroupFunction.class,
-					true,
-					true,
-					input1.getType(),
-					input2.getType(),
-					"CoGroup",
-					false);
+			TypeInformation<T> resultType = TypeExtractor.getCoGroupReturnTypes(
+				function,
+				input1.getType(),
+				input2.getType(),
+				"CoGroup",
+				false);
 
 			return apply(function, resultType);
 		}
@@ -251,7 +252,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(CoGroupFunction)}
 		 * method has the wrong return type and hence does not allow one to set an operator-specific
 		 * parallelism
-		 * 
+		 *
 		 * @deprecated This method will be removed once the {@link #apply(CoGroupFunction)} method is fixed
 		 *             in the next major version of Flink (2.0).
 		 */
@@ -264,7 +265,7 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the
 		 * {@link #with(CoGroupFunction, TypeInformation)} method to set an operator-specific parallelism.
@@ -275,7 +276,7 @@ public class CoGroupedStreams<T1, T2> {
 
 			UnionTypeInfo<T1, T2> unionType = new UnionTypeInfo<>(input1.getType(), input2.getType());
 			UnionKeySelector<T1, T2, KEY> unionKeySelector = new UnionKeySelector<>(keySelector1, keySelector2);
-			
+
 			DataStream<TaggedUnion<T1, T2>> taggedInput1 = input1
 					.map(new Input1Tagger<T1, T2>())
 					.setParallelism(input1.getParallelism())
@@ -286,9 +287,9 @@ public class CoGroupedStreams<T1, T2> {
 					.returns(unionType);
 
 			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
-			
+
 			// we explicitly create the keyed stream to manually pass the key type information in
-			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp = 
+			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp =
 					new KeyedStream<TaggedUnion<T1, T2>, KEY>(unionStream, unionKeySelector, keyType)
 					.window(windowAssigner);
 
@@ -323,7 +324,7 @@ public class CoGroupedStreams<T1, T2> {
 	// ------------------------------------------------------------------------
 	//  Data type and type information for Tagged Union
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Internal class for implementing tagged union co-group.
 	 */
@@ -444,8 +445,7 @@ public class CoGroupedStreams<T1, T2> {
 		private final TypeSerializer<T1> oneSerializer;
 		private final TypeSerializer<T2> twoSerializer;
 
-		public UnionSerializer(TypeSerializer<T1> oneSerializer,
-				TypeSerializer<T2> twoSerializer) {
+		public UnionSerializer(TypeSerializer<T1> oneSerializer, TypeSerializer<T2> twoSerializer) {
 			this.oneSerializer = oneSerializer;
 			this.twoSerializer = twoSerializer;
 		}
@@ -551,13 +551,69 @@ public class CoGroupedStreams<T1, T2> {
 		public boolean canEqual(Object obj) {
 			return obj instanceof UnionSerializer;
 		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new UnionSerializerConfigSnapshot<>(oneSerializer, twoSerializer);
+		}
+
+		@Override
+		public CompatibilityResult<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof UnionSerializerConfigSnapshot) {
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
+					((UnionSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+
+				CompatibilityResult<T1> oneSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousSerializersAndConfigs.get(0).f0,
+					UnloadableDummyTypeSerializer.class,
+					previousSerializersAndConfigs.get(0).f1,
+					oneSerializer);
+
+				CompatibilityResult<T2> twoSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousSerializersAndConfigs.get(1).f0,
+					UnloadableDummyTypeSerializer.class,
+					previousSerializersAndConfigs.get(1).f1,
+					twoSerializer);
+
+				if (!oneSerializerCompatResult.isRequiresMigration() && !twoSerializerCompatResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else if (oneSerializerCompatResult.getConvertDeserializer() != null && twoSerializerCompatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new UnionSerializer<>(
+							new TypeDeserializerAdapter<>(oneSerializerCompatResult.getConvertDeserializer()),
+							new TypeDeserializerAdapter<>(twoSerializerCompatResult.getConvertDeserializer())));
+				}
+			}
+
+			return CompatibilityResult.requiresMigration();
+		}
+	}
+
+	/**
+	 * The {@link TypeSerializerConfigSnapshot} for the {@link UnionSerializer}.
+	 */
+	public static class UnionSerializerConfigSnapshot<T1, T2> extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public UnionSerializerConfigSnapshot() {}
+
+		public UnionSerializerConfigSnapshot(TypeSerializer<T1> oneSerializer, TypeSerializer<T2> twoSerializer) {
+			super(oneSerializer, twoSerializer);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utility functions that implement the CoGroup logic based on the tagged
 	//  untion window reduce
 	// ------------------------------------------------------------------------
-	
+
 	private static class Input1Tagger<T1, T2> implements MapFunction<T1, TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
@@ -601,7 +657,7 @@ public class CoGroupedStreams<T1, T2> {
 	private static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
 			extends WrappingFunction<CoGroupFunction<T1, T2, T>>
 			implements WindowFunction<TaggedUnion<T1, T2>, T, KEY, W> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		public CoGroupWindowFunction(CoGroupFunction<T1, T2, T> userFunction) {
@@ -613,10 +669,10 @@ public class CoGroupedStreams<T1, T2> {
 				W window,
 				Iterable<TaggedUnion<T1, T2>> values,
 				Collector<T> out) throws Exception {
-			
+
 			List<T1> oneValues = new ArrayList<>();
 			List<T2> twoValues = new ArrayList<>();
-			
+
 			for (TaggedUnion<T1, T2> val: values) {
 				if (val.isOne()) {
 					oneValues.add(val.getOne());

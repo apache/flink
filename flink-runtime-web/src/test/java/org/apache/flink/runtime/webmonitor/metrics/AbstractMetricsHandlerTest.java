@@ -15,24 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorSystem;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import scala.concurrent.ExecutionContext;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+/**
+ * Tests for the AbstractMetricsHandler.
+ */
 public class AbstractMetricsHandlerTest extends TestLogger {
 	/**
-	 * Verifies that the handlers correctly handle expected REST calls
+	 * Verifies that the handlers correctly handle expected REST calls.
 	 */
 	@Test
 	public void testHandleRequest() throws Exception {

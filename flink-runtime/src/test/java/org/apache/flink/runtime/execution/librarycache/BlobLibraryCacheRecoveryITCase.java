@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobStoreService;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -43,8 +46,9 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-public class BlobLibraryCacheRecoveryITCase {
+public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -61,15 +65,18 @@ public class BlobLibraryCacheRecoveryITCase {
 		BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
 		BlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
+		BlobStoreService blobStoreService = null;
+
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
 
 		try {
-			Configuration config = new Configuration();
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
+			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 			for (int i = 0; i < server.length; i++) {
-				server[i] = new BlobServer(config);
+				server[i] = new BlobServer(config, blobStoreService);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
 				libServer[i] = new BlobLibraryCacheManager(server[i], 3600 * 1000);
 			}
@@ -87,7 +94,7 @@ public class BlobLibraryCacheRecoveryITCase {
 			}
 
 			// The cache
-			cache = new BlobCache(serverAddress[0], config);
+			cache = new BlobCache(serverAddress[0], config, blobStoreService);
 			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Register uploaded libraries
@@ -108,10 +115,10 @@ public class BlobLibraryCacheRecoveryITCase {
 			}
 
 			// Shutdown cache and start with other server
-			cache.shutdown();
+			cache.close();
 			libCache.shutdown();
 
-			cache = new BlobCache(serverAddress[1], config);
+			cache = new BlobCache(serverAddress[1], config, blobStoreService);
 			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Verify key 1
@@ -143,25 +150,32 @@ public class BlobLibraryCacheRecoveryITCase {
 				client.delete(keys.get(0));
 				client.delete(keys.get(1));
 			}
+
+			// Verify everything is clean below recoveryDir/<cluster_id>
+			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+			File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
+			File[] recoveryFiles = haBlobStoreDir.listFiles();
+			assertNotNull("HA storage directory does not exist", recoveryFiles);
+			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 		}
 		finally {
 			for (BlobServer s : server) {
 				if (s != null) {
-					s.shutdown();
+					s.close();
 				}
 			}
 
 			if (cache != null) {
-				cache.shutdown();
+				cache.close();
 			}
 
 			if (libCache != null) {
 				libCache.shutdown();
 			}
-		}
 
-		// Verify everything is clean
-		File[] recoveryFiles = temporaryFolder.getRoot().listFiles();
-		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
+			if (blobStoreService != null) {
+				blobStoreService.closeAndCleanupAllData();
+			}
+		}
 	}
 }

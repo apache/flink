@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.commons.io.IOUtils;
-
 import org.apache.flink.streaming.api.watermark.Watermark;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import java.io.EOFException;
@@ -29,7 +28,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction}.
@@ -38,21 +38,20 @@ public class SocketTextStreamFunctionTest {
 
 	private static final String LOCALHOST = "127.0.0.1";
 
-
 	@Test
 	public void testSocketSourceSimpleOutput() throws Exception {
 		ServerSocket server = new ServerSocket(0);
 		Socket channel = null;
-		
+
 		try {
 			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), "\n", 0);
-	
+
 			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
 			runner.start();
-	
+
 			channel = server.accept();
 			OutputStreamWriter writer = new OutputStreamWriter(channel.getOutputStream());
-			
+
 			writer.write("test1\n");
 			writer.write("check\n");
 			writer.flush();
@@ -60,9 +59,9 @@ public class SocketTextStreamFunctionTest {
 
 			runner.cancel();
 			runner.interrupt();
-			
+
 			runner.waitUntilDone();
-			
+
 			channel.close();
 		}
 		finally {
@@ -86,7 +85,7 @@ public class SocketTextStreamFunctionTest {
 
 			channel = server.accept();
 			channel.close();
-			
+
 			try {
 				runner.waitUntilDone();
 			}
@@ -235,22 +234,22 @@ public class SocketTextStreamFunctionTest {
 			IOUtils.closeQuietly(server);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class SocketSourceThread extends Thread {
-		
+
 		private final Object sync = new Object();
-		
+
 		private final SocketTextStreamFunction socketSource;
-		
+
 		private final String[] expectedData;
-		
+
 		private volatile Throwable error;
 		private volatile int numElementsReceived;
 		private volatile boolean canceled;
 		private volatile boolean done;
-		
+
 		public SocketSourceThread(SocketTextStreamFunction socketSource, String... expectedData) {
 			this.socketSource = socketSource;
 			this.expectedData = expectedData;
@@ -259,19 +258,19 @@ public class SocketTextStreamFunctionTest {
 		public void run() {
 			try {
 				SourceFunction.SourceContext<String> ctx = new SourceFunction.SourceContext<String>() {
-					
+
 					private final Object lock = new Object();
-					
+
 					@Override
 					public void collect(String element) {
 						int pos = numElementsReceived;
-						
+
 						// make sure waiter know of us
 						synchronized (sync) {
 							numElementsReceived++;
 							sync.notifyAll();
 						}
-						
+
 						if (expectedData != null && expectedData.length > pos) {
 							assertEquals(expectedData[pos], element);
 						}
@@ -283,7 +282,14 @@ public class SocketTextStreamFunctionTest {
 					}
 
 					@Override
-					public void emitWatermark(Watermark mark) {}
+					public void emitWatermark(Watermark mark) {
+						throw new UnsupportedOperationException();
+					}
+
+					@Override
+					public void markAsTemporarilyIdle() {
+						throw new UnsupportedOperationException();
+					}
 
 					@Override
 					public Object getCheckpointLock() {
@@ -293,7 +299,7 @@ public class SocketTextStreamFunctionTest {
 					@Override
 					public void close() {}
 				};
-				
+
 				socketSource.run(ctx);
 			}
 			catch (Throwable t) {
@@ -311,7 +317,7 @@ public class SocketTextStreamFunctionTest {
 				}
 			}
 		}
-		
+
 		public void cancel() {
 			synchronized (sync) {
 				canceled = true;

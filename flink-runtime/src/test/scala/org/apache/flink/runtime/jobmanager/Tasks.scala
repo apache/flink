@@ -25,26 +25,6 @@ import org.apache.flink.types.IntValue
 
 
 object Tasks {
-  class BlockingNoOpInvokable extends AbstractInvokable {
-    override def invoke(): Unit = {
-      val o = new Object()
-      o.synchronized{
-        o.wait()
-      }
-    }
-  }
-
-  class NoOpInvokable extends AbstractInvokable{
-    override def invoke(): Unit = {}
-  }
-
-  class WaitingNoOpInvokable extends AbstractInvokable{
-    val waitingTime = 100L
-
-    override def invoke(): Unit = {
-      Thread.sleep(waitingTime)
-    }
-  }
 
   class Sender extends AbstractInvokable{
 

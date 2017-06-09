@@ -89,22 +89,22 @@ package object math {
 
   /** Stores the vector values in a dense array
     *
-    * @param vector
+    * @param vector Subtype of [[Vector]]
     * @return Array containing the vector values
     */
   def vector2Array(vector: Vector): Array[Double] = {
     vector match {
       case dense: DenseVector => dense.data.clone
 
-      case sparse: SparseVector =>
+      case sparse: SparseVector => {
         val result = new Array[Double](sparse.size)
 
-        for((index, value) <- sparse) {
+        for ((index, value) <- sparse) {
           result(index) = value
         }
 
         result
-
+      }
     }
   }
 }

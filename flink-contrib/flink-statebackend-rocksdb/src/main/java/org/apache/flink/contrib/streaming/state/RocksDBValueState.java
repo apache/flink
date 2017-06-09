@@ -23,7 +23,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.internal.InternalValueState;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -40,9 +41,9 @@ import java.io.IOException;
  */
 public class RocksDBValueState<K, N, V>
 	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>, V>
-	implements ValueState<V> {
+	implements InternalValueState<N, V> {
 
-	/** Serializer for the values */
+	/** Serializer for the values. */
 	private final TypeSerializer<V> valueSerializer;
 
 	/**
@@ -80,7 +81,7 @@ public class RocksDBValueState<K, N, V>
 				return stateDesc.getDefaultValue();
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-		} catch (IOException|RocksDBException e) {
+		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while retrieving data from RocksDB.", e);
 		}
 	}
@@ -100,17 +101,6 @@ public class RocksDBValueState<K, N, V>
 			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
-		}
-	}
-
-	@Override
-	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
-		byte[] value = super.getSerializedValue(serializedKeyAndNamespace);
-
-		if (value != null) {
-			return value;
-		} else {
-			return KvStateRequestSerializer.serializeValue(stateDesc.getDefaultValue(), stateDesc.getSerializer());
 		}
 	}
 }

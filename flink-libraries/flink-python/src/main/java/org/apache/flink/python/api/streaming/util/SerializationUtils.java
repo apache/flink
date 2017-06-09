@@ -10,29 +10,36 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.util;
+
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.python.api.types.CustomTypeWrapper;
 
+/**
+ * Utility class containing serializers for all supported types.
+ */
 public class SerializationUtils {
-	public static final byte TYPE_BOOLEAN = (byte) 34;
-	public static final byte TYPE_BYTE = (byte) 33;
-	public static final byte TYPE_INTEGER = (byte) 32;
-	public static final byte TYPE_LONG = (byte) 31;
-	public static final byte TYPE_DOUBLE = (byte) 30;
-	public static final byte TYPE_FLOAT = (byte) 29;
-	public static final byte TYPE_STRING = (byte) 28;
-	public static final byte TYPE_BYTES = (byte) 27;
-	public static final byte TYPE_NULL = (byte) 26;
+	public static final byte TYPE_BOOLEAN = 34;
+	public static final byte TYPE_BYTE = 33;
+	public static final byte TYPE_INTEGER = 32;
+	public static final byte TYPE_LONG = 31;
+	public static final byte TYPE_DOUBLE = 30;
+	public static final byte TYPE_FLOAT = 29;
+	public static final byte TYPE_STRING = 28;
+	public static final byte TYPE_BYTES = 27;
+	public static final byte TYPE_NULL = 26;
 
 	private enum SupportedTypes {
 		TUPLE, BOOLEAN, BYTE, BYTES, INTEGER, LONG, FLOAT, DOUBLE, STRING, NULL, CUSTOMTYPEWRAPPER
 	}
 
-	public static Serializer getSerializer(Object value) {
+	@SuppressWarnings("unchecked")
+	public static <IN> Serializer<IN> getSerializer(IN value) {
 		String className = value.getClass().getSimpleName().toUpperCase();
 		if (className.startsWith("TUPLE")) {
 			className = "TUPLE";
@@ -41,35 +48,56 @@ public class SerializationUtils {
 			className = "BYTES";
 		}
 		SupportedTypes type = SupportedTypes.valueOf(className);
+		Serializer<?> serializer;
 		switch (type) {
 			case TUPLE:
-				return new TupleSerializer((Tuple) value);
+				serializer = new TupleSerializer((Tuple) value);
+				break;
 			case BOOLEAN:
-				return new BooleanSerializer();
+				serializer = new BooleanSerializer();
+				break;
 			case BYTE:
-				return new ByteSerializer();
+				serializer = new ByteSerializer();
+				break;
 			case BYTES:
-				return new BytesSerializer();
+				serializer = new BytesSerializer();
+				break;
 			case INTEGER:
-				return new IntSerializer();
+				serializer = new IntSerializer();
+				break;
 			case LONG:
-				return new LongSerializer();
+				serializer = new LongSerializer();
+				break;
 			case STRING:
-				return new StringSerializer();
+				serializer = new StringSerializer();
+				break;
 			case FLOAT:
-				return new FloatSerializer();
+				serializer = new FloatSerializer();
+				break;
 			case DOUBLE:
-				return new DoubleSerializer();
+				serializer = new DoubleSerializer();
+				break;
 			case NULL:
-				return new NullSerializer();
+				serializer = new NullSerializer();
+				break;
 			case CUSTOMTYPEWRAPPER:
-				return new CustomTypeWrapperSerializer((CustomTypeWrapper) value);
+				serializer = new CustomTypeWrapperSerializer((CustomTypeWrapper) value);
+				break;
 			default:
 				throw new IllegalArgumentException("Unsupported Type encountered: " + type);
 		}
+		return (Serializer<IN>) serializer;
 	}
 
-	public static abstract class Serializer<IN> {
+	/**
+	 * Super class for all serializers used to serialize data. These serializers are used to serialize values emitted
+	 * from java input formats.
+	 *
+	 * <p>These serializer smut be kept in sync with the python counterparts.
+	 *
+	 * @param <IN> input type
+	 */
+	public abstract static class Serializer<IN> {
 		private byte[] typeInfo = null;
 
 		public byte[] serialize(IN value) {
@@ -93,6 +121,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for {@link CustomTypeWrapper CustomTypeWrappers}.
+	 */
 	public static class CustomTypeWrapperSerializer extends Serializer<CustomTypeWrapper> {
 		private final byte type;
 
@@ -113,6 +144,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for bytes.
+	 */
 	public static class ByteSerializer extends Serializer<Byte> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Byte value) {
@@ -125,10 +159,13 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for booleans.
+	 */
 	public static class BooleanSerializer extends Serializer<Boolean> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Boolean value) {
-			return new byte[]{value ? (byte) 1 : (byte) 0};
+			return new byte[]{(byte) (value ? 1 : 0)};
 		}
 
 		@Override
@@ -137,6 +174,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for ints.
+	 */
 	public static class IntSerializer extends Serializer<Integer> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Integer value) {
@@ -151,6 +191,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for longs.
+	 */
 	public static class LongSerializer extends Serializer<Long> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Long value) {
@@ -165,10 +208,13 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for strings.
+	 */
 	public static class StringSerializer extends Serializer<String> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(String value) {
-			byte[] string = value.getBytes();
+			byte[] string = value.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			byte[] data = new byte[4 + string.length];
 			ByteBuffer.wrap(data).putInt(string.length).put(string);
 			return data;
@@ -180,6 +226,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for floats.
+	 */
 	public static class FloatSerializer extends Serializer<Float> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Float value) {
@@ -194,6 +243,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for doubles.
+	 */
 	public static class DoubleSerializer extends Serializer<Double> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Double value) {
@@ -208,6 +260,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for null.
+	 */
 	public static class NullSerializer extends Serializer<Object> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Object value) {
@@ -220,6 +275,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for byte arrays.
+	 */
 	public static class BytesSerializer extends Serializer<byte[]> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(byte[] value) {
@@ -234,8 +292,11 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for tuples.
+	 */
 	public static class TupleSerializer extends Serializer<Tuple> {
-		private final Serializer[] serializer;
+		private final Serializer<Object>[] serializer;
 
 		public TupleSerializer(Tuple value) {
 			serializer = new Serializer[value.getArity()];
@@ -244,7 +305,6 @@ public class SerializationUtils {
 			}
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
 		public byte[] serializeWithoutTypeInfo(Tuple value) {
 			ArrayList<byte[]> bits = new ArrayList<>();
@@ -267,7 +327,7 @@ public class SerializationUtils {
 		@Override
 		public void putTypeInfo(ByteBuffer buffer) {
 			buffer.put((byte) serializer.length);
-			for (Serializer s : serializer) {
+			for (Serializer<Object> s : serializer) {
 				s.putTypeInfo(buffer);
 			}
 		}
@@ -275,7 +335,7 @@ public class SerializationUtils {
 		@Override
 		public int getTypeInfoSize() {
 			int size = 1;
-			for (Serializer s : serializer) {
+			for (Serializer<Object> s : serializer) {
 				size += s.getTypeInfoSize();
 			}
 			return size;

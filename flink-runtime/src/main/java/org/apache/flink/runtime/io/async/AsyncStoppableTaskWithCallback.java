@@ -36,17 +36,13 @@ public class AsyncStoppableTaskWithCallback<V> extends FutureTask<V> {
 
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
-		
-		if (mayInterruptIfRunning) {
-			stoppableCallbackCallable.stop();
-		}
-
+		stoppableCallbackCallable.stop();
 		return super.cancel(mayInterruptIfRunning);
 	}
 
 	@Override
 	protected void done() {
-		stoppableCallbackCallable.done();
+		stoppableCallbackCallable.done(isCancelled());
 	}
 
 	public static <V> AsyncStoppableTaskWithCallback<V> from(StoppableCallbackCallable<V> callable) {

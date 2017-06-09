@@ -35,13 +35,13 @@ public interface DeltaFunction<DATA> extends Serializable {
 
 	/**
 	 * Calculates the delta between two given data points.
-	 * 
+	 *
 	 * @param oldDataPoint
 	 *            the old data point.
 	 * @param newDataPoint
 	 *            the new data point.
 	 * @return the delta between the two given points.
 	 */
-	public double getDelta(DATA oldDataPoint, DATA newDataPoint);
+	double getDelta(DATA oldDataPoint, DATA newDataPoint);
 
 }

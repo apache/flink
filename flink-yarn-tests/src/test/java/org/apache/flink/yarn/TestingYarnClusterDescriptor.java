@@ -27,7 +27,7 @@ import java.util.List;
 
 /**
  * Yarn client which starts a {@link TestingApplicationMaster}. Additionally the client adds the
- * flink-yarn-tests-XXX-tests.jar and the flink-runtime-XXX-tests.jar to the set of files which
+ * flink-yarn-tests-X-tests.jar and the flink-runtime-X-tests.jar to the set of files which
  * are shipped to the yarn cluster. This is necessary to load the testing classes.
  */
 public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
@@ -59,7 +59,7 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 		return TestingApplicationMaster.class;
 	}
 
-	public static class TestJarFinder implements FilenameFilter {
+	private static class TestJarFinder implements FilenameFilter {
 
 		private final String jarName;
 

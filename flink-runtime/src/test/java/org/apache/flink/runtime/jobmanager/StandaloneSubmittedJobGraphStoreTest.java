@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 public class StandaloneSubmittedJobGraphStoreTest {
 
@@ -41,14 +40,14 @@ public class StandaloneSubmittedJobGraphStoreTest {
 				new JobGraph("testNoOps"),
 				new JobInfo(ActorRef.noSender(), ListeningBehaviour.DETACHED, 0, Integer.MAX_VALUE));
 
-		assertEquals(0, jobGraphs.recoverJobGraphs().size());
+		assertEquals(0, jobGraphs.getJobIds().size());
 
 		jobGraphs.putJobGraph(jobGraph);
-		assertEquals(0, jobGraphs.recoverJobGraphs().size());
+		assertEquals(0, jobGraphs.getJobIds().size());
 
 		jobGraphs.removeJobGraph(jobGraph.getJobGraph().getJobID());
-		assertEquals(0, jobGraphs.recoverJobGraphs().size());
+		assertEquals(0, jobGraphs.getJobIds().size());
 
-		assertTrue(jobGraphs.recoverJobGraph(new JobID()).isEmpty());
+		assertNull(jobGraphs.recoverJobGraph(new JobID()));
 	}
 }

@@ -18,11 +18,6 @@
 
 package org.apache.flink.graph.test;
 
-import java.io.PrintStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,6 +25,14 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 
+import java.io.PrintStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Utility methods and data for testing graph algorithms.
+ */
 public class TestGraphUtils {
 
 	public static DataSet<Vertex<Long, Long>> getLongLongVertexData(
@@ -37,7 +40,7 @@ public class TestGraphUtils {
 
 		return env.fromCollection(getLongLongVertices());
 	}
-	
+
 	public static DataSet<Edge<Long, Long>> getLongLongEdgeData(
 			ExecutionEnvironment env) {
 
@@ -187,7 +190,7 @@ public class TestGraphUtils {
 	}
 
 	/**
-	 * A graph with invalid vertex ids
+	 * A graph with invalid vertex ids.
 	 */
 	public static DataSet<Vertex<Long, Long>> getLongLongInvalidVertexData(
 			ExecutionEnvironment env) {
@@ -200,7 +203,7 @@ public class TestGraphUtils {
 	}
 
 	/**
-	 * A graph that has at least one vertex with no ingoing/outgoing edges
+	 * A graph that has at least one vertex with no ingoing/outgoing edges.
 	 */
 	public static DataSet<Edge<Long, Long>> getLongLongEdgeDataWithZeroDegree(
 			ExecutionEnvironment env) {
@@ -216,7 +219,7 @@ public class TestGraphUtils {
 	}
 
 	/**
-	 * Function that produces an ArrayList of vertices
+	 * Function that produces an ArrayList of vertices.
 	 */
 	public static List<Vertex<Long, Long>> getLongLongVertices() {
 		List<Vertex<Long, Long>> vertices = new ArrayList<>();
@@ -246,12 +249,12 @@ public class TestGraphUtils {
 			edges.add(new Edge<>(1L, 3L, 13L));
 			edges.add(new Edge<>(2L, 3L, 23L));
 			edges.add(new Edge<>(4L, 5L, 45L));
-			
+
 			return env.fromCollection(edges);
 		}
-	
+
 	/**
-	 * Function that produces an ArrayList of edges
+	 * Function that produces an ArrayList of edges.
 	 */
 	public static List<Edge<Long, Long>> getLongLongEdges() {
 		List<Edge<Long, Long>> edges = new ArrayList<>();
@@ -262,21 +265,24 @@ public class TestGraphUtils {
 		edges.add(new Edge<>(3L, 5L, 35L));
 		edges.add(new Edge<>(4L, 5L, 45L));
 		edges.add(new Edge<>(5L, 1L, 51L));
-	
+
 		return edges;
 	}
 
+	/**
+	 * Test POJO.
+	 */
 	public static class DummyCustomType implements Serializable {
 		private static final long serialVersionUID = 1L;
-		
+
 		private int intField;
 		private boolean booleanField;
-		
+
 		public DummyCustomType(int intF, boolean boolF) {
 			this.intField = intF;
 			this.booleanField = boolF;
 		}
-		
+
 		public DummyCustomType() {
 			this.intField = 0;
 			this.booleanField = true;
@@ -285,32 +291,37 @@ public class TestGraphUtils {
 		public int getIntField() {
 			return intField;
 		}
-		
+
 		public void setIntField(int intF) {
 			this.intField = intF;
 		}
-		
+
 		public boolean getBooleanField() {
 			return booleanField;
 		}
-		
+
 		@Override
 		public String toString() {
 			return booleanField ? "(T," + intField + ")" : "(F," + intField + ")";
 		}
 	}
-	
+
+	/**
+	 * Generic test POJO.
+	 *
+	 * @param <T> field type
+	 */
 	public static class DummyCustomParameterizedType<T> implements Serializable {
 		private static final long serialVersionUID = 1L;
-		
+
 		private int intField;
 		private T tField;
-		
+
 		public DummyCustomParameterizedType(int intF, T tF) {
 			this.intField = intF;
 			this.tField = tF;
 		}
-		
+
 		public DummyCustomParameterizedType() {
 			this.intField = 0;
 			this.tField = null;
@@ -319,19 +330,19 @@ public class TestGraphUtils {
 		public int getIntField() {
 			return intField;
 		}
-		
+
 		public void setIntField(int intF) {
 			this.intField = intF;
 		}
-		
+
 		public void setTField(T tF) {
 			this.tField = tF;
 		}
-		
+
 		public T getTField() {
 			return tField;
 		}
-		
+
 		@Override
 		public String toString() {
 			return "(" + tField.toString() + "," + intField + ")";
@@ -339,7 +350,7 @@ public class TestGraphUtils {
 	}
 
 	/**
-	 * Method useful for suppressing sysout printing
+	 * Method useful for suppressing sysout printing.
 	 */
 	public static void pipeSystemOutToNull() {
 		System.setOut(new PrintStream(new BlackholeOutputSteam()));
@@ -351,23 +362,24 @@ public class TestGraphUtils {
 	}
 
 	/**
-	 * utils for getting the second graph for the test of method difference();
+	 * utils for getting the second graph for the test of method difference().
+	 *
 	 * @param env - ExecutionEnvironment
 	 */
-	public static DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference(ExecutionEnvironment env) {
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeDataDifference(ExecutionEnvironment env) {
 		return env.fromCollection(getLongLongEdgesForDifference());
 	}
 
-	public static DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference2(ExecutionEnvironment env) {
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeDataDifference2(ExecutionEnvironment env) {
 		return env.fromCollection(getLongLongEdgesForDifference2());
 	}
 
-	public static DataSet<Vertex<Long,Long>> getLongLongVertexDataDifference(ExecutionEnvironment env) {
+	public static DataSet<Vertex<Long, Long>> getLongLongVertexDataDifference(ExecutionEnvironment env) {
 		return env.fromCollection(getVerticesForDifference());
 	}
 
-	public static List<Vertex<Long,Long>> getVerticesForDifference(){
-		List<Vertex<Long,Long>> vertices = new ArrayList<>();
+	public static List<Vertex<Long, Long>> getVerticesForDifference(){
+		List<Vertex<Long, Long>> vertices = new ArrayList<>();
 		vertices.add(new Vertex<>(1L, 1L));
 		vertices.add(new Vertex<>(3L, 3L));
 		vertices.add(new Vertex<>(6L, 6L));

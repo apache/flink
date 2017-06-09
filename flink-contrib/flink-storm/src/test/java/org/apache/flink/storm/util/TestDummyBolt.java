@@ -14,23 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Tuple;
-import backtype.storm.tuple.Values;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Values;
 
 import java.util.Map;
 
+/**
+ * A test implementation of a {@link IRichBolt}.
+ */
 public class TestDummyBolt implements IRichBolt {
 	private static final long serialVersionUID = 6893611247443121322L;
 
-	public final static String shuffleStreamId = "shuffleStream";
-	public final static String groupingStreamId = "groupingStream";
+	public static final String SHUFFLE_STREAM_ID = "shuffleStream";
+	public static final String GROUPING_STREAM_ID = "groupingStream";
 
 	private boolean emit = true;
 	@SuppressWarnings("rawtypes")
@@ -49,10 +53,10 @@ public class TestDummyBolt implements IRichBolt {
 	@Override
 	public void execute(Tuple input) {
 		if (this.context.getThisTaskIndex() == 0) {
-			this.collector.emit(shuffleStreamId, input.getValues());
+			this.collector.emit(SHUFFLE_STREAM_ID, input.getValues());
 		}
 		if (this.emit) {
-			this.collector.emit(groupingStreamId, new Values("bolt", this.context));
+			this.collector.emit(GROUPING_STREAM_ID, new Values("bolt", this.context));
 			this.emit = false;
 		}
 	}
@@ -62,8 +66,8 @@ public class TestDummyBolt implements IRichBolt {
 
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		declarer.declareStream(shuffleStreamId, new Fields("data"));
-		declarer.declareStream(groupingStreamId, new Fields("id", "data"));
+		declarer.declareStream(SHUFFLE_STREAM_ID, new Fields("data"));
+		declarer.declareStream(GROUPING_STREAM_ID, new Fields("id", "data"));
 	}
 
 	@Override

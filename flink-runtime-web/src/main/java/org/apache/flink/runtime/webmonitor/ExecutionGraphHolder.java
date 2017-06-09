@@ -22,22 +22,24 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.WeakHashMap;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.util.WeakHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archive.
- * <p>
- * The holder will cache the ExecutionGraph behind a weak reference, which will be cleared
+ *
+ * <p>The holder will cache the ExecutionGraph behind a weak reference, which will be cleared
  * at some point once no one else is pointing to the ExecutionGraph.
  * Note that while the holder runs in the same JVM as the JobManager or Archive, the reference should
  * stay valid.
@@ -67,14 +69,18 @@ public class ExecutionGraphHolder {
 	public AccessExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
 		AccessExecutionGraph cached = cache.get(jid);
 		if (cached != null) {
-			return cached;
+			if (cached.getState() == JobStatus.SUSPENDED) {
+				cache.remove(jid);
+			} else {
+				return cached;
+			}
 		}
 
 		try {
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(new JobManagerMessages.RequestJob(jid), timeout);
 				Object result = Await.result(future, timeout);
-				
+
 				if (result instanceof JobManagerMessages.JobNotFound) {
 					return null;
 				}

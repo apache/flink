@@ -34,9 +34,9 @@ import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
@@ -55,7 +55,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.util.List;
+import java.util.Collection;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -96,14 +96,14 @@ public class JobClient {
 	public static JobListeningContext submitJob(
 			ActorSystem actorSystem,
 			Configuration config,
-			LeaderRetrievalService leaderRetrievalService,
+			HighAvailabilityServices highAvailabilityServices,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
 			boolean sysoutLogUpdates,
 			ClassLoader classLoader) {
 
 		checkNotNull(actorSystem, "The actorSystem must not be null.");
-		checkNotNull(leaderRetrievalService, "The jobManagerGateway must not be null.");
+		checkNotNull(highAvailabilityServices, "The high availability services must not be null.");
 		checkNotNull(jobGraph, "The jobGraph must not be null.");
 		checkNotNull(timeout, "The timeout must not be null.");
 
@@ -112,7 +112,7 @@ public class JobClient {
 		// update messages, watches for disconnect between client and JobManager, ...
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			leaderRetrievalService,
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			timeout,
 			sysoutLogUpdates,
 			config);
@@ -125,11 +125,12 @@ public class JobClient {
 				new Timeout(AkkaUtils.INF_TIMEOUT()));
 
 		return new JobListeningContext(
-				jobGraph.getJobID(),
-				submissionFuture,
-				jobClientActor,
-				timeout,
-				classLoader);
+			jobGraph.getJobID(),
+			submissionFuture,
+			jobClientActor,
+			timeout,
+			classLoader,
+			highAvailabilityServices);
 	}
 
 
@@ -142,7 +143,7 @@ public class JobClient {
 			ActorGateway jobManagerGateWay,
 			Configuration configuration,
 			ActorSystem actorSystem,
-			LeaderRetrievalService leaderRetrievalService,
+			HighAvailabilityServices highAvailabilityServices,
 			FiniteDuration timeout,
 			boolean sysoutLogUpdates) {
 
@@ -150,14 +151,14 @@ public class JobClient {
 		checkNotNull(jobManagerGateWay, "The jobManagerGateWay must not be null.");
 		checkNotNull(configuration, "The configuration must not be null.");
 		checkNotNull(actorSystem, "The actorSystem must not be null.");
-		checkNotNull(leaderRetrievalService, "The jobManagerGateway must not be null.");
+		checkNotNull(highAvailabilityServices, "The high availability services must not be null.");
 		checkNotNull(timeout, "The timeout must not be null.");
 
 		// we create a proxy JobClientActor that deals with all communication with
 		// the JobManager. It forwards the job attachments, checks the success/failure responses, logs
 		// update messages, watches for disconnect between client and JobManager, ...
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			leaderRetrievalService,
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			timeout,
 			sysoutLogUpdates);
 
@@ -169,12 +170,13 @@ public class JobClient {
 				new Timeout(AkkaUtils.INF_TIMEOUT()));
 
 		return new JobListeningContext(
-				jobID,
-				attachmentFuture,
-				jobClientActor,
-				timeout,
-				actorSystem,
-				configuration);
+			jobID,
+			attachmentFuture,
+			jobClientActor,
+			timeout,
+			actorSystem,
+			configuration,
+			highAvailabilityServices);
 	}
 
 	/**
@@ -189,7 +191,8 @@ public class JobClient {
 	public static ClassLoader retrieveClassLoader(
 		JobID jobID,
 		ActorGateway jobManager,
-		Configuration config)
+		Configuration config,
+		HighAvailabilityServices highAvailabilityServices)
 		throws JobRetrievalException {
 
 		final Object jmAnswer;
@@ -209,10 +212,17 @@ public class JobClient {
 			Option<String> jmHost = jobManager.actor().path().address().host();
 			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
 			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, props.blobManagerPort());
-			final BlobCache blobClient = new BlobCache(serverAddress, config);
+			final BlobCache blobClient;
+			try {
+				// TODO: Fix lifecycle of BlobCache to properly close it upon usage
+				blobClient = new BlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
+			} catch (IOException e) {
+				throw new JobRetrievalException(jobID,
+					"Failed to setup blob cache", e);
+			}
 
-			final List<BlobKey> requiredJarFiles = props.requiredJarFiles();
-			final List<URL> requiredClasspaths = props.requiredClasspaths();
+			final Collection<BlobKey> requiredJarFiles = props.requiredJarFiles();
+			final Collection<URL> requiredClasspaths = props.requiredClasspaths();
 
 			final URL[] allURLs = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 
@@ -221,8 +231,13 @@ public class JobClient {
 				try {
 					allURLs[pos++] = blobClient.getURL(blobKey);
 				} catch (Exception e) {
-					blobClient.shutdown();
-					throw new JobRetrievalException(jobID, "Failed to download BlobKey " + blobKey);
+					try {
+						blobClient.close();
+					} catch (IOException ioe) {
+						LOG.warn("Could not properly close the BlobClient.", ioe);
+					}
+
+					throw new JobRetrievalException(jobID, "Failed to download BlobKey " + blobKey, e);
 				}
 			}
 
@@ -351,20 +366,19 @@ public class JobClient {
 	 *
 	 * @param actorSystem The actor system that performs the communication.
 	 * @param config The cluster wide configuration.
-	 * @param leaderRetrievalService Leader retrieval service which used to find the current leading
-	 *                               JobManager
+	 * @param highAvailabilityServices Service factory for high availability services
 	 * @param jobGraph    JobGraph describing the Flink job
 	 * @param timeout     Timeout for futures
 	 * @param sysoutLogUpdates prints log updates to system out if true
 	 * @param classLoader The class loader for deserializing the results
 	 * @return The job execution result
-	 * @throws org.apache.flink.runtime.client.JobExecutionException Thrown if the job
+	 * @throws JobExecutionException Thrown if the job
 	 *                                                               execution fails.
 	 */
 	public static JobExecutionResult submitJobAndWait(
 			ActorSystem actorSystem,
 			Configuration config,
-			LeaderRetrievalService leaderRetrievalService,
+			HighAvailabilityServices highAvailabilityServices,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
 			boolean sysoutLogUpdates,
@@ -373,7 +387,7 @@ public class JobClient {
 		JobListeningContext jobListeningContext = submitJob(
 				actorSystem,
 				config,
-				leaderRetrievalService,
+				highAvailabilityServices,
 				jobGraph,
 				timeout,
 				sysoutLogUpdates,

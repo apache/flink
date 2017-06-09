@@ -10,46 +10,55 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.util;
+
+import org.apache.flink.configuration.ConfigConstants;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Simple utility class to print all contents of an inputstream to stdout.
  */
-public class StreamPrinter extends Thread {
+public class StreamPrinter implements Runnable {
 	private final BufferedReader reader;
-	private final boolean wrapInException;
-	private StringBuilder msg;
+	private final AtomicReference<String> output;
 
 	public StreamPrinter(InputStream stream) {
-		this(stream, false, null);
+		this(stream, null);
 	}
 
-	public StreamPrinter(InputStream stream, boolean wrapInException, StringBuilder msg) {
-		this.reader = new BufferedReader(new InputStreamReader(stream));
-		this.wrapInException = wrapInException;
-		this.msg = msg;
+	public StreamPrinter(InputStream stream, AtomicReference<String> output) {
+		this.reader = new BufferedReader(new InputStreamReader(stream, ConfigConstants.DEFAULT_CHARSET));
+		this.output = output;
 	}
 
 	@Override
 	public void run() {
 		String line;
-		try {
-			if (wrapInException) {
+		if (output != null) {
+			StringBuilder msg = new StringBuilder();
+			try {
 				while ((line = reader.readLine()) != null) {
-					msg.append("\n" + line);
+					msg.append(line);
+					msg.append("\n");
 				}
-			} else {
+			} catch (IOException ignored) {
+			} finally {
+				output.set(msg.toString());
+			}
+		} else {
+			try {
 				while ((line = reader.readLine()) != null) {
 					System.out.println(line);
 					System.out.flush();
 				}
+			} catch (IOException ignored) {
 			}
-		} catch (IOException ex) {
 		}
 	}
 }

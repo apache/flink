@@ -24,10 +24,11 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,16 +54,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
-		this.numBytesOut = counter("numBytesOut");
-		this.numBytesInLocal = counter("numBytesInLocal");
-		this.numBytesInRemote = counter("numBytesInRemote");
-		this.numBytesOutRate = meter("numBytesOutPerSecond", new MeterView(numBytesOut, 60));
-		this.numBytesInRateLocal = meter("numBytesInLocalPerSecond", new MeterView(numBytesInLocal, 60));
-		this.numBytesInRateRemote = meter("numBytesInRemotePerSecond", new MeterView(numBytesInRemote, 60));
-		this.numRecordsIn = counter("numRecordsIn", new SumCounter());
-		this.numRecordsOut = counter("numRecordsOut", new SumCounter());
-		this.numRecordsInRate = meter("numRecordsInPerSecond", new MeterView(numRecordsIn, 60));
-		this.numRecordsOutRate = meter("numRecordsOutPerSecond", new MeterView(numRecordsOut, 60));
+		this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
+		this.numBytesInLocal = counter(MetricNames.IO_NUM_BYTES_IN_LOCAL);
+		this.numBytesInRemote = counter(MetricNames.IO_NUM_BYTES_IN_REMOTE);
+		this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut, 60));
+		this.numBytesInRateLocal = meter(MetricNames.IO_NUM_BYTES_IN_LOCAL_RATE, new MeterView(numBytesInLocal, 60));
+		this.numBytesInRateRemote = meter(MetricNames.IO_NUM_BYTES_IN_REMOTE_RATE, new MeterView(numBytesInRemote, 60));
+		this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
+		this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
+		this.numRecordsInRate = meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn, 60));
+		this.numRecordsOutRate = meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut, 60));
 	}
 
 	public IOMetrics createSnapshot() {
@@ -109,7 +110,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	// ============================================================================================
 
 	/**
-	 * Initialize Buffer Metrics for a task
+	 * Initialize Buffer Metrics for a task.
 	 */
 	public void initializeBufferMetrics(Task task) {
 		final MetricGroup buffers = addGroup("buffers");
@@ -182,7 +183,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 			int bufferPoolSize = 0;
 
 			for (SingleInputGate inputGate : task.getAllInputGates()) {
-				usedBuffers += inputGate.getBufferPool().getNumberOfUsedBuffers();
+				usedBuffers += inputGate.getBufferPool().bestEffortGetNumOfUsedBuffers();
 				bufferPoolSize += inputGate.getBufferPool().getNumBuffers();
 			}
 
@@ -211,7 +212,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 			int bufferPoolSize = 0;
 
 			for (ResultPartition resultPartition : task.getProducedPartitions()) {
-				usedBuffers += resultPartition.getBufferPool().getNumberOfUsedBuffers();
+				usedBuffers += resultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers();
 				bufferPoolSize += resultPartition.getBufferPool().getNumBuffers();
 			}
 

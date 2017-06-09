@@ -22,6 +22,7 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
+import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -32,13 +33,13 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
-import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction, TimestampExtractor}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{Collector, OutputTag}
 
 import scala.collection.JavaConverters._
 
@@ -145,6 +146,44 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+   * Returns the minimum resources of this operation.
+   */
+  @PublicEvolving
+  def minResources: ResourceSpec = stream.getMinResources()
+
+  /**
+   * Returns the preferred resources of this operation.
+   */
+  @PublicEvolving
+  def preferredResources: ResourceSpec = stream.getPreferredResources()
+
+// ---------------------------------------------------------------------------
+//  Fine-grained resource profiles are an incomplete work-in-progress feature
+//  The setters are hence commented out at this point.
+// ---------------------------------------------------------------------------
+//  /**
+//   * Sets the minimum and preferred resources of this operation.
+//   */
+//  @PublicEvolving
+//  def resources(minResources: ResourceSpec, preferredResources: ResourceSpec) : DataStream[T] =
+//    stream match {
+//      case stream : SingleOutputStreamOperator[T] => asScalaStream(
+//        stream.setResources(minResources, preferredResources))
+//      case _ =>
+//        throw new UnsupportedOperationException("Operator does not support " +
+//          "configuring custom resources specs.")
+//      this
+//  }
+//
+//  /**
+//   * Sets the resource of this operation.
+//   */
+//  @PublicEvolving
+//  def resources(resources: ResourceSpec) : Unit = {
+//    this.resources(resources, resources)
+//  }
+
+  /**
    * Gets the name of the current data stream. This name is
    * used by the visualization and logging during runtime.
    *
@@ -198,6 +237,36 @@ class DataStream[T](stream: JavaStream[T]) {
     case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
+  }
+
+  @PublicEvolving
+  def getSideOutput[X: TypeInformation](tag: OutputTag[X]): DataStream[X] = javaStream match {
+    case stream : SingleOutputStreamOperator[X] =>
+      asScalaStream(stream.getSideOutput(tag: OutputTag[X]))
+  }
+
+  /**
+    * Sets an user provided hash for this operator. This will be used AS IS the create
+    * the JobVertexID.
+    * <p/>
+    * <p>The user provided hash is an alternative to the generated hashes, that is
+    * considered when identifying an operator through the default hash mechanics fails
+    * (e.g. because of changes between Flink versions).
+    * <p/>
+    * <p><strong>Important</strong>: this should be used as a workaround or for trouble
+    * shooting. The provided hash needs to be unique per transformation and job. Otherwise,
+    * job submission will fail. Furthermore, you cannot assign user-specified hash to
+    * intermediate nodes in an operator chain and trying so will let your job fail.
+    *
+    * @param hash the user provided hash for this operator.
+    * @return The operator with the user provided hash.
+    */
+  @PublicEvolving
+  def setUidHash(hash: String) : DataStream[T] = javaStream match {
+    case stream : SingleOutputStreamOperator[T] =>
+      asScalaStream(stream.setUidHash(hash))
+    case _ => throw new UnsupportedOperationException("Only supported for operators.")
+      this
   }
 
   /**
@@ -556,6 +625,28 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+   * Applies the given [[ProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output.
+   *
+   * @param processFunction The [[ProcessFunction]] that is called for each element
+   *                   in the stream.
+   */
+  @PublicEvolving
+  def process[R: TypeInformation](
+      processFunction: ProcessFunction[T, R]): DataStream[R] = {
+
+    if (processFunction == null) {
+      throw new NullPointerException("ProcessFunction must not be null.")
+    }
+
+    asScalaStream(javaStream.process(processFunction, implicitly[TypeInformation[R]]))
+  }
+
+
+  /**
    * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
    */
   def filter(filter: FilterFunction[T]): DataStream[T] = {
@@ -697,7 +788,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * For the second case and when the watermarks are required to lag behind the maximum
    * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
    * amount is known in advance, use the
-   * {@link org.apache.flink.streaming.api.functions.TimestampExtractorWithFixedAllowedLateness}.
+   * [[org.apache.flink.streaming.api.functions.TimestampExtractorWithFixedAllowedLateness]].
    *
    * For cases where watermarks should be created in an irregular fashion, for example
    * based on certain markers that some element carry, use the

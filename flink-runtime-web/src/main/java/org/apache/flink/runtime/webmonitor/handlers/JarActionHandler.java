@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
@@ -38,6 +37,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.ExceptionUtils;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
 import java.io.File;
 import java.io.StringWriter;
 import java.net.URISyntaxException;
@@ -50,10 +51,9 @@ import java.util.Map;
  * Abstract handler for fetching plan for a jar or running a jar.
  */
 public abstract class JarActionHandler extends AbstractJsonRequestHandler {
-	
+
 	private final File jarDir;
 
-	
 	public JarActionHandler(File jarDirectory) {
 		jarDir = jarDirectory;
 	}
@@ -96,13 +96,13 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 
 	protected String sendError(Exception e) throws Exception {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
 		gen.writeStartObject();
 		gen.writeStringField("error", ExceptionUtils.stringifyException(e));
 		gen.writeEndObject();
 		gen.close();
-		
+
 		return writer.toString();
 	}
 
@@ -162,7 +162,7 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 			// Program args
 			String[] programArgs = new String[0];
 			String programArgsOpt = queryParams.get("program-args");
-			if (programArgsOpt!= null && !programArgsOpt.equals("")) {
+			if (programArgsOpt != null && !programArgsOpt.equals("")) {
 				List<String> args = tokenizeArguments(programArgsOpt);
 				programArgs = args.toArray(new String[args.size()]);
 			}

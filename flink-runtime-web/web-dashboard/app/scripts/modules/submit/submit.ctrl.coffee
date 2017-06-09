@@ -167,7 +167,7 @@ angular.module('flinkApp')
             $scope.uploader['success'] = null
           else
             $scope.uploader['success'] = "Uploaded!"
-      xhr.open("POST", "/jars/upload")
+      xhr.open("POST", flinkConfig.jobServer + "jars/upload")
       xhr.send(formdata)
     else
       console.log("Unexpected Error. This should not happen")

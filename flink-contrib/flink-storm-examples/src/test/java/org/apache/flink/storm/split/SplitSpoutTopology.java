@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.split;
 
-import backtype.storm.topology.TopologyBuilder;
 import org.apache.flink.storm.split.operators.RandomSpout;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
 import org.apache.flink.storm.util.BoltFileSink;
@@ -25,12 +25,18 @@ import org.apache.flink.storm.util.BoltPrintSink;
 import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 
+import org.apache.storm.topology.TopologyBuilder;
+
+/**
+ * A simple topology similar to the {@link SplitBoltTopology}, except that the split streams are generated directly in
+ * a spout.
+ */
 public class SplitSpoutTopology {
-	public final static String spoutId = "randomSplitSource";
-	public final static String evenVerifierId = "evenVerifier";
-	public final static String oddVerifierId = "oddVerifier";
-	public final static String sinkId = "sink";
-	private final static OutputFormatter formatter = new TupleOutputFormatter();
+	private static final String spoutId = "randomSplitSource";
+	private static final String evenVerifierId = "evenVerifier";
+	private static final String oddVerifierId = "oddVerifier";
+	private static final String sinkId = "sink";
+	private static final OutputFormatter formatter = new TupleOutputFormatter();
 
 	public static TopologyBuilder buildTopology() {
 		final TopologyBuilder builder = new TopologyBuilder();

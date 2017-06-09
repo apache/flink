@@ -36,25 +36,25 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.ConcurrentModificationException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Largely based on the StatsDReporter class by ReadyTalk
- * https://github.com/ReadyTalk/metrics-statsd/blob/master/metrics3-statsd/src/main/java/com/readytalk/metrics/StatsDReporter.java
+ * Largely based on the StatsDReporter class by ReadyTalk.
  *
- * Ported since it was not present in maven central.
+ * <p>https://github.com/ReadyTalk/metrics-statsd/blob/master/metrics3-statsd/src/main/java/com/readytalk/metrics/StatsDReporter.java
+ *
+ * <p>Ported since it was not present in maven central.
  */
 @PublicEvolving
 public class StatsDReporter extends AbstractReporter implements Scheduled {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
 
 	public static final String ARG_HOST = "host";
 	public static final String ARG_PORT = "port";
-//	public static final String ARG_CONVERSION_RATE = "rateConversion";
-//	public static final String ARG_CONVERSION_DURATION = "durationConversion";
 
 	private boolean closed = false;
 
@@ -72,18 +72,12 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 		this.address = new InetSocketAddress(host, port);
 
-		LOG.info("Starting StatsDReporter to send metric reports to " + address);
-
-//		String conversionRate = config.getString(ARG_CONVERSION_RATE, "SECONDS");
-//		String conversionDuration = config.getString(ARG_CONVERSION_DURATION, "MILLISECONDS");
-//		this.rateFactor = TimeUnit.valueOf(conversionRate).toSeconds(1);
-//		this.durationFactor = 1.0 / TimeUnit.valueOf(conversionDuration).toNanos(1);
-
 		try {
 			this.socket = new DatagramSocket(0);
 		} catch (SocketException e) {
 			throw new RuntimeException("Could not create datagram socket. ", e);
 		}
+		log.info("Configured StatsDReporter with {host:{}, port:{}}", host, port);
 	}
 
 	@Override
@@ -131,7 +125,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private void reportCounter(final String name, final Counter counter) {
 		send(name, String.valueOf(counter.getCount()));
 	}
@@ -188,7 +182,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	private void send(final String name, final String value) {
 		try {
 			String formatted = String.format("%s:%s|g", name, value);
-			byte[] data = formatted.getBytes();
+			byte[] data = formatted.getBytes(StandardCharsets.UTF_8);
 			socket.send(new DatagramPacket(data, data.length, this.address));
 		}
 		catch (IOException e) {

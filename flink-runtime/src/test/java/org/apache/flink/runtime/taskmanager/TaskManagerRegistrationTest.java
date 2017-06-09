@@ -23,15 +23,21 @@ import akka.actor.ActorSystem;
 import akka.actor.InvalidActorNameException;
 import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
@@ -41,22 +47,30 @@ import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Matchers;
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
-import static org.apache.flink.runtime.testingUtils.TestingUtils.createJobManager;
+import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGatewaysGracefully;
+import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGracefully;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The tests in this class verify the behavior of the TaskManager
@@ -65,8 +79,6 @@ import static org.junit.Assert.*;
  */
 public class TaskManagerRegistrationTest extends TestLogger {
 
-	private static final Option<String> NONE_STRING = Option.empty();
-
 	// use one actor system throughout all tests
 	private static ActorSystem actorSystem;
 
@@ -74,13 +86,15 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 	private static FiniteDuration timeout = new FiniteDuration(20, TimeUnit.SECONDS);
 
+	private TestingHighAvailabilityServices highAvailabilityServices;
+
 	@BeforeClass
 	public static void startActorSystem() {
 		config = new Configuration();
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "5 s");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-		config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 2.0);
+		config.setString(AkkaOptions.ASK_TIMEOUT, "5 s");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "200 ms");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "2 s");
+		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 2);
 
 		actorSystem = AkkaUtils.createLocalActorSystem(config);
 	}
@@ -92,34 +106,58 @@ public class TaskManagerRegistrationTest extends TestLogger {
 		}
 	}
 
+	@Before
+	public void setupTest() {
+		highAvailabilityServices = new TestingHighAvailabilityServices();
+	}
+
+	@After
+	public void tearDownTest() throws Exception {
+		highAvailabilityServices.closeAndCleanupAllData();
+		highAvailabilityServices = null;
+	}
+
 	/**
 	 * A test that verifies that two TaskManagers correctly register at the
 	 * JobManager.
 	 */
 	@Test
-	public void testSimpleRegistration() {
+	public void testSimpleRegistration() throws Exception {
 		new JavaTestKit(actorSystem) {{
 
 			ActorGateway jobManager = null;
 			ActorGateway taskManager1 = null;
 			ActorGateway taskManager2 = null;
+			ActorGateway resourceManager = null;
+
+			EmbeddedHaServices embeddedHaServices = null;
 
 			try {
+				embeddedHaServices = new EmbeddedHaServices(Executors.directExecutor());
+
 				// a simple JobManager
-				jobManager = createJobManager(actorSystem, config);
-				startResourceManager(config, jobManager.actor());
+				jobManager = TestingUtils.createJobManager(
+					actorSystem,
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
+					config,
+					embeddedHaServices);
+
+				resourceManager = new AkkaActorGateway(
+					startResourceManager(config, embeddedHaServices),
+					jobManager.leaderSessionID());
 
 				// start two TaskManagers. it will automatically try to register
 				taskManager1 = createTaskManager(
 						actorSystem,
-						jobManager,
+						embeddedHaServices,
 						config,
 						true,
 						false);
 
 				taskManager2 = createTaskManager(
 						actorSystem,
-						jobManager,
+						embeddedHaServices,
 						config,
 						true,
 						false);
@@ -136,10 +174,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				Object response1 = Await.result(responseFuture1, timeout);
 				Object response2 = Await.result(responseFuture2, timeout);
 
-				// this is a hack to work around the way Java can interact with scala case objects
-				Class<?> confirmClass = TaskManagerMessages.getRegisteredAtJobManagerMessage().getClass();
-				assertTrue(response1 != null && confirmClass.isAssignableFrom(response1.getClass()));
-				assertTrue(response2 != null && confirmClass.isAssignableFrom(response2.getClass()));
+				assertTrue(response1 instanceof TaskManagerMessages.RegisteredAtJobManager);
+				assertTrue(response2 instanceof TaskManagerMessages.RegisteredAtJobManager);
 
 				// check that the JobManager has 2 TaskManagers registered
 				Future<Object> numTaskManagersFuture = jobManager.ask(
@@ -153,9 +189,9 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
-				stopActor(taskManager1);
-				stopActor(taskManager2);
-				stopActor(jobManager);
+				stopActorGatewaysGracefully(Arrays.asList(taskManager1, taskManager2, jobManager, resourceManager));
+
+				embeddedHaServices.closeAndCleanupAllData();
 			}
 		}};
 	}
@@ -165,34 +201,35 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	 * JobManager.
 	 */
 	@Test
-	public void testDelayedRegistration() {
+	public void testDelayedRegistration() throws Exception {
 		new JavaTestKit(actorSystem) {{
 			ActorGateway jobManager = null;
 			ActorGateway taskManager = null;
 
-			FiniteDuration delayedTimeout = timeout.$times(3);
+			FiniteDuration delayedTimeout = timeout.$times(3L);
+
+			final EmbeddedHaServices embeddedHaServices = new EmbeddedHaServices(Executors.directExecutor());
 
 			try {
 				// start a TaskManager that tries to register at the JobManager before the JobManager is
 				// available. we give it the regular JobManager akka URL
 				taskManager = createTaskManager(
 						actorSystem,
-						JobManager.getLocalJobManagerAkkaURL(Option.<String>empty()),
+						embeddedHaServices,
 						new Configuration(),
 						true,
 						false);
 
 				// let it try for a bit
-				Thread.sleep(6000);
+				Thread.sleep(6000L);
 
 				// now start the JobManager, with the regular akka URL
-				jobManager = createJobManager(
-						actorSystem,
-						new Configuration());
-
-				startResourceManager(config, jobManager.actor());
-
-				startResourceManager(config, jobManager.actor());
+				jobManager = TestingUtils.createJobManager(
+					actorSystem,
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
+					new Configuration(),
+					embeddedHaServices);
 
 				// check that the TaskManagers are registered
 				Future<Object> responseFuture = taskManager.ask(
@@ -201,17 +238,11 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				Object response = Await.result(responseFuture, delayedTimeout);
 
-				// this is a hack to work around the way Java can interact with scala case objects
-				Class<?> confirmClass = TaskManagerMessages.getRegisteredAtJobManagerMessage().getClass();
-				assertTrue(response != null && confirmClass.isAssignableFrom(response.getClass()));
-
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
+				assertTrue(response instanceof TaskManagerMessages.RegisteredAtJobManager);
 			} finally {
-				stopActor(taskManager);
-				stopActor(jobManager);
+				stopActorGatewaysGracefully(Arrays.asList(taskManager, jobManager));
+
+				embeddedHaServices.closeAndCleanupAllData();
 			}
 		}};
 	}
@@ -238,10 +269,17 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				Configuration tmConfig = new Configuration();
 				tmConfig.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, "500 ms");
 
+				highAvailabilityServices.setJobMasterLeaderRetriever(
+					HighAvailabilityServices.DEFAULT_JOB_ID,
+					// Give a non-existent job manager address to the task manager
+					new TestingLeaderRetrievalService(
+						"foobar",
+						HighAvailabilityServices.DEFAULT_LEADER_ID));
+
 				// start the taskManager actor
 				taskManager = createTaskManager(
 						actorSystem,
-						JobManager.getLocalJobManagerAkkaURL(Option.<String>empty()),
+						highAvailabilityServices,
 						tmConfig,
 						true,
 						false);
@@ -263,7 +301,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
-				stopActor(taskManager);
+				stopActorGracefully(taskManager);
 			}
 		}};
 	}
@@ -278,18 +316,28 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			ActorGateway jm = null;
 			ActorGateway taskManager =null;
 			try {
-				jm = TestingUtils.createForwardingActor(actorSystem, getTestActor(), Option.<String>empty());
+				jm = TestingUtils.createForwardingActor(
+					actorSystem,
+					getTestActor(),
+					HighAvailabilityServices.DEFAULT_LEADER_ID,
+					Option.<String>empty());
 				final ActorGateway jmGateway = jm;
 
 				FiniteDuration refusedRegistrationPause = new FiniteDuration(500, TimeUnit.MILLISECONDS);
 				Configuration tmConfig = new Configuration(config);
 				tmConfig.setString(ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE, refusedRegistrationPause.toString());
 
+				highAvailabilityServices.setJobMasterLeaderRetriever(
+					HighAvailabilityServices.DEFAULT_JOB_ID,
+					new TestingLeaderRetrievalService(
+						jm.path(),
+						HighAvailabilityServices.DEFAULT_LEADER_ID));
+
 				// we make the test actor (the test kit) the JobManager to intercept
 				// the messages
 				taskManager = createTaskManager(
 					actorSystem,
-					jmGateway,
+					highAvailabilityServices,
 					tmConfig,
 					true,
 					false);
@@ -322,13 +370,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 						expectMsgClass(RegisterTaskManager.class);
 					}
 				};
-			}
-			catch (Throwable e) {
-				e.printStackTrace();
-				fail(e.getMessage());
 			} finally {
-				stopActor(taskManager);
-				stopActor(jm);
+				stopActorGatewaysGracefully(Arrays.asList(taskManager, jm));
 			}
 		}};
 	}
@@ -345,7 +388,18 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			try {
 				FiniteDuration timeout = new FiniteDuration(5, TimeUnit.SECONDS);
 
-				jm = TestingUtils.createForwardingActor(actorSystem, getTestActor(), Option.<String>empty());
+				jm = TestingUtils.createForwardingActor(
+					actorSystem,
+					getTestActor(),
+					HighAvailabilityServices.DEFAULT_LEADER_ID,
+					Option.<String>empty());
+
+				highAvailabilityServices.setJobMasterLeaderRetriever(
+					HighAvailabilityServices.DEFAULT_JOB_ID,
+					new TestingLeaderRetrievalService(
+						jm.path(),
+						HighAvailabilityServices.DEFAULT_LEADER_ID));
+
 				final ActorGateway jmGateway = jm;
 
 				long refusedRegistrationPause = 500;
@@ -360,7 +414,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				// the messages
 				taskManager = createTaskManager(
 					actorSystem,
-					jmGateway,
+					highAvailabilityServices,
 					tmConfig,
 					true,
 					false);
@@ -415,8 +469,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 					+ maxExpectedNumberOfRegisterTaskManagerMessages,
 					registerTaskManagerMessages.length <= maxExpectedNumberOfRegisterTaskManagerMessages);
 			} finally {
-				stopActor(taskManager);
-				stopActor(jm);
+				stopActorGatewaysGracefully(Arrays.asList(taskManager, jm));
 			}
 		}};
 	}
@@ -436,16 +489,25 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 			try {
 				fakeJobManager1Gateway = TestingUtils.createForwardingActor(
-						actorSystem,
-						getTestActor(),
-						Option.apply(JOB_MANAGER_NAME));
+					actorSystem,
+					getTestActor(),
+					HighAvailabilityServices.DEFAULT_LEADER_ID,
+					Option.apply(JOB_MANAGER_NAME));
 				final ActorGateway fakeJM1Gateway = fakeJobManager1Gateway;
+
+				TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+					fakeJM1Gateway.path(),
+					HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+				highAvailabilityServices.setJobMasterLeaderRetriever(
+					HighAvailabilityServices.DEFAULT_JOB_ID,
+					testingLeaderRetrievalService);
 
 				// we make the test actor (the test kit) the JobManager to intercept
 				// the messages
 				taskManagerGateway = createTaskManager(
 						actorSystem,
-						fakeJobManager1Gateway,
+						highAvailabilityServices,
 						config,
 						true,
 						false);
@@ -504,9 +566,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				do {
 					try {
 						fakeJobManager2Gateway = TestingUtils.createForwardingActor(
-								actorSystem,
-								getTestActor(),
-								Option.apply(JOB_MANAGER_NAME));
+							actorSystem,
+							getTestActor(),
+							HighAvailabilityServices.DEFAULT_LEADER_ID,
+							Option.apply(JOB_MANAGER_NAME));
 					} catch (InvalidActorNameException e) {
 						// wait and retry
 						Thread.sleep(100);
@@ -535,33 +598,36 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
-				stopActor(taskManagerGateway);
-				stopActor(fakeJobManager1Gateway);
-				stopActor(fakeJobManager2Gateway);
+				stopActorGatewaysGracefully(Arrays.asList(taskManagerGateway, fakeJobManager2Gateway));
 			}
 		}};
 	}
 
 	@Test
-	public void testCheckForValidRegistrationSessionIDs() {
+	public void testCheckForValidRegistrationSessionIDs() throws IOException {
 		new JavaTestKit(actorSystem) {{
 
 			ActorGateway taskManagerGateway = null;
+
+			final UUID falseLeaderSessionID = UUID.randomUUID();
+			final UUID trueLeaderSessionID = UUID.randomUUID();
+
+			HighAvailabilityServices mockedHighAvailabilityServices = mock(HighAvailabilityServices.class);
+			when(mockedHighAvailabilityServices.getJobManagerLeaderRetriever(Matchers.eq(HighAvailabilityServices.DEFAULT_JOB_ID)))
+				.thenReturn(new StandaloneLeaderRetrievalService(getTestActor().path().toString(), trueLeaderSessionID));
+			when(mockedHighAvailabilityServices.createBlobStore()).thenReturn(new VoidBlobStore());
 
 			try {
 				// we make the test actor (the test kit) the JobManager to intercept
 				// the messages
 				taskManagerGateway = createTaskManager(
 						actorSystem,
-						getTestActor(),
+						mockedHighAvailabilityServices,
 						config,
 						true,
 						false);
 
 				final ActorRef taskManager = taskManagerGateway.actor();
-
-				final UUID falseLeaderSessionID = UUID.randomUUID();
-				final UUID trueLeaderSessionID = null;
 
 				new Within(timeout) {
 
@@ -573,7 +639,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 						LeaderSessionMessage lsm = expectMsgClass(LeaderSessionMessage.class);
 
-						assertTrue(lsm.leaderSessionID() == trueLeaderSessionID);
+						assertTrue(lsm.leaderSessionID().equals(trueLeaderSessionID));
 						assertTrue(lsm.message() instanceof RegisterTaskManager);
 
 						final ActorRef tm = getLastSender();
@@ -598,9 +664,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 								getTestActor());
 
 						Object message = null;
-						Object confirmMessageClass = TaskManagerMessages.getRegisteredAtJobManagerMessage().getClass();
 
-						while(message == null || !(message.getClass().equals(confirmMessageClass))) {
+						while(!(message instanceof TaskManagerMessages.RegisteredAtJobManager)) {
 							message = receiveOne(TestingUtils.TESTING_DURATION());
 						}
 
@@ -609,12 +674,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 						expectMsgEquals(new JobManagerMessages.ResponseLeaderSessionID(trueLeaderSessionID));
 					}
 				};
-			}
-			catch (Throwable e) {
-				e.printStackTrace();
-				fail(e.getMessage());
 			} finally {
-				stopActor(taskManagerGateway);
+				stopActorGracefully(taskManagerGateway);
 			}
 		}};
 	}
@@ -623,23 +684,11 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	//  Utility Functions
 	// --------------------------------------------------------------------------------------------
 
-	private static ActorRef startJobManager(Configuration configuration) throws Exception {
-		// start the actors. don't give names, so they get generated names and we
-		// avoid conflicts with the actor names
-		return JobManager.startJobManagerActors(
-			configuration,
-			actorSystem,
-			NONE_STRING,
-			NONE_STRING,
-			JobManager.class,
-			MemoryArchivist.class)._1();
-	}
-
-	private static ActorRef startResourceManager(Configuration config, ActorRef jobManager) {
+	private static ActorRef startResourceManager(Configuration config, HighAvailabilityServices highAvailabilityServices) {
 		return FlinkResourceManager.startResourceManagerActors(
 			config,
 			actorSystem,
-			new StandaloneLeaderRetrievalService(jobManager.path().toString()),
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			StandaloneResourceManager.class);
 	}
 }

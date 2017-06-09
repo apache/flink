@@ -14,22 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichSpout;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Values;
+import org.apache.storm.utils.Utils;
 
 import java.util.Map;
 
+/**
+ * A test implementation of a {@link IRichSpout}.
+ */
 public class TestDummySpout implements IRichSpout {
 	private static final long serialVersionUID = -5190945609124603118L;
 
-	public final static String spoutStreamId = "spout-stream";
+	public static final String SPOUT_STREAM_ID = "spout-stream";
 
 	private boolean emit = true;
 	@SuppressWarnings("rawtypes")
@@ -71,7 +75,7 @@ public class TestDummySpout implements IRichSpout {
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declareStream(Utils.DEFAULT_STREAM_ID, new Fields("data"));
-		declarer.declareStream(spoutStreamId, new Fields("id", "data"));
+		declarer.declareStream(SPOUT_STREAM_ID, new Fields("id", "data"));
 	}
 
 	@Override

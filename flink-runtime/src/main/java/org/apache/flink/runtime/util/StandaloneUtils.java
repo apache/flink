@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-import org.apache.flink.runtime.taskmanager.TaskManager;
-import scala.Option;
-import scala.Tuple3;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.util.ConfigurationException;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 /**
@@ -40,12 +40,15 @@ public final class StandaloneUtils {
 	 *
 	 * @param configuration Configuration instance containing the host and port information
 	 * @return StandaloneLeaderRetrievalService
+	 * @throws ConfigurationException
 	 * @throws UnknownHostException
 	 */
-	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
-			Configuration configuration)
-		throws UnknownHostException {
-		return createLeaderRetrievalService(configuration, null);
+	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(Configuration configuration)
+		throws ConfigurationException, UnknownHostException {
+		return createLeaderRetrievalService(
+			configuration,
+			false,
+			null);
 	}
 
 	/**
@@ -55,36 +58,25 @@ public final class StandaloneUtils {
 	 * for the remote Akka URL.
 	 *
 	 * @param configuration Configuration instance containing hte host and port information
+	 * @param resolveInitialHostName If true, resolves the hostname of the StandaloneLeaderRetrievalService
 	 * @param jobManagerName Name of the JobManager actor
 	 * @return StandaloneLeaderRetrievalService
-	 * @throws UnknownHostException if the host name cannot be resolved into an {@link InetAddress}
+	 * @throws ConfigurationException if the job manager address cannot be retrieved from the configuration
+	 * @throws UnknownHostException if the job manager address cannot be resolved
 	 */
 	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
 			Configuration configuration,
+			boolean resolveInitialHostName,
 			String jobManagerName)
-		throws UnknownHostException {
+		throws ConfigurationException, UnknownHostException {
+		Tuple2<String, Integer> hostnamePort = HighAvailabilityServicesUtils.getJobManagerAddress(configuration);
 
-
-		Tuple3<String, String, Object> stringIntPair = TaskManager.getAndCheckJobManagerAddress(configuration);
-
-		String protocol = stringIntPair._1();
-		String jobManagerHostname = stringIntPair._2();
-		int jobManagerPort = (Integer) stringIntPair._3();
-		InetSocketAddress hostPort;
-
-		try {
-			InetAddress inetAddress = InetAddress.getByName(jobManagerHostname);
-			hostPort = new InetSocketAddress(inetAddress, jobManagerPort);
-		}
-		catch (UnknownHostException e) {
-			throw new UnknownHostException("Cannot resolve the JobManager hostname '" + jobManagerHostname
-					+ "' specified in the configuration");
-		}
-
-		String jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(
-				protocol,
-				hostPort,
-				Option.apply(jobManagerName));
+		String jobManagerAkkaUrl = AkkaRpcServiceUtils.getRpcUrl(
+			hostnamePort.f0,
+			hostnamePort.f1,
+			jobManagerName != null ? jobManagerName : JobMaster.JOB_MANAGER_NAME,
+			resolveInitialHostName ? AddressResolution.TRY_ADDRESS_RESOLUTION : AddressResolution.NO_ADDRESS_RESOLUTION,
+			configuration);
 
 		return new StandaloneLeaderRetrievalService(jobManagerAkkaUrl);
 	}

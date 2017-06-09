@@ -18,12 +18,12 @@
 
 package org.apache.flink.graph.examples.data;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Provides the default data set used for the Single Source Shortest Paths example program.
@@ -46,14 +46,14 @@ public class SingleSourceShortestPathsData {
 		new Object[]{5L, 1L, 51.0}
 	};
 
-	public static final String RESULTED_SINGLE_SOURCE_SHORTEST_PATHS =  "1,0.0\n" + "2,12.0\n" + "3,13.0\n" + 
+	public static final String RESULTED_SINGLE_SOURCE_SHORTEST_PATHS =  "1,0.0\n" + "2,12.0\n" + "3,13.0\n" +
 								"4,47.0\n" + "5,48.0";
 
 	public static DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		
-		List<Edge<Long, Double>> edgeList = new LinkedList<Edge<Long, Double>>();
+
+		List<Edge<Long, Double>> edgeList = new LinkedList<>();
 		for (Object[] edge : DEFAULT_EDGES) {
-			edgeList.add(new Edge<Long, Double>((Long) edge[0], (Long) edge[1], (Double) edge[2]));
+			edgeList.add(new Edge<>((Long) edge[0], (Long) edge[1], (Double) edge[2]));
 		}
 		return env.fromCollection(edgeList);
 	}

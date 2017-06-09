@@ -18,18 +18,22 @@
 
 package org.apache.flink.graph.asm.degree.filter.undirected;
 
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.metric.ChecksumHashCode;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link MaximumDegree}.
+ */
 public class MaximumDegreeTest
 extends AsmTestBase {
 
@@ -62,7 +66,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Utils.ChecksumHashCode checksum = undirectedRMatGraph
+		Checksum checksum = undirectedRMatGraph(10, 16)
 			.run(new MaximumDegree<LongValue, NullValue, NullValue>(16))
 			.run(new ChecksumHashCode<LongValue, NullValue, NullValue>())
 			.execute();

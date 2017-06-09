@@ -33,7 +33,7 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class TimestampedCollector<T> implements Collector<T> {
-	
+
 	private final Output<StreamRecord<T>> output;
 
 	private final StreamRecord<T> reuse;
@@ -50,7 +50,7 @@ public class TimestampedCollector<T> implements Collector<T> {
 	public void collect(T record) {
 		output.collect(reuse.replace(record));
 	}
-	
+
 	public void setTimestamp(StreamRecord<?> timestampBase) {
 		if (timestampBase.hasTimestamp()) {
 			reuse.setTimestamp(timestampBase.getTimestamp());
@@ -61,6 +61,10 @@ public class TimestampedCollector<T> implements Collector<T> {
 
 	public void setAbsoluteTimestamp(long timestamp) {
 		reuse.setTimestamp(timestamp);
+	}
+
+	public void eraseTimestamp() {
+		reuse.eraseTimestamp();
 	}
 
 	@Override

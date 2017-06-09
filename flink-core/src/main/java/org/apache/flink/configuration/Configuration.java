@@ -44,7 +44,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		implements IOReadableWritable, java.io.Serializable, Cloneable {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final byte TYPE_STRING = 0;
 	private static final byte TYPE_INT = 1;
 	private static final byte TYPE_LONG = 2;
@@ -52,14 +52,14 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	private static final byte TYPE_FLOAT = 4;
 	private static final byte TYPE_DOUBLE = 5;
 	private static final byte TYPE_BYTES = 6;
-	
+
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
-	
+
 
 	/** Stores the concrete key/value pairs of this configuration object. */
 	protected final HashMap<String, Object> confData;
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -595,6 +595,36 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 	}
 
+	/**
+	 * Checks whether there is an entry for the given config option
+	 *
+	 * @param configOption The configuration option
+	 *
+	 * @return <tt>true</tt> if a valid (current or deprecated) key of the config option is stored,
+	 * <tt>false</tt> otherwise
+	 */
+	@PublicEvolving
+	public boolean contains(ConfigOption<?> configOption) {
+		synchronized (this.confData){
+			// first try the current key
+			if (this.confData.containsKey(configOption.key())) {
+				return true;
+			}
+			else if (configOption.hasDeprecatedKeys()) {
+				// try the deprecated keys
+				for (String deprecatedKey : configOption.deprecatedKeys()) {
+					if (this.confData.containsKey(deprecatedKey)) {
+						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+							deprecatedKey, configOption.key());
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -639,12 +669,16 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		Object o = getRawValue(configOption.key());
 
 		if (o != null) {
+			// found a value for the current proper key
 			return o;
 		}
 		else if (configOption.hasDeprecatedKeys()) {
+			// try the deprecated keys
 			for (String deprecatedKey : configOption.deprecatedKeys()) {
 				Object oo = getRawValue(deprecatedKey);
 				if (oo != null) {
+					LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'", 
+							deprecatedKey, configOption.key());
 					return oo;
 				}
 			}

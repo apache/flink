@@ -20,24 +20,26 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.util.Preconditions;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,12 +55,15 @@ import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link StateInitializationContextImpl}.
+ */
 public class StateInitializationContextImplTest {
 
 	static final int NUM_HANDLES = 10;
 
 	private StateInitializationContextImpl initializationContext;
-	private ClosableRegistry closableRegistry;
+	private CloseableRegistry closableRegistry;
 
 	private int writtenKeyGroups;
 	private Set<Integer> writtenOperatorStates;
@@ -66,16 +71,15 @@ public class StateInitializationContextImplTest {
 	@Before
 	public void setUp() throws Exception {
 
-
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
 
-		this.closableRegistry = new ClosableRegistry();
+		this.closableRegistry = new CloseableRegistry();
 		OperatorStateStore stateStore = mock(OperatorStateStore.class);
 
 		ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(64);
 
-		List<KeyGroupsStateHandle> keyGroupsStateHandles = new ArrayList<>(NUM_HANDLES);
+		List<KeyedStateHandle> keyedStateHandles = new ArrayList<>(NUM_HANDLES);
 		int prev = 0;
 		for (int i = 0; i < NUM_HANDLES; ++i) {
 			out.reset();
@@ -91,10 +95,10 @@ public class StateInitializationContextImplTest {
 				++writtenKeyGroups;
 			}
 
-			KeyGroupsStateHandle handle =
+			KeyedStateHandle handle =
 					new KeyGroupsStateHandle(offsets, new ByteStateHandleCloseChecking("kg-" + i, out.toByteArray()));
 
-			keyGroupsStateHandles.add(handle);
+			keyedStateHandles.add(handle);
 		}
 
 		List<OperatorStateHandle> operatorStateHandles = new ArrayList<>(NUM_HANDLES);
@@ -111,8 +115,10 @@ public class StateInitializationContextImplTest {
 				writtenOperatorStates.add(val);
 			}
 
-			Map<String, long[]> offsetsMap = new HashMap<>();
-			offsetsMap.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, offsets.toArray());
+			Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
+			offsetsMap.put(
+					DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
+					new OperatorStateHandle.StateMetaInfo(offsets.toArray(), OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 			OperatorStateHandle operatorStateHandle =
 					new OperatorStateHandle(offsetsMap, new ByteStateHandleCloseChecking("os-" + i, out.toByteArray()));
 			operatorStateHandles.add(operatorStateHandle);
@@ -123,13 +129,34 @@ public class StateInitializationContextImplTest {
 						true,
 						stateStore,
 						mock(KeyedStateStore.class),
-						keyGroupsStateHandles,
+						keyedStateHandles,
 						operatorStateHandles,
 						closableRegistry);
 	}
 
 	@Test
 	public void getOperatorStateStreams() throws Exception {
+
+		int i = 0;
+		int s = 0;
+		for (StatePartitionStreamProvider streamProvider : initializationContext.getRawOperatorStateInputs()) {
+			if (0 == i % 4) {
+				++i;
+			}
+			Assert.assertNotNull(streamProvider);
+			try (InputStream is = streamProvider.getStream()) {
+				DataInputView div = new DataInputViewStreamWrapper(is);
+
+				int val = div.readInt();
+				Assert.assertEquals(i * NUM_HANDLES + s, val);
+			}
+
+			++s;
+			if (s == i % 4) {
+				s = 0;
+				++i;
+			}
+		}
 
 	}
 
@@ -179,7 +206,6 @@ public class StateInitializationContextImplTest {
 		int count = 0;
 		int stopCount = NUM_HANDLES / 2;
 		boolean isClosed = false;
-
 
 		try {
 			for (KeyGroupStatePartitionStreamProvider stateStreamProvider

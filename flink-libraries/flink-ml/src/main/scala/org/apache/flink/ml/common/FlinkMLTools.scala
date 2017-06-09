@@ -28,7 +28,7 @@ import org.apache.flink.core.fs.Path
 
 import scala.reflect.ClassTag
 
-/** FlinkTools contains a set of convenience functions for Flink's machine learning library:
+/** FlinkMLTools contains a set of convenience functions for Flink's machine learning library:
   *
   *  - persist:
   *  Takes up to 5 [[DataSet]]s and file paths. Each [[DataSet]] is written to the specified
@@ -41,10 +41,11 @@ import scala.reflect.ClassTag
   *
   */
 object FlinkMLTools {
+  val EXECUTION_ENVIRONMENT_NAME = "FlinkMLTools persist"
 
   /** Registers the different FlinkML related types for Kryo serialization
     *
-    * @param env
+    * @param env The Flink execution environment where the types need to be registered
     */
   def registerFlinkMLTypes(env: ExecutionEnvironment): Unit = {
 
@@ -91,7 +92,7 @@ object FlinkMLTools {
     outputFormat.setWriteMode(WriteMode.OVERWRITE)
 
     dataset.output(outputFormat)
-    env.execute("FlinkTools persist")
+    env.execute(EXECUTION_ENVIRONMENT_NAME)
 
     val inputFormat = new TypeSerializerInputFormat[T](dataset.getType)
     inputFormat.setFilePath(filePath)
@@ -111,7 +112,7 @@ object FlinkMLTools {
     * @return Tuple of [[DataSet]]s reading the just written files
     */
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation](ds1: DataSet[A], ds2:
-  DataSet[B], path1: String, path2: String):(DataSet[A], DataSet[B])  = {
+  DataSet[B], path1: String, path2: String): (DataSet[A], DataSet[B]) = {
     val env = ds1.getExecutionEnvironment
 
     val f1 = new Path(path1)
@@ -130,7 +131,7 @@ object FlinkMLTools {
 
     ds2.output(of2)
 
-    env.execute("FlinkTools persist")
+    env.execute(EXECUTION_ENVIRONMENT_NAME)
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
@@ -184,7 +185,7 @@ object FlinkMLTools {
 
     ds3.output(of3)
 
-    env.execute("FlinkTools persist")
+    env.execute(EXECUTION_ENVIRONMENT_NAME)
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
@@ -255,7 +256,7 @@ object FlinkMLTools {
 
     ds4.output(of4)
 
-    env.execute("FlinkTools persist")
+    env.execute(EXECUTION_ENVIRONMENT_NAME)
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
@@ -340,7 +341,7 @@ object FlinkMLTools {
 
     ds5.output(of5)
 
-    env.execute("FlinkTools persist")
+    env.execute(EXECUTION_ENVIRONMENT_NAME)
 
     val if1 = new TypeSerializerInputFormat[A](ds1.getType)
     if1.setFilePath(f1)
@@ -363,11 +364,11 @@ object FlinkMLTools {
 
   /** Groups the DataSet input into numBlocks blocks.
     * 
-    * @param input
+    * @param input the input dataset
     * @param numBlocks Number of Blocks
     * @param partitionerOption Optional partitioner to control the partitioning
-    * @tparam T
-    * @return
+    * @tparam T Type of the [[DataSet]]'s elements
+    * @return The different datasets grouped into blocks
     */
   def block[T: TypeInformation: ClassTag](
     input: DataSet[T],
@@ -395,10 +396,10 @@ object FlinkMLTools {
     }
 
     preGroupBlockIDInput.groupBy(0).reduceGroup {
-      iter => {
-        val array = iter.toVector
+      iterator => {
+        val array = iterator.toVector
 
-        val blockID = array(0)._1
+        val blockID = array.head._1
         val elements = array.map(_._2)
 
         Block[T](blockID, elements)

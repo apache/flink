@@ -18,24 +18,24 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.Tuple2;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import scala.Tuple2;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,8 +50,8 @@ public class HandlerRedirectUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HandlerRedirectUtils.class);
 
-	/** Pattern to extract the host from an remote Akka URL */
-	private final static Pattern LeaderAddressHostPattern = Pattern.compile("^.+@(.+):([0-9]+)/user/.+$");
+	/** Pattern to extract the host from an remote Akka URL. */
+	private static final Pattern LeaderAddressHostPattern = Pattern.compile("^.+@(.+):([0-9]+)/user/.+$");
 
 	public static String getRedirectAddress(
 			String localJobManagerAddress,
@@ -63,7 +63,7 @@ public class HandlerRedirectUtils {
 		final String jobManagerName = localJobManagerAddress.substring(localJobManagerAddress.lastIndexOf("/") + 1);
 
 		if (!localJobManagerAddress.equals(leaderAddress) &&
-			!leaderAddress.equals(JobManager.getLocalJobManagerAkkaURL(Option.apply(jobManagerName)))) {
+			!leaderAddress.equals(AkkaUtils.getLocalAkkaURL(jobManagerName))) {
 			// We are not the leader and need to redirect
 			Matcher matcher = LeaderAddressHostPattern.matcher(leaderAddress);
 
@@ -89,20 +89,18 @@ public class HandlerRedirectUtils {
 		HttpResponse redirectResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
 		redirectResponse.headers().set(HttpHeaders.Names.LOCATION, newLocation);
-		redirectResponse.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		redirectResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
 
 		return redirectResponse;
 	}
 
-	public static HttpResponse getUnavailableResponse() throws UnsupportedEncodingException {
+	public static HttpResponse getUnavailableResponse() {
 		String result = "Service temporarily unavailable due to an ongoing leader election. Please refresh.";
-		byte[] bytes = result.getBytes(Charset.forName("UTF-8"));
+		byte[] bytes = result.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		HttpResponse unavailableResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.SERVICE_UNAVAILABLE, Unpooled.wrappedBuffer(bytes));
 
-		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
 		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, MimeTypes.getMimeTypeForExtension("txt"));
 

@@ -50,7 +50,7 @@ public class ProcessReaper extends UntypedActor {
 				String name = term.actor().path().toSerializationFormat();
 				if (log != null) {
 					log.error("Actor " + name + " terminated, stopping process...");
-					
+
 					// give the log some time to reach disk
 					try {
 						Thread.sleep(100);

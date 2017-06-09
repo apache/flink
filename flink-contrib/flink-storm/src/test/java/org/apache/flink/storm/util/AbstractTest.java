@@ -23,6 +23,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Random;
 
+/**
+ * Abstract class for all tests that require a {@link Random} to be setup before each test.
+ */
 public abstract class AbstractTest {
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractTest.class);
 

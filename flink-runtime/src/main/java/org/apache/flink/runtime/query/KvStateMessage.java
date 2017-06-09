@@ -20,14 +20,14 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
 /**
- * Actor messages for {@link KvState} lookup and registration.
+ * Actor messages for {@link InternalKvState} lookup and registration.
  */
 public interface KvStateMessage extends Serializable {
 
@@ -47,7 +47,7 @@ public interface KvStateMessage extends Serializable {
 
 		/**
 		 * Requests a {@link KvStateLocation} for the specified JobID and
-		 * {@link KvState} registration name.
+		 * {@link InternalKvState} registration name.
 		 *
 		 * @param jobId            JobID the KvState instance belongs to
 		 * @param registrationName Name under which the KvState has been registered
@@ -111,7 +111,7 @@ public interface KvStateMessage extends Serializable {
 		private final KvStateServerAddress kvStateServerAddress;
 
 		/**
-		 * Notifies the JobManager about a registered {@link KvState} instance.
+		 * Notifies the JobManager about a registered {@link InternalKvState} instance.
 		 *
 		 * @param jobId                JobID the KvState instance belongs to
 		 * @param jobVertexId          JobVertexID the KvState instance belongs to
@@ -221,7 +221,7 @@ public interface KvStateMessage extends Serializable {
 		private final String registrationName;
 
 		/**
-		 * Notifies the JobManager about an unregistered {@link KvState} instance.
+		 * Notifies the JobManager about an unregistered {@link InternalKvState} instance.
 		 *
 		 * @param jobId                JobID the KvState instance belongs to
 		 * @param jobVertexId          JobVertexID the KvState instance belongs to

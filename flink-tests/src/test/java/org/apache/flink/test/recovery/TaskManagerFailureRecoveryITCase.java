@@ -27,10 +27,14 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -58,7 +62,7 @@ import static org.junit.Assert.*;
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
 @SuppressWarnings("serial")
-public class TaskManagerFailureRecoveryITCase {
+public class TaskManagerFailureRecoveryITCase extends TestLogger {
 
 	@Test
 	public void testRestartWithFailingTaskManager() {
@@ -72,11 +76,11 @@ public class TaskManagerFailureRecoveryITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
+			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
 			
-			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "500 ms");
-			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "20 s");
-			config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 20);
+			config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "500 ms");
+			config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "20 s");
+			config.setInteger(AkkaOptions.WATCH_THRESHOLD, 20);
 
 			cluster = new LocalFlinkMiniCluster(config, false);
 
@@ -85,8 +89,7 @@ public class TaskManagerFailureRecoveryITCase {
 			// for the result
 			List<Long> resultCollection = new ArrayList<Long>();
 
-			final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
+			final ExecutionEnvironment env = new TestEnvironment(cluster, PARALLELISM, false);
 
 			env.setParallelism(PARALLELISM);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));

@@ -18,15 +18,17 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
+import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
-import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
+
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -50,11 +52,11 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 
 	protected final FiniteDuration timeout;
 
-	/** Whether the web service has https enabled */
+	/** Whether the web service has https enabled. */
 	protected final boolean httpsEnabled;
 
 	protected String localJobManagerAddress;
-	
+
 	public RuntimeMonitorHandlerBase(
 		JobManagerRetriever retriever,
 		Future<String> localJobManagerAddressFuture,
@@ -66,6 +68,13 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 		this.timeout = checkNotNull(timeout);
 		this.httpsEnabled = httpsEnabled;
 	}
+
+	/**
+	 * Returns an array of REST URL's under which this handler can be registered.
+	 *
+	 * @return array containing REST URL's under which this handler can be registered.
+	 */
+	public abstract String[] getPaths();
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {

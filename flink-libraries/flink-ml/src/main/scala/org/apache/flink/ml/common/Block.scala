@@ -26,4 +26,4 @@ package org.apache.flink.ml.common
   * @param values
   * @tparam T
   */
-case class Block[T](index: Int, values: Vector[T]) {}
+case class Block[T](index: Int, values: Vector[T])

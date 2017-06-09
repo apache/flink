@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.akka;
 
 import akka.actor.UntypedActor;
-
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +38,7 @@ import java.util.UUID;
  * a leader session ID option which is returned by getLeaderSessionID.
  */
 public abstract class FlinkUntypedActor extends UntypedActor {
-	
+
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	/**
@@ -56,16 +54,16 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 */
 	@Override
 	public final void onReceive(Object message) throws Exception {
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("Received message {} at {} from {}.", message, getSelf().path(), getSender());
+		if(LOG.isTraceEnabled()) {
+			LOG.trace("Received message {} at {} from {}.", message, getSelf().path(), getSender());
 
 			long start = System.nanoTime();
 
 			handleLeaderSessionID(message);
 
-			long duration = (System.nanoTime() - start)/ 1000000;
+			long duration = (System.nanoTime() - start)/ 1_000_000;
 
-			LOG.debug("Handled message {} in {} ms from {}.", message, duration, getSender());
+			LOG.trace("Handled message {} in {} ms from {}.", message, duration, getSender());
 		} else {
 			handleLeaderSessionID(message);
 		}
@@ -81,15 +79,19 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * @throws Exception
 	 */
 	private void handleLeaderSessionID(Object message) throws Exception {
-		if(message instanceof LeaderSessionMessage) {
+		if (message instanceof LeaderSessionMessage) {
 			LeaderSessionMessage msg = (LeaderSessionMessage) message;
 			UUID expectedID = getLeaderSessionID();
 			UUID actualID = msg.leaderSessionID();
 
-			if(expectedID == actualID || (expectedID != null && expectedID.equals(actualID))) {
-				handleMessage(msg.message());
+			if (expectedID != null) {
+				if (expectedID.equals(actualID)) {
+					handleMessage(msg.message());
+				} else {
+					handleDiscardedMessage(expectedID, msg);
+				}
 			} else {
-				handleDiscardedMessage(expectedID, msg);
+				handleNoLeaderId(msg);
 			}
 		} else if (message instanceof RequiresLeaderSessionID) {
 			throw new Exception("Received a message " + message + " without a leader session " +
@@ -104,6 +106,10 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 		LOG.warn("Discard message {} because the expected leader session ID {} did not " +
 				"equal the received leader session ID {}.", msg, expectedLeaderSessionID,
 				msg.leaderSessionID());
+	}
+
+	private void handleNoLeaderId(LeaderSessionMessage msg) {
+		LOG.warn("Discard message {} because there is currently no valid leader id known.", msg);
 	}
 
 	/**

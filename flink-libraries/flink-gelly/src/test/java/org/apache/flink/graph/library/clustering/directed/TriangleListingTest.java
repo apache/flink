@@ -18,22 +18,26 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link TriangleListing}.
+ */
 public class TriangleListingTest
 extends AsmTestBase {
 
@@ -45,8 +49,8 @@ extends AsmTestBase {
 				.setSortTriangleVertices(true));
 
 		String expectedResult =
-			"(0,1,2,22)\n" +
-			"(1,2,3,41)";
+			"(0,1,2,41)\n" +
+			"(1,2,3,22)";
 
 		TestBaseUtils.compareResultAsText(tl.collect(), expectedResult);
 	}
@@ -55,7 +59,7 @@ extends AsmTestBase {
 	public void testCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2) / 3;
+		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2) / 3;
 
 		DataSet<Result<LongValue>> tl = completeGraph
 			.run(new TriangleListing<LongValue, NullValue, NullValue>());
@@ -72,13 +76,15 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> tl = directedRMatGraph
+		DataSet<Result<LongValue>> tl = directedRMatGraph(10, 16)
 			.run(new TriangleListing<LongValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(tl);
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
+			.run(tl)
+			.execute();
 
 		assertEquals(75049, checksum.getCount());
-		assertEquals(0x00000033111f1054L, checksum.getChecksum());
+		assertEquals(0x00000033111f11baL, checksum.getChecksum());
 	}
 }

@@ -26,12 +26,8 @@ package org.apache.flink.ml.math
  * @param numCols Number of columns
  * @param data Array of matrix elements in column major order
  */
-case class DenseMatrix(
-    val numRows: Int,
-    val numCols: Int,
-    val data: Array[Double])
-  extends Matrix
-  with Serializable{
+case class DenseMatrix(numRows: Int, numCols: Int, data: Array[Double])
+  extends Matrix with Serializable {
 
   import DenseMatrix._
 
@@ -55,20 +51,18 @@ case class DenseMatrix(
     val result = StringBuilder.newBuilder
     result.append(s"DenseMatrix($numRows, $numCols)\n")
 
-    val linewidth = LINE_WIDTH
-
     val columnsFieldWidths = for(row <- 0 until math.min(numRows, MAX_ROWS)) yield {
       var column = 0
       var maxFieldWidth = 0
 
-      while(column * maxFieldWidth < linewidth && column < numCols) {
+      while(column * maxFieldWidth < LINE_WIDTH && column < numCols) {
         val fieldWidth = printEntry(row, column).length + 2
 
         if(fieldWidth > maxFieldWidth) {
           maxFieldWidth = fieldWidth
         }
 
-        if(column * maxFieldWidth < linewidth) {
+        if(column * maxFieldWidth < LINE_WIDTH) {
           column += 1
         }
       }
@@ -128,6 +122,10 @@ case class DenseMatrix(
     data(index) = value
   }
 
+  /** Converts the DenseMatrix to a SparseMatrix
+    *
+    * @return SparseMatrix build from all the non-null values
+    */
   def toSparseMatrix: SparseMatrix = {
     val entries = for(row <- 0 until numRows; col <- 0 until numCols) yield {
       (row, col, apply(row, col))
@@ -138,9 +136,9 @@ case class DenseMatrix(
 
   /** Calculates the linear index of the respective matrix entry
     *
-    * @param row
-    * @param col
-    * @return
+    * @param row row index
+    * @param col column index
+    * @return the index of the value according to the row and index
     */
   private def locate(row: Int, col: Int): Int = {
     require(0 <= row && row < numRows && 0 <= col && col < numCols,
@@ -151,9 +149,9 @@ case class DenseMatrix(
 
   /** Converts the entry at (row, col) to string
     *
-    * @param row
-    * @param col
-    * @return
+    * @param row row index
+    * @param col column index
+    * @return Takes the value according to the row and index and convert it to string
     */
   private def printEntry(row: Int, col: Int): String = {
     val index = locate(row, col)

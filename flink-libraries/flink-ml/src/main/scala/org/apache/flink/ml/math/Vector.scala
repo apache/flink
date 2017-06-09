@@ -27,21 +27,21 @@ trait Vector extends Serializable {
 
   /** Number of elements in a vector
     *
-    * @return
+    * @return The number of elements of the vector
     */
   def size: Int
 
   /** Element wise access function
     *
-    * * @param index index of the accessed element
-    * @return element with index
+    * @param index index of the accessed element
+    * @return value of the associated with the index
     */
   def apply(index: Int): Double
 
   /** Updates the element at the given index with the provided value
     *
-    * @param index
-    * @param value
+    * @param index The index of the element to be updated
+    * @param value The new value
     */
   def update(index: Int, value: Double): Unit
 
@@ -60,7 +60,6 @@ trait Vector extends Serializable {
 
   /** Returns the outer product of the recipient and the argument
     *
-    *
     * @param other a Vector
     * @return a matrix
     */
@@ -68,7 +67,7 @@ trait Vector extends Serializable {
 
   /** Magnitude of a vector
     *
-    * @return
+    * @return The length of the vector
     */
   def magnitude: Double
 

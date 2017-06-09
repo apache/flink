@@ -28,16 +28,16 @@ import org.apache.flink.api.java.tuple.Tuple3;
  * @param <K> the key type for the sources and target vertices
  * @param <V> the edge value type
  */
-public class Edge<K, V> extends Tuple3<K, K, V>{
+public class Edge<K, V> extends Tuple3<K, K, V> {
 
 	private static final long serialVersionUID = 1L;
 
 	public Edge(){}
 
-	public Edge(K src, K trg, V val) {
-		this.f0 = src;
-		this.f1 = trg;
-		this.f2 = val;
+	public Edge(K source, K target, V value) {
+		this.f0 = source;
+		this.f1 = target;
+		this.f2 = value;
 	}
 
 	/**
@@ -49,8 +49,8 @@ public class Edge<K, V> extends Tuple3<K, K, V>{
 			return new Edge<>(this.f1, this.f0, this.f2);
 	}
 
-	public void setSource(K src) {
-		this.f0 = src;
+	public void setSource(K source) {
+		this.f0 = source;
 	}
 
 	public K getSource() {

@@ -310,7 +310,11 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case RequestSavepoint(savepointPath) =>
       try {
-        val savepoint = SavepointStore.loadSavepoint(savepointPath)
+        //TODO user class loader ?
+        val savepoint = SavepointStore.loadSavepoint(
+          savepointPath,
+          Thread.currentThread().getContextClassLoader)
+        
         sender ! ResponseSavepoint(savepoint)
       }
       catch {

@@ -25,6 +25,7 @@ from flink.functions.GroupReduceFunction import GroupReduceFunction
 from flink.plan.Constants import Order, WriteMode
 from flink.plan.Constants import INT, STRING
 import struct
+from uuid import uuid4
 from utils import Id, Verify
 
 if __name__ == "__main__":
@@ -58,14 +59,17 @@ if __name__ == "__main__":
     #CSV Source/Sink
     csv_data = env.read_csv("src/test/python/org/apache/flink/python/api/data_csv", (INT, INT, STRING))
 
-    csv_data.write_csv("/tmp/flink/result1", line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
+    out = "flink_python_" + str(uuid4())
+    csv_data.write_csv("/tmp/flink/" + out, line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
 
-    d8.write_csv("/tmp/flink/result2", line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
+    out = "flink_python_" + str(uuid4())
+    d8.write_csv("/tmp/flink/" + out, line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
 
     #Text Source/Sink
     text_data = env.read_text("src/test/python/org/apache/flink/python/api/data_text")
 
-    text_data.write_text("/tmp/flink/result2", WriteMode.OVERWRITE)
+    out = "flink_python_" + str(uuid4())
+    text_data.write_text("/tmp/flink/" + out, WriteMode.OVERWRITE)
 
     #Types
     env.from_elements(bytearray(b"hello"), bytearray(b"world"))\

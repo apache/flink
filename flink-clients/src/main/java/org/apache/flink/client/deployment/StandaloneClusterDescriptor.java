@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
-
 /**
- * A deployment descriptor for an existing cluster
+ * A deployment descriptor for an existing cluster.
  */
 public class StandaloneClusterDescriptor implements ClusterDescriptor<StandaloneClusterClient> {
 

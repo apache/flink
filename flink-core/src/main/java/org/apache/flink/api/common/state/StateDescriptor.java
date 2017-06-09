@@ -39,7 +39,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Base class for state descriptors. A {@code StateDescriptor} is used for creating partitioned
  * {@link State} in stateful operations. This contains the name and can create an actual state
- * object given a {@link StateBackend} using {@link #bind(StateBackend)}.
+ * object given a {@link StateBinder} using {@link #bind(StateBinder)}.
  *
  * <p>Subclasses must correctly implement {@link #equals(Object)} and {@link #hashCode()}.
  *
@@ -48,7 +48,29 @@ import static java.util.Objects.requireNonNull;
  */
 @PublicEvolving
 public abstract class StateDescriptor<S extends State, T> implements Serializable {
+
+	/**
+	 * An enumeration of the types of supported states. Used to identify the state type
+	 * when writing and restoring checkpoints and savepoints.
+	 */
+	// IMPORTANT: Do not change the order of the elements in this enum, ordinal is used in serialization
+	public enum Type {
+		/**
+		 * @deprecated Enum for migrating from old checkpoints/savepoint versions.
+		 */
+		@Deprecated
+		UNKNOWN,
+		VALUE,
+		LIST,
+		REDUCING,
+		FOLDING,
+		AGGREGATING,
+		MAP
+	}
+
 	private static final long serialVersionUID = 1L;
+
+	// ------------------------------------------------------------------------
 
 	/** Name that uniquely identifies state created from this StateDescriptor. */
 	protected final String name;
@@ -152,7 +174,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 */
 	public TypeSerializer<T> getSerializer() {
 		if (serializer != null) {
-			return serializer;
+			return serializer.duplicate();
 		} else {
 			throw new IllegalStateException("Serializer not yet initialized.");
 		}
@@ -196,11 +218,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	}
 
 	/**
-	 * Creates a new {@link State} on the given {@link StateBackend}.
+	 * Creates a new {@link State} on the given {@link StateBinder}.
 	 *
-	 * @param stateBackend The {@code StateBackend} on which to create the {@link State}.
+	 * @param stateBinder The {@code StateBackend} on which to create the {@link State}.
 	 */
-	public abstract S bind(StateBackend stateBackend) throws Exception;
+	public abstract S bind(StateBinder stateBinder) throws Exception;
 
 	// ------------------------------------------------------------------------
 
@@ -231,22 +253,6 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 		}
 	}
 
-	/**
-	 * This method should be called by subclasses prior to serialization. Because the TypeInformation is
-	 * not always serializable, it is 'transient' and dropped during serialization. Hence, the descriptor
-	 * needs to make sure that the serializer is created before the TypeInformation is dropped. 
-	 */
-	private void ensureSerializerCreated() {
-		if (serializer == null) {
-			if (typeInfo != null) {
-				serializer = typeInfo.createSerializer(new ExecutionConfig());
-			} else {
-				throw new IllegalStateException(
-						"Cannot initialize serializer after TypeInformation was dropped during serialization");
-			}
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  Standard Utils
 	// ------------------------------------------------------------------------
@@ -267,13 +273,15 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 				'}';
 	}
 
+	public abstract Type getType();
+
 	// ------------------------------------------------------------------------
 	//  Serialization
 	// ------------------------------------------------------------------------
 
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		// make sure we have a serializer before the type information gets lost
-		ensureSerializerCreated();
+		initializeSerializerUnlessSet(new ExecutionConfig());
 
 		// write all the non-transient fields
 		out.defaultWriteObject();

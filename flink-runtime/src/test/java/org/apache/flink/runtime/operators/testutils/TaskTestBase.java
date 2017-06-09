@@ -67,7 +67,7 @@ public abstract class TaskTestBase extends TestLogger {
 		conf.setInputSerializer(RecordSerializerFactory.get(), groupId);
 
 		if (read) {
-			reader.read();
+			reader.notifyNonEmpty();
 		}
 
 		return reader;

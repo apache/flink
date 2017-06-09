@@ -30,33 +30,35 @@ import java.io.IOException;
 /**
  * A serialization and deserialization schema that uses Flink's serialization stack to
  * transform typed from and to byte arrays.
- * 
+ *
  * @param <T> The type to be serialized.
  */
 @Public
 public class TypeInformationSerializationSchema<T> implements DeserializationSchema<T>, SerializationSchema<T> {
-	
+
 	private static final long serialVersionUID = -5359448468131559102L;
-	
-	/** The serializer for the actual de-/serialization */
+
+	/** The serializer for the actual de-/serialization. */
 	private final TypeSerializer<T> serializer;
 
-	/** The reusable output serialization buffer */
+	/** The reusable output serialization buffer. */
 	private transient DataOutputSerializer dos;
-	
-	/** The reusable input deserialization buffer */
+
+	/** The reusable input deserialization buffer. */
 	private transient DataInputDeserializer dis;
 
-	/** The type information, to be returned by {@link #getProducedType()}. It is
-	 * transient, because it is not serializable. Note that this means that the type information
-	 * is not available at runtime, but only prior to the first serialization / deserialization */
+	/**
+	 * The type information, to be returned by {@link #getProducedType()}. It is transient, because
+	 * it is not serializable. Note that this means that the type information is not available at
+	 * runtime, but only prior to the first serialization / deserialization.
+	 */
 	private transient TypeInformation<T> typeInfo;
 
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new de-/serialization schema for the given type.
-	 * 
+	 *
 	 * @param typeInfo The type information for the type de-/serialized by this schema.
 	 * @param ec The execution config, which is used to parametrize the type serializers.
 	 */
@@ -66,7 +68,7 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public T deserialize(byte[] message) {
 		if (dis != null) {
@@ -74,7 +76,7 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 		} else {
 			dis = new DataInputDeserializer(message, 0, message.length);
 		}
-		
+
 		try {
 			return serializer.deserialize(dis);
 		}
@@ -98,14 +100,14 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 		if (dos == null) {
 			dos = new DataOutputSerializer(16);
 		}
-		
+
 		try {
 			serializer.serialize(element, dos);
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Unable to serialize record", e);
 		}
-		
+
 		byte[] ret = dos.getByteArray();
 		if (ret.length != dos.length()) {
 			byte[] n = new byte[dos.length()];

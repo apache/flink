@@ -20,10 +20,10 @@ package org.apache.flink.graph.scala.test.operations
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.{Edge, EdgeJoinFunction}
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph.scala.utils.EdgeToTuple3Map
+import org.apache.flink.graph.{Edge, EdgeJoinFunction}
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit.Test
 import org.junit.runner.RunWith

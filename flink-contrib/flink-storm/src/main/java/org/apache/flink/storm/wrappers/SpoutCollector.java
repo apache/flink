@@ -17,10 +17,11 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.spout.ISpoutOutputCollector;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+
+import org.apache.storm.spout.ISpoutOutputCollector;
 
 import java.util.HashMap;
 import java.util.List;
@@ -32,14 +33,14 @@ import java.util.List;
  */
 class SpoutCollector<OUT> extends AbstractStormCollector<OUT> implements ISpoutOutputCollector {
 
-	/** The Flink source context object */
+	/** The Flink source context object. */
 	private final SourceContext<OUT> flinkContext;
 
 	/**
 	 * Instantiates a new {@link SpoutCollector} that emits Flink tuples to the given Flink source context. If the
 	 * number of attributes is specified as zero, any output type is supported. If the number of attributes is between 0
 	 * to 25, the output type is {@link Tuple0} to {@link Tuple25}, respectively.
-	 * 
+	 *
 	 * @param numberOfAttributes
 	 *            The number of attributes of the emitted tuples.
 	 * @param taskId
@@ -73,10 +74,13 @@ class SpoutCollector<OUT> extends AbstractStormCollector<OUT> implements ISpoutO
 		return this.tansformAndEmit(streamId, tuple);
 	}
 
-
 	@Override
 	public void emitDirect(final int taskId, final String streamId, final List<Object> tuple, final Object messageId) {
 		throw new UnsupportedOperationException("Direct emit is not supported by Flink");
+	}
+
+	public long getPendingCount() {
+		return 0;
 	}
 
 }

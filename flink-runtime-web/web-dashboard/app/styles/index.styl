@@ -21,6 +21,25 @@
 sidebar-width = 250px
 sidebar-width-small = 160px
 
+html
+  height: 100%
+
+body
+  height: 100%
+
+#main
+  height: 100%
+
+.gutter
+  background-color: transparent
+  background-repeat: no-repeat
+  background-position: 50%
+
+.gutter-vertical
+  cursor: row-resize
+  background-image: url('../images/grips/horizontal.png')
+
+
 #sidebar
   overflow: hidden
   position: fixed
@@ -54,11 +73,11 @@ sidebar-width-small = 160px
     font-weight: bold
     color: #ffffff
     padding-left: 0
-    
+
   .nav > li > a
     color: #aaaaaa
     margin-bottom: 1px
-    
+
     &:hover, &:focus
       background-color: rgba(40, 40, 40, 0.5)
     &.active
@@ -66,9 +85,9 @@ sidebar-width-small = 160px
 
 #content
   background-color: #ffffff
-  overflow: hidden
   margin-left: 0
   padding-top: 70px
+  height: 100%
 
   transition(400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all)
 
@@ -82,7 +101,7 @@ sidebar-width-small = 160px
     .nav-tabs
       margin: 0 -20px
       padding: 0 20px
-      
+
   .navbar-secondary-additional
     border: none
     padding: 0 20px
@@ -114,7 +133,7 @@ sidebar-width-small = 160px
       color: #aaaaaa
       background-color: transparent
       border-bottom: 2px solid transparent
-      
+
     &.active
       > a, > a:hover, > a:focus
         color: #000000
@@ -130,7 +149,7 @@ sidebar-width-small = 160px
   th
     font-weight: normal
     color: #999999
-    
+
   td.td-long
     width: 20%
     white-space: pre-wrap
@@ -142,7 +161,7 @@ sidebar-width-small = 160px
   &.table-clickable
     tr
       cursor: pointer
-        
+
   &.table-inner
     background-color: transparent
 
@@ -166,7 +185,7 @@ sidebar-width-small = 160px
           background-color: #f0f0f0
         td.tab-column li.active
           background-color: #f0f0f0
-      
+
   &.table-activable
     th.tab-column, td.tab-column
       border-top: none
@@ -174,7 +193,7 @@ sidebar-width-small = 160px
 
     td.tab-column
       border-right: 1px solid #dddddd
-      
+
     td
       position: relative
 
@@ -274,7 +293,7 @@ span.icon-wrapper
   overflow: auto
 
 .navbar-main, .navbar-secondary, .navbar-main-additional, .panel.panel-multi, .navbar-secondary-additional
-  .navbar-title, .panel-title
+  .navbar-title, .navbar-title-job, .panel-title
     float: left
     font-size: 18px
     padding: 12px 20px 13px 10px
@@ -289,7 +308,7 @@ span.icon-wrapper
     display: inline-block
     border-right: 1px solid #e7e7e7
     overflow: hidden
-    
+
     .overflow
       position: absolute
       display: block
@@ -307,7 +326,7 @@ span.icon-wrapper
 .panel.panel-multi
   .panel-heading
     padding: 0
-    
+
     .panel-info
       &.thin
         padding: 8px 10px
@@ -317,7 +336,7 @@ span.icon-wrapper
     background-color: #fdfdfd
     color: #999
     font-size: 13px
-    
+
     &.clean
       color: inherit
       font-size: inherit
@@ -340,7 +359,7 @@ span.icon-wrapper
     padding-right: 20px
     background-color: #fff
     z-index: 1
-    
+
 
 .badge-default[href]:hover,
 .badge-default[href]:focus
@@ -426,7 +445,7 @@ pre
       float: none
       margin-bottom: 0
       margin-right: -1px
-      
+
       > a
         margin-right: 0
         border-radius(0)
@@ -436,7 +455,7 @@ pre
       > a:hover, > a:focus
         border-bottom: none
         border-left: 2px solid #000000
-        
+
       &.active
         > a
           border-bottom: none
@@ -445,6 +464,21 @@ pre
 .navbar-main, .navbar-secondary, .navbar-main-additional, .navbar-secondary-additional
   .navbar-title
     padding: 12px 20px 13px 20px
+
+.navbar-main
+  .navbar-title-job
+    padding: 8px 20px 8px 20px
+    .indicator-primary
+      padding: 8px 0 0 0
+    .no-padding
+      padding: 0
+    .no-margin
+      margin: 0
+    .job-name
+      font-size: 14px
+    .job-id
+      color: #999
+      font-size: 11px
 
 livechart
   width: 30%
@@ -460,7 +494,7 @@ livechart
   #sidebar
     left: 0
     width: sidebar-width-small
-    
+
     .navbar-static-top
       .navbar-brand-text
         display: none
@@ -517,5 +551,15 @@ livechart
 #job-submit
   width: 100px
 
+#content-inner
+  height: 100%
 
+#job-panel
+  overflow-y: auto
 
+#details
+  height: 100%
+
+#node-details
+  height: 100%
+  

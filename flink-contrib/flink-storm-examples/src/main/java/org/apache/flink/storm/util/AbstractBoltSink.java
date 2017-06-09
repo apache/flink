@@ -17,11 +17,11 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Tuple;
 
 import java.util.Map;
 
@@ -50,7 +50,7 @@ public abstract class AbstractBoltSink implements IRichBolt {
 		}
 	}
 
-	protected abstract void prepareSimple(final Map<?, ?> stormConf, final TopologyContext context);
+	protected abstract void prepareSimple(Map<?, ?> stormConf, TopologyContext context);
 
 	@Override
 	public final void execute(final Tuple input) {
@@ -60,7 +60,7 @@ public abstract class AbstractBoltSink implements IRichBolt {
 		this.writeExternal(this.lineBuilder.toString());
 	}
 
-	protected abstract void writeExternal(final String line);
+	protected abstract void writeExternal(String line);
 
 	@Override
 	public void cleanup() {/* nothing to do */}

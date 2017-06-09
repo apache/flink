@@ -42,25 +42,17 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval) ->
+.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval, $q, watermarksConfig) ->
   $scope.jobid = $stateParams.jobid
   $scope.job = null
   $scope.plan = null
+  $scope.watermarks = {}
   $scope.vertices = null
-  $scope.jobCheckpointStats = null
-  $scope.showHistory = false
   $scope.backPressureOperatorStats = {}
-
-  JobsService.loadJob($stateParams.jobid).then (data) ->
-    $scope.job = data
-    $scope.plan = data.plan
-    $scope.vertices = data.vertices
-    MetricsService.setupMetrics($stateParams.jobid, data.vertices)
 
   refresher = $interval ->
     JobsService.loadJob($stateParams.jobid).then (data) ->
       $scope.job = data
-
       $scope.$broadcast 'reload'
 
   , flinkConfig["refresh-interval"]
@@ -68,8 +60,8 @@ angular.module('flinkApp')
   $scope.$on '$destroy', ->
     $scope.job = null
     $scope.plan = null
+    $scope.watermarks = {}
     $scope.vertices = null
-    $scope.jobCheckpointStats = null
     $scope.backPressureOperatorStats = null
 
     $interval.cancel(refresher)
@@ -84,12 +76,90 @@ angular.module('flinkApp')
     JobsService.stopJob($stateParams.jobid).then (data) ->
       {}
 
-  $scope.toggleHistory = ->
-    $scope.showHistory = !$scope.showHistory
+  JobsService.loadJob($stateParams.jobid).then (data) ->
+    $scope.job = data
+    $scope.vertices = data.vertices
+    $scope.plan = data.plan
+    MetricsService.setupMetrics($stateParams.jobid, data.vertices)
+
+  # Asynchronously requests the watermark metrics for the given nodes. The
+  # returned object has the following structure:
+  #
+  # {
+  #    "<nodeId>": {
+  #          "lowWatermark": <lowWatermark>
+  #          "watermarks": {
+  #               0: <watermark for subtask 0>
+  #               ...
+  #               n: <watermark for subtask n>
+  #            }
+  #       }
+  # }
+  #
+  # If no watermark is available, lowWatermark will be NaN and
+  # the watermarks will be empty.
+  getWatermarks = (nodes) ->
+    # Requests the watermarks for a single vertex. Triggers a request
+    # to the Metrics service.
+    requestWatermarkForNode = (node) =>
+      deferred = $q.defer()
+
+      jid = $scope.job.jid
+
+      # Request metrics for each subtask
+      metricIds = (i + ".currentLowWatermark" for i in [0..node.parallelism - 1])
+      MetricsService.getMetrics(jid, node.id, metricIds).then (metrics) ->
+        minValue = NaN
+        watermarks = {}
+
+        for key, value of metrics.values
+          subtaskIndex = key.replace('.currentLowWatermark', '')
+          watermarks[subtaskIndex] = value
+
+          if (isNaN(minValue) || value < minValue)
+            minValue = value
+
+        if (!isNaN(minValue) && minValue > watermarksConfig.noWatermark)
+          lowWatermark = minValue
+        else
+          # NaN indicates no watermark available
+          lowWatermark = NaN
+
+        deferred.resolve({"lowWatermark": lowWatermark, "watermarks": watermarks})
+
+      deferred.promise
+
+    deferred = $q.defer()
+    watermarks = {}
+
+    # Request watermarks for each node and update watermarks
+    len = nodes.length
+    angular.forEach nodes, (node, index) =>
+      nodeId = node.id
+      requestWatermarkForNode(node).then (data) ->
+        watermarks[nodeId] = data
+        if (index >= len - 1)
+          deferred.resolve(watermarks)
+
+    deferred.promise
+
+  # Returns true if the lowWatermark is != NaN
+  $scope.hasWatermark = (nodeid) ->
+    $scope.watermarks[nodeid] && !isNaN($scope.watermarks[nodeid]["lowWatermark"])
+
+  $scope.$watch 'plan', (newPlan) ->
+    if newPlan
+      getWatermarks(newPlan.nodes).then (data) ->
+        $scope.watermarks = data
+
+  $scope.$on 'reload', () ->
+    if $scope.plan
+      getWatermarks($scope.plan.nodes).then (data) ->
+        $scope.watermarks = data
 
 # --------------------------------------
 
-.controller 'JobPlanController', ($scope, $state, $stateParams, JobsService) ->
+.controller 'JobPlanController', ($scope, $state, $stateParams, $window, JobsService) ->
   $scope.nodeid = null
   $scope.nodeUnfolded = false
   $scope.stateList = JobsService.stateList()
@@ -127,28 +197,21 @@ angular.module('flinkApp')
 # --------------------------------------
 
 .controller 'JobPlanSubtasksController', ($scope, JobsService) ->
+  $scope.aggregate = false
+
   getSubtasks = ->
-    JobsService.getSubtasks($scope.nodeid).then (data) ->
-      $scope.subtasks = data
+    if $scope.aggregate
+      JobsService.getTaskManagers($scope.nodeid).then (data) ->
+        $scope.taskmanagers = data
+    else
+      JobsService.getSubtasks($scope.nodeid).then (data) ->
+        $scope.subtasks = data
 
   if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
     getSubtasks()
 
   $scope.$on 'reload', (event) ->
     getSubtasks() if $scope.nodeid
-
-# --------------------------------------
-
-.controller 'JobPlanTaskManagersController', ($scope, JobsService) ->
-  getTaskManagers = ->
-    JobsService.getTaskManagers($scope.nodeid).then (data) ->
-      $scope.taskmanagers = data
-
-  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
-    getTaskManagers()
-
-  $scope.$on 'reload', (event) ->
-    getTaskManagers() if $scope.nodeid
 
 # --------------------------------------
 
@@ -166,26 +229,60 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'JobPlanCheckpointsController', ($scope, JobsService) ->
-  getJobCheckpointStats = ->
-    JobsService.getJobCheckpointStats($scope.jobid).then (data) ->
-      $scope.jobCheckpointStats = data
+.controller 'JobPlanCheckpointsController', ($scope, $state, $stateParams, JobsService) ->
+  # Updated by the details handler for the sub checkpoints nav bar.
+  $scope.checkpointDetails = {}
+  $scope.checkpointDetails.id = -1
 
-  getOperatorCheckpointStats = ->
-    JobsService.getOperatorCheckpointStats($scope.nodeid).then (data) ->
-      $scope.operatorCheckpointStats = data.operatorStats
-      $scope.subtasksCheckpointStats = data.subtasksStats
+  # Request the config once (it's static)
+  JobsService.getCheckpointConfig().then (data) ->
+    $scope.checkpointConfig = data
 
-  # Get the per job stats
-  getJobCheckpointStats()
+  # General stats like counts, history, etc.
+  getGeneralCheckpointStats = ->
+    JobsService.getCheckpointStats().then (data) ->
+      if (data != null)
+        $scope.checkpointStats = data
 
-  # Get the per operator stats
-  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.operatorCheckpointStats)
-    getOperatorCheckpointStats()
+  # Trigger request
+  getGeneralCheckpointStats()
 
   $scope.$on 'reload', (event) ->
-    getJobCheckpointStats()
-    getOperatorCheckpointStats() if $scope.nodeid
+    # Retrigger request
+    getGeneralCheckpointStats()
+
+# --------------------------------------
+
+.controller 'JobPlanCheckpointDetailsController', ($scope, $state, $stateParams, JobsService) ->
+  $scope.subtaskDetails = {}
+  $scope.checkpointDetails.id = $stateParams.checkpointId
+
+  # Detailed stats for a single checkpoint
+  getCheckpointDetails = (checkpointId) ->
+    JobsService.getCheckpointDetails(checkpointId).then (data) ->
+      if (data != null)
+        $scope.checkpoint = data
+      else
+        $scope.unknown_checkpoint = true
+
+  getCheckpointSubtaskDetails = (checkpointId, vertexId) ->
+    JobsService.getCheckpointSubtaskDetails(checkpointId, vertexId).then (data) ->
+      if (data != null)
+        $scope.subtaskDetails[vertexId] = data
+
+  getCheckpointDetails($stateParams.checkpointId)
+
+  if ($scope.nodeid)
+    getCheckpointSubtaskDetails($stateParams.checkpointId, $scope.nodeid)
+
+  $scope.$on 'reload', (event) ->
+    getCheckpointDetails($stateParams.checkpointId)
+
+    if ($scope.nodeid)
+      getCheckpointSubtaskDetails($stateParams.checkpointId, $scope.nodeid)
+
+  $scope.$on '$destroy', ->
+    $scope.checkpointDetails.id = -1
 
 # --------------------------------------
 
@@ -249,12 +346,22 @@ angular.module('flinkApp')
       $scope.vertex = data
 
     MetricsService.getAvailableMetrics($scope.jobid, $scope.nodeid).then (data) ->
-      $scope.availableMetrics = data
+      $scope.availableMetrics = data.sort(alphabeticalSortById)
       $scope.metrics = MetricsService.getMetricsSetup($scope.jobid, $scope.nodeid).names
 
       MetricsService.registerObserver($scope.jobid, $scope.nodeid, (data) ->
         $scope.$broadcast "metrics:data:update", data.timestamp, data.values
       )
+
+  alphabeticalSortById = (a, b) ->
+    A = a.id.toLowerCase()
+    B = b.id.toLowerCase()
+    if A < B
+      return -1
+    else if A > B
+      return 1
+    else
+      return 0
 
   $scope.dropped = (event, index, item, external, type) ->
 
@@ -279,6 +386,10 @@ angular.module('flinkApp')
 
   $scope.setMetricSize = (metric, size) ->
     MetricsService.setMetricSize($scope.jobid, $scope.nodeid, metric, size)
+    loadMetrics()
+
+  $scope.setMetricView = (metric, view) ->
+    MetricsService.setMetricView($scope.jobid, $scope.nodeid, metric, view)
     loadMetrics()
 
   $scope.getValues = (metric) ->

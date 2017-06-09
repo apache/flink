@@ -18,52 +18,79 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.mesos.Utils;
+import org.apache.flink.mesos.scheduler.LaunchableTask;
+import org.apache.flink.mesos.util.MesosArtifactResolver;
+import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.util.Preconditions;
+
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskAssignmentResult;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.mesos.cli.FlinkMesosSessionCli;
-import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.mesos.Protos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 
-import static org.apache.flink.mesos.Utils.variable;
+import scala.Option;
+
 import static org.apache.flink.mesos.Utils.range;
 import static org.apache.flink.mesos.Utils.ranges;
 import static org.apache.flink.mesos.Utils.scalar;
+import static org.apache.flink.mesos.Utils.variable;
 
 /**
- * Specifies how to launch a Mesos worker.
+ * Implements the launch of a Mesos worker.
+ *
+ * <p>Translates the abstract {@link ContainerSpecification} into a concrete
+ * Mesos-specific {@link Protos.TaskInfo}.
  */
 public class LaunchableMesosWorker implements LaunchableTask {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(LaunchableMesosWorker.class);
 	/**
 	 * The set of configuration keys to be dynamically configured with a port allocated from Mesos.
 	 */
-	private static String[] TM_PORT_KEYS = {
+	private static final String[] TM_PORT_KEYS = {
 		"taskmanager.rpc.port",
-		"taskmanager.data.port" };
+		"taskmanager.data.port"};
 
+	private final MesosArtifactResolver resolver;
+	private final ContainerSpecification containerSpec;
 	private final MesosTaskManagerParameters params;
-	private final Protos.TaskInfo.Builder template;
 	private final Protos.TaskID taskID;
 	private final Request taskRequest;
+	private final MesosConfiguration mesosConfiguration;
 
 	/**
 	 * Construct a launchable Mesos worker.
+	 * @param resolver The resolver for retrieving artifacts (e.g. jars, configuration)
 	 * @param params the TM parameters such as memory, cpu to acquire.
-	 * @param template a template for the TaskInfo to be constructed at launch time.
+	 * @param containerSpec an abstract container specification for launch time.
 	 * @param taskID the taskID for this worker.
 	 */
-	public LaunchableMesosWorker(MesosTaskManagerParameters params, Protos.TaskInfo.Builder template, Protos.TaskID taskID) {
-		this.params = params;
-		this.template = template;
-		this.taskID = taskID;
+	public LaunchableMesosWorker(
+			MesosArtifactResolver resolver,
+			MesosTaskManagerParameters params,
+			ContainerSpecification containerSpec,
+			Protos.TaskID taskID,
+			MesosConfiguration mesosConfiguration) {
+		this.resolver = Preconditions.checkNotNull(resolver);
+		this.containerSpec = Preconditions.checkNotNull(containerSpec);
+		this.params = Preconditions.checkNotNull(params);
+		this.taskID = Preconditions.checkNotNull(taskID);
+		this.mesosConfiguration = Preconditions.checkNotNull(mesosConfiguration);
+
 		this.taskRequest = new Request();
 	}
 
@@ -121,7 +148,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public List<? extends ConstraintEvaluator> getHardConstraints() {
-			return null;
+			return params.constraints();
 		}
 
 		@Override
@@ -157,16 +184,36 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	@Override
 	public Protos.TaskInfo launch(Protos.SlaveID slaveId, TaskAssignmentResult assignment) {
 
+		ContaineredTaskManagerParameters tmParams = params.containeredParameters();
+
 		final Configuration dynamicProperties = new Configuration();
 
-		// specialize the TaskInfo template with assigned resources, environment variables, etc
-		final Protos.TaskInfo.Builder taskInfo = template
-			.clone()
+		// incorporate the dynamic properties set by the template
+		dynamicProperties.addAll(containerSpec.getDynamicConfiguration());
+
+		// build a TaskInfo with assigned resources, environment variables, etc
+		final Protos.TaskInfo.Builder taskInfo = Protos.TaskInfo.newBuilder()
 			.setSlaveId(slaveId)
 			.setTaskId(taskID)
 			.setName(taskID.getValue())
 			.addResources(scalar("cpus", assignment.getRequest().getCPUs()))
 			.addResources(scalar("mem", assignment.getRequest().getMemory()));
+
+		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
+		final Protos.Environment.Builder env = cmd.getEnvironmentBuilder();
+		final StringBuilder jvmArgs = new StringBuilder();
+
+		//configure task manager hostname property if hostname override property is supplied
+		Option<String> taskManagerHostnameOption = params.getTaskManagerHostname();
+
+		if (taskManagerHostnameOption.isDefined()) {
+			// replace the TASK_ID pattern by the actual task id value of the Mesos task
+			final String taskManagerHostname = MesosTaskManagerParameters.TASK_ID_PATTERN
+				.matcher(taskManagerHostnameOption.get())
+				.replaceAll(Matcher.quoteReplacement(taskID.getValue()));
+
+			dynamicProperties.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskManagerHostname);
+		}
 
 		// use the assigned ports for the TM
 		if (assignment.getAssignedPorts().size() < TM_PORT_KEYS.length) {
@@ -179,17 +226,81 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			dynamicProperties.setInteger(key, port);
 		}
 
-		// finalize environment variables
-		final Protos.Environment.Builder environmentBuilder = taskInfo.getCommandBuilder().getEnvironmentBuilder();
+		// ship additional files
+		for (ContainerSpecification.Artifact artifact : containerSpec.getArtifacts()) {
+			cmd.addUris(Utils.uri(resolver, artifact));
+		}
+
+		// propagate environment variables
+		for (Map.Entry<String, String> entry : params.containeredParameters().taskManagerEnv().entrySet()) {
+			env.addVariables(variable(entry.getKey(), entry.getValue()));
+		}
+		for (Map.Entry<String, String> entry : containerSpec.getEnvironmentVariables().entrySet()) {
+			env.addVariables(variable(entry.getKey(), entry.getValue()));
+		}
 
 		// propagate the Mesos task ID to the TM
-		environmentBuilder
-			.addVariables(variable(MesosConfigKeys.ENV_FLINK_CONTAINER_ID, taskInfo.getTaskId().getValue()));
+		env.addVariables(variable(MesosConfigKeys.ENV_FLINK_CONTAINER_ID, taskInfo.getTaskId().getValue()));
 
-		// propagate the dynamic configuration properties to the TM
-		String dynamicPropertiesEncoded = FlinkMesosSessionCli.encodeDynamicProperties(dynamicProperties);
-		environmentBuilder
-			.addVariables(variable(MesosConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded));
+		// finalize the memory parameters
+		jvmArgs.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
+		jvmArgs.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
+		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
+			jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		}
+
+		// pass dynamic system properties
+		jvmArgs.append(' ').append(
+			ContainerSpecification.formatSystemProperties(containerSpec.getSystemProperties()));
+
+		// finalize JVM args
+		env.addVariables(variable(MesosConfigKeys.ENV_JVM_ARGS, jvmArgs.toString()));
+
+		// populate TASK_NAME and FRAMEWORK_NAME environment variables to the TM container
+		env.addVariables(variable(MesosConfigKeys.ENV_TASK_NAME, taskInfo.getTaskId().getValue()));
+		env.addVariables(variable(MesosConfigKeys.ENV_FRAMEWORK_NAME, mesosConfiguration.frameworkInfo().getName()));
+
+		// build the launch command w/ dynamic application properties
+		Option<String> bootstrapCmdOption = params.bootstrapCommand();
+
+		final String bootstrapCommand = bootstrapCmdOption.isDefined() ? bootstrapCmdOption.get() + " && " : "";
+		final String launchCommand = bootstrapCommand + "$FLINK_HOME/bin/mesos-taskmanager.sh " + ContainerSpecification.formatSystemProperties(dynamicProperties);
+
+		cmd.setValue(launchCommand);
+
+		// build the container info
+		Protos.ContainerInfo.Builder containerInfo = Protos.ContainerInfo.newBuilder();
+		// in event that no docker image or mesos image name is specified, we must still
+		// set type to MESOS
+		containerInfo.setType(Protos.ContainerInfo.Type.MESOS);
+		switch (params.containerType()) {
+			case MESOS:
+				if (params.containerImageName().isDefined()) {
+					containerInfo
+						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
+							.setImage(Protos.Image.newBuilder()
+								.setType(Protos.Image.Type.DOCKER)
+								.setDocker(Protos.Image.Docker.newBuilder()
+									.setName(params.containerImageName().get()))));
+				}
+				break;
+
+			case DOCKER:
+				assert(params.containerImageName().isDefined());
+				containerInfo
+					.setType(Protos.ContainerInfo.Type.DOCKER)
+					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
+						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
+						.setImage(params.containerImageName().get()));
+				break;
+
+			default:
+				throw new IllegalStateException("unsupported container type");
+		}
+
+		// add any volumes to the containerInfo
+		containerInfo.addAllVolumes(params.containerVolumes());
+		taskInfo.setContainer(containerInfo);
 
 		return taskInfo.build();
 	}

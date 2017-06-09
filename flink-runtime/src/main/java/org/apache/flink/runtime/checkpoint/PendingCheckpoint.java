@@ -21,24 +21,38 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
@@ -50,6 +64,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PendingCheckpoint {
 
+	/**
+	 * Result of the {@link PendingCheckpoint#acknowledgedTasks} method.
+	 */
+	public enum TaskAcknowledgeResult {
+		SUCCESS, // successful acknowledge of the task
+		DUPLICATE, // acknowledge message is a duplicate
+		UNKNOWN, // unknown task acknowledged
+		DISCARDED // pending checkpoint has been discarded
+	}
+
+	// ------------------------------------------------------------------------
+
+	/** The PendingCheckpoint logs to the same logger as the CheckpointCoordinator */
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
 	private final Object lock = new Object();
@@ -60,28 +87,37 @@ public class PendingCheckpoint {
 
 	private final long checkpointTimestamp;
 
-	private final Map<JobVertexID, TaskState> taskStates;
+	private final Map<OperatorID, OperatorState> operatorStates;
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 
-	/** Flag indicating whether the checkpoint is triggered as part of periodic scheduling. */
-	private final boolean isPeriodic;
+	private final List<MasterState> masterState;
 
-	/**
-	 * The checkpoint properties. If the checkpoint should be persisted
-	 * externally, it happens in {@link #finalizeCheckpoint()}.
-	 */
+	/** Set of acknowledged tasks */
+	private final Set<ExecutionAttemptID> acknowledgedTasks;
+
+	/** The checkpoint properties. If the checkpoint should be persisted
+	 * externally, it happens in {@link #finalizeCheckpointExternalized()}. */
 	private final CheckpointProperties props;
 
 	/** Target directory to potentially persist checkpoint to; <code>null</code> if none configured. */
 	private final String targetDirectory;
 
 	/** The promise to fulfill once the checkpoint has been completed. */
-	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise = new FlinkCompletableFuture<>();
+	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise;
+
+	/** The executor for potentially blocking I/O operations, like state disposal */
+	private final Executor executor;
 
 	private int numAcknowledgedTasks;
 
 	private boolean discarded;
+
+	/** Optional stats tracker callback. */
+	@Nullable
+	private PendingCheckpointStats statsCallback;
+
+	private volatile ScheduledFuture<?> cancellerHandle;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -90,17 +126,9 @@ public class PendingCheckpoint {
 			long checkpointId,
 			long checkpointTimestamp,
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
-			boolean isPeriodic,
 			CheckpointProperties props,
-			String targetDirectory) {
-		this.jobId = checkNotNull(jobId);
-		this.checkpointId = checkpointId;
-		this.checkpointTimestamp = checkpointTimestamp;
-		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
-		this.isPeriodic = isPeriodic;
-		this.taskStates = new HashMap<>();
-		this.props = checkNotNull(props);
-		this.targetDirectory = targetDirectory;
+			String targetDirectory,
+			Executor executor) {
 
 		// Sanity check
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
@@ -109,6 +137,19 @@ public class PendingCheckpoint {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
+
+		this.jobId = checkNotNull(jobId);
+		this.checkpointId = checkpointId;
+		this.checkpointTimestamp = checkpointTimestamp;
+		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
+		this.props = checkNotNull(props);
+		this.targetDirectory = targetDirectory;
+		this.executor = Preconditions.checkNotNull(executor);
+
+		this.operatorStates = new HashMap<>();
+		this.masterState = new ArrayList<>();
+		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
+		this.onCompletionPromise = new FlinkCompletableFuture<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -137,8 +178,8 @@ public class PendingCheckpoint {
 		return numAcknowledgedTasks;
 	}
 
-	public Map<JobVertexID, TaskState> getTaskStates() {
-		return taskStates;
+	public Map<OperatorID, OperatorState> getOperatorStates() {
+		return operatorStates;
 	}
 
 	public boolean isFullyAcknowledged() {
@@ -147,10 +188,6 @@ public class PendingCheckpoint {
 
 	public boolean isDiscarded() {
 		return discarded;
-	}
-
-	boolean isPeriodic() {
-		return isPeriodic;
 	}
 
 	/**
@@ -172,6 +209,37 @@ public class PendingCheckpoint {
 		return targetDirectory;
 	}
 
+	/**
+	 * Sets the callback for tracking this pending checkpoint.
+	 *
+	 * @param trackerCallback Callback for collecting subtask stats.
+	 */
+	void setStatsCallback(@Nullable PendingCheckpointStats trackerCallback) {
+		this.statsCallback = trackerCallback;
+	}
+
+	/**
+	 * Sets the handle for the canceller to this pending checkpoint. This method fails
+	 * with an exception if a handle has already been set.
+	 * 
+	 * @return true, if the handle was set, false, if the checkpoint is already disposed;
+	 */
+	public boolean setCancellerHandle(ScheduledFuture<?> cancellerHandle) {
+		synchronized (lock) {
+			if (this.cancellerHandle == null) {
+				if (!discarded) {
+					this.cancellerHandle = cancellerHandle;
+					return true;
+				} else {
+					return false;
+				}
+			}
+			else {
+				throw new IllegalStateException("A canceller handle was already set");
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Progress and Completion
 	// ------------------------------------------------------------------------
@@ -185,109 +253,223 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
-	public CompletedCheckpoint finalizeCheckpoint() throws Exception {
+	public CompletedCheckpoint finalizeCheckpointExternalized() throws IOException {
+
 		synchronized (lock) {
+			checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
+
+			// make sure we fulfill the promise with an exception if something fails
 			try {
-				if (discarded) {
-					throw new IllegalStateException("pending checkpoint is discarded");
-				}
-				if (notYetAcknowledgedTasks.isEmpty()) {
-					// Persist if required
-					String externalPath = null;
-					if (props.externalizeCheckpoint()) {
-						try {
-							Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
-							externalPath = SavepointStore.storeSavepoint(
-									targetDirectory,
-									savepoint);
-						} catch (Throwable t) {
-							LOG.error("Failed to persist checkpoints " + checkpointId + ".", t);
-						}
-					}
+				// externalize the metadata
+				final Savepoint savepoint = new SavepointV2(checkpointId, operatorStates.values(), masterState);
 
-					CompletedCheckpoint completed = new CompletedCheckpoint(
-							jobId,
-							checkpointId,
-							checkpointTimestamp,
-							System.currentTimeMillis(),
-							new HashMap<>(taskStates),
-							props,
-							externalPath);
+				// TEMP FIX - The savepoint store is strictly typed to file systems currently
+				//            but the checkpoints think more generic. we need to work with file handles
+				//            here until the savepoint serializer accepts a generic stream factory
 
-					onCompletionPromise.complete(completed);
-
-					dispose(false);
-
-					return completed;
+				// We have this branch here, because savepoints and externalized checkpoints
+				// currently behave differently.
+				// Savepoints:
+				//   - Metadata file in unique directory
+				//   - External pointer can be the directory
+				// Externalized checkpoints:
+				//   - Multiple metadata files per directory possible (need to be unique)
+				//   - External pointer needs to be the file itself
+				//
+				// This should be unified as part of the JobManager metadata stream factories.
+				if (props.isSavepoint()) {
+					final FileStateHandle metadataHandle = SavepointStore.storeSavepointToHandle(targetDirectory, savepoint);
+					final String externalPointer = metadataHandle.getFilePath().getParent().toString();
+	
+					return finalizeInternal(metadataHandle, externalPointer);
 				} else {
-					throw new IllegalStateException("Cannot complete checkpoint while not all tasks are acknowledged");
+					final FileStateHandle metadataHandle = SavepointStore.storeExternalizedCheckpointToHandle(targetDirectory, savepoint);
+					final String externalPointer = metadataHandle.getFilePath().toString();
+
+					return finalizeInternal(metadataHandle, externalPointer);
 				}
-			} catch (Throwable t) {
+			}
+			catch (Throwable t) {
 				onCompletionPromise.completeExceptionally(t);
-				throw t;
+				ExceptionUtils.rethrowIOException(t);
+				return null; // silence the compiler
 			}
 		}
 	}
-	
-	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
-			SubtaskState checkpointedSubtaskState) {
+
+	public CompletedCheckpoint finalizeCheckpointNonExternalized() {
+		synchronized (lock) {
+			checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
+
+			// make sure we fulfill the promise with an exception if something fails
+			try {
+				// finalize without external metadata
+				return finalizeInternal(null, null);
+			}
+			catch (Throwable t) {
+				onCompletionPromise.completeExceptionally(t);
+				ExceptionUtils.rethrow(t);
+				return null; // silence the compiler
+			}
+		}
+	}
+
+	@GuardedBy("lock")
+	private CompletedCheckpoint finalizeInternal(
+			@Nullable StreamStateHandle externalMetadata,
+			@Nullable String externalPointer) {
+
+		assert(Thread.holdsLock(lock));
+
+		CompletedCheckpoint completed = new CompletedCheckpoint(
+				jobId,
+				checkpointId,
+				checkpointTimestamp,
+				System.currentTimeMillis(),
+				operatorStates,
+				masterState,
+				props,
+				externalMetadata,
+				externalPointer);
+
+		onCompletionPromise.complete(completed);
+
+		// to prevent null-pointers from concurrent modification, copy reference onto stack
+		PendingCheckpointStats statsCallback = this.statsCallback;
+		if (statsCallback != null) {
+			// Finalize the statsCallback and give the completed checkpoint a
+			// callback for discards.
+			CompletedCheckpointStats.DiscardCallback discardCallback = 
+					statsCallback.reportCompletedCheckpoint(externalPointer);
+			completed.setDiscardCallback(discardCallback);
+		}
+
+		// mark this pending checkpoint as disposed, but do NOT drop the state
+		dispose(false);
+
+		return completed;
+	}
+
+	/**
+	 * Acknowledges the task with the given execution attempt id and the given subtask state.
+	 *
+	 * @param executionAttemptId of the acknowledged task
+	 * @param subtaskState of the acknowledged task
+	 * @param metrics Checkpoint metrics for the stats
+	 * @return TaskAcknowledgeResult of the operation
+	 */
+	public TaskAcknowledgeResult acknowledgeTask(
+			ExecutionAttemptID executionAttemptId,
+			SubtaskState subtaskState,
+			CheckpointMetrics metrics) {
 
 		synchronized (lock) {
-
 			if (discarded) {
-				return false;
+				return TaskAcknowledgeResult.DISCARDED;
 			}
 
-			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
+			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(executionAttemptId);
 
 			if (vertex == null) {
-				return false;
+				if (acknowledgedTasks.contains(executionAttemptId)) {
+					return TaskAcknowledgeResult.DUPLICATE;
+				} else {
+					return TaskAcknowledgeResult.UNKNOWN;
+				}
+			} else {
+				acknowledgedTasks.add(executionAttemptId);
 			}
 
-			if (null != checkpointedSubtaskState && checkpointedSubtaskState.hasState()) {
+			List<OperatorID> operatorIDs = vertex.getJobVertex().getOperatorIDs();
+			int subtaskIndex = vertex.getParallelSubtaskIndex();
+			long ackTimestamp = System.currentTimeMillis();
 
-				JobVertexID jobVertexID = vertex.getJobvertexId();
+			long stateSize = 0;
+			if (subtaskState != null) {
+				stateSize = subtaskState.getStateSize();
 
-				int subtaskIndex = vertex.getParallelSubtaskIndex();
+				@SuppressWarnings("deprecation")
+				ChainedStateHandle<StreamStateHandle> nonPartitionedState =
+					subtaskState.getLegacyOperatorState();
+				ChainedStateHandle<OperatorStateHandle> partitioneableState =
+					subtaskState.getManagedOperatorState();
+				ChainedStateHandle<OperatorStateHandle> rawOperatorState =
+					subtaskState.getRawOperatorState();
 
-				TaskState taskState = taskStates.get(jobVertexID);
+				// break task state apart into separate operator states
+				for (int x = 0; x < operatorIDs.size(); x++) {
+					OperatorID operatorID = operatorIDs.get(x);
+					OperatorState operatorState = operatorStates.get(operatorID);
 
-				if (null == taskState) {
-					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
-							checkpointedSubtaskState.getLegacyOperatorState();
-					ChainedStateHandle<OperatorStateHandle> partitioneableState =
-							checkpointedSubtaskState.getManagedOperatorState();
-					//TODO this should go away when we remove chained state, assigning state to operators directly instead
-					int chainLength;
-					if (nonPartitionedState != null) {
-						chainLength = nonPartitionedState.getLength();
-					} else if (partitioneableState != null) {
-						chainLength = partitioneableState.getLength();
-					} else {
-						chainLength = 1;
+					if (operatorState == null) {
+						operatorState = new OperatorState(
+							operatorID,
+							vertex.getTotalNumberOfParallelSubtasks(),
+							vertex.getMaxParallelism());
+						operatorStates.put(operatorID, operatorState);
 					}
 
-					taskState = new TaskState(
-							jobVertexID,
-							vertex.getTotalNumberOfParallelSubtasks(),
-							vertex.getMaxParallelism(),
-							chainLength);
+					KeyedStateHandle managedKeyedState = null;
+					KeyedStateHandle rawKeyedState = null;
 
-					taskStates.put(jobVertexID, taskState);
+					// only the head operator retains the keyed state
+					if (x == operatorIDs.size() - 1) {
+						managedKeyedState = subtaskState.getManagedKeyedState();
+						rawKeyedState = subtaskState.getRawKeyedState();
+					}
+
+					OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
+							nonPartitionedState != null ? nonPartitionedState.get(x) : null,
+							partitioneableState != null ? partitioneableState.get(x) : null,
+							rawOperatorState != null ? rawOperatorState.get(x) : null,
+							managedKeyedState,
+							rawKeyedState);
+
+					operatorState.putState(subtaskIndex, operatorSubtaskState);
 				}
-
-				long duration = System.currentTimeMillis() - checkpointTimestamp;
-				checkpointedSubtaskState.setDuration(duration);
-
-				taskState.putState(subtaskIndex, checkpointedSubtaskState);
 			}
 
 			++numAcknowledgedTasks;
 
-			return true;
+			// publish the checkpoint statistics
+			// to prevent null-pointers from concurrent modification, copy reference onto stack
+			final PendingCheckpointStats statsCallback = this.statsCallback;
+			if (statsCallback != null) {
+				// Do this in millis because the web frontend works with them
+				long alignmentDurationMillis = metrics.getAlignmentDurationNanos() / 1_000_000;
+
+				SubtaskStateStats subtaskStateStats = new SubtaskStateStats(
+					subtaskIndex,
+					ackTimestamp,
+					stateSize,
+					metrics.getSyncDurationMillis(),
+					metrics.getAsyncDurationMillis(),
+					metrics.getBytesBufferedInAlignment(),
+					alignmentDurationMillis);
+
+				statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
+			}
+
+			return TaskAcknowledgeResult.SUCCESS;
 		}
 	}
+
+	/**
+	 * Adds a master state (state generated on the checkpoint coordinator) to
+	 * the pending checkpoint.
+	 *
+	 * @param state The state to add
+	 */
+	public void addMasterState(MasterState state) {
+		checkNotNull(state);
+
+		synchronized (lock) {
+			if (!discarded) {
+				masterState.add(state);
+			}
+		}
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Cancellation
@@ -296,9 +478,11 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts a checkpoint because it expired (took too long).
 	 */
-	public void abortExpired() throws Exception {
+	public void abortExpired() {
 		try {
-			onCompletionPromise.completeExceptionally(new Exception("Checkpoint expired before completing"));
+			Exception cause = new Exception("Checkpoint expired before completing");
+			onCompletionPromise.completeExceptionally(cause);
+			reportFailedCheckpoint(cause);
 		} finally {
 			dispose(true);
 		}
@@ -307,23 +491,25 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts the pending checkpoint because a newer completed checkpoint subsumed it.
 	 */
-	public void abortSubsumed() throws Exception {
+	public void abortSubsumed() {
 		try {
-			if (props.forceCheckpoint()) {
-				onCompletionPromise.completeExceptionally(new Exception("Bug: forced checkpoints must never be subsumed"));
+			Exception cause = new Exception("Checkpoints has been subsumed");
+			onCompletionPromise.completeExceptionally(cause);
+			reportFailedCheckpoint(cause);
 
+			if (props.forceCheckpoint()) {
 				throw new IllegalStateException("Bug: forced checkpoints must never be subsumed");
-			} else {
-				onCompletionPromise.completeExceptionally(new Exception("Checkpoints has been subsumed"));
 			}
 		} finally {
 			dispose(true);
 		}
 	}
 
-	public void abortDeclined() throws Exception {
+	public void abortDeclined() {
 		try {
-			onCompletionPromise.completeExceptionally(new Exception("Checkpoint was declined (tasks not ready)"));
+			Exception cause = new Exception("Checkpoint was declined (tasks not ready)");
+			onCompletionPromise.completeExceptionally(cause);
+			reportFailedCheckpoint(cause);
 		} finally {
 			dispose(true);
 		}
@@ -333,30 +519,79 @@ public class PendingCheckpoint {
 	 * Aborts the pending checkpoint due to an error.
 	 * @param cause The error's exception.
 	 */
-	public void abortError(Throwable cause) throws Exception {
+	public void abortError(Throwable cause) {
 		try {
-			onCompletionPromise.completeExceptionally(new Exception("Checkpoint failed: " + cause.getMessage(), cause));
+			Exception failure = new Exception("Checkpoint failed: " + cause.getMessage(), cause);
+			onCompletionPromise.completeExceptionally(failure);
+			reportFailedCheckpoint(failure);
 		} finally {
 			dispose(true);
 		}
 	}
 
-	private void dispose(boolean releaseState) throws Exception {
+	private void dispose(boolean releaseState) {
+
 		synchronized (lock) {
 			try {
-				discarded = true;
 				numAcknowledgedTasks = -1;
-				if (releaseState) {
-					StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+				if (!discarded && releaseState) {
+					executor.execute(new Runnable() {
+						@Override
+						public void run() {
+
+							// discard the private states.
+							// unregistered shared states are still considered private at this point.
+							try {
+								StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+							} catch (Throwable t) {
+								LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+									checkpointId, jobId, t);
+							} finally {
+								operatorStates.clear();
+							}
+						}
+					});
+
 				}
 			} finally {
-				taskStates.clear();
+				discarded = true;
 				notYetAcknowledgedTasks.clear();
+				acknowledgedTasks.clear();
+				cancelCanceller();
 			}
 		}
 	}
 
-	// --------------------------------------------------------------------------------------------
+	private void cancelCanceller() {
+		try {
+			final ScheduledFuture<?> canceller = this.cancellerHandle;
+			if (canceller != null) {
+				canceller.cancel(false);
+			}
+		}
+		catch (Exception e) {
+			// this code should not throw exceptions
+			LOG.warn("Error while cancelling checkpoint timeout task", e);
+		}
+	}
+
+	/**
+	 * Reports a failed checkpoint with the given optional cause.
+	 *
+	 * @param cause The failure cause or <code>null</code>.
+	 */
+	private void reportFailedCheckpoint(Exception cause) {
+		// to prevent null-pointers from concurrent modification, copy reference onto stack
+		final PendingCheckpointStats statsCallback = this.statsCallback;
+		if (statsCallback != null) {
+			long failureTimestamp = System.currentTimeMillis();
+			statsCallback.reportFailedCheckpoint(failureTimestamp, cause);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

@@ -19,31 +19,39 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
 
 	private static final long serialVersionUID = -6708241535015028576L;
+
 	private final int subTaskIndex;
 
-	private final List<ArchivedExecution> priorExecutions;
+	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
 	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
 	private final String taskNameWithSubtask;
 
 	private final ArchivedExecution currentExecution;    // this field must never be null
 
+	// ------------------------------------------------------------------------
+
 	public ArchivedExecutionVertex(ExecutionVertex vertex) {
 		this.subTaskIndex = vertex.getParallelSubtaskIndex();
-		this.priorExecutions = new ArrayList<>();
-		for (Execution priorExecution : vertex.getPriorExecutions()) {
-			priorExecutions.add(priorExecution.archive());
-		}
+		this.priorExecutions = vertex.getCopyOfPriorExecutionsList().map(ARCHIVER);
 		this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
 		this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
+	}
+
+	public ArchivedExecutionVertex(
+			int subTaskIndex, String taskNameWithSubtask,
+			ArchivedExecution currentExecution, EvictingBoundedList<ArchivedExecution> priorExecutions) {
+		this.subTaskIndex = subTaskIndex;
+		this.taskNameWithSubtask = taskNameWithSubtask;
+		this.currentExecution = currentExecution;
+		this.priorExecutions = priorExecutions;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -93,4 +101,17 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  utilities
+	// ------------------------------------------------------------------------
+
+	private static final EvictingBoundedList.Function<Execution, ArchivedExecution> ARCHIVER =
+			new EvictingBoundedList.Function<Execution, ArchivedExecution>() {
+
+		@Override
+		public ArchivedExecution apply(Execution value) {
+			return value.archive();
+		}
+	};
 }

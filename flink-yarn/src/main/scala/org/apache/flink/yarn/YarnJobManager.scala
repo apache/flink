@@ -18,12 +18,15 @@
 
 package org.apache.flink.yarn
 
-import java.util.concurrent.{ExecutorService, TimeUnit}
+import java.io.IOException
+import java.util.concurrent.{Executor, ScheduledExecutorService, TimeUnit}
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.{ConfigConstants, Configuration => FlinkConfiguration}
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.ContaineredJobManager
+import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.instance.InstanceManager
@@ -35,13 +38,13 @@ import org.apache.flink.runtime.metrics.MetricRegistry
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 /** JobManager actor for execution on Yarn. It enriches the [[JobManager]] with additional messages
   * to start/administer/stop the Yarn session.
   *
   * @param flinkConfiguration Configuration object for the actor
-  * @param executorService Execution context which is used to execute concurrent tasks in the
+  * @param futureExecutor Execution context which is used to execute concurrent tasks in the
   *                         [[org.apache.flink.runtime.executiongraph.ExecutionGraph]]
+  * @param ioExecutor for blocking io operations
   * @param instanceManager Instance manager to manage the registered
   *                        [[org.apache.flink.runtime.taskmanager.TaskManager]]
   * @param scheduler Scheduler to schedule Flink jobs
@@ -53,7 +56,8 @@ import scala.language.postfixOps
   */
 class YarnJobManager(
     flinkConfiguration: FlinkConfiguration,
-    executorService: ExecutorService,
+    futureExecutor: ScheduledExecutorService,
+    ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -67,7 +71,8 @@ class YarnJobManager(
     metricsRegistry: Option[MetricRegistry])
   extends ContaineredJobManager(
     flinkConfiguration,
-    executorService,
+    futureExecutor,
+    ioExecutor,
     instanceManager,
     scheduler,
     libraryCacheManager,
@@ -86,5 +91,41 @@ class YarnJobManager(
       flinkConfiguration.getInteger(ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, 5),
       TimeUnit.SECONDS)
 
+  val yarnFilesPath: Option[String] = Option(System.getenv().get(YarnConfigKeys.FLINK_YARN_FILES))
+
   override val jobPollingInterval = YARN_HEARTBEAT_DELAY
+
+  override def handleMessage: Receive = {
+    handleYarnShutdown orElse super.handleMessage
+  }
+
+  private def handleYarnShutdown: Receive = {
+    case msg: StopCluster =>
+      super.handleMessage(msg)
+
+      // do global cleanup if the yarn files path has been set
+      yarnFilesPath match {
+        case Some(filePath) =>
+          log.info(s"Deleting yarn application files under $filePath.")
+
+          val path = new Path(filePath)
+
+          try {
+            val fs = path.getFileSystem
+
+            if (!fs.delete(path, true)) {
+              throw new IOException(s"Deleting yarn application files under $filePath " +
+                s"was unsuccessful.")
+            }
+          } catch {
+            case ioe: IOException =>
+              log.warn(
+                s"Could not properly delete yarn application files directory $filePath.",
+                ioe)
+          }
+        case None =>
+          log.debug("No yarn application files directory set. Therefore, cannot clean up " +
+            "the data.")
+      }
+  }
 }

@@ -17,9 +17,9 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.tuple.Values;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.tuple.Values;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -33,7 +33,7 @@ import java.util.Map;
 public class FileSpout extends AbstractLineSpout {
 	private static final long serialVersionUID = -6996907090003590436L;
 
-	public final static String INPUT_FILE_PATH = "input.path";
+	public static final String INPUT_FILE_PATH = "input.path";
 
 	protected String path = null;
 	protected BufferedReader reader;
@@ -50,8 +50,8 @@ public class FileSpout extends AbstractLineSpout {
 		super.open(conf, context, collector);
 
 		Object configuredPath = conf.get(INPUT_FILE_PATH);
-		if(configuredPath != null) {
-			this.path = (String)configuredPath;
+		if (configuredPath != null) {
+			this.path = (String) configuredPath;
 		}
 
 		try {

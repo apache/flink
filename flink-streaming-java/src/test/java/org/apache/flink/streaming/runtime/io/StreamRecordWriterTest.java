@@ -29,24 +29,21 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.types.LongValue;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
- * This test uses the PowerMockRunner runner to work around the fact that the 
+ * This test uses the PowerMockRunner runner to work around the fact that the
  * {@link ResultPartitionWriter} class is final.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
 public class StreamRecordWriterTest {
 
 	/**
@@ -58,19 +55,19 @@ public class StreamRecordWriterTest {
 		FailingWriter<LongValue> testWriter = null;
 		try {
 			ResultPartitionWriter mockResultPartitionWriter = getMockWriter(5);
-			
+
 			// test writer that flushes every 5ms and fails after 3 flushes
 			testWriter = new FailingWriter<LongValue>(mockResultPartitionWriter,
 					new RoundRobinChannelSelector<LongValue>(), 5, 3);
-			
+
 			try {
 				long deadline = System.currentTimeMillis() + 20000; // in max 20 seconds (conservative)
 				long l = 0L;
-				
+
 				while (System.currentTimeMillis() < deadline) {
 					testWriter.emit(new LongValue(l++));
 				}
-				
+
 				fail("This should have failed with an exception");
 			}
 			catch (IOException e) {
@@ -88,7 +85,7 @@ public class StreamRecordWriterTest {
 			}
 		}
 	}
-	
+
 	private static ResultPartitionWriter getMockWriter(int numPartitions) throws Exception {
 		BufferProvider mockProvider = mock(BufferProvider.class);
 		when(mockProvider.requestBufferBlocking()).thenAnswer(new Answer<Buffer>() {
@@ -99,21 +96,20 @@ public class StreamRecordWriterTest {
 						FreeingBufferRecycler.INSTANCE);
 			}
 		});
-		
+
 		ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
 		when(mockWriter.getBufferProvider()).thenReturn(mockProvider);
 		when(mockWriter.getNumberOfOutputChannels()).thenReturn(numPartitions);
-		
-		
+
 		return mockWriter;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	private static class FailingWriter<T extends IOReadableWritable> extends StreamRecordWriter<T> {
-		
+
 		private int flushesBeforeException;
-		
+
 		private FailingWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector,
 								long timeout, int flushesBeforeException) {
 			super(writer, channelSelector, timeout);

@@ -52,9 +52,10 @@ public class PojoTypeExtractionTest {
 		private int count; // duplicate
 	}
 
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void testDuplicateFieldException() {
-		TypeExtractor.createTypeInfo(HasDuplicateField.class);
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(HasDuplicateField.class);
+		Assert.assertTrue(ti instanceof GenericTypeInfo<?>);
 	}
 
 	// test with correct pojo types

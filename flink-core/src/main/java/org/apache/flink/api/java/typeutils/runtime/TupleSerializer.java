@@ -20,13 +20,14 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullFieldException;
 
-
+@Internal
 public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -109,7 +110,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	@Override
 	public T copy(T from, T reuse) {
 		for (int i = 0; i < arity; i++) {
-			Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
+			Object copy = fieldSerializers[i].copy((Object)from.getField(i), reuse.getField(i));
 			reuse.setField(copy, i);
 		}
 		
@@ -154,5 +155,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 		catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate tuple.", e);
 		}
+	}
+
+	@Override
+	protected TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
+		return new TupleSerializer<>(tupleClass, fieldSerializers);
 	}
 }

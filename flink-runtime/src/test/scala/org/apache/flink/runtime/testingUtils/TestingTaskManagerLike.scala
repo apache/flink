@@ -138,11 +138,19 @@ trait TestingTaskManagerLike extends FlinkActor {
       registeredSubmitTaskListeners.put(jobId, sender())
 
     case msg@SubmitTask(tdd) =>
-      registeredSubmitTaskListeners.get(tdd.getJobID) match {
-        case Some(listenerRef) =>
-          listenerRef ! ResponseSubmitTaskListener(tdd)
-        case None =>
-        // Nothing to do
+      try {
+        val jobId = tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
+          .getJobId
+
+        registeredSubmitTaskListeners.get(jobId) match {
+          case Some(listenerRef) =>
+            listenerRef ! ResponseSubmitTaskListener(tdd)
+          case None =>
+          // Nothing to do
+        }
+      } catch {
+        case e: Exception =>
+          log.error("Could not deserialize the job information.", e)
       }
 
       super.handleMessage(msg)

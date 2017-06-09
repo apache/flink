@@ -735,7 +735,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		/**
-		 * Deprecated method only kept for compatibility.
+		 * @deprecated Deprecated method only kept for compatibility.
 		 *
 		 * @param types
 		 */

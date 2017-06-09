@@ -18,8 +18,9 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import com.codahale.metrics.Snapshot;
 import org.apache.flink.metrics.HistogramStatistics;
+
+import com.codahale.metrics.Snapshot;
 
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -39,6 +40,7 @@ class HistogramStatisticsWrapper extends Snapshot {
 	HistogramStatisticsWrapper(HistogramStatistics histogramStatistics) {
 		this.histogramStatistics = histogramStatistics;
 	}
+
 	@Override
 	public double getValue(double quantile) {
 		return histogramStatistics.getQuantile(quantile);
@@ -76,7 +78,7 @@ class HistogramStatisticsWrapper extends Snapshot {
 
 	@Override
 	public void dump(OutputStream output) {
-		try(PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(output, UTF_8))){
+		try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(output, UTF_8))) {
 
 			for (Long value : histogramStatistics.getValues()) {
 				printWriter.printf("%d%n", value);

@@ -15,20 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 /*
  * We do neither import
- * 		backtype.storm.tuple.Tuple;
+ * 		org.apache.storm.tuple.Tuple;
  * nor
  * 		org.apache.flink.api.java.tuple.Tuple
  * to avoid confusion
  */
 
-import backtype.storm.generated.GlobalStreamId;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.MessageId;
-import backtype.storm.tuple.Values;
+import org.apache.storm.generated.GlobalStreamId;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.MessageId;
+import org.apache.storm.tuple.Values;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -37,7 +38,7 @@ import java.util.List;
 /**
  * {@link StormTuple} converts a Flink tuple of type {@code IN} into a Storm tuple.
  */
-public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
+public class StormTuple<IN> implements org.apache.storm.tuple.Tuple {
 
 	/** The Storm representation of the original Flink tuple. */
 	private final Values stormTuple;
@@ -52,10 +53,9 @@ public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 	/** The message that is associated with this tuple. */
 	private final MessageId messageId;
 
-
 	/**
 	 * Create a new Storm tuple from the given Flink tuple.
-	 * 
+	 *
 	 * @param flinkTuple
 	 *            The Flink tuple to be converted.
 	 * @param schema
@@ -389,4 +389,10 @@ public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 		return "StormTuple{ " + stormTuple.toString() + "[" + this.producerComponentId + ","
 				+ this.producerStreamId + "," + this.producerTaskId + "," + this.messageId + "]}";
 	}
+
+	@Override
+	public GlobalStreamId getSourceGlobalStreamId() {
+		return new GlobalStreamId(this.producerComponentId, this.producerStreamId);
+	}
+
 }

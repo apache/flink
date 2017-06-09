@@ -36,12 +36,11 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		implements OneInputStreamOperator<T, T>, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private transient long watermarkInterval;
 
 	private transient long currentWatermark;
 
-	
 	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -53,7 +52,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 		currentWatermark = Long.MIN_VALUE;
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		
+
 		if (watermarkInterval > 0) {
 			long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
@@ -62,9 +61,9 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
-		final long newTimestamp = userFunction.extractTimestamp(element.getValue(), 
+		final long newTimestamp = userFunction.extractTimestamp(element.getValue(),
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
-		
+
 		output.collect(element.replace(element.getValue(), newTimestamp));
 	}
 
@@ -82,6 +81,11 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 	}
 
+	/**
+	 * Override the base implementation to completely ignore watermarks propagated from
+	 * upstream (we rely only on the {@link AssignerWithPeriodicWatermarks} to emit
+	 * watermarks from here).
+	 */
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
@@ -95,7 +99,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		
+
 		// emit a final watermark
 		Watermark newWatermark = userFunction.getCurrentWatermark();
 		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {

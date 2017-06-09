@@ -22,23 +22,23 @@ import java.util.HashMap;
 
 /**
  * Simple utility class that resolves file extensions to MIME types.
- * <p>
- * There are various solutions built into Java that depend on extra resource and configuration
+ *
+ * <p>There are various solutions built into Java that depend on extra resource and configuration
  * files. They are designed to be composable and extensible, but also unfortunately tricky to control.
  * This is meant to be a simple solution that may eventually be subsumed by a better one.
  */
 public class MimeTypes {
 
-	/** The default mime type */
+	/** The default mime type. */
 	private static final String DEFAULT_MIME_TYPE = "application/octet-stream";
-	
-	/** The map with the constants */
+
+	/** The map with the constants. */
 	private static final HashMap<String, String> MIME_MAP = new HashMap<String, String>();
 
 	/**
 	 * Gets the MIME type for the file with the given extension. If the mime type is not recognized,
 	 * this method returns null.
-	 * 
+	 *
 	 * @param fileExtension The file extension.
 	 * @return The MIME type, or {@code null}, if the file extension is not recognized.
 	 */
@@ -68,7 +68,7 @@ public class MimeTypes {
 
 	/**
 	 * Gets the default MIME type, which is {@code "application/octet-stream"}.
-	 * 
+	 *
 	 * @return The default MIME type.
 	 */
 	public static String getDefaultMimeType() {
@@ -78,13 +78,13 @@ public class MimeTypes {
 	// ------------------------------------------------------------------------
 	//  prevent instantiation
 	// ------------------------------------------------------------------------
-	
+
 	private MimeTypes() {}
-	
+
 	// ------------------------------------------------------------------------
 	//  initialization
 	// ------------------------------------------------------------------------
-	
+
 	static {
 		// text types
 		MIME_MAP.put("html", "text/html");
@@ -96,11 +96,11 @@ public class MimeTypes {
 		MIME_MAP.put("err", "text/plain");
 		MIME_MAP.put("xml", "text/xml");
 		MIME_MAP.put("csv", "text/csv");
-		
+
 		// application types
 		MIME_MAP.put("js", "application/javascript");
 		MIME_MAP.put("json", "application/json");
-		
+
 		// image types
 		MIME_MAP.put("png", "image/png");
 		MIME_MAP.put("jpg", "image/jpeg");
@@ -110,7 +110,7 @@ public class MimeTypes {
 		MIME_MAP.put("tiff", "image/tiff");
 		MIME_MAP.put("tff", "image/tiff");
 		MIME_MAP.put("bmp", "image/bmp");
-		
+
 		// fonts
 		MIME_MAP.put("woff", "application/font-woff");
 		MIME_MAP.put("woff2", "application/font-woff2");

@@ -29,12 +29,16 @@ import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -46,6 +50,7 @@ public class TaskDeploymentDescriptorTest {
 			final JobID jobID = new JobID();
 			final JobVertexID vertexID = new JobVertexID();
 			final ExecutionAttemptID execId = new ExecutionAttemptID();
+			final AllocationID allocationId = new AllocationID();
 			final String jobName = "job name";
 			final String taskName = "task name";
 			final int numberOfKeyGroups = 1;
@@ -60,33 +65,44 @@ public class TaskDeploymentDescriptorTest {
 			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
 			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
 			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
+			final SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(new JobInformation(
+				jobID, jobName, executionConfig, jobConfiguration, requiredJars, requiredClasspaths));
+			final SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(new TaskInformation(
+				vertexID, taskName, currentNumberOfSubtasks, numberOfKeyGroups, invokableClass.getName(), taskConfiguration));
+			final int targetSlotNumber = 47;
+			final TaskStateHandles taskStateHandles = new TaskStateHandles();
 
-			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, jobName, vertexID, execId,
-				executionConfig, taskName, numberOfKeyGroups, indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber,
-				jobConfiguration, taskConfiguration, invokableClass.getName(), producedResults, inputGates,
-				requiredJars, requiredClasspaths, 47);
+			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(
+				serializedJobInformation,
+				serializedJobVertexInformation,
+				execId,
+				allocationId,
+				indexInSubtaskGroup,
+				attemptNumber,
+				targetSlotNumber,
+				taskStateHandles,
+				producedResults,
+				inputGates);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 	
-			assertFalse(orig.getJobID() == copy.getJobID());
-			assertFalse(orig.getVertexID() == copy.getVertexID());
-			assertFalse(orig.getTaskName() == copy.getTaskName());
-			assertFalse(orig.getJobConfiguration() == copy.getJobConfiguration());
-			assertFalse(orig.getTaskConfiguration() == copy.getTaskConfiguration());
+			assertFalse(orig.getSerializedJobInformation() == copy.getSerializedJobInformation());
+			assertFalse(orig.getSerializedTaskInformation() == copy.getSerializedTaskInformation());
+			assertFalse(orig.getExecutionAttemptId() == copy.getExecutionAttemptId());
+			assertFalse(orig.getTaskStateHandles() == copy.getTaskStateHandles());
+			assertFalse(orig.getProducedPartitions() == copy.getProducedPartitions());
+			assertFalse(orig.getInputGates() == copy.getInputGates());
 
-			assertEquals(orig.getJobID(), copy.getJobID());
-			assertEquals(orig.getVertexID(), copy.getVertexID());
-			assertEquals(orig.getTaskName(), copy.getTaskName());
-			assertEquals(orig.getNumberOfKeyGroups(), copy.getNumberOfKeyGroups());
-			assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
-			assertEquals(orig.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
+			assertEquals(orig.getSerializedJobInformation(), copy.getSerializedJobInformation());
+			assertEquals(orig.getSerializedTaskInformation(), copy.getSerializedTaskInformation());
+			assertEquals(orig.getExecutionAttemptId(), copy.getExecutionAttemptId());
+			assertEquals(orig.getAllocationId(), copy.getAllocationId());
+			assertEquals(orig.getSubtaskIndex(), copy.getSubtaskIndex());
 			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
+			assertEquals(orig.getTargetSlotNumber(), copy.getTargetSlotNumber());
+			assertEquals(orig.getTaskStateHandles(), copy.getTaskStateHandles());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
-			assertEquals(orig.getSerializedExecutionConfig(), copy.getSerializedExecutionConfig());
-
-			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());
-			assertEquals(orig.getRequiredClasspaths(), copy.getRequiredClasspaths());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

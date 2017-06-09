@@ -63,9 +63,7 @@ public final class ResourceID implements ResourceIDRetrievable, Serializable {
 
 	@Override
 	public String toString() {
-		return "ResourceID{" +
-			"resourceId='" + resourceId + '\'' +
-			'}';
+		return resourceId;
 	}
 
 	/**

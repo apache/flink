@@ -22,6 +22,8 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
+import java.util.List;
+
 public class InputFormatVertex extends JobVertex {
 
 	private static final long serialVersionUID = 1L;
@@ -35,6 +37,10 @@ public class InputFormatVertex extends JobVertex {
 	
 	public InputFormatVertex(String name, JobVertexID id) {
 		super(name, id);
+	}
+
+	public InputFormatVertex(String name, JobVertexID id, List<JobVertexID> alternativeIds, List<OperatorID> operatorIds, List<OperatorID> alternativeOperatorIds) {
+		super(name, id, alternativeIds, operatorIds, alternativeOperatorIds);
 	}
 	
 	

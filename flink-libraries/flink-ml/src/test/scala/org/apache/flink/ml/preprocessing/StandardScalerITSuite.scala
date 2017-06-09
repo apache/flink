@@ -43,7 +43,7 @@ class StandardScalerITSuite
       expectedStd: Double): Unit = {
     scaledVectors.length should equal(data.length)
 
-    val numberOfFeatures = scaledVectors(0).size
+    val numberOfFeatures = scaledVectors.head.size
     var scaledMean: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
     var scaledStd: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
 
@@ -95,7 +95,7 @@ class StandardScalerITSuite
     val dataSet = env.fromCollection(data).map(v => LabeledVector(1.0, v))
     val scaler = StandardScaler()
     scaler.fit(dataSet)
-    val scaledVectors = scaler.transform(dataSet).map(lv => lv.vector).collect()
+    val scaledVectors = scaler.transform(dataSet).map(_.vector).collect()
 
     checkVectors(scaledVectors, 0.0, 1.0)
   }
@@ -106,7 +106,7 @@ class StandardScalerITSuite
     val dataSet = env.fromCollection(data).map(v => (v, 1.0))
     val scaler = StandardScaler()
     scaler.fit(dataSet)
-    val scaledVectors = scaler.transform(dataSet).map(vl => vl._1).collect()
+    val scaledVectors = scaler.transform(dataSet).map(_._1).collect()
 
     checkVectors(scaledVectors, 0.0, 1.0)
   }

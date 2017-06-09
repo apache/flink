@@ -39,7 +39,7 @@ public class TranslateEdgeValues<K, VV, OLD, NEW>
 extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
 
 	// Required configuration
-	private TranslateFunction<OLD,NEW> translator;
+	private TranslateFunction<OLD, NEW> translator;
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_DEFAULT;
@@ -79,7 +79,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
-		if (! TranslateEdgeValues.class.isAssignableFrom(other.getClass())) {
+		if (!TranslateEdgeValues.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

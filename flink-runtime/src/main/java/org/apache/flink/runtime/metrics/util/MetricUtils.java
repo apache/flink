@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http//www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,11 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+
+import org.apache.commons.lang3.text.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +37,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
+/**
+ * Utility class to register pre-defined metric sets.
+ */
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
@@ -46,13 +52,16 @@ public class MetricUtils {
 		final NetworkEnvironment network) {
 		MetricGroup status = metrics.addGroup(METRIC_GROUP_STATUS_NAME);
 
-		status.gauge("TotalMemorySegments", new Gauge<Integer>() {
+		MetricGroup networkGroup = status
+			.addGroup("Network");
+
+		networkGroup.gauge("TotalMemorySegments", new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return network.getNetworkBufferPool().getTotalNumberOfMemorySegments();
 			}
 		});
-		status.gauge("AvailableMemorySegments", new Gauge<Integer>() {
+		networkGroup.gauge("AvailableMemorySegments", new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return network.getNetworkBufferPool().getNumberOfAvailableMemorySegments();
@@ -157,7 +166,7 @@ public class MetricUtils {
 		List<BufferPoolMXBean> bufferMxBeans = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
 
 		for (final BufferPoolMXBean bufferMxBean : bufferMxBeans) {
-			MetricGroup bufferGroup = metrics.addGroup(bufferMxBean.getName());
+			MetricGroup bufferGroup = metrics.addGroup(WordUtils.capitalize(bufferMxBean.getName()));
 			bufferGroup.gauge("Count", new Gauge<Long>() {
 				@Override
 				public Long getValue() {

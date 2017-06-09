@@ -39,9 +39,28 @@ public final class GlobalConfiguration {
 
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
+
 	// --------------------------------------------------------------------------------------------
 
 	private GlobalConfiguration() {}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static Configuration dynamicProperties = null;
+
+	/**
+	 * Set the process-wide dynamic properties to be merged with the loaded configuration.
+     */
+	public static void setDynamicProperties(Configuration dynamicProperties) {
+		GlobalConfiguration.dynamicProperties = new Configuration(dynamicProperties);
+	}
+
+	/**
+	 * Get the dynamic properties.
+     */
+	public static Configuration getDynamicProperties() {
+		return GlobalConfiguration.dynamicProperties;
+	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -90,7 +109,13 @@ public final class GlobalConfiguration {
 					"' (" + confDirFile.getAbsolutePath() + ") does not exist.");
 		}
 
-		return loadYAMLResource(yamlConfigFile);
+		Configuration conf = loadYAMLResource(yamlConfigFile);
+
+		if(dynamicProperties != null) {
+			conf.addAll(dynamicProperties);
+		}
+
+		return conf;
 	}
 
 	/**
@@ -119,11 +144,12 @@ public final class GlobalConfiguration {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))){
 
 			String line;
+			int lineNo = 0;
 			while ((line = reader.readLine()) != null) {
-
+				lineNo++;
 				// 1. check for comments
 				String[] comments = line.split("#", 2);
-				String conf = comments[0];
+				String conf = comments[0].trim();
 
 				// 2. get key and value
 				if (conf.length() > 0) {
@@ -131,7 +157,7 @@ public final class GlobalConfiguration {
 
 					// skip line with no valid key-value pair
 					if (kv.length == 1) {
-						LOG.warn("Error while trying to split key and value in configuration file " + file + ": " + line);
+						LOG.warn("Error while trying to split key and value in configuration file " + file + ":" + lineNo + ": \"" + line + "\"");
 						continue;
 					}
 
@@ -140,11 +166,11 @@ public final class GlobalConfiguration {
 
 					// sanity check
 					if (key.length() == 0 || value.length() == 0) {
-						LOG.warn("Error after splitting key and value in configuration file " + file + ": " + line);
+						LOG.warn("Error after splitting key and value in configuration file " + file + ":" + lineNo + ": \"" + line + "\"");
 						continue;
 					}
 
-					LOG.debug("Loading configuration property: {}, {}", key, value);
+					LOG.info("Loading configuration property: {}, {}", key, value);
 					config.setString(key, value);
 				}
 			}

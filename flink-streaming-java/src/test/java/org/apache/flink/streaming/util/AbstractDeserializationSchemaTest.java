@@ -24,14 +24,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.serialization.AbstractDeserializationSchema;
 
-import org.codehaus.jackson.map.util.JSONPObject;
-
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link AbstractDeserializationSchema}.
+ */
 @SuppressWarnings("serial")
 public class AbstractDeserializationSchemaTest {
 
@@ -41,7 +44,7 @@ public class AbstractDeserializationSchemaTest {
 		TypeInformation<Tuple2<byte[], byte[]>> expected = TypeInformation.of(new TypeHint<Tuple2<byte[], byte[]>>(){});
 		assertEquals(expected, type);
 	}
-	
+
 	@Test
 	public void testTypeExtractionTupleAnonymous() {
 		TypeInformation<Tuple2<byte[], byte[]>> type = new AbstractDeserializationSchema<Tuple2<byte[], byte[]>>() {
@@ -50,7 +53,7 @@ public class AbstractDeserializationSchemaTest {
 				throw new UnsupportedOperationException();
 			}
 		}.getProducedType();
-		
+
 		TypeInformation<Tuple2<byte[], byte[]>> expected = TypeInformation.of(new TypeHint<Tuple2<byte[], byte[]>>(){});
 		assertEquals(expected, type);
 	}
@@ -84,7 +87,7 @@ public class AbstractDeserializationSchemaTest {
 			// expected
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test types
 	// ------------------------------------------------------------------------
@@ -96,7 +99,7 @@ public class AbstractDeserializationSchemaTest {
 			throw new UnsupportedOperationException();
 		}
 	}
-	
+
 	private static class JsonSchema extends AbstractDeserializationSchema<JSONPObject> {
 
 		@Override

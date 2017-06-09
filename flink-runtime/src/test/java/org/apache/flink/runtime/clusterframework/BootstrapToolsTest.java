@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.junit.Test;
+
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -105,5 +109,171 @@ public class BootstrapToolsTest {
 			assertFalse(key.startsWith(designatedPrefix3));
 			assertFalse(key.startsWith(deprecatedPrefix3));
 		}
+	}
+
+	@Test
+	public void testGetTaskManagerShellCommand() {
+		final Configuration cfg = new Configuration();
+		final ContaineredTaskManagerParameters containeredParams =
+			new ContaineredTaskManagerParameters(1024, 768, 256, 4,
+				new HashMap<String, String>());
+
+		// no logging, with/out krb5
+		final String java = "$JAVA_HOME/bin/java";
+		final String jvmmem = "-Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m";
+		final String jvmOpts = "-Djvm"; // if set
+		final String tmJvmOpts = "-DtmJvm"; // if set
+		final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
+		final String logback =
+			"-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
+		final String log4j =
+			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
+		final String mainClass =
+			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
+		final String args = "--configDir ./conf";
+		final String redirects =
+			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + // jvmOpts
+				" " + // logging
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, false, false, this.getClass()));
+
+		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
+		assertEquals(
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + // logging
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, false, true, this.getClass()));
+
+		// logback only, with/out krb5
+		assertEquals(
+			java + " " + jvmmem +
+				" " + // jvmOpts
+				" " + logfile + " " + logback +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, false, false, this.getClass()));
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, false, true, this.getClass()));
+
+		// log4j, with/out krb5
+		assertEquals(
+			java + " " + jvmmem +
+				" " + // jvmOpts
+				" " + logfile + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, true, false, this.getClass()));
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + logfile + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, true, true, this.getClass()));
+
+		// logback + log4j, with/out krb5
+		assertEquals(
+			java + " " + jvmmem +
+				" " + // jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, false, this.getClass()));
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
+		// logback + log4j, with/out krb5, different JVM opts
+		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+		assertEquals(
+			java + " " + jvmmem +
+				" " + jvmOpts +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, false, this.getClass()));
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + jvmOpts + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
+		// logback + log4j, with/out krb5, different JVM opts
+		cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
+		assertEquals(
+			java + " " + jvmmem +
+				" " + jvmOpts + " " + tmJvmOpts +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, false, this.getClass()));
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
+		// now try some configurations with different yarn.container-start-command-template
+
+		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
+		assertEquals(
+			java + " 1 " + jvmmem +
+				" 2 " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
+				" 3 " + logfile + " " + logback + " " + log4j +
+				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
+		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+		assertEquals(
+			java +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
+				" " + jvmmem +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
 	}
 }

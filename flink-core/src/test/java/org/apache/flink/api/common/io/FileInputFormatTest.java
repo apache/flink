@@ -20,6 +20,7 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -269,7 +270,7 @@ public class FileInputFormatTest {
 			File luigiFile = temporaryFolder.newFile("_luigi");
 			File success = temporaryFolder.newFile("_SUCCESS");
 
-			createTempFiles(contents.getBytes(), child1, child2, luigiFile, success);
+			createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), child1, child2, luigiFile, success);
 
 			// test that only the valid files are accepted
 			
@@ -308,7 +309,7 @@ public class FileInputFormatTest {
 
 			File[] files = { child1, child2 };
 
-			createTempFiles(contents.getBytes(), files);
+			createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), files);
 
 			// test that only the valid files are accepted
 
@@ -338,36 +339,29 @@ public class FileInputFormatTest {
 	}
 
 	@Test
-	public void testReadMultiplePatterns() {
-		try {
-			final String contents = "CONTENTS";
+	public void testReadMultiplePatterns() throws Exception {
+		final String contents = "CONTENTS";
 
-			// create some accepted, some ignored files
+		// create some accepted, some ignored files
 
-			File child1 = temporaryFolder.newFile("dataFile1.txt");
-			File child2 = temporaryFolder.newFile("another_file.bin");
-			createTempFiles(contents.getBytes(), child1, child2);
+		File child1 = temporaryFolder.newFile("dataFile1.txt");
+		File child2 = temporaryFolder.newFile("another_file.bin");
+		createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), child1, child2);
 
-			// test that only the valid files are accepted
+		// test that only the valid files are accepted
 
-			Configuration configuration = new Configuration();
+		Configuration configuration = new Configuration();
 
-			final DummyFileInputFormat format = new DummyFileInputFormat();
-			format.setFilePath(temporaryFolder.getRoot().toURI().toString());
-			format.configure(configuration);
-			format.setFilesFilter(new GlobFilePathFilter(
-				Collections.singletonList("**"),
-				Arrays.asList(new String[] {"**/another_file.bin", "**/dataFile1.txt"})
-			));
-			FileInputSplit[] splits = format.createInputSplits(1);
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath(temporaryFolder.getRoot().toURI().toString());
+		format.configure(configuration);
+		format.setFilesFilter(new GlobFilePathFilter(
+			Collections.singletonList("**"),
+			Arrays.asList("**/another_file.bin", "**/dataFile1.txt")
+		));
+		FileInputSplit[] splits = format.createInputSplits(1);
 
-			Assert.assertEquals(0, splits.length);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
+		Assert.assertEquals(0, splits.length);
 	}
 
 	@Test

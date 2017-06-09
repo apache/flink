@@ -27,6 +27,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class OperatorStateOutputCheckpointStreamTest {
 
@@ -77,14 +78,22 @@ public class OperatorStateOutputCheckpointStreamTest {
 		OperatorStateHandle fullHandle = writeAllTestKeyGroups(stream, numPartitions);
 		Assert.assertNotNull(fullHandle);
 
+		Map<String, OperatorStateHandle.StateMetaInfo> stateNameToPartitionOffsets =
+				fullHandle.getStateNameToPartitionOffsets();
+		for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : stateNameToPartitionOffsets.entrySet()) {
+
+			Assert.assertEquals(OperatorStateHandle.Mode.SPLIT_DISTRIBUTE, entry.getValue().getDistributionMode());
+		}
 		verifyRead(fullHandle, numPartitions);
 	}
 
 	private static void verifyRead(OperatorStateHandle fullHandle, int numPartitions) throws IOException {
 		int count = 0;
 		try (FSDataInputStream in = fullHandle.openInputStream()) {
-			long[] offsets = fullHandle.getStateNameToPartitionOffsets().
+			OperatorStateHandle.StateMetaInfo metaInfo = fullHandle.getStateNameToPartitionOffsets().
 					get(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+
+			long[] offsets = metaInfo.getOffsets();
 
 			Assert.assertNotNull(offsets);
 

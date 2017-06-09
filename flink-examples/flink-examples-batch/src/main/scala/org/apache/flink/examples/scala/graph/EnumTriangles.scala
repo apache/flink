@@ -18,16 +18,15 @@
 
 package org.apache.flink.examples.scala.graph
 
+import org.apache.flink.api.common.functions.GroupReduceFunction
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.api.scala._
-import scala.collection.JavaConverters._
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.common.functions.GroupReduceFunction
-import org.apache.flink.util.Collector
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.examples.java.graph.util.EnumTrianglesData
-import org.apache.flink.api.common.operators.Order
+import org.apache.flink.util.Collector
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**

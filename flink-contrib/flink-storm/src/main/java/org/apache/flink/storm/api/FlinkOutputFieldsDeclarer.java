@@ -17,19 +17,20 @@
 
 package org.apache.flink.storm.api;
 
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.utils.Utils;
 
 import java.util.HashMap;
 import java.util.List;
 
 /**
  * {@link FlinkOutputFieldsDeclarer} is used to get the declared output schema of a
- * {@link backtype.storm.topology.IRichSpout spout} or {@link backtype.storm.topology.IRichBolt bolt}.<br />
+ * {@link org.apache.storm.topology.IRichSpout spout} or {@link org.apache.storm.topology.IRichBolt bolt}.<br />
  * <br />
  * <strong>CAUTION: Flink does not support direct emit.</strong>
  */
@@ -80,13 +81,13 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
 	/**
 	 * Returns {@link TypeInformation} for the declared output schema for a specific stream.
-	 * 
+	 *
 	 * @param streamId
 	 *            A stream ID.
-	 * 
+	 *
 	 * @return output type information for the declared output schema of the specified stream; or {@code null} if
 	 *         {@code streamId == null}
-	 * 
+	 *
 	 * @throws IllegalArgumentException
 	 *             If no output schema was declared for the specified stream or if more then 25 attributes got declared.
 	 */
@@ -143,12 +144,12 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	/**
 	 * Computes the indexes within the declared output schema of the specified stream, for a list of given
 	 * field-grouping attributes.
-	 * 
+	 *
 	 * @param streamId
 	 *            A stream ID.
 	 * @param groupingFields
 	 *            The names of the key fields.
-	 * 
+	 *
 	 * @return array of {@code int}s that contains the index within the output schema for each attribute in the given
 	 *         list
 	 */

@@ -24,10 +24,12 @@ import akka.dispatch.Mapper;
 import akka.dispatch.Recover;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.FixedDelayLookupRetryStrategyFactory;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.LookupRetryStrategyFactory;
@@ -37,7 +39,6 @@ import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKeyOrNamespace;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +92,7 @@ public class QueryableStateClient {
 	private final ConcurrentMap<Tuple2<JobID, String>, Future<KvStateLocation>> lookupCache =
 			new ConcurrentHashMap<>();
 
-	/** This is != null, iff we started the actor system. */
+	/** This is != null, if we started the actor system. */
 	private final ActorSystem actorSystem;
 
 	/**
@@ -101,35 +102,30 @@ public class QueryableStateClient {
 	 * system and another for the network client.
 	 *
 	 * @param config Configuration to use.
+	 * @param highAvailabilityServices Service factory for high availability services
 	 * @throws Exception Failures are forwarded
 	 */
-	public QueryableStateClient(Configuration config) throws Exception {
+	public QueryableStateClient(
+			Configuration config,
+			HighAvailabilityServices highAvailabilityServices) throws Exception {
 		Preconditions.checkNotNull(config, "Configuration");
 
 		// Create a leader retrieval service
-		LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils
-				.createLeaderRetrievalService(config);
+		LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 
 		// Get the ask timeout
-		String askTimeoutString = config.getString(
-				ConfigConstants.AKKA_ASK_TIMEOUT,
-				ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
+		String askTimeoutString = config.getString(AkkaOptions.ASK_TIMEOUT);
 
 		Duration timeout = FiniteDuration.apply(askTimeoutString);
 		if (!timeout.isFinite()) {
-			throw new IllegalConfigurationException(ConfigConstants.AKKA_ASK_TIMEOUT
+			throw new IllegalConfigurationException(AkkaOptions.ASK_TIMEOUT.key()
 					+ " is not a finite timeout ('" + askTimeoutString + "')");
 		}
 
 		FiniteDuration askTimeout = (FiniteDuration) timeout;
 
-		int lookupRetries = config.getInteger(
-				ConfigConstants.QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES,
-				ConfigConstants.DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES);
-
-		int lookupRetryDelayMillis = config.getInteger(
-				ConfigConstants.QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY,
-				ConfigConstants.DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY);
+		int lookupRetries = config.getInteger(QueryableStateOptions.CLIENT_LOOKUP_RETRIES);
+		int lookupRetryDelayMillis = config.getInteger(QueryableStateOptions.CLIENT_LOOKUP_RETRY_DELAY);
 
 		// Retries if no JobManager is around
 		LookupRetryStrategyFactory retryStrategy = new FixedDelayLookupRetryStrategyFactory(
@@ -147,9 +143,7 @@ public class QueryableStateClient {
 				askTimeout,
 				retryStrategy);
 
-		int numEventLoopThreads = config.getInteger(
-				ConfigConstants.QUERYABLE_STATE_CLIENT_NETWORK_THREADS,
-				ConfigConstants.DEFAULT_QUERYABLE_STATE_CLIENT_NETWORK_THREADS);
+		int numEventLoopThreads = config.getInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS);
 
 		if (numEventLoopThreads == 0) {
 			numEventLoopThreads = Runtime.getRuntime().availableProcessors();
@@ -216,7 +210,7 @@ public class QueryableStateClient {
 			try {
 				actorSystem.shutdown();
 			} catch (Throwable t) {
-				LOG.error("Failed to shut down ActorSystem");
+				LOG.error("Failed to shut down ActorSystem", t);
 			}
 		}
 	}
@@ -347,7 +341,25 @@ public class QueryableStateClient {
 					return previous;
 				}
 			} else {
-				return cachedFuture;
+				// do not retain futures which failed as they will remain in
+				// the cache even if the error cause is not present any more
+				// and a new lookup may succeed
+				if (cachedFuture.isCompleted() &&
+					cachedFuture.value().get().isFailure()) {
+					// issue a new lookup
+					Future<KvStateLocation> lookupFuture = lookupService
+						.getKvStateLookupInfo(jobId, queryableStateName);
+
+					// replace the existing one if it has not been replaced yet
+					// otherwise return the one in the cache
+					if (lookupCache.replace(cacheKey, cachedFuture, lookupFuture)) {
+						return lookupFuture;
+					} else {
+						return lookupCache.get(cacheKey);
+					}
+				} else {
+					return cachedFuture;
+				}
 			}
 		}
 	}

@@ -10,15 +10,18 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions;
 
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.streaming.data.PythonStreamer;
+import org.apache.flink.python.api.streaming.data.PythonDualInputStreamer;
 import org.apache.flink.util.Collector;
+
 import java.io.IOException;
-import org.apache.flink.api.common.functions.RichCoGroupFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * CoGroupFunction that uses a python script.
@@ -27,13 +30,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * @param <IN2>
  * @param <OUT>
  */
-public class PythonCoGroup<IN1, IN2, OUT> extends RichCoGroupFunction<IN1, IN2, OUT> implements ResultTypeQueryable {
-	private final PythonStreamer streamer;
-	private transient final TypeInformation<OUT> typeInformation;
+public class PythonCoGroup<IN1, IN2, OUT> extends RichCoGroupFunction<IN1, IN2, OUT> implements ResultTypeQueryable<OUT> {
 
-	public PythonCoGroup(int id, TypeInformation<OUT> typeInformation) {
+	private static final long serialVersionUID = -3997396583317513873L;
+
+	private final PythonDualInputStreamer<IN1, IN2, OUT> streamer;
+	private final transient TypeInformation<OUT> typeInformation;
+
+	public PythonCoGroup(Configuration config, int envID, int setID, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer(this, id, true);
+		streamer = new PythonDualInputStreamer<>(this, config, envID, setID, typeInformation instanceof PrimitiveArrayTypeInfo);
 	}
 
 	/**

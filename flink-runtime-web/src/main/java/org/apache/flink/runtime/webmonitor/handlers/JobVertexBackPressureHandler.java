@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.BackPressureStatsTracker;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.OperatorBackPressureStats;
-import scala.Option;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.Map;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -38,6 +40,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * all its sub tasks.
  */
 public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandler {
+
+	private static final String JOB_VERTEX_BACKPRESSURE_REST_PATH = "/jobs/:jobid/vertices/:vertexid/backpressure";
 
 	/** Back pressure stats tracker. */
 	private final BackPressureStatsTracker backPressureStatsTracker;
@@ -57,6 +61,11 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_BACKPRESSURE_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(
 			AccessExecutionJobVertex accessJobVertex,
 			Map<String, String> params) throws Exception {
@@ -65,7 +74,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 		}
 		ExecutionJobVertex jobVertex = (ExecutionJobVertex) accessJobVertex;
 		try (StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer)) {
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer)) {
 
 			gen.writeStartObject();
 

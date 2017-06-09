@@ -80,7 +80,7 @@ abstract class Solver extends Serializable with WithParameters {
     dimensionDS.map {
       dimension =>
         val values = Array.fill(dimension)(0.0)
-        new WeightVector(DenseVector(values), 0.0)
+        WeightVector(DenseVector(values), 0.0)
     }
   }
 
@@ -95,6 +95,11 @@ abstract class Solver extends Serializable with WithParameters {
     parameters.add(RegularizationConstant, regularizationConstant)
     this
   }
+  
+  def setRegularizationPenalty(regularizationPenalty: RegularizationPenalty) : this.type = {
+    parameters.add(RegularizationPenaltyValue, regularizationPenalty)
+    this
+  }
 }
 
 object Solver {
@@ -107,6 +112,10 @@ object Solver {
 
   case object RegularizationConstant extends Parameter[Double] {
     val defaultValue = Some(0.0001) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
+  }
+  
+  case object RegularizationPenaltyValue extends Parameter[RegularizationPenalty] {
+    val defaultValue = Some(NoRegularization)
   }
 }
 

@@ -24,8 +24,8 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.AsyncExceptionHandler;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.Test;
 
@@ -33,6 +33,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link TestProcessingTimeService}.
+ */
 public class TestProcessingTimeServiceTest {
 
 	@Test
@@ -44,6 +47,7 @@ public class TestProcessingTimeServiceTest {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
 			mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
@@ -52,7 +56,7 @@ public class TestProcessingTimeServiceTest {
 
 		testHarness.invoke();
 
-		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 0);
+		assertEquals(Long.MIN_VALUE, testHarness.getProcessingTimeService().getCurrentProcessingTime());
 
 		tp.setCurrentTime(11);
 		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 11);
@@ -76,19 +80,22 @@ public class TestProcessingTimeServiceTest {
 			}
 		});
 
-		assertEquals(2, tp.getNumRegisteredTimers());
+		assertEquals(2, tp.getNumActiveTimers());
 
 		tp.setCurrentTime(35);
-		assertEquals(1, tp.getNumRegisteredTimers());
+		assertEquals(1, tp.getNumActiveTimers());
 
 		tp.setCurrentTime(40);
-		assertEquals(0, tp.getNumRegisteredTimers());
+		assertEquals(0, tp.getNumActiveTimers());
 
 		tp.shutdownService();
 	}
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * An {@link AsyncExceptionHandler} storing the handled exception.
+	 */
 	public static class ReferenceSettingExceptionHandler implements AsyncExceptionHandler {
 
 		private final AtomicReference<Throwable> errorReference;

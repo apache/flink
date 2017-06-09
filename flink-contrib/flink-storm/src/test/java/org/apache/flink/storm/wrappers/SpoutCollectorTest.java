@@ -17,11 +17,11 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.tuple.Values;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+
+import org.apache.storm.tuple.Values;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,6 +31,9 @@ import java.util.List;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for the SpoutCollector.
+ */
 public class SpoutCollectorTest extends AbstractTest {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })

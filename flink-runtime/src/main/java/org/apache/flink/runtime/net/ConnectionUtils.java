@@ -45,6 +45,9 @@ import scala.concurrent.duration.FiniteDuration;
 /**
  * Utilities to determine the network interface and address that should be used to bind the
  * TaskManager communication to.
+ * 
+ * <p>Implementation note: This class uses {@code System.nanoTime()} to measure elapsed time, because
+ * that is not susceptible to clock changes.
  */
 public class ConnectionUtils {
 	
@@ -110,10 +113,10 @@ public class ConnectionUtils {
 			throw new IllegalArgumentException("Max wait time must be positive");
 		}
 
-		final long startTime = System.currentTimeMillis();
+		final long startTimeNanos = System.nanoTime();
 
 		long currentSleepTime = MIN_SLEEP_TIME;
-		long elapsedTime = 0;
+		long elapsedTimeMillis = 0;
 
 		final List<AddressDetectionState> strategies = Collections.unmodifiableList(
 			Arrays.asList(
@@ -123,8 +126,8 @@ public class ConnectionUtils {
 				AddressDetectionState.SLOW_CONNECT));
 
 		// loop while there is time left
-		while (elapsedTime < maxWaitMillis) {
-			boolean logging = elapsedTime >= startLoggingAfter;
+		while (elapsedTimeMillis < maxWaitMillis) {
+			boolean logging = elapsedTimeMillis >= startLoggingAfter;
 			if (logging) {
 				LOG.info("Trying to connect to " + targetAddress);
 			}
@@ -139,9 +142,9 @@ public class ConnectionUtils {
 
 			// we have made a pass with all strategies over all interfaces
 			// sleep for a while before we make the next pass
-			elapsedTime = System.currentTimeMillis() - startTime;
+			elapsedTimeMillis = (System.nanoTime() - startTimeNanos) / 1_000_000;
 
-			long toWait = Math.min(maxWaitMillis - elapsedTime, currentSleepTime);
+			long toWait = Math.min(maxWaitMillis - elapsedTimeMillis, currentSleepTime);
 			if (toWait > 0) {
 				if (logging) {
 					LOG.info("Could not connect. Waiting for {} msecs before next attempt", toWait);
@@ -363,15 +366,16 @@ public class ConnectionUtils {
 				FiniteDuration timeout,
 				FiniteDuration startLoggingAfter)
 			throws LeaderRetrievalException {
-			long startTime = System.currentTimeMillis();
+
+			final long startTimeNanos = System.nanoTime();
 			long currentSleepTime = MIN_SLEEP_TIME;
-			long elapsedTime = 0;
+			long elapsedTimeMillis = 0;
 			InetSocketAddress targetAddress = null;
 
 			try {
-				while (elapsedTime < timeout.toMillis()) {
+				while (elapsedTimeMillis < timeout.toMillis()) {
 
-					long maxTimeout = timeout.toMillis() - elapsedTime;
+					long maxTimeout = timeout.toMillis() - elapsedTimeMillis;
 
 					synchronized (retrievalLock) {
 						if (exception != null) {
@@ -401,7 +405,7 @@ public class ConnectionUtils {
 					if (targetAddress != null) {
 						AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
 
-						boolean logging = elapsedTime >= startLoggingAfter.toMillis();
+						boolean logging = elapsedTimeMillis >= startLoggingAfter.toMillis();
 						if (logging) {
 							LOG.info("Trying to connect to address {}", targetAddress);
 						}
@@ -433,10 +437,10 @@ public class ConnectionUtils {
 						while (strategy != null);
 					}
 
-					elapsedTime = System.currentTimeMillis() - startTime;
+					elapsedTimeMillis = (System.nanoTime() - startTimeNanos) / 1_000_000;
 
 					long timeToWait = Math.min(
-							Math.max(timeout.toMillis() - elapsedTime, 0),
+							Math.max(timeout.toMillis() - elapsedTimeMillis, 0),
 							currentSleepTime);
 
 					if (timeToWait > 0) {
@@ -448,7 +452,7 @@ public class ConnectionUtils {
 							}
 						}
 
-						elapsedTime = System.currentTimeMillis() - startTime;
+						elapsedTimeMillis = (System.nanoTime() - startTimeNanos) / 1_000_000;
 					}
 				}
 
@@ -473,7 +477,7 @@ public class ConnectionUtils {
 
 		@Override
 		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-			if (leaderAddress != null && !leaderAddress.equals("")) {
+			if (leaderAddress != null && !leaderAddress.isEmpty()) {
 				synchronized (retrievalLock) {
 					akkaURL = leaderAddress;
 					retrievalState = LeaderRetrievalState.NEWLY_RETRIEVED;

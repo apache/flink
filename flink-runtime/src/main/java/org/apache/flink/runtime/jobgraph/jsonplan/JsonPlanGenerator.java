@@ -32,7 +32,7 @@ import java.util.List;
 
 public class JsonPlanGenerator {
 	
-	private static final String NOT_SET = "(not set)";
+	private static final String NOT_SET = "";
 	private static final String EMPTY = "{}";
 	
 	public static String generatePlan(JobGraph jg) {

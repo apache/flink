@@ -25,7 +25,10 @@ import org.apache.flink.api.common.functions.FilterFunction;
  * function only returns true, iff both filters return true.
  *
  * @param <T> Type of the element to filter
+ * @deprecated This is only used when migrating from an older Flink version.
+ * Use the {@link org.apache.flink.cep.pattern.conditions.AndCondition} instead.
  */
+@Deprecated
 public class AndFilterFunction<T> implements FilterFunction<T> {
 	private static final long serialVersionUID = -2109562093871155005L;
 

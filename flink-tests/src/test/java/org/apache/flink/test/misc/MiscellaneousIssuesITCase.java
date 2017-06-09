@@ -23,16 +23,18 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -50,45 +52,36 @@ import static org.junit.Assert.*;
  * test cluster.
  */
 @SuppressWarnings("serial")
-public class MiscellaneousIssuesITCase {
+public class MiscellaneousIssuesITCase extends TestLogger {
+
+	private static final int PARALLELISM = 6;
 
 	private static LocalFlinkMiniCluster cluster;
+
+	private static TestEnvironment env;
 	
 	@BeforeClass
 	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-			cluster = new LocalFlinkMiniCluster(config, false);
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
+		cluster = new LocalFlinkMiniCluster(config, false);
 
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
+		cluster.start();
+
+		env = new TestEnvironment(cluster, PARALLELISM, false);
 	}
 	
 	@AfterClass
 	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
+		cluster.shutdown();
+		cluster = null;
 	}
 	
 	@Test
 	public void testNullValues() {
 		try {
-			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(1);
 			env.getConfig().disableSysoutLogging();
 
@@ -105,10 +98,9 @@ public class MiscellaneousIssuesITCase {
 				env.execute();
 				fail("this should fail due to null values.");
 			}
-			catch (ProgramInvocationException e) {
+			catch (JobExecutionException e) {
 				assertNotNull(e.getCause());
-				assertNotNull(e.getCause().getCause());
-				assertTrue(e.getCause().getCause() instanceof NullPointerException);
+				assertTrue(e.getCause() instanceof NullPointerException);
 			}
 		}
 		catch (Exception e) {
@@ -120,9 +112,6 @@ public class MiscellaneousIssuesITCase {
 	@Test
 	public void testDisjointDataflows() {
 		try {
-			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(5);
 			env.getConfig().disableSysoutLogging();
 
@@ -143,9 +132,6 @@ public class MiscellaneousIssuesITCase {
 		final String ACC_NAME = "test_accumulator";
 		
 		try {
-			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(6);
 			env.getConfig().disableSysoutLogging();
 			

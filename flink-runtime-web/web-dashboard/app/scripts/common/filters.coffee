@@ -54,6 +54,12 @@ angular.module('flinkApp')
     else
       if short then return days + "d " + hours + "h" else return days + "d " + hours + "h " + minutes + "m " + seconds + "s"
 
+.filter "limit", ->
+  (text) ->
+    if (text.length > 73)
+      text = text.substring(0, 35) + "..." + text.substring(text.length - 35, text.length)
+    text
+
 .filter "humanizeText", ->
   (text) ->
     # TODO: extend... a lot
@@ -73,5 +79,62 @@ angular.module('flinkApp')
     return "" if typeof bytes is "undefined" or bytes is null
     if bytes < 1000 then bytes + " B" else converter(bytes, 1)
 
+.filter "toLocaleString", ->
+  (text) -> text.toLocaleString()
+
 .filter "toUpperCase", ->
   (text) -> text.toUpperCase()
+
+.filter "percentage", ->
+  (number) -> (number * 100).toFixed(0) + '%'
+
+.filter "humanizeWatermark", (watermarksConfig) ->
+  (value) ->
+    if isNaN(value) || value <= watermarksConfig.noWatermark
+      return 'No Watermark'
+    else
+      return value
+
+.filter "increment", ->
+  (number) ->
+    parseInt(number) + 1
+
+.filter "humanizeChartNumeric", ['humanizeBytesFilter', 'humanizeDurationFilter', (humanizeBytesFilter, humanizeDurationFilter)->
+  (value, metric)->
+    return_val = ''
+    if value != null
+      if /bytes/i.test(metric.id) && /persecond/i.test(metric.id)
+        return_val = humanizeBytesFilter(value) + ' / s'
+      else if /bytes/i.test(metric.id)
+        return_val = humanizeBytesFilter(value)
+      else if /persecond/i.test(metric.id)
+        return_val = value + ' / s'
+      else if /time/i.test(metric.id) || /latency/i.test(metric.id)
+        return_val = humanizeDurationFilter(value, true)
+      else
+        return_val = value
+    return return_val
+]
+
+.filter "humanizeChartNumericTitle", ['humanizeDurationFilter', (humanizeDurationFilter)->
+  (value, metric)->
+    return_val = ''
+    if value != null
+      if /bytes/i.test(metric.id) && /persecond/i.test(metric.id)
+        return_val = value + ' Bytes / s'
+      else if /bytes/i.test(metric.id)
+        return_val = value + ' Bytes'
+      else if /persecond/i.test(metric.id)
+        return_val = value + ' / s'
+      else if /time/i.test(metric.id) || /latency/i.test(metric.id)
+        return_val = humanizeDurationFilter(value, false)
+      else
+        return_val = value
+    return return_val
+]
+
+.filter "searchMetrics", ->
+  (availableMetrics, query)->
+    queryRegex = new RegExp(query, "gi")
+    return (metric for metric in availableMetrics when metric.id.match(queryRegex))
+

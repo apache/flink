@@ -23,15 +23,19 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link RestartStrategies}.
+ */
 public class RestartStrategyTest extends TestLogger {
 
 	/**
 	 * Tests that in a streaming use case where checkpointing is enabled, a
 	 * fixed delay with Integer.MAX_VALUE retries is instantiated if no other restart
-	 * strategy has been specified
+	 * strategy has been specified.
 	 */
 	@Test
 	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
@@ -53,7 +57,7 @@ public class RestartStrategyTest extends TestLogger {
 
 	/**
 	 * Checks that in a streaming use case where checkpointing is enabled and the number
-	 * of execution retries is set to 0, restarting is deactivated
+	 * of execution retries is set to 0, restarting is deactivated.
 	 */
 	@Test
 	public void testNoRestartingWhenCheckpointingAndExplicitExecutionRetriesZero() throws Exception {
@@ -94,7 +98,7 @@ public class RestartStrategyTest extends TestLogger {
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
-		Assert.assertEquals(42, ((RestartStrategies.FixedDelayRestartStrategyConfiguration)restartStrategy).getRestartAttempts());
-		Assert.assertEquals(1337, ((RestartStrategies.FixedDelayRestartStrategyConfiguration)restartStrategy).getDelayBetweenAttemptsInterval().toMilliseconds());
+		Assert.assertEquals(42, ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy).getRestartAttempts());
+		Assert.assertEquals(1337, ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy).getDelayBetweenAttemptsInterval().toMilliseconds());
 	}
 }

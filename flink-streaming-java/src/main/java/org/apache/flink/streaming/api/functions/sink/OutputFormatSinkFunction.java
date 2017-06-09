@@ -17,13 +17,12 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
@@ -31,19 +30,21 @@ import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 /**
  * Simple implementation of the SinkFunction writing tuples in the specified
  * OutputFormat format.
- * 
+ *
  * @param <IN> Input type
  */
 @PublicEvolving
 public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implements InputTypeConfigurable {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(OutputFormatSinkFunction.class);
-	
+
 	private OutputFormat<IN> format;
 	private boolean cleanupCalled = false;
 
@@ -58,6 +59,14 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implement
 		int indexInSubtaskGroup = context.getIndexOfThisSubtask();
 		int currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
 		format.open(indexInSubtaskGroup, currentNumberOfSubtasks);
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext context) {
+		super.setRuntimeContext(context);
+		if (format instanceof RichOutputFormat) {
+			((RichOutputFormat) format).setRuntimeContext(context);
+		}
 	}
 
 	@Override

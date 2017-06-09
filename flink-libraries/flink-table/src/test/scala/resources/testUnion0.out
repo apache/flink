@@ -3,6 +3,11 @@ LogicalUnion(all=[true])
   LogicalTableScan(table=[[_DataSetTable_0]])
   LogicalTableScan(table=[[_DataSetTable_1]])
 
+== Optimized Logical Plan ==
+DataSetUnion(union=[count, word])
+  DataSetScan(table=[[_DataSetTable_0]])
+  DataSetScan(table=[[_DataSetTable_1]])
+
 == Physical Execution Plan ==
 Stage 3 : Data Source
 	content : collect elements with CollectionInputFormat

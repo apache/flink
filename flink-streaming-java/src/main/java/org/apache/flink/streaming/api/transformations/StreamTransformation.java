@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,18 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.transformations;
 
+package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code StreamTransformation} represents the operation that creates a
@@ -34,49 +38,44 @@ import java.util.Collection;
  * {@link org.apache.flink.streaming.api.datastream.DataStream} has an underlying
  * {@code StreamTransformation} that is the origin of said DataStream.
  *
- * <p>
- * API operations such as {@link org.apache.flink.streaming.api.datastream.DataStream#map} create
- * a tree of {@code StreamTransformation}s underneath. When the stream program is to be executed this
- * graph is translated to a {@link StreamGraph} using
+ * <p>API operations such as {@link org.apache.flink.streaming.api.datastream.DataStream#map} create
+ * a tree of {@code StreamTransformation}s underneath. When the stream program is to be executed
+ * this graph is translated to a {@link StreamGraph} using
  * {@link org.apache.flink.streaming.api.graph.StreamGraphGenerator}.
  *
- * <p>
- * A {@code StreamTransformation} does not necessarily correspond to a physical operation
+ * <p>A {@code StreamTransformation} does not necessarily correspond to a physical operation
  * at runtime. Some operations are only logical concepts. Examples of this are union,
  * split/select data stream, partitioning.
  *
- * <p>
- * The following graph of {@code StreamTransformations}:
- *
+ * <p>The following graph of {@code StreamTransformations}:
  * <pre>{@code
- *   Source              Source        
- *      +                   +           
- *      |                   |           
- *      v                   v           
- *  Rebalance          HashPartition    
- *      +                   +           
- *      |                   |           
- *      |                   |           
- *      +------>Union<------+           
- *                +                     
- *                |                     
- *                v                     
- *              Split                   
- *                +                     
- *                |                     
- *                v                     
- *              Select                  
- *                +                     
- *                v                     
- *               Map                    
- *                +                     
- *                |                     
- *                v                     
- *              Sink 
+ *   Source              Source
+ *      +                   +
+ *      |                   |
+ *      v                   v
+ *  Rebalance          HashPartition
+ *      +                   +
+ *      |                   |
+ *      |                   |
+ *      +------>Union<------+
+ *                +
+ *                |
+ *                v
+ *              Split
+ *                +
+ *                |
+ *                v
+ *              Select
+ *                +
+ *                v
+ *               Map
+ *                +
+ *                |
+ *                v
+ *              Sink
  * }</pre>
  *
- * Would result in this graph of operations at runtime:
- *
+ * <p>Would result in this graph of operations at runtime:
  * <pre>{@code
  *  Source              Source
  *    +                   +
@@ -89,7 +88,7 @@ import java.util.Collection;
  *             Sink
  * }</pre>
  *
- * The information about partitioning, union, split/select end up being encoded in the edges
+ * <p>The information about partitioning, union, split/select end up being encoded in the edges
  * that connect the sources to the map operation.
  *
  * @param <T> The type of the elements that result from this {@code StreamTransformation}
@@ -99,10 +98,12 @@ public abstract class StreamTransformation<T> {
 
 	// This is used to assign a unique ID to every StreamTransformation
 	protected static Integer idCounter = 0;
+
 	public static int getNewNodeId() {
 		idCounter++;
 		return idCounter;
 	}
+
 
 	protected final int id;
 
@@ -123,12 +124,26 @@ public abstract class StreamTransformation<T> {
 	private int maxParallelism = -1;
 
 	/**
+	 *  The minimum resources for this stream transformation. It defines the lower limit for
+	 *  dynamic resources resize in future plan.
+	 */
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
+
+	/**
+	 *  The preferred resources for this stream transformation. It defines the upper limit for
+	 *  dynamic resource resize in future plan.
+	 */
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
+
+	/**
 	 * User-specified ID for this transformation. This is used to assign the
 	 * same operator ID across job restarts. There is also the automatically
 	 * generated {@link #id}, which is assigned from a static counter. That
 	 * field is independent from this.
 	 */
 	private String uid;
+
+	private String userProvidedNodeHash;
 
 	protected long bufferTimeout = -1;
 
@@ -171,15 +186,16 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the parallelism of this {@code StreamTransformation}
+	 * Returns the parallelism of this {@code StreamTransformation}.
 	 */
 	public int getParallelism() {
 		return parallelism;
 	}
 
 	/**
-	 * Sets the parallelism of this {@code StreamTransformation}
-	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}
+	 * Sets the parallelism of this {@code StreamTransformation}.
+	 *
+	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}.
 	 */
 	public void setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
@@ -201,11 +217,84 @@ public abstract class StreamTransformation<T> {
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0
+						&& maxParallelism <= StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM,
+				"Maximum parallelism must be between 1 and " + StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
+						+ ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
 	}
 
 	/**
-	 * Sets an ID for this {@link StreamTransformation}.
+	 * Sets the minimum and preferred resources for this stream transformation.
+	 *
+	 * @param minResources The minimum resource of this transformation.
+	 * @param preferredResources The preferred resource of this transformation.
+	 */
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = checkNotNull(minResources);
+		this.preferredResources = checkNotNull(preferredResources);
+	}
+
+	/**
+	 * Gets the minimum resource of this stream transformation.
+	 *
+	 * @return The minimum resource of this transformation.
+	 */
+	public ResourceSpec getMinResources() {
+		return minResources;
+	}
+
+	/**
+	 * Gets the preferred resource of this stream transformation.
+	 *
+	 * @return The preferred resource of this transformation.
+	 */
+	public ResourceSpec getPreferredResources() {
+		return preferredResources;
+	}
+
+	/**
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the
+	 * JobVertexID.
+	 *
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when
+	 * identifying an operator through the default hash mechanics fails (e.g. because of changes
+	 * between Flink versions).
+	 *
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting.
+	 * The provided hash needs to be unique per transformation and job. Otherwise, job submission
+	 * will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an
+	 * operator chain and trying so will let your job fail.
+	 *
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way
+	 * that changes the automatically generated hashes. In this case, providing the previous hashes
+	 * directly through this method (e.g. obtained from old logs) can help to reestablish a lost
+	 * mapping from states to their target operator.
+	 *
+	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
+	 *                 logs and web ui.
+	 */
+	public void setUidHash(String uidHash) {
+
+		Preconditions.checkNotNull(uidHash);
+		Preconditions.checkArgument(uidHash.matches("^[0-9A-Fa-f]{32}$"),
+				"Node hash must be a 32 character String that describes a hex code. Found: " + uidHash);
+
+		this.userProvidedNodeHash = uidHash;
+	}
+
+	/**
+	 * Gets the user provided hash.
+	 *
+	 * @return The user provided hash.
+	 */
+	public String getUserProvidedNodeHash() {
+		return userProvidedNodeHash;
+	}
+
+	/**
+	 * Sets an ID for this {@link StreamTransformation}. This is will later be hashed to a uidHash which is then used to
+	 * create the JobVertexID (that is shown in logs and the web ui).
 	 *
 	 * <p>The specified ID is used to assign the same operator ID across job
 	 * submissions (for example when starting a job from a savepoint).

@@ -31,6 +31,7 @@ import org.apache.flink.graph.examples.data.SummarizationData;
 import org.apache.flink.graph.library.Summarization.EdgeValue;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -45,6 +46,9 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link Summarization}.
+ */
 @RunWith(Parameterized.class)
 public class SummarizationITCase extends MultipleProgramsTestBase {
 
@@ -185,8 +189,9 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 	}
 
 	private List<Long> getListFromIdRange(String idRange) {
-		List<Long> result = new ArrayList<>();
-		for (String id : ID_SEPARATOR.split(idRange)) {
+		String[] split = ID_SEPARATOR.split(idRange);
+		List<Long> result = new ArrayList<>(split.length);
+		for (String id : split) {
 			result.add(Long.parseLong(id));
 		}
 		return result;

@@ -17,11 +17,11 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichSpout;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
 
 import java.util.Map;
 
@@ -32,7 +32,7 @@ import java.util.Map;
 public abstract class AbstractLineSpout implements IRichSpout {
 	private static final long serialVersionUID = 8876828403487806771L;
 
-	public final static String ATTRIBUTE_LINE = "line";
+	public static final String ATTRIBUTE_LINE = "line";
 
 	protected SpoutOutputCollector collector;
 

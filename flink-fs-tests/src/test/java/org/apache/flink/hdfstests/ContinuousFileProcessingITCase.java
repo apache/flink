@@ -15,23 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.hdfstests;
 
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
-import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -52,6 +55,9 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * IT cases for the {@link ContinuousFileMonitoringFunction} and {@link ContinuousFileReaderOperator}.
+ */
 public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 
 	private static final int NO_OF_FILES = 5;
@@ -83,10 +89,10 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
 			hdfsCluster = builder.build();
 
-			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/";
+			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
 			hdfs = new org.apache.hadoop.fs.Path(hdfsURI).getFileSystem(hdConf);
 
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			e.printStackTrace();
 			Assert.fail("Test failed " + e.getMessage());
 		}
@@ -124,7 +130,7 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 		env.setParallelism(PARALLELISM);
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_CONTINUOUSLY,
 				env.getParallelism(), INTERVAL);
 
@@ -240,7 +246,7 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 			}
 
 			if (!content.add(value + "\n")) {
-				Assert.fail("Duplicate line: "+ value);
+				Assert.fail("Duplicate line: " + value);
 				System.exit(0);
 			}
 
@@ -294,13 +300,13 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 		for (int i = 0; i < LINES_PER_FILE; i++) {
 			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
 			str.append(line);
-			stream.write(line.getBytes());
+			stream.write(line.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}
 		stream.close();
 		return new Tuple2<>(tmp, str.toString());
 	}
 
-	public static class SuccessException extends Exception {
+	private static class SuccessException extends Exception {
 		private static final long serialVersionUID = -7011865671593955887L;
 	}
 }

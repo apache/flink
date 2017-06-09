@@ -46,8 +46,8 @@ public class CollectionExecutionAccumulatorsTest {
 			JobExecutionResult result = env.execute();
 			
 			assertTrue(result.getNetRuntime() >= 0);
-			
-			assertEquals(NUM_ELEMENTS, result.getAccumulatorResult(ACCUMULATOR_NAME));
+
+			assertEquals(NUM_ELEMENTS, (int) result.getAccumulatorResult(ACCUMULATOR_NAME));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

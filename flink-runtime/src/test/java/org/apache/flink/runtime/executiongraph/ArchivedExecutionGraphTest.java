@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
@@ -25,27 +26,27 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStats;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
-import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.Option;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,6 +61,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class ArchivedExecutionGraphTest {
 	private static JobVertexID v1ID = new JobVertexID();
@@ -82,6 +84,9 @@ public class ArchivedExecutionGraphTest {
 		v1.setParallelism(1);
 		v2.setParallelism(2);
 
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+
 		List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionConfig config = new ExecutionConfig();
@@ -93,16 +98,29 @@ public class ArchivedExecutionGraphTest {
 		config.setGlobalJobParameters(new TestJobParameters());
 
 		runtimeGraph = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			new JobID(),
 			"test job",
 			new Configuration(),
 			new SerializedValue<>(config),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			mock(SlotProvider.class));
+
 		runtimeGraph.attachJobGraph(vertices);
 
-		runtimeGraph.enableSnapshotCheckpointing(
+		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
+		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
+		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
+		
+		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
+				0,
+				jobVertices,
+				mock(JobCheckpointingSettings.class),
+				new UnregisteredMetricsGroup());
+
+		runtimeGraph.enableCheckpointing(
 			100,
 			100,
 			100,
@@ -111,10 +129,12 @@ public class ArchivedExecutionGraphTest {
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
+			Collections.<MasterTriggerRestoreHook<?>>emptyList(),
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
 			null,
-			new TestCheckpointStatsTracker());
+			null,
+			statsTracker);
 
 		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
 		userAccumulators.put("userAcc", new LongCounter(64));
@@ -160,19 +180,22 @@ public class ArchivedExecutionGraphTest {
 		assertEquals(runtimeGraph.isStoppable(), archivedGraph.isStoppable());
 
 		// -------------------------------------------------------------------------------------------------------------
-		// JobCheckpointStats
+		// CheckpointStats
 		// -------------------------------------------------------------------------------------------------------------
-		JobCheckpointStats runtimeStats = runtimeGraph.getCheckpointStatsTracker().getJobStats().get();
-		JobCheckpointStats archivedStats = archivedGraph.getCheckpointStatsTracker().getJobStats().get();
+		CheckpointStatsSnapshot runtimeSnapshot = runtimeGraph.getCheckpointStatsSnapshot();
+		CheckpointStatsSnapshot archivedSnapshot = archivedGraph.getCheckpointStatsSnapshot();
 
-		assertEquals(runtimeStats.getAverageDuration(), archivedStats.getAverageDuration());
-		assertEquals(runtimeStats.getMinDuration(), archivedStats.getMinDuration());
-		assertEquals(runtimeStats.getMaxDuration(), archivedStats.getMaxDuration());
-		assertEquals(runtimeStats.getAverageStateSize(), archivedStats.getAverageStateSize());
-		assertEquals(runtimeStats.getMinStateSize(), archivedStats.getMinStateSize());
-		assertEquals(runtimeStats.getMaxStateSize(), archivedStats.getMaxStateSize());
-		assertEquals(runtimeStats.getCount(), archivedStats.getCount());
-		assertEquals(runtimeStats.getRecentHistory(), archivedStats.getRecentHistory());
+		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage());
+		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum());
+		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getMaximum(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getMaximum());
+
+		assertEquals(runtimeSnapshot.getSummaryStats().getStateSizeStats().getAverage(), archivedSnapshot.getSummaryStats().getStateSizeStats().getAverage());
+		assertEquals(runtimeSnapshot.getSummaryStats().getStateSizeStats().getMinimum(), archivedSnapshot.getSummaryStats().getStateSizeStats().getMinimum());
+		assertEquals(runtimeSnapshot.getSummaryStats().getStateSizeStats().getMaximum(), archivedSnapshot.getSummaryStats().getStateSizeStats().getMaximum());
+
+		assertEquals(runtimeSnapshot.getCounts().getTotalNumberOfCheckpoints(), archivedSnapshot.getCounts().getTotalNumberOfCheckpoints());
+		assertEquals(runtimeSnapshot.getCounts().getNumberOfCompletedCheckpoints(), archivedSnapshot.getCounts().getNumberOfCompletedCheckpoints());
+		assertEquals(runtimeSnapshot.getCounts().getNumberOfInProgressCheckpoints(), archivedSnapshot.getCounts().getNumberOfInProgressCheckpoints());
 
 		// -------------------------------------------------------------------------------------------------------------
 		// ArchivedExecutionConfig
@@ -212,14 +235,6 @@ public class ArchivedExecutionGraphTest {
 		}
 
 		// -------------------------------------------------------------------------------------------------------------
-		// OperatorCheckpointStats
-		// -------------------------------------------------------------------------------------------------------------
-		CheckpointStatsTracker runtimeTracker = runtimeGraph.getCheckpointStatsTracker();
-		CheckpointStatsTracker archivedTracker = archivedGraph.getCheckpointStatsTracker();
-		compareOperatorCheckpointStats(runtimeTracker.getOperatorStats(v1ID).get(), archivedTracker.getOperatorStats(v1ID).get());
-		compareOperatorCheckpointStats(runtimeTracker.getOperatorStats(v2ID).get(), archivedTracker.getOperatorStats(v2ID).get());
-
-		// -------------------------------------------------------------------------------------------------------------
 		// ExecutionVertices
 		// -------------------------------------------------------------------------------------------------------------
 		Iterator<? extends AccessExecutionVertex> runtimeExecutionVertices = runtimeGraph.getAllExecutionVertices().iterator();
@@ -237,8 +252,6 @@ public class ArchivedExecutionGraphTest {
 		assertEquals(runtimeJobVertex.getMaxParallelism(), archivedJobVertex.getMaxParallelism());
 		assertEquals(runtimeJobVertex.getJobVertexId(), archivedJobVertex.getJobVertexId());
 		assertEquals(runtimeJobVertex.getAggregateState(), archivedJobVertex.getAggregateState());
-
-		compareOperatorCheckpointStats(runtimeJobVertex.getCheckpointStats().get(), archivedJobVertex.getCheckpointStats().get());
 
 		compareStringifiedAccumulators(runtimeJobVertex.getAggregatedUserAccumulatorsStringified(), archivedJobVertex.getAggregatedUserAccumulatorsStringified());
 
@@ -310,94 +323,9 @@ public class ArchivedExecutionGraphTest {
 		}
 	}
 
-	private static void compareOperatorCheckpointStats(OperatorCheckpointStats runtimeStats, OperatorCheckpointStats archivedStats) {
-		assertEquals(runtimeStats.getNumberOfSubTasks(), archivedStats.getNumberOfSubTasks());
-		assertEquals(runtimeStats.getCheckpointId(), archivedStats.getCheckpointId());
-		assertEquals(runtimeStats.getDuration(), archivedStats.getDuration());
-		assertEquals(runtimeStats.getStateSize(), archivedStats.getStateSize());
-		assertEquals(runtimeStats.getTriggerTimestamp(), archivedStats.getTriggerTimestamp());
-		assertEquals(runtimeStats.getSubTaskDuration(0), archivedStats.getSubTaskDuration(0));
-		assertEquals(runtimeStats.getSubTaskStateSize(0), archivedStats.getSubTaskStateSize(0));
-	}
-
 	private static void verifySerializability(ArchivedExecutionGraph graph) throws IOException, ClassNotFoundException {
 		ArchivedExecutionGraph copy = CommonTestUtils.createCopySerializable(graph);
 		compareExecutionGraph(graph, copy);
-	}
-
-
-	private static class TestCheckpointStatsTracker implements CheckpointStatsTracker {
-
-		@Override
-		public void onCompletedCheckpoint(CompletedCheckpoint checkpoint) {
-		}
-
-		@Override
-		public Option<JobCheckpointStats> getJobStats() {
-			return Option.<JobCheckpointStats>apply(new TestJobCheckpointStats());
-		}
-
-		@Override
-		public Option<OperatorCheckpointStats> getOperatorStats(JobVertexID operatorId) {
-			return Option.<OperatorCheckpointStats>apply(new TestOperatorCheckpointStats(operatorId.getUpperPart()));
-		}
-	}
-
-	private static class TestJobCheckpointStats implements JobCheckpointStats {
-		private static final long serialVersionUID = -2630234917947292836L;
-
-		@Override
-		public List<CheckpointStats> getRecentHistory() {
-			return Collections.emptyList();
-		}
-
-		@Override
-		public long getCount() {
-			return 1;
-		}
-
-		@Override
-		public String getExternalPath() {
-			return null;
-		}
-
-		@Override
-		public long getMinDuration() {
-			return 2;
-		}
-
-		@Override
-		public long getMaxDuration() {
-			return 4;
-		}
-
-		@Override
-		public long getAverageDuration() {
-			return 3;
-		}
-
-		@Override
-		public long getMinStateSize() {
-			return 5;
-		}
-
-		@Override
-		public long getMaxStateSize() {
-			return 7;
-		}
-
-		@Override
-		public long getAverageStateSize() {
-			return 6;
-		}
-	}
-
-	private static class TestOperatorCheckpointStats extends OperatorCheckpointStats {
-		private static final long serialVersionUID = -2798640928349528644L;
-
-		public TestOperatorCheckpointStats(long offset) {
-			super(1 + offset, 2 + offset, 3 + offset, 4 + offset, new long[][]{new long[]{5 + offset, 6 + offset}});
-		}
 	}
 
 	private static class TestJobParameters extends ExecutionConfig.GlobalJobParameters {

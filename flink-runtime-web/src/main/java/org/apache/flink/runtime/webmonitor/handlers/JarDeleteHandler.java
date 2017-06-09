@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -31,10 +32,17 @@ import java.util.Map;
  */
 public class JarDeleteHandler extends AbstractJsonRequestHandler {
 
+	static final String JAR_DELETE_REST_PATH = "/jars/:jarid";
+
 	private final File jarDir;
 
 	public JarDeleteHandler(File jarDirectory) {
 		jarDir = jarDirectory;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_DELETE_REST_PATH};
 	}
 
 	@Override
@@ -53,7 +61,7 @@ public class JarDeleteHandler extends AbstractJsonRequestHandler {
 				success = success || f.delete();
 			}
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 			gen.writeStartObject();
 			if (!success) {
 				// this seems to always fail on Windows.

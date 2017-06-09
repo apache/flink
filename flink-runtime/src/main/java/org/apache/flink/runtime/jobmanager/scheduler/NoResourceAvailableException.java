@@ -54,7 +54,11 @@ public class NoResourceAvailableException extends JobException {
 	public NoResourceAvailableException(String message) {
 		super(message);
 	}
-	
+
+	public NoResourceAvailableException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override

@@ -18,12 +18,13 @@
 
 package org.apache.flink.graph.utils.proxy;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.NoOpOperator;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,7 +53,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 	private static Map<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>> cache =
 		Collections.synchronizedMap(new HashMap<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>>());
 
-	private Graph<K,VV,EV> input;
+	private Graph<K, VV, EV> input;
 
 	private NoOpOperator<T> wrappingOperator;
 
@@ -101,7 +102,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 			return true;
 		}
 
-		if (! GraphAlgorithmWrappingDataSet.class.isAssignableFrom(obj.getClass())) {
+		if (!GraphAlgorithmWrappingDataSet.class.isAssignableFrom(obj.getClass())) {
 			return false;
 		}
 

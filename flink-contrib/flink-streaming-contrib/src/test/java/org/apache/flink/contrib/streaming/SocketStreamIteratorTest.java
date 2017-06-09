@@ -28,31 +28,36 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the SocketStreamIterator.
+ */
 public class SocketStreamIteratorTest {
-	
+
 	@Test
 	public void testIterator() throws Exception {
-		
+
 		final AtomicReference<Throwable> error = new AtomicReference<>();
-		
+
 		final long seed = new Random().nextLong();
 		final int numElements = 1000;
-		
+
 		final SocketStreamIterator<Long> iterator = new SocketStreamIterator<>(LongSerializer.INSTANCE);
-		
+
 		Thread writer = new Thread() {
-			
+
 			@Override
 			public void run() {
 				try {
 					try (Socket sock = new Socket(iterator.getBindAddress(), iterator.getPort());
-						DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(sock.getOutputStream()))
-					{
+						DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(sock.getOutputStream())) {
+
 						final TypeSerializer<Long> serializer = LongSerializer.INSTANCE;
 						final Random rnd = new Random(seed);
-						
+
 						for (int i = 0; i < numElements; i++) {
 							serializer.serialize(rnd.nextLong(), out);
 						}
@@ -63,16 +68,16 @@ public class SocketStreamIteratorTest {
 				}
 			}
 		};
-		
+
 		writer.start();
-		
+
 		final Random validator = new Random(seed);
 		for (int i = 0; i < numElements; i++) {
 			assertTrue(iterator.hasNext());
 			assertTrue(iterator.hasNext());
 			assertEquals(validator.nextLong(), iterator.next().longValue());
 		}
-		
+
 		assertFalse(iterator.hasNext());
 		writer.join();
 		assertFalse(iterator.hasNext());

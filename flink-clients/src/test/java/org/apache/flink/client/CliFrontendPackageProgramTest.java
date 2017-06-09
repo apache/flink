@@ -18,27 +18,18 @@
 
 package org.apache.flink.client;
 
-import static org.apache.flink.client.CliFrontendTestUtils.TEST_JAR_CLASSLOADERTEST_CLASS;
-import static org.apache.flink.client.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
-import static org.apache.flink.client.CliFrontendTestUtils.getNonJarFilePath;
-import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
-import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.configuration.Configuration;
-
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -46,9 +37,24 @@ import org.junit.Test;
 import java.io.FileNotFoundException;
 import java.net.URL;
 
+import static org.apache.flink.client.CliFrontendTestUtils.TEST_JAR_CLASSLOADERTEST_CLASS;
+import static org.apache.flink.client.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
+import static org.apache.flink.client.CliFrontendTestUtils.getNonJarFilePath;
+import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
+import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the RUN command with {@link PackagedProgram PackagedPrograms}.
+ */
 public class CliFrontendPackageProgramTest {
-	
+
 	@BeforeClass
 	public static void init() {
 		pipeSystemOutToNull();
@@ -75,7 +81,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testFileNotJarFile() {
 		try {
@@ -97,7 +103,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testVariantWithExplicitJarAndArgumentsOption() {
 		try {
@@ -125,7 +131,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testVariantWithExplicitJarAndNoArgumentsOption() {
 		try {
@@ -154,7 +160,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testValidVariantWithNoJarAndNoArgumentsOption() {
 		try {
@@ -183,7 +189,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testNoJarNoArgumentsAtAll() {
 		try {
@@ -195,7 +201,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testNonExistingFileWithArguments() {
 		try {
@@ -227,7 +233,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testNonExistingFileWithoutArguments() {
 		try {
@@ -251,7 +257,7 @@ public class CliFrontendPackageProgramTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * Ensure that we will never have the following error.
 	 *
@@ -276,7 +282,7 @@ public class CliFrontendPackageProgramTest {
 	 *		at org.apache.flink.client.program.PackagedProgram.callMainMethod(PackagedProgram.java:383)
 	 * </pre>
 	 *
-	 * The test works as follows:
+	 * <p>The test works as follows:
 	 *
 	 * <ul>
 	 *   <li> Use the CliFrontend to invoke a jar file that loads a class which is only available
@@ -303,7 +309,7 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(classpath, options.getClasspaths().toArray());
 			assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, options.getEntryPointClassName());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
-			
+
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			PackagedProgram prog = spy(frontend.buildProgram(options));
 

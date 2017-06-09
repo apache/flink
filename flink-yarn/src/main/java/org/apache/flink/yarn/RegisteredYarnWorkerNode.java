@@ -19,8 +19,8 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+
 import org.apache.hadoop.yarn.api.records.Container;
 
 import static java.util.Objects.requireNonNull;
@@ -30,10 +30,10 @@ import static java.util.Objects.requireNonNull;
  */
 public class RegisteredYarnWorkerNode implements ResourceIDRetrievable {
 
-	/** The container on which the worker runs */
+	/** The container on which the worker runs. */
 	private final Container yarnContainer;
 
-	/** The resource id associated with this worker type */
+	/** The resource id associated with this worker type. */
 	private final ResourceID resourceID;
 
 	public RegisteredYarnWorkerNode(Container yarnContainer) {

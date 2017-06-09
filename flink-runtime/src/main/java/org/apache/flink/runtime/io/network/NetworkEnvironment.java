@@ -26,13 +26,13 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.query.netty.KvStateServer;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.util.Preconditions;
@@ -61,10 +61,10 @@ public class NetworkEnvironment {
 
 	private final TaskEventDispatcher taskEventDispatcher;
 
-	/** Server for {@link org.apache.flink.runtime.state.KvState} requests. */
+	/** Server for {@link InternalKvState} requests. */
 	private final KvStateServer kvStateServer;
 
-	/** Registry for {@link org.apache.flink.runtime.state.KvState} instances. */
+	/** Registry for {@link InternalKvState} instances. */
 	private final KvStateRegistry kvStateRegistry;
 
 	private final IOManager.IOMode defaultIOMode;
@@ -73,18 +73,25 @@ public class NetworkEnvironment {
 
 	private final int partitionRequestMaxBackoff;
 
+	/** Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel). */
+	private final int networkBuffersPerChannel;
+	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	private final int extraNetworkBuffersPerGate;
+
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
-		NetworkBufferPool networkBufferPool,
-		ConnectionManager connectionManager,
-		ResultPartitionManager resultPartitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		KvStateRegistry kvStateRegistry,
-		KvStateServer kvStateServer,
-		IOMode defaultIOMode,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff) {
+			NetworkBufferPool networkBufferPool,
+			ConnectionManager connectionManager,
+			ResultPartitionManager resultPartitionManager,
+			TaskEventDispatcher taskEventDispatcher,
+			KvStateRegistry kvStateRegistry,
+			KvStateServer kvStateServer,
+			IOMode defaultIOMode,
+			int partitionRequestInitialBackoff,
+			int partitionRequestMaxBackoff,
+			int networkBuffersPerChannel,
+			int extraNetworkBuffersPerGate) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -100,6 +107,8 @@ public class NetworkEnvironment {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 
 		isShutdown = false;
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -158,8 +167,6 @@ public class NetworkEnvironment {
 			throw new IllegalStateException("Unequal number of writers and partitions.");
 		}
 
-		ResultPartitionConsumableNotifier jobManagerNotifier;
-
 		synchronized (lock) {
 			if (isShutdown) {
 				throw new IllegalStateException("NetworkEnvironment is shut down");
@@ -173,7 +180,11 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(), false);
+					int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
+						partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
+							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
+							maxNumberOfMemorySegments);
 					partition.registerBufferPool(bufferPool);
 
 					resultPartitionManager.registerResultPartition(partition);
@@ -200,7 +211,11 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(), false);
+					int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+						gate.getNumberOfInputChannels() * networkBuffersPerChannel +
+							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+						maxNumberOfMemorySegments);
 					gate.setBufferPool(bufferPool);
 				} catch (Throwable t) {
 					if (bufferPool != null) {
@@ -272,7 +287,7 @@ public class NetworkEnvironment {
 
 			try {
 				LOG.debug("Starting network connection manager");
-				connectionManager.start(resultPartitionManager, taskEventDispatcher, networkBufferPool);
+				connectionManager.start(resultPartitionManager, taskEventDispatcher);
 			}
 			catch (IOException t) {
 				throw new IOException("Failed to instantiate network connection manager.", t);

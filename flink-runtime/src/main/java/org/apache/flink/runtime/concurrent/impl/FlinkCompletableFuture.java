@@ -20,7 +20,6 @@ package org.apache.flink.runtime.concurrent.impl;
 
 import akka.dispatch.Futures;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.util.Preconditions;
 import scala.concurrent.Promise;
 import scala.concurrent.Promise$;
 
@@ -63,10 +62,12 @@ public class FlinkCompletableFuture<T> extends FlinkFuture<T> implements Complet
 
 	@Override
 	public boolean completeExceptionally(Throwable t) {
-		Preconditions.checkNotNull(t);
-
 		try {
-			promise.failure(t);
+			if (t == null) {
+				promise.failure(new NullPointerException("Throwable was null."));
+			} else {
+				promise.failure(t);
+			}
 
 			return true;
 		} catch (IllegalStateException e) {

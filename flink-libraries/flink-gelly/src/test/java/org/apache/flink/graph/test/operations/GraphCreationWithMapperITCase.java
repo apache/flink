@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,19 +27,24 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.List;
+
+/**
+ * Test graph creation with a mapper.
+ */
 @RunWith(Parameterized.class)
 public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 
-	public GraphCreationWithMapperITCase(TestExecutionMode mode){
+	public GraphCreationWithMapperITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-    private String expectedResult;
-
+	private String expectedResult;
 
 	@Test
 	public void testWithDoubleValueMapper() throws Exception {
@@ -50,17 +53,17 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 	     */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
-				new AssignDoubleValueMapper(), env);
+			new AssignDoubleValueMapper(), env);
 
-        DataSet<Vertex<Long,Double>> data = graph.getVertices();
-        List<Vertex<Long,Double>> result= data.collect();
-		
+		DataSet<Vertex<Long, Double>> data = graph.getVertices();
+		List<Vertex<Long, Double>> result = data.collect();
+
 		expectedResult = "1,0.1\n" +
-				"2,0.1\n" +
-				"3,0.1\n" +
-				"4,0.1\n" +
-				"5,0.1\n";
-		
+			"2,0.1\n" +
+			"3,0.1\n" +
+			"4,0.1\n" +
+			"5,0.1\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -71,39 +74,39 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Tuple2<Long, Long>, Long> graph = Graph.fromDataSet(
-				TestGraphUtils.getLongLongEdgeData(env), new AssignTuple2ValueMapper(), env);
+			TestGraphUtils.getLongLongEdgeData(env), new AssignTuple2ValueMapper(), env);
 
-        DataSet<Vertex<Long, Tuple2<Long, Long>>> data = graph.getVertices();
-        List<Vertex<Long, Tuple2<Long, Long>>> result= data.collect();
-        
+		DataSet<Vertex<Long, Tuple2<Long, Long>>> data = graph.getVertices();
+		List<Vertex<Long, Tuple2<Long, Long>>> result = data.collect();
+
 		expectedResult = "1,(2,42)\n" +
-				"2,(4,42)\n" +
-				"3,(6,42)\n" +
-				"4,(8,42)\n" +
-				"5,(10,42)\n";
-		
+			"2,(4,42)\n" +
+			"3,(6,42)\n" +
+			"4,(8,42)\n" +
+			"5,(10,42)\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testWithConstantValueMapper() throws Exception {
-	/*
-	 * Test create() with edge dataset with String key type
-	 * and a mapper that assigns a double constant as value
-	 */
-	final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-	Graph<String, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getStringLongEdgeData(env),
+		/*
+		 * Test create() with edge dataset with String key type
+		 * and a mapper that assigns a double constant as value
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<String, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getStringLongEdgeData(env),
 			new AssignDoubleConstantMapper(), env);
 
-    DataSet<Vertex<String,Double>> data = graph.getVertices();
-    List<Vertex<String,Double>> result= data.collect();
-    
-	expectedResult = "1,0.1\n" +
+		DataSet<Vertex<String, Double>> data = graph.getVertices();
+		List<Vertex<String, Double>> result = data.collect();
+
+		expectedResult = "1,0.1\n" +
 			"2,0.1\n" +
 			"3,0.1\n" +
 			"4,0.1\n" +
 			"5,0.1\n";
-	
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -114,17 +117,17 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, DummyCustomType, Long> graph = Graph.fromDataSet(
-				TestGraphUtils.getLongLongEdgeData(env), new AssignCustomValueMapper(), env);
+			TestGraphUtils.getLongLongEdgeData(env), new AssignCustomValueMapper(), env);
 
-	    DataSet<Vertex<Long,DummyCustomType>> data = graph.getVertices();
-	    List<Vertex<Long,DummyCustomType>> result= data.collect();
-	    
+		DataSet<Vertex<Long, DummyCustomType>> data = graph.getVertices();
+		List<Vertex<Long, DummyCustomType>> result = data.collect();
+
 		expectedResult = "1,(F,0)\n" +
-				"2,(F,1)\n" +
-				"3,(F,2)\n" +
-				"4,(F,3)\n" +
-				"5,(F,4)\n";
-		
+			"2,(F,1)\n" +
+			"3,(F,2)\n" +
+			"4,(F,3)\n" +
+			"5,(F,4)\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -138,7 +141,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class AssignTuple2ValueMapper implements MapFunction<Long, Tuple2<Long, Long>> {
 		public Tuple2<Long, Long> map(Long vertexId) {
-			return new Tuple2<>(vertexId*2, 42L);
+			return new Tuple2<>(vertexId * 2, 42L);
 		}
 	}
 
@@ -152,7 +155,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class AssignCustomValueMapper implements MapFunction<Long, DummyCustomType> {
 		public DummyCustomType map(Long vertexId) {
-			return new DummyCustomType(vertexId.intValue()-1, false);
+			return new DummyCustomType(vertexId.intValue() - 1, false);
 		}
 	}
 }

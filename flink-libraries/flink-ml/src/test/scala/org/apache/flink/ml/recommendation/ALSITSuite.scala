@@ -25,10 +25,7 @@ import scala.language.postfixOps
 
 import org.apache.flink.api.scala._
 
-class ALSITSuite
-  extends FlatSpec
-  with Matchers
-  with FlinkTestBase {
+class ALSITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   override val parallelism = 2
 
@@ -45,21 +42,21 @@ class ALSITSuite
       .setBlocks(4)
       .setNumFactors(numFactors)
 
-    val inputDS = env.fromCollection(data)
+    val inputDS = env.fromCollection(dataLong)
 
     als.fit(inputDS)
 
-    val testData = env.fromCollection(expectedResult.map{
+    val testData = env.fromCollection(expectedResultLong.map {
       case (userID, itemID, rating) => (userID, itemID)
     })
 
     val predictions = als.predict(testData).collect()
 
-    predictions.length should equal(expectedResult.length)
+    predictions.length should equal(expectedResultLong.length)
 
-    val resultMap = expectedResult map {
+    val resultMap = expectedResultLong.map {
       case (uID, iID, value) => (uID, iID) -> value
-    } toMap
+    }.toMap
 
     predictions foreach {
       case (uID, iID, value) => {
@@ -70,6 +67,49 @@ class ALSITSuite
     }
 
     val risk = als.empiricalRisk(inputDS).collect().head
+
+    risk should be(expectedEmpiricalRisk +- 1)
+  }
+
+  it should "properly factorize a matrix (integer indices)" in {
+    import Recommendation._
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val als = ALS()
+      .setIterations(iterations)
+      .setLambda(lambda)
+      .setBlocks(4)
+      .setNumFactors(numFactors)
+
+    val inputDS = env.fromCollection(data)
+
+    als.fit(inputDS)
+
+
+    val testData = env.fromCollection(expectedResult.map {
+     case (userID, itemID, rating) => (userID, itemID)
+   })
+
+    val predictions = als.predict(testData).collect()
+
+    predictions.length should equal(expectedResult.length)
+
+    val resultMap = expectedResultLong.map {
+      case (uID, iID, value) => (uID, iID) -> value
+    }.toMap
+
+    predictions foreach {
+      case (uID, iID, value) => {
+        resultMap.isDefinedAt((uID, iID)) should be(true)
+
+        value should be(resultMap((uID, iID)) +- 0.1)
+      }
+    }
+
+    val risk = als.empiricalRisk(
+        inputDS.map( x => (x._1.toLong, x._2.toLong, x._3)))
+      .collect().head
 
     risk should be(expectedEmpiricalRisk +- 1)
   }

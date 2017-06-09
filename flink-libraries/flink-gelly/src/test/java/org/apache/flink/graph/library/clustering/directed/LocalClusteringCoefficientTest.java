@@ -18,22 +18,25 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link LocalClusteringCoefficient}.
+ */
 public class LocalClusteringCoefficientTest
 extends AsmTestBase {
 
@@ -41,12 +44,12 @@ extends AsmTestBase {
 	public void testSimpleGraph()
 			throws Exception {
 		String expectedResult =
-			"(0,(2,1))\n" +
-			"(1,(3,2))\n" +
-			"(2,(3,2))\n" +
-			"(3,(4,1))\n" +
-			"(4,(1,0))\n" +
-			"(5,(1,0))";
+			"(0,2,1)\n" +
+			"(1,3,2)\n" +
+			"(2,3,2)\n" +
+			"(3,4,1)\n" +
+			"(4,1,0)\n" +
+			"(5,1,0)";
 
 		DataSet<Result<IntValue>> cc = directedSimpleGraph
 			.run(new LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
@@ -58,7 +61,7 @@ extends AsmTestBase {
 	public void testCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedTriangleCount = 2 * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedTriangleCount = 2 * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 
 		DataSet<Result<LongValue>> cc = completeGraph
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
@@ -76,8 +79,12 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>()));
+		DataSet<Result<LongValue>> cc = directedRMatGraph(10, 16)
+			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+
+		Checksum checksum = new org.apache.flink.graph.asm.dataset.ChecksumHashCode<Result<LongValue>>()
+			.run(cc)
+			.execute();
 
 		assertEquals(902, checksum.getCount());
 		assertEquals(0x000001bf83866775L, checksum.getChecksum());

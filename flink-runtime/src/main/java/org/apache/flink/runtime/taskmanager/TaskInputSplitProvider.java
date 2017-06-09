@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -63,35 +64,45 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	}
 
 	@Override
-	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) {
+	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) throws InputSplitProviderException {
 		Preconditions.checkNotNull(userCodeClassLoader);
 
+		final Future<Object> response = jobManager.ask(
+			new JobManagerMessages.RequestNextInputSplit(jobID, vertexID, executionID),
+			timeout);
+
+		final Object result;
+
 		try {
-			final Future<Object> response = jobManager.ask(
-					new JobManagerMessages.RequestNextInputSplit(jobID, vertexID, executionID),
-					timeout);
-
-			final Object result = Await.result(response, timeout);
-
-			if(result instanceof JobManagerMessages.NextInputSplit){
-				final JobManagerMessages.NextInputSplit nextInputSplit =
-					(JobManagerMessages.NextInputSplit) result;
-
-				byte[] serializedData = nextInputSplit.splitData();
-
-				if(serializedData == null) {
-					return null;
-				} else {
-					Object deserialized = InstantiationUtil.deserializeObject(serializedData,
-						userCodeClassLoader);
-					return (InputSplit) deserialized;
-				}
-			} else {
-				throw new Exception("RequestNextInputSplit requires a response of type " +
-					"NextInputSplit. Instead response is of type " + result.getClass() + '.');
-			}
+			result = Await.result(response, timeout);
 		} catch (Exception e) {
-			throw new RuntimeException("Requesting the next InputSplit failed.", e);
+			throw new InputSplitProviderException("Did not receive next input split from JobManager.", e);
 		}
+
+		if(result instanceof JobManagerMessages.NextInputSplit){
+			final JobManagerMessages.NextInputSplit nextInputSplit =
+				(JobManagerMessages.NextInputSplit) result;
+
+			byte[] serializedData = nextInputSplit.splitData();
+
+			if(serializedData == null) {
+				return null;
+			} else {
+				final Object deserialized;
+
+				try {
+					deserialized = InstantiationUtil.deserializeObject(serializedData,
+						userCodeClassLoader);
+				} catch (Exception e) {
+					throw new InputSplitProviderException("Could not deserialize the serialized input split.", e);
+				}
+
+				return (InputSplit) deserialized;
+			}
+		} else {
+			throw new InputSplitProviderException("RequestNextInputSplit requires a response of type " +
+				"NextInputSplit. Instead response is of type " + result.getClass() + '.');
+		}
+
 	}
 }

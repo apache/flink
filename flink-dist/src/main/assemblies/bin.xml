@@ -33,13 +33,13 @@ under the License.
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
 			<unpack>false</unpack>
-			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useProjectArtifact>false</useProjectArtifact>
 			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.apache.flink:flink-python_2.10</include>
+				<include>org.apache.flink:flink-python_${scala.binary.version}</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
 			</includes>
@@ -47,13 +47,22 @@ under the License.
 	</dependencySets>
 
 	<files>
-		<!-- copy fat jar -->
+		<!-- copy flink-dist fat jar -->
 		<file>
-			<source>target/flink-dist_2.10-${project.version}.jar</source>
+			<source>target/flink-dist_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- copy the Hadoop uber jar -->
+		<file>
+			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-shaded-hadoop2-uber-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy the config file -->
 		<file>
 			<source>src/main/resources/flink-conf.yaml</source>
 			<outputDirectory>conf</outputDirectory>
@@ -79,6 +88,12 @@ under the License.
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+		<!-- copy Mesos start scripts -->
+		<fileSet>
+			<directory>src/main/flink-bin/mesos-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
@@ -167,12 +182,36 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy jar files of the gelly examples -->
+		<fileSet>
+			<directory>../flink-libraries/flink-gelly-examples/target</directory>
+			<outputDirectory>examples/gelly</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+				<exclude>*-tests.jar</exclude>
+			</excludes>
+		</fileSet>
+
 		<!-- copy python package -->
 		<fileSet>
 			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api</directory>
 			<outputDirectory>resources/python</outputDirectory>
 			<fileMode>0755</fileMode>
+			<excludes>
+				<exclude>**/example/**</exclude>
+			</excludes>
 		</fileSet>
+		<!-- copy python example to examples of dist -->
+		<fileSet>
+			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api/flink/example</directory>
+			<outputDirectory>examples/python</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 	</fileSets>
 
 </assembly>

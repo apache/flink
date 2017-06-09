@@ -18,8 +18,10 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Delayed;
@@ -48,14 +50,13 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	/** The containing task that owns this time service provider. */
 	private final AsyncExceptionHandler task;
 
-	/** The lock that timers acquire upon triggering */
+	/** The lock that timers acquire upon triggering. */
 	private final Object checkpointLock;
 
-	/** The executor service that schedules and calls the triggers of this task*/
+	/** The executor service that schedules and calls the triggers of this task. */
 	private final ScheduledThreadPoolExecutor timerService;
 
 	private final AtomicInteger status;
-
 
 	public SystemProcessingTimeService(AsyncExceptionHandler failureHandler, Object checkpointLock) {
 		this(failureHandler, checkpointLock, null);
@@ -90,6 +91,15 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		return System.currentTimeMillis();
 	}
 
+	/**
+	 * Registers a task to be executed no sooner than time {@code timestamp}, but without strong
+	 * guarantees of order.
+	 *
+	 * @param timestamp Time when the task is to be enabled (in processing time)
+	 * @param target    The task to be executed
+	 * @return The future that represents the scheduled task. This always returns some future,
+	 *         even if the timer was shut down
+	 */
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
 		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0);
@@ -104,6 +114,33 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 			final int status = this.status.get();
 			if (status == STATUS_QUIESCED) {
 				return new NeverCompleteFuture(delay);
+			}
+			else if (status == STATUS_SHUTDOWN) {
+				throw new IllegalStateException("Timer service is shut down");
+			}
+			else {
+				// something else happened, so propagate the exception
+				throw e;
+			}
+		}
+	}
+
+	@Override
+	public ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period) {
+		long nextTimestamp = getCurrentProcessingTime() + initialDelay;
+
+		// we directly try to register the timer and only react to the status on exception
+		// that way we save unnecessary volatile accesses for each timer
+		try {
+			return timerService.scheduleAtFixedRate(
+				new RepeatedTriggerTask(task, checkpointLock, callback, nextTimestamp, period),
+				initialDelay,
+				period,
+				TimeUnit.MILLISECONDS);
+		} catch (RejectedExecutionException e) {
+			final int status = this.status.get();
+			if (status == STATUS_QUIESCED) {
+				return new NeverCompleteFuture(initialDelay);
 			}
 			else if (status == STATUS_SHUTDOWN) {
 				throw new IllegalStateException("Timer service is shut down");
@@ -132,9 +169,8 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 	@Override
 	public void shutdownService() {
-		if (status.compareAndSet(STATUS_ALIVE, STATUS_SHUTDOWN) || 
-				status.compareAndSet(STATUS_QUIESCED, STATUS_SHUTDOWN))
-		{
+		if (status.compareAndSet(STATUS_ALIVE, STATUS_SHUTDOWN) ||
+				status.compareAndSet(STATUS_QUIESCED, STATUS_SHUTDOWN)) {
 			timerService.shutdownNow();
 		}
 	}
@@ -188,6 +224,46 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		}
 	}
 
+	/**
+	 * Internal task which is repeatedly called by the processing time service.
+	 */
+	private static final class RepeatedTriggerTask implements Runnable {
+		private final Object lock;
+		private final ProcessingTimeCallback target;
+		private final long period;
+		private final AsyncExceptionHandler exceptionHandler;
+
+		private long nextTimestamp;
+
+		private RepeatedTriggerTask(
+				AsyncExceptionHandler exceptionHandler,
+				Object lock,
+				ProcessingTimeCallback target,
+				long nextTimestamp,
+				long period) {
+			this.lock = Preconditions.checkNotNull(lock);
+			this.target = Preconditions.checkNotNull(target);
+			this.period = period;
+			this.exceptionHandler = Preconditions.checkNotNull(exceptionHandler);
+
+			this.nextTimestamp = nextTimestamp;
+		}
+
+		@Override
+		public void run() {
+			try {
+				synchronized (lock) {
+					target.onProcessingTime(nextTimestamp);
+				}
+
+				nextTimestamp += period;
+			} catch (Throwable t) {
+				TimerException asyncException = new TimerException(t);
+				exceptionHandler.handleAsyncException("Caught exception while processing repeated timer task.", asyncException);
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static final class NeverCompleteFuture implements ScheduledFuture<Object> {
@@ -197,7 +273,6 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		private final long delayMillis;
 
 		private volatile boolean canceled;
-
 
 		private NeverCompleteFuture(long delayMillis) {
 			this.delayMillis = delayMillis;

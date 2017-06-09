@@ -1,7 +1,7 @@
 ---
-title:  "Monitoring REST API"
+title: "Monitoring REST API"
 nav-parent_id: monitoring
-nav-pos: 3
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -36,8 +36,6 @@ The monitoring API is a REST-ful API that accepts HTTP GET requests and responds
 The monitoring API is backed by a web server that runs as part of the *JobManager*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `jobmanager.web.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
 
 In the case of multiple JobManagers (for high availability), each JobManager will run its own instance of the monitoring API, which offers information about completed and running job while that JobManager was elected the cluster leader.
-
-**NOTE:** Currently, the monitoring API is started together with the new web dashboard. To enable it, one need to add the following entry to the `flink-conf.yaml` in order to activate the new dashboard instead of the old dashboard: `jobmanager.new-web-frontend: true`
 
 
 ## Developing
@@ -662,6 +660,19 @@ The `savepointPath` points to the external path of the savepoint, which can be u
 
 It is possible to upload, run, and list Flink programs via the REST APIs and web frontend.
 
+#### Upload a new JAR file
+
+Send a `POST` request to `/jars/upload` with your jar file sent as multi-part data under the `jarfile` file.
+Also make sure that the multi-part data includes the `Content-Type` of the file itself, some http libraries do not add the header by default.
+
+The multi-part payload should start like
+
+```
+------BoundaryXXXX
+Content-Disposition: form-data; name="jarfile"; filename="YourFileName.jar"
+Content-Type: application/x-java-archive
+```
+
 #### Run a Program (POST)
 
 Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `jobmanager.web.upload.dir`).
@@ -679,12 +690,13 @@ If the call succeeds, you will get a response with the ID of the submitted job.
 **Example:** Run program with a savepoint
 
 Request:
+
 ~~~
 POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&allowNonRestoredState=true
 ~~~
 
 Response:
+
 ~~~
 {"jobid": "869a9868d49c679e7355700e0857af85"}
 ~~~
-

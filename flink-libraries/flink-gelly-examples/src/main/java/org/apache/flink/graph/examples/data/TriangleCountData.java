@@ -33,7 +33,15 @@ import java.util.List;
  */
 public class TriangleCountData {
 
-	public static final String EDGES = "1	2\n"+"1	3\n"+"2	3\n"+"2	6\n"+"3	4\n"+"3	5\n"+"3	6\n"+"4	5\n"+"6	7\n";
+	public static final String EDGES = "1	2\n" +
+		"1	3\n" +
+		"2	3\n" +
+		"2	6\n" +
+		"3	4\n" +
+		"3	5\n" +
+		"3	6\n" +
+		"4	5\n" +
+		"6	7\n";
 
 	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
@@ -53,11 +61,11 @@ public class TriangleCountData {
 
 	public static final String RESULTED_NUMBER_OF_TRIANGLES = "3";
 
-	public static List<Tuple3<Long,Long,Long>> getListOfTriangles()	{
-		ArrayList<Tuple3<Long,Long,Long>> ret = new ArrayList<>(3);
-		ret.add(new Tuple3<>(1L,2L,3L));
-		ret.add(new Tuple3<>(2L,3L,6L));
-		ret.add(new Tuple3<>(4L,3L,5L));
+	public static List<Tuple3<Long, Long, Long>> getListOfTriangles()	{
+		ArrayList<Tuple3<Long, Long, Long>> ret = new ArrayList<>(3);
+		ret.add(new Tuple3<>(1L, 2L, 3L));
+		ret.add(new Tuple3<>(2L, 3L, 6L));
+		ret.add(new Tuple3<>(4L, 3L, 5L));
 		return ret;
 	}
 

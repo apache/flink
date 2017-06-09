@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.task.TopologyContext;
+import org.apache.storm.task.TopologyContext;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;

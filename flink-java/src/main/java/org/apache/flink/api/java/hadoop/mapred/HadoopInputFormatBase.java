@@ -190,10 +190,12 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 	@Override
 	public void close() throws IOException {
+		if (this.recordReader != null) {
 
-		// enforce sequential close() calls
-		synchronized (CLOSE_MUTEX) {
-			this.recordReader.close();
+			// enforce sequential close() calls
+			synchronized (CLOSE_MUTEX) {
+				this.recordReader.close();
+			}
 		}
 	}
 	

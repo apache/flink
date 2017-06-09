@@ -20,17 +20,18 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -56,8 +57,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(DelimitedInputFormat.class);
 
-	/** The default charset  to convert strings to bytes */
-	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
+	// The charset used to convert strings to bytes
+	private String charsetName = "UTF-8";
+
+	// Charset is not serializable
+	private transient Charset charset;
 
 	/**
 	 * The default read buffer size = 1MB.
@@ -85,7 +89,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private static int MAX_SAMPLE_LEN;
 
 	/**
-	 * @Deprecated Please use {@code loadConfigParameters(Configuration config}
+	 * @deprecated Please use {@code loadConfigParameters(Configuration config}
 	 */
 	@Deprecated
 	protected static void loadGlobalConfigParams() {
@@ -157,9 +161,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
 	// --------------------------------------------------------------------------------------------
-	
+
+	// The delimiter may be set with a byte-sequence or a String. In the latter
+	// case the byte representation is updated consistent with current charset.
 	private byte[] delimiter = new byte[] {'\n'};
-	
+	private String delimiterString = null;
+
 	private int lineLengthLimit = Integer.MAX_VALUE;
 	
 	private int bufferSize = -1;
@@ -182,8 +189,42 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 		loadConfigParameters(configuration);
 	}
-	
-	
+
+	/**
+	 * Get the character set used for the row delimiter. This is also used by
+	 * subclasses to interpret field delimiters, comment strings, and for
+	 * configuring {@link FieldParser}s.
+	 *
+	 * @return the charset
+	 */
+	@PublicEvolving
+	public Charset getCharset() {
+		if (this.charset == null) {
+			this.charset = Charset.forName(charsetName);
+		}
+		return this.charset;
+	}
+
+	/**
+	 * Set the name of the character set used for the row delimiter. This is
+	 * also used by subclasses to interpret field delimiters, comment strings,
+	 * and for configuring {@link FieldParser}s.
+	 *
+	 * These fields are interpreted when set. Changing the charset thereafter
+	 * may cause unexpected results.
+	 *
+	 * @param charset name of the charset
+	 */
+	@PublicEvolving
+	public void setCharset(String charset) {
+		this.charsetName = Preconditions.checkNotNull(charset);
+		this.charset = null;
+
+		if (this.delimiterString != null) {
+			this.delimiter = delimiterString.getBytes(getCharset());
+		}
+	}
+
 	public byte[] getDelimiter() {
 		return delimiter;
 	}
@@ -193,6 +234,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
 		this.delimiter = delimiter;
+		this.delimiterString = null;
 	}
 
 	public void setDelimiter(char delimiter) {
@@ -203,7 +245,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
-		this.delimiter = delimiter.getBytes(UTF_8_CHARSET);
+		this.delimiter = delimiter.getBytes(getCharset());
+		this.delimiterString = delimiter;
 	}
 	
 	public int getLineLengthLimit() {
@@ -264,7 +307,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Configures this input format by reading the path to the file from the configuration andge the string that
+	 * Configures this input format by reading the path to the file from the configuration and the string that
 	 * defines the record delimiter.
 	 * 
 	 * @param parameters The configuration object to read the parameters from.
@@ -407,7 +450,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 		catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
+				LOG.error("Unexpected problem while getting the file statistics for file '" + this.filePath + "': "
 						+ t.getMessage(), t);
 			}
 		} finally {
@@ -524,17 +567,24 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			int startPos = this.readPos;
 			int count;
 
+			// Search for next occurence of delimiter in read buffer.
 			while (this.readPos < this.limit && i < this.delimiter.length) {
-				if ((this.readBuffer[this.readPos++]) == this.delimiter[i]) {
+				if ((this.readBuffer[this.readPos]) == this.delimiter[i]) {
+					// Found the expected delimiter character. Continue looking for the next character of delimiter.
 					i++;
 				} else {
+					// Delimiter does not match.
+					// We have to reset the read position to the character after the first matching character
+					//   and search for the whole delimiter again.
+					readPos -= i;
 					i = 0;
 				}
+				readPos++;
 			}
 
 			// check why we dropped out
 			if (i == this.delimiter.length) {
-				// line end
+				// delimiter found
 				int totalBytesRead = this.readPos - startPos;
 				this.offset += countInWrapBuffer + totalBytesRead;
 				count = totalBytesRead - this.delimiter.length;

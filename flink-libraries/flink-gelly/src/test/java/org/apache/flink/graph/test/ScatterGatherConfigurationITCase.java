@@ -35,6 +35,7 @@ import org.apache.flink.graph.spargel.ScatterGatherIteration;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,14 +44,17 @@ import org.junit.runners.Parameterized;
 import java.util.HashSet;
 import java.util.List;
 
+/**
+ * Tests for {@link ScatterGatherConfiguration}.
+ */
 @RunWith(Parameterized.class)
 public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
-	public ScatterGatherConfigurationITCase(TestExecutionMode mode){
+	public ScatterGatherConfigurationITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-    private String expectedResult;
+	private String expectedResult;
 
 	@Test
 	public void testRunWithConfiguration() throws Exception {
@@ -60,7 +64,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
+			TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
 		// create the configuration object
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -71,31 +75,30 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setOptNumVertices(true);
 
 		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
-				new MessageFunction(), new UpdateFunction(), 10, parameters);
+			new MessageFunction(), new UpdateFunction(), 10, parameters);
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-		List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+		List<Vertex<Long, Long>> result = data.collect();
 
 		expectedResult = "1,11\n" +
-						"2,11\n" +
-						"3,11\n" +
-						"4,11\n" +
-						"5,11";
+			"2,11\n" +
+			"3,11\n" +
+			"4,11\n" +
+			"5,11";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testIterationConfiguration() throws Exception {
-
 		/*
 		 * Test name, parallelism and solutionSetUnmanaged parameters
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		ScatterGatherIteration<Long, Long, Long, Long> iteration = ScatterGatherIteration
-				.withEdges(TestGraphUtils.getLongLongEdgeData(env), new DummyMessageFunction(),
-						new DummyUpdateFunction(), 10);
+			.withEdges(TestGraphUtils.getLongLongEdgeData(env), new DummyMessageFunction(),
+				new DummyUpdateFunction(), 10);
 
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 		parameters.setName("gelly iteration");
@@ -109,13 +112,13 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		Assert.assertEquals(true, iteration.getIterationConfiguration().isSolutionSetUnmanagedMemory());
 
 		DataSet<Vertex<Long, Long>> data = TestGraphUtils.getLongLongVertexData(env).runOperation(iteration);
-        List<Vertex<Long,Long>> result= data.collect();
+		List<Vertex<Long, Long>> result = data.collect();
 
 		expectedResult = "1,11\n" +
-						"2,12\n" +
-						"3,13\n" +
-						"4,14\n" +
-						"5,15";
+			"2,12\n" +
+			"3,13\n" +
+			"4,14\n" +
+			"5,15";
 
 		compareResultAsTuples(result, expectedResult);
 	}
@@ -129,27 +132,25 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
+			TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
 		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
-				new MessageFunctionDefault(), new UpdateFunctionDefault(), 5);
-
+			new MessageFunctionDefault(), new UpdateFunctionDefault(), 5);
 
 		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<Long, Long>());
-		List<Tuple2<Long, Long>> result= data.collect();
+		List<Tuple2<Long, Long>> result = data.collect();
 
 		expectedResult = "1,6\n" +
-						"2,6\n" +
-						"3,6\n" +
-						"4,6\n" +
-						"5,6";
+			"2,6\n" +
+			"3,6\n" +
+			"4,6\n" +
+			"5,6";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testIterationDefaultDirection() throws Exception {
-
 		/*
 		 * Test that if no direction parameter is given, the iteration works as before
 		 * (i.e. it collects messages from the in-neighbors and sends them to the out-neighbors)
@@ -157,27 +158,26 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph
-				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
-				.mapVertices(new InitialiseHashSetMapper());
+			.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+			.mapVertices(new InitialiseHashSetMapper());
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runScatterGatherIteration(new IdMessengerTrg(), new VertexUpdateDirection(), 5)
-				.getVertices();
+			.runScatterGatherIteration(new IdMessengerTrg(), new VertexUpdateDirection(), 5)
+			.getVertices();
 
-        List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[5]\n" +
-				"2,[1]\n" +
-				"3,[1, 2]\n" +
-				"4,[3]\n" +
-				"5,[3, 4]";
+			"2,[1]\n" +
+			"3,[1, 2]\n" +
+			"4,[3]\n" +
+			"5,[3, 4]";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testIterationINDirection() throws Exception {
-
 		/*
 		 * Test that if the direction parameter is set to IN,
 		 * messages are collected from the out-neighbors and sent to the in-neighbors.
@@ -185,8 +185,8 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph
-				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
-				.mapVertices(new InitialiseHashSetMapper());
+			.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+			.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -194,23 +194,22 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setDirection(EdgeDirection.IN);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runScatterGatherIteration(new IdMessengerSrc(), new VertexUpdateDirection(), 5, parameters)
-				.getVertices();
+			.runScatterGatherIteration(new IdMessengerSrc(), new VertexUpdateDirection(), 5, parameters)
+			.getVertices();
 
-        List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[2, 3]\n" +
-				"2,[3]\n" +
-				"3,[4, 5]\n" +
-				"4,[5]\n" +
-				"5,[1]";
+			"2,[3]\n" +
+			"3,[4, 5]\n" +
+			"4,[5]\n" +
+			"5,[1]";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testIterationALLDirection() throws Exception {
-
 		/*
 		 * Test that if the direction parameter is set to ALL,
 		 * messages are collected from all the neighbors and sent to all the neighbors.
@@ -218,8 +217,8 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph
-				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
-				.mapVertices(new InitialiseHashSetMapper());
+			.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+			.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -227,23 +226,22 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setDirection(EdgeDirection.ALL);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runScatterGatherIteration(new IdMessengerAll(), new VertexUpdateDirection(), 5, parameters)
-				.getVertices();
+			.runScatterGatherIteration(new IdMessengerAll(), new VertexUpdateDirection(), 5, parameters)
+			.getVertices();
 
-		List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[2, 3, 5]\n" +
-				"2,[1, 3]\n" +
-				"3,[1, 2, 4, 5]\n" +
-				"4,[3, 5]\n" +
-				"5,[1, 3, 4]";
+			"2,[1, 3]\n" +
+			"3,[1, 2, 4, 5]\n" +
+			"4,[3, 5]\n" +
+			"5,[1, 3, 4]";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testSendToAllDirectionIN() throws Exception {
-
 		/*
 		 * Test that sendMessageToAllNeighbors() works correctly
 		 * when the direction is set to IN
@@ -251,8 +249,8 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph
-				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
-				.mapVertices(new InitialiseHashSetMapper());
+			.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+			.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -260,23 +258,22 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setDirection(EdgeDirection.IN);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runScatterGatherIteration(new SendMsgToAll(), new VertexUpdateDirection(), 5, parameters)
-				.getVertices();
+			.runScatterGatherIteration(new SendMsgToAll(), new VertexUpdateDirection(), 5, parameters)
+			.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[2, 3]\n" +
-				"2,[3]\n" +
-				"3,[4, 5]\n" +
-				"4,[5]\n" +
-				"5,[1]";
+			"2,[3]\n" +
+			"3,[4, 5]\n" +
+			"4,[5]\n" +
+			"5,[1]";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testSendToAllDirectionOUT() throws Exception {
-
 		/*
 		 * Test that sendMessageToAllNeighbors() works correctly
 		 * when the direction is set to OUT
@@ -284,8 +281,8 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph
-				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
-				.mapVertices(new InitialiseHashSetMapper());
+			.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+			.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -293,23 +290,22 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setDirection(EdgeDirection.OUT);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runScatterGatherIteration(new SendMsgToAll(), new VertexUpdateDirection(), 5, parameters)
-				.getVertices();
+			.runScatterGatherIteration(new SendMsgToAll(), new VertexUpdateDirection(), 5, parameters)
+			.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[5]\n" +
-				"2,[1]\n" +
-				"3,[1, 2]\n" +
-				"4,[3]\n" +
-				"5,[3, 4]";
+			"2,[1]\n" +
+			"3,[1, 2]\n" +
+			"4,[3]\n" +
+			"5,[3, 4]";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testSendToAllDirectionALL() throws Exception {
-
 		/*
 		 * Test that sendMessageToAllNeighbors() works correctly
 		 * when the direction is set to ALL
@@ -317,8 +313,8 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph
-				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
-				.mapVertices(new InitialiseHashSetMapper());
+			.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+			.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -326,20 +322,19 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setDirection(EdgeDirection.ALL);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runScatterGatherIteration(new SendMsgToAll(), new VertexUpdateDirection(), 5, parameters)
-				.getVertices();
+			.runScatterGatherIteration(new SendMsgToAll(), new VertexUpdateDirection(), 5, parameters)
+			.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[2, 3, 5]\n" +
-				"2,[1, 3]\n" +
-				"3,[1, 2, 4, 5]\n" +
-				"4,[3, 5]\n" +
-				"5,[1, 3, 4]";
+			"2,[1, 3]\n" +
+			"3,[1, 2, 4, 5]\n" +
+			"4,[3, 5]\n" +
+			"5,[1, 3, 4]";
 
 		compareResultAsTuples(result, expectedResult);
 	}
-
 
 	@Test
 	public void testNumVerticesNotSet() throws Exception {
@@ -350,25 +345,24 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env);
+			TestGraphUtils.getLongLongEdges(), env);
 
 		DataSet<Vertex<Long, Long>> verticesWithNumVertices = graph.runScatterGatherIteration(new DummyMessageFunction(),
-				new UpdateFunctionNumVertices(), 2).getVertices();
+			new UpdateFunctionNumVertices(), 2).getVertices();
 
-		List<Vertex<Long, Long>> result= verticesWithNumVertices.collect();
+		List<Vertex<Long, Long>> result = verticesWithNumVertices.collect();
 
 		expectedResult = "1,-1\n" +
-				"2,-1\n" +
-				"3,-1\n" +
-				"4,-1\n" +
-				"5,-1";
+			"2,-1\n" +
+			"3,-1\n" +
+			"4,-1\n" +
+			"5,-1";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testInDegreesSet() throws Exception {
-
 		/*
 		 * Test that if the degrees are set, they can be accessed in every superstep
 		 * inside the update function and the value
@@ -377,7 +371,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env);
+			TestGraphUtils.getLongLongEdges(), env);
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -385,47 +379,45 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setOptDegrees(true);
 
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
-				new DegreesMessageFunction(), new UpdateFunctionInDegrees(), 5, parameters).getVertices();
+			new DegreesMessageFunction(), new UpdateFunctionInDegrees(), 5, parameters).getVertices();
 
-		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result = verticesWithDegrees.collect();
 
 		expectedResult = "1,1\n" +
-				"2,1\n" +
-				"3,2\n" +
-				"4,1\n" +
-				"5,2";
+			"2,1\n" +
+			"3,2\n" +
+			"4,1\n" +
+			"5,2";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testInDegreesNotSet() throws Exception {
-
 		/*
 		 * Test that if the degrees option is not set, then -1 is returned as a value for in-degree.
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env);
+			TestGraphUtils.getLongLongEdges(), env);
 
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
-				new DummyMessageFunction(), new UpdateFunctionInDegrees(), 2).getVertices();
+			new DummyMessageFunction(), new UpdateFunctionInDegrees(), 2).getVertices();
 
-		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result = verticesWithDegrees.collect();
 
 		expectedResult = "1,-1\n" +
-				"2,-1\n" +
-				"3,-1\n" +
-				"4,-1\n" +
-				"5,-1";
+			"2,-1\n" +
+			"3,-1\n" +
+			"4,-1\n" +
+			"5,-1";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testOutDegreesSet() throws Exception {
-
 		/*
 		 * Test that if the degrees are set, they can be accessed in every superstep
 		 * inside the update function and the value
@@ -434,7 +426,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env);
+			TestGraphUtils.getLongLongEdges(), env);
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -442,47 +434,45 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setOptDegrees(true);
 
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
-				new DegreesMessageFunction(), new UpdateFunctionOutDegrees(), 5, parameters).getVertices();
+			new DegreesMessageFunction(), new UpdateFunctionOutDegrees(), 5, parameters).getVertices();
 
-		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result = verticesWithDegrees.collect();
 
 		expectedResult = "1,2\n" +
-				"2,1\n" +
-				"3,2\n" +
-				"4,1\n" +
-				"5,1";
+			"2,1\n" +
+			"3,2\n" +
+			"4,1\n" +
+			"5,1";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testOutDegreesNotSet() throws Exception {
-
 		/*
 		 * Test that if the degrees option is not set, then -1 is returned as a value for out-degree.
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
-				TestGraphUtils.getLongLongEdges(), env);
+			TestGraphUtils.getLongLongEdges(), env);
 
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
-				new DummyMessageFunction(), new UpdateFunctionInDegrees(), 2).getVertices();
+			new DummyMessageFunction(), new UpdateFunctionOutDegrees(), 2).getVertices();
 
-		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result = verticesWithDegrees.collect();
 
 		expectedResult = "1,-1\n" +
-				"2,-1\n" +
-				"3,-1\n" +
-				"4,-1\n" +
-				"5,-1";
+			"2,-1\n" +
+			"3,-1\n" +
+			"4,-1\n" +
+			"5,-1";
 
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testDirectionALLAndDegrees() throws Exception {
-
 		/*
 		 * Compute the number of neighbors in a vertex - centric manner, and verify that it is equal to
 		 * the sum: inDegree + outDegree.
@@ -490,7 +480,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Boolean, Long> graph = Graph.fromCollection(TestGraphUtils.getLongBooleanVertices(),
-				TestGraphUtils.getLongLongEdges(), env);
+			TestGraphUtils.getLongLongEdges(), env);
 
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -499,15 +489,15 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.setDirection(EdgeDirection.ALL);
 
 		DataSet<Vertex<Long, Boolean>> verticesWithNumNeighbors = graph.runScatterGatherIteration(
-				new IdMessenger(), new VertexUpdateNumNeighbors(), 1, parameters).getVertices();
+			new IdMessenger(), new VertexUpdateNumNeighbors(), 1, parameters).getVertices();
 
-		List<Vertex<Long, Boolean>> result= verticesWithNumNeighbors.collect();
+		List<Vertex<Long, Boolean>> result = verticesWithNumNeighbors.collect();
 
 		expectedResult = "1,true\n" +
-				"2,true\n" +
-				"3,true\n" +
-				"4,true\n" +
-				"5,true";
+			"2,true\n" +
+			"3,true\n" +
+			"4,true\n" +
+			"5,true";
 
 		compareResultAsTuples(result, expectedResult);
 	}
@@ -520,7 +510,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("messagingBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("messagingBcastSet");
 			Assert.assertEquals(4, bcastSet.get(0).intValue());
 			Assert.assertEquals(5, bcastSet.get(1).intValue());
 			Assert.assertEquals(6, bcastSet.get(2).intValue());
@@ -530,7 +520,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test aggregator
 			if (getSuperstepNumber() == 2) {
-				long aggrValue = ((LongValue)getPreviousIterationAggregate("superstepAggregator")).getValue();
+				long aggrValue = ((LongValue) getPreviousIterationAggregate("superstepAggregator")).getValue();
 				Assert.assertEquals(5, aggrValue);
 			}
 		}
@@ -568,7 +558,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("updateBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("updateBcastSet");
 			Assert.assertEquals(1, bcastSet.get(0).intValue());
 			Assert.assertEquals(2, bcastSet.get(1).intValue());
 			Assert.assertEquals(3, bcastSet.get(2).intValue());
@@ -612,7 +602,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
-				setNewVertexValue(getNumberOfVertices());
+			setNewVertexValue(getNumberOfVertices());
 		}
 	}
 
@@ -642,8 +632,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 			if (vertex.getId() == 1) {
 				Assert.assertEquals(2, getOutDegree());
 				Assert.assertEquals(1, getInDegree());
-			}
-			else if(vertex.getId() == 3) {
+			} else if (vertex.getId() == 3) {
 				Assert.assertEquals(2, getOutDegree());
 				Assert.assertEquals(2, getInDegree());
 			}
@@ -659,7 +648,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		public void updateVertex(Vertex<Long, HashSet<Long>> vertex, MessageIterator<Long> messages) throws Exception {
 			vertex.getValue().clear();
 
-			for(long msg : messages) {
+			for (long msg : messages) {
 				vertex.getValue().add(msg);
 			}
 
@@ -688,15 +677,14 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class VertexUpdateNumNeighbors extends GatherFunction<Long, Boolean,
-			Long> {
+	private static final class VertexUpdateNumNeighbors extends GatherFunction<Long, Boolean, Long> {
 
 		@Override
 		public void updateVertex(Vertex<Long, Boolean> vertex, MessageIterator<Long> messages) throws Exception {
 
 			long count = 0;
 
-			for(@SuppressWarnings("unused") long msg : messages) {
+			for (@SuppressWarnings("unused") long msg : messages) {
 				count++;
 			}
 			setNewVertexValue(count == (getInDegree() + getOutDegree()));
@@ -731,7 +719,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void sendMessages(Vertex<Long, HashSet<Long>> vertex) throws Exception {
 			for (Edge<Long, Long> edge : getEdges()) {
-				if(!edge.getSource().equals(vertex.getId())) {
+				if (!edge.getSource().equals(vertex.getId())) {
 					sendMessageTo(edge.getSource(), vertex.getId());
 				} else {
 					sendMessageTo(edge.getTarget(), vertex.getId());
@@ -755,7 +743,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void sendMessages(Vertex<Long, Boolean> vertex) throws Exception {
 			for (Edge<Long, Long> edge : getEdges()) {
-				if(!edge.getSource().equals(vertex.getId())) {
+				if (!edge.getSource().equals(vertex.getId())) {
 					sendMessageTo(edge.getSource(), vertex.getId());
 				} else {
 					sendMessageTo(edge.getTarget(), vertex.getId());

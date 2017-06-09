@@ -26,12 +26,20 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * A collection of utility functions for dealing with exceptions and exception workflows.
+ */
 @Internal
 public final class ExceptionUtils {
+
+	/** The stringified representation of a null exception reference */ 
 	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
 
 	/**
@@ -59,7 +67,111 @@ public final class ExceptionUtils {
 			return e.getClass().getName() + " (error while printing stack trace)";
 		}
 	}
-	
+
+	/**
+	 * Checks whether the given exception indicates a situation that may leave the
+	 * JVM in a corrupted state, meaning a state where continued normal operation can only be
+	 * guaranteed via clean process restart.
+	 *
+	 * <p>Currently considered fatal exceptions are Virtual Machine errors indicating
+	 * that the JVM is corrupted, like {@link InternalError}, {@link UnknownError},
+	 * and {@link java.util.zip.ZipError} (a special case of InternalError).
+	 *
+	 * @param t The exception to check.
+	 * @return True, if the exception is considered fatal to the JVM, false otherwise.
+	 */
+	public static boolean isJvmFatalError(Throwable t) {
+		return (t instanceof InternalError) || (t instanceof UnknownError);
+	}
+
+	/**
+	 * Checks whether the given exception indicates a situation that may leave the
+	 * JVM in a corrupted state, or an out-of-memory error.
+	 * 
+	 * <p>See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a list of fatal JVM errors.
+	 * This method additionally classifies the {@link OutOfMemoryError} as fatal, because it
+	 * may occur in any thread (not the one that allocated the majority of the memory) and thus
+	 * is often not recoverable by destroying the particular thread that threw the exception.
+	 * 
+	 * @param t The exception to check.
+	 * @return True, if the exception is fatal to the JVM or and OutOfMemoryError, false otherwise.
+	 */
+	public static boolean isJvmFatalOrOutOfMemoryError(Throwable t) {
+		return isJvmFatalError(t) || t instanceof OutOfMemoryError;
+	}
+
+	/**
+	 * Rethrows the given {@code Throwable}, if it represents an error that is fatal to the JVM.
+	 * See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a definition of fatal errors.
+	 * 
+	 * @param t The Throwable to check and rethrow.
+	 */
+	public static void rethrowIfFatalError(Throwable t) {
+		if (isJvmFatalError(t)) {
+			throw (Error) t;
+		}
+	}
+
+	/**
+	 * Rethrows the given {@code Throwable}, if it represents an error that is fatal to the JVM
+	 * or an out-of-memory error. See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a
+	 * definition of fatal errors.
+	 *
+	 * @param t The Throwable to check and rethrow.
+	 */
+	public static void rethrowIfFatalErrorOrOOM(Throwable t) {
+		if (isJvmFatalError(t) || t instanceof OutOfMemoryError) {
+			throw (Error) t;
+		}
+	}
+
+	/**
+	 * Adds a new exception as a {@link Throwable#addSuppressed(Throwable) suppressed exception}
+	 * to a prior exception, or returns the new exception, if no prior exception exists.
+	 *
+	 * <pre>{@code
+	 *
+	 * public void closeAllThings() throws Exception {
+	 *     Exception ex = null;
+	 *     try {
+	 *         component.shutdown();
+	 *     } catch (Exception e) {
+	 *         ex = firstOrSuppressed(e, ex);
+	 *     }
+	 *     try {
+	 *         anotherComponent.stop();
+	 *     } catch (Exception e) {
+	 *         ex = firstOrSuppressed(e, ex);
+	 *     }
+	 *     try {
+	 *         lastComponent.shutdown();
+	 *     } catch (Exception e) {
+	 *         ex = firstOrSuppressed(e, ex);
+	 *     }
+	 *
+	 *     if (ex != null) {
+	 *         throw ex;
+	 *     }
+	 * }
+	 * }</pre>
+	 *
+	 * @param newException The newly occurred exception
+	 * @param previous     The previously occurred exception, possibly null.
+	 *
+	 * @return The new exception, if no previous exception exists, or the previous exception with the
+	 *         new exception in the list of suppressed exceptions.
+	 */
+	public static <T extends Throwable> T firstOrSuppressed(T newException, @Nullable T previous) {
+		checkNotNull(newException, "newException");
+
+		if (previous == null) {
+			return newException;
+		} else {
+			previous.addSuppressed(newException);
+			return previous;
+		}
+	}
+
 	/**
 	 * Throws the given {@code Throwable} in scenarios where the signatures do not allow you to
 	 * throw an arbitrary Throwable. Errors and RuntimeExceptions are thrown directly, other exceptions
@@ -96,6 +208,26 @@ public final class ExceptionUtils {
 		}
 		else {
 			throw new RuntimeException(parentMessage, t);
+		}
+	}
+
+	/**
+	 * Throws the given {@code Throwable} in scenarios where the signatures do allow to
+	 * throw a Exception. Errors and Exceptions are thrown directly, other "exotic"
+	 * subclasses of Throwable are wrapped in an Exception.
+	 *
+	 * @param t The throwable to be thrown.
+	 * @param parentMessage The message for the parent Exception, if one is needed.
+	 */
+	public static void rethrowException(Throwable t, String parentMessage) throws Exception {
+		if (t instanceof Error) {
+			throw (Error) t;
+		}
+		else if (t instanceof Exception) {
+			throw (Exception) t;
+		}
+		else {
+			throw new Exception(parentMessage, t);
 		}
 	}
 
@@ -138,14 +270,36 @@ public final class ExceptionUtils {
 			throw (Error) t;
 		}
 		else {
-			throw new IOException(t);
+			throw new IOException(t.getMessage(), t);
 		}
 	}
 
 	/**
-	 * Private constructor to prevent instantiation.
+	 * Checks whether a throwable chain contains a specific type of exception.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchType the type of exception to search for in the chain.
+	 * @return True, if the searched type is nested in the throwable, false otherwise.
 	 */
-	private ExceptionUtils() {
-		throw new RuntimeException();
+	public static boolean containsThrowable(Throwable throwable, Class<?> searchType) {
+		if (throwable == null || searchType == null) {
+			return false;
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (searchType.isAssignableFrom(t.getClass())) {
+				return true;
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return false;
 	}
+
+	// ------------------------------------------------------------------------
+
+	/** Private constructor to prevent instantiation. */
+	private ExceptionUtils() {}
 }

@@ -18,26 +18,29 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link TimestampsAndPeriodicWatermarksOperator}.
+ */
 public class TimestampsAndPeriodicWatermarksOperatorTest {
-	
+
 	@Test
 	public void testTimestampsAndPeriodicWatermarksOperator() throws Exception {
-		
-		final TimestampsAndPeriodicWatermarksOperator<Long> operator = 
+
+		final TimestampsAndPeriodicWatermarksOperator<Long> operator =
 				new TimestampsAndPeriodicWatermarksOperator<Long>(new LongExtractor());
 
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
@@ -48,20 +51,20 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		long currentTime = 0;
 
 		testHarness.open();
-		
+
 		testHarness.processElement(new StreamRecord<>(1L, 1));
 		testHarness.processElement(new StreamRecord<>(2L, 1));
 		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
 		testHarness.processElement(new StreamRecord<>(3L, 3));
 		testHarness.processElement(new StreamRecord<>(4L, 3));
-		
+
 		// validate first part of the sequence. we poll elements until our
 		// watermark updates to "3", which must be the result of the "4" element.
 		{
 			ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
 			long nextElementValue = 1L;
 			long lastWatermark = -1L;
-			
+
 			while (lastWatermark < 3) {
 				if (output.size() > 0) {
 					Object next = output.poll();
@@ -69,7 +72,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					Tuple2<Long, Long> update = validateElement(next, nextElementValue, lastWatermark);
 					nextElementValue = update.f0;
 					lastWatermark = update.f1;
-					
+
 					// check the invariant
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
@@ -77,7 +80,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					testHarness.setProcessingTime(currentTime);
 				}
 			}
-			
+
 			output.clear();
 		}
 
@@ -101,7 +104,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					Tuple2<Long, Long> update = validateElement(next, nextElementValue, lastWatermark);
 					nextElementValue = update.f0;
 					lastWatermark = update.f1;
-					
+
 					// check the invariant
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
@@ -112,7 +115,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 
 			output.clear();
 		}
-		
+
 		testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
 		assertEquals(Long.MAX_VALUE, ((Watermark) testHarness.getOutput().poll()).getTimestamp());
 	}
@@ -133,20 +136,20 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		testHarness.open();
 
 		long[] values = { Long.MIN_VALUE, -1L, 0L, 1L, 2L, 3L, Long.MAX_VALUE };
-		
+
 		for (long value : values) {
 			testHarness.processElement(new StreamRecord<>(value));
 		}
 
 		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-		
+
 		for (long value: values) {
 			assertEquals(value, ((StreamRecord<?>) output.poll()).getTimestamp());
 		}
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private Tuple2<Long, Long> validateElement(Object element, long nextElementValue, long currentWatermark) {
 		if (element instanceof StreamRecord) {
 			@SuppressWarnings("unchecked")
@@ -164,7 +167,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 			throw new IllegalArgumentException("unrecognized element: " + element);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class LongExtractor implements AssignerWithPeriodicWatermarks<Long> {

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.VisibleForTesting;
@@ -59,7 +60,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	private final PriorityQueue<InternalTimer<K, N>> eventTimeTimersQueue;
 
 	/**
-	 * Information concerning the local key-group range
+	 * Information concerning the local key-group range.
 	 */
 	private final KeyGroupsList localKeyGroupRange;
 	private final int totalKeyGroups;

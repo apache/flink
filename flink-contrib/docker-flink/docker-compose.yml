@@ -16,19 +16,22 @@
 # limitations under the License.
 ################################################################################
 
-version: "2"
+# Set the FLINK_DOCKER_IMAGE_NAME environment variable to override the image name to use
+
+version: "2.1"
 services:
   jobmanager:
-    image: flink
-    container_name: "jobmanager"
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink}
     expose:
       - "6123"
     ports:
-      - "48081:8081"
+      - "8081:8081"
     command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
 
   taskmanager:
-    image: flink
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink}
     expose:
       - "6121"
       - "6122"
@@ -37,3 +40,5 @@ services:
     command: taskmanager
     links:
       - "jobmanager:jobmanager"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager

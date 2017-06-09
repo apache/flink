@@ -16,69 +16,63 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.examples.java.graph;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.util.Collector;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
  * An implementation of the connected components algorithm, using a delta iteration.
- * 
- * <p>
- * Initially, the algorithm assigns each vertex an unique ID. In each step, a vertex picks the minimum of its own ID and its
+ *
+ * <p>Initially, the algorithm assigns each vertex an unique ID. In each step, a vertex picks the minimum of its own ID and its
  * neighbors' IDs, as its new ID and tells its neighbors about its new ID. After the algorithm has completed, all vertices in the
  * same component will have the same ID.
- * 
- * <p>
- * A vertex whose component ID did not change needs not propagate its information in the next step. Because of that,
+ *
+ * <p>A vertex whose component ID did not change needs not propagate its information in the next step. Because of that,
  * the algorithm is easily expressible via a delta iteration. We here model the solution set as the vertices with
  * their current component ids, and the workset as the changed vertices. Because we see all vertices initially as
  * changed, the initial workset and the initial solution set are identical. Also, the delta to the solution set
  * is consequently also the next workset.<br>
- * 
- * <p>
- * Input files are plain text files and must be formatted as follows:
+ *
+ * <p>Input files are plain text files and must be formatted as follows:
  * <ul>
- * <li>Vertices represented as IDs and separated by new-line characters.<br> 
+ * <li>Vertices represented as IDs and separated by new-line characters.<br>
  * For example <code>"1\n2\n12\n42\n63"</code> gives five vertices (1), (2), (12), (42), and (63).
- * <li>Edges are represented as pairs for vertex IDs which are separated by space 
+ * <li>Edges are represented as pairs for vertex IDs which are separated by space
  * characters. Edges are separated by new-line characters.<br>
  * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
  * </ul>
- * 
- * <p>
- * Usage: <code>ConnectedComponents --vertices &lt;path&gt; --edges &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code><br>
- * If no parameters are provided, the program is run with default data from {@link org.apache.flink.examples.java.graph.util.ConnectedComponentsData} and 10 iterations. 
- * 
- * <p>
- * This example shows how to use:
+ *
+ * <p>Usage: <code>ConnectedComponents --vertices &lt;path&gt; --edges &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link org.apache.flink.examples.java.graph.util.ConnectedComponentsData} and 10 iterations.
+ *
+ * <p>This example shows how to use:
  * <ul>
  * <li>Delta Iterations
- * <li>Generic-typed Functions 
+ * <li>Generic-typed Functions
  * </ul>
  */
 @SuppressWarnings("serial")
 public class ConnectedComponents {
-	
+
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String... args) throws Exception {
 
 		// Checking input parameters
@@ -91,19 +85,19 @@ public class ConnectedComponents {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
-		
+
 		// read vertex and edge data
 		DataSet<Long> vertices = getVertexDataSet(env, params);
 		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env, params).flatMap(new UndirectEdge());
-		
+
 		// assign the initial components (equal to the vertex id)
 		DataSet<Tuple2<Long, Long>> verticesWithInitialId =
 			vertices.map(new DuplicateValue<Long>());
-				
+
 		// open a delta iteration
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 				verticesWithInitialId.iterateDelta(verticesWithInitialId, maxIterations, 0);
-		
+
 		// apply the step logic: join with the edges, select the minimum neighbor, update if the component of the candidate is smaller
 		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
 				.groupBy(0).aggregate(Aggregations.MIN, 1)
@@ -112,7 +106,7 @@ public class ConnectedComponents {
 
 		// close the delta iteration (delta and new workset are identical)
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
-		
+
 		// emit result
 		if (params.has("output")) {
 			result.writeAsCsv(params.get("output"), "\n", " ");
@@ -123,29 +117,29 @@ public class ConnectedComponents {
 			result.print();
 		}
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
-	
+
 	/**
 	 * Function that turns a value into a 2-tuple where both fields are that value.
 	 */
 	@ForwardedFields("*->f0")
 	public static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
-		
+
 		@Override
 		public Tuple2<T, T> map(T vertex) {
 			return new Tuple2<T, T>(vertex, vertex);
 		}
 	}
-	
+
 	/**
 	 * Undirected edges by emitting for each input edge the input edges itself and an inverted version.
 	 */
 	public static final class UndirectEdge implements FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		Tuple2<Long, Long> invertedEdge = new Tuple2<Long, Long>();
-		
+
 		@Override
 		public void flatMap(Tuple2<Long, Long> edge, Collector<Tuple2<Long, Long>> out) {
 			invertedEdge.f0 = edge.f1;
@@ -154,7 +148,7 @@ public class ConnectedComponents {
 			out.collect(invertedEdge);
 		}
 	}
-	
+
 	/**
 	 * UDF that joins a (Vertex-ID, Component-ID) pair that represents the current component that
 	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
@@ -169,9 +163,11 @@ public class ConnectedComponents {
 			return new Tuple2<Long, Long>(edge.f1, vertexWithComponent.f1);
 		}
 	}
-	
 
-
+	/**
+	 * Emit the candidate (Vertex-ID, Component-ID) pair if and only if the
+	 * candidate component ID is less than the vertex's current component ID.
+	 */
 	@ForwardedFieldsFirst("*")
 	public static final class ComponentIdFilter implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
@@ -211,6 +207,4 @@ public class ConnectedComponents {
 			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 	}
-	
-	
 }

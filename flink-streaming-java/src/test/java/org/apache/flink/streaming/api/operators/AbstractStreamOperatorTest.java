@@ -15,39 +15,68 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.powermock.api.mockito.PowerMockito.when;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Tests for the facilities provided by {@link AbstractStreamOperator}. This mostly
  * tests timers and state and whether they are correctly checkpointed/restored
  * with key-group reshuffling.
  */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(AbstractStreamOperator.class)
 public class AbstractStreamOperatorTest {
 
 	@Test
@@ -141,6 +170,57 @@ public class AbstractStreamOperatorTest {
 	}
 
 	/**
+	 * Verify that a low-level timer is set for processing-time timers in case of restore.
+	 */
+	@Test
+	public void testEnsureProcessingTimeTimerRegisteredOnRestore() throws Exception {
+		TestOperator testOperator = new TestOperator();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String> testHarness =
+				new KeyedOneInputStreamOperatorTestHarness<>(testOperator, new TestKeySelector(), BasicTypeInfo.INT_TYPE_INFO);
+
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new Tuple2<>(1, "SET_PROC_TIME_TIMER:20"), 0);
+
+		testHarness.processElement(new Tuple2<>(0, "SET_STATE:HELLO"), 0);
+		testHarness.processElement(new Tuple2<>(1, "SET_STATE:CIAO"), 0);
+
+		testHarness.processElement(new Tuple2<>(0, "SET_PROC_TIME_TIMER:10"), 0);
+
+		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+
+		TestOperator testOperator1 = new TestOperator();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String> testHarness1 =
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						testOperator1,
+						new TestKeySelector(),
+						BasicTypeInfo.INT_TYPE_INFO);
+
+		testHarness1.setProcessingTime(0L);
+
+		testHarness1.setup();
+		testHarness1.initializeState(snapshot);
+		testHarness1.open();
+
+		testHarness1.setProcessingTime(10L);
+
+		assertThat(
+				extractResult(testHarness1),
+				contains("ON_PROC_TIME:HELLO"));
+
+		testHarness1.setProcessingTime(20L);
+
+		assertThat(
+				extractResult(testHarness1),
+				contains("ON_PROC_TIME:CIAO"));
+	}
+
+
+	/**
 	 * Verify that timers for the different time domains don't clash.
 	 */
 	@Test
@@ -179,18 +259,18 @@ public class AbstractStreamOperatorTest {
 	 */
 	@Test
 	public void testStateAndTimerStateShufflingScalingUp() throws Exception {
-		final int MAX_PARALLELISM = 10;
+		final int maxParallelism = 10;
 
 		// first get two keys that will fall into different key-group ranges that go
 		// to different operator subtasks when we restore
 
 		// get two sub key-ranges so that we can restore two ranges separately
-		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (MAX_PARALLELISM / 2) - 1);
-		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, MAX_PARALLELISM - 1);
+		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (maxParallelism / 2) - 1);
+		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, maxParallelism - 1);
 
 		// get two different keys, one per sub range
-		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, MAX_PARALLELISM);
-		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, MAX_PARALLELISM);
+		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, maxParallelism);
+		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, maxParallelism);
 
 		TestOperator testOperator = new TestOperator();
 
@@ -199,7 +279,7 @@ public class AbstractStreamOperatorTest {
 						testOperator,
 						new TestKeySelector(),
 						BasicTypeInfo.INT_TYPE_INFO,
-						MAX_PARALLELISM,
+						maxParallelism,
 						1, /* num subtasks */
 						0 /* subtask index */);
 
@@ -230,7 +310,7 @@ public class AbstractStreamOperatorTest {
 						testOperator1,
 						new TestKeySelector(),
 						BasicTypeInfo.INT_TYPE_INFO,
-						MAX_PARALLELISM,
+						maxParallelism,
 						2, /* num subtasks */
 						0 /* subtask index */);
 
@@ -270,7 +350,7 @@ public class AbstractStreamOperatorTest {
 						testOperator2,
 						new TestKeySelector(),
 						BasicTypeInfo.INT_TYPE_INFO,
-						MAX_PARALLELISM,
+						maxParallelism,
 						2, /* num subtasks */
 						1 /* subtask index */);
 
@@ -301,18 +381,18 @@ public class AbstractStreamOperatorTest {
 
 	@Test
 	public void testStateAndTimerStateShufflingScalingDown() throws Exception {
-		final int MAX_PARALLELISM = 10;
+		final int maxParallelism = 10;
 
 		// first get two keys that will fall into different key-group ranges that go
 		// to different operator subtasks when we restore
 
 		// get two sub key-ranges so that we can restore two ranges separately
-		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (MAX_PARALLELISM / 2) - 1);
-		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, MAX_PARALLELISM - 1);
+		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (maxParallelism / 2) - 1);
+		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, maxParallelism - 1);
 
 		// get two different keys, one per sub range
-		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, MAX_PARALLELISM);
-		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, MAX_PARALLELISM);
+		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, maxParallelism);
+		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, maxParallelism);
 
 		TestOperator testOperator1 = new TestOperator();
 
@@ -321,7 +401,7 @@ public class AbstractStreamOperatorTest {
 				testOperator1,
 				new TestKeySelector(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				MAX_PARALLELISM,
+				maxParallelism,
 				2, /* num subtasks */
 				0 /* subtask index */);
 
@@ -338,10 +418,9 @@ public class AbstractStreamOperatorTest {
 				testOperator2,
 				new TestKeySelector(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				MAX_PARALLELISM,
+				maxParallelism,
 				2, /* num subtasks */
 				1 /* subtask index */);
-
 
 		testHarness2.setup();
 		testHarness2.open();
@@ -376,7 +455,7 @@ public class AbstractStreamOperatorTest {
 				testOperator3,
 				new TestKeySelector(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				MAX_PARALLELISM,
+				maxParallelism,
 				1, /* num subtasks */
 				0 /* subtask index */);
 
@@ -402,6 +481,138 @@ public class AbstractStreamOperatorTest {
 	}
 
 	/**
+	 * Checks that the state snapshot context is closed after a successful snapshot operation.
+	 */
+	@Test
+	public void testSnapshotMethod() throws Exception {
+		final long checkpointId = 42L;
+		final long timestamp = 1L;
+
+		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
+		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
+
+		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
+
+		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
+		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
+
+		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
+		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
+		doReturn(containingTask).when(operator).getContainingTask();
+
+		operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forFullCheckpoint());
+
+		verify(context).close();
+	}
+
+	/**
+	 * Tests that the created StateSnapshotContextSynchronousImpl is closed in case of a failing
+	 * Operator#snapshotState(StateSnapshotContextSynchronousImpl) call.
+	 */
+	@Test
+	public void testFailingSnapshotMethod() throws Exception {
+		final long checkpointId = 42L;
+		final long timestamp = 1L;
+
+		final Exception failingException = new Exception("Test exception");
+
+		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
+		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
+
+		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
+
+		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
+		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
+
+		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
+		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
+		doReturn(containingTask).when(operator).getContainingTask();
+
+		// lets fail when calling the actual snapshotState method
+		doThrow(failingException).when(operator).snapshotState(eq(context));
+
+		try {
+			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forFullCheckpoint());
+			fail("Exception expected.");
+		} catch (Exception e) {
+			assertEquals(failingException, e.getCause());
+		}
+
+		verify(context).close();
+	}
+
+	/**
+	 * Tests that a failing snapshot method call to the keyed state backend will trigger the closing
+	 * of the StateSnapshotContextSynchronousImpl and the cancellation of the
+	 * OperatorSnapshotResult. The latter is supposed to also cancel all assigned futures.
+	 */
+	@Test
+	public void testFailingBackendSnapshotMethod() throws Exception {
+		final long checkpointId = 42L;
+		final long timestamp = 1L;
+
+		final Exception failingException = new Exception("Test exception");
+
+		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
+		RunnableFuture<KeyedStateHandle> futureKeyedStateHandle = mock(RunnableFuture.class);
+		RunnableFuture<OperatorStateHandle> futureOperatorStateHandle = mock(RunnableFuture.class);
+
+		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
+		when(context.getKeyedStateStreamFuture()).thenReturn(futureKeyedStateHandle);
+		when(context.getOperatorStateStreamFuture()).thenReturn(futureOperatorStateHandle);
+
+		OperatorSnapshotResult operatorSnapshotResult = spy(new OperatorSnapshotResult());
+
+		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
+		whenNew(OperatorSnapshotResult.class).withAnyArguments().thenReturn(operatorSnapshotResult);
+
+		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
+		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
+		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
+
+		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
+		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
+
+		// The amount of mocking in this test makes it necessary to make the
+		// getCheckpointStreamFactory method visible for the test and to
+		// overwrite its behaviour.
+		when(operator.getCheckpointStreamFactory(any(CheckpointOptions.class))).thenReturn(streamFactory);
+
+		doReturn(containingTask).when(operator).getContainingTask();
+
+		RunnableFuture<OperatorStateHandle> futureManagedOperatorStateHandle = mock(RunnableFuture.class);
+
+		OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
+		when(operatorStateBackend.snapshot(eq(checkpointId), eq(timestamp), eq(streamFactory), any(CheckpointOptions.class))).thenReturn(futureManagedOperatorStateHandle);
+
+		AbstractKeyedStateBackend<?> keyedStateBackend = mock(AbstractKeyedStateBackend.class);
+		when(keyedStateBackend.snapshot(eq(checkpointId), eq(timestamp), eq(streamFactory), eq(CheckpointOptions.forFullCheckpoint()))).thenThrow(failingException);
+
+		Whitebox.setInternalState(operator, "operatorStateBackend", operatorStateBackend);
+		Whitebox.setInternalState(operator, "keyedStateBackend", keyedStateBackend);
+		Whitebox.setInternalState(operator, "checkpointStreamFactory", streamFactory);
+
+		try {
+			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forFullCheckpoint());
+			fail("Exception expected.");
+		} catch (Exception e) {
+			assertEquals(failingException, e.getCause());
+		}
+
+		// verify that the context has been closed, the operator snapshot result has been cancelled
+		// and that all futures have been cancelled.
+		verify(context).close();
+		verify(operatorSnapshotResult).cancel();
+
+		verify(futureKeyedStateHandle).cancel(anyBoolean());
+		verify(futureOperatorStateHandle).cancel(anyBoolean());
+		verify(futureKeyedStateHandle).cancel(anyBoolean());
+	}
+
+	/**
 	 * Extracts the result values form the test harness and clear the output queue.
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -416,7 +627,6 @@ public class AbstractStreamOperatorTest {
 		testHarness.getOutput().clear();
 		return result;
 	}
-
 
 	private static class TestKeySelector implements KeySelector<Tuple2<Integer, String>, Integer> {
 		private static final long serialVersionUID = 1L;
@@ -440,7 +650,7 @@ public class AbstractStreamOperatorTest {
 		private transient InternalTimerService<VoidNamespace> timerService;
 
 		private final ValueStateDescriptor<String> stateDescriptor =
-				new ValueStateDescriptor<>("state", StringSerializer.INSTANCE, null);
+				new ValueStateDescriptor<>("state", StringSerializer.INSTANCE);
 
 		@Override
 		public void open() throws Exception {
@@ -448,7 +658,6 @@ public class AbstractStreamOperatorTest {
 
 			this.timerService = getInternalTimerService(
 					"test-timers",
-					IntSerializer.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
 					this);
 		}

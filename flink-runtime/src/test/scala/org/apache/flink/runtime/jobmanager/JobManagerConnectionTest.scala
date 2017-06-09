@@ -23,7 +23,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.util.NetUtils
 import org.junit.Assert._
@@ -53,13 +53,16 @@ class JobManagerConnectionTest {
         case _ : Throwable => return
       }
 
-      val endpoint = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), freePort)
+      val endpoint = NetUtils.unresolvedHostAndPortToNormalizedString("127.0.0.1", freePort)
       val config = createConfigWithLowTimeout()
 
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
           try {
-            JobManager.getJobManagerActorRef(endpoint, actorSystem, config)
+            AkkaUtils.getActorRef(
+              endpoint,
+              actorSystem,
+              AkkaUtils.getLookupTimeout(config))
             fail("Should fail since the JobManager is not reachable")
           }
           catch {
@@ -89,13 +92,16 @@ class JobManagerConnectionTest {
 
     try {
       // some address that is not running a JobManager
-      val endpoint = new InetSocketAddress(InetAddress.getByName("10.254.254.254"), 2)
+      val endpoint = NetUtils.unresolvedHostAndPortToNormalizedString("10.254.254.254", 2)
       val config = createConfigWithLowTimeout()
 
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
           try {
-            JobManager.getJobManagerActorRef(endpoint, actorSystem, config)
+            AkkaUtils.getActorRef(
+              endpoint,
+              actorSystem,
+              AkkaUtils.getLookupTimeout(config))
             fail("Should fail since the JobManager is not reachable")
           }
           catch {
@@ -116,7 +122,7 @@ class JobManagerConnectionTest {
 
   private def createConfigWithLowTimeout() : Configuration = {
     val config = new Configuration()
-    config.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT,
+    config.setString(AkkaOptions.LOOKUP_TIMEOUT,
                      Duration(timeout, TimeUnit.MILLISECONDS).toSeconds + " s")
     config
   }

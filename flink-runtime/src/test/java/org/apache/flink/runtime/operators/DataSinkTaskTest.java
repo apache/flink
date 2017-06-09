@@ -19,28 +19,20 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
-
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,12 +45,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({Task.class, ResultPartitionWriter.class})
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class DataSinkTaskTest extends TaskTestBase {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
@@ -139,7 +128,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 	@Test
 	public void testUnionDataSinkTask() {
-
 		int keyCnt = 10;
 		int valCnt = 20;
 
@@ -157,9 +145,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
-			// has been initialized.
+			// has been initialized. This is accomplished via a mockito hack in TestSingleInputGate,
+			// which checks forwards existing notifications on registerListener calls.
 			for (IteratorWrappingTestSingleInputGate<?> reader : readers) {
-				reader.read();
+				reader.notifyNonEmpty();
 			}
 
 			testTask.invoke();
@@ -478,7 +467,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 			this.bld.append(value.getValue());
 			this.bld.append('\n');
 
-			byte[] bytes = this.bld.toString().getBytes();
+			byte[] bytes = this.bld.toString().getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 			this.stream.write(bytes);
 		}

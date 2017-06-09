@@ -32,7 +32,12 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
 
+/**
+ * Utilities for graph generators.
+ */
 public class GraphGeneratorUtils {
+
+	private GraphGeneratorUtils() {}
 
 	/**
 	 * Generates {@link Vertex Vertices} with sequential, numerical labels.
@@ -42,8 +47,8 @@ public class GraphGeneratorUtils {
 	 * @param vertexCount number of sequential vertex labels
 	 * @return {@link DataSet} of sequentially labeled {@link Vertex Vertices}
 	 */
-	public static DataSet<Vertex<LongValue,NullValue>> vertexSequence(ExecutionEnvironment env, int parallelism, long vertexCount) {
-		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, vertexCount-1);
+	public static DataSet<Vertex<LongValue, NullValue>> vertexSequence(ExecutionEnvironment env, int parallelism, long vertexCount) {
+		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, vertexCount - 1);
 
 		DataSource<LongValue> vertexLabels = env
 			.fromParallelCollection(iterator, LongValue.class)
@@ -58,9 +63,9 @@ public class GraphGeneratorUtils {
 
 	@ForwardedFields("*->f0")
 	private static class CreateVertex
-	implements MapFunction<LongValue, Vertex<LongValue,NullValue>> {
+	implements MapFunction<LongValue, Vertex<LongValue, NullValue>> {
 
-		private Vertex<LongValue,NullValue> vertex = new Vertex<>(null, NullValue.getInstance());
+		private Vertex<LongValue, NullValue> vertex = new Vertex<>(null, NullValue.getInstance());
 
 		@Override
 		public Vertex<LongValue, NullValue> map(LongValue value)
@@ -84,8 +89,8 @@ public class GraphGeneratorUtils {
 	 *
 	 * @see Graph#fromDataSet(DataSet, DataSet, ExecutionEnvironment)
 	 */
-	public static <K,EV> DataSet<Vertex<K,NullValue>> vertexSet(DataSet<Edge<K,EV>> edges, int parallelism) {
-		DataSet<Vertex<K,NullValue>> vertexSet = edges
+	public static <K, EV> DataSet<Vertex<K, NullValue>> vertexSet(DataSet<Edge<K, EV>> edges, int parallelism) {
+		DataSet<Vertex<K, NullValue>> vertexSet = edges
 			.flatMap(new EmitSrcAndTarget<K, EV>())
 				.setParallelism(parallelism)
 				.name("Emit source and target labels");
@@ -99,13 +104,13 @@ public class GraphGeneratorUtils {
 	/**
 	 * @see Graph.EmitSrcAndTarget
 	 */
-	private static final class EmitSrcAndTarget<K,EV>
-	implements FlatMapFunction<Edge<K,EV>, Vertex<K,NullValue>> {
+	private static final class EmitSrcAndTarget<K, EV>
+	implements FlatMapFunction<Edge<K, EV>, Vertex<K, NullValue>> {
 
-		private Vertex<K,NullValue> output = new Vertex<>(null, new NullValue());
+		private Vertex<K, NullValue> output = new Vertex<>(null, new NullValue());
 
 		@Override
-		public void flatMap(Edge<K,EV> value, Collector<Vertex<K,NullValue>> out) throws Exception {
+		public void flatMap(Edge<K, EV> value, Collector<Vertex<K, NullValue>> out) throws Exception {
 			output.f0 = value.f0;
 			out.collect(output);
 			output.f0 = value.f1;

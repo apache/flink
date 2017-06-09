@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.common.io;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,17 +35,17 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class DelimitedInputFormatTest {
 	
@@ -72,11 +74,11 @@ public class DelimitedInputFormatTest {
 		cfg.setString("delimited-format.delimiter", "\n");
 		
 		format.configure(cfg);
-		assertEquals("\n", new String(format.getDelimiter()));
+		assertEquals("\n", new String(format.getDelimiter(), format.getCharset()));
 
 		cfg.setString("delimited-format.delimiter", "&-&");
 		format.configure(cfg);
-		assertEquals("&-&", new String(format.getDelimiter()));
+		assertEquals("&-&", new String(format.getDelimiter(), format.getCharset()));
 	}
 	
 	@Test
@@ -172,31 +174,91 @@ public class DelimitedInputFormatTest {
 	}
 	
 	@Test
-	public void testReadCustomDelimiter() {
-		try {
-			final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
-			final FileInputSplit split = createTempFile(myString);
-			
-			final Configuration parameters = new Configuration();
-			
-			format.setDelimiter("$$$");
-			format.configure(parameters);
-			format.open(split);
-	
-			String first = format.nextRecord(null);
-			assertNotNull(first);
-			assertEquals("my key|my val", first);
+	public void testReadCustomDelimiter() throws IOException {
+		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
+		final FileInputSplit split = createTempFile(myString);
 
-			String second = format.nextRecord(null);
-			assertNotNull(second);
-			assertEquals("my key2\n$$ctd.$$|my value2", second);
-			
+		final Configuration parameters = new Configuration();
+
+		format.setDelimiter("$$$");
+		format.configure(parameters);
+		format.open(split);
+
+		String first = format.nextRecord(null);
+		assertNotNull(first);
+		assertEquals("my key|my val", first);
+
+		String second = format.nextRecord(null);
+		assertNotNull(second);
+		assertEquals("my key2\n$$ctd.$$|my value2", second);
+
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+	}
+
+	@Test
+	public void testMultiCharDelimiter() throws IOException {
+		final String myString = "www112xx1123yyy11123zzzzz1123";
+		final FileInputSplit split = createTempFile(myString);
+
+		final Configuration parameters = new Configuration();
+
+		format.setDelimiter("1123");
+		format.configure(parameters);
+		format.open(split);
+
+		String first = format.nextRecord(null);
+		assertNotNull(first);
+		assertEquals("www112xx", first);
+
+		String second = format.nextRecord(null);
+		assertNotNull(second);
+		assertEquals("yyy1", second);
+
+		String third = format.nextRecord(null);
+		assertNotNull(third);
+		assertEquals("zzzzz", third);
+
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+	}
+
+	@Test
+	public void testReadCustomDelimiterWithCharset() throws IOException {
+		// Unicode row fragments
+		String[] records = new String[]{"\u020e\u021f\u05c0\u020b\u020f", "Apache", "\nFlink", "\u0000", "\u05c0"};
+
+		// Unicode delimiter
+		String delimiter = "\u05c0\u05c0";
+
+		String fileContent = StringUtils.join(records, delimiter);
+
+		for (final String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
+			// use charset when instantiating the record String
+			DelimitedInputFormat<String> format = new DelimitedInputFormat<String>() {
+				@Override
+				public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) throws IOException {
+					return new String(bytes, offset, numBytes, charset);
+				}
+			};
+			format.setFilePath("file:///some/file/that/will/not/be/read");
+
+			final FileInputSplit split = createTempFile(fileContent, charset);
+
+			format.setDelimiter(delimiter);
+			// use the same encoding to parse the file as used to read the file;
+			// the delimiter is reinterpreted when the charset is set
+			format.setCharset(charset);
+			format.configure(new Configuration());
+			format.open(split);
+
+			for (String record : records) {
+				String value = format.nextRecord(null);
+				assertEquals(record, value);
+			}
+
 			assertNull(format.nextRecord(null));
 			assertTrue(format.reachedEnd());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
@@ -204,184 +266,170 @@ public class DelimitedInputFormatTest {
 	 * Tests that the records are read correctly when the split boundary is in the middle of a record.
 	 */
 	@Test
-	public void testReadOverSplitBoundariesUnaligned() {
-		try {
-			final String myString = "value1\nvalue2\nvalue3";
-			final FileInputSplit split = createTempFile(myString);
-			
-			FileInputSplit split1 = new FileInputSplit(0, split.getPath(), 0, split.getLength() / 2, split.getHostnames());
-			FileInputSplit split2 = new FileInputSplit(1, split.getPath(), split1.getLength(), split.getLength(), split.getHostnames());
+	public void testReadOverSplitBoundariesUnaligned() throws IOException {
+		final String myString = "value1\nvalue2\nvalue3";
+		final FileInputSplit split = createTempFile(myString);
 
-			final Configuration parameters = new Configuration();
-			
-			format.configure(parameters);
-			format.open(split1);
-			
-			assertEquals("value1", format.nextRecord(null));
-			assertEquals("value2", format.nextRecord(null));
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
-			
-			format.close();
-			format.open(split2);
+		FileInputSplit split1 = new FileInputSplit(0, split.getPath(), 0, split.getLength() / 2, split.getHostnames());
+		FileInputSplit split2 = new FileInputSplit(1, split.getPath(), split1.getLength(), split.getLength(), split.getHostnames());
 
-			assertEquals("value3", format.nextRecord(null));
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
-			
-			format.close();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		final Configuration parameters = new Configuration();
+
+		format.configure(parameters);
+		format.open(split1);
+
+		assertEquals("value1", format.nextRecord(null));
+		assertEquals("value2", format.nextRecord(null));
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+
+		format.close();
+		format.open(split2);
+
+		assertEquals("value3", format.nextRecord(null));
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+
+		format.close();
 	}
 
 	/**
 	 * Tests that the correct number of records is read when the split boundary is exact at the record boundary.
 	 */
 	@Test
-	public void testReadWithBufferSizeIsMultple() {
-		try {
-			final String myString = "aaaaaaa\nbbbbbbb\nccccccc\nddddddd\n";
-			final FileInputSplit split = createTempFile(myString);
+	public void testReadWithBufferSizeIsMultiple() throws IOException {
+		final String myString = "aaaaaaa\nbbbbbbb\nccccccc\nddddddd\n";
+		final FileInputSplit split = createTempFile(myString);
 
-			FileInputSplit split1 = new FileInputSplit(0, split.getPath(), 0, split.getLength() / 2, split.getHostnames());
-			FileInputSplit split2 = new FileInputSplit(1, split.getPath(), split1.getLength(), split.getLength(), split.getHostnames());
+		FileInputSplit split1 = new FileInputSplit(0, split.getPath(), 0, split.getLength() / 2, split.getHostnames());
+		FileInputSplit split2 = new FileInputSplit(1, split.getPath(), split1.getLength(), split.getLength(), split.getHostnames());
 
-			final Configuration parameters = new Configuration();
+		final Configuration parameters = new Configuration();
 
-			format.setBufferSize(2 * ((int) split1.getLength()));
-			format.configure(parameters);
+		format.setBufferSize(2 * ((int) split1.getLength()));
+		format.configure(parameters);
 
-			String next;
-			int count = 0;
+		String next;
+		int count = 0;
 
-			// read split 1
-			format.open(split1);
-			while ((next = format.nextRecord(null)) != null) {
-				assertEquals(7, next.length());
-				count++;
-			}
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
-			format.close();
-			
-			// this one must have read one too many, because the next split will skipp the trailing remainder
-			// which happens to be one full record
-			assertEquals(3, count);
-
-			// read split 2
-			format.open(split2);
-			while ((next = format.nextRecord(null)) != null) {
-				assertEquals(7, next.length());
-				count++;
-			}
-			format.close();
-
-			assertEquals(4, count);
+		// read split 1
+		format.open(split1);
+		while ((next = format.nextRecord(null)) != null) {
+			assertEquals(7, next.length());
+			count++;
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+		format.close();
+
+		// this one must have read one too many, because the next split will skipp the trailing remainder
+		// which happens to be one full record
+		assertEquals(3, count);
+
+		// read split 2
+		format.open(split2);
+		while ((next = format.nextRecord(null)) != null) {
+			assertEquals(7, next.length());
+			count++;
 		}
+		format.close();
+
+		assertEquals(4, count);
 	}
 
 	@Test
-	public void testReadExactlyBufferSize() {
-		try {
-			final String myString = "aaaaaaa\nbbbbbbb\nccccccc\nddddddd\n";
-			
-			final FileInputSplit split = createTempFile(myString);
-			final Configuration parameters = new Configuration();
-			
-			format.setBufferSize((int) split.getLength());
-			format.configure(parameters);
-			format.open(split);
+	public void testReadExactlyBufferSize() throws IOException {
+		final String myString = "aaaaaaa\nbbbbbbb\nccccccc\nddddddd\n";
 
-			String next;
-			int count = 0;
-			while ((next = format.nextRecord(null)) != null) {
-				assertEquals(7, next.length());
-				count++;
-			}
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
+		final FileInputSplit split = createTempFile(myString);
+		final Configuration parameters = new Configuration();
 
-			format.close();
-			
-			assertEquals(4, count);
+		format.setBufferSize((int) split.getLength());
+		format.configure(parameters);
+		format.open(split);
+
+		String next;
+		int count = 0;
+		while ((next = format.nextRecord(null)) != null) {
+			assertEquals(7, next.length());
+			count++;
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+
+		format.close();
+
+		assertEquals(4, count);
 	}
 
 	@Test
-	public void testReadRecordsLargerThanBuffer() {
-		try {
-			final String myString = "aaaaaaaaaaaaaaaaaaaaa\n" +
-									"bbbbbbbbbbbbbbbbbbbbbbbbb\n" +
-									"ccccccccccccccccccc\n" +
-									"ddddddddddddddddddddddddddddddddddd\n";
+	public void testReadRecordsLargerThanBuffer() throws IOException {
+		final String myString = "aaaaaaaaaaaaaaaaaaaaa\n" +
+								"bbbbbbbbbbbbbbbbbbbbbbbbb\n" +
+								"ccccccccccccccccccc\n" +
+								"ddddddddddddddddddddddddddddddddddd\n";
 
-			final FileInputSplit split = createTempFile(myString);
-			FileInputSplit split1 = new FileInputSplit(0, split.getPath(), 0, split.getLength() / 2, split.getHostnames());
-			FileInputSplit split2 = new FileInputSplit(1, split.getPath(), split1.getLength(), split.getLength(), split.getHostnames());
-			
-			final Configuration parameters = new Configuration();
+		final FileInputSplit split = createTempFile(myString);
+		FileInputSplit split1 = new FileInputSplit(0, split.getPath(), 0, split.getLength() / 2, split.getHostnames());
+		FileInputSplit split2 = new FileInputSplit(1, split.getPath(), split1.getLength(), split.getLength(), split.getHostnames());
 
-			format.setBufferSize(8);
-			format.configure(parameters);
+		final Configuration parameters = new Configuration();
 
-			String next;
-			List<String> result = new ArrayList<String>();
-			
-			
-			format.open(split1);
-			while ((next = format.nextRecord(null)) != null) {
-				result.add(next);
-			}
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
-			format.close();
+		format.setBufferSize(8);
+		format.configure(parameters);
 
-			format.open(split2);
-			while ((next = format.nextRecord(null)) != null) {
-				result.add(next);
-			}
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
-			format.close();
-			
-			assertEquals(4, result.size());
-			assertEquals(Arrays.asList(myString.split("\n")), result);
+		String next;
+		List<String> result = new ArrayList<String>();
+
+
+		format.open(split1);
+		while ((next = format.nextRecord(null)) != null) {
+			result.add(next);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+		format.close();
+
+		format.open(split2);
+		while ((next = format.nextRecord(null)) != null) {
+			result.add(next);
 		}
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
+		format.close();
+
+		assertEquals(4, result.size());
+		assertEquals(Arrays.asList(myString.split("\n")), result);
 	}
-	
-	private static FileInputSplit createTempFile(String contents) throws IOException {
+
+	static FileInputSplit createTempFile(String contents) throws IOException {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();
-		
-		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
-		wrt.write(contents);
-		wrt.close();
-		
+
+		try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile))) {
+			out.write(contents);
+		}
+
 		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
-	
-	
+
+	static FileInputSplit createTempFile(String contents, String charset) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile), charset)) {
+			out.write(contents);
+		}
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
+	}
+
 	protected static final class MyTextInputFormat extends DelimitedInputFormat<String> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) {
-			return new String(bytes, offset, numBytes);
+			return new String(bytes, offset, numBytes, ConfigConstants.DEFAULT_CHARSET);
 		}
 	}
 }

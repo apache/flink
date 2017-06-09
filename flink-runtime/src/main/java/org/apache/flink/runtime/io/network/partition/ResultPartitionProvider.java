@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-
 import java.io.IOException;
 
 public interface ResultPartitionProvider {
@@ -30,6 +28,6 @@ public interface ResultPartitionProvider {
 	ResultSubpartitionView createSubpartitionView(
 			ResultPartitionID partitionId,
 			int index,
-			BufferProvider bufferProvider) throws IOException;
+			BufferAvailabilityListener availabilityListener) throws IOException;
 
 }

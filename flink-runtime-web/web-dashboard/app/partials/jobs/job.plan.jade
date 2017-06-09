@@ -15,28 +15,31 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-.canvas-wrapper
-  div.main-canvas(job-plan, plan="plan", jobid="{{jobid}}", set-node="changeNode(nodeid)")
+split
+  .split#canvas
+    .canvas-wrapper
+      div.main-canvas(job-plan, plan="plan", watermarks="watermarks" jobid="{{jobid}}", set-node="changeNode(nodeid)")
 
-.panel.panel-default.panel-multi(ng-if="plan")
-  nav.navbar.navbar-default.navbar-secondary-additional
-    ul.nav.nav-tabs
-      li(ui-sref-active='active')
-        a(ui-sref=".subtasks({nodeid: nodeid})") Subtasks
+  .split#job-panel
+    .panel.panel-default.panel-multi(ng-if="plan")
+      nav.navbar.navbar-default.navbar-secondary-additional
+        ul.nav.nav-tabs
+          li(ui-sref-active='active')
+            a(ui-sref=".subtasks({nodeid: nodeid})") Subtasks
 
-      li(ui-sref-active='active')
-        a(ui-sref=".metrics({nodeid: nodeid})") Metrics
+          li(ui-sref-active='active')
+            a(ui-sref=".metrics({nodeid: nodeid})") Task Metrics
 
-      li(ui-sref-active='active')
-        a(ui-sref=".taskmanagers({nodeid: nodeid})") TaskManagers
+          li(ui-sref-active='active')
+            a(ui-sref=".watermarks({nodeid: nodeid})") Watermarks
 
-      li(ui-sref-active='active')
-        a(ui-sref=".accumulators({nodeid: nodeid})") Accumulators
+          li(ui-sref-active='active')
+            a(ui-sref=".accumulators({nodeid: nodeid})") Accumulators
 
-      li(ui-sref-active='active')
-        a(ui-sref=".checkpoints({nodeid: nodeid})") Checkpoints
+          li(ui-sref-active='active')
+            a(ui-sref=".checkpoints({nodeid: nodeid})") Checkpoints
 
-      li(ng-if="job.state == 'RUNNING'" ui-sref-active='active')
-        a(ui-sref=".backpressure({nodeid: nodeid})") Back Pressure
+          li(ng-if="job.state == 'RUNNING'" ui-sref-active='active')
+            a(ui-sref=".backpressure({nodeid: nodeid})") Back Pressure
 
-  .panel-body.clean(ui-view="node-details")
+      .panel-body.clean#node-details(ui-view="node-details")

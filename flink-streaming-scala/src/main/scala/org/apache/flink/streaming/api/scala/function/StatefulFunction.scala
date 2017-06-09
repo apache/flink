@@ -47,7 +47,7 @@ trait StatefulFunction[I, O, S] extends RichFunction {
   }
 
   override def open(c: Configuration) = {
-    val info = new ValueStateDescriptor[S]("state", stateSerializer, null.asInstanceOf[S])
+    val info = new ValueStateDescriptor[S]("state", stateSerializer)
     state = getRuntimeContext().getState(info)
   }
 }

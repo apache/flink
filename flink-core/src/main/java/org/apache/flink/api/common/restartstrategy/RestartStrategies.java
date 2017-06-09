@@ -141,7 +141,7 @@ public class RestartStrategies {
 
 		@Override
 		public String getDescription() {
-			return "Restart with fixed delay (" + delayBetweenAttemptsInterval + " ms). #"
+			return "Restart with fixed delay (" + delayBetweenAttemptsInterval + "). #"
 				+ restartAttempts + " restart attempts.";
 		}
 	}

@@ -15,38 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackendFactory;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * A factory that creates an {@link org.apache.flink.contrib.streaming.state.RocksDBStateBackend}
  * from a configuration.
  */
-public class RocksDBStateBackendFactory implements StateBackendFactory<FsStateBackend> {
+public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBStateBackend> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackendFactory.class);
 
 	private static final long serialVersionUID = 4906988360901930371L;
 
-	/** The key under which the config stores the directory where checkpoints should be stored */
+	/** The key under which the config stores the directory where checkpoints should be stored. */
 	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
-	/** The key under which the config stores the directory where RocksDB should be stored */
+	/** The key under which the config stores the directory where RocksDB should be stored. */
 	public static final String ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.rocksdb.checkpointdir";
 
 	@Override
-	public AbstractStateBackend createFromConfig(Configuration config) throws Exception {
-		String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-		String rocksdbLocalPath = config.getString(ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
+	public RocksDBStateBackend createFromConfig(Configuration config)
+			throws IllegalConfigurationException, IOException {
+
+		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
+		final String rocksdbLocalPath = config.getString(ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
 
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
@@ -67,8 +70,8 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<FsStateBa
 			return backend;
 		}
 		catch (IllegalArgumentException e) {
-			throw new Exception("Cannot initialize RocksDB State Backend with URI '"
-									+ checkpointDirURI + '.', e);
+			throw new IllegalConfigurationException(
+					"Cannot initialize RocksDB State Backend with URI '" + checkpointDirURI + '.', e);
 		}
 	}
 }

@@ -48,7 +48,7 @@ public class CheckpointPropertiesTest {
 	 * Tests the external checkpoints properties.
 	 */
 	@Test
-	public void testPersistentCheckpointProperties() {
+	public void testExternalizedCheckpointProperties() {
 		CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(true);
 
 		assertFalse(props.forceCheckpoint());
@@ -67,7 +67,7 @@ public class CheckpointPropertiesTest {
 		assertTrue(props.discardOnJobFinished());
 		assertFalse(props.discardOnJobCancelled());
 		assertFalse(props.discardOnJobFailed());
-		assertTrue(props.discardOnJobSuspended());
+		assertFalse(props.discardOnJobSuspended());
 	}
 
 	/**
@@ -84,5 +84,32 @@ public class CheckpointPropertiesTest {
 		assertFalse(props.discardOnJobCancelled());
 		assertFalse(props.discardOnJobFailed());
 		assertFalse(props.discardOnJobSuspended());
+	}
+
+	/**
+	 * Tests the isSavepoint utility works as expected.
+	 */
+	@Test
+	public void testIsSavepoint() throws Exception {
+		{
+			CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
+			assertFalse(props.isSavepoint());
+		}
+
+		{
+			CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(true);
+			assertFalse(props.isSavepoint());
+		}
+
+		{
+			CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(false);
+			assertFalse(props.isSavepoint());
+		}
+
+		{
+			CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
+			assertTrue(props.isSavepoint());
+		}
+
 	}
 }

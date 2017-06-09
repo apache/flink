@@ -18,13 +18,14 @@
 
 package org.apache.flink.storm.print;
 
-import backtype.storm.Config;
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
-import storm.starter.bolt.PrinterBolt;
-import storm.starter.spout.TwitterSampleSpout;
+
+import org.apache.storm.Config;
+import org.apache.storm.starter.bolt.PrinterBolt;
+import org.apache.storm.starter.spout.TwitterSampleSpout;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.utils.Utils;
 
 import java.util.Arrays;
 
@@ -32,15 +33,15 @@ import java.util.Arrays;
  * Prints incoming tweets. Tweets can be filtered by keywords.
  */
 public class PrintSampleStream {
-	
+
 	public static void main(String[] args) throws Exception {
-		
+
 		if (args.length < 4) {
 			System.err.println(
 					"Usage: PrintSampleStream <consumer-key> <consumer-secret> <access-token> <access-token-secret>");
 			return;
 		}
-		
+
 		String consumerKey = args[0];
 		String consumerSecret = args[1];
 		String accessToken = args[2];
@@ -55,7 +56,6 @@ public class PrintSampleStream {
 								accessToken, accessTokenSecret, keyWords));
 		builder.setBolt("print", new PrinterBolt())
 				.shuffleGrouping("twitter");
-
 
 		Config conf = new Config();
 

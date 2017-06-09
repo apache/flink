@@ -77,7 +77,7 @@ object BLAS extends Serializable {
     val xValues = x.data
     val xIndices = x.indices
     val yValues = y.data
-    val nnz = xIndices.size
+    val nnz = xIndices.length
 
     if (a == 1.0) {
       var k = 0
@@ -130,7 +130,7 @@ object BLAS extends Serializable {
     val xValues = x.data
     val xIndices = x.indices
     val yValues = y.data
-    val nnz = xIndices.size
+    val nnz = xIndices.length
 
     var sum = 0.0
     var k = 0
@@ -149,8 +149,8 @@ object BLAS extends Serializable {
     val xIndices = x.indices
     val yValues = y.data
     val yIndices = y.indices
-    val nnzx = xIndices.size
-    val nnzy = yIndices.size
+    val nnzx = xIndices.length
+    val nnzy = yIndices.length
 
     var kx = 0
     var ky = 0
@@ -183,7 +183,7 @@ object BLAS extends Serializable {
             val sxIndices = sx.indices
             val sxValues = sx.data
             val dyValues = dy.data
-            val nnz = sxIndices.size
+            val nnz = sxIndices.length
 
             var i = 0
             var k = 0
@@ -215,9 +215,9 @@ object BLAS extends Serializable {
   def scal(a: Double, x: Vector): Unit = {
     x match {
       case sx: SparseVector =>
-        f2jBLAS.dscal(sx.data.size, a, sx.data, 1)
+        f2jBLAS.dscal(sx.data.length, a, sx.data, 1)
       case dx: DenseVector =>
-        f2jBLAS.dscal(dx.data.size, a, dx.data, 1)
+        f2jBLAS.dscal(dx.data.length, a, dx.data, 1)
       case _ =>
         throw new IllegalArgumentException(s"scal doesn't support vector type ${x.getClass}.")
     }

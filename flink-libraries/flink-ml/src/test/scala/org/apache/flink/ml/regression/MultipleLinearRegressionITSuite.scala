@@ -29,7 +29,7 @@ class MultipleLinearRegressionITSuite
   with Matchers
   with FlinkTestBase {
 
-  behavior of "The multipe linear regression implementation"
+  behavior of "The multiple linear regression implementation"
 
   it should "estimate a linear function" in {
     val env = ExecutionEnvironment.getExecutionEnvironment

@@ -19,20 +19,28 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -47,19 +55,15 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.FutureUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
-
 import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -72,10 +76,21 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
@@ -85,11 +100,6 @@ import static org.junit.Assert.assertNotNull;
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 @SuppressWarnings("serial")
 public class RocksDBAsyncSnapshotTest {
-
-	@Before
-	public void checkOperatingSystem() {
-		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
-	}
 
 	/**
 	 * This ensures that asynchronous state handles are actually materialized asynchronously.
@@ -108,6 +118,7 @@ public class RocksDBAsyncSnapshotTest {
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
 			@Override
@@ -119,9 +130,8 @@ public class RocksDBAsyncSnapshotTest {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
 		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
-		File chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
 
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		RocksDBStateBackend backend = new RocksDBStateBackend(new MemoryStateBackend());
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
 		streamConfig.setStateBackend(backend);
@@ -140,10 +150,11 @@ public class RocksDBAsyncSnapshotTest {
 
 			@Override
 			public void acknowledgeCheckpoint(
-					CheckpointMetaData checkpointMetaData,
+					long checkpointId,
+					CheckpointMetrics checkpointMetrics,
 					SubtaskState checkpointStateHandles) {
 
-				super.acknowledgeCheckpoint(checkpointMetaData);
+				super.acknowledgeCheckpoint(checkpointId, checkpointMetrics);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -173,7 +184,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forFullCheckpoint());
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -191,7 +202,7 @@ public class RocksDBAsyncSnapshotTest {
 
 		testHarness.waitForTaskCompletion();
 		if (mockEnv.wasFailedExternally()) {
-			Assert.fail("Unexpected exception during execution.");
+			fail("Unexpected exception during execution.");
 		}
 	}
 
@@ -209,6 +220,7 @@ public class RocksDBAsyncSnapshotTest {
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
 			@Override
@@ -220,11 +232,10 @@ public class RocksDBAsyncSnapshotTest {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
 		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
-		File chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
 
 		BlockingStreamMemoryStateBackend memoryStateBackend = new BlockingStreamMemoryStateBackend();
 
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), memoryStateBackend);
+		RocksDBStateBackend backend = new RocksDBStateBackend(memoryStateBackend);
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
 		streamConfig.setStateBackend(backend);
@@ -253,7 +264,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forFullCheckpoint());
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		BlockingStreamMemoryStateBackend.waitFirstWriteLatch.await();
 		task.cancel();
@@ -269,7 +280,7 @@ public class RocksDBAsyncSnapshotTest {
 			if (mockEnv.wasFailedExternally()) {
 				throw new AsynchronousException(new InterruptedException("Exception was thrown as expected."));
 			}
-			Assert.fail("Operation completed. Cancel failed.");
+			fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
 			AsynchronousException asynchronousException = null;
 
@@ -278,7 +289,7 @@ public class RocksDBAsyncSnapshotTest {
 			} else if (expected.getCause() instanceof AsynchronousException) {
 				asynchronousException = (AsynchronousException) expected.getCause();
 			} else {
-				Assert.fail("Unexpected exception: " + expected);
+				fail("Unexpected exception: " + expected);
 			}
 
 			// we expect the exception from canceling snapshots
@@ -289,22 +300,79 @@ public class RocksDBAsyncSnapshotTest {
 		}
 	}
 
+	/**
+	 * Test that the snapshot files are cleaned up in case of a failure during the snapshot
+	 * procedure.
+	 */
+	@Test
+	public void testCleanupOfSnapshotsInFailureCase() throws Exception {
+		long checkpointId = 1L;
+		long timestamp = 42L;
+
+		Environment env = new DummyEnvironment("test task", 1, 0);
+
+		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
+		CheckpointStreamFactory checkpointStreamFactory = mock(CheckpointStreamFactory.class);
+		AbstractStateBackend stateBackend = mock(AbstractStateBackend.class);
+
+		final IOException testException = new IOException("Test exception");
+
+		doReturn(checkpointStreamFactory).when(stateBackend).createStreamFactory(any(JobID.class), anyString());
+		doThrow(testException).when(outputStream).write(anyInt());
+		doReturn(outputStream).when(checkpointStreamFactory).createCheckpointStateOutputStream(eq(checkpointId), eq(timestamp));
+
+		RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
+
+		backend.setDbStoragePath("file:///tmp/foobar");
+
+		AbstractKeyedStateBackend<Void> keyedStateBackend = backend.createKeyedStateBackend(
+			env,
+			new JobID(),
+			"test operator",
+			VoidSerializer.INSTANCE,
+			1,
+			new KeyGroupRange(0, 0),
+			null);
+
+		keyedStateBackend.restore(null);
+
+		// register a state so that the state backend has to checkpoint something
+		keyedStateBackend.getPartitionedState(
+			"namespace",
+			StringSerializer.INSTANCE,
+			new ValueStateDescriptor<>("foobar", String.class));
+
+		RunnableFuture<KeyedStateHandle> snapshotFuture = keyedStateBackend.snapshot(
+			checkpointId, timestamp, checkpointStreamFactory, CheckpointOptions.forFullCheckpoint());
+
+		try {
+			FutureUtil.runIfNotDoneAndGet(snapshotFuture);
+			fail("Expected an exception to be thrown here.");
+		} catch (ExecutionException e) {
+			Assert.assertEquals(testException, e.getCause());
+		}
+
+		verify(outputStream).close();
+	}
+
 	@Test
 	public void testConsistentSnapshotSerializationFlagsAndMasks() {
 
-		Assert.assertEquals(0xFFFF, RocksDBKeyedStateBackend.RocksDBSnapshotOperation.END_OF_KEY_GROUP_MARK);
-		Assert.assertEquals(0x80, RocksDBKeyedStateBackend.RocksDBSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
+		Assert.assertEquals(0xFFFF, RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK);
+		Assert.assertEquals(0x80, RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
 
 		byte[] expectedKey = new byte[] {42, 42};
 		byte[] modKey = expectedKey.clone();
 
-		Assert.assertFalse(RocksDBKeyedStateBackend.RocksDBSnapshotOperation.hasMetaDataFollowsFlag(modKey));
+		Assert.assertFalse(
+			RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(modKey));
 
-		RocksDBKeyedStateBackend.RocksDBSnapshotOperation.setMetaDataFollowsFlagInKey(modKey);
-		Assert.assertTrue(RocksDBKeyedStateBackend.RocksDBSnapshotOperation.hasMetaDataFollowsFlag(modKey));
+		RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.setMetaDataFollowsFlagInKey(modKey);
+		Assert.assertTrue(RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(modKey));
 
-		RocksDBKeyedStateBackend.RocksDBSnapshotOperation.clearMetaDataFollowsFlag(modKey);
-		Assert.assertFalse(RocksDBKeyedStateBackend.RocksDBSnapshotOperation.hasMetaDataFollowsFlag(modKey));
+		RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(modKey);
+		Assert.assertFalse(
+			RocksDBKeyedStateBackend.RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(modKey));
 
 		Assert.assertTrue(Arrays.equals(expectedKey, modKey));
 	}
@@ -337,7 +405,7 @@ public class RocksDBAsyncSnapshotTest {
 							} catch (InterruptedException e) {
 								Thread.currentThread().interrupt();
 							}
-							if(closed) {
+							if (closed) {
 								throw new IOException("Stream closed.");
 							}
 							super.write(b);
@@ -351,7 +419,7 @@ public class RocksDBAsyncSnapshotTest {
 							} catch (InterruptedException e) {
 								Thread.currentThread().interrupt();
 							}
-							if(closed) {
+							if (closed) {
 								throw new IOException("Stream closed.");
 							}
 							super.write(b, off, len);
@@ -368,7 +436,7 @@ public class RocksDBAsyncSnapshotTest {
 		}
 	}
 
-	public static class AsyncCheckpointOperator
+	private static class AsyncCheckpointOperator
 		extends AbstractStreamOperator<String>
 		implements OneInputStreamOperator<String, String>, StreamCheckpointedOperator {
 
@@ -381,8 +449,7 @@ public class RocksDBAsyncSnapshotTest {
 			ValueState<String> state = getPartitionedState(
 					VoidNamespace.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("count",
-							StringSerializer.INSTANCE, "hello"));
+					new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
 
 		}
 
@@ -393,8 +460,7 @@ public class RocksDBAsyncSnapshotTest {
 			ValueState<String> state = getPartitionedState(
 					VoidNamespace.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("count",
-							StringSerializer.INSTANCE, "hello"));
+					new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
 
 			state.update(element.getValue());
 		}
@@ -410,10 +476,5 @@ public class RocksDBAsyncSnapshotTest {
 			// do nothing so that we don't block
 		}
 
-	}
-
-	public static class DummyMapFunction<T> implements MapFunction<T, T> {
-		@Override
-		public T map(T value) { return value; }
 	}
 }

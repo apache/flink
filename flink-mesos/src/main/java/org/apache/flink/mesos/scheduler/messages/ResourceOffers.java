@@ -22,6 +22,7 @@ import org.apache.mesos.Protos;
 
 import java.io.Serializable;
 import java.util.List;
+
 import static java.util.Objects.requireNonNull;
 
 /**

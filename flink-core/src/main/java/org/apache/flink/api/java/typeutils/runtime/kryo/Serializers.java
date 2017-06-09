@@ -34,7 +34,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TypeExtractionUtils;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -113,8 +113,8 @@ public class Serializers {
 			ParameterizedType parameterizedFieldType = (ParameterizedType) fieldType;
 			
 			for (Type t: parameterizedFieldType.getActualTypeArguments()) {
-				if (TypeExtractor.isClassType(t) ) {
-					recursivelyRegisterType(TypeExtractor.typeToClass(t), config, alreadySeen);
+				if (TypeExtractionUtils.isClassType(t) ) {
+					recursivelyRegisterType(TypeExtractionUtils.typeToClass(t), config, alreadySeen);
 				}
 			}
 

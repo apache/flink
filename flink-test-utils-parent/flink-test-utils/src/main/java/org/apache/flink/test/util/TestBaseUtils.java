@@ -18,37 +18,28 @@
 
 package org.apache.flink.test.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.hadoop.fs.FileSystem;
-
 import org.junit.Assert;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -58,7 +49,6 @@ import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -77,6 +67,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import scala.concurrent.Await;
+import scala.concurrent.ExecutionContext;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+/**
+ * Utility class containing various methods for testing purposes.
+ */
 public class TestBaseUtils extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
@@ -89,35 +93,34 @@ public class TestBaseUtils extends TestLogger {
 
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
-	public static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	public static final FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
 	// ------------------------------------------------------------------------
-	
+
 	protected static File logDir;
 
 	protected TestBaseUtils(){
 		verifyJvmOptions();
 	}
-	
+
 	private static void verifyJvmOptions() {
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-	
-	
+
 	public static LocalFlinkMiniCluster startCluster(
 		int numTaskManagers,
 		int taskManagerNumSlots,
 		boolean startWebserver,
 		boolean startZooKeeper,
 		boolean singleActorSystem) throws Exception {
-		
+
 		Configuration config = new Configuration();
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
-		
+
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
 
 		if (startZooKeeper) {
@@ -138,15 +141,15 @@ public class TestBaseUtils extends TestLogger {
 		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
 		Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
-		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+		config.setString(AkkaOptions.ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
+		config.setString(AkkaOptions.STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
 
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
-		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
-		
+		config.setInteger(JobManagerOptions.WEB_PORT, 8081);
+		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());
 
 		LocalFlinkMiniCluster cluster =  new LocalFlinkMiniCluster(config, singleActorSystem);
@@ -156,7 +159,6 @@ public class TestBaseUtils extends TestLogger {
 		return cluster;
 	}
 
-
 	public static void stopCluster(LocalFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
 			FileUtils.deleteDirectory(logDir);
@@ -164,7 +166,7 @@ public class TestBaseUtils extends TestLogger {
 		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
-			
+
 			if (executor.running()) {
 				List<ActorRef> tms = executor.getTaskManagersAsJava();
 				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<>();
@@ -219,8 +221,11 @@ public class TestBaseUtils extends TestLogger {
 		return getResultReader(resultPath, new String[]{}, false);
 	}
 
-	public static BufferedReader[] getResultReader(String resultPath, String[] excludePrefixes,
-											boolean inOrderOfFiles) throws IOException {
+	public static BufferedReader[] getResultReader(
+			String resultPath,
+			String[] excludePrefixes,
+			boolean inOrderOfFiles) throws IOException {
+
 		File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
 
 		if (inOrderOfFiles) {
@@ -249,7 +254,7 @@ public class TestBaseUtils extends TestLogger {
 		}
 		return readers;
 	}
-	
+
 	public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
 		return getResultInputStream(resultPath, new String[]{});
 	}
@@ -268,14 +273,19 @@ public class TestBaseUtils extends TestLogger {
 		readAllResultLines(target, resultPath, new String[]{});
 	}
 
-	public static void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes) 
+	public static void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes)
 			throws IOException {
-		
+
 		readAllResultLines(target, resultPath, excludePrefixes, false);
 	}
 
-	public static void readAllResultLines(List<String> target, String resultPath, 
-											String[] excludePrefixes, boolean inOrderOfFiles) throws IOException {
+	public static void readAllResultLines(
+			List<String> target,
+			String resultPath,
+			String[] excludePrefixes,
+			boolean inOrderOfFiles) throws IOException {
+
+		checkArgument(resultPath != null, "resultPath cannot be be null");
 
 		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
 		try {
@@ -288,12 +298,7 @@ public class TestBaseUtils extends TestLogger {
 		}
 		finally {
 			for (BufferedReader reader : readers) {
-				try {
-					reader.close();
-				}
-				catch (Exception e) {
-					// ignore, this is best-effort cleanup
-				}
+				org.apache.flink.util.IOUtils.closeQuietly(reader);
 			}
 		}
 	}
@@ -302,8 +307,11 @@ public class TestBaseUtils extends TestLogger {
 		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[0]);
 	}
 
-	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath,
-											String[] excludePrefixes) throws Exception {
+	public static void compareResultsByLinesInMemory(
+			String expectedResultStr,
+			String resultPath,
+			String[] excludePrefixes) throws Exception {
+
 		ArrayList<String> list = new ArrayList<>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
@@ -313,8 +321,15 @@ public class TestBaseUtils extends TestLogger {
 		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
 		Arrays.sort(expected);
 
-		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
-		Assert.assertArrayEquals(expected, result);
+		if (expected.length != result.length || !Arrays.deepEquals(expected, result)) {
+			String msg = String.format(
+					"Different elements in arrays: expected %d elements and received %d\n" +
+					"files: %s\n expected: %s\n received: %s",
+					expected.length, result.length,
+					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)),
+					Arrays.toString(expected), Arrays.toString(result));
+			fail(msg);
+		}
 	}
 
 	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
@@ -396,19 +411,17 @@ public class TestBaseUtils extends TestLogger {
 		}
 	}
 
-	private static File[] getAllInvolvedFiles(String resultPath, String[] excludePrefixes) {
-		final String[] exPrefs = excludePrefixes;
-		File result = asFile(resultPath);
-		if (!result.exists()) {
-			Assert.fail("Result file was not written");
-		}
+	private static File[] getAllInvolvedFiles(String resultPath, final String[] excludePrefixes) {
+		final File result = asFile(resultPath);
+		assertTrue("Result file was not written", result.exists());
+
 		if (result.isDirectory()) {
 			return result.listFiles(new FilenameFilter() {
 
 				@Override
 				public boolean accept(File dir, String name) {
-					for(String p: exPrefs) {
-						if(name.startsWith(p)) {
+					for (String p: excludePrefixes) {
+						if (name.startsWith(p)) {
 							return false;
 						}
 					}
@@ -453,14 +466,14 @@ public class TestBaseUtils extends TestLogger {
 	public static <T> void compareOrderedResultAsText(List<T> result, String expected, boolean asTuples) {
 		compareResult(result, expected, asTuples, false);
 	}
-	
+
 	private static <T> void compareResult(List<T> result, String expected, boolean asTuples, boolean sort) {
 		String[] expectedStrings = expected.split("\n");
 		String[] resultStrings = new String[result.size()];
-		
+
 		for (int i = 0; i < resultStrings.length; i++) {
 			T val = result.get(i);
-			
+
 			if (asTuples) {
 				if (val instanceof Tuple) {
 					Tuple t = (Tuple) val;
@@ -480,19 +493,25 @@ public class TestBaseUtils extends TestLogger {
 				resultStrings[i] = (val == null) ? "null" : val.toString();
 			}
 		}
-		
-		assertEquals("Wrong number of elements result", expectedStrings.length, resultStrings.length);
 
 		if (sort) {
 			Arrays.sort(expectedStrings);
 			Arrays.sort(resultStrings);
 		}
-		
+
+		// Include content of both arrays to provide more context in case of a test failure
+		String msg = String.format(
+			"Different elements in arrays: expected %d elements and received %d\n expected: %s\n received: %s",
+			expectedStrings.length, resultStrings.length,
+			Arrays.toString(expectedStrings), Arrays.toString(resultStrings));
+
+		assertEquals(msg, expectedStrings.length, resultStrings.length);
+
 		for (int i = 0; i < expectedStrings.length; i++) {
-			assertEquals(expectedStrings[i], resultStrings[i]);
+			assertEquals(msg, expectedStrings[i], resultStrings[i]);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Comparison methods for tests using sample
 	// --------------------------------------------------------------------------------------------
@@ -523,7 +542,7 @@ public class TestBaseUtils extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous helper methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected static Collection<Object[]> toParameterList(Configuration ... testConfigs) {
 		ArrayList<Object[]> configs = new ArrayList<>();
 		for (Configuration testConfig : testConfigs) {
@@ -542,42 +561,10 @@ public class TestBaseUtils extends TestLogger {
 		return configs;
 	}
 
-	// This code is taken from: http://stackoverflow.com/a/7201825/568695
-	// it changes the environment variables of this JVM. Use only for testing purposes!
-	@SuppressWarnings("unchecked")
 	public static void setEnv(Map<String, String> newenv) {
-		try {
-			Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
-			Field theEnvironmentField = processEnvironmentClass.getDeclaredField("theEnvironment");
-			theEnvironmentField.setAccessible(true);
-			Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
-			env.putAll(newenv);
-			Field theCaseInsensitiveEnvironmentField = processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
-			theCaseInsensitiveEnvironmentField.setAccessible(true);
-			Map<String, String> cienv = (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
-			cienv.putAll(newenv);
-		} catch (NoSuchFieldException e) {
-			try {
-				Class<?>[] classes = Collections.class.getDeclaredClasses();
-				Map<String, String> env = System.getenv();
-				for (Class<?> cl : classes) {
-					if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
-						Field field = cl.getDeclaredField("m");
-						field.setAccessible(true);
-						Object obj = field.get(env);
-						Map<String, String> map = (Map<String, String>) obj;
-						map.clear();
-						map.putAll(newenv);
-					}
-				}
-			} catch (Exception e2) {
-				throw new RuntimeException(e2);
-			}
-		} catch (Exception e1) {
-			throw new RuntimeException(e1);
-		}
+		CommonTestUtils.setEnv(newenv);
 	}
-	
+
 	private static ExecutionContext defaultExecutionContext() {
 		return ExecutionContext$.MODULE$.global();
 	}
@@ -592,18 +579,18 @@ public class TestBaseUtils extends TestLogger {
 			System.err.println("Failed to delete file " + f.getAbsolutePath());
 		}
 	}
-	
+
 	public static String constructTestPath(Class<?> forClass, String folder) {
 		// we create test path that depends on class to prevent name clashes when two tests
 		// create temp files with the same name
 		String path = System.getProperty("java.io.tmpdir");
-		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
+		if (!(path.endsWith("/") || path.endsWith("\\"))) {
 			path += System.getProperty("file.separator");
 		}
 		path += (forClass.getName() + "-" + folder);
 		return path;
 	}
-	
+
 	public static String constructTestURI(Class<?> forClass, String folder) {
 		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
@@ -614,12 +601,12 @@ public class TestBaseUtils extends TestLogger {
 
 	public static String getFromHTTP(String url) throws Exception {
 		URL u = new URL(url);
-		LOG.info("Accessing URL "+url+" as URL: "+u);
+		LOG.info("Accessing URL " + url + " as URL: " + u);
 		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 		connection.setConnectTimeout(100000);
 		connection.connect();
 		InputStream is;
-		if(connection.getResponseCode() >= 400) {
+		if (connection.getResponseCode() >= 400) {
 			// error!
 			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
 			is = connection.getErrorStream();
@@ -629,7 +616,11 @@ public class TestBaseUtils extends TestLogger {
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
-	
+
+	/**
+	 * Comparator for comparable Tuples.
+	 * @param <T> tuple type
+	 */
 	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
 
 		@Override
@@ -644,7 +635,7 @@ public class TestBaseUtils extends TestLogger {
 				for (int i = 0; i < o1.getArity(); i++) {
 					Object val1 = o1.getField(i);
 					Object val2 = o2.getField(i);
-					
+
 					int cmp;
 					if (val1 != null && val2 != null) {
 						cmp = compareValues(val1, val2);
@@ -652,16 +643,16 @@ public class TestBaseUtils extends TestLogger {
 					else {
 						cmp = val1 == null ? (val2 == null ? 0 : -1) : 1;
 					}
-					
+
 					if (cmp != 0) {
 						return cmp;
 					}
 				}
-				
+
 				return 0;
 			}
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		private static <X extends Comparable<X>> int compareValues(Object o1, Object o2) {
 			if (o1 instanceof Comparable && o2 instanceof Comparable) {

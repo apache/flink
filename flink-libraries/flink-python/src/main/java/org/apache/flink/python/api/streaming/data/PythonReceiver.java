@@ -10,62 +10,62 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.data;
 
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonOptions;
+import org.apache.flink.util.Collector;
+
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.Serializable;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
-import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
-import org.apache.flink.util.Collector;
 
 /**
  * This class is used to read data from memory-mapped files.
  */
-public class PythonReceiver implements Serializable {
+public class PythonReceiver<OUT> implements Serializable {
 	private static final long serialVersionUID = -2474088929850009968L;
 
-	private File inputFile;
-	private RandomAccessFile inputRAF;
-	private FileChannel inputChannel;
-	private MappedByteBuffer fileBuffer;
+	private transient RandomAccessFile inputRAF;
+	private transient FileChannel inputChannel;
+	private transient MappedByteBuffer fileBuffer;
+
+	private final long mappedFileSizeBytes;
 
 	private final boolean readAsByteArray;
 
-	private Deserializer<?> deserializer = null;
+	private transient Deserializer<OUT> deserializer;
 
-	public PythonReceiver(boolean usesByteArray) {
+	public PythonReceiver(Configuration config, boolean usesByteArray) {
 		readAsByteArray = usesByteArray;
+		mappedFileSizeBytes = config.getLong(PythonOptions.MMAP_FILE_SIZE) << 10;
 	}
 
 	//=====Setup========================================================================================================
-	public void open(String path) throws IOException {
-		setupMappedFile(path);
-		deserializer = readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer();
-	}
 
-	private void setupMappedFile(String inputFilePath) throws FileNotFoundException, IOException {
-		File x = new File(FLINK_TMP_DATA_DIR);
-		x.mkdirs();
+	@SuppressWarnings("unchecked")
+	public void open(File inputFile) throws IOException {
+		deserializer = (Deserializer<OUT>) (readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer());
 
-		inputFile = new File(inputFilePath);
+		inputFile.getParentFile().mkdirs();
+
 		if (inputFile.exists()) {
 			inputFile.delete();
 		}
 		inputFile.createNewFile();
-		inputRAF = new RandomAccessFile(inputFilePath, "rw");
-		inputRAF.setLength(MAPPED_FILE_SIZE);
-		inputRAF.seek(MAPPED_FILE_SIZE - 1);
+		inputRAF = new RandomAccessFile(inputFile, "rw");
+		inputRAF.setLength(mappedFileSizeBytes);
+		inputRAF.seek(mappedFileSizeBytes - 1);
 		inputRAF.writeByte(0);
 		inputRAF.seek(0);
 		inputChannel = inputRAF.getChannel();
-		fileBuffer = inputChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAPPED_FILE_SIZE);
+		fileBuffer = inputChannel.map(FileChannel.MapMode.READ_WRITE, 0, mappedFileSizeBytes);
 	}
 
 	public void close() throws IOException {
@@ -89,7 +89,7 @@ public class PythonReceiver implements Serializable {
 	 * @throws IOException
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void collectBuffer(Collector c, int bufferSize) throws IOException {
+	public void collectBuffer(Collector<OUT> c, int bufferSize) throws IOException {
 		fileBuffer.position(0);
 
 		while (fileBuffer.position() < bufferSize) {
@@ -99,7 +99,7 @@ public class PythonReceiver implements Serializable {
 
 	//=====Deserializer=================================================================================================
 	private interface Deserializer<T> {
-		public T deserialize();
+		T deserialize();
 	}
 
 	private class ByteArrayDeserializer implements Deserializer<byte[]> {

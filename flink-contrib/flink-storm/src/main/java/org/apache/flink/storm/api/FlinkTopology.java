@@ -16,17 +16,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.api;
 
-import backtype.storm.generated.ComponentCommon;
-import backtype.storm.generated.GlobalStreamId;
-import backtype.storm.generated.Grouping;
-import backtype.storm.generated.StormTopology;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.IRichStateSpout;
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.tuple.Fields;
+package org.apache.flink.storm.api;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -46,6 +37,16 @@ import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.storm.generated.ComponentCommon;
+import org.apache.storm.generated.GlobalStreamId;
+import org.apache.storm.generated.Grouping;
+import org.apache.storm.generated.StormTopology;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.IRichSpout;
+import org.apache.storm.topology.IRichStateSpout;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -62,9 +63,9 @@ import java.util.Set;
  */
 public class FlinkTopology {
 
-	/** All declared streams and output schemas by operator ID */
+	/** All declared streams and output schemas by operator ID. */
 	private final HashMap<String, HashMap<String, Fields>> outputStreams = new HashMap<String, HashMap<String, Fields>>();
-	/** All spouts&bolts declarers by their ID */
+	/** All spouts&bolts declarers by their ID. */
 	private final HashMap<String, FlinkOutputFieldsDeclarer> declarers = new HashMap<String, FlinkOutputFieldsDeclarer>();
 
 	private final HashMap<String, Set<Entry<GlobalStreamId, Grouping>>> unprocessdInputsPerBolt =
@@ -96,7 +97,6 @@ public class FlinkTopology {
 	}
 
 	/**
-	 *
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 * @param stormBuilder The Storm topology builder to use for creating the Flink topology.
 	 * @return A {@link FlinkTopology} which contains the translated Storm topology and may be executed.
@@ -122,7 +122,6 @@ public class FlinkTopology {
 	public JobExecutionResult execute() throws Exception {
 		return env.execute();
 	}
-
 
 	@SuppressWarnings("unchecked")
 	private <T> Map<String, T> getPrivateField(String field) {
@@ -161,17 +160,15 @@ public class FlinkTopology {
 
 		/* Translation of topology */
 
-
 		for (final Entry<String, IRichSpout> spout : spouts.entrySet()) {
 			final String spoutId = spout.getKey();
 			final IRichSpout userSpout = spout.getValue();
 
 			final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 			userSpout.declareOutputFields(declarer);
-			final HashMap<String,Fields> sourceStreams = declarer.outputStreams;
+			final HashMap<String, Fields> sourceStreams = declarer.outputStreams;
 			this.outputStreams.put(spoutId, sourceStreams);
 			declarers.put(spoutId, declarer);
-
 
 			final HashMap<String, DataStream<Tuple>> outputStreams = new HashMap<String, DataStream<Tuple>>();
 			final DataStreamSource<?> source;
@@ -222,7 +219,7 @@ public class FlinkTopology {
 		 * 1. Connect all spout streams with bolts streams
 		 * 2. Then proceed with the bolts stream already connected
 		 *
-		 *  Because we do not know the order in which an iterator steps over a set, we might process a consumer before
+		 * <p>Because we do not know the order in which an iterator steps over a set, we might process a consumer before
 		 * its producer
 		 * ->thus, we might need to repeat multiple times
 		 */
@@ -418,7 +415,7 @@ public class FlinkTopology {
 			final SingleOutputStreamOperator<Tuple> outStream;
 
 			// only one input
-			if(inputStreams.entrySet().size() == 1) {
+			if (inputStreams.entrySet().size() == 1) {
 				BoltWrapper<Tuple, Tuple> boltWrapper = new BoltWrapper<>(bolt, boltId,
 						inputStreamId1, inputComponentId1, inputSchema1, null);
 				boltWrapper.setStormTopology(stormTopology);
@@ -444,7 +441,7 @@ public class FlinkTopology {
 			final SingleOutputStreamOperator<SplitStreamType<Tuple>> multiStream;
 
 			// only one input
-			if(inputStreams.entrySet().size() == 1) {
+			if (inputStreams.entrySet().size() == 1) {
 				final BoltWrapper<Tuple, SplitStreamType<Tuple>> boltWrapperMultipleOutputs = new BoltWrapper<>(
 						bolt, boltId, inputStreamId1, inputComponentId1, inputSchema1, null);
 				boltWrapperMultipleOutputs.setStormTopology(stormTopology);

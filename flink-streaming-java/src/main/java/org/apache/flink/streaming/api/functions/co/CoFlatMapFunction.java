@@ -18,23 +18,23 @@
 
 package org.apache.flink.streaming.api.functions.co;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
 
+import java.io.Serializable;
+
 /**
  * A CoFlatMapFunction implements a flat-map transformation over two
  * connected streams.
- * 
+ *
  * <p>The same instance of the transformation function is used to transform
  * both of the connected streams. That way, the stream transformations can
  * share state.
- * 
+ *
  * <p>An example for the use of connected streams would be to apply rules that change over time
  * onto elements of a stream. One of the connected streams has the rules, the other stream the
- * elements to apply the rules to. The operation on the connected stream maintains the 
+ * elements to apply the rules to. The operation on the connected stream maintains the
  * current set of rules in the state. It may receive either a rule update (from the first stream)
  * and update the state, or a data element (from the second stream) and apply the rules in the
  * state to the element. The result of applying the rules would be emitted.
@@ -48,7 +48,7 @@ public interface CoFlatMapFunction<IN1, IN2, OUT> extends Function, Serializable
 
 	/**
 	 * This method is called for each element in the first of the connected streams.
-	 * 
+	 *
 	 * @param value The stream element
 	 * @param out The collector to emit resulting elements to
 	 * @throws Exception The function may throw exceptions which cause the streaming program
@@ -58,7 +58,7 @@ public interface CoFlatMapFunction<IN1, IN2, OUT> extends Function, Serializable
 
 	/**
 	 * This method is called for each element in the second of the connected streams.
-	 * 
+	 *
 	 * @param value The stream element
 	 * @param out The collector to emit resulting elements to
 	 * @throws Exception The function may throw exceptions which cause the streaming program

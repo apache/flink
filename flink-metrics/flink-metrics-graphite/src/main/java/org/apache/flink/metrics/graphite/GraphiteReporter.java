@@ -18,16 +18,20 @@
 
 package org.apache.flink.metrics.graphite;
 
-import com.codahale.metrics.ScheduledReporter;
-import com.codahale.metrics.graphite.Graphite;
-
-import com.codahale.metrics.graphite.GraphiteUDP;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 import org.apache.flink.metrics.MetricConfig;
 
+import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.graphite.Graphite;
+import com.codahale.metrics.graphite.GraphiteUDP;
+
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This class acts as a factory for the {@link com.codahale.metrics.graphite.GraphiteReporter} and allows using it as a
+ * Flink reporter.
+ */
 @PublicEvolving
 public class GraphiteReporter extends ScheduledDropwizardReporter {
 
@@ -75,9 +79,10 @@ public class GraphiteReporter extends ScheduledDropwizardReporter {
 			prot = Protocol.TCP;
 		}
 
+		log.info("Configured GraphiteReporter with {host:{}, port:{}, protocol:{}}", host, port, prot);
 		switch(prot) {
 			case UDP:
-				return builder.build(new GraphiteUDP(host, port));				
+				return builder.build(new GraphiteUDP(host, port));
 			case TCP:
 			default:
 				return builder.build(new Graphite(host, port));

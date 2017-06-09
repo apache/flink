@@ -24,19 +24,23 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link CompleteGraph}.
+ */
 public class CompleteGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraph()
 			throws Exception {
 		int vertexCount = 4;
 
-		Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
 			.generate();
 
 		String vertices = "0; 1; 2; 3";
@@ -50,11 +54,11 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 10;
 
-		Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
-		assertEquals(vertexCount*(vertexCount-1), graph.numberOfEdges());
+		assertEquals(vertexCount * (vertexCount - 1), graph.numberOfEdges());
 
 		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
 		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
@@ -72,12 +76,12 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, 10)
+		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, 10)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue,NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue,NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
+		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

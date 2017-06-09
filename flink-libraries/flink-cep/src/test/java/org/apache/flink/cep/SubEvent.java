@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep;
 
+/**
+ * A subclass of {@link Event} for usage in tests.
+ */
 public class SubEvent extends Event {
 	private final double volume;
 
@@ -28,6 +31,18 @@ public class SubEvent extends Event {
 
 	public double getVolume() {
 		return volume;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof SubEvent &&
+				super.equals(obj) &&
+				((SubEvent) obj).volume == volume;
+	}
+
+	@Override
+	public int hashCode() {
+		return super.hashCode() + (int) volume;
 	}
 
 	@Override

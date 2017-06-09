@@ -19,12 +19,17 @@
 package org.apache.flink.graph.utils.proxy;
 
 import org.apache.flink.graph.utils.proxy.OptionalBoolean.State;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+/**
+ * Tests for {@link OptionalBoolean}.
+ */
 public class OptionalBooleanTest {
 
 	private OptionalBoolean u;
@@ -61,7 +66,6 @@ public class OptionalBooleanTest {
 		// unset, conflicting
 		assertTrue(u.conflictsWith(c));
 
-
 		// false, unset
 		assertFalse(f.conflictsWith(u));
 
@@ -74,7 +78,6 @@ public class OptionalBooleanTest {
 		// false, conflicting
 		assertTrue(f.conflictsWith(c));
 
-
 		// true, unset
 		assertFalse(t.conflictsWith(u));
 
@@ -86,7 +89,6 @@ public class OptionalBooleanTest {
 
 		// true, conflicting
 		assertTrue(t.conflictsWith(c));
-
 
 		// conflicting, unset
 		assertTrue(c.conflictsWith(u));
@@ -123,7 +125,6 @@ public class OptionalBooleanTest {
 		assertEquals(State.CONFLICTING, u.getState());
 		u.unset();
 
-
 		// false, unset => false
 		f.mergeWith(u);
 		assertEquals(State.FALSE, f.getState());
@@ -142,7 +143,6 @@ public class OptionalBooleanTest {
 		assertEquals(State.CONFLICTING, f.getState());
 		f.set(false);
 
-
 		// true, unset => true
 		t.mergeWith(u);
 		assertEquals(State.TRUE, t.getState());
@@ -160,7 +160,6 @@ public class OptionalBooleanTest {
 		t.mergeWith(c);
 		assertEquals(State.CONFLICTING, t.getState());
 		t.set(true);
-
 
 		// conflicting, unset => conflicting
 		c.mergeWith(u);

@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -32,8 +34,11 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the registration of groups and metrics on a {@link MetricGroup}.
+ */
 public class MetricGroupRegistrationTest {
 	/**
 	 * Verifies that group methods instantiate the correct metric with the given name.
@@ -41,7 +46,7 @@ public class MetricGroupRegistrationTest {
 	@Test
 	public void testMetricInstantiation() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
@@ -58,7 +63,7 @@ public class MetricGroupRegistrationTest {
 				return null;
 			}
 		});
-		
+
 		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
 		assertEquals("gauge", TestReporter1.lastPassedName);
 
@@ -84,8 +89,11 @@ public class MetricGroupRegistrationTest {
 		registry.shutdown();
 	}
 
+	/**
+	 * Reporter that exposes the last name and metric instance it was notified of.
+	 */
 	public static class TestReporter1 extends TestReporter {
-		
+
 		public static Metric lastPassedMetric;
 		public static String lastPassedName;
 

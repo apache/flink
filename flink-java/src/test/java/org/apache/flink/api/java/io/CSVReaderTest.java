@@ -18,14 +18,9 @@
 
 package org.apache.flink.api.java.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-
-import java.io.IOException;
-import java.util.Arrays;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -46,7 +41,12 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.junit.Test;
-import org.apache.flink.api.java.ExecutionEnvironment;
+
+import java.io.IOException;
+import java.util.Arrays;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * Tests for the CSV reader builder.
@@ -75,7 +75,15 @@ public class CSVReaderTest {
 		reader.ignoreComments("#");
 		assertEquals("#", reader.commentPrefix);
 	}
-	
+
+	@Test
+	public void testCharset() {
+		CsvReader reader = getCsvReader();
+		assertEquals("UTF-8", reader.getCharset());
+		reader.setCharset("US-ASCII");
+		assertEquals("US-ASCII", reader.getCharset());
+	}
+
 	@Test
 	public void testIncludeFieldsDense() {
 		CsvReader reader = getCsvReader();

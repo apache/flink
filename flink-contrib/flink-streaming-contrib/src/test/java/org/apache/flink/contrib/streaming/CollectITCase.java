@@ -22,17 +22,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.Iterator;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * This test verifies the behavior of DataStreamUtils.collect.
  */
-public class CollectITCase {
+public class CollectITCase extends TestLogger {
 
 	@Test
 	public void testCollect() throws Exception {
@@ -40,22 +42,24 @@ public class CollectITCase {
 		try {
 			cluster.start();
 
-			final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-	
-			final long N = 10;
-			DataStream<Long> stream = env.generateSequence(1, N);
-	
+			TestStreamEnvironment.setAsContext(cluster, 1);
+
+			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+			final long n = 10;
+			DataStream<Long> stream = env.generateSequence(1, n);
+
 			long i = 1;
 			for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
 				long x = it.next();
 				assertEquals("received wrong element", i, x);
 				i++;
 			}
-			
-			assertEquals("received wrong number of elements", N + 1, i);
+
+			assertEquals("received wrong number of elements", n + 1, i);
 		}
 		finally {
+			TestStreamEnvironment.unsetAsContext();
 			cluster.stop();
 		}
 	}

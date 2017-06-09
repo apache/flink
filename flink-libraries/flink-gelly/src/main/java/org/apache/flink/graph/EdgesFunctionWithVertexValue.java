@@ -18,10 +18,10 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * Interface to be implemented by the function applied to a vertex neighborhood
@@ -38,16 +38,16 @@ public interface EdgesFunctionWithVertexValue<K, VV, EV, O> extends Function, Se
 	/**
 	 * This method is called per vertex and can iterate over all of its neighboring edges
 	 * with the specified direction.
-	 * <p>
-	 * If called with {@link EdgeDirection#OUT} the group will contain
+	 *
+	 * <p>If called with {@link EdgeDirection#OUT} the group will contain
 	 * the out-edges of the grouping vertex.
 	 * If called with {@link EdgeDirection#IN} the group will contain
 	 * the in-edges of the grouping vertex.
 	 * If called with {@link EdgeDirection#ALL} the group will contain
 	 * all edges of the grouping vertex.
-	 * <p>
-	 * The method can emit any number of output elements, including none.
-	 * 
+	 *
+	 * <p>The method can emit any number of output elements, including none.
+	 *
 	 * @param vertex the grouping vertex
 	 * @param edges the neighboring edges of the grouping vertex.
 	 * @param out the collector to emit results to

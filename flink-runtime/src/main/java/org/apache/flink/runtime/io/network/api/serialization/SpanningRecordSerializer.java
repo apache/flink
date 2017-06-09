@@ -24,11 +24,17 @@ import java.nio.ByteOrder;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
 
+/**
+ * Record serializer which serializes the complete record to an intermediate
+ * data serialization buffer and copies this buffer to target buffers
+ * one-by-one using {@link #setNextBuffer(Buffer)}.
+ *
+ * @param <T>
+ */
 public class SpanningRecordSerializer<T extends IOReadableWritable> implements RecordSerializer<T> {
 
 	/** Flag to enable/disable checks, if buffer not set/full or pending serialization */
@@ -37,7 +43,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	/** Intermediate data serialization */
 	private final DataOutputSerializer serializationBuffer;
 
-	/** Intermediate buffer for data serialization */
+	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}) */
 	private ByteBuffer dataBuffer;
 
 	/** Intermediate buffer for length serialization */
@@ -52,8 +58,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	/** Limit of current {@link MemorySegment} of target buffer */
 	private int limit;
 
-	private transient Counter numBytesOut;
-
 	public SpanningRecordSerializer() {
 		this.serializationBuffer = new DataOutputSerializer(128);
 
@@ -65,6 +69,15 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		this.lengthBuffer.position(4);
 	}
 
+	/**
+	 * Serializes the complete record to an intermediate data serialization
+	 * buffer and starts copying it to the target buffer (if available).
+	 *
+	 * @param record the record to serialize
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
+	 * @throws IOException
+	 */
 	@Override
 	public SerializationResult addRecord(T record) throws IOException {
 		if (CHECKED) {
@@ -81,10 +94,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 		int len = this.serializationBuffer.length();
 		this.lengthBuffer.putInt(0, len);
-		
-		if (numBytesOut != null) {
-			numBytesOut.inc(len);
-		}
 
 		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
 
@@ -187,6 +196,5 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	@Override
 	public void instantiateMetrics(TaskIOMetricGroup metrics) {
-		numBytesOut = metrics.getNumBytesOutCounter();
 	}
 }

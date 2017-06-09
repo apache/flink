@@ -19,19 +19,19 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -39,14 +39,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-import org.apache.flink.util.FutureUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.InputStream;
 import java.util.BitSet;
-import java.util.Collections;
 
+/**
+ * Tests for {@link StreamOperator} snapshot restoration.
+ */
 public class StreamOperatorSnapshotRestoreTest {
 
 	private static final int MAX_PARALLELISM = 10;
@@ -173,8 +175,13 @@ public class StreamOperatorSnapshotRestoreTest {
 
 			Assert.assertEquals(verifyRestore, context.isRestored());
 
-			keyedState = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("managed-keyed", Integer.class, 0));
-			opState = context.getManagedOperatorStateStore().getSerializableListState("managed-op-state");
+			keyedState = context
+					.getKeyedStateStore()
+					.getState(new ValueStateDescriptor<>("managed-keyed", Integer.class, 0));
+
+			opState = context
+					.getOperatorStateStore()
+					.getListState(new ListStateDescriptor<>("managed-op-state", IntSerializer.INSTANCE));
 
 			if (context.isRestored()) {
 				// check restored raw keyed state

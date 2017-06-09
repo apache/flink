@@ -24,20 +24,24 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.examples.data.LabelPropagationData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link LabelPropagation}.
+ */
 @RunWith(Parameterized.class)
 public class LabelPropagationITCase extends MultipleProgramsTestBase {
 
-	public LabelPropagationITCase(TestExecutionMode mode){
+	public LabelPropagationITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-    private String expectedResult;
+	private String expectedResult;
 
 	@Test
 	public void testSingleIteration() throws Exception {
@@ -47,10 +51,10 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
-				LabelPropagationData.getDefaultVertexSet(env),
-				LabelPropagationData.getDefaultEdgeDataSet(env), env);
+			LabelPropagationData.getDefaultVertexSet(env),
+			LabelPropagationData.getDefaultEdgeDataSet(env), env);
 
-        List<Vertex<Long, Long>> result = inputGraph
+		List<Vertex<Long, Long>> result = inputGraph
 			.run(new LabelPropagation<Long, Long, NullValue>(1))
 			.collect();
 
@@ -66,10 +70,10 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
-				LabelPropagationData.getTieVertexSet(env),
-				LabelPropagationData.getTieEdgeDataSet(env), env);
+			LabelPropagationData.getTieVertexSet(env),
+			LabelPropagationData.getTieEdgeDataSet(env), env);
 
-        List<Vertex<Long, Long>> result = inputGraph
+		List<Vertex<Long, Long>> result = inputGraph
 			.run(new LabelPropagation<Long, Long, NullValue>(1))
 			.collect();
 

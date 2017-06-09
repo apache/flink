@@ -39,7 +39,6 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	private final ReducingStateDescriptor<Long> stateDesc =
 			new ReducingStateDescriptor<>("count", new Sum(), LongSerializer.INSTANCE);
 
-
 	private CountTrigger(long maxCount) {
 		this.maxCount = maxCount;
 	}
@@ -76,13 +75,8 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	}
 
 	@Override
-	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
+	public void onMerge(W window, OnMergeContext ctx) throws Exception {
 		ctx.mergePartitionedState(stateDesc);
-		ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
-		if (count.get() >= maxCount) {
-			return TriggerResult.FIRE;
-		}
-		return TriggerResult.CONTINUE;
 	}
 
 	@Override

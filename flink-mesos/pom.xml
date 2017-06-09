@@ -23,57 +23,70 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.2-SNAPSHOT</version>
+		<version>1.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>flink-mesos_2.10</artifactId>
+	<artifactId>flink-mesos_${scala.binary.version}</artifactId>
 	<name>flink-mesos</name>
 	<packaging>jar</packaging>
-
-    <properties>
-        <mesos.version>0.27.1</mesos.version>
-    </properties>
 	
-    <dependencies>
+	<properties>
+		<mesos.version>1.0.1</mesos.version>
+	</properties>
+
+	<dependencies>
+
+		<!--  set all Flink dependencies to provided, so they and their transitive  -->
+		<!-- dependencies do not get promoted to direct dependencies during shading -->
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_2.10</artifactId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
-			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-curator-recipes</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-actor_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
+			<exclusions>
+				<!-- exclude the lower/wrong version of Protobuf here -->
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
+
+		<!-- Mesos and Mesos Resource Manager dependencies -->
 
 		<dependency>
 			<groupId>org.apache.mesos</groupId>
@@ -85,12 +98,28 @@ under the License.
 			<groupId>com.netflix.fenzo</groupId>
 			<artifactId>fenzo-core</artifactId>
 			<version>0.9.3</version>
+			<exclusions>
+				<!-- exclude mesos here to override -->
+				<exclusion>
+					<groupId>org.apache.mesos</groupId>
+					<artifactId>mesos</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>tv.cntt</groupId>
 			<artifactId>netty-router</artifactId>
-			<version>1.10</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -109,14 +138,14 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -124,7 +153,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -138,7 +167,6 @@ under the License.
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
-				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
 						scala classes can be resolved later in the (Java) compile phase -->
@@ -241,7 +269,9 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Relocate curator -->
+			<!-- Relocate Mesos Protobuf dependency. Mesos 1.0.1 requires Protobuf 2.6.1 whereas
+			 Flakka pulls in Protobuf 2.5.0. It might be feasible to set Protobuf to version 2.6.1,
+			 but we shade to be on the safe side. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -253,18 +283,55 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-shaded-curator-recipes</include>
+									<include>com.google.protobuf:*</include>
+									<include>org.apache.mesos:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
-									<pattern>org.apache.curator</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.curator</shadedPattern>
+									<pattern>com.google.protobuf</pattern>
+									<shadedPattern>org.apache.flink.mesos.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+				<executions>
+					<!--
+					Execute checkstyle after compilation but before tests.
+
+					This ensures that any parsing or type checking errors are from
+					javac, so they look as expected. Beyond that, we want to
+					fail as early as possible.
+					-->
+					<execution>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>

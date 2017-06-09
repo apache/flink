@@ -1,8 +1,10 @@
 ---
 title: "Flink DataStream API Programming Guide"
 nav-title: Streaming (DataStream API)
-nav-parent_id: apis
-nav-pos: 2
+nav-id: streaming
+nav-parent_id: dev
+nav-show_overview: true
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -208,12 +210,21 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight java %}
 dataStream.keyBy("someKey") // Key by field "someKey"
 dataStream.keyBy(0) // Key by the first element of a Tuple
     {% endhighlight %}
+            <p>
+            <span class="label label-danger">Attention</span> 
+            A type <strong>cannot be a key</strong> if:
+    	    <ol> 
+    	    <li> it is a POJO type but does not override the <em>hashCode()</em> method and 
+    	    relies on the <em>Object.hashCode()</em> implementation.</li>
+    	    <li> it is an array of any type.</li>
+    	    </ol>
+    	    </p>
           </td>
         </tr>
         <tr>
@@ -342,11 +353,11 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
           <td>
             <p>Applies a functional reduce function to the window and returns the reduced value.</p>
     {% highlight java %}
-windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>() {
+windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
     }
-};
+});
     {% endhighlight %}
           </td>
         </tr>
@@ -361,7 +372,7 @@ windowedStream.fold("start", new FoldFunction<Integer, String>() {
     public String fold(String current, Integer value) {
         return current + "-" + value;
     }
-};
+});
     {% endhighlight %}
           </td>
         </tr>
@@ -388,7 +399,7 @@ windowedStream.maxBy("key");
         <tr>
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
-            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
             with itself you will get each element twice in the resulting stream.</p>
     {% highlight java %}
 dataStream.union(otherStream1, otherStream2, ...);
@@ -401,7 +412,7 @@ dataStream.union(otherStream1, otherStream2, ...);
             <p>Join two data streams on a given key and a common window.</p>
     {% highlight java %}
 dataStream.join(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply (new JoinFunction () {...});
     {% endhighlight %}
@@ -595,7 +606,7 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight scala %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -737,7 +748,7 @@ windowedStream.maxBy("key")
         <tr>
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
-            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
             with itself you will get each element twice in the resulting stream.</p>
     {% highlight scala %}
 dataStream.union(otherStream1, otherStream2, ...)
@@ -750,7 +761,7 @@ dataStream.union(otherStream1, otherStream2, ...)
             <p>Join two data streams on a given key and a common window.</p>
     {% highlight scala %}
 dataStream.join(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply { ... }
     {% endhighlight %}
@@ -872,7 +883,7 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="../scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="scala_api_extensions.html">Scala API extension</a>.
 
 
 </div>
@@ -901,34 +912,6 @@ The following transformations are available on data streams of Tuples:
 {% highlight java %}
 DataStream<Tuple3<Integer, Double, String>> in = // [...]
 DataStream<Tuple2<String, Integer>> out = in.project(2,0);
-{% endhighlight %}
-        </p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
-<div data-lang="scala" markdown="1">
-
-<br />
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Transformation</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-   <tr>
-      <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
-      <td>
-        <p>Selects a subset of fields from the tuples
-{% highlight scala %}
-val in : DataStream[(Int,Double,String)] = // [...]
-val out = in.project(2,0)
 {% endhighlight %}
         </p>
       </td>
@@ -1008,19 +991,18 @@ dataStream.rebalance();
             The subset of downstream operations to which the upstream operation sends
             elements depends on the degree of parallelism of both the upstream and downstream operation.
             For example, if the upstream operation has parallelism 2 and the downstream operation
-            has parallelism 4, then one upstream operation would distribute elements to two
+            has parallelism 6, then one upstream operation would distribute elements to three
             downstream operations while the other upstream operation would distribute to the other
-            two downstream operations. If, on the other hand, the downstream operation has parallelism
-            2 while the upstream operation has parallelism 4 then two upstream operations would
-            distribute to one downstream operation while the other two upstream operations would
-            distribute to the other downstream operations.
+            three downstream operations. If, on the other hand, the downstream operation has parallelism
+            2 while the upstream operation has parallelism 6 then three upstream operations would
+            distribute to one downstream operation while the other three upstream operations would
+            distribute to the other downstream operation.
         </p>
         <p>
             In cases where the different parallelisms are not multiples of each other one or several
             downstream operations will have a differing number of inputs from upstream operations.
-
         </p>
-        </p>
+        <p>
             Please see this figure for a visualization of the connection pattern in the above
             example:
         </p>
@@ -1409,8 +1391,8 @@ Collection-based:
 
 Custom:
 
-- `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
+- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
+    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/) for more details.
 
 </div>
 </div>
@@ -1609,7 +1591,7 @@ Execution Parameters
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 
-Please refer to [execution configuration]({{ site.baseurl }}/dev/api_concepts.html#execution-configuration)
+Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration.html)
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
 
 - `enableTimestamps()` / **`disableTimestamps()`**: Attach a timestamp to each event emitted from a source.
@@ -1622,7 +1604,7 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 ### Fault Tolerance
 
-The [Fault Tolerance Documentation]({{ site.baseurl }}/setup/fault_tolerance.html) describes the options and parameters to enable and configure Flink's checkpointing mechanism.
+[State & Checkpointing]({{ site.baseurl }}/dev/stream/checkpointing.html) describes how to enable and configure Flink's checkpointing mechanism.
 
 ### Controlling Latency
 

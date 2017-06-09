@@ -31,7 +31,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,16 +39,23 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import static org.junit.Assert.*;
-
+/**
+ * Tests for {@link BufferSpiller}.
+ */
 public class BufferSpillerTest {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(BufferSpillerTest.class);
 
 	private static final int PAGE_SIZE = 4096;
 
-	private static IOManager IO_MANAGER;
+	private static IOManager ioManager;
 
 	private BufferSpiller spiller;
 
@@ -57,28 +63,28 @@ public class BufferSpillerTest {
 	// ------------------------------------------------------------------------
 	//  Setup / Cleanup
 	// ------------------------------------------------------------------------
-	
+
 	@BeforeClass
 	public static void setupIOManager() {
-		IO_MANAGER = new IOManagerAsync();
+		ioManager = new IOManagerAsync();
 	}
 
 	@AfterClass
 	public static void shutdownIOManager() {
-		IO_MANAGER.shutdown();
+		ioManager.shutdown();
 	}
-	
+
 	@Before
 	public void createSpiller() {
 		try {
-			spiller = new BufferSpiller(IO_MANAGER, PAGE_SIZE);
+			spiller = new BufferSpiller(ioManager, PAGE_SIZE);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Cannot create BufferSpiller: " + e.getMessage());
 		}
 	}
-	
+
 	@After
 	public void cleanupSpiller() {
 		if (spiller != null) {
@@ -89,18 +95,18 @@ public class BufferSpillerTest {
 				e.printStackTrace();
 				fail("Cannot properly close the BufferSpiller: " + e.getMessage());
 			}
-			
+
 			assertFalse(spiller.getCurrentChannel().isOpen());
 			assertFalse(spiller.getCurrentSpillFile().exists());
 		}
-		
+
 		checkNoTempFilesRemain();
 	}
 
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testRollOverEmptySequences() {
 		try {
@@ -125,13 +131,13 @@ public class BufferSpillerTest {
 
 			// do multiple spilling / rolling over rounds
 			for (int round = 0; round < 5; round++) {
-				
+
 				final long bufferSeed = rnd.nextLong();
 				bufferRnd.setSeed(bufferSeed);
-				
+
 				final int numEventsAndBuffers = rnd.nextInt(maxNumEventsAndBuffers) + 1;
 				final int numChannels = rnd.nextInt(maxNumChannels) + 1;
-				
+
 				final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
 
 				// generate sequence
@@ -150,7 +156,7 @@ public class BufferSpillerTest {
 
 				// reset and create reader
 				bufferRnd.setSeed(bufferSeed);
-			
+
 				BufferSpiller.SpilledBufferOrEventSequence seq = spiller.rollOver();
 				seq.open();
 
@@ -175,7 +181,7 @@ public class BufferSpillerTest {
 
 				// all events need to be consumed
 				assertEquals(events.size(), numEvent);
-				
+
 				seq.cleanup();
 			}
 		}
@@ -188,24 +194,24 @@ public class BufferSpillerTest {
 	@Test
 	public void testSpillWhileReading() {
 		LOG.info("Starting SpillWhileReading test");
-		
+
 		try {
 			final int sequences = 10;
-			
+
 			final Random rnd = new Random();
-			
+
 			final int maxNumEventsAndBuffers = 30000;
 			final int maxNumChannels = 1656;
-			
+
 			int sequencesConsumed = 0;
-			
+
 			ArrayDeque<SequenceToConsume> pendingSequences = new ArrayDeque<SequenceToConsume>();
 			SequenceToConsume currentSequence = null;
 			int currentNumEvents = 0;
 			int currentNumRecordAndEvents = 0;
-			
+
 			// do multiple spilling / rolling over rounds
-			for (int round = 0; round < 2*sequences; round++) {
+			for (int round = 0; round < 2 * sequences; round++) {
 
 				if (round % 2 == 1) {
 					// make this an empty sequence
@@ -215,15 +221,15 @@ public class BufferSpillerTest {
 					// proper spilled sequence
 					final long bufferSeed = rnd.nextLong();
 					final Random bufferRnd = new Random(bufferSeed);
-					
+
 					final int numEventsAndBuffers = rnd.nextInt(maxNumEventsAndBuffers) + 1;
 					final int numChannels = rnd.nextInt(maxNumChannels) + 1;
-	
+
 					final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
-	
+
 					int generated = 0;
 					while (generated < numEventsAndBuffers) {
-						
+
 						if (currentSequence == null || rnd.nextDouble() < 0.5) {
 							// add a new record
 							boolean isEvent = rnd.nextDouble() < 0.05;
@@ -251,34 +257,34 @@ public class BufferSpillerTest {
 								Random validationRnd = currentSequence.bufferRnd;
 								validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numChannels));
 							}
-							
+
 							currentNumRecordAndEvents++;
 							if (currentNumRecordAndEvents == currentSequence.numBuffersAndEvents) {
 								// done with the sequence
 								currentSequence.sequence.cleanup();
 								sequencesConsumed++;
-								
+
 								// validate we had all events
 								assertEquals(currentSequence.events.size(), currentNumEvents);
-								
+
 								// reset
 								currentSequence = pendingSequences.pollFirst();
 								if (currentSequence != null) {
 									currentSequence.sequence.open();
 								}
-								
+
 								currentNumRecordAndEvents = 0;
 								currentNumEvents = 0;
 							}
 						}
 					}
-	
+
 					// done generating a sequence. queue it for consumption
 					bufferRnd.setSeed(bufferSeed);
 					BufferSpiller.SpilledBufferOrEventSequence seq = spiller.rollOver();
-					
+
 					SequenceToConsume stc = new SequenceToConsume(bufferRnd, events, seq, numEventsAndBuffers, numChannels);
-					
+
 					if (currentSequence == null) {
 						currentSequence = stc;
 						stc.sequence.open();
@@ -288,7 +294,7 @@ public class BufferSpillerTest {
 					}
 				}
 			}
-			
+
 			// consume all the remainder
 			while (currentSequence != null) {
 				// consume a record
@@ -323,7 +329,7 @@ public class BufferSpillerTest {
 					currentNumEvents = 0;
 				}
 			}
-			
+
 			assertEquals(sequences, sequencesConsumed);
 		}
 		catch (Exception e) {
@@ -331,11 +337,26 @@ public class BufferSpillerTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Tests that the static HEADER_SIZE field has valid header size.
+	 */
+	@Test
+	public void testHeaderSizeStaticField() throws Exception {
+		int size = 13;
+		BufferOrEvent boe = generateRandomBuffer(size, 0);
+		spiller.add(boe);
+
+		assertEquals(
+			"Changed the header format, but did not adjust the HEADER_SIZE field",
+			BufferSpiller.HEADER_SIZE + size,
+			spiller.getBytesWritten());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
-	
+
 	private static BufferOrEvent generateRandomEvent(Random rnd, int numChannels) {
 		long magicNumber = rnd.nextLong();
 		byte[] data = new byte[rnd.nextInt(1000)];
@@ -343,7 +364,7 @@ public class BufferSpillerTest {
 		TestEvent evt = new TestEvent(magicNumber, data);
 
 		int channelIndex = rnd.nextInt(numChannels);
-		
+
 		return new BufferOrEvent(evt, channelIndex);
 	}
 
@@ -352,7 +373,7 @@ public class BufferSpillerTest {
 		for (int i = 0; i < size; i++) {
 			seg.put(i, (byte) i);
 		}
-		
+
 		Buffer buf = new Buffer(seg, FreeingBufferRecycler.INSTANCE);
 		buf.setSize(size);
 		return new BufferOrEvent(buf, channelIndex);
@@ -377,7 +398,7 @@ public class BufferSpillerTest {
 
 	private static void checkNoTempFilesRemain() {
 		// validate that all temp files have been removed
-		for (File dir : IO_MANAGER.getSpillingDirectories()) {
+		for (File dir : ioManager.getSpillingDirectories()) {
 			for (String file : dir.list()) {
 				if (file != null && !(file.equals(".") || file.equals(".."))) {
 					fail("barrier buffer did not clean up temp files. remaining file: " + file);
@@ -385,7 +406,7 @@ public class BufferSpillerTest {
 			}
 		}
 	}
-	
+
 	private static class SequenceToConsume {
 
 		final BufferSpiller.SpilledBufferOrEventSequence sequence;

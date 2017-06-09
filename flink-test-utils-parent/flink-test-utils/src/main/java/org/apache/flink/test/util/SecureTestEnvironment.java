@@ -18,22 +18,19 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.SecurityUtils;
+
 import org.apache.hadoop.minikdc.MiniKdc;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
-import java.io.FileWriter;
-import java.io.BufferedWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -41,9 +38,39 @@ import java.util.Properties;
 /**
  * Helper {@link SecureTestEnvironment} to handle MiniKDC lifecycle.
  * This class can be used to start/stop MiniKDC and create secure configurations for MiniDFSCluster
- * and MiniYarn
+ * and MiniYarn.
+ *
+ * <p>If you use this class in your project, please make sure to add a dependency to
+ * <tt>hadoop-minikdc</tt>, e.g. in your <tt>pom.xml</tt>:
+ * <pre>
+ * ...
+ * &lt;dependencies&gt;
+ *   &lt;dependency&gt;
+ *     &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
+ *     &lt;artifactId&gt;hadoop-minikdc&lt;/artifactId&gt;
+ *     &lt;version&gt;${minikdc.version}&lt;/version&gt;
+ *     &lt;scope&gt;compile&lt;/scope&gt;
+ *   &lt;/dependency&gt;
+ * ...
+ * &lt;/dependencies&gt;
+ * ...
+ *
+ * &lt;build&gt;
+ *   &lt;plugins&gt;
+ *     &lt;!--
+ *       https://issues.apache.org/jira/browse/DIRSHARED-134
+ *       Required to pull the Mini-KDC transitive dependency
+ *     --&gt;
+ *     &lt;plugin&gt;
+ *     &lt;groupId&gt;org.apache.felix&lt;/groupId&gt;
+ *     &lt;artifactId&gt;maven-bundle-plugin&lt;/artifactId&gt;
+ *     &lt;version&gt;3.0.1&lt;/version&gt;
+ *     &lt;inherited&gt;true&lt;/inherited&gt;
+ *     &lt;extensions&gt;true&lt;/extensions&gt;
+ *   &lt;/plugin&gt;
+ * ...
+ * </pre>
  */
-
 public class SecureTestEnvironment {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(SecureTestEnvironment.class);
@@ -70,7 +97,7 @@ public class SecureTestEnvironment {
 
 			String hostName = "localhost";
 			Properties kdcConf = MiniKdc.createConf();
-			if(LOG.isDebugEnabled()) {
+			if (LOG.isDebugEnabled()) {
 				kdcConf.setProperty(MiniKdc.DEBUG, "true");
 			}
 			kdcConf.setProperty(MiniKdc.KDC_BIND_ADDRESS, hostName);
@@ -111,18 +138,18 @@ public class SecureTestEnvironment {
 			//the context can be reinitialized with Hadoop configuration by calling
 			//ctx.setHadoopConfiguration() for the UGI implementation to work properly.
 			//See Yarn test case module for reference
-			createJaasConfig(baseDirForSecureRun);
-			SecurityContext.SecurityConfiguration ctx = new SecurityContext.SecurityConfiguration();
 			Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
-			flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, testKeytab);
-			flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, testPrincipal);
-			flinkConfig.setBoolean(HighAvailabilityOptions.ZOOKEEPER_SASL_DISABLE, false);
-			ctx.setFlinkConfiguration(flinkConfig);
+			flinkConfig.setBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE, false);
+			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
+			flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
+			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
+			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Client,KafkaClient");
+			SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig);
 			TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
 
 			populateJavaPropertyVariables();
 
-		} catch(Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Exception occured while preparing secure environment.", e);
 		}
 
@@ -132,7 +159,7 @@ public class SecureTestEnvironment {
 
 		LOG.info("Cleaning up Secure Environment");
 
-		if( kdc != null) {
+		if (kdc != null) {
 			kdc.stop();
 			LOG.info("Stopped KDC server");
 		}
@@ -148,7 +175,7 @@ public class SecureTestEnvironment {
 
 	private static void populateJavaPropertyVariables() {
 
-		if(LOG.isDebugEnabled()) {
+		if (LOG.isDebugEnabled()) {
 			System.setProperty("sun.security.krb5.debug", "true");
 		}
 
@@ -173,14 +200,14 @@ public class SecureTestEnvironment {
 
 		org.apache.flink.configuration.Configuration conf;
 
-		if(flinkConf== null) {
+		if (flinkConf == null) {
 			conf = new org.apache.flink.configuration.Configuration();
 		} else {
 			conf = flinkConf;
 		}
 
-		conf.setString(ConfigConstants.SECURITY_KEYTAB_KEY , testKeytab);
-		conf.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY , testPrincipal);
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB , testKeytab);
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL , testPrincipal);
 
 		return conf;
 	}
@@ -189,25 +216,22 @@ public class SecureTestEnvironment {
 
 		Map<String, TestingSecurityContext.ClientSecurityConfiguration> clientSecurityConfigurationMap = new HashMap<>();
 
-		if(testZkServerPrincipal != null ) {
+		if (testZkServerPrincipal != null) {
 			TestingSecurityContext.ClientSecurityConfiguration zkServer =
-					new TestingSecurityContext.ClientSecurityConfiguration(testZkServerPrincipal, testKeytab,
-							"Server", "zk-server");
-			clientSecurityConfigurationMap.put("Server",zkServer);
+					new TestingSecurityContext.ClientSecurityConfiguration(testZkServerPrincipal, testKeytab);
+			clientSecurityConfigurationMap.put("Server", zkServer);
 		}
 
-		if(testZkClientPrincipal != null ) {
+		if (testZkClientPrincipal != null) {
 			TestingSecurityContext.ClientSecurityConfiguration zkClient =
-					new TestingSecurityContext.ClientSecurityConfiguration(testZkClientPrincipal, testKeytab,
-							"Client", "zk-client");
-			clientSecurityConfigurationMap.put("Client",zkClient);
+					new TestingSecurityContext.ClientSecurityConfiguration(testZkClientPrincipal, testKeytab);
+			clientSecurityConfigurationMap.put("Client", zkClient);
 		}
 
-		if(testKafkaServerPrincipal != null ) {
+		if (testKafkaServerPrincipal != null) {
 			TestingSecurityContext.ClientSecurityConfiguration kafkaServer =
-					new TestingSecurityContext.ClientSecurityConfiguration(testKafkaServerPrincipal, testKeytab,
-							"KafkaServer", "kafka-server");
-			clientSecurityConfigurationMap.put("KafkaServer",kafkaServer);
+					new TestingSecurityContext.ClientSecurityConfiguration(testKafkaServerPrincipal, testKeytab);
+			clientSecurityConfigurationMap.put("KafkaServer", kafkaServer);
 		}
 
 		return clientSecurityConfigurationMap;
@@ -221,23 +245,4 @@ public class SecureTestEnvironment {
 		return hadoopServicePrincipal;
 	}
 
-	/*
-	 * Helper method to create a temporary JAAS configuration file to get around the Kafka and ZK SASL
-	 * implementation lookup java.security.auth.login.config
-	 */
-	private static void  createJaasConfig(File baseDirForSecureRun) {
-
-		try(FileWriter fw = new FileWriter(new File(baseDirForSecureRun,SecurityContext.JAAS_CONF_FILENAME), true);
-			BufferedWriter bw = new BufferedWriter(fw);
-			PrintWriter out = new PrintWriter(bw))
-		{
-			out.println("sample {");
-			out.println("useKeyTab=false");
-			out.println("useTicketCache=true;");
-			out.println("};");
-		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while trying to create JAAS config.", e);
-		}
-
-	}
 }

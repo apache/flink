@@ -20,11 +20,9 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -50,8 +48,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			subpartition.finish();
 
 			assertFalse(subpartition.add(mock(Buffer.class)));
-		}
-		finally {
+		} finally {
 			if (subpartition != null) {
 				subpartition.release();
 			}
@@ -66,8 +63,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			subpartition.release();
 
 			assertFalse(subpartition.add(mock(Buffer.class)));
-		}
-		finally {
+		} finally {
 			if (subpartition != null) {
 				subpartition.release();
 			}
@@ -94,10 +90,9 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		partition.add(buffer);
 		partition.finish();
 
-		TestInfiniteBufferProvider buffers = new TestInfiniteBufferProvider();
-
 		// Create the view
-		ResultSubpartitionView view = partition.createReadView(buffers);
+		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
+		ResultSubpartitionView view = partition.createReadView(listener);
 
 		// The added buffer and end-of-partition event
 		assertNotNull(view.getNextBuffer());

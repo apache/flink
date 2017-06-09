@@ -1,7 +1,7 @@
 ---
-title: "Scala Shell"
-nav-parent_id: dev
-nav-pos: 10
+title: "Scala REPL"
+nav-parent_id: start
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

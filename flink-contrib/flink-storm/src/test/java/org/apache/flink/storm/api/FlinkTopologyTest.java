@@ -14,17 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.api;
 
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.tuple.Fields;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
 
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for the FlinkTopology.
+ */
 public class FlinkTopologyTest {
 
 	@Test
@@ -68,7 +72,7 @@ public class FlinkTopologyTest {
 
 		builder.setSpout("spout", new TestDummySpout());
 		builder.setBolt("sink", new TestSink()).fieldsGrouping("spout",
-				TestDummySpout.spoutStreamId, new Fields("id"));
+				TestDummySpout.SPOUT_STREAM_ID, new Fields("id"));
 
 		FlinkTopology.createTopology(builder);
 	}
@@ -80,7 +84,7 @@ public class FlinkTopologyTest {
 		builder.setSpout("spout", new TestDummySpout());
 		builder.setBolt("bolt", new TestDummyBolt()).shuffleGrouping("spout");
 		builder.setBolt("sink", new TestSink()).fieldsGrouping("bolt",
-				TestDummyBolt.groupingStreamId, new Fields("id"));
+				TestDummyBolt.GROUPING_STREAM_ID, new Fields("id"));
 
 		FlinkTopology.createTopology(builder);
 	}

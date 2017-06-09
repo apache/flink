@@ -24,22 +24,29 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link MetricGroup}.
+ */
 public class MetricGroupTest extends TestLogger {
 
 	private static final MetricRegistryConfiguration defaultMetricRegistryConfiguration = MetricRegistryConfiguration.defaultMetricRegistryConfiguration();
-	
+
 	private MetricRegistry registry;
 
 	private final MetricRegistry exceptionOnRegister = new ExceptionOnRegisterRegistry();
@@ -63,7 +70,7 @@ public class MetricGroupTest extends TestLogger {
 		String groupName = "sometestname";
 		MetricGroup subgroup1 = group.addGroup(groupName);
 		MetricGroup subgroup2 = group.addGroup(groupName);
-		
+
 		assertNotNull(subgroup1);
 		assertNotNull(subgroup2);
 		assertTrue(subgroup1 == subgroup2);
@@ -82,10 +89,12 @@ public class MetricGroupTest extends TestLogger {
 		group.counter("testcounter");
 		group.gauge("testgauge", new Gauge<Object>() {
 			@Override
-			public Object getValue() { return null; }
+			public Object getValue() {
+				return null;
+			}
 		});
 	}
-	
+
 	@Test
 	public void closedGroupCreatesClosedGroups() {
 		GenericMetricGroup group = new GenericMetricGroup(exceptionOnRegister,
@@ -94,7 +103,7 @@ public class MetricGroupTest extends TestLogger {
 
 		group.close();
 		assertTrue(group.isClosed());
-		
+
 		AbstractMetricGroup subgroup = (AbstractMetricGroup) group.addGroup("test subgroup");
 		assertTrue(subgroup.isClosed());
 	}
@@ -104,7 +113,7 @@ public class MetricGroupTest extends TestLogger {
 		final String name = "abctestname";
 		GenericMetricGroup group = new GenericMetricGroup(
 				registry, new DummyAbstractMetricGroup(registry), "testgroup");
-		
+
 		assertNotNull(group.counter(name));
 		assertNotNull(group.counter(name));
 	}
@@ -114,7 +123,7 @@ public class MetricGroupTest extends TestLogger {
 		final String name = "abctestname";
 		GenericMetricGroup group = new GenericMetricGroup(
 				registry, new DummyAbstractMetricGroup(registry), "testgroup");
-		
+
 		assertNotNull(group.addGroup(name));
 		assertNotNull(group.counter(name));
 	}
@@ -143,11 +152,11 @@ public class MetricGroupTest extends TestLogger {
 		assertEquals(vid.toString(), info2.vertexID);
 		assertEquals(4, info2.subtaskIndex);
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	private static class ExceptionOnRegisterRegistry extends MetricRegistry {
-		
+
 		public ExceptionOnRegisterRegistry() {
 			super(defaultMetricRegistryConfiguration);
 		}
@@ -164,7 +173,7 @@ public class MetricGroupTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private static class DummyAbstractMetricGroup extends AbstractMetricGroup {
 
 		public DummyAbstractMetricGroup(MetricRegistry registry) {
@@ -182,7 +191,8 @@ public class MetricGroupTest extends TestLogger {
 		}
 
 		@Override
-		protected void addMetric(String name, Metric metric) {}
+		protected void addMetric(String name, Metric metric) {
+		}
 
 		@Override
 		public MetricGroup addGroup(String name) {

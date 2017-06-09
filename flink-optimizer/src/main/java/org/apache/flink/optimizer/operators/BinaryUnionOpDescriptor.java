@@ -69,11 +69,39 @@ public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
 		
 		if (in1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
 			in2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
-			in1.getPartitioningFields().equals(in2.getPartitioningFields()))
-		{
+			in1.getPartitioningFields().equals(in2.getPartitioningFields())) {
 			newProps.setHashPartitioned(in1.getPartitioningFields());
 		}
-		
+		else if (in1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
+					in2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
+					in1.getPartitioningOrdering().equals(in2.getPartitioningOrdering()) &&
+					(
+						in1.getDataDistribution() == null && in2.getDataDistribution() == null ||
+						in1.getDataDistribution() != null && in1.getDataDistribution().equals(in2.getDataDistribution())
+					)
+				) {
+			if (in1.getDataDistribution() == null) {
+				newProps.setRangePartitioned(in1.getPartitioningOrdering());
+			}
+			else {
+				newProps.setRangePartitioned(in1.getPartitioningOrdering(), in1.getDataDistribution());
+			}
+		}
+		else if (in1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
+					in2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
+					in1.getPartitioningFields().equals(in2.getPartitioningFields()) &&
+					in1.getCustomPartitioner().equals(in2.getCustomPartitioner())) {
+			newProps.setCustomPartitioned(in1.getPartitioningFields(), in1.getCustomPartitioner());
+		}
+		else if (in1.getPartitioning() == PartitioningProperty.FORCED_REBALANCED &&
+					in2.getPartitioning() == PartitioningProperty.FORCED_REBALANCED) {
+			newProps.setForcedRebalanced();
+		}
+		else if (in1.getPartitioning() == PartitioningProperty.FULL_REPLICATION &&
+			in2.getPartitioning() == PartitioningProperty.FULL_REPLICATION) {
+			newProps.setFullyReplicated();
+		}
+
 		return newProps;
 	}
 	

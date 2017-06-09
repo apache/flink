@@ -17,18 +17,11 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import scala.Option;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionJobVertex.getAggregateJobVertexState;
 
@@ -45,7 +38,6 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 
 	private final int maxParallelism;
 
-	private final Option<OperatorCheckpointStats> checkpointStats;
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
 	public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
@@ -54,23 +46,27 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 			taskVertices[x] = jobVertex.getTaskVertices()[x].archive();
 		}
 
-		Map<String, Accumulator<?, ?>> tmpArchivedUserAccumulators = new HashMap<>();
-		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
-			if (next != null) {
-				AccumulatorHelper.mergeInto(tmpArchivedUserAccumulators, next);
-			}
-		}
 		archivedUserAccumulators = jobVertex.getAggregatedUserAccumulatorsStringified();
 
 		this.id = jobVertex.getJobVertexId();
 		this.name = jobVertex.getJobVertex().getName();
 		this.parallelism = jobVertex.getParallelism();
 		this.maxParallelism = jobVertex.getMaxParallelism();
-		CheckpointStatsTracker tracker = jobVertex.getGraph().getCheckpointStatsTracker();
-		checkpointStats = tracker != null
-			? tracker.getOperatorStats(this.id)
-			: Option.<OperatorCheckpointStats>empty();
+	}
+
+	public ArchivedExecutionJobVertex(
+			ArchivedExecutionVertex[] taskVertices,
+			JobVertexID id,
+			String name,
+			int parallelism,
+			int maxParallelism,
+			StringifiedAccumulatorResult[] archivedUserAccumulators) {
+		this.taskVertices = taskVertices;
+		this.id = id;
+		this.name = name;
+		this.parallelism = parallelism;
+		this.maxParallelism = maxParallelism;
+		this.archivedUserAccumulators = archivedUserAccumulators;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -117,12 +113,8 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Option<OperatorCheckpointStats> getCheckpointStats() {
-		return checkpointStats;
-	}
-
-	@Override
 	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
 		return archivedUserAccumulators;
 	}
+
 }

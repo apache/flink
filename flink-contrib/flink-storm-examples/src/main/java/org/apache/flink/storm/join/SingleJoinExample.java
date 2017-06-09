@@ -15,13 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.join;
 
-import backtype.storm.Config;
-import backtype.storm.testing.FeederSpout;
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
+package org.apache.flink.storm.join;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
@@ -29,10 +24,17 @@ import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.NullTerminatingSpout;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 
-import storm.starter.bolt.PrinterBolt;
-import storm.starter.bolt.SingleJoinBolt;
+import org.apache.storm.Config;
+import org.apache.storm.starter.bolt.PrinterBolt;
+import org.apache.storm.starter.bolt.SingleJoinBolt;
+import org.apache.storm.testing.FeederSpout;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Values;
 
-
+/**
+ * Implements a simple example where 2 input streams are being joined.
+ */
 public class SingleJoinExample {
 
 	public static void main(String[] args) throws Exception {
@@ -78,7 +80,6 @@ public class SingleJoinExample {
 		for (int i = 9; i >= 0; i--) {
 			ageSpout.feed(new Values(i, i + 20));
 		}
-
 
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology("joinTopology", conf, FlinkTopology.createTopology(builder));

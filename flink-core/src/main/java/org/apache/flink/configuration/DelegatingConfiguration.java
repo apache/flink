@@ -290,6 +290,11 @@ public final class DelegatingConfiguration extends Configuration {
 		return backingConfig.containsKey(prefix + key);
 	}
 
+	@Override
+	public boolean contains(ConfigOption<?> configOption) {
+		return backingConfig.contains(prefixOption(configOption, prefix));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -337,6 +342,9 @@ public final class DelegatingConfiguration extends Configuration {
 		}
 
 		String[] deprecated = deprecatedKeys.toArray(new String[deprecatedKeys.size()]);
-		return new ConfigOption<T>(key, option.defaultValue(), deprecated);
+		return new ConfigOption<T>(key,
+			option.description(),
+			option.defaultValue(),
+			deprecated);
 	}
 }

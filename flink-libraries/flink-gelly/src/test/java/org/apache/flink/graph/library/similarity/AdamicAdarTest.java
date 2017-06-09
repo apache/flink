@@ -18,33 +18,31 @@
 
 package org.apache.flink.graph.library.similarity;
 
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
-import org.apache.flink.graph.generator.RMatGraph;
-import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
-import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link AdamicAdar}.
+ */
 public class AdamicAdarTest
 extends AsmTestBase {
 
 	private float[] ilog = {
-		1.0f / (float)Math.log(2),
-		1.0f / (float)Math.log(3),
-		1.0f / (float)Math.log(3),
-		1.0f / (float)Math.log(4),
-		1.0f / (float)Math.log(1),
-		1.0f / (float)Math.log(1)
+		1.0f / (float) Math.log(2),
+		1.0f / (float) Math.log(3),
+		1.0f / (float) Math.log(3),
+		1.0f / (float) Math.log(4),
+		1.0f / (float) Math.log(1),
+		1.0f / (float) Math.log(1)
 	};
 
 	@Test
@@ -104,7 +102,7 @@ extends AsmTestBase {
 	@Test
 	public void testCompleteGraph()
 			throws Exception {
-		float expectedScore = (completeGraphVertexCount - 2) / (float)Math.log(completeGraphVertexCount - 1);
+		float expectedScore = (completeGraphVertexCount - 2) / (float) Math.log(completeGraphVertexCount - 1);
 
 		DataSet<Result<LongValue>> aa = completeGraph
 			.run(new AdamicAdar<LongValue, NullValue, NullValue>());
@@ -117,16 +115,7 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		long vertexCount = 1 << 8;
-		long edgeCount = 8 * vertexCount;
-
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.generate()
-			.run(new Simplify<LongValue, NullValue, NullValue>(false));
-
-		DataSet<Result<LongValue>> aa = graph
+		DataSet<Result<LongValue>> aa = undirectedRMatGraph(8, 8)
 			.run(new AdamicAdar<LongValue, NullValue, NullValue>());
 
 		assertEquals(13954, aa.count());

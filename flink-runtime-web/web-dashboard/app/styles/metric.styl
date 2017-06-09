@@ -38,7 +38,23 @@
 
       .metric-menu
         max-height: 300px
+        width: 300px
         overflow-y: scroll
+        text-align: left
+
+  .search
+    label
+      position: absolute;
+      top: 15px
+      left: 22px
+    input.metrics-filter
+      height: 30px
+      padding: 5px 5px 5px 25px
+      margin: 5px 5px 5px 15px
+      width: 90%
+      border-radius: 5px
+      border: 1px solid #999
+      box-shadow: none
 
 $metric-row-height = 180px + 85px
 
@@ -65,6 +81,11 @@ $metric-row-height = 180px + 85px
         background-color: transparent
         height: $metric-row-height
         position: relative
+        .metric-numeric
+          text-align: center;
+          margin-top: 75px;
+          font-size: 40px;
+          font-weight: bold;
 
       .panel-heading
         padding: 0px 10px

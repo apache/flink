@@ -25,6 +25,10 @@ import java.io.InputStream;
 
 /**
  * Interface for a data input stream to a file on a {@link FileSystem}.
+ * 
+ * <p>This extends the {@link java.io.InputStream} with methods for accessing
+ * the stream's {@link #getPos() current position} and
+ * {@link #seek(long) seeking} to a desired position.
  */
 @Public
 public abstract class FSDataInputStream extends InputStream {
@@ -35,15 +39,16 @@ public abstract class FSDataInputStream extends InputStream {
 	 * 
 	 * @param desired
 	 *        the desired offset
-	 * @throws IOException
-	 *         thrown if an error occurred while seeking inside the input stream
+	 * @throws IOException Thrown if an error occurred while seeking inside the input stream.
 	 */
 	public abstract void seek(long desired) throws IOException;
 
 	/**
-	 * Get the current position in the input stream.
+	 * Gets the current position in the input stream.
 	 *
 	 * @return current position in the input stream
+	 * @throws IOException Thrown if an I/O error occurred in the underlying stream 
+	 *                     implementation while accessing the stream's position.
 	 */
 	public abstract long getPos() throws IOException;
 }

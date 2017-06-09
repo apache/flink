@@ -18,13 +18,18 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
 import org.apache.flink.types.Either;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link TypeInformation} for the {@link Either} type of the Java API.
@@ -43,8 +48,8 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	@PublicEvolving
 	public EitherTypeInfo(TypeInformation<L> leftType, TypeInformation<R> rightType) {
-		this.leftType = leftType;
-		this.rightType = rightType;
+		this.leftType = checkNotNull(leftType);
+		this.rightType = checkNotNull(rightType);
 	}
 
 	@Override
@@ -76,6 +81,15 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 	@PublicEvolving
 	public Class<Either<L, R>> getTypeClass() {
 		return (Class<Either<L, R>>) (Class<?>) Either.class;
+	}
+
+	@Override
+	@PublicEvolving
+	public Map<String, TypeInformation<?>> getGenericParameters() {
+		Map<String, TypeInformation<?>> m = new HashMap<>();
+		m.put("L", this.leftType);
+		m.put("R", this.rightType);
+		return m;
 	}
 
 	@Override

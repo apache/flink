@@ -21,16 +21,14 @@ package org.apache.flink.streaming.scala.examples
 import java.io.File
 
 import org.apache.commons.io.FileUtils
-
-import org.apache.flink.streaming.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.scala.examples.join.WindowJoin
-import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Person, Salary}
-import org.apache.flink.streaming.test.exampleJavaPrograms.join.WindowJoinData
+import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Salary}
+import org.apache.flink.streaming.test.examples.join.WindowJoinData
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.test.util.TestBaseUtils
-
 import org.junit.Test
 
 class WindowJoinITCase extends StreamingMultipleProgramsTestBase {

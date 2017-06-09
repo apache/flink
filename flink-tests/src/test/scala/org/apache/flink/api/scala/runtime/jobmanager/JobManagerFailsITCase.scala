@@ -18,17 +18,16 @@
 
 package org.apache.flink.api.scala.runtime.jobmanager
 
-import akka.actor.{ActorSystem, PoisonPill}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
-import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
+import org.apache.flink.runtime.testtasks.{BlockingNoOpInvokable, NoOpInvokable}
 import org.apache.flink.runtime.messages.Acknowledge
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -66,11 +65,8 @@ class JobManagerFailsITCase(_system: ActorSystem)
           jmGateway.tell(RequestNumberRegisteredTaskManager, self)
           expectMsg(1)
 
-          tm ! NotifyWhenJobManagerTerminated(jmGateway.leaderSessionID())
-
-          jmGateway.tell(PoisonPill, self)
-
-          expectMsgClass(classOf[JobManagerTerminated])
+          // stop the current leader and make sure that he is gone
+          TestingUtils.stopActorGracefully(jmGateway)
 
           cluster.restartLeadingJobManager()
 
@@ -109,11 +105,8 @@ class JobManagerFailsITCase(_system: ActorSystem)
           jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), self)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          tm.tell(NotifyWhenJobManagerTerminated(jmGateway.leaderSessionID()), self)
-
-          jmGateway.tell(PoisonPill, self)
-
-          expectMsgClass(classOf[JobManagerTerminated])
+          // stop the current leader and make sure that he is gone
+          TestingUtils.stopActorGracefully(jmGateway)
 
           cluster.restartLeadingJobManager()
 

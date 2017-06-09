@@ -18,20 +18,23 @@
 
 package org.apache.flink.metrics.ganglia;
 
-import com.codahale.metrics.ScheduledReporter;
-
-import info.ganglia.gmetric4j.gmetric.GMetric;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 import org.apache.flink.metrics.MetricConfig;
 
+import com.codahale.metrics.ScheduledReporter;
+import info.ganglia.gmetric4j.gmetric.GMetric;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This class acts as a factory for the {@link com.codahale.metrics.ganglia.GangliaReporter} and allows using it as a
+ * Flink reporter.
+ */
 @PublicEvolving
 public class GangliaReporter extends ScheduledDropwizardReporter {
-	
+
 	public static final String ARG_DMAX = "dmax";
 	public static final String ARG_TMAX = "tmax";
 	public static final String ARG_TTL = "ttl";
@@ -71,6 +74,8 @@ public class GangliaReporter extends ScheduledDropwizardReporter {
 			builder.withDMax(dMax);
 			builder.withTMax(tMax);
 
+			log.info("Configured GangliaReporter with {host:{}, port:{}, dmax:{}, tmax:{}, ttl:{}, addressingMode:{}}",
+				host, port, dMax, tMax, ttl, addressingMode);
 			return builder.build(gMetric);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while instantiating GangliaReporter.", e);

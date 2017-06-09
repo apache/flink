@@ -22,13 +22,17 @@ import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Default implementation of {@link StateInitializationContext}.
@@ -36,7 +40,7 @@ import java.util.Iterator;
 public class StateInitializationContextImpl implements StateInitializationContext {
 
 	/** Closable registry to participate in the operator's cancel/close methods */
-	private final ClosableRegistry closableRegistry;
+	private final CloseableRegistry closableRegistry;
 
 	/** Signal whether any state to restore was found */
 	private final boolean restored;
@@ -53,16 +57,16 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			boolean restored,
 			OperatorStateStore operatorStateStore,
 			KeyedStateStore keyedStateStore,
-			Collection<KeyGroupsStateHandle> keyGroupsStateHandles,
+			Collection<KeyedStateHandle> keyedStateHandles,
 			Collection<OperatorStateHandle> operatorStateHandles,
-			ClosableRegistry closableRegistry) {
+			CloseableRegistry closableRegistry) {
 
 		this.restored = restored;
 		this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
 		this.operatorStateStore = operatorStateStore;
 		this.keyedStateStore = keyedStateStore;
 		this.operatorStateHandles = operatorStateHandles;
-		this.keyGroupsStateHandles = keyGroupsStateHandles;
+		this.keyGroupsStateHandles = transform(keyedStateHandles);
 
 		this.keyedStateIterable = keyGroupsStateHandles == null ?
 				null
@@ -87,7 +91,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		return keyGroupsStateHandles;
 	}
 
-	public ClosableRegistry getClosableRegistry() {
+	public CloseableRegistry getClosableRegistry() {
 		return closableRegistry;
 	}
 
@@ -121,12 +125,12 @@ public class StateInitializationContextImpl implements StateInitializationContex
 	}
 
 	@Override
-	public OperatorStateStore getManagedOperatorStateStore() {
+	public OperatorStateStore getOperatorStateStore() {
 		return operatorStateStore;
 	}
 
 	@Override
-	public KeyedStateStore getManagedKeyedStateStore() {
+	public KeyedStateStore getKeyedStateStore() {
 		return keyedStateStore;
 	}
 
@@ -134,100 +138,117 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		IOUtils.closeQuietly(closableRegistry);
 	}
 
-	private static class KeyGroupStreamIterator implements Iterator<KeyGroupStatePartitionStreamProvider> {
+	private static Collection<KeyGroupsStateHandle> transform(Collection<KeyedStateHandle> keyedStateHandles) {
+		if (keyedStateHandles == null) {
+			return null;
+		}
 
-		private final Iterator<KeyGroupsStateHandle> stateHandleIterator;
-		private final ClosableRegistry closableRegistry;
+		List<KeyGroupsStateHandle> keyGroupsStateHandles = new ArrayList<>();
 
-		private KeyGroupsStateHandle currentStateHandle;
-		private FSDataInputStream currentStream;
+		for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
+			if (! (keyedStateHandle instanceof KeyGroupsStateHandle)) {
+				throw new IllegalStateException("Unexpected state handle type, " +
+					"expected: " + KeyGroupsStateHandle.class +
+					", but found: " + keyedStateHandle.getClass() + ".");
+			}
+
+			keyGroupsStateHandles.add((KeyGroupsStateHandle) keyedStateHandle);
+		}
+
+		return keyGroupsStateHandles;
+	}
+
+	private static class KeyGroupStreamIterator
+			extends AbstractStateStreamIterator<KeyGroupStatePartitionStreamProvider, KeyGroupsStateHandle> {
+
 		private Iterator<Tuple2<Integer, Long>> currentOffsetsIterator;
 
 		public KeyGroupStreamIterator(
-				Iterator<KeyGroupsStateHandle> stateHandleIterator, ClosableRegistry closableRegistry) {
+				Iterator<KeyGroupsStateHandle> stateHandleIterator, CloseableRegistry closableRegistry) {
 
-			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
-			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
+			super(stateHandleIterator, closableRegistry);
 		}
 
 		@Override
 		public boolean hasNext() {
-			if (null != currentStateHandle && currentOffsetsIterator.hasNext()) {
-				return true;
-			} else {
-				while (stateHandleIterator.hasNext()) {
-					currentStateHandle = stateHandleIterator.next();
-					if (currentStateHandle.getNumberOfKeyGroups() > 0) {
-						currentOffsetsIterator = currentStateHandle.getGroupRangeOffsets().iterator();
-						closableRegistry.unregisterClosable(currentStream);
-						IOUtils.closeQuietly(currentStream);
-						currentStream = null;
-						return true;
-					}
-				}
-				return false;
-			}
-		}
 
-		private void openStream() throws IOException {
-			FSDataInputStream stream = currentStateHandle.openInputStream();
-			closableRegistry.registerClosable(stream);
-			currentStream = stream;
+			if (null != currentStateHandle && currentOffsetsIterator.hasNext()) {
+
+				return true;
+			}
+
+			closeCurrentStream();
+
+			while (stateHandleIterator.hasNext()) {
+				currentStateHandle = stateHandleIterator.next();
+				if (currentStateHandle.getKeyGroupRange().getNumberOfKeyGroups() > 0) {
+					currentOffsetsIterator = currentStateHandle.getGroupRangeOffsets().iterator();
+
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		@Override
 		public KeyGroupStatePartitionStreamProvider next() {
+
+			if (!hasNext()) {
+
+				throw new NoSuchElementException("Iterator exhausted");
+			}
+
 			Tuple2<Integer, Long> keyGroupOffset = currentOffsetsIterator.next();
 			try {
 				if (null == currentStream) {
-					openStream();
+					openCurrentStream();
 				}
 				currentStream.seek(keyGroupOffset.f1);
+
 				return new KeyGroupStatePartitionStreamProvider(currentStream, keyGroupOffset.f0);
 			} catch (IOException ioex) {
+
 				return new KeyGroupStatePartitionStreamProvider(ioex, keyGroupOffset.f0);
 			}
 		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException("Read only Iterator");
-		}
 	}
 
-	private static class OperatorStateStreamIterator implements Iterator<StatePartitionStreamProvider> {
+	private static class OperatorStateStreamIterator
+			extends AbstractStateStreamIterator<StatePartitionStreamProvider, OperatorStateHandle> {
 
 		private final String stateName; //TODO since we only support a single named state in raw, this could be dropped
-
-		private final Iterator<OperatorStateHandle> stateHandleIterator;
-		private final ClosableRegistry closableRegistry;
-
-		private OperatorStateHandle currentStateHandle;
-		private FSDataInputStream currentStream;
 		private long[] offsets;
 		private int offPos;
 
 		public OperatorStateStreamIterator(
 				String stateName,
 				Iterator<OperatorStateHandle> stateHandleIterator,
-				ClosableRegistry closableRegistry) {
+				CloseableRegistry closableRegistry) {
 
+			super(stateHandleIterator, closableRegistry);
 			this.stateName = Preconditions.checkNotNull(stateName);
-			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
-			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
 		}
 
 		@Override
 		public boolean hasNext() {
-			if (null != currentStateHandle && offPos < offsets.length) {
-				return true;
-			} else {
-				while (stateHandleIterator.hasNext()) {
-					currentStateHandle = stateHandleIterator.next();
-					long[] offsets = currentStateHandle.getStateNameToPartitionOffsets().get(stateName);
-					if (null != offsets && offsets.length > 0) {
 
-						this.offsets = offsets;
+			if (null != offsets && offPos < offsets.length) {
+
+				return true;
+			}
+
+			closeCurrentStream();
+
+			while (stateHandleIterator.hasNext()) {
+				currentStateHandle = stateHandleIterator.next();
+				OperatorStateHandle.StateMetaInfo metaInfo =
+						currentStateHandle.getStateNameToPartitionOffsets().get(stateName);
+
+				if (null != metaInfo) {
+					long[] metaOffsets = metaInfo.getOffsets();
+					if (null != metaOffsets && metaOffsets.length > 0) {
+						this.offsets = metaOffsets;
 						this.offPos = 0;
 
 						closableRegistry.unregisterClosable(currentStream);
@@ -237,29 +258,62 @@ public class StateInitializationContextImpl implements StateInitializationContex
 						return true;
 					}
 				}
-				return false;
 			}
-		}
 
-		private void openStream() throws IOException {
-			FSDataInputStream stream = currentStateHandle.openInputStream();
-			closableRegistry.registerClosable(stream);
-			currentStream = stream;
+			return false;
 		}
 
 		@Override
 		public StatePartitionStreamProvider next() {
+
+			if (!hasNext()) {
+
+				throw new NoSuchElementException("Iterator exhausted");
+			}
+
 			long offset = offsets[offPos++];
+
 			try {
 				if (null == currentStream) {
-					openStream();
+					openCurrentStream();
 				}
 				currentStream.seek(offset);
 
 				return new StatePartitionStreamProvider(currentStream);
 			} catch (IOException ioex) {
+
 				return new StatePartitionStreamProvider(ioex);
 			}
+		}
+	}
+
+	abstract static class AbstractStateStreamIterator<T extends StatePartitionStreamProvider, H extends StreamStateHandle>
+			implements Iterator<T> {
+
+		protected final Iterator<H> stateHandleIterator;
+		protected final CloseableRegistry closableRegistry;
+
+		protected H currentStateHandle;
+		protected FSDataInputStream currentStream;
+
+		public AbstractStateStreamIterator(
+				Iterator<H> stateHandleIterator,
+				CloseableRegistry closableRegistry) {
+
+			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
+			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
+		}
+
+		protected void openCurrentStream() throws IOException {
+			FSDataInputStream stream = currentStateHandle.openInputStream();
+			closableRegistry.registerClosable(stream);
+			currentStream = stream;
+		}
+
+		protected void closeCurrentStream() {
+			closableRegistry.unregisterClosable(currentStream);
+			IOUtils.closeQuietly(currentStream);
+			currentStream = null;
 		}
 
 		@Override

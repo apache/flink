@@ -19,41 +19,24 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.util.TestLogger
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
-class EitherTypeInfoTest extends TestLogger with JUnitSuiteLike {
+/**
+  * Test for [[EitherTypeInfo]].
+  */
+class EitherTypeInfoTest extends TypeInformationTestBase[EitherTypeInfo[_, _, _]] {
 
-  @Test
-  def testEitherTypeEquality(): Unit = {
-    val eitherTypeInfo1 = new EitherTypeInfo[Integer, String, Either[Integer, String]](
-      classOf[Either[Integer,String]],
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO
-    )
-    val eitherTypeInfo2 = new EitherTypeInfo[Integer, String, Either[Integer, String]](
-      classOf[Either[Integer,String]],
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO
-    )
-
-    assert(eitherTypeInfo1.equals(eitherTypeInfo2))
-    assert(eitherTypeInfo1.hashCode() == eitherTypeInfo2.hashCode())
-  }
-
-  @Test
-  def testEitherTypeInequality(): Unit = {
-    val eitherTypeInfo1 = new EitherTypeInfo[Integer, Integer, Either[Integer, Integer]](
+  override protected def getTestData: Array[EitherTypeInfo[_, _, _]] = Array(
+    new EitherTypeInfo[Integer, Integer, Either[Integer, Integer]](
       classOf[Either[Integer,Integer]],
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO
-    )
-    val eitherTypeInfo2 = new EitherTypeInfo[Integer, String, Either[Integer, String]](
+    ),
+    new EitherTypeInfo[Integer, String, Either[Integer, String]](
       classOf[Either[Integer,String]],
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO
     )
-    assert(!eitherTypeInfo1.equals(eitherTypeInfo2))
-  }
+  )
+
 }

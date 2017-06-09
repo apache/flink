@@ -74,7 +74,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		// Test accumulator results
 		System.out.println("Accumulator results:");
 		JobExecutionResult res = this.result;
-		System.out.println(AccumulatorHelper.getResultsFormated(res.getAllAccumulatorResults()));
+		System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
 		Assert.assertEquals(Integer.valueOf(3), (Integer) res.getAccumulatorResult("num-lines"));
 

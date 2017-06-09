@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -71,10 +75,10 @@ public class BlobServer extends Thread implements BlobService {
 	/** Indicates whether a shutdown of server component has been requested. */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/** Is the root directory for file storage */
+	/** Root directory for local file storage */
 	private final File storageDir;
 
-	/** Blob store for HA */
+	/** Blob store for distributed file storage, e.g. in HA */
 	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
@@ -82,6 +86,9 @@ public class BlobServer extends Thread implements BlobService {
 
 	/** The maximum number of concurrent connections */
 	private final int maxConnections;
+
+	/** Lock guarding concurrent file accesses */
+	private final ReadWriteLock readWriteLock;
 
 	/**
 	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
@@ -92,59 +99,45 @@ public class BlobServer extends Thread implements BlobService {
 	/**
 	 * Instantiates a new BLOB server and binds it to a free network port.
 	 *
+	 * @param config Configuration to be used to instantiate the BlobServer
+	 * @param blobStore BlobStore to store blobs persistently
+	 *
 	 * @throws IOException
-	 *         thrown if the BLOB server cannot bind to a free network port
+	 * 		thrown if the BLOB server cannot bind to a free network port or if the
+	 * 		(local or distributed) file storage cannot be created or is not usable
 	 */
-	public BlobServer(Configuration config) throws IOException {
-		checkNotNull(config, "Configuration");
-
-		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
-
-		this.blobServiceConfiguration = config;
+	public BlobServer(Configuration config, BlobStore blobStore) throws IOException {
+		this.blobServiceConfiguration = checkNotNull(config);
+		this.blobStore = checkNotNull(blobStore);
+		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
-		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+		String storageDirectory = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
-		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-			this.blobStore = new VoidBlobStore();
-		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			this.blobStore = new FileSystemBlobStore(config);
-		} else {
-			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
-		}
-
 		// configure the maximum number of concurrent connections
-		final int maxConnections = config.getInteger(
-				ConfigConstants.BLOB_FETCH_CONCURRENT_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT);
+		final int maxConnections = config.getInteger(BlobServerOptions.FETCH_CONCURRENT);
 		if (maxConnections >= 1) {
 			this.maxConnections = maxConnections;
 		}
 		else {
 			LOG.warn("Invalid value for maximum connections in BLOB server: {}. Using default value of {}",
-					maxConnections, ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT);
-			this.maxConnections = ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT;
+					maxConnections, BlobServerOptions.FETCH_CONCURRENT.defaultValue());
+			this.maxConnections = BlobServerOptions.FETCH_CONCURRENT.defaultValue();
 		}
 
 		// configure the backlog of connections
-		int backlog = config.getInteger(ConfigConstants.BLOB_FETCH_BACKLOG_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG);
+		int backlog = config.getInteger(BlobServerOptions.FETCH_BACKLOG);
 		if (backlog < 1) {
 			LOG.warn("Invalid value for BLOB connection backlog: {}. Using default value of {}",
-					backlog, ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG);
-			backlog = ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG;
+					backlog, BlobServerOptions.FETCH_BACKLOG.defaultValue());
+			backlog = BlobServerOptions.FETCH_BACKLOG.defaultValue();
 		}
 
-		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-			// Add shutdown hook to delete storage directory
-			this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
-		}
-		else {
-			this.shutdownHook = null;
-		}
+		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 
-		if (config.getBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED,
-				ConfigConstants.DEFAULT_BLOB_SERVICE_SSL_ENABLED)) {
+		if (config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 			try {
 				serverSSLContext = SSLUtils.createSSLServerContext(config);
 			} catch (Exception e) {
@@ -154,7 +147,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		//  ----------------------- start the server -------------------
 
-		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
+		String serverPortRange = config.getString(BlobServerOptions.PORT);
 
 		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 
@@ -174,6 +167,7 @@ public class BlobServer extends Thread implements BlobService {
 		if(socketAttempt == null) {
 			throw new IOException("Unable to allocate socket for blob server in specified port range: "+serverPortRange);
 		} else {
+			SSLUtils.setSSLVerAndCipherSuites(socketAttempt, config);
 			this.serverSocket = socketAttempt;
 		}
 
@@ -247,6 +241,13 @@ public class BlobServer extends Thread implements BlobService {
 		return blobStore;
 	}
 
+	/**
+	 * Returns the lock used to guard file accesses
+	 */
+	public ReadWriteLock getReadWriteLock() {
+		return readWriteLock;
+	}
+
 	@Override
 	public void run() {
 		try {
@@ -276,7 +277,12 @@ public class BlobServer extends Thread implements BlobService {
 		catch (Throwable t) {
 			if (!this.shutdownRequested.get()) {
 				LOG.error("BLOB server stopped working. Shutting down", t);
-				shutdown();
+
+				try {
+					close();
+				} catch (Throwable closeThrowable) {
+					LOG.error("Could not properly close the BlobServer.", closeThrowable);
+				}
 			}
 		}
 	}
@@ -285,13 +291,15 @@ public class BlobServer extends Thread implements BlobService {
 	 * Shuts down the BLOB server.
 	 */
 	@Override
-	public void shutdown() {
+	public void close() throws IOException {
 		if (shutdownRequested.compareAndSet(false, true)) {
+			Exception exception = null;
+
 			try {
 				this.serverSocket.close();
 			}
 			catch (IOException ioe) {
-				LOG.debug("Error while closing the server socket.", ioe);
+				exception = ioe;
 			}
 
 			// wake the thread up, in case it is waiting on some operation
@@ -301,13 +309,15 @@ public class BlobServer extends Thread implements BlobService {
 				join();
 			}
 			catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+
 				LOG.debug("Error while waiting for this thread to die.", ie);
 			}
 
 			synchronized (activeConnections) {
 				if (!activeConnections.isEmpty()) {
 					for (BlobServerConnection conn : activeConnections) {
-						LOG.debug("Shutting down connection " + conn.getName());
+						LOG.debug("Shutting down connection {}.", conn.getName());
 						conn.close();
 					}
 					activeConnections.clear();
@@ -319,7 +329,7 @@ public class BlobServer extends Thread implements BlobService {
 				FileUtils.deleteDirectory(storageDir);
 			}
 			catch (IOException e) {
-				LOG.error("BLOB server failed to properly clean up its storage directory.");
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
@@ -332,13 +342,15 @@ public class BlobServer extends Thread implements BlobService {
 					// race, JVM is in shutdown already, we can safely ignore this
 				}
 				catch (Throwable t) {
-					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.");
+					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.", t);
 				}
 			}
 
 			if(LOG.isInfoEnabled()) {
 				LOG.info("Stopped BLOB server at {}:{}", serverSocket.getInetAddress().getHostAddress(), getPort());
 			}
+
+			ExceptionUtils.tryRethrowIOException(exception);
 		}
 	}
 
@@ -359,9 +371,7 @@ public class BlobServer extends Thread implements BlobService {
 	 */
 	@Override
 	public URL getURL(BlobKey requiredBlob) throws IOException {
-		if (requiredBlob == null) {
-			throw new IllegalArgumentException("Required BLOB cannot be null.");
-		}
+		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
@@ -398,13 +408,19 @@ public class BlobServer extends Thread implements BlobService {
 	public void delete(BlobKey key) throws IOException {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
-		if (localFile.exists()) {
-			if (!localFile.delete()) {
-				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
-			}
-		}
+		readWriteLock.writeLock().lock();
 
-		blobStore.delete(key);
+		try {
+			if (localFile.exists()) {
+				if (!localFile.delete()) {
+					LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
+				}
+			}
+
+			blobStore.delete(key);
+		} finally {
+			readWriteLock.writeLock().unlock();
+		}
 	}
 
 	/**

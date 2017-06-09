@@ -26,14 +26,11 @@ import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeD
  *
  * @param data Array of doubles to store the vector elements
  */
-case class DenseVector(
-    data: Array[Double])
-  extends Vector
-  with Serializable {
+case class DenseVector(data: Array[Double]) extends Vector with Serializable {
 
   /**
    * Number of elements in a vector
-   * @return
+   * @return the number of the elements in the vector
    */
   override def size: Int = {
     data.length
@@ -136,10 +133,16 @@ case class DenseVector(
 
   /** Magnitude of a vector
     *
-    * @return
+    * @return The length of the vector
     */
-  override def magnitude: Double = math.sqrt(data.map(x => x * x).sum)
+  override def magnitude: Double = {
+    math.sqrt(data.map(x => x * x).sum)
+  }
 
+  /** Convert to a [[SparseVector]]
+    *
+    * @return Creates a SparseVector from the DenseVector
+    */
   def toSparseVector: SparseVector = {
     val nonZero = (0 until size).zip(data).filter(_._2 != 0)
 

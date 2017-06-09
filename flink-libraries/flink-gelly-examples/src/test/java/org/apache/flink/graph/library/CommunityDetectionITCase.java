@@ -24,12 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.examples.data.CommunityDetectionData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link CommunityDetection}.
+ */
 @RunWith(Parameterized.class)
 public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 
@@ -47,10 +51,10 @@ public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
-				CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
+			CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
 
-        List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
-        		.getVertices().collect();
+		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
+			.getVertices().collect();
 
 		expected = CommunityDetectionData.COMMUNITIES_SINGLE_ITERATION;
 		compareResultAsTuples(result, expected);
@@ -63,16 +67,16 @@ public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 		 */
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
-				CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
+			CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
 
-        List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
-        		.getVertices().collect();
+		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
+			.getVertices().collect();
 		expected = CommunityDetectionData.COMMUNITIES_WITH_TIE;
 		compareResultAsTuples(result, expected);
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitLabels implements MapFunction<Long, Long>{
+	private static final class InitLabels implements MapFunction<Long, Long> {
 
 		public Long map(Long id) {
 			return id;

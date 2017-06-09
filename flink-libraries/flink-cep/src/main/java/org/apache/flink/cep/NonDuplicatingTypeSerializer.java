@@ -18,7 +18,10 @@
 
 package org.apache.flink.cep;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -32,14 +35,15 @@ import java.util.IdentityHashMap;
  * serialized once. If the same object shall be serialized again, then a reference handle is
  * written instead.
  *
- * Avoiding duplication is achieved by keeping an internal identity hash map. This map contains
+ * <p>Avoiding duplication is achieved by keeping an internal identity hash map. This map contains
  * all serialized objects. To make the serializer work it is important that the same serializer
  * is used for a coherent serialization run. After the serialization has stopped, the identity
  * hash map should be cleared.
  *
  * @param <T> Type of the element to be serialized
  */
-public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
+@Internal
+public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = -7633631762221447524L;
 
 	// underlying type serializer
@@ -103,8 +107,8 @@ public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 
 	/**
 	 * Serializes the given record.
-	 * <p>
-	 * First a boolean indicating whether a reference handle (true) or the object (false) is
+	 *
+	 * <p>First a boolean indicating whether a reference handle (true) or the object (false) is
 	 * written. Then, either the reference handle or the object is written.
 	 *
 	 * @param record The record to serialize.
@@ -124,8 +128,8 @@ public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 
 	/**
 	 * Deserializes an object from the input view.
-	 * <p>
-	 * First it reads a boolean indicating whether a reference handle or a serialized object
+	 *
+	 * <p>First it reads a boolean indicating whether a reference handle or a serialized object
 	 * follows.
 	 *
 	 * @param source The input view from which to read the data.
@@ -168,7 +172,7 @@ public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	public boolean equals(Object obj) {
 		if (obj instanceof NonDuplicatingTypeSerializer) {
 			@SuppressWarnings("unchecked")
-			NonDuplicatingTypeSerializer<T> other = (NonDuplicatingTypeSerializer<T>)obj;
+			NonDuplicatingTypeSerializer<T> other = (NonDuplicatingTypeSerializer<T>) obj;
 
 			return (other.canEqual(this) && typeSerializer.equals(other.typeSerializer));
 		} else {
@@ -191,5 +195,15 @@ public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 
 		this.identityMap = new IdentityHashMap<>();
 		this.elementList = new ArrayList<>();
+	}
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
+	}
+
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 	}
 }

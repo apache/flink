@@ -20,131 +20,146 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.taskmanager.ActorGatewayResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
-import scala.Some;
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
-import java.util.concurrent.TimeUnit;
-
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Various tests for the {@link NetworkEnvironment} class.
+ */
 public class NetworkEnvironmentTest {
+	private final static int numBuffers = 1024;
+
+	private final static int memorySegmentSize = 128;
+
 	/**
-	 * Registers a task with an eager and non-eager partition at the network
-	 * environment and verifies that there is exactly on schedule or update
-	 * message to the job manager for the eager partition.
+	 * Verifies that {@link NetworkEnvironment#registerTask(Task)} sets up (un)bounded buffer pool
+	 * instances for various types of input and output channels.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testEagerlyDeployConsumers() throws Exception {
-		// Mock job manager => expected interactions will be verified
-		final ActorGateway jobManager = mock(ActorGateway.class);
-		when(jobManager.ask(anyObject(), any(FiniteDuration.class)))
-				.thenReturn(new Promise.DefaultPromise<>().future());
+	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
 
-		// Network environment setup
-		NetworkEnvironmentConfiguration config = new NetworkEnvironmentConfiguration(
-			20,
-			1024,
-			MemoryType.HEAP,
-			IOManager.IOMode.SYNC,
-			0,
-			0,
-			0,
-			Some.<NettyConfig>empty(),
-			0,
-			0);
-
-		NetworkEnvironment env = new NetworkEnvironment(
-			new NetworkBufferPool(config.numNetworkBuffers(), config.networkBufferSize(), config.memoryType()),
+		final NetworkEnvironment network = new NetworkEnvironment(
+			new NetworkBufferPool(numBuffers, memorySegmentSize, MemoryType.HEAP),
 			new LocalConnectionManager(),
 			new ResultPartitionManager(),
 			new TaskEventDispatcher(),
 			new KvStateRegistry(),
 			null,
-			config.ioMode(),
-			config.partitionRequestInitialBackoff(),
-			config.partitinRequestMaxBackoff());
+			IOManager.IOMode.SYNC,
+			0,
+			0,
+			2,
+			8);
 
-		env.start();
+		// result partitions
+		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		ResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
+		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
+		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 8);
+		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
+		final ResultPartitionWriter[] resultPartitionWriters = new ResultPartitionWriter[] {
+			new ResultPartitionWriter(rp1), new ResultPartitionWriter(rp2),
+			new ResultPartitionWriter(rp3), new ResultPartitionWriter(rp4)};
 
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new ActorGatewayResultPartitionConsumableNotifier(
-			TestingUtils.defaultExecutionContext(),
-			jobManager,
-			new FiniteDuration(30L, TimeUnit.SECONDS));
+		// input gates
+		final SingleInputGate[] inputGates = new SingleInputGate[] {
+			createSingleInputGateMock(ResultPartitionType.PIPELINED, 2),
+			createSingleInputGateMock(ResultPartitionType.BLOCKING, 2),
+			createSingleInputGateMock(ResultPartitionType.PIPELINED_BOUNDED, 2),
+			createSingleInputGateMock(ResultPartitionType.PIPELINED_BOUNDED, 8)};
 
-		// Register mock task
-		JobID jobId = new JobID();
-		Task mockTask = mock(Task.class);
+		// overall task to register
+		Task task = mock(Task.class);
+		when(task.getProducedPartitions()).thenReturn(resultPartitions);
+		when(task.getAllWriters()).thenReturn(resultPartitionWriters);
+		when(task.getAllInputGates()).thenReturn(inputGates);
 
-		ResultPartition[] partitions = new ResultPartition[2];
-		partitions[0] = createPartition(mockTask, "p1", jobId, true, env, resultPartitionConsumableNotifier);
-		partitions[1] = createPartition(mockTask, "p2", jobId, false, env, resultPartitionConsumableNotifier);
+		network.registerTask(task);
 
-		ResultPartitionWriter[] writers = new ResultPartitionWriter[2];
-		writers[0] = new ResultPartitionWriter(partitions[0]);
-		writers[1] = new ResultPartitionWriter(partitions[1]);
+		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(8 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
-		when(mockTask.getAllInputGates()).thenReturn(new SingleInputGate[0]);
-		when(mockTask.getAllWriters()).thenReturn(writers);
-		when(mockTask.getProducedPartitions()).thenReturn(partitions);
-
-		env.registerTask(mockTask);
-
-		// Verify
-		ResultPartitionID eagerPartitionId = partitions[0].getPartitionId();
-
-		verify(jobManager, times(1)).ask(
-				eq(new ScheduleOrUpdateConsumers(jobId, eagerPartitionId)),
-				any(FiniteDuration.class));
+		network.shutdown();
 	}
 
 	/**
-	 * Helper to create a mock result partition.
+	 * Helper to create simple {@link ResultPartition} instance for use by a {@link Task} inside
+	 * {@link NetworkEnvironment#registerTask(Task)}.
+	 *
+	 * @param partitionType
+	 * 		the produced partition type
+	 * @param channels
+	 * 		the nummer of output channels
+	 *
+	 * @return instance with minimal data set and some mocks so that it is useful for {@link
+	 * NetworkEnvironment#registerTask(Task)}
 	 */
-	private static ResultPartition createPartition(
-		Task owningTask,
-		String name,
-		JobID jobId,
-		boolean eagerlyDeployConsumers,
-		NetworkEnvironment env,
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier) {
-
+	private static ResultPartition createResultPartition(
+			final ResultPartitionType partitionType, final int channels) {
 		return new ResultPartition(
-			name,
-			owningTask,
-			jobId,
+			"TestTask-" + partitionType + ":" + channels,
+			mock(TaskActions.class),
+			new JobID(),
 			new ResultPartitionID(),
-			ResultPartitionType.PIPELINED,
-			eagerlyDeployConsumers,
-			1,
-			env.getResultPartitionManager(),
-			resultPartitionConsumableNotifier,
+			partitionType,
+			channels,
+			channels,
+			mock(ResultPartitionManager.class),
+			mock(ResultPartitionConsumableNotifier.class),
 			mock(IOManager.class),
-			env.getDefaultIOMode());
+			false);
+	}
+
+	/**
+	 * Helper to create a mock of a {@link SingleInputGate} for use by a {@link Task} inside
+	 * {@link NetworkEnvironment#registerTask(Task)}.
+	 *
+	 * @param partitionType
+	 * 		the consumed partition type
+	 * @param channels
+	 * 		the nummer of input channels
+	 *
+	 * @return mock with minimal functionality necessary by {@link NetworkEnvironment#registerTask(Task)}
+	 */
+	private static SingleInputGate createSingleInputGateMock(
+			final ResultPartitionType partitionType, final int channels) {
+		SingleInputGate ig = mock(SingleInputGate.class);
+		when(ig.getConsumedPartitionType()).thenReturn(partitionType);
+		when(ig.getNumberOfInputChannels()).thenReturn(channels);
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(final InvocationOnMock invocation) throws Throwable {
+				BufferPool bp = invocation.getArgumentAt(0, BufferPool.class);
+				if (partitionType == ResultPartitionType.PIPELINED_BOUNDED) {
+					assertEquals(channels * 2 + 8, bp.getMaxNumberOfMemorySegments());
+				} else {
+					assertEquals(Integer.MAX_VALUE, bp.getMaxNumberOfMemorySegments());
+				}
+				return null;
+			}
+		}).when(ig).setBufferPool(any(BufferPool.class));
+		return ig;
 	}
 }

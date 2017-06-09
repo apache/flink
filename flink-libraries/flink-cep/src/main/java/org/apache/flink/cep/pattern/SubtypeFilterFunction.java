@@ -25,7 +25,10 @@ import org.apache.flink.api.common.functions.FilterFunction;
  * is not assignable to the given subtype of T.
  *
  * @param <T> Type of the elements to be filtered
+ * @deprecated This is only used when migrating from an older Flink version.
+ * Use the {@link org.apache.flink.cep.pattern.conditions.SubtypeCondition} instead.
  */
+@Deprecated
 public class SubtypeFilterFunction<T> implements FilterFunction<T> {
 	private static final long serialVersionUID = -2990017519957561355L;
 

@@ -18,43 +18,43 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import scala.concurrent.duration.FiniteDuration;
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A base class for tests that run test programs in a Flink mini cluster.
  */
 public abstract class AbstractTestBase extends TestBaseUtils {
-	
-	/** Configuration to start the testing cluster with */
+
+	/** Configuration to start the testing cluster with. */
 	protected final Configuration config;
-	
-	private final List<File> tempFiles;
-	
+
 	private final FiniteDuration timeout;
 
 	protected int taskManagerNumSlots = 1;
 
 	protected int numTaskManagers = 1;
-	
-	/** The mini cluster that runs the test programs */
+
+	@ClassRule
+	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+	/** The mini cluster that runs the test programs. */
 	protected LocalFlinkMiniCluster executor;
-	
 
 	public AbstractTestBase(Configuration config) {
 		this.config = Objects.requireNonNull(config);
-		this.tempFiles = new ArrayList<File>();
 
 		timeout = AkkaUtils.getTimeout(config);
 	}
@@ -74,7 +74,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
 	public void stopCluster() throws Exception {
 		stopCluster(executor, timeout);
-		deleteAllTempFiles();
 	}
 
 	//------------------
@@ -97,7 +96,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 		this.numTaskManagers = numTaskManagers;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Temporary File Utilities
 	// --------------------------------------------------------------------------------------------
@@ -119,35 +117,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	}
 
 	public File createAndRegisterTempFile(String fileName) throws IOException {
-		File baseDir = new File(System.getProperty("java.io.tmpdir"));
-		File f = new File(baseDir, this.getClass().getName() + "-" + fileName);
-
-		if (f.exists()) {
-			deleteRecursively(f);
-		}
-
-		File parentToDelete = f;
-		while (true) {
-			File parent = parentToDelete.getParentFile();
-			if (parent == null) {
-				throw new IOException("Missed temp dir while traversing parents of a temp file.");
-			}
-			if (parent.equals(baseDir)) {
-				break;
-			}
-			parentToDelete = parent;
-		}
-
-		Files.createParentDirs(f);
-		this.tempFiles.add(parentToDelete);
-		return f;
-	}
-
-	private void deleteAllTempFiles() throws IOException {
-		for (File f : this.tempFiles) {
-			if (f.exists()) {
-				deleteRecursively(f);
-			}
-		}
+		return new File(TEMPORARY_FOLDER.newFolder(), fileName);
 	}
 }

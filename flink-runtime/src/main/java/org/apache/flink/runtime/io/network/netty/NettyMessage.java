@@ -440,7 +440,7 @@ abstract class NettyMessage {
 		}
 
 		@Override
-		public void readFrom(ByteBuf buffer) {
+		public void readFrom(ByteBuf buffer) throws IOException {
 			// TODO Directly deserialize fromNetty's buffer
 			int length = buffer.readInt();
 			ByteBuffer serializedEvent = ByteBuffer.allocate(length);

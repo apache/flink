@@ -139,7 +139,7 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the number of data blocks/partitions
     *
-    * @param blocks
+    * @param blocks the number of blocks into which the input data will be split.
     * @return itself
     */
   def setBlocks(blocks: Int): SVM = {
@@ -149,7 +149,7 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the number of outer iterations
     *
-    * @param iterations
+    * @param iterations the maximum number of iterations of the outer loop method
     * @return itself
     */
   def setIterations(iterations: Int): SVM = {
@@ -159,8 +159,8 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the number of local SDCA iterations
     *
-    * @param localIterations
-    * @return itselft
+    * @param localIterations the maximum number of SDCA iterations
+    * @return itself
     */
   def setLocalIterations(localIterations: Int): SVM =  {
     parameters.add(LocalIterations, localIterations)
@@ -169,7 +169,7 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the regularization constant
     *
-    * @param regularization
+    * @param regularization the regularization constant of the SVM algorithm
     * @return itself
     */
   def setRegularization(regularization: Double): SVM = {
@@ -179,7 +179,7 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the stepsize for the weight vector updates
     *
-    * @param stepsize
+    * @param stepsize the initial step size for the updates of the weight vector
     * @return itself
     */
   def setStepsize(stepsize: Double): SVM = {
@@ -189,7 +189,7 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the seed value for the random number generator
     *
-    * @param seed
+    * @param seed the seed to initialize the random number generator
     * @return itself
     */
   def setSeed(seed: Long): SVM = {
@@ -201,8 +201,9 @@ class SVM extends Predictor[SVM] {
     *
     * The [[predict ]] and [[evaluate]] functions will return +1.0 for items with a decision
     * function value above this threshold, and -1.0 for items below it.
-    * @param threshold
-    * @return
+    * @param threshold the limiting value for the decision function above which examples are
+    *                  labeled as positive
+    * @return itself
     */
   def setThreshold(threshold: Double): SVM = {
     parameters.add(ThresholdValue, threshold)
@@ -219,6 +220,7 @@ class SVM extends Predictor[SVM] {
     * @param outputDecisionFunction When set to true, [[predict ]] and [[evaluate]] return the raw
     *                               decision function values. When set to false, they return the
     *                               thresholded binary values (+1.0, -1.0).
+    * @return itself
     */
   def setOutputDecisionFunction(outputDecisionFunction: Boolean): SVM = {
     parameters.add(OutputDecisionFunction, outputDecisionFunction)
@@ -231,7 +233,7 @@ class SVM extends Predictor[SVM] {
   */
 object SVM{
 
-  val WEIGHT_VECTOR ="weightVector"
+  val WEIGHT_VECTOR_BROADCAST_NAME = "weightVector"
 
   // ========================================== Parameters =========================================
 
@@ -277,7 +279,7 @@ object SVM{
 
   /** Provides the operation that makes the predictions for individual examples.
     *
-    * @tparam T
+    * @tparam T Input data type which is a subtype of [[Vector]]
     * @return A PredictOperation, through which it is possible to predict a value, given a
     *         feature vector
     */
@@ -432,7 +434,7 @@ object SVM{
       var r: Random = _
 
       override def open(parameters: Configuration): Unit = {
-        originalW = getRuntimeContext.getBroadcastVariable(WEIGHT_VECTOR).get(0)
+        originalW = getRuntimeContext.getBroadcastVariable(WEIGHT_VECTOR_BROADCAST_NAME).get(0)
 
         if(r == null){
           r = new Random(seed ^ getRuntimeContext.getIndexOfThisSubtask)
@@ -497,7 +499,7 @@ object SVM{
       }
     }
 
-    blockedInputNumberElements.map(localSDCA).withBroadcastSet(w, WEIGHT_VECTOR)
+    blockedInputNumberElements.map(localSDCA).withBroadcastSet(w, WEIGHT_VECTOR_BROADCAST_NAME)
   }
 
   /** Maximizes the dual problem using hinge loss functions. It returns the alpha and weight

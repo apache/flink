@@ -52,31 +52,42 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 
-		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+		if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+			// if the watermark is already past the window fire immediately
+			return TriggerResult.FIRE;
+		} else {
+			ctx.registerEventTimeTimer(window.maxTimestamp());
+		}
 
+		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 		if (fireTimestamp.get() == null) {
 			long start = timestamp - (timestamp % interval);
 			long nextFireTimestamp = start + interval;
-
 			ctx.registerEventTimeTimer(nextFireTimestamp);
-
 			fireTimestamp.add(nextFireTimestamp);
-			return TriggerResult.CONTINUE;
 		}
+
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
 	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception {
-		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 
-		if (fireTimestamp.get().equals(time)) {
-			fireTimestamp.clear();
-			fireTimestamp.add(time + interval);
+		if (time == window.maxTimestamp()){
+			return TriggerResult.FIRE;
+		}
+
+		ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
+
+		Long fireTimestamp = fireTimestampState.get();
+
+		if (fireTimestamp != null && fireTimestamp == time) {
+			fireTimestampState.clear();
+			fireTimestampState.add(time + interval);
 			ctx.registerEventTimeTimer(time + interval);
 			return TriggerResult.FIRE;
-
 		}
+
 		return TriggerResult.CONTINUE;
 	}
 
@@ -101,18 +112,17 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
-	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
+	public void onMerge(W window, OnMergeContext ctx) throws Exception {
 		ctx.mergePartitionedState(stateDesc);
 		Long nextFireTimestamp = ctx.getPartitionedState(stateDesc).get();
 		if (nextFireTimestamp != null) {
 			ctx.registerEventTimeTimer(nextFireTimestamp);
 		}
-		return TriggerResult.CONTINUE;
 	}
 
 	@Override
 	public String toString() {
-		return "ContinuousProcessingTimeTrigger(" + interval + ")";
+		return "ContinuousEventTimeTrigger(" + interval + ")";
 	}
 
 	@VisibleForTesting

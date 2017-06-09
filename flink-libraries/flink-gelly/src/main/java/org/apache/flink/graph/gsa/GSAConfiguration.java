@@ -32,19 +32,19 @@ import java.util.List;
  * the {@link org.apache.flink.graph.gsa.GatherFunction}, {@link org.apache.flink.graph.gsa.SumFunction} as well as
  * {@link org.apache.flink.graph.gsa.ApplyFunction}.
  *
- * The GSAConfiguration object is passed as an argument to
+ * <p>The GSAConfiguration object is passed as an argument to
  * {@link org.apache.flink.graph.Graph#runGatherSumApplyIteration(org.apache.flink.graph.gsa.GatherFunction,
  * org.apache.flink.graph.gsa.SumFunction, org.apache.flink.graph.gsa.ApplyFunction, int)}
  */
 public class GSAConfiguration extends IterationConfiguration {
 
-	/** the broadcast variables for the gather function **/
+	// the broadcast variables for the gather function
 	private List<Tuple2<String, DataSet<?>>> bcVarsGather = new ArrayList<>();
 
-	/** the broadcast variables for the sum function **/
+	// the broadcast variables for the sum function
 	private List<Tuple2<String, DataSet<?>>> bcVarsSum = new ArrayList<>();
 
-	/** the broadcast variables for the apply function **/
+	// the broadcast variables for the apply function
 	private List<Tuple2<String, DataSet<?>>> bcVarsApply = new ArrayList<>();
 
 	private EdgeDirection direction = EdgeDirection.OUT;
@@ -113,7 +113,7 @@ public class GSAConfiguration extends IterationConfiguration {
 
 	/**
 	 * Gets the direction from which the neighbors are to be selected
-	 * By default the neighbors who are target of the edges are selected
+	 * By default the neighbors who are target of the edges are selected.
 	 *
 	 * @return an EdgeDirection, which can be either IN, OUT or ALL.
 	 */
@@ -123,7 +123,7 @@ public class GSAConfiguration extends IterationConfiguration {
 
 	/**
 	 * Sets the direction in which neighbors are to be selected
-	 * By default the neighbors who are target of the edges are selected
+	 * By default the neighbors who are target of the edges are selected.
 	 *
 	 * @param direction - IN, OUT or ALL
 	 */

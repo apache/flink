@@ -15,15 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricGroup> {
 
-	/** Map from execution attempt ID (task identifier) to task metrics */
+	/** Map from execution attempt ID (task identifier) to task metrics. */
 	private final Map<AbstractID, TaskMetricGroup> tasks = new HashMap<>();
 
 	// ------------------------------------------------------------------------
@@ -59,21 +62,33 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
 	//  adding / removing tasks
 	// ------------------------------------------------------------------------
 
-	public TaskMetricGroup addTask(TaskDeploymentDescriptor tdd) {
-		AbstractID vertexId = tdd.getVertexID();
-		AbstractID executionId = tdd.getExecutionId();
-		String taskName = tdd.getTaskName();
-		int subtaskIndex = tdd.getIndexInSubtaskGroup();
-		int attemptNumber = tdd.getAttemptNumber();
-
-		checkNotNull(executionId);
+	public TaskMetricGroup addTask(
+			final JobVertexID jobVertexId,
+			final ExecutionAttemptID executionAttemptID,
+			final String taskName,
+			final int subtaskIndex,
+			final int attemptNumber) {
+		checkNotNull(jobVertexId);
+		checkNotNull(executionAttemptID);
+		checkNotNull(taskName);
 
 		synchronized (this) {
 			if (!isClosed()) {
-				TaskMetricGroup task = new TaskMetricGroup(registry, this,
-					vertexId, executionId, taskName, subtaskIndex, attemptNumber);
-				tasks.put(executionId, task);
-				return task;
+				TaskMetricGroup prior = tasks.get(executionAttemptID);
+				if (prior != null) {
+					return prior;
+				} else {
+					TaskMetricGroup task = new TaskMetricGroup(
+						registry,
+						this,
+						jobVertexId,
+						executionAttemptID,
+						taskName,
+						subtaskIndex,
+						attemptNumber);
+					tasks.put(executionAttemptID, task);
+					return task;
+				}
 			} else {
 				return null;
 			}

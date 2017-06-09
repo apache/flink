@@ -77,13 +77,13 @@ You can set the retry delay for each program as follows (the sample shows the Da
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().setExecutionRetryDelay(5000); // 5000 milliseconds delay
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
+val env = ExecutionEnvironment.getExecutionEnvironment()
 env.getConfig.setExecutionRetryDelay(5000) // 5000 milliseconds delay
 {% endhighlight %}
 </div>

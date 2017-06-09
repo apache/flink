@@ -26,14 +26,12 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
-
 import java.util.Collection;
 
 /**
  * A {@code WindowAssigner} assigns zero or more {@link Window Windows} to an element.
  *
- * <p>
- * In a window operation, elements are grouped by their key (if available) and by the windows to
+ * <p>In a window operation, elements are grouped by their key (if available) and by the windows to
  * which it was assigned. The set of elements with the same key and window is called a pane.
  * When a {@link Trigger} decides that a certain pane should fire the
  * {@link org.apache.flink.streaming.api.functions.windowing.WindowFunction} is applied

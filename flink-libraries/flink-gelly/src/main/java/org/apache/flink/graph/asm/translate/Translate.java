@@ -71,9 +71,18 @@ public class Translate {
 		Preconditions.checkNotNull(vertices);
 		Preconditions.checkNotNull(translator);
 
-		Class<Vertex<NEW, VV>> vertexClass = (Class<Vertex<NEW, VV>>)(Class<? extends Vertex>) Vertex.class;
+		Class<Vertex<NEW, VV>> vertexClass = (Class<Vertex<NEW, VV>>) (Class<? extends Vertex>) Vertex.class;
 		TypeInformation<OLD> oldType = ((TupleTypeInfo<Vertex<OLD, VV>>) vertices.getType()).getTypeAt(0);
-		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(translator, TranslateFunction.class, false, false, oldType, null, false);
+		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(
+			translator,
+			TranslateFunction.class,
+			0,
+			1,
+			new int[]{0},
+			new int[]{1},
+			oldType,
+			null,
+			false);
 		TypeInformation<VV> vertexValueType = ((TupleTypeInfo<Vertex<OLD, VV>>) vertices.getType()).getTypeAt(1);
 
 		TupleTypeInfo<Vertex<NEW, VV>> returnType = new TupleTypeInfo<>(vertexClass, newType, vertexValueType);
@@ -146,9 +155,18 @@ public class Translate {
 		Preconditions.checkNotNull(edges);
 		Preconditions.checkNotNull(translator);
 
-		Class<Edge<NEW, EV>> edgeClass = (Class<Edge<NEW, EV>>)(Class<? extends Edge>) Edge.class;
+		Class<Edge<NEW, EV>> edgeClass = (Class<Edge<NEW, EV>>) (Class<? extends Edge>) Edge.class;
 		TypeInformation<OLD> oldType = ((TupleTypeInfo<Edge<OLD, EV>>) edges.getType()).getTypeAt(0);
-		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(translator, TranslateFunction.class, false, false, oldType, null, false);
+		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(
+			translator,
+			TranslateFunction.class,
+			0,
+			1,
+			new int[] {0},
+			new int[] {1},
+			oldType,
+			null,
+			false);
 		TypeInformation<EV> edgeValueType = ((TupleTypeInfo<Edge<OLD, EV>>) edges.getType()).getTypeAt(2);
 
 		TupleTypeInfo<Edge<NEW, EV>> returnType = new TupleTypeInfo<>(edgeClass, newType, newType, edgeValueType);
@@ -222,10 +240,19 @@ public class Translate {
 		Preconditions.checkNotNull(vertices);
 		Preconditions.checkNotNull(translator);
 
-		Class<Vertex<K, NEW>> vertexClass = (Class<Vertex<K, NEW>>)(Class<? extends Vertex>) Vertex.class;
+		Class<Vertex<K, NEW>> vertexClass = (Class<Vertex<K, NEW>>) (Class<? extends Vertex>) Vertex.class;
 		TypeInformation<K> idType = ((TupleTypeInfo<Vertex<K, OLD>>) vertices.getType()).getTypeAt(0);
 		TypeInformation<OLD> oldType = ((TupleTypeInfo<Vertex<K, OLD>>) vertices.getType()).getTypeAt(1);
-		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(translator, TranslateFunction.class, false, false, oldType, null, false);
+		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(
+			translator,
+			TranslateFunction.class,
+			0,
+			1,
+			new int[]{0},
+			new int[]{1},
+			oldType,
+			null,
+			false);
 
 		TupleTypeInfo<Vertex<K, NEW>> returnType = new TupleTypeInfo<>(vertexClass, idType, newType);
 
@@ -297,10 +324,19 @@ public class Translate {
 		Preconditions.checkNotNull(edges);
 		Preconditions.checkNotNull(translator);
 
-		Class<Edge<K, NEW>> edgeClass = (Class<Edge<K, NEW>>)(Class<? extends Edge>) Edge.class;
+		Class<Edge<K, NEW>> edgeClass = (Class<Edge<K, NEW>>) (Class<? extends Edge>) Edge.class;
 		TypeInformation<K> idType = ((TupleTypeInfo<Edge<K, OLD>>) edges.getType()).getTypeAt(0);
 		TypeInformation<OLD> oldType = ((TupleTypeInfo<Edge<K, OLD>>) edges.getType()).getTypeAt(2);
-		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(translator, TranslateFunction.class, false, false, oldType, null, false);
+		TypeInformation<NEW> newType = TypeExtractor.getUnaryOperatorReturnType(
+			translator,
+			TranslateFunction.class,
+			0,
+			1,
+			new int[]{0},
+			new int[]{1},
+			oldType,
+			null,
+			false);
 
 		TupleTypeInfo<Edge<K, NEW>> returnType = new TupleTypeInfo<>(edgeClass, idType, idType, newType);
 

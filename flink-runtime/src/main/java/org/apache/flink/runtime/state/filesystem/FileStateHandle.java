@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 
@@ -42,9 +43,6 @@ public class FileStateHandle implements StreamStateHandle {
 
 	/** The size of the state in the file */
 	private final long stateSize;
-
-	/** Cached file system handle */
-	private transient FileSystem fs;
 
 	/**
 	 * Creates a new file state for the given file path.
@@ -79,23 +77,23 @@ public class FileStateHandle implements StreamStateHandle {
 	 */
 	@Override
 	public void discardState() throws Exception {
-		getFileSystem().delete(filePath, false);
 
-		// send a call to delete the checkpoint directory containing the file. This will
-		// fail (and be ignored) when some files still exist
+		FileSystem fs = getFileSystem();
+
+		fs.delete(filePath, false);
+
 		try {
-			getFileSystem().delete(filePath.getParent(), false);
-		} catch (IOException ignored) {}
+			FileUtils.deletePathIfEmpty(fs, filePath.getParent());
+		} catch (Exception ignored) {}
 	}
 
 	/**
 	 * Returns the file size in bytes.
 	 *
 	 * @return The file size in bytes.
-	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return stateSize;
 	}
 
@@ -106,10 +104,7 @@ public class FileStateHandle implements StreamStateHandle {
 	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
 	private FileSystem getFileSystem() throws IOException {
-		if (fs == null) {
-			fs = FileSystem.get(filePath.toUri());
-		}
-		return fs;
+		return FileSystem.get(filePath.toUri());
 	}
 
 	// ------------------------------------------------------------------------

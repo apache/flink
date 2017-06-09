@@ -18,19 +18,18 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.graph.AbstractGraphAnalytic;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient.Result;
 import org.apache.flink.types.CopyableValue;
-import org.apache.flink.util.AbstractID;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 
@@ -45,9 +44,13 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class AverageClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
-	private String id = new AbstractID().toString();
+	private static final String VERTEX_COUNT = "vertexCount";
+
+	private static final String SUM_OF_LOCAL_CLUSTERING_COEFFICIENT = "sumOfLocalClusteringCoefficient";
+
+	private AverageClusteringCoefficientHelper<K> averageClusteringCoefficientHelper;
 
 	// Optional configuration
 	private int littleParallelism = PARALLELISM_DEFAULT;
@@ -80,8 +83,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			.run(new LocalClusteringCoefficient<K, VV, EV>()
 				.setLittleParallelism(littleParallelism));
 
+		averageClusteringCoefficientHelper = new AverageClusteringCoefficientHelper<>();
+
 		localClusteringCoefficient
-			.output(new AverageClusteringCoefficientHelper<K>(id))
+			.output(averageClusteringCoefficientHelper)
 				.name("Average clustering coefficient");
 
 		return this;
@@ -89,10 +94,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		JobExecutionResult res = env.getLastJobExecutionResult();
-
-		long vertexCount = res.getAccumulatorResult(id + "-0");
-		double sumOfLocalClusteringCoefficient = res.getAccumulatorResult(id + "-1");
+		long vertexCount = averageClusteringCoefficientHelper.getAccumulator(env, VERTEX_COUNT);
+		double sumOfLocalClusteringCoefficient = averageClusteringCoefficientHelper.getAccumulator(env, SUM_OF_LOCAL_CLUSTERING_COEFFICIENT);
 
 		return new Result(vertexCount, sumOfLocalClusteringCoefficient);
 	}
@@ -103,27 +106,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class AverageClusteringCoefficientHelper<T>
-	extends RichOutputFormat<LocalClusteringCoefficient.Result<T>> {
-		private final String id;
-
+	extends AnalyticHelper<LocalClusteringCoefficient.Result<T>> {
 		private long vertexCount;
 		private double sumOfLocalClusteringCoefficient;
-
-		/**
-		 * The unique id is required because Flink's accumulator namespace is
-		 * shared among all operators.
-		 *
-		 * @param id unique string used for accumulator names
-		 */
-		public AverageClusteringCoefficientHelper(String id) {
-			this.id = id;
-		}
-
-		@Override
-		public void configure(Configuration parameters) {}
-
-		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {}
 
 		@Override
 		public void writeRecord(LocalClusteringCoefficient.Result<T> record) throws IOException {
@@ -138,17 +123,17 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public void close() throws IOException {
-			getRuntimeContext().addAccumulator(id + "-0", new LongCounter(vertexCount));
-			getRuntimeContext().addAccumulator(id + "-1", new DoubleCounter(sumOfLocalClusteringCoefficient));
+			addAccumulator(VERTEX_COUNT, new LongCounter(vertexCount));
+			addAccumulator(SUM_OF_LOCAL_CLUSTERING_COEFFICIENT, new DoubleCounter(sumOfLocalClusteringCoefficient));
 		}
 	}
 
 	/**
 	 * Wraps global clustering coefficient metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private long vertexCount;
-
 		private double averageLocalClusteringCoefficient;
 
 		/**
@@ -182,7 +167,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			return "vertex count: " + vertexCount
 				+ ", average clustering coefficient: " + averageLocalClusteringCoefficient;
 		}
@@ -197,11 +182,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(vertexCount, rhs.vertexCount)

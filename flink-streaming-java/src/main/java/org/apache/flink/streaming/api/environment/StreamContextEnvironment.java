@@ -21,7 +21,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.DetachedEnvironment;
-
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -30,6 +29,11 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
+ * testing utilities create a {@link StreamExecutionEnvironment} that should be used when
+ * {@link StreamExecutionEnvironment#getExecutionEnvironment()} is called.
+ */
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 

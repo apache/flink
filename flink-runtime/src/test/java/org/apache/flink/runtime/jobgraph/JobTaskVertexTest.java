@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import java.io.IOException;
-
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
@@ -33,6 +31,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.Test;
 
+import java.io.IOException;
+
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
@@ -42,7 +42,7 @@ public class JobTaskVertexTest {
 	public void testConnectDirectly() {
 		JobVertex source = new JobVertex("source");
 		JobVertex target = new JobVertex("target");
-		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		
 		assertTrue(source.isInputVertex());
 		assertFalse(source.isOutputVertex());
@@ -63,7 +63,7 @@ public class JobTaskVertexTest {
 		JobVertex source = new JobVertex("source");
 		JobVertex target1= new JobVertex("target1");
 		JobVertex target2 = new JobVertex("target2");
-		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		target2.connectDataSetAsInput(source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
 		
 		assertTrue(source.isInputVertex());
@@ -130,36 +130,7 @@ public class JobTaskVertexTest {
 			fail(e.getMessage());
 		}
 	}
-
-	/**
-	 * Verifies correct setting of eager deploy settings.
-	 */
-	@Test
-	public void testEagerlyDeployConsumers() throws Exception {
-		JobVertex producer = new JobVertex("producer");
-
-		{
-			JobVertex consumer = new JobVertex("consumer");
-			JobEdge edge = consumer.connectNewDataSetAsInput(
-					producer, DistributionPattern.ALL_TO_ALL);
-			assertFalse(edge.getSource().getEagerlyDeployConsumers());
-		}
-
-		{
-			JobVertex consumer = new JobVertex("consumer");
-			JobEdge edge = consumer.connectNewDataSetAsInput(
-					producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-			assertFalse(edge.getSource().getEagerlyDeployConsumers());
-		}
-
-		{
-			JobVertex consumer = new JobVertex("consumer");
-			JobEdge edge = consumer.connectNewDataSetAsInput(
-					producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED, true);
-			assertTrue(edge.getSource().getEagerlyDeployConsumers());
-		}
-	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	
 	private static final class TestingOutputFormat extends DiscardingOutputFormat<Object> implements InitializeOnMaster {

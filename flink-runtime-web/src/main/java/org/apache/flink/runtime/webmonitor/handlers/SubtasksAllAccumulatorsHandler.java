@@ -18,45 +18,82 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
+import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Request handler that returns the accumulators for all subtasks of job vertex.
  */
 public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler {
-	
+
+	private static final String SUBTASKS_ALL_ACCUMULATORS_REST_PATH = 	"/jobs/:jobid/vertices/:vertexid/subtasks/accumulators";
+
 	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASKS_ALL_ACCUMULATORS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+		return createSubtasksAccumulatorsJson(jobVertex);
+	}
+
+	/**
+	 * Archivist for the SubtasksAllAccumulatorsHandler.
+	 */
+	public static class SubtasksAllAccumulatorsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
+				String json = createSubtasksAccumulatorsJson(task);
+				String path = SUBTASKS_ALL_ACCUMULATORS_REST_PATH
+					.replace(":jobid", graph.getJobID().toString())
+					.replace(":vertexid", task.getJobVertexId().toString());
+				archive.add(new ArchivedJson(path, json));
+			}
+			return archive;
+		}
+	}
+
+	public static String createSubtasksAccumulatorsJson(AccessExecutionJobVertex jobVertex) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
 		gen.writeNumberField("parallelism", jobVertex.getParallelism());
 
 		gen.writeArrayFieldStart("subtasks");
-		
+
 		int num = 0;
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
-			
+
 			gen.writeStartObject();
-			
+
 			gen.writeNumberField("subtask", num++);
 			gen.writeNumberField("attempt", vertex.getCurrentExecutionAttempt().getAttemptNumber());
 			gen.writeStringField("host", locationString);
@@ -71,7 +108,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 				gen.writeEndObject();
 			}
 			gen.writeEndArray();
-			
+
 			gen.writeEndObject();
 		}
 		gen.writeEndArray();

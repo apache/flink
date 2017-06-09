@@ -20,21 +20,12 @@
 /**
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
+ * additional information regarding copyright ownership.
  */
 
 package org.apache.flink.core.fs.local;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.URI;
-import java.net.UnknownHostException;
-
 import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -43,63 +34,74 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.StandardCopyOption;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface for the local file
- * system.
- * 
+ * The class {@code LocalFileSystem} is an implementation of the {@link FileSystem} interface
+ * for the local file system of the machine where the JVM runs.
  */
 @Internal
 public class LocalFileSystem extends FileSystem {
 
-	/**
-	 * Path pointing to the current working directory.
-	 */
-	private Path workingDir = null;
-
-	/**
-	 * The URI representing the local file system.
-	 */
-	private final URI name = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
-
-	/**
-	 * The host name of this machine;
-	 */
-	private final String hostName;
-
 	private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
+
+	/** The URI representing the local file system. */
+	private static final URI uri = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
+
+	/** Path pointing to the current working directory.
+	 * Because Paths are not immutable, we cannot cache the proper path here */
+	private final String workingDir;
+
+	/** Path pointing to the current working directory.
+	 * Because Paths are not immutable, we cannot cache the proper path here */
+	private final String homeDir;
+
+	/** The host name of this machine */
+	private final String hostName;
 
 	/**
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
-		this.workingDir = new Path(System.getProperty("user.dir")).makeQualified(this);
+		this.workingDir = new Path(System.getProperty("user.dir")).makeQualified(this).toString();
+		this.homeDir = new Path(System.getProperty("user.home")).toString();
 
 		String tmp = "unknownHost";
-
 		try {
 			tmp = InetAddress.getLocalHost().getHostName();
 		} catch (UnknownHostException e) {
 			LOG.error("Could not resolve local host", e);
 		}
-
 		this.hostName = tmp;
 	}
 
+	// ------------------------------------------------------------------------
 
 	@Override
-	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
-			throws IOException {
-
-		final BlockLocation[] blockLocations = new BlockLocation[1];
-		blockLocations[0] = new LocalBlockLocation(this.hostName, file.getLen());
-
-		return blockLocations;
+	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
+		return new BlockLocation[] {
+				new LocalBlockLocation(hostName, file.getLen())
+		};
 	}
-
 
 	@Override
 	public FileStatus getFileStatus(Path f) throws IOException {
-
 		final File path = pathToFile(f);
 		if (path.exists()) {
 			return new LocalFileStatus(pathToFile(f), this);
@@ -110,39 +112,34 @@ public class LocalFileSystem extends FileSystem {
 		}
 	}
 
-
 	@Override
 	public URI getUri() {
-		return name;
+		return uri;
 	}
-
 
 	@Override
 	public Path getWorkingDirectory() {
-		return workingDir;
+		return new Path(workingDir);
 	}
 
 	@Override
 	public Path getHomeDirectory() {
-		return new Path(System.getProperty("user.home"));
+		return new Path(homeDir);
 	}
 
 	@Override
-	public void initialize(final URI name) throws IOException {	}
-
+	public void initialize(final URI name) throws IOException {}
 
 	@Override
 	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 		return open(f);
 	}
 
-
 	@Override
 	public FSDataInputStream open(final Path f) throws IOException {
 		final File file = pathToFile(f);
 		return new LocalDataInputStream(file);
 	}
-
 
 	private File pathToFile(Path path) {
 		if (!path.isAbsolute()) {
@@ -184,8 +181,13 @@ public class LocalFileSystem extends FileSystem {
 		final File file = pathToFile(f);
 		if (file.isFile()) {
 			return file.delete();
-		} else if ((!recursive) && file.isDirectory() && (file.listFiles().length != 0)) {
-			throw new IOException("Directory " + file.toString() + " is not empty");
+		} else if ((!recursive) && file.isDirectory()) {
+			File[] containedFiles = file.listFiles();
+			if (containedFiles == null) {
+				throw new IOException("Directory " + file.toString() + " does not exist or an I/O error occurred");
+			} else if (containedFiles.length != 0) {
+				throw new IOException("Directory " + file.toString() + " is not empty");
+			}
 		}
 
 		return delete(file);
@@ -193,7 +195,7 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Deletes the given file or directory.
-	 * 
+	 *
 	 * @param f
 	 *        the file to be deleted
 	 * @return <code>true</code> if all files were deleted successfully, <code>false</code> otherwise
@@ -203,7 +205,6 @@ public class LocalFileSystem extends FileSystem {
 	private boolean delete(final File f) throws IOException {
 
 		if (f.isDirectory()) {
-
 			final File[] files = f.listFiles();
 			for (File file : files) {
 				final boolean del = delete(file);
@@ -211,7 +212,6 @@ public class LocalFileSystem extends FileSystem {
 					return false;
 				}
 			}
-
 		} else {
 			return f.delete();
 		}
@@ -222,14 +222,14 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Recursively creates the directory specified by the provided path.
-	 * 
+	 *
 	 * @return <code>true</code>if the directories either already existed or have been created successfully,
 	 *         <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if an error occurred while creating the directory/directories
 	 */
+	@Override
 	public boolean mkdirs(final Path f) throws IOException {
-
 		final File p2f = pathToFile(f);
 
 		if(p2f.isDirectory()) {
@@ -240,39 +240,49 @@ public class LocalFileSystem extends FileSystem {
 		return (parent == null || mkdirs(parent)) && (p2f.mkdir() || p2f.isDirectory());
 	}
 
-
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
-			final short replication, final long blockSize) throws IOException {
+	public FSDataOutputStream create(final Path filePath, final WriteMode overwrite) throws IOException {
+		checkNotNull(filePath, "filePath");
 
-		if (exists(f) && !overwrite) {
-			throw new IOException("File already exists:" + f);
+		if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+			throw new FileAlreadyExistsException("File already exists: " + filePath);
 		}
 
-		final Path parent = f.getParent();
+		final Path parent = filePath.getParent();
 		if (parent != null && !mkdirs(parent)) {
-			throw new IOException("Mkdirs failed to create " + parent.toString());
+			throw new IOException("Mkdirs failed to create " + parent);
 		}
 
-		final File file = pathToFile(f);
+		final File file = pathToFile(filePath);
 		return new LocalDataOutputStream(file);
 	}
 
-
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
-
-		return create(f, overwrite, 0, (short) 0, 0);
+	public FSDataOutputStream create(
+			Path f, boolean overwrite, int bufferSize, short replication, long blockSize) throws IOException {
+		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
 	}
 
 
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
-
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
 
-		return srcFile.renameTo(dstFile);
+		final File dstParent = dstFile.getParentFile();
+
+		// Files.move fails if the destination directory doesn't exist
+		//noinspection ResultOfMethodCallIgnored -- we don't care if the directory existed or was created
+		dstParent.mkdirs();
+
+		try {
+			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return true;
+		}
+		catch (NoSuchFileException | AccessDeniedException | DirectoryNotEmptyException | SecurityException ex) {
+			// catch the errors that are regular "move failed" exceptions and return false
+			return false;
+		}
 	}
 
 	@Override

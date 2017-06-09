@@ -29,17 +29,16 @@ angular.module('flinkApp')
   }
 
   @refresh = $interval =>
-    angular.forEach @watched, (v, jobid) =>
-      angular.forEach v, (nodeid, nk) =>
-        @getAllAvailableMetrics(jobid, nodeid).then (data) =>
-          names = []
-          angular.forEach data, (metric, mk) =>
-            names.push metric.id
+    angular.forEach @metrics, (vertices, jobid) =>
+      angular.forEach vertices, (metrics, nodeid) =>
+        names = []
+        angular.forEach metrics, (metric, index) =>
+          names.push metric.id
 
-          if names.length > 0
-            @getMetrics(jobid, nodeid, names).then (values) =>
-              if jobid == @observer.jobid && nodeid == @observer.nodeid
-                @observer.callback(values) if @observer.callback
+        if names.length > 0
+          @getMetrics(jobid, nodeid, names).then (values) =>
+            if jobid == @observer.jobid && nodeid == @observer.nodeid
+              @observer.callback(values) if @observer.callback
 
 
   , flinkConfig["refresh-interval"]
@@ -67,13 +66,13 @@ angular.module('flinkApp')
     100
 
   @setupLS = ->
-    if !localStorage.flinkMetrics?
+    if !sessionStorage.flinkMetrics?
       @saveSetup()
 
-    @metrics = JSON.parse(localStorage.flinkMetrics)
+    @metrics = JSON.parse(sessionStorage.flinkMetrics)
 
   @saveSetup = ->
-    localStorage.flinkMetrics = JSON.stringify(@metrics)
+    sessionStorage.flinkMetrics = JSON.stringify(@metrics)
 
   @saveValue = (jobid, nodeid, value) ->
     unless @values[jobid]?
@@ -111,7 +110,7 @@ angular.module('flinkApp')
   @addMetric = (jobid, nodeid, metricid) ->
     @setupLSFor(jobid, nodeid)
 
-    @metrics[jobid][nodeid].push({id: metricid, size: 'small'})
+    @metrics[jobid][nodeid].push({id: metricid, size: 'small', view: 'chart'})
 
     @saveSetup()
 
@@ -129,7 +128,16 @@ angular.module('flinkApp')
       i = @metrics[jobid][nodeid].indexOf(metric.id)
       i = _.findIndex(@metrics[jobid][nodeid], { id: metric.id }) if i == -1
 
-      @metrics[jobid][nodeid][i] = { id: metric.id, size: size } if i != -1
+      @metrics[jobid][nodeid][i] = { id: metric.id, size: size, view: metric.view } if i != -1
+
+      @saveSetup()
+
+  @setMetricView = (jobid, nodeid, metric, view) =>
+    if @metrics[jobid][nodeid]?
+      i = @metrics[jobid][nodeid].indexOf(metric.id)
+      i = _.findIndex(@metrics[jobid][nodeid], { id: metric.id }) if i == -1
+
+      @metrics[jobid][nodeid][i] = { id: metric.id, size: metric.size, view: view } if i != -1
 
       @saveSetup()
 
@@ -149,7 +157,7 @@ angular.module('flinkApp')
   @getMetricsSetup = (jobid, nodeid) =>
     {
       names: _.map(@metrics[jobid][nodeid], (value) =>
-        if _.isString(value) then { id: value, size: "small" } else value
+        if _.isString(value) then { id: value, size: "small", view: "chart" } else value
       )
     }
 

@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.RunnableFuture;
 
 /**
  * This class is a default implementation for StateSnapshotContext.
  */
-public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext {
+public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext, Closeable {
 	
 	private final long checkpointId;
 	private final long checkpointTimestamp;
@@ -42,7 +45,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be 
 	 * obtained from and managed by the stream task.
 	 */
-	private final ClosableRegistry closableRegistry;
+	private final CloseableRegistry closableRegistry;
 
 	private KeyedStateCheckpointOutputStream keyedStateCheckpointOutputStream;
 	private OperatorStateCheckpointOutputStream operatorStateCheckpointOutputStream;
@@ -62,7 +65,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 			long checkpointTimestamp,
 			CheckpointStreamFactory streamFactory,
 			KeyGroupRange keyGroupRange,
-			ClosableRegistry closableRegistry) {
+			CloseableRegistry closableRegistry) {
 
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
@@ -106,15 +109,17 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		return operatorStateCheckpointOutputStream;
 	}
 
-	public RunnableFuture<KeyGroupsStateHandle> getKeyedStateStreamFuture() throws IOException {
-		return closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
+	public RunnableFuture<KeyedStateHandle> getKeyedStateStreamFuture() throws IOException {
+		KeyGroupsStateHandle keyGroupsStateHandle = closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
+		return new DoneFuture<KeyedStateHandle>(keyGroupsStateHandle);
 	}
 
 	public RunnableFuture<OperatorStateHandle> getOperatorStateStreamFuture() throws IOException {
-		return closeAndUnregisterStreamToObtainStateHandle(operatorStateCheckpointOutputStream);
+		OperatorStateHandle operatorStateHandle = closeAndUnregisterStreamToObtainStateHandle(operatorStateCheckpointOutputStream);
+		return new DoneFuture<>(operatorStateHandle);
 	}
 
-	private <T extends StreamStateHandle> RunnableFuture<T> closeAndUnregisterStreamToObtainStateHandle(
+	private <T extends StreamStateHandle> T closeAndUnregisterStreamToObtainStateHandle(
 			NonClosingCheckpointOutputStream<T> stream) throws IOException {
 		if (null == stream) {
 			return null;
@@ -123,7 +128,42 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		closableRegistry.unregisterClosable(stream.getDelegate());
 
 		// for now we only support synchronous writing
-		return new DoneFuture<>(stream.closeAndGetHandle());
+		return stream.closeAndGetHandle();
 	}
 
+	private <T extends StreamStateHandle> void closeAndUnregisterStream(NonClosingCheckpointOutputStream<T> stream) throws IOException {
+		Preconditions.checkNotNull(stream);
+
+		closableRegistry.unregisterClosable(stream.getDelegate());
+		stream.getDelegate().close();
+	}
+
+	@Override
+	public void close() throws IOException {
+		IOException exception = null;
+
+		if (keyedStateCheckpointOutputStream != null) {
+			try {
+				closeAndUnregisterStream(keyedStateCheckpointOutputStream);
+			} catch (IOException e) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new IOException("Could not close the raw keyed state checkpoint output stream.", e),
+					exception);
+			}
+		}
+
+		if (operatorStateCheckpointOutputStream != null) {
+			try {
+				closeAndUnregisterStream(operatorStateCheckpointOutputStream);
+			} catch (IOException e) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new IOException("Could not close the raw operator state checkpoint output stream.", e),
+					exception);
+			}
+		}
+
+		if (exception != null) {
+			throw exception;
+		}
+	}
 }

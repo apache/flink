@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import static org.junit.Assert.assertEquals;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple10;
@@ -45,10 +43,15 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
-import org.apache.flink.streaming.api.functions.windowing.delta.extractor.ArrayFromTuple;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for {@link Tuple} to {@code Array}.
+ */
 public class ArrayFromTupleTest {
 
 	private String[] testStrings;

@@ -25,7 +25,7 @@ import java.io.Serializable;
  * Extractors allow to extract/convert one type to another. They are mostly used
  * to extract some fields out of a more complex structure (Tuple/Array) to run
  * further calculation on the extraction result.
- * 
+ *
  * @param <FROM>
  *            The input data type.
  * @param <TO>
@@ -35,12 +35,12 @@ import java.io.Serializable;
 public interface Extractor<FROM, TO> extends Serializable {
 
 	/**
-	 * Extracts/Converts the given input to an object of the output type
-	 * 
+	 * Extracts/Converts the given input to an object of the output type.
+	 *
 	 * @param in
 	 *            the input data
 	 * @return the extracted/converted data
 	 */
-	public TO extract(FROM in);
+	TO extract(FROM in);
 
 }

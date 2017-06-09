@@ -18,28 +18,58 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import java.io.StringWriter;
-import java.util.Map;
-
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Request handler that returns the execution config of a job.
  */
 public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_CONFIG_REST_PATH = "/jobs/:jobid/config";
+
 	public JobConfigHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
-	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String[] getPaths() {
+		return new String[]{JOB_CONFIG_REST_PATH};
+	}
 
+	@Override
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+		return createJobConfigJson(graph);
+	}
+
+	/**
+	 * Archivist for the JobConfigHandler.
+	 */
+	public static class JobConfigJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String json = createJobConfigJson(graph);
+			String path = JOB_CONFIG_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			return Collections.singletonList(new ArchivedJson(path, json));
+		}
+	}
+
+	public static String createJobConfigJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeStringField("jid", graph.getJobID().toString());
@@ -59,7 +89,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 			Map<String, String> ucVals = summary.getGlobalJobParameters();
 			if (ucVals != null) {
 				gen.writeObjectFieldStart("user-config");
-				
+
 				for (Map.Entry<String, String> ucVal : ucVals.entrySet()) {
 					gen.writeStringField(ucVal.getKey(), ucVal.getValue());
 				}
@@ -70,7 +100,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 			gen.writeEndObject();
 		}
 		gen.writeEndObject();
-		
+
 		gen.close();
 		return writer.toString();
 	}

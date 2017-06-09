@@ -1,9 +1,9 @@
 ---
-title: "Monitoring & Debugging"
-nav-title: '<i class="fa fa-bug" aria-hidden="true"></i> Monitoring & Debugging'
+title: "Debugging and Monitoring"
+nav-title: '<i class="fa fa-bug title maindish" aria-hidden="true"></i> Debugging & Monitoring'
 nav-id: monitoring
 nav-parent_id: root
-nav-pos: 4
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

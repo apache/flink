@@ -19,17 +19,19 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
+
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
 
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,10 +39,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Tests for the RocksDBMergeIterator.
+ */
 public class RocksDBMergeIteratorTest {
 
 	private static final int NUM_KEY_VAL_STATES = 50;
 	private static final int MAX_NUM_KEYS = 20;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Test
 	public void testEmptyMergeIterator() throws IOException {
@@ -50,19 +58,23 @@ public class RocksDBMergeIteratorTest {
 	}
 
 	@Test
-	public void testMergeIterator() throws Exception {
+	public void testMergeIteratorByte() throws Exception {
 		Assert.assertTrue(MAX_NUM_KEYS <= Byte.MAX_VALUE);
 
 		testMergeIterator(Byte.MAX_VALUE);
+	}
+
+	@Test
+	public void testMergeIteratorShort() throws Exception {
+		Assert.assertTrue(MAX_NUM_KEYS <= Byte.MAX_VALUE);
+
 		testMergeIterator(Short.MAX_VALUE);
 	}
 
 	public void testMergeIterator(int maxParallelism) throws Exception {
 		Random random = new Random(1234);
 
-		File tmpDir = CommonTestUtils.createTempDirectory();
-
-		RocksDB rocksDB = RocksDB.open(tmpDir.getAbsolutePath());
+		RocksDB rocksDB = RocksDB.open(tempFolder.getRoot().getAbsolutePath());
 		try {
 			List<Tuple2<RocksIterator, Integer>> rocksIteratorsWithKVStateId = new ArrayList<>();
 			List<Tuple2<ColumnFamilyHandle, Integer>> columnFamilyHandlesWithKeyCount = new ArrayList<>();
@@ -71,7 +83,7 @@ public class RocksDBMergeIteratorTest {
 
 			for (int c = 0; c < NUM_KEY_VAL_STATES; ++c) {
 				ColumnFamilyHandle handle = rocksDB.createColumnFamily(
-						new ColumnFamilyDescriptor(("column-" + c).getBytes()));
+						new ColumnFamilyDescriptor(("column-" + c).getBytes(ConfigConstants.DEFAULT_CHARSET)));
 
 				ByteArrayOutputStreamWithPos bos = new ByteArrayOutputStreamWithPos();
 				DataOutputStream dos = new DataOutputStream(bos);

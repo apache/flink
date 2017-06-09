@@ -20,12 +20,14 @@ package org.apache.flink.graph;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.graph.utils.Tuple2ToEdgeMap;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.types.NullValue;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -44,9 +46,6 @@ public class GraphCsvReader {
 	protected CsvReader edgeReader;
 	protected CsvReader vertexReader;
 	protected MapFunction<?, ?> mapper;
-	protected Class<?> vertexKey;
-	protected Class<?> vertexValue;
-	protected Class<?> edgeValue;
 
 //--------------------------------------------------------------------------------------------------------------------
 	public GraphCsvReader(Path vertexPath, Path edgePath, ExecutionEnvironment context) {
@@ -86,7 +85,6 @@ public class GraphCsvReader {
 				new Path(Preconditions.checkNotNull(edgePath, "The file path may not be null.")), context);
 	}
 
-
 	public <K, VV> GraphCsvReader(String edgePath, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 			this(new Path(Preconditions.checkNotNull(edgePath, "The file path may not be null.")), mapper, context);
 	}
@@ -94,7 +92,7 @@ public class GraphCsvReader {
 	/**
 	 * Creates a Graph from CSV input with vertex values and edge values.
 	 * The vertex values are specified through a vertices input file or a user-defined map function.
-	 * 
+	 *
 	 * @param vertexKey the type of the vertex IDs
 	 * @param vertexValue the type of the vertex values
 	 * @param edgeValue the type of the edge values
@@ -104,17 +102,18 @@ public class GraphCsvReader {
 	public <K, VV, EV> Graph<K, VV, EV> types(Class<K> vertexKey, Class<VV> vertexValue,
 			Class<EV> edgeValue) {
 
-		DataSet<Tuple2<K, VV>> vertices;
-
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
 		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
 
 		// the vertex value can be provided by an input file or a user-defined mapper
 		if (vertexReader != null) {
-			vertices = vertexReader.types(vertexKey, vertexValue);
+			DataSet<Tuple2<K, VV>> vertices = vertexReader
+				.types(vertexKey, vertexValue)
+					.name(GraphCsvReader.class.getName());
+
 			return Graph.fromTupleDataSet(vertices, edges, executionContext);
 		}
 		else if (mapper != null) {
@@ -135,10 +134,12 @@ public class GraphCsvReader {
 	public <K, EV> Graph<K, NullValue, EV> edgeTypes(Class<K> vertexKey, Class<EV> edgeValue) {
 
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
+		DataSet<Tuple3<K, K, EV>> edges = edgeReader
+			.types(vertexKey, vertexKey, edgeValue)
+				.name(GraphCsvReader.class.getName());
 
 		return Graph.fromTupleDataSet(edges, executionContext);
 	}
@@ -151,20 +152,16 @@ public class GraphCsvReader {
 	public <K> Graph<K, NullValue, NullValue> keyType(Class<K> vertexKey) {
 
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
-				.map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
+		DataSet<Edge<K, NullValue>> edges = edgeReader
+			.types(vertexKey, vertexKey)
+				.name(GraphCsvReader.class.getName())
+			.map(new Tuple2ToEdgeMap<K>())
+				.name("Type conversion");
 
-					private static final long serialVersionUID = -2981792951286476970L;
-
-					public Tuple3<K, K, NullValue> map(Tuple2<K, K> edge) {
-						return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
-					}
-				}).withForwardedFields("f0;f1");
-
-		return Graph.fromTupleDataSet(edges, executionContext);
+		return Graph.fromDataSet(edges, executionContext);
 	}
 
 	/**
@@ -178,28 +175,29 @@ public class GraphCsvReader {
 	 */
 	@SuppressWarnings({ "serial", "unchecked" })
 	public <K, VV> Graph<K, VV, NullValue> vertexTypes(Class<K> vertexKey, Class<VV> vertexValue) {
-		
-		DataSet<Tuple2<K, VV>> vertices;
 
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
-				.map(new MapFunction<Tuple2<K,K>, Tuple3<K, K, NullValue>>() {
-
-					public Tuple3<K, K, NullValue> map(Tuple2<K, K> input) {
-						return new Tuple3<>(input.f0, input.f1, NullValue.getInstance());
-					}
-				}).withForwardedFields("f0;f1");
+		DataSet<Edge<K, NullValue>> edges = edgeReader
+			.types(vertexKey, vertexKey)
+				.name(GraphCsvReader.class.getName())
+			.map(new Tuple2ToEdgeMap<K>())
+				.name("To Edge");
 
 		// the vertex value can be provided by an input file or a user-defined mapper
 		if (vertexReader != null) {
-			vertices = vertexReader.types(vertexKey, vertexValue);
-			return Graph.fromTupleDataSet(vertices, edges, executionContext);
+			DataSet<Vertex<K, VV>> vertices = vertexReader
+				.types(vertexKey, vertexValue)
+					.name(GraphCsvReader.class.getName())
+				.map(new Tuple2ToVertexMap<K, VV>())
+					.name("Type conversion");
+
+			return Graph.fromDataSet(vertices, edges, executionContext);
 		}
 		else if (mapper != null) {
-			return Graph.fromTupleDataSet(edges, (MapFunction<K, VV>) mapper, executionContext);
+			return Graph.fromDataSet(edges, (MapFunction<K, VV>) mapper, executionContext);
 		}
 		else {
 			throw new RuntimeException("Vertex values have to be specified through a vertices input file"
@@ -227,7 +225,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader lineDelimiterVertices(String delimiter) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.lineDelimiter(delimiter);
 		}
 		return this;
@@ -241,7 +239,7 @@ public class GraphCsvReader {
 	 * @return The GraphCsv reader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader fieldDelimiterVertices(String delimiter) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.fieldDelimiter(delimiter);
 		}
 		return this;
@@ -281,7 +279,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader parseQuotedStringsVertices(char quoteCharacter) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.parseQuotedStrings(quoteCharacter);
 		}
 		return this;
@@ -296,7 +294,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreCommentsVertices(String commentPrefix) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.ignoreComments(commentPrefix);
 		}
 		return this;
@@ -328,7 +326,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(boolean ... vertexFields) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.includeFields(vertexFields);
 		}
 		return this;
@@ -365,7 +363,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(String mask) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.includeFields(mask);
 		}
 		return this;
@@ -397,8 +395,8 @@ public class GraphCsvReader {
 	 * non-zero bit.
 	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
 	 * include the fields where the corresponding bit is one.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <ul>
 	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
 	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
@@ -409,7 +407,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(long mask) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.includeFields(mask);
 		}
 		return this;
@@ -423,8 +421,8 @@ public class GraphCsvReader {
 	 * non-zero bit.
 	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
 	 * include the fields where the corresponding bit is one.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <ul>
 	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
 	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
@@ -455,7 +453,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreFirstLineVertices() {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.ignoreFirstLine();
 		}
 		return this;
@@ -479,7 +477,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreInvalidLinesVertices() {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.ignoreInvalidLines();
 		}
 		return this;

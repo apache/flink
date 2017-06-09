@@ -17,7 +17,10 @@
  */
 package org.apache.flink.cep.scala
 
-import org.apache.flink.cep.pattern.{FollowedByPattern => JFollowedByPattern, Pattern => JPattern}
+import org.apache.flink.cep.pattern.{Pattern => JPattern}
+import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JContext}
+import org.apache.flink.cep.scala.conditions.Context
+import scala.collection.JavaConverters._
 
 package object pattern {
   /**
@@ -31,9 +34,15 @@ package object pattern {
     */
   private[flink] def wrapPattern[T, F <: T](javaPattern: JPattern[T, F])
   : Option[Pattern[T, F]] = javaPattern match {
-    case f: JFollowedByPattern[T, F] => Some(FollowedByPattern[T, F](f))
     case p: JPattern[T, F] => Some(Pattern[T, F](p))
     case _ => None
+  }
+
+  private[pattern] class JContextWrapper[F](private val jContext: JContext[F])
+    extends Context[F] with Serializable {
+
+    override def getEventsForPattern(name: String): Iterable[F] =
+      jContext.getEventsForPattern(name).asScala
   }
 }
 

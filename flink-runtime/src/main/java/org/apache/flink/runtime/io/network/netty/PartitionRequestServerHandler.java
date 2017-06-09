@@ -21,13 +21,10 @@ package org.apache.flink.runtime.io.network.netty;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,36 +45,24 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final PartitionRequestQueue outboundQueue;
 
-	private final NetworkBufferPool networkBufferPool;
-
-	private BufferPool bufferPool;
-
 	PartitionRequestServerHandler(
-			ResultPartitionProvider partitionProvider,
-			TaskEventDispatcher taskEventDispatcher,
-			PartitionRequestQueue outboundQueue,
-			NetworkBufferPool networkBufferPool) {
+		ResultPartitionProvider partitionProvider,
+		TaskEventDispatcher taskEventDispatcher,
+		PartitionRequestQueue outboundQueue) {
 
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
 		this.outboundQueue = outboundQueue;
-		this.networkBufferPool = networkBufferPool;
 	}
 
 	@Override
 	public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelRegistered(ctx);
-
-		bufferPool = networkBufferPool.createBufferPool(1, false);
 	}
 
 	@Override
 	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelUnregistered(ctx);
-
-		if (bufferPool != null) {
-			bufferPool.lazyDestroy();
-		}
 	}
 
 	@Override
@@ -94,15 +79,15 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				LOG.debug("Read channel on {}: {}.", ctx.channel().localAddress(), request);
 
 				try {
-					ResultSubpartitionView subpartition =
-							partitionProvider.createSubpartitionView(
-									request.partitionId,
-									request.queueIndex,
-									bufferPool);
+					SequenceNumberingViewReader reader = new SequenceNumberingViewReader(
+						request.receiverId,
+						outboundQueue);
 
-					outboundQueue.enqueue(subpartition, request.receiverId);
-				}
-				catch (PartitionNotFoundException notFound) {
+					reader.requestSubpartitionView(
+						partitionProvider,
+						request.partitionId,
+						request.queueIndex);
+				} catch (PartitionNotFoundException notFound) {
 					respondWithError(ctx, notFound, request.receiverId);
 				}
 			}
@@ -115,20 +100,16 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				if (!taskEventDispatcher.publish(request.partitionId, request.event)) {
 					respondWithError(ctx, new IllegalArgumentException("Task event receiver not found."), request.receiverId);
 				}
-			}
-			else if (msgClazz == CancelPartitionRequest.class) {
+			} else if (msgClazz == CancelPartitionRequest.class) {
 				CancelPartitionRequest request = (CancelPartitionRequest) msg;
 
 				outboundQueue.cancel(request.receiverId);
-			}
-			else if (msgClazz == CloseRequest.class) {
+			} else if (msgClazz == CloseRequest.class) {
 				outboundQueue.close();
-			}
-			else {
+			} else {
 				LOG.warn("Received unexpected client request: {}", msg);
 			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			respondWithError(ctx, t);
 		}
 	}

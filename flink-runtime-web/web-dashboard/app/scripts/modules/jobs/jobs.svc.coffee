@@ -199,7 +199,7 @@ angular.module('flinkApp')
 
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
-
+      console.log(currentJob.jid)
       $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
       .success (data) ->
         accumulators = data['user-accumulators']
@@ -212,37 +212,61 @@ angular.module('flinkApp')
 
     deferred.promise
 
-  # Job-level checkpoint stats
-  @getJobCheckpointStats = (jobid) ->
-    deferred = $q.defer()
-
-    $http.get flinkConfig.jobServer + "jobs/" + jobid + "/checkpoints"
-    .success (data, status, headers, config) =>
-      if (angular.equals({}, data))
-        deferred.resolve(deferred.resolve(null))
-      else
-        deferred.resolve(data)
-
-    deferred.promise
-
-  # Operator-level checkpoint stats
-  @getOperatorCheckpointStats = (vertexid) ->
+  # Checkpoint config
+  @getCheckpointConfig =  ->
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/checkpoints"
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints/config"
+      .success (data) ->
+        if (angular.equals({}, data))
+          deferred.resolve(null)
+        else
+          deferred.resolve(data)
+
+    deferred.promise
+
+  # General checkpoint stats like counts, history, etc.
+  @getCheckpointStats = ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints"
+      .success (data, status, headers, config) =>
+        if (angular.equals({}, data))
+          deferred.resolve(null)
+        else
+          deferred.resolve(data)
+
+    deferred.promise
+
+  # Detailed checkpoint stats for a single checkpoint
+  @getCheckpointDetails = (checkpointid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints/details/" + checkpointid
       .success (data) ->
         # If no data available, we are done.
         if (angular.equals({}, data))
-          deferred.resolve({ operatorStats: null, subtasksStats: null })
+          deferred.resolve(null)
         else
-          operatorStats = { id: data['id'], timestamp: data['timestamp'], duration: data['duration'], size: data['size'] }
+          deferred.resolve(data)
 
-          if (angular.equals({}, data['subtasks']))
-            deferred.resolve({ operatorStats: operatorStats, subtasksStats: null })
-          else
-            subtaskStats = data['subtasks']
-            deferred.resolve({ operatorStats: operatorStats, subtasksStats: subtaskStats })
+    deferred.promise
+
+  # Detailed subtask stats for a single checkpoint
+  @getCheckpointSubtaskDetails = (checkpointid, vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints/details/" + checkpointid + "/subtasks/" + vertexid
+      .success (data) ->
+        # If no data available, we are done.
+        if (angular.equals({}, data))
+          deferred.resolve(null)
+        else
+          deferred.resolve(data)
 
     deferred.promise
 

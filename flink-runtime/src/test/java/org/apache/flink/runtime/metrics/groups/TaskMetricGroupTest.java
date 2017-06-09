@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -28,12 +28,16 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link TaskMetricGroup}.
+ */
 public class TaskMetricGroupTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -51,7 +55,7 @@ public class TaskMetricGroupTest extends TestLogger {
 		TaskMetricGroup taskGroup = new TaskMetricGroup(registry, jmGroup, vertexId, executionId, "aTaskName", 13, 2);
 
 		assertArrayEquals(
-				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName", "aTaskName", "13"},
+				new String[]{"theHostName", "taskmanager", "test-tm-id", "myJobName", "aTaskName", "13"},
 				taskGroup.getScopeComponents());
 
 		assertEquals(
@@ -63,9 +67,9 @@ public class TaskMetricGroupTest extends TestLogger {
 	@Test
 	public void testGenerateScopeCustom() {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "abc");
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "def");
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TM, "abc");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "def");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
@@ -78,7 +82,7 @@ public class TaskMetricGroupTest extends TestLogger {
 				registry, jmGroup, vertexId, executionId, "aTaskName", 13, 2);
 
 		assertArrayEquals(
-				new String[] { "test-tm-id", jid.toString(), vertexId.toString(), executionId.toString() },
+				new String[]{"test-tm-id", jid.toString(), vertexId.toString(), executionId.toString()},
 				taskGroup.getScopeComponents());
 
 		assertEquals(
@@ -90,7 +94,7 @@ public class TaskMetricGroupTest extends TestLogger {
 	@Test
 	public void testGenerateScopeWilcard() {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		AbstractID executionId = new AbstractID();
@@ -102,7 +106,7 @@ public class TaskMetricGroupTest extends TestLogger {
 				registry, jmGroup, new AbstractID(), executionId, "aTaskName", 13, 1);
 
 		assertArrayEquals(
-				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName", executionId.toString(), "13" },
+				new String[]{"theHostName", "taskmanager", "test-tm-id", "myJobName", executionId.toString(), "13"},
 				taskGroup.getScopeComponents());
 
 		assertEquals(

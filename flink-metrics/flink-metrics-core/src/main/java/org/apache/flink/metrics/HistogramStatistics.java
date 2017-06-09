@@ -21,7 +21,7 @@ package org.apache.flink.metrics;
 /**
  * Histogram statistics represent the current snapshot of elements recorded in the histogram.
  *
- * The histogram statistics allow to calculate values for quantiles, the mean, the standard
+ * <p>The histogram statistics allow to calculate values for quantiles, the mean, the standard
  * deviation, the minimum and the maximum.
  */
 public abstract class HistogramStatistics {
@@ -35,14 +35,14 @@ public abstract class HistogramStatistics {
 	public abstract double getQuantile(double quantile);
 
 	/**
-	 * Returns the elements of the statistics' sample
+	 * Returns the elements of the statistics' sample.
 	 *
 	 * @return Elements of the statistics' sample
 	 */
 	public abstract long[] getValues();
 
 	/**
-	 * Returns the size of the statistics' sample
+	 * Returns the size of the statistics' sample.
 	 *
 	 * @return Size of the statistics' sample
 	 */

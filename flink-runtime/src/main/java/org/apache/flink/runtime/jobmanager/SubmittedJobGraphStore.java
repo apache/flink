@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import scala.Option;
 
-import java.util.List;
+import java.util.Collection;
 
 /**
  * {@link SubmittedJobGraph} instances for recovery.
@@ -40,16 +38,11 @@ public interface SubmittedJobGraphStore {
 	void stop() throws Exception;
 
 	/**
-	 * Returns a list of all submitted {@link JobGraph} instances.
-	 */
-	List<SubmittedJobGraph> recoverJobGraphs() throws Exception;
-
-	/**
 	 * Returns the {@link SubmittedJobGraph} with the given {@link JobID}.
 	 *
 	 * <p>An Exception is thrown, if no job graph with the given ID exists.
 	 */
-	Option<SubmittedJobGraph> recoverJobGraph(JobID jobId) throws Exception;
+	SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception;
 
 	/**
 	 * Adds the {@link SubmittedJobGraph} instance.
@@ -62,6 +55,14 @@ public interface SubmittedJobGraphStore {
 	 * Removes the {@link SubmittedJobGraph} with the given {@link JobID} if it exists.
 	 */
 	void removeJobGraph(JobID jobId) throws Exception;
+
+	/**
+	 * Get all job ids of submitted job graphs to the submitted job graph store.
+	 *
+	 * @return Collection of submitted job ids
+	 * @throws Exception if the operation fails
+	 */
+	Collection<JobID> getJobIds() throws Exception;
 
 	/**
 	 * A listener for {@link SubmittedJobGraph} instances. This is used to react to races between
@@ -87,7 +88,5 @@ public interface SubmittedJobGraphStore {
 		 * @param jobId The {@link JobID} of the removed job graph
 		 */
 		void onRemovedJobGraph(JobID jobId);
-
 	}
-
 }

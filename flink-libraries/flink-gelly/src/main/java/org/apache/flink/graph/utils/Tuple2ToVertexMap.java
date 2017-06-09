@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Vertex;
 
 /**
- * Create a Vertex DataSet from a Tuple2 DataSet
+ * Create a Vertex DataSet from a Tuple2 DataSet.
  *
  * @param <K> vertex ID type
  * @param <VV> vertex value type

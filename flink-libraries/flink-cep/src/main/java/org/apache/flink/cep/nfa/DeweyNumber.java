@@ -18,13 +18,20 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 
 /**
  * Versioning scheme which allows to retrieve dependencies between different versions.
  *
- * A dewey number consists of a sequence of digits d1.d2.d3. ... .dn. A dewey number v is compatible
+ * <p>A dewey number consists of a sequence of digits d1.d2.d3. ... .dn. A dewey number v is compatible
  * to v' iff v contains v' as a prefix or if both dewey number differ only in the last digit and
  * the last digit of v is greater than v'.
  *
@@ -40,14 +47,18 @@ public class DeweyNumber implements Serializable {
 		deweyNumber = new int[]{start};
 	}
 
-	protected DeweyNumber(int[] deweyNumber) {
+	public DeweyNumber(DeweyNumber number) {
+		this.deweyNumber = Arrays.copyOf(number.deweyNumber, number.deweyNumber.length);
+	}
+
+	private DeweyNumber(int[] deweyNumber) {
 		this.deweyNumber = deweyNumber;
 	}
 
 	/**
 	 * Checks whether this dewey number is compatible to the other dewey number.
 	 *
-	 * True iff this contains other as a prefix or iff they differ only in the last digit whereas
+	 * <p>True iff this contains other as a prefix or iff they differ only in the last digit whereas
 	 * the last digit of this is greater than the last digit of other.
 	 *
 	 * @param other The other dewey number to check compatibility against
@@ -90,8 +101,19 @@ public class DeweyNumber implements Serializable {
 	 * @return A new dewey number derived from this whose last digit is increased by one
 	 */
 	public DeweyNumber increase() {
+		return increase(1);
+	}
+
+	/**
+	 * Creates a new dewey number from this such that its last digit is increased by the supplied
+	 * number.
+	 *
+	 * @param times how many times to increase the Dewey number
+	 * @return A new dewey number derived from this whose last digit is increased by given number
+	 */
+	public DeweyNumber increase(int times) {
 		int[] newDeweyNumber = Arrays.copyOf(deweyNumber, deweyNumber.length);
-		newDeweyNumber[deweyNumber.length - 1]++;
+		newDeweyNumber[deweyNumber.length - 1] += times;
 
 		return new DeweyNumber(newDeweyNumber);
 	}
@@ -158,6 +180,89 @@ public class DeweyNumber implements Serializable {
 			}
 
 			return new DeweyNumber(deweyNumber);
+		}
+	}
+
+	/**
+	 * A {@link TypeSerializer} for the {@link DeweyNumber} which serves as a version number.
+	 */
+	public static class DeweyNumberSerializer extends TypeSerializerSingleton<DeweyNumber> {
+
+		private static final long serialVersionUID = -5086792497034943656L;
+
+		private final IntSerializer elemSerializer = IntSerializer.INSTANCE;
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public DeweyNumber createInstance() {
+			return new DeweyNumber(1);
+		}
+
+		@Override
+		public DeweyNumber copy(DeweyNumber from) {
+			return new DeweyNumber(from);
+		}
+
+		@Override
+		public DeweyNumber copy(DeweyNumber from, DeweyNumber reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			return -1;
+		}
+
+		@Override
+		public void serialize(DeweyNumber record, DataOutputView target) throws IOException {
+			final int size = record.length();
+			target.writeInt(size);
+			for (int i = 0; i < size; i++) {
+				elemSerializer.serialize(record.deweyNumber[i], target);
+			}
+		}
+
+		@Override
+		public DeweyNumber deserialize(DataInputView source) throws IOException {
+			final int size = source.readInt();
+			int[] number = new int[size];
+			for (int i = 0; i < size; i++) {
+				number[i] = elemSerializer.deserialize(source);
+			}
+			return new DeweyNumber(number);
+		}
+
+		@Override
+		public DeweyNumber deserialize(DeweyNumber reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			final int size = source.readInt();
+			target.writeInt(size);
+			for (int i = 0; i < size; i++) {
+				elemSerializer.copy(source, target);
+			}
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj == this || obj.getClass().equals(getClass());
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return elemSerializer.hashCode();
 		}
 	}
 }

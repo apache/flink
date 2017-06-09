@@ -15,6 +15,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
+
+label.checkbox-inline
+  input.checkbox-inline(type="checkbox", ng-model="aggregate", ngChange="getSubtasks()")
+  | Aggregate task statistics by TaskManager
+
 table.table.table-body-hover.table-clickable.table-activable
   thead
     tr
@@ -53,4 +58,5 @@ table.table.table-body-hover.table-clickable.table-activable
         bs-label(status="{{v.status}}") {{v.status}}
     tr(ng-if="nodeid && v.id == nodeid")
       td(colspan="11")
-        div(ng-include=" 'partials/jobs/job.plan.node.subtasks.html' ")
+        div(ng-if="!aggregate" ng-include=" 'partials/jobs/job.plan.node.subtasks.html' ")
+        div(ng-if="aggregate" ng-include=" 'partials/jobs/job.plan.node.taskmanagers.html' ")

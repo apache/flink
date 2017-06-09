@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
@@ -333,9 +334,14 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				if (nextSplit != null) {
 					return true;
 				}
-				
-				InputSplit split = provider.getNextInputSplit(getUserCodeClassLoader());
-				
+
+				final InputSplit split;
+				try {
+					split = provider.getNextInputSplit(getUserCodeClassLoader());
+				} catch (InputSplitProviderException e) {
+					throw new RuntimeException("Could not retrieve next input split.", e);
+				}
+
 				if (split != null) {
 					this.nextSplit = split;
 					return true;

@@ -26,21 +26,22 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import javax.annotation.Nullable;
+
 import java.util.Map;
 
 /**
  * Special abstract {@link org.apache.flink.metrics.MetricGroup} representing everything belonging to
  * a specific job.
- * 
+ *
  * @param <C> The type of the parent ComponentMetricGroup.
  */
 @Internal
 public abstract class JobMetricGroup<C extends ComponentMetricGroup<C>> extends ComponentMetricGroup<C> {
 
-	/** The ID of the job represented by this metrics group */
+	/** The ID of the job represented by this metrics group. */
 	protected final JobID jobId;
 
-	/** The name of the job represented by this metrics group */
+	/** The name of the job represented by this metrics group. */
 	@Nullable
 	protected final String jobName;
 
@@ -53,7 +54,7 @@ public abstract class JobMetricGroup<C extends ComponentMetricGroup<C>> extends 
 			@Nullable String jobName,
 			String[] scope) {
 		super(registry, scope, parent);
-		
+
 		this.jobId = jobId;
 		this.jobName = jobName;
 	}

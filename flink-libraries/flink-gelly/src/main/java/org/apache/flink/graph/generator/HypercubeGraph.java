@@ -22,12 +22,15 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Preconditions;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/HypercubeGraph.html">Hypercube Graph at Wolfram MathWorld</a>
  */
 public class HypercubeGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
+
+	public static final int MINIMUM_DIMENSIONS = 1;
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
@@ -36,15 +39,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long dimensions;
 
 	/**
-	 * An undirected {@link Graph} where edges form an n-dimensional hypercube.
+	 * An undirected {@code Graph} where edges form an n-dimensional hypercube.
+	 * Each vertex in a hypercube connects to one other vertex in each
+	 * dimension.
 	 *
 	 * @param env the Flink execution environment
 	 * @param dimensions number of dimensions
 	 */
 	public HypercubeGraph(ExecutionEnvironment env, long dimensions) {
-		if (dimensions <= 0) {
-			throw new IllegalArgumentException("Number of dimensions must be greater than zero");
-		}
+		Preconditions.checkArgument(dimensions >= MINIMUM_DIMENSIONS,
+			"Number of dimensions must be at least " + MINIMUM_DIMENSIONS);
 
 		this.env = env;
 		this.dimensions = dimensions;

@@ -35,13 +35,18 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.util.Collector;
-import org.junit.Test;
+
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link FoldApplyWindowFunction}.
+ */
 public class FoldApplyWindowFunctionTest {
 
 	/**
@@ -56,7 +61,7 @@ public class FoldApplyWindowFunctionTest {
 
 		int initValue = 1;
 
-		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
+		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
 			initValue,
 			new FoldFunction<Integer, Integer>() {
 				private static final long serialVersionUID = -4849549768529720587L;
@@ -76,23 +81,25 @@ public class FoldApplyWindowFunctionTest {
 						out.collect(in);
 					}
 				}
-			}
+			},
+			BasicTypeInfo.INT_TYPE_INFO
 		);
 
 		AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> windowOperator = new AccumulatingProcessingTimeWindowOperator<>(
-			foldWindowFunction,
-			new KeySelector<Integer, Integer>() {
-				private static final long serialVersionUID = -7951310554369722809L;
+			new InternalIterableWindowFunction<>(
+					foldWindowFunction),
+				new KeySelector<Integer, Integer>() {
+					private static final long serialVersionUID = -7951310554369722809L;
 
-				@Override
-				public Integer getKey(Integer value) throws Exception {
-					return value;
-				}
-			},
-			IntSerializer.INSTANCE,
-			IntSerializer.INSTANCE,
-			3000,
-			3000
+					@Override
+					public Integer getKey(Integer value) throws Exception {
+						return value;
+					}
+				},
+				IntSerializer.INSTANCE,
+				IntSerializer.INSTANCE,
+				3000,
+				3000
 		);
 
 		SourceFunction<Integer> sourceFunction = new SourceFunction<Integer>(){
@@ -135,7 +142,7 @@ public class FoldApplyWindowFunctionTest {
 		Assert.assertEquals(expected, result);
 	}
 
-	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {

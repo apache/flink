@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -174,7 +175,7 @@ public class PartitionerITCase extends StreamingMultipleProgramsTestBase {
 			Integer subtaskIndex = verifier.get(elem.f1);
 			if (subtaskIndex == null) {
 				verifier.put(elem.f1, elem.f0);
-			} else if (subtaskIndex != elem.f0) {
+			} else if (!Objects.equals(subtaskIndex, elem.f0)) {
 				fail();
 			}
 		}

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 
 /**
@@ -41,8 +40,6 @@ public interface SlotProvider {
 	 * @param task         The task to allocate the slot for
 	 * @param allowQueued  Whether allow the task be queued if we do not have enough resource
 	 * @return The future of the allocation
-	 * 
-	 * @throws NoResourceAvailableException
 	 */
-	Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) throws NoResourceAvailableException;
+	Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued);
 }

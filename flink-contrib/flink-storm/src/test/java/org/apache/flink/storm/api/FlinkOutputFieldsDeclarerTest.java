@@ -14,17 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.api;
 
-import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.storm.util.AbstractTest;
+
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.utils.Utils;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.LinkedList;
 
+/**
+ * Tests for the FlinkOutputFieldsDeclarer.
+ */
 public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 
 	@Test

@@ -66,7 +66,7 @@ function deploy_to_s3() {
 pwd
 
 
-echo "install lifecylce mapping fake plugin"
+echo "install lifecycle mapping fake plugin"
 git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
 cd dummy-lifecycle-mapping-plugin
 mvn -B install
@@ -75,43 +75,27 @@ rm -rf dummy-lifecycle-mapping-plugin
 
 
 CURRENT_FLINK_VERSION=`getVersion`
-if [[ "$CURRENT_FLINK_VERSION" == *-SNAPSHOT ]]; then
-    CURRENT_FLINK_VERSION_HADOOP1=${CURRENT_FLINK_VERSION/-SNAPSHOT/-hadoop1-SNAPSHOT}
-else
-    CURRENT_FLINK_VERSION_HADOOP1="$CURRENT_FLINK_VERSION-hadoop1"
-fi
 
-echo "detected current version as: '$CURRENT_FLINK_VERSION' ; hadoop1: $CURRENT_FLINK_VERSION_HADOOP1 "
+echo "detected current version as: '$CURRENT_FLINK_VERSION'"
 
 #
 # This script deploys our project to sonatype SNAPSHOTS.
-# It will deploy both a hadoop v1 and a hadoop v2 (yarn) artifact
+# It will deploy a hadoop v2 (yarn) artifact
 #
 
 if [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then
-    MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source -DskipTests -Drat.skip=true -Drat.ignoreErrors=true \
+    MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source,jdk8 -DskipTests -Drat.skip=true -Drat.ignoreErrors=true \
         -DretryFailedDeploymentCount=10 --settings deploysettings.xml clean deploy"
-
-    # Deploy hadoop v1 to maven
-    echo "Generating poms for hadoop1"
-    ./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_HADOOP1 pom.hadoop1.xml
-    mvn -f pom.hadoop1.xml ${MVN_SNAPSHOT_OPTS}
-    # deploy to s3
-    deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop1"
 
     # hadoop2 scala 2.10
     echo "deploy standard version (hadoop2) for scala 2.10"
-    mvn ${MVN_SNAPSHOT_OPTS}
+    mvn ${MVN_SNAPSHOT_OPTS} -Pscala-2.10
     deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop2"
 
     # hadoop2 scala 2.11
     echo "deploy hadoop2 version (standard) for scala 2.11"
-    ./tools/change-scala-version.sh 2.11
-    mvn ${MVN_SNAPSHOT_OPTS}
+    mvn ${MVN_SNAPSHOT_OPTS} -Pscala-2.11
     deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop2_2.11"
-
-    echo "Changing back to scala 2.10"
-    ./tools/change-scala-version.sh 2.10
 
     exit 0
 else

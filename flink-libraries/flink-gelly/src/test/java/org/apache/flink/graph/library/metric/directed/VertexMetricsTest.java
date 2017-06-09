@@ -18,23 +18,27 @@
 
 package org.apache.flink.graph.library.metric.directed;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.metric.directed.VertexMetrics.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link VertexMetrics}.
+ */
 public class VertexMetricsTest
 extends AsmTestBase {
 
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		Result expectedResult = new Result(6, 7, 13, 4, 2, 3, 6);
+		Result expectedResult = new Result(6, 7, 0, 13, 4, 2, 3, 6);
 
 		Result vertexMetrics = new VertexMetrics<IntValue, NullValue, NullValue>()
 			.run(directedSimpleGraph)
@@ -47,17 +51,20 @@ extends AsmTestBase {
 	public void testWithCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedEdges = completeGraphVertexCount * expectedDegree;
-		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedBidirectionalEdges = completeGraphVertexCount * expectedDegree / 2;
+		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
 
-		Result expectedResult = new Result(completeGraphVertexCount, expectedEdges, expectedTriplets, expectedDegree, expectedDegree, expectedDegree, expectedMaximumTriplets);
+		Result expectedResult = new Result(completeGraphVertexCount, 0, expectedBidirectionalEdges,
+			expectedTriplets, expectedDegree, expectedDegree, expectedDegree, expectedMaximumTriplets);
 
 		Result vertexMetrics = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.run(completeGraph)
 			.execute();
 
 		assertEquals(expectedResult, vertexMetrics);
+		assertEquals(expectedDegree, vertexMetrics.getAverageDegree(), ACCURACY);
+		assertEquals(1.0f, vertexMetrics.getDensity(), ACCURACY);
 	}
 
 	@Test
@@ -65,16 +72,18 @@ extends AsmTestBase {
 			throws Exception {
 		Result expectedResult;
 
-		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0);
+		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.setIncludeZeroDegreeVertices(false)
 			.run(emptyGraph)
 			.execute();
 
-		assertEquals(withoutZeroDegreeVertices, expectedResult);
+		assertEquals(expectedResult, withoutZeroDegreeVertices);
+		assertEquals(Float.NaN, withoutZeroDegreeVertices.getAverageDegree(), ACCURACY);
+		assertEquals(Float.NaN, withoutZeroDegreeVertices.getDensity(), ACCURACY);
 
-		expectedResult = new Result(3, 0, 0, 0, 0, 0, 0);
+		expectedResult = new Result(3, 0, 0, 0, 0, 0, 0, 0);
 
 		Result withZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.setIncludeZeroDegreeVertices(true)
@@ -82,15 +91,17 @@ extends AsmTestBase {
 			.execute();
 
 		assertEquals(expectedResult, withZeroDegreeVertices);
+		assertEquals(0.0f, withZeroDegreeVertices.getAverageDegree(), ACCURACY);
+		assertEquals(0.0f, withZeroDegreeVertices.getDensity(), ACCURACY);
 	}
 
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Result expectedResult = new Result(902, 12009, 1003442, 463, 334, 342, 106953);
+		Result expectedResult = new Result(902, 8875, 1567, 1003442, 463, 334, 342, 106953);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph)
+			.run(directedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, withoutZeroDegreeVertices);

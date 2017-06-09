@@ -34,7 +34,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for the network utilities.
@@ -44,28 +43,24 @@ import static org.junit.Assert.fail;
 public class ConnectionUtilsTest {
 
 	@Test
-	public void testReturnLocalHostAddressUsingHeuristics() {
+	public void testReturnLocalHostAddressUsingHeuristics() throws Exception {
 		try (ServerSocket blocker = new ServerSocket(0, 1, InetAddress.getLocalHost())) {
 			// the "blocker" server socket simply does not accept connections
 			// this address is consequently "unreachable"
 			InetSocketAddress unreachable = new InetSocketAddress("localhost", blocker.getLocalPort());
 			
-			final long start = System.currentTimeMillis();
+			final long start = System.nanoTime();
 			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
-			// check that it did not take forever
+			// check that it did not take forever (max 30 seconds)
 			// this check can unfortunately not be too tight, or it will be flaky on some CI infrastructure
-			assertTrue(System.currentTimeMillis() - start < 30000);
+			assertTrue(System.nanoTime() - start < 30_000_000_000L);
 
 			// we should have found a heuristic address
 			assertNotNull(add);
 
 			// make sure that we returned the InetAddress.getLocalHost as a heuristic
 			assertEquals(InetAddress.getLocalHost(), add);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 

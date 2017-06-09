@@ -18,15 +18,15 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.io.Serializable;
+
 /**
- * This interface describes the methods that are required for a data type to be handled by the pact
+ * This interface describes the methods that are required for a data type to be handled by the Flink
  * runtime. Specifically, this interface contains the serialization and copying methods.
  * <p>
  * The methods in this class are assumed to be stateless, such that it is effectively thread safe. Stateful
@@ -36,7 +36,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * @param <T> The data type that the serializer serializes.
  */
 @PublicEvolving
-public abstract class TypeSerializer<T> implements Serializable {
+public abstract class TypeSerializer<T> implements TypeDeserializer<T>, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -160,4 +160,60 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract boolean canEqual(Object obj);
 
 	public abstract int hashCode();
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create a snapshot of the serializer's current configuration to be stored along with the managed state it is
+	 * registered to (if any - this method is only relevant if this serializer is registered for serialization of
+	 * managed state).
+	 *
+	 * <p>The configuration snapshot should contain information about the serializer's parameter settings and its
+	 * serialization format. When a new serializer is registered to serialize the same managed state that this
+	 * serializer was registered to, the returned configuration snapshot can be used to ensure compatibility
+	 * of the new serializer and determine if state migration is required.
+	 *
+	 * @see TypeSerializerConfigSnapshot
+	 *
+	 * @return snapshot of the serializer's current configuration (cannot be {@code null}).
+	 */
+	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
+
+	/**
+	 * Ensure compatibility of this serializer with a preceding serializer that was registered for serialization of
+	 * the same managed state (if any - this method is only relevant if this serializer is registered for
+	 * serialization of managed state).
+	 *
+	 * The compatibility check in this method should be performed by inspecting the preceding serializer's configuration
+	 * snapshot. The method may reconfigure the serializer (if required and possible) so that it may be compatible,
+	 * or provide a signaling result that informs Flink that state migration is necessary before continuing to use
+	 * this serializer.
+	 *
+	 * <p>The result can be one of the following:
+	 * <ul>
+	 *     <li>{@link CompatibilityResult#compatible()}: this signals Flink that this serializer is compatible, or
+	 *     has been reconfigured to be compatible, to continue reading previous data, and that the
+	 *     serialization schema remains the same. No migration needs to be performed.</li>
+	 *
+	 *     <li>{@link CompatibilityResult#requiresMigration(TypeDeserializer)}: this signals Flink that
+	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
+	 *     compatible, for previous data. Furthermore, in the case that the preceding serializer cannot be found or
+	 *     restored to read the previous data to perform the migration, the provided convert deserializer can be
+	 *     used as a fallback resort.</li>
+	 *
+	 *     <li>{@link CompatibilityResult#requiresMigration()}: this signals Flink that migration needs to be
+	 *     performed, because this serializer is not compatible, or cannot be reconfigured to be compatible, for
+	 *     previous data. If the preceding serializer cannot be found (either its implementation changed or it was
+	 *     removed from the classpath) then the migration will fail due to incapability to read previous data.</li>
+	 * </ul>
+	 *
+	 * @see CompatibilityResult
+	 *
+	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
+	 *
+	 * @return the determined compatibility result (cannot be {@code null}).
+	 */
+	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
 }

@@ -21,8 +21,10 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -31,60 +33,50 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Collections;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
-public class RemoteExecutorHostnameResolutionTest {
+/**
+ * Tests the hostname resolution of the {@link RemoteExecutor}.
+ */
+public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 
 	private static final String nonExistingHostname = "foo.bar.com.invalid";
 	private static final int port = 14451;
-	
-	
-	@Test
-	public void testUnresolvableHostname1() {
-		
+
+	@BeforeClass
+	public static void check() {
 		checkPreconditions();
-		
+	}
+
+	@Test
+	public void testUnresolvableHostname1() throws Exception {
+
+		RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
 		try {
-			RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}
-		catch (ProgramInvocationException e) {
+		catch (UnknownHostException ignored) {
 			// that is what we want!
-			assertTrue(e.getCause() instanceof UnknownHostException);
-		}
-		catch (Exception e) {
-			System.err.println("Wrong exception!");
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testUnresolvableHostname2() {
+	public void testUnresolvableHostname2() throws Exception {
 
-		checkPreconditions();
-		
-		try {
-			InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-			RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
+		InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
+		RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
 				Collections.<URL>emptyList(), Collections.<URL>emptyList());
+		try {
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}
-		catch (ProgramInvocationException e) {
+		catch (UnknownHostException ignored) {
 			// that is what we want!
-			assertTrue(e.getCause() instanceof UnknownHostException);
-		}
-		catch (Exception e) {
-			System.err.println("Wrong exception!");
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
-	
+
 	private static Plan getProgram() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.fromElements(1, 2, 3).output(new DiscardingOutputFormat<Integer>());

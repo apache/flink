@@ -28,13 +28,20 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
 
+/**
+ * Validate that the edge set vertex IDs exist in the vertex set.
+ *
+ * @param <K> graph ID type
+ * @param <VV> vertex value type
+ * @param <EV> edge value type
+ */
 @SuppressWarnings("serial")
 public class InvalidVertexIdsValidator<K, VV, EV> extends GraphValidator<K, VV, EV> {
 
 	/**
 	 * Checks that the edge set input contains valid vertex Ids, i.e. that they
 	 * also exist in the vertex input set.
-	 * 
+	 *
 	 * @return a boolean stating whether a graph is valid
 	 *         with respect to its vertex ids.
 	 */

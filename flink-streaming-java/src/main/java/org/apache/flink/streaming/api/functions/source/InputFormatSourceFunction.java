@@ -26,11 +26,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * A {@link SourceFunction} that reads data using an {@link InputFormat}.
+ */
 @Internal
 public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
@@ -82,7 +86,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 
 				// for each element we also check if cancel
 				// was called by checking the isRunning flag
-				
+
 				while (isRunning && !format.reachedEnd()) {
 					nextElement = format.nextRecord(nextElement);
 					if (nextElement != null) {
@@ -146,7 +150,12 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 					return true;
 				}
 
-				InputSplit split = provider.getNextInputSplit(getRuntimeContext().getUserCodeClassLoader());
+				final InputSplit split;
+				try {
+					split = provider.getNextInputSplit(getRuntimeContext().getUserCodeClassLoader());
+				} catch (InputSplitProviderException e) {
+					throw new RuntimeException("Could not retrieve next input split.", e);
+				}
 
 				if (split != null) {
 					this.nextSplit = split;

@@ -20,8 +20,8 @@ package org.apache.flink.api.scala.typeutils
 import java.io.ObjectInputStream
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils._
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 import scala.collection.generic.CanBuildFrom
 
@@ -58,14 +58,14 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     cbf().result()
   }
 
-  override def isImmutableType: Boolean = true
+  override def isImmutableType: Boolean = false
 
   override def getLength: Int = -1
 
   override def copy(from: T): T = {
     val builder = cbf()
     builder.sizeHint(from.size)
-    from foreach { e => builder += e }
+    from foreach { e => builder += elementSerializer.copy(e) }
     builder.result()
   }
 
@@ -149,5 +149,49 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
 
   override def canEqual(obj: Any): Boolean = {
     obj.isInstanceOf[TraversableSerializer[_, _]]
+  }
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+    new TraversableSerializer.TraversableSerializerConfigSnapshot[E](elementSerializer)
+  }
+
+  override def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
+
+    configSnapshot match {
+      case traversableSerializerConfigSnapshot:
+          TraversableSerializer.TraversableSerializerConfigSnapshot[E] =>
+
+        val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
+          elementSerializer)
+
+        if (elemCompatRes.isRequiresMigration) {
+          CompatibilityResult.requiresMigration()
+        } else {
+          CompatibilityResult.compatible()
+        }
+
+      case _ => CompatibilityResult.requiresMigration()
+    }
+  }
+}
+
+object TraversableSerializer {
+
+  class TraversableSerializerConfigSnapshot[E](
+      private var elementSerializer: TypeSerializer[E])
+    extends CompositeTypeSerializerConfigSnapshot(elementSerializer) {
+
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    def this() = this(null)
+
+    override def getVersion = TraversableSerializerConfigSnapshot.VERSION
+  }
+
+  object TraversableSerializerConfigSnapshot {
+    val VERSION = 1
   }
 }

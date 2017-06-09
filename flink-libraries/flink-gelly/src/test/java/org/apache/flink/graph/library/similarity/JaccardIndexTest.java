@@ -18,25 +18,23 @@
 
 package org.apache.flink.graph.library.similarity;
 
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
-import org.apache.flink.graph.generator.RMatGraph;
-import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
-import org.apache.flink.graph.generator.random.RandomGenerableFactory;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link JaccardIndex}.
+ */
 public class JaccardIndexTest
 extends AsmTestBase {
 
@@ -47,17 +45,17 @@ extends AsmTestBase {
 			.run(new JaccardIndex<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
-			"(0,1,(1,4))\n" +
-			"(0,2,(1,4))\n" +
-			"(0,3,(2,4))\n" +
-			"(1,2,(2,4))\n" +
-			"(1,3,(1,6))\n" +
-			"(1,4,(1,3))\n" +
-			"(1,5,(1,3))\n" +
-			"(2,3,(1,6))\n" +
-			"(2,4,(1,3))\n" +
-			"(2,5,(1,3))\n" +
-			"(4,5,(1,1))\n";
+			"(0,1,1,4)\n" +
+			"(0,2,1,4)\n" +
+			"(0,3,2,4)\n" +
+			"(1,2,2,4)\n" +
+			"(1,3,1,6)\n" +
+			"(1,4,1,3)\n" +
+			"(1,5,1,3)\n" +
+			"(2,3,1,6)\n" +
+			"(2,4,1,3)\n" +
+			"(2,5,1,3)\n" +
+			"(4,5,1,1)\n";
 
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
@@ -70,9 +68,9 @@ extends AsmTestBase {
 				.setMinimumScore(1, 2));
 
 		String expectedResult =
-			"(0,3,(2,4))\n" +
-			"(1,2,(2,4))\n" +
-			"(4,5,(1,1))\n";
+			"(0,3,2,4)\n" +
+			"(1,2,2,4)\n" +
+			"(4,5,1,1)\n";
 
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
@@ -85,14 +83,16 @@ extends AsmTestBase {
 				.setMaximumScore(1, 2));
 
 		String expectedResult =
-			"(0,1,(1,4))\n" +
-			"(0,2,(1,4))\n" +
-			"(1,3,(1,6))\n" +
-			"(1,4,(1,3))\n" +
-			"(1,5,(1,3))\n" +
-			"(2,3,(1,6))\n" +
-			"(2,4,(1,3))\n" +
-			"(2,5,(1,3))\n";
+			"(0,1,1,4)\n" +
+			"(0,2,1,4)\n" +
+			"(0,3,2,4)\n" +
+			"(1,2,2,4)\n" +
+			"(1,3,1,6)\n" +
+			"(1,4,1,3)\n" +
+			"(1,5,1,3)\n" +
+			"(2,3,1,6)\n" +
+			"(2,4,1,3)\n" +
+			"(2,5,1,3)\n";
 
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
@@ -116,20 +116,13 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		long vertexCount = 1 << 8;
-		long edgeCount = 8 * vertexCount;
-
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.generate()
-			.run(new Simplify<LongValue, NullValue, NullValue>(false));
-
-		DataSet<Result<LongValue>> ji = graph
+		DataSet<Result<LongValue>> ji = undirectedRMatGraph(8, 8)
 			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
 				.setGroupSize(4));
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ji);
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
+			.run(ji)
+			.execute();
 
 		assertEquals(13954, checksum.getCount());
 		assertEquals(0x00001b1a1f7a9d0bL, checksum.getChecksum());

@@ -35,6 +35,8 @@ import org.apache.flink.graph.EdgeOrder;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.TertiaryResult;
 import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
@@ -51,11 +53,15 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <br/>
- * A triangle is a 3-clique with vertices A, B, and C connected by edges
+ *
+ * <p>A triangle is a 3-clique with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <br/>
- * The input graph must not contain duplicate edges or self-loops.
+ *
+ * <p>The input graph must not contain duplicate edges or self-loops.
+ *
+ * <p>This algorithm is similar to the undirected version but also tracks and
+ * computes a bitmask representing the six potential graph edges connecting
+ * the triangle vertices.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -65,7 +71,7 @@ public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
-	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
+	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -106,7 +112,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
+		if (!TriangleListing.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -252,9 +258,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static final class OrderByDegree<T extends Comparable<T>, ET>
 	implements MapFunction<Edge<T, Tuple3<ET, Degrees, Degrees>>, Tuple3<T, T, ByteValue>> {
-		private ByteValue forward = new ByteValue((byte)(EdgeOrder.FORWARD.getBitmask() << 2));
+		private ByteValue forward = new ByteValue((byte) (EdgeOrder.FORWARD.getBitmask() << 2));
 
-		private ByteValue reverse = new ByteValue((byte)(EdgeOrder.REVERSE.getBitmask() << 2));
+		private ByteValue reverse = new ByteValue((byte) (EdgeOrder.REVERSE.getBitmask() << 2));
 
 		private Tuple3<T, T, ByteValue> output = new Tuple3<>();
 
@@ -313,17 +319,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 					Tuple2<T, ByteValue> previous = visited.get(i);
 
 					output.f1 = previous.f0;
-					output.f3.setValue((byte)(previous.f1.getValue() | bitmask));
+					output.f3.setValue((byte) (previous.f1.getValue() | bitmask));
 
 					// u, v, w, bitmask
 					out.collect(output);
 				}
 
-				if (! iter.hasNext()) {
+				if (!iter.hasNext()) {
 					break;
 				}
 
-				byte shiftedBitmask = (byte)(bitmask << 2);
+				byte shiftedBitmask = (byte) (bitmask << 2);
 
 				if (visitedCount == visited.size()) {
 					visited.add(new Tuple2<>(edge.f1.copy(), new ByteValue(shiftedBitmask)));
@@ -347,7 +353,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0; 1")
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple4<T, T, T, ByteValue>, Tuple3<T, T, ByteValue>, Result<T>> {
-		private Result<T> output = new Result<>(null, null, null, new ByteValue());
+		private Result<T> output = new Result<>();
 
 		@Override
 		public Result<T> join(Tuple4<T, T, T, ByteValue> triplet, Tuple3<T, T, ByteValue> edge)
@@ -355,7 +361,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			output.f0 = triplet.f0;
 			output.f1 = triplet.f1;
 			output.f2 = triplet.f2;
-			output.f3.setValue((byte)(triplet.f3.getValue() | edge.f2.getValue()));
+			output.f3.setValue((byte) (triplet.f3.getValue() | edge.f2.getValue()));
 			return output;
 		}
 	}
@@ -375,26 +381,26 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			if (value.f0.compareTo(value.f1) > 0) {
 				byte bitmask = value.f3.getValue();
 
-				T temp_val = value.f0;
+				T tempVal = value.f0;
 				value.f0 = value.f1;
 
-				if (temp_val.compareTo(value.f2) < 0) {
-					value.f1 = temp_val;
+				if (tempVal.compareTo(value.f2) < 0) {
+					value.f1 = tempVal;
 
 					int f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
 					int f0f2 = (bitmask & 0b001100) >>> 2;
 					int f1f2 = (bitmask & 0b000011) << 2;
 
-					value.f3.setValue((byte)(f0f1 | f0f2 | f1f2));
+					value.f3.setValue((byte) (f0f1 | f0f2 | f1f2));
 				} else {
 					value.f1 = value.f2;
-					value.f2 = temp_val;
+					value.f2 = tempVal;
 
 					int f0f1 = (bitmask & 0b000011) << 4;
 					int f0f2 = ((bitmask & 0b100000) >>> 3) | ((bitmask & 0b010000) >>> 1);
 					int f1f2 = ((bitmask & 0b001000) >>> 3) | ((bitmask & 0b000100) >>> 1);
 
-					value.f3.setValue((byte)(f0f1 | f0f2 | f1f2));
+					value.f3.setValue((byte) (f0f1 | f0f2 | f1f2));
 				}
 			}
 
@@ -403,27 +409,60 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Triangle Listing algorithm.
+	 * Wraps {@link Tuple4} to encapsulate results from the directed Triangle Listing algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple4<T, T, T, ByteValue> {
+	extends Tuple4<T, T, T, ByteValue>
+	implements PrintableResult, TertiaryResult<T> {
 		/**
 		 * No-args constructor.
 		 */
-		public Result() {}
+		public Result() {
+			f3 = new ByteValue();
+		}
+
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
+		}
+
+		@Override
+		public void setVertexId1(T value) {
+			f1 = value;
+		}
+
+		@Override
+		public T getVertexId2() {
+			return f2;
+		}
+
+		@Override
+		public void setVertexId2(T value) {
+			f2 = value;
+		}
 
 		/**
-		 * Populates parent tuple with constructor parameters.
+		 * Get the bitmask indicating the presence of the six potential
+		 * connecting edges.
 		 *
-		 * @param value0 1st triangle vertex ID
-		 * @param value1 2nd triangle vertex ID
-		 * @param value2 3rd triangle vertex ID
-		 * @param value3 bitmask indicating presence of six possible edges between triangle vertices
+		 * @return the edge bitmask
+		 *
+		 * @see EdgeOrder
 		 */
-		public Result(T value0, T value1, T value2, ByteValue value3) {
-			super(value0, value1, value2, value3);
+		public ByteValue getBitmask() {
+			return f3;
 		}
 
 		/**
@@ -431,31 +470,29 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 *
 		 * @return verbose string
 		 */
-		public String toVerboseString() {
+		public String toPrintableString() {
 			byte bitmask = f3.getValue();
 
-			return "1st vertex ID: " + f0
-				+ ", 2nd vertex ID: " + f1
-				+ ", 3rd vertex ID: " + f2
-				+ ", edge directions: " + f0 + maskToString(bitmask, 4) + f1
-				+ ", " + f0 + maskToString(bitmask, 2) + f2
-				+ ", " + f1 + maskToString(bitmask, 0) + f2;
+			return "1st vertex ID: " + getVertexId0()
+				+ ", 2nd vertex ID: " + getVertexId1()
+				+ ", 3rd vertex ID: " + getVertexId2()
+				+ ", edge directions: " + getVertexId0() + maskToString(bitmask, 4) + getVertexId1()
+				+ ", " + getVertexId0() + maskToString(bitmask, 2) + getVertexId2()
+				+ ", " + getVertexId1() + maskToString(bitmask, 0) + getVertexId2();
 		}
 
 		private String maskToString(byte mask, int shift) {
-			switch((mask >>> shift) & 0b000011) {
-				case 0b01:
-					// EdgeOrder.FORWARD
-					return "->";
-				case 0b10:
-					// EdgeOrder.REVERSE
-					return "<-";
-				case 0b11:
-					// EdgeOrder.MUTUAL
-					return "<->";
-				default:
-					throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
-						+ mask + ", shift = " + shift);
+			int edgeMask = (mask >>> shift) & 0b000011;
+
+			if (edgeMask == EdgeOrder.FORWARD.getBitmask()) {
+				return "->";
+			} else if (edgeMask == EdgeOrder.REVERSE.getBitmask()) {
+				return "<-";
+			} else if (edgeMask == EdgeOrder.MUTUAL.getBitmask()) {
+				return "<->";
+			} else {
+				throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
+					+ mask + ", shift = " + shift);
 			}
 		}
 	}

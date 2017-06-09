@@ -22,26 +22,32 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A test subpartition view consumer.
+ * A test subpartition viewQueue consumer.
  *
  * <p> The behaviour of the consumer is customizable by specifying a callback.
  *
  * @see TestConsumerCallback
  */
-public class TestSubpartitionConsumer implements Callable<Boolean> {
+public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvailabilityListener {
 
 	private static final int MAX_SLEEP_TIME_MS = 20;
 
-	/** The subpartition view to consume. */
-	private final ResultSubpartitionView subpartitionView;
+	/** The subpartition viewQueue to consume. */
+	private volatile ResultSubpartitionView subpartitionView;
+
+	private BlockingQueue<ResultSubpartitionView> viewQueue = new ArrayBlockingQueue<>(1);
 
 	/**
 	 * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
@@ -49,31 +55,41 @@ public class TestSubpartitionConsumer implements Callable<Boolean> {
 	 */
 	private final boolean isSlowConsumer;
 
-	/** The callback to handle a read buffer. */
+	/** The callback to handle a notifyNonEmpty buffer. */
 	private final TestConsumerCallback callback;
 
 	/** Random source for sleeps. */
 	private final Random random;
 
-	public TestSubpartitionConsumer(
-			ResultSubpartitionView subpartitionView,
-			boolean isSlowConsumer,
-			TestConsumerCallback callback) {
+	private final AtomicLong numBuffersAvailable = new AtomicLong();
 
-		this.subpartitionView = checkNotNull(subpartitionView);
+	public TestSubpartitionConsumer(
+		boolean isSlowConsumer,
+		TestConsumerCallback callback) {
+
 		this.isSlowConsumer = isSlowConsumer;
 		this.random = isSlowConsumer ? new Random() : null;
 		this.callback = checkNotNull(callback);
 	}
 
+	public void setSubpartitionView(ResultSubpartitionView subpartitionView) {
+		this.subpartitionView = checkNotNull(subpartitionView);
+	}
+
 	@Override
 	public Boolean call() throws Exception {
-		final TestNotificationListener listener = new TestNotificationListener();
-
 		try {
 			while (true) {
 				if (Thread.interrupted()) {
 					throw new InterruptedException();
+				}
+
+				if (numBuffersAvailable.get() == 0) {
+					synchronized (numBuffersAvailable) {
+						while (numBuffersAvailable.get() == 0) {
+							numBuffersAvailable.wait();
+						}
+					}
 				}
 
 				final Buffer buffer = subpartitionView.getNextBuffer();
@@ -83,12 +99,13 @@ public class TestSubpartitionConsumer implements Callable<Boolean> {
 				}
 
 				if (buffer != null) {
+					numBuffersAvailable.decrementAndGet();
+
 					if (buffer.isBuffer()) {
 						callback.onBuffer(buffer);
-					}
-					else {
+					} else {
 						final AbstractEvent event = EventSerializer.fromBuffer(buffer,
-								getClass().getClassLoader());
+							getClass().getClassLoader());
 
 						callback.onEvent(event);
 
@@ -100,22 +117,22 @@ public class TestSubpartitionConsumer implements Callable<Boolean> {
 							return true;
 						}
 					}
-				}
-				else {
-					int current = listener.getNumberOfNotifications();
-
-					if (subpartitionView.registerListener(listener)) {
-						listener.waitForNotification(current);
-					}
-					else if (subpartitionView.isReleased()) {
-						return true;
-					}
+				} else if (subpartitionView.isReleased()) {
+					return true;
 				}
 			}
-		}
-		finally {
+		} finally {
 			subpartitionView.releaseAllResources();
 		}
 	}
 
+	@Override
+	public void notifyBuffersAvailable(long numBuffers) {
+		if (numBuffers > 0 && numBuffersAvailable.getAndAdd(numBuffers) == 0) {
+			synchronized (numBuffersAvailable) {
+				numBuffersAvailable.notifyAll();
+			}
+			;
+		}
+	}
 }

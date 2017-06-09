@@ -18,24 +18,30 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
-import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
+import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
+import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 
 /**
- * Request handler that returns details about a job, including:
+ * Request handler that returns details about a job. This includes:
  * <ul>
  *     <li>Dataflow plan</li>
  *     <li>id, name, and current status</li>
@@ -46,6 +52,9 @@ import java.util.Map;
  */
 public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_DETAILS_REST_PATH = "/jobs/:jobid";
+	private static final String JOB_DETAILS_VERTICES_REST_PATH = "/jobs/:jobid/vertices";
+
 	private final MetricFetcher fetcher;
 
 	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
@@ -54,20 +63,48 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_DETAILS_REST_PATH, JOB_DETAILS_VERTICES_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+		return createJobDetailsJson(graph, fetcher);
+	}
+
+	/**
+	 * Archivist for the JobDetailsHandler.
+	 */
+	public static class JobDetailsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String json = createJobDetailsJson(graph, null);
+			String path1 = JOB_DETAILS_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			String path2 = JOB_DETAILS_VERTICES_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			Collection<ArchivedJson> archives = new ArrayList<>();
+			archives.add(new ArchivedJson(path1, json));
+			archives.add(new ArchivedJson(path2, json));
+			return archives;
+		}
+	}
+
+	public static String createJobDetailsJson(AccessExecutionGraph graph, @Nullable MetricFetcher fetcher) throws IOException {
 		final StringWriter writer = new StringWriter();
-		final JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		final JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		final long now = System.currentTimeMillis();
-		
+
 		gen.writeStartObject();
-		
+
 		// basic info
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
 		gen.writeBooleanField("isStoppable", graph.isStoppable());
 		gen.writeStringField("state", graph.getState().name());
-		
+
 		// times and duration
 		final long jobStartTime = graph.getStatusTimestamp(JobStatus.CREATED);
 		final long jobEndTime = graph.getState().isGloballyTerminalState() ?
@@ -76,14 +113,14 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 		gen.writeNumberField("end-time", jobEndTime);
 		gen.writeNumberField("duration", (jobEndTime > 0 ? jobEndTime : now) - jobStartTime);
 		gen.writeNumberField("now", now);
-		
+
 		// timestamps
 		gen.writeObjectFieldStart("timestamps");
 		for (JobStatus status : JobStatus.values()) {
 			gen.writeNumberField(status.name(), graph.getStatusTimestamp(status));
 		}
 		gen.writeEndObject();
-		
+
 		// job vertices
 		int[] jobVerticesPerState = new int[ExecutionState.values().length];
 		gen.writeArrayFieldStart("vertices");
@@ -93,7 +130,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			long startTime = Long.MAX_VALUE;
 			long endTime = 0;
 			boolean allFinished = true;
-			
+
 			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
 				final ExecutionState state = vertex.getExecutionState();
 				tasksPerState[state.ordinal()]++;
@@ -103,11 +140,11 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 				if (started > 0) {
 					startTime = Math.min(startTime, started);
 				}
-				
+
 				allFinished &= state.isTerminal();
 				endTime = Math.max(endTime, vertex.getStateTimestamp(state));
 			}
-			
+
 			long duration;
 			if (startTime < Long.MAX_VALUE) {
 				if (allFinished) {
@@ -123,8 +160,8 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 				endTime = -1L;
 				duration = -1L;
 			}
-			
-			ExecutionState jobVertexState = 
+
+			ExecutionState jobVertexState =
 					ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
 			jobVerticesPerState[jobVertexState.ordinal()]++;
 
@@ -137,45 +174,25 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			gen.writeNumberField("start-time", startTime);
 			gen.writeNumberField("end-time", endTime);
 			gen.writeNumberField("duration", duration);
-			
+
 			gen.writeObjectFieldStart("tasks");
 			for (ExecutionState state : ExecutionState.values()) {
 				gen.writeNumberField(state.name(), tasksPerState[state.ordinal()]);
 			}
 			gen.writeEndObject();
-			
-			long numBytesIn = 0;
-			long numBytesOut = 0;
-			long numRecordsIn = 0;
-			long numRecordsOut = 0;
+
+			MutableIOMetrics counts = new MutableIOMetrics();
 
 			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
-				IOMetrics ioMetrics = vertex.getCurrentExecutionAttempt().getIOMetrics();
-
-				if (ioMetrics != null) { // execAttempt is already finished, use final metrics stored in ExecutionGraph
-					numBytesIn += ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote();
-					numBytesOut += ioMetrics.getNumBytesOut();
-					numRecordsIn += ioMetrics.getNumRecordsIn();
-					numRecordsOut += ioMetrics.getNumRecordsOut();
-				} else { // execAttempt is still running, use MetricQueryService instead
-					fetcher.update();
-					MetricStore.SubtaskMetricStore metrics = fetcher.getMetricStore().getSubtaskMetricStore(graph.getJobID().toString(), ejv.getJobVertexId().toString(), vertex.getParallelSubtaskIndex());
-					if (metrics != null) {
-						numBytesIn += Long.valueOf(metrics.getMetric("numBytesInLocal", "0")) + Long.valueOf(metrics.getMetric("numBytesInRemote", "0"));
-						numBytesOut += Long.valueOf(metrics.getMetric("numBytesOut", "0"));
-						numRecordsIn += Long.valueOf(metrics.getMetric("numRecordsIn", "0"));
-						numRecordsOut += Long.valueOf(metrics.getMetric("numRecordsOut", "0"));
-					}
-				}
+				counts.addIOMetrics(
+					vertex.getCurrentExecutionAttempt(),
+					fetcher,
+					graph.getJobID().toString(),
+					ejv.getJobVertexId().toString());
 			}
 
-			gen.writeObjectFieldStart("metrics");
-			gen.writeNumberField("read-bytes", numBytesIn);
-			gen.writeNumberField("write-bytes", numBytesOut);
-			gen.writeNumberField("read-records", numRecordsIn);
-			gen.writeNumberField("write-records", numRecordsOut);
-			gen.writeEndObject();
-			
+			counts.writeIOMetricsAsJson(gen);
+
 			gen.writeEndObject();
 		}
 		gen.writeEndArray();

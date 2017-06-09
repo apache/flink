@@ -23,6 +23,10 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This class is a SourceFunction that reads {@link WikipediaEditEvent} instances from the IRC channel
+ * <code>#en.wikipedia</code>.
+ */
 public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent> {
 
 	/** Hostname of the server to connect to. */
@@ -31,7 +35,7 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 	/** Port of the server to connect to. */
 	public static final int DEFAULT_PORT = 6667;
 
-	/** IRC channel to join */
+	/** IRC channel to join. */
 	public static final String DEFAULT_CHANNEL = "#en.wikipedia";
 
 	private final String host;

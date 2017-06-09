@@ -17,10 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
-
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -28,6 +25,17 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URI;
+
+/**
+ * This is used together with {@link FileMonitoringFunction} to read from files that the
+ * monitoring functions discovers.
+ *
+ * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
+ */
+@Internal
 @Deprecated
 public class FileReadFunction implements FlatMapFunction<Tuple3<String, Long, Long>, String> {
 

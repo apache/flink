@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.tuple.Values;
+import org.apache.storm.tuple.Values;
 
 /**
  * Implements a Spout that reads data stored in memory.

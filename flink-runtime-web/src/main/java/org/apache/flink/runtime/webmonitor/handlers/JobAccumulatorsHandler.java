@@ -18,36 +18,67 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
+import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 /**
  * Request handler that returns the aggregated user accumulators of a job.
  */
 public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler {
-	
+
+	private static final String JOB_ACCUMULATORS_REST_PATH = "/jobs/:jobid/accumulators";
+
 	public JobAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_ACCUMULATORS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
-		
+		return createJobAccumulatorsJson(graph);
+	}
+
+	/**
+	 * Archivist for the JobAccumulatorsHandler.
+	 */
+	public static class JobAccumulatorsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String json = createJobAccumulatorsJson(graph);
+			String path = JOB_ACCUMULATORS_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			return Collections.singletonList(new ArchivedJson(path, json));
+		}
+	}
+
+	public static String createJobAccumulatorsJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
+		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
 
 		gen.writeStartObject();
 
 		gen.writeArrayFieldStart("job-accumulators");
 		// empty for now
 		gen.writeEndArray();
-		
+
 		gen.writeArrayFieldStart("user-task-accumulators");
 		for (StringifiedAccumulatorResult acc : allAccumulators) {
 			gen.writeStartObject();

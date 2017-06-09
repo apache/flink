@@ -22,10 +22,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.EnumValueTypeInfo
 import org.junit.Assert._
 import org.junit.{Assert, Test}
 
+import scala.collection.{SortedMap, SortedSet}
 import scala.util.{Failure, Success}
 
 class ScalaSpecialTypesSerializerTest {
@@ -92,6 +92,35 @@ class ScalaSpecialTypesSerializerTest {
     runTests(testData)
   }
 
+  @Test
+  def testStringArray(): Unit = {
+    val testData = Array(Array("Foo", "Bar"), Array("Hello"))
+    runTests(testData)
+  }
+
+  @Test
+  def testIntArray(): Unit = {
+    val testData = Array(Array(1,3,3,7), Array(4,7))
+    runTests(testData)
+  }
+
+  @Test
+  def testArrayWithCaseClass(): Unit = {
+    val testData = Array(Array((1, "String"), (2, "Foo")), Array((4, "String"), (3, "Foo")))
+    runTests(testData)
+  }
+
+  @Test
+  def testSortedMap(): Unit = {
+    val testData = Array(SortedMap("Hello" -> 1, "World" -> 2), SortedMap("Foo" -> 42))
+    runTests(testData)
+  }
+
+  @Test
+  def testSortedSet(): Unit = {
+    val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
+    runTests(testData)
+  }
 
   private final def runTests[T : TypeInformation](instances: Array[T]) {
     try {

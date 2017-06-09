@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -46,7 +44,7 @@ public class TestInputChannel {
 	private final SingleInputGate inputGate;
 
 	// Abusing Mockito here... ;)
-	protected OngoingStubbing<Buffer> stubbing;
+	protected OngoingStubbing<InputChannel.BufferAndAvailability> stubbing;
 
 	public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
 		checkArgument(channelIndex >= 0);
@@ -57,13 +55,10 @@ public class TestInputChannel {
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
 		if (stubbing == null) {
-			stubbing = when(mock.getNextBuffer()).thenReturn(buffer);
+			stubbing = when(mock.getNextBuffer()).thenReturn(new InputChannel.BufferAndAvailability(buffer, true));
+		} else {
+			stubbing = stubbing.thenReturn(new InputChannel.BufferAndAvailability(buffer, true));
 		}
-		else {
-			stubbing = stubbing.thenReturn(buffer);
-		}
-
-		inputGate.onAvailableBuffer(mock);
 
 		return this;
 	}
@@ -75,33 +70,22 @@ public class TestInputChannel {
 		return read(buffer);
 	}
 
-	public TestInputChannel readEvent() throws IOException, InterruptedException {
-		return read(EventSerializer.toBuffer(new TestTaskEvent()));
-	}
-
-	public TestInputChannel readEndOfSuperstepEvent() throws IOException, InterruptedException {
-		return read(EventSerializer.toBuffer(EndOfSuperstepEvent.INSTANCE));
-	}
-
 	public TestInputChannel readEndOfPartitionEvent() throws IOException, InterruptedException {
-		final Answer<Buffer> answer = new Answer<Buffer>() {
+		final Answer<InputChannel.BufferAndAvailability> answer = new Answer<InputChannel.BufferAndAvailability>() {
 			@Override
-			public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
+			public InputChannel.BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
 				// Return true after finishing
 				when(mock.isReleased()).thenReturn(true);
 
-				return EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
+				return new InputChannel.BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false);
 			}
 		};
 
 		if (stubbing == null) {
 			stubbing = when(mock.getNextBuffer()).thenAnswer(answer);
-		}
-		else {
+		} else {
 			stubbing = stubbing.thenAnswer(answer);
 		}
-
-		inputGate.onAvailableBuffer(mock);
 
 		return this;
 	}

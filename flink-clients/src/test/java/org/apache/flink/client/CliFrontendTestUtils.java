@@ -16,52 +16,49 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
+
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.net.MalformedURLException;
-import java.util.Map;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
+/**
+ * Test utilities.
+ */
 public class CliFrontendTestUtils {
-	
+
 	public static final String TEST_JAR_MAIN_CLASS = "org.apache.flink.client.testjar.WordCount";
-	
+
 	public static final String TEST_JAR_CLASSLOADERTEST_CLASS = "org.apache.flink.client.testjar.JobWithExternalDependency";
 
 	public static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";
 
 	public static final int TEST_JOB_MANAGER_PORT = 55443;
-	
-	
+
 	public static String getTestJarPath() throws FileNotFoundException, MalformedURLException {
 		File f = new File("target/maven-test-jar.jar");
-		if(!f.exists()) {
+		if (!f.exists()) {
 			throw new FileNotFoundException("Test jar not present. Invoke tests using maven "
 					+ "or build the jar using 'mvn process-test-classes' in flink-clients");
 		}
 		return f.getAbsolutePath();
 	}
-	
+
 	public static String getNonJarFilePath() {
 		return CliFrontendRunTest.class.getResource("/testconfig/flink-conf.yaml").getFile();
 	}
-	
+
 	public static String getConfigDir() {
 		String confFile = CliFrontendRunTest.class.getResource("/testconfig/flink-conf.yaml").getFile();
 		return new File(confFile).getAbsoluteFile().getParent();
 	}
-	
+
 	public static String getInvalidConfigDir() {
 		String confFile = CliFrontendRunTest.class.getResource("/invalidtestconfig/flink-conf.yaml").getFile();
 		return new File(confFile).getAbsoluteFile().getParent();
@@ -84,8 +81,8 @@ public class CliFrontendTestUtils {
 		assertEquals(expectedAddress, jobManagerAddress);
 		assertEquals(expectedPort, jobManagerPort);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private CliFrontendTestUtils() {}
 }

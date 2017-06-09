@@ -18,19 +18,24 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.dispatch.Futures;
-import akka.dispatch.Mapper;
-import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.ResponseWebMonitorPort;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.dispatch.Futures;
+import akka.dispatch.Mapper;
+import akka.dispatch.OnComplete;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
+import java.util.concurrent.TimeoutException;
+
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -38,9 +43,6 @@ import scala.concurrent.Future;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -106,7 +108,7 @@ public class JobManagerRetriever implements LeaderRetrievalListener {
 		Future<Tuple2<ActorGateway, Integer>> gatewayPortFuture = null;
 		Deadline deadline = timeout.fromNow();
 
-		while(!deadline.isOverdue()) {
+		while (!deadline.isOverdue()) {
 			synchronized (waitLock) {
 				gatewayPortFuture = leaderGatewayPortFuture;
 

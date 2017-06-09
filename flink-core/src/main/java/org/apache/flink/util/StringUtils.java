@@ -27,27 +27,18 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Utility class to convert objects into strings in vice-versa.
  */
 @PublicEvolving
 public final class StringUtils {
 
-	/**
-	 * Empty private constructor to overwrite public one.
-	 */
-	private StringUtils() {}
-
-	/**
-	 * Makes a string representation of the exception.
-	 * 
-	 * @param e
-	 *        the exception to stringify
-	 * @return A string with exception name and call stack.
-	 */
-	public static String stringifyException(final Throwable e) {
-		return ExceptionUtils.stringifyException(e);
-	}
+	private static final char[] HEX_CHARS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 	/**
 	 * Given an array of bytes it will convert the bytes to a hex string
@@ -60,15 +51,13 @@ public final class StringUtils {
 	 * @param end
 	 *        end index, exclusively
 	 * @return hex string representation of the byte array
-	 *
-	 * @see org.apache.commons.codec.binary.Hex#encodeHexString(byte[])
 	 */
 	public static String byteToHexString(final byte[] bytes, final int start, final int end) {
 		if (bytes == null) {
 			throw new IllegalArgumentException("bytes == null");
 		}
 		
-		final char[] HEX_CHARS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+		
 
 		int length = end - start;
 		char[] out = new char[length * 2];
@@ -108,50 +97,6 @@ public final class StringUtils {
 			bts[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
 		}
 		return bts;
-	}
-	
-	/**
-	 * Helper function to escape Strings for display in HTML pages. The function replaces
-	 * certain characters by their HTML coded correspondent.
-	 * 
-	 * @param str The string to escape.
-	 * @return The escaped string.
-	 */
-	public static String escapeHtml(String str) {
-		int len = str.length();
-		char[] s = str.toCharArray();
-		StringBuilder sb = new StringBuilder();
-
-		for (int i = 0; i < len; i += 1) {
-			char c = s[i];
-			if ((c == '\\') || (c == '"') || (c == '/')) {
-				sb.append('\\');
-				sb.append(c);
-			}
-			else if (c == '\b') {
-				sb.append("\\b");
-			} else if (c == '\t') {
-				sb.append("\\t");
-			} else if (c == '\n') {
-				sb.append("<br>");
-			} else if (c == '\f') {
-				sb.append("\\f");
-			} else if (c == '\r') {
-				sb.append("\\r");
-			} else if (c == '>') {
-				sb.append("&gt;");
-			} else if (c == '<') {
-				sb.append("&lt;");
-			} else if (c == '&') {
-				sb.append("&amp;");
-			} else if (c < ' ') {
-				// Unreadable throw away
-			} else {
-				sb.append(c);
-			}
-		}
-
-		return sb.toString();
 	}
 
 	/**
@@ -302,19 +247,46 @@ public final class StringUtils {
 		}
 		return new String(data);
 	}
-	
+
+	/**
+	 * Writes a String to the given output.
+	 * The written string can be read with {@link #readString(DataInputView)}.
+	 *
+	 * @param str The string to write
+	 * @param out The output to write to
+	 *   
+	 * @throws IOException Thrown, if the writing or the serialization fails.
+	 */
+	public static void writeString(@Nonnull String str, DataOutputView out) throws IOException {
+		checkNotNull(str);
+		StringValue.writeString(str, out);
+	}
+
+	/**
+	 * Reads a non-null String from the given input.
+	 *
+	 * @param in The input to read from
+	 * @return The deserialized String
+	 * 
+	 * @throws IOException Thrown, if the reading or the deserialization fails.
+	 */
+	public static String readString(DataInputView in) throws IOException {
+		return StringValue.readString(in);
+	}
+
 	/**
 	 * Writes a String to the given output. The string may be null.
 	 * The written string can be read with {@link #readNullableString(DataInputView)}-
 	 * 
 	 * @param str The string to write, or null.
 	 * @param out The output to write to.
-	 * @throws IOException Throws if the writing or the serialization fails.
+	 * 
+	 * @throws IOException Thrown, if the writing or the serialization fails.
 	 */
-	public static void writeNullableString(String str, DataOutputView out) throws IOException {
+	public static void writeNullableString(@Nullable String str, DataOutputView out) throws IOException {
 		if (str != null) {
 			out.writeBoolean(true);
-			StringValue.writeString(str, out);
+			writeString(str, out);
 		} else {
 			out.writeBoolean(false);
 		}
@@ -326,13 +298,60 @@ public final class StringUtils {
 	 * 
 	 * @param in The input to read from.
 	 * @return The deserialized string, or null.
-	 * @throws IOException Throws if the reading or the deserialization fails.
+	 * 
+	 * @throws IOException Thrown, if the reading or the deserialization fails.
 	 */
-	public static String readNullableString(DataInputView in) throws IOException {
+	public static @Nullable String readNullableString(DataInputView in) throws IOException {
 		if (in.readBoolean()) {
-			return StringValue.readString(in);
+			return readString(in);
 		} else {
 			return null;
 		}
 	}
+
+	/**
+	 * Checks if the string is null, empty, or contains only whitespace characters.
+	 * A whitespace character is defined via {@link Character#isWhitespace(char)}.
+	 * 
+	 * @param str The string to check
+	 * @return True, if the string is null or blank, false otherwise.
+	 */
+	public static boolean isNullOrWhitespaceOnly(String str) {
+		if (str == null || str.length() == 0) {
+			return true;
+		}
+
+		final int len = str.length();
+		for (int i = 0; i < len; i++) {
+			if (!Character.isWhitespace(str.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * If both string arguments are non-null, this method concatenates them with ' and '.
+	 * If only one of the arguments is non-null, this method returns the non-null argument.
+	 * If both arguments are null, this method returns null.
+	 * 
+	 * @param s1 The first string argument
+	 * @param s2 The second string argument
+	 * 
+	 * @return The concatenated string, or non-null argument, or null 
+	 */
+	@Nullable
+	public static String concatenateWithAnd(@Nullable String s1, @Nullable String s2) {
+		if (s1 != null) {
+			return s2 == null ? s1 : s1 + " and " + s2;
+		}
+		else {
+			return s2 != null ? s2 : null;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	/** Prevent instantiation of this utility class */
+	private StringUtils() {}
 }

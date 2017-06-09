@@ -16,7 +16,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+
 -->
+<label class="checkbox-inline">
+  <input type="checkbox" ng-model="aggregate" ngChange="getSubtasks()" class="checkbox-inline"/>Aggregate task statistics by TaskManager
+</label>
 <table class="table table-body-hover table-clickable table-activable">
   <thead>
     <tr>
@@ -55,7 +59,8 @@ limitations under the License.
     </tr>
     <tr ng-if="nodeid &amp;&amp; v.id == nodeid">
       <td colspan="11">
-        <div ng-include=" 'partials/jobs/job.plan.node.subtasks.html' "></div>
+        <div ng-if="!aggregate" ng-include=" 'partials/jobs/job.plan.node.subtasks.html' "></div>
+        <div ng-if="aggregate" ng-include=" 'partials/jobs/job.plan.node.taskmanagers.html' "></div>
       </td>
     </tr>
   </tbody>

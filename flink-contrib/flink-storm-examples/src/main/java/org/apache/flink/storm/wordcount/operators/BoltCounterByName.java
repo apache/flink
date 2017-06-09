@@ -17,13 +17,13 @@
 
 package org.apache.flink.storm.wordcount.operators;
 
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Tuple;
-import backtype.storm.tuple.Values;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Values;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,8 +32,8 @@ import java.util.Map;
  * Implements the word counter that counts the occurrence of each unique word. The bolt takes a pair (input tuple
  * schema: {@code <String,Integer>}) and sums the given word count for each unique word (output tuple schema:
  * {@code <String,Integer>} ).
- * <p>
- * Same as {@link BoltCounter}, but accesses input attribute by name (instead of index).
+ *
+ * <p>Same as {@link BoltCounter}, but accesses input attribute by name (instead of index).
  */
 public class BoltCounterByName implements IRichBolt {
 	private static final long serialVersionUID = 399619605462625934L;

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -51,7 +52,7 @@ public class AllocatedSlot {
 	/** The resource profile of the slot provides */
 	private final ResourceProfile resourceProfile;
 
-	/** TEMP until the new RPC is in place: The actor gateway to communicate with the TaskManager */
+	/** RPC gateway to call the TaskManager that holds this slot */
 	private final TaskManagerGateway taskManagerGateway;
 
 	/** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
@@ -65,23 +66,13 @@ public class AllocatedSlot {
 			TaskManagerLocation location,
 			int slotNumber,
 			ResourceProfile resourceProfile,
-			TaskManagerGateway taskManagerGateway)
-	{
+			TaskManagerGateway taskManagerGateway) {
 		this.slotAllocationId = checkNotNull(slotAllocationId);
 		this.jobID = checkNotNull(jobID);
 		this.taskManagerLocation = checkNotNull(location);
 		this.slotNumber = slotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.taskManagerGateway = checkNotNull(taskManagerGateway);
-	}
-
-	public AllocatedSlot(AllocatedSlot other) {
-		this.slotAllocationId = other.slotAllocationId;
-		this.jobID = other.jobID;
-		this.taskManagerLocation = other.taskManagerLocation;
-		this.slotNumber = other.slotNumber;
-		this.resourceProfile = other.resourceProfile;
-		this.taskManagerGateway = other.taskManagerGateway;
 	}
 
 	// ------------------------------------------------------------------------
@@ -93,6 +84,17 @@ public class AllocatedSlot {
 	 */
 	public AllocationID getSlotAllocationId() {
 		return slotAllocationId;
+	}
+
+	/**
+	 * Gets the ID of the TaskManager on which this slot was allocated.
+	 * 
+	 * <p>This is equivalent to {@link #getTaskManagerLocation()#getTaskManagerId()}.
+	 * 
+	 * @return This slot's TaskManager's ID.
+	 */
+	public ResourceID getTaskManagerId() {
+		return getTaskManagerLocation().getResourceID();
 	}
 
 	/**
@@ -143,6 +145,22 @@ public class AllocatedSlot {
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * This always returns a reference hash code.
+	 */
+	@Override
+	public final int hashCode() {
+		return super.hashCode();
+	}
+
+	/**
+	 * This always checks based on reference equality.
+	 */
+	@Override
+	public final boolean equals(Object obj) {
+		return this == obj;
+	}
 
 	@Override
 	public String toString() {

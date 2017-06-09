@@ -24,8 +24,11 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link StreamIterationHead}.
+ */
 public class StreamIterationHeadTest {
 
 	@Test
@@ -33,6 +36,7 @@ public class StreamIterationHeadTest {
 		StreamIterationHead<Integer> head = new StreamIterationHead<>();
 		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(head,
 				BasicTypeInfo.INT_TYPE_INFO);
+		harness.setupOutputForSingletonOperatorChain();
 		harness.getStreamConfig().setIterationId("1");
 		harness.getStreamConfig().setIterationWaitTime(1);
 

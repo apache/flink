@@ -32,6 +32,15 @@ import org.apache.flink.util.Collector;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * The transitive closure of a graph contains an edge for each pair of vertices
+ * which are endpoints of at least one path in the graph.
+ *
+ * <p>This algorithm is implemented using a delta iteration. The transitive
+ * closure solution set is grown in each step by joining the workset of newly
+ * discovered path endpoints with the original graph edges and discarding
+ * previously discovered path endpoints (already in the solution set).
+ */
 @SuppressWarnings("serial")
 public class TransitiveClosureNaive {
 
@@ -57,9 +66,9 @@ public class TransitiveClosureNaive {
 			edges = ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 
-		IterativeDataSet<Tuple2<Long,Long>> paths = edges.iterate(maxIterations);
+		IterativeDataSet<Tuple2<Long, Long>> paths = edges.iterate(maxIterations);
 
-		DataSet<Tuple2<Long,Long>> nextPaths = paths
+		DataSet<Tuple2<Long, Long>> nextPaths = paths
 				.join(edges)
 				.where(1)
 				.equalTo(0)
@@ -83,17 +92,17 @@ public class TransitiveClosureNaive {
 					}
 				}).withForwardedFields("0;1");
 
-		DataSet<Tuple2<Long,Long>> newPaths = paths
+		DataSet<Tuple2<Long, Long>> newPaths = paths
 				.coGroup(nextPaths)
 				.where(0).equalTo(0)
 				.with(new CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
-					Set<Tuple2<Long,Long>> prevSet = new HashSet<Tuple2<Long,Long>>();
+					Set<Tuple2<Long, Long>> prevSet = new HashSet<Tuple2<Long, Long>>();
 					@Override
 					public void coGroup(Iterable<Tuple2<Long, Long>> prevPaths, Iterable<Tuple2<Long, Long>> nextPaths, Collector<Tuple2<Long, Long>> out) throws Exception {
-						for (Tuple2<Long,Long> prev : prevPaths) {
+						for (Tuple2<Long, Long> prev : prevPaths) {
 							prevSet.add(prev);
 						}
-						for (Tuple2<Long,Long> next: nextPaths) {
+						for (Tuple2<Long, Long> next: nextPaths) {
 							if (!prevSet.contains(next)) {
 								out.collect(next);
 							}
@@ -102,7 +111,6 @@ public class TransitiveClosureNaive {
 				}).withForwardedFieldsFirst("0").withForwardedFieldsSecond("0");
 
 		DataSet<Tuple2<Long, Long>> transitiveClosure = paths.closeWith(nextPaths, newPaths);
-
 
 		// emit result
 		if (params.has("output")) {

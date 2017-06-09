@@ -28,8 +28,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 /**
  * A {@link Trigger} that fires based on a {@link DeltaFunction} and a threshold.
  *
- * <p>
- * This trigger calculates a delta between the data point which triggered last
+ * <p>This trigger calculates a delta between the data point which triggered last
  * and the currently arrived data point. It triggers if the delta is higher than
  * a specified threshold.
  *
@@ -46,7 +45,7 @@ public class DeltaTrigger<T, W extends Window> extends Trigger<T, W> {
 	private DeltaTrigger(double threshold, DeltaFunction<T> deltaFunction, TypeSerializer<T> stateSerializer) {
 		this.deltaFunction = deltaFunction;
 		this.threshold = threshold;
-		stateDesc = new ValueStateDescriptor<>("last-element", stateSerializer, null);
+		stateDesc = new ValueStateDescriptor<>("last-element", stateSerializer);
 
 	}
 

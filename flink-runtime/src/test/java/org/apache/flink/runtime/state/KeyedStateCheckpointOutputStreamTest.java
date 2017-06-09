@@ -135,7 +135,7 @@ public class KeyedStateCheckpointOutputStreamTest {
 		int count = 0;
 		try (FSDataInputStream in = fullHandle.openInputStream()) {
 			DataInputView div = new DataInputViewStreamWrapper(in);
-			for (int kg : fullHandle.keyGroups()) {
+			for (int kg : fullHandle.getKeyGroupRange()) {
 				long off = fullHandle.getOffsetForKeyGroup(kg);
 				if (off >= 0) {
 					in.seek(off);
@@ -152,7 +152,7 @@ public class KeyedStateCheckpointOutputStreamTest {
 		int count = 0;
 		try (FSDataInputStream in = fullHandle.openInputStream()) {
 			DataInputView div = new DataInputViewStreamWrapper(in);
-			for (int kg : fullHandle.keyGroups()) {
+			for (int kg : fullHandle.getKeyGroupRange()) {
 				long off = fullHandle.getOffsetForKeyGroup(kg);
 				in.seek(off);
 				Assert.assertEquals(kg, div.readInt());

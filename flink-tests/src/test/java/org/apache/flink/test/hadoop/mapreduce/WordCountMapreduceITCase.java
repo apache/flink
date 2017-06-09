@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.hadoop.mapreduce;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,18 +26,27 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.util.Collector;
+import org.apache.flink.test.testfunctions.Tokenizer;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.junit.Assume;
+import org.junit.Before;
 
 public class WordCountMapreduceITCase extends JavaProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;
+
+	@Before
+	public void checkOperatingSystem() {
+		// FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -105,21 +113,5 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 		// Output & Execute
 		words.output(hadoopOutputFormat);
 		env.execute("Hadoop Compat WordCount");
-	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
 	}
 }

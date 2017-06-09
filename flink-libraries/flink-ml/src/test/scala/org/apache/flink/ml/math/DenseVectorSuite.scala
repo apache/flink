@@ -110,34 +110,28 @@ class DenseVectorSuite extends FlatSpec with Matchers {
     vec1.outer(vec2) should be(SparseMatrix.fromCOO(5, 5, entries))
   }
 
-
-
-  it should s"""calculate right outer product with DenseVector
-               |with one-dimensional unit DenseVector as identity""".stripMargin in {
+  it should "DenseVector right outer product with one-dimensional DenseVector as identity" in {
     val vec = DenseVector(Array(1, 0, 1, 0, 0))
     val unit = DenseVector(1)
 
     vec.outer(unit) should equal(DenseMatrix(vec.size, 1, vec.data))
   }
 
-  it should s"""calculate right outer product with DenseVector
-               |with one-dimensional unit SparseVector as identity""".stripMargin in {
+  it should "DenseVector right outer product with one-dimensional SparseVector as identity" in {
     val vec = DenseVector(Array(1, 0, 1, 0, 0))
     val unit = SparseVector(1, Array(0), Array(1))
 
     vec.outer(unit) should equal(SparseMatrix.fromCOO(vec.size, 1, (0, 0, 1), (2, 0, 1)))
   }
 
-  it should s"""calculate left outer product for DenseVector
-               |with one-dimensional unit DenseVector as identity""".stripMargin in {
+  it should "DenseVector left outer product with one-dimensional unit DenseVector as identity" in {
     val vec = DenseVector(Array(1, 2, 3, 4, 5))
     val unit = DenseVector(1)
 
     unit.outer(vec) should equal(DenseMatrix(1, vec.size, vec.data))
   }
 
-  it should s"""calculate left outer product for SparseVector
-               |with one-dimensional unit DenseVector as identity""".stripMargin in {
+  it should "SparseVector left outer product with one-dimensional unit DenseVector as identity" in {
     val vec = SparseVector(5, Array(0, 1, 2, 3, 4), Array(1, 2, 3, 4, 5))
     val unit = DenseVector(1)
 
@@ -145,32 +139,14 @@ class DenseVectorSuite extends FlatSpec with Matchers {
     unit.outer(vec) should equal(SparseMatrix.fromCOO(1, vec.size, entries))
   }
 
-  it should s"""calculate outer product with DenseVector
-               |via multiplication if both vectors are one-dimensional""".stripMargin in {
+  it should "DenseVector outer product via multiplication if both vectors are one-dimensional" in {
     val vec1 = DenseVector(Array(2))
     val vec2 = DenseVector(Array(3))
 
     vec1.outer(vec2) should be(DenseMatrix(1, 1, 2 * 3))
   }
 
-  it should s"""calculate outer product with SparseVector
-               |via multiplication if both vectors are one-dimensional""".stripMargin in {
-    val vec1 = DenseVector(Array(2))
-    val vec2 = SparseVector(1, Array(0), Array(3))
-
-    vec1.outer(vec2) should be(SparseMatrix.fromCOO(1, 1, (0, 0, 2 * 3)))
-  }
-
-  it should "calculate outer product with DenseVector via multiplication if both vectors " +
-    "are one-dimensional" in {
-    val vec1 = DenseVector(Array(2))
-    val vec2 = DenseVector(Array(3))
-
-    vec1.outer(vec2) should be(DenseMatrix(1, 1, 2 * 3))
-  }
-
-  it should "calculate outer product with SparseVector via multiplication if both vectors are " +
-    "one-dimensioan" in {
+  it should "SparseVector outer product via multiplication if both vectors are one-dimensional" in {
     val vec1 = DenseVector(Array(2))
     val vec2 = SparseVector(1, Array(0), Array(3))
 
@@ -180,7 +156,7 @@ class DenseVectorSuite extends FlatSpec with Matchers {
   it should "calculate magnitude of vector" in {
     val vec = DenseVector(Array(1, 4, 8))
 
-    vec.magnitude should be(9)
+    vec.magnitude should be(Math.sqrt((1 * 1) + (4 * 4) + (8 * 8)))
   }
 
   it should "convert from and to Breeze vector" in {

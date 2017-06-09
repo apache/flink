@@ -18,6 +18,10 @@
 
 svg.graph
   overflow hidden
+  height: 100%
+  // override the inline width property; ideally we would not set this property
+  // in the first place but the source remains undiscovered
+  width: 100% !important
 
   g
     &.type-TK

@@ -25,6 +25,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.util.VersionInfo;
 
 import org.slf4j.Logger;
@@ -232,6 +233,9 @@ public class EnvironmentInformation {
 	 * @return The limit of open file handles, or {@code -1}, if the limit could not be determined.
 	 */
 	public static long getOpenFileHandlesLimit() {
+		if (OperatingSystem.isWindows()) { // getMaxFileDescriptorCount method is not available on Windows
+			return -1L;
+		}
 		Class<?> sunBeanClass;
 		try {
 			sunBeanClass = Class.forName("com.sun.management.UnixOperatingSystemMXBean");

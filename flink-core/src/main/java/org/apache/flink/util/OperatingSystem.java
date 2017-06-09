@@ -30,6 +30,7 @@ public enum OperatingSystem {
 	WINDOWS,
 	MAC_OS,
 	FREE_BSD,
+	SOLARIS,
 	UNKNOWN;
 	
 	// ------------------------------------------------------------------------
@@ -83,6 +84,16 @@ public enum OperatingSystem {
 	public static boolean isFreeBSD() {
 		return getCurrentOperatingSystem() == FREE_BSD;
 	}
+
+	/**
+	 * Checks whether the operating system this JVM runs on is Solaris.
+	 *
+	 * @return <code>true</code> if the operating system this JVM runs on is
+	 *         Solaris, <code>false</code> otherwise
+	 */
+	public static boolean isSolaris() {
+		return getCurrentOperatingSystem() == SOLARIS;
+	}
 	
 	/**
 	 * The enum constant for the operating system.
@@ -109,6 +120,10 @@ public enum OperatingSystem {
 		}
 		if (osName.startsWith(FREEBSD_OS_PREFIX)) {
 			return FREE_BSD;
+		}
+		String osNameLowerCase = osName.toLowerCase();
+		if (osNameLowerCase.contains(SOLARIS_OS_INFIX_1) || osNameLowerCase.contains(SOLARIS_OS_INFIX_2)) {
+			return SOLARIS;
 		}
 		
 		return UNKNOWN;
@@ -142,4 +157,14 @@ public enum OperatingSystem {
 	 * The expected prefix for FreeBSD.
 	 */
 	private static final String FREEBSD_OS_PREFIX = "FreeBSD";
+
+	/**
+	 * One expected infix for Solaris.
+	 */
+	private static final String SOLARIS_OS_INFIX_1 = "sunos";
+
+	/**
+	 * One expected infix for Solaris.
+	 */
+	private static final String SOLARIS_OS_INFIX_2 = "solaris";
 }

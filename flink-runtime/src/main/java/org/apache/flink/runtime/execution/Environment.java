@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.execution;
 
+import java.util.Map;
+import java.util.concurrent.Future;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
@@ -25,7 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -36,11 +38,8 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-
-import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  * The Environment gives the code executed in a task access to the task's properties
@@ -151,7 +150,7 @@ public interface Environment {
 	AccumulatorRegistry getAccumulatorRegistry();
 
 	/**
-	 * Returns the registry for {@link KvState} instances.
+	 * Returns the registry for {@link InternalKvState} instances.
 	 *
 	 * @return KvState registry
 	 */
@@ -162,21 +161,30 @@ public interface Environment {
 	 * to for the checkpoint with the give checkpoint-ID. This method does not include
 	 * any state in the checkpoint.
 	 * 
-	 * @param checkpointMetaData the meta data for this checkpoint
+	 * @param checkpointId ID of this checkpoint
+	 * @param checkpointMetrics metrics for this checkpoint
 	 */
-	void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData);
+	void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics);
 
 	/**
 	 * Confirms that the invokable has successfully completed all required steps for
 	 * the checkpoint with the give checkpoint-ID. This method does include
 	 * the given state in the checkpoint.
 	 *
-	 * @param checkpointMetaData the meta data for this checkpoint
+	 * @param checkpointId ID of this checkpoint
+	 * @param checkpointMetrics metrics for this checkpoint
 	 * @param subtaskState All state handles for the checkpointed state
 	 */
-	void acknowledgeCheckpoint(
-			CheckpointMetaData checkpointMetaData,
-			SubtaskState subtaskState);
+	void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, SubtaskState subtaskState);
+
+	/**
+	 * Declines a checkpoint. This tells the checkpoint coordinator that this task will
+	 * not be able to successfully complete a certain checkpoint.
+	 * 
+	 * @param checkpointId The ID of the declined checkpoint.
+	 * @param cause An optional reason why the checkpoint was declined.
+	 */
+	void declineCheckpoint(long checkpointId, Throwable cause);
 
 	/**
 	 * Marks task execution failed for an external reason (a reason other than the task code itself

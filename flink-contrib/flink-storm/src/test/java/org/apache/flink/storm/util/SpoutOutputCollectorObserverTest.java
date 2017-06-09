@@ -15,15 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
-
+import org.apache.storm.spout.SpoutOutputCollector;
 import org.junit.Assert;
 import org.junit.Test;
 
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the SpoutOutputCollectorObserver.
+ */
 public class SpoutOutputCollectorObserverTest {
 
 	@Test
@@ -35,11 +38,11 @@ public class SpoutOutputCollectorObserverTest {
 		Assert.assertTrue(observer.emitted);
 
 		observer.emitted = false;
-		observer.emit(null, (Object)null);
+		observer.emit(null, (Object) null);
 		Assert.assertTrue(observer.emitted);
 
 		observer.emitted = false;
-		observer.emit((String)null, null);
+		observer.emit((String) null, null);
 		Assert.assertTrue(observer.emitted);
 
 		observer.emitted = false;
@@ -51,11 +54,11 @@ public class SpoutOutputCollectorObserverTest {
 		Assert.assertTrue(observer.emitted);
 
 		observer.emitted = false;
-		observer.emitDirect(0, null, (Object)null);
+		observer.emitDirect(0, null, (Object) null);
 		Assert.assertTrue(observer.emitted);
 
 		observer.emitted = false;
-		observer.emitDirect(0, (String)null, null);
+		observer.emitDirect(0, (String) null, null);
 		Assert.assertTrue(observer.emitted);
 
 		observer.emitted = false;

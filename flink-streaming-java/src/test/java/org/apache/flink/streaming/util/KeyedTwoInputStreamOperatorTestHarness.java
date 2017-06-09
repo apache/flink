@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.JobID;
@@ -24,10 +25,11 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -50,7 +52,7 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
 	// when we restore we keep the state here so that we can call restore
 	// when the operator requests the keyed state backend
-	private Collection<KeyGroupsStateHandle> restoredKeyedState = null;
+	private Collection<KeyedStateHandle> restoredKeyedState = null;
 
 	public KeyedTwoInputStreamOperatorTestHarness(
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
@@ -90,33 +92,22 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 					final int numberOfKeyGroups = (Integer) invocationOnMock.getArguments()[1];
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
-					if(keyedStateBackend != null) {
+					if (keyedStateBackend != null) {
 						keyedStateBackend.close();
 					}
 
-					if (restoredKeyedState == null) {
-						keyedStateBackend = stateBackend.createKeyedStateBackend(
-								mockTask.getEnvironment(),
-								new JobID(),
-								"test_op",
-								keySerializer,
-								numberOfKeyGroups,
-								keyGroupRange,
-								mockTask.getEnvironment().getTaskKvStateRegistry());
-						return keyedStateBackend;
-					} else {
-						keyedStateBackend = stateBackend.restoreKeyedStateBackend(
-								mockTask.getEnvironment(),
-								new JobID(),
-								"test_op",
-								keySerializer,
-								numberOfKeyGroups,
-								keyGroupRange,
-								restoredKeyedState,
-								mockTask.getEnvironment().getTaskKvStateRegistry());
-						restoredKeyedState = null;
-						return keyedStateBackend;
+					keyedStateBackend = stateBackend.createKeyedStateBackend(
+							mockTask.getEnvironment(),
+							new JobID(),
+							"test_op",
+							keySerializer,
+							numberOfKeyGroups,
+							keyGroupRange,
+							mockTask.getEnvironment().getTaskKvStateRegistry());
+					if (restoredKeyedState != null) {
+						keyedStateBackend.restore(restoredKeyedState);
 					}
+					return keyedStateBackend;
 				}
 			}).when(mockTask).createKeyedStateBackend(any(TypeSerializer.class), anyInt(), any(KeyGroupRange.class));
 		} catch (Exception e) {

@@ -10,6 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -17,9 +18,10 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-/*
-Utility function to extract values from 2 Key-Value Tuples after a DefaultJoin.
-*/
+/**
+ * Utility function to extract values from 2 Key-Value Tuples after a DefaultJoin.
+ * @param <IN> input type
+ */
 @ForwardedFields("f0.f1->f0; f1.f1->f1")
 public class NestedKeyDiscarder<IN> implements MapFunction<IN, Tuple2<byte[], byte[]>> {
 	@Override

@@ -20,12 +20,17 @@ package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -35,14 +40,25 @@ public class PartitionRequestQueueTest {
 	public void testProducerFailedException() throws Exception {
 		PartitionRequestQueue queue = new PartitionRequestQueue();
 
-		EmbeddedChannel ch = new EmbeddedChannel(queue);
+		ResultPartitionProvider partitionProvider = mock(ResultPartitionProvider.class);
+		ResultPartitionID rpid = new ResultPartitionID();
 
 		ResultSubpartitionView view = mock(ResultSubpartitionView.class);
 		when(view.isReleased()).thenReturn(true);
 		when(view.getFailureCause()).thenReturn(new RuntimeException("Expected test exception"));
 
+		when(partitionProvider.createSubpartitionView(
+			eq(rpid),
+			eq(0),
+			any(BufferAvailabilityListener.class))).thenReturn(view);
+
+		EmbeddedChannel ch = new EmbeddedChannel(queue);
+
+		SequenceNumberingViewReader seqView = new SequenceNumberingViewReader(new InputChannelID(), queue);
+		seqView.requestSubpartitionView(partitionProvider, rpid, 0);
+
 		// Enqueue the erroneous view
-		queue.enqueue(view, new InputChannelID());
+		queue.notifyReaderNonEmpty(seqView);
 		ch.runPendingTasks();
 
 		// Read the enqueued msg

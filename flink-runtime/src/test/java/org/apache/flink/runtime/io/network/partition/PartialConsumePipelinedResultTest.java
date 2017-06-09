@@ -18,15 +18,16 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
@@ -51,8 +52,8 @@ public class PartialConsumePipelinedResultTest {
 		final Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUMBER_OF_SLOTS_PER_TM);
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, NUMBER_OF_NETWORK_BUFFERS);
+		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
 
 		flink = new TestingCluster(config, true);
 
@@ -87,12 +88,12 @@ public class PartialConsumePipelinedResultTest {
 		// The partition needs to be pipelined, otherwise the original issue does not occur, because
 		// the sender and receiver are not online at the same time.
 		receiver.connectNewDataSetAsInput(
-				sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+			sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", sender, receiver);
 
 		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-				sender.getID(), receiver.getID());
+			sender.getID(), receiver.getID());
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
@@ -127,11 +128,11 @@ public class PartialConsumePipelinedResultTest {
 
 		@Override
 		public void invoke() throws Exception {
-			final BufferReader reader = new BufferReader(getEnvironment().getInputGate(0));
-
-			final Buffer buffer = reader.getNextBuffer();
-
-			buffer.recycle();
+			InputGate gate = getEnvironment().getInputGate(0);
+			Buffer buffer = gate.getNextBufferOrEvent().getBuffer();
+			if (buffer != null) {
+				buffer.recycle();
+			}
 		}
 	}
 }

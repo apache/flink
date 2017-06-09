@@ -18,15 +18,19 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.tuple.Tuple;
 
+/**
+ * Simple {@link OutputFormatter} implementation to convert {@link Tuple Tuples} with a size of 1 by returning the
+ * result of {@link Object#toString()} for the first field.
+ */
 public class SimpleOutputFormatter implements OutputFormatter {
 	private static final long serialVersionUID = 6349573860144270338L;
 
 	/**
 	 * Converts a Storm {@link Tuple} with 1 field to a string by retrieving the value of that field. This method is
 	 * used for formatting raw outputs wrapped in tuples, before writing them out to a file or to the console.
-	 * 
+	 *
 	 * @param input
 	 *            The tuple to be formatted
 	 * @return The string result of the formatting

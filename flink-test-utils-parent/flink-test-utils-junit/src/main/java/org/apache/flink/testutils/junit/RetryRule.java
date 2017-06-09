@@ -22,7 +22,6 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +47,7 @@ import org.slf4j.LoggerFactory;
  */
 public class RetryRule implements TestRule {
 
-	public final static Logger LOG = LoggerFactory.getLogger(RetryRule.class);
+	public static final Logger LOG = LoggerFactory.getLogger(RetryRule.class);
 
 	@Override
 	public Statement apply(Statement statement, Description description) {
@@ -69,7 +68,7 @@ public class RetryRule implements TestRule {
 			throw new IllegalArgumentException(
 					"You cannot combine the RetryOnFailure and RetryOnException annotations.");
 		}
-		
+
 		if (retryOnFailure != null) {
 			return new RetryOnFailureStatement(retryOnFailure.times(), statement);
 		}
@@ -133,7 +132,7 @@ public class RetryRule implements TestRule {
 		private final Class<? extends Throwable> exceptionClass;
 		private final int timesOnFailure;
 		private final Statement statement;
-		
+
 		private int currentRun;
 
 		private RetryOnExceptionStatement(int timesOnFailure, Class<? extends Throwable> exceptionClass, Statement statement) {
@@ -150,7 +149,7 @@ public class RetryRule implements TestRule {
 		}
 
 		/**
-		 * Retry a test in case of a failure with a specific exception
+		 * Retry a test in case of a failure with a specific exception.
 		 *
 		 * @throws Throwable
 		 */

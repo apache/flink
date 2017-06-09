@@ -24,17 +24,21 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link EmptyGraph}.
+ */
 public class EmptyGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraph()
 			throws Exception {
-		Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, 10)
+		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 10)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
@@ -48,7 +52,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 100;
 
-		Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount)
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
@@ -66,12 +70,12 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, 100)
+		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 100)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue,NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue,NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
+		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

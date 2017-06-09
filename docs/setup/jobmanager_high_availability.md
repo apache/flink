@@ -84,14 +84,13 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
   **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration.
 
-- **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
+- **Storage directory** (required): JobManager metadata is persisted in the file system *storageDir* and only a pointer to this state is stored in ZooKeeper.
 
     <pre>
-high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
-state.backend: filesystem
-state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
+high-availability.zookeeper.storageDir: hdfs:///flink/recovery
+    </pre>
 
-    The `storageDir` stores all meta data needed to recover a JobManager failure.
+    The `storageDir` stores all metadata needed to recover a JobManager failure.
 
 After configuring the masters and the ZooKeeper quorum, you can use the provided cluster startup scripts as usual. They will start an HA-cluster. Keep in mind that the **ZooKeeper quorum has to be running** when you call the scripts and make sure to **configure a separate ZooKeeper root path** for each HA cluster you are starting.
 
@@ -105,9 +104,6 @@ high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.zookeeper.path.namespace: /cluster_one # important: customize per cluster
 high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
-
-state.backend: filesystem
-state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 
 2. **Configure masters** in `conf/masters`:
 
@@ -192,8 +188,6 @@ high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.storageDir: hdfs:///flink/recovery
 high-availability.zookeeper.path.root: /flink
 high-availability.zookeeper.path.namespace: /cluster_one # important: customize per cluster
-state.backend: filesystem
-state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 yarn.application-attempts: 10</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
@@ -210,6 +204,20 @@ Starting zookeeper daemon on host localhost.</pre>
 
    <pre>
 $ bin/yarn-session.sh -n 2</pre>
+
+## Configuring for Zookeeper Security
+
+If ZooKeeper is running in secure mode with Kerberos, you can override the following configurations in `flink-conf.yaml` as necessary:
+
+<pre>
+zookeeper.sasl.service-name: zookeeper     # default is "zookeeper". If the ZooKeeper quorum is configured
+                                           # with a different service name then it can be supplied here.
+zookeeper.sasl.login-context-name: Client  # default is "Client". The value needs to match one of the values
+                                           # configured in "security.kerberos.login.contexts".
+</pre>
+
+For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/setup/config.html).
+You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
 
 ## Bootstrap ZooKeeper
 

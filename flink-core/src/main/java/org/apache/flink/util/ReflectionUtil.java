@@ -23,6 +23,9 @@ import org.apache.flink.annotation.Internal;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 
 @Internal
 public final class ReflectionUtil {
@@ -46,6 +49,14 @@ public final class ReflectionUtil {
 	
 	public static <T> Class<T> getTemplateType1(Class<?> clazz) {
 		return getTemplateType(clazz, 0);
+	}
+
+	public static <T> Class<T> getTemplateType1(Type type) {
+		if (type instanceof ParameterizedType) {
+			return (Class<T>) getTemplateTypes((ParameterizedType) type)[0];
+		} else {
+			throw new IllegalArgumentException();
+		}
 	}
 
 	public static <T> Class<T> getTemplateType2(Class<?> clazz) {
@@ -123,7 +134,7 @@ public final class ReflectionUtil {
 		Class<?>[] types = new Class<?>[paramterizedType.getActualTypeArguments().length];
 		int i = 0;
 		for (Type templateArgument : paramterizedType.getActualTypeArguments()) {
-			assert (templateArgument instanceof Class<?>);
+			assert templateArgument instanceof Class<?>;
 			types[i++] = (Class<?>) templateArgument;
 		}
 		return types;
@@ -140,6 +151,113 @@ public final class ReflectionUtil {
 			types[i++] = (Class<?>) templateArgument;
 		}
 		return types;
+	}
+
+	/**
+	 * Extract the full template type information from the given type's template parameter at the
+	 * given position.
+	 *
+	 * @param type type to extract the full template parameter information from
+	 * @param templatePosition describing at which position the template type parameter is
+	 * @return Full type information describing the template parameter's type
+	 */
+	public static FullTypeInfo getFullTemplateType(Type type, int templatePosition) {
+		if (type instanceof ParameterizedType) {
+			return getFullTemplateType(((ParameterizedType) type).getActualTypeArguments()[templatePosition]);
+		} else {
+			throw new IllegalArgumentException();
+		}
+	}
+
+	/**
+	 * Extract the full type information from the given type.
+	 *
+	 * @param type to be analyzed
+	 * @return Full type information describing the given type
+	 */
+	public static FullTypeInfo getFullTemplateType(Type type) {
+		if (type instanceof ParameterizedType) {
+			ParameterizedType parameterizedType = (ParameterizedType) type;
+
+			FullTypeInfo[] templateTypeInfos = new FullTypeInfo[parameterizedType.getActualTypeArguments().length];
+
+			for (int i = 0; i < parameterizedType.getActualTypeArguments().length; i++) {
+				templateTypeInfos[i] = getFullTemplateType(parameterizedType.getActualTypeArguments()[i]);
+			}
+
+			return new FullTypeInfo((Class<?>)parameterizedType.getRawType(), templateTypeInfos);
+		} else {
+			return new FullTypeInfo((Class<?>) type, null);
+		}
+	}
+
+	/**
+	 * Container for the full type information of a type. This means that it contains the
+	 * {@link Class} object and for each template parameter it contains a full type information
+	 * describing the type.
+	 */
+	public static class FullTypeInfo {
+		private final Class<?> clazz;
+		private final FullTypeInfo[] templateTypeInfos;
+
+
+		public FullTypeInfo(Class<?> clazz, FullTypeInfo[] templateTypeInfos) {
+			this.clazz = Preconditions.checkNotNull(clazz);
+			this.templateTypeInfos = templateTypeInfos;
+		}
+
+		public Class<?> getClazz() {
+			return clazz;
+		}
+
+		public FullTypeInfo[] getTemplateTypeInfos() {
+			return templateTypeInfos;
+		}
+
+		public Iterator<Class<?>> getClazzIterator() {
+			UnionIterator<Class<?>> unionIterator = new UnionIterator<>();
+
+			unionIterator.add(Collections.<Class<?>>singleton(clazz).iterator());
+
+			if (templateTypeInfos != null) {
+				for (int i = 0; i < templateTypeInfos.length; i++) {
+					unionIterator.add(templateTypeInfos[i].getClazzIterator());
+				}
+			}
+
+			return unionIterator;
+		}
+
+		@Override
+		public String toString() {
+			StringBuilder builder = new StringBuilder();
+
+			builder.append(clazz.getSimpleName());
+
+			if (templateTypeInfos != null) {
+				builder.append("<");
+
+				for (int i = 0; i < templateTypeInfos.length - 1; i++) {
+					builder.append(templateTypeInfos[i]).append(", ");
+				}
+
+				builder.append(templateTypeInfos[templateTypeInfos.length - 1]);
+				builder.append(">");
+			}
+
+			return builder.toString();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof FullTypeInfo) {
+				FullTypeInfo other = (FullTypeInfo) obj;
+
+				return clazz == other.getClazz() && Arrays.equals(templateTypeInfos, other.getTemplateTypeInfos());
+			} else {
+				return false;
+			}
+		}
 	}
 
 	/**

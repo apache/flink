@@ -131,7 +131,7 @@ public abstract class AbstractAsyncIOCallable<V, D extends Closeable> implements
 	 * it finished or was stopped.
 	 */
 	@Override
-	public void done() {
+	public void done(boolean canceled) {
 		//optional callback hook
 	}
 

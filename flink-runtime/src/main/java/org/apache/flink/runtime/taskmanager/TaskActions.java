@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -29,21 +28,20 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 public interface TaskActions {
 
 	/**
-	 * Check the partition state of the given partition.
+	 * Check the execution state of the execution producing a result partition.
 	 *
-	 * @param jobId of the partition
-	 * @param executionId of the partition
-	 * @param resultId of the partition
-	 * @param partitionId of the partition
+	 * @param jobId ID of the job the partition belongs to.
+	 * @param intermediateDataSetId ID of the parent intermediate data set.
+	 * @param resultPartitionId ID of the result partition to check. This
+	 * identifies the producing execution and partition.
 	 */
-	void triggerPartitionStateCheck(
+	void triggerPartitionProducerStateCheck(
 		JobID jobId,
-		ExecutionAttemptID executionId,
-		IntermediateDataSetID resultId,
-		ResultPartitionID partitionId);
+		IntermediateDataSetID intermediateDataSetId,
+		ResultPartitionID resultPartitionId);
 
 	/**
-	 * Fail the owning task with the given throwawble.
+	 * Fail the owning task with the given throwable.
 	 *
 	 * @param cause of the failure
 	 */

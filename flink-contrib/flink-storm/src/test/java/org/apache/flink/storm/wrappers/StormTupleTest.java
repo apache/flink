@@ -17,14 +17,15 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.generated.GlobalStreamId;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.MessageId;
-import backtype.storm.tuple.Values;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.storm.util.AbstractTest;
+
+import org.apache.storm.generated.GlobalStreamId;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.MessageId;
+import org.apache.storm.tuple.Values;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,6 +35,9 @@ import java.util.List;
 
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the StormTuple.
+ */
 public class StormTupleTest extends AbstractTest {
 	private static final String fieldName = "fieldName";
 	private static final String fieldNamePojo = "member";
@@ -188,7 +192,7 @@ public class StormTupleTest extends AbstractTest {
 	public void testString() {
 		final byte[] data = new byte[this.r.nextInt(15)];
 		this.r.nextBytes(data);
-		final String flinkTuple = new String(data);
+		final String flinkTuple = new String(data, ConfigConstants.DEFAULT_CHARSET);
 
 		final StormTuple<String> tuple = new StormTuple<String>(flinkTuple, null, -1, null, null,
 				null);
@@ -304,7 +308,7 @@ public class StormTupleTest extends AbstractTest {
 	public void testStringTuple() {
 		final byte[] rawdata = new byte[this.r.nextInt(15)];
 		this.r.nextBytes(rawdata);
-		final String data = new String(rawdata);
+		final String data = new String(rawdata, ConfigConstants.DEFAULT_CHARSET);
 
 		final int index = this.r.nextInt(5);
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
@@ -637,8 +641,8 @@ public class StormTupleTest extends AbstractTest {
 		tuple.setField(value, index);
 
 		ArrayList<String> attributeNames = new ArrayList<String>(arity);
-		for(int i = 0; i < arity; ++i) {
-			if(i == index) {
+		for (int i = 0; i < arity; ++i) {
+			if (i == index) {
 				attributeNames.add(fieldName);
 			} else {
 				attributeNames.add("" + i);
@@ -684,7 +688,7 @@ public class StormTupleTest extends AbstractTest {
 		Assert.assertSame(messageId, stormTuple.getMessageId());
 	}
 
-	public static class TestPojoMember<T> {
+	private static class TestPojoMember<T> {
 		public T member;
 
 		public TestPojoMember(T value) {
@@ -692,7 +696,7 @@ public class StormTupleTest extends AbstractTest {
 		}
 	}
 
-	public static class TestPojoGetter<T> {
+	private static class TestPojoGetter<T> {
 		private T member;
 
 		public TestPojoGetter(T value) {

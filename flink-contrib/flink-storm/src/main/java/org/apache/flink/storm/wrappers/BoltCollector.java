@@ -17,13 +17,13 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.task.IOutputCollector;
-import backtype.storm.tuple.Tuple;
-
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.util.Collector;
+
+import org.apache.storm.task.IOutputCollector;
+import org.apache.storm.tuple.Tuple;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -36,14 +36,14 @@ import java.util.List;
  */
 class BoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOutputCollector {
 
-	/** The Flink output Collector */
+	/** The Flink output Collector. */
 	private final Collector<OUT> flinkOutput;
 
 	/**
 	 * Instantiates a new {@link BoltCollector} that emits Flink tuples to the given Flink output object. If the
 	 * number of attributes is negative, any output type is supported (ie, raw type). If the number of attributes is
 	 * between 0 and 25, the output type is {@link Tuple0} to {@link Tuple25}, respectively.
-	 * 
+	 *
 	 * @param numberOfAttributes
 	 *            The number of attributes of the emitted tuples per output stream.
 	 * @param taskId
@@ -87,5 +87,8 @@ class BoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOutputC
 
 	@Override
 	public void fail(final Tuple input) {}
+
+	@Override
+	public void resetTimeout(Tuple var1) {}
 
 }

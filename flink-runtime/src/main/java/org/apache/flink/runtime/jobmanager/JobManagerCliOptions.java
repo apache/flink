@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The command line parameters passed to the TaskManager.
+ * The command line parameters passed to the JobManager.
  */
 public class JobManagerCliOptions {
 

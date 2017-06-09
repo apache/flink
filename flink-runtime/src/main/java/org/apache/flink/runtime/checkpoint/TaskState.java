@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.CompositeStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,8 +34,12 @@ import java.util.Objects;
  * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
  *
  * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
-public class TaskState implements StateObject {
+@Deprecated
+@SuppressWarnings("deprecation")
+public class TaskState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
@@ -125,12 +128,20 @@ public class TaskState implements StateObject {
 
 	@Override
 	public void discardState() throws Exception {
-		StateUtil.bestEffortDiscardAllStateObjects(subtaskStates.values());
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.discardState();
+		}
 	}
 
+	@Override
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.registerSharedStates(sharedStateRegistry);
+		}
+	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		long result = 0L;
 
 		for (int i = 0; i < parallelism; i++) {
@@ -163,5 +174,17 @@ public class TaskState implements StateObject {
 
 	public Map<Integer, SubtaskState> getSubtaskStates() {
 		return Collections.unmodifiableMap(subtaskStates);
+	}
+
+	@Override
+	public String toString() {
+		// KvStates are always null in 1.1. Don't print this as it might
+		// confuse users that don't care about how we store it internally.
+		return "TaskState(" +
+			"jobVertexID: " + jobVertexID +
+			", parallelism: " + parallelism +
+			", sub task states: " + subtaskStates.size() +
+			", total size (bytes): " + getStateSize() +
+			')';
 	}
 }

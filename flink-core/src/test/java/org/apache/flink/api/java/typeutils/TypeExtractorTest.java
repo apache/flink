@@ -30,12 +30,14 @@ import java.util.List;
 import java.util.Map;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -59,6 +61,7 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -343,8 +346,25 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class) instanceof PojoTypeInfo);
 	}
-	
 
+	@Test
+	public void testRow() {
+		Row row = new Row(2);
+		row.setField(0, "string");
+		row.setField(1, 15);
+		TypeInformation<Row> rowInfo = TypeExtractor.getForObject(row);
+		Assert.assertEquals(rowInfo.getClass(), RowTypeInfo.class);
+		Assert.assertEquals(2, rowInfo.getArity());
+		Assert.assertEquals(
+			new RowTypeInfo(
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO),
+			rowInfo);
+
+		Row nullRow = new Row(2);
+		TypeInformation<Row> genericRowInfo = TypeExtractor.getForObject(nullRow);
+		Assert.assertEquals(genericRowInfo, new GenericTypeInfo<>(Row.class));
+	}
 	
 	public static class CustomType {
 		public String myField1;
@@ -1665,7 +1685,40 @@ public class TypeExtractorTest {
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}
-	
+
+	public static class CustomTuple2WithArray<K> extends Tuple2<K[], K> {
+
+		public CustomTuple2WithArray() {
+			// default constructor
+		}
+	}
+
+	public class JoinWithCustomTuple2WithArray<T> extends RichJoinFunction<CustomTuple2WithArray<T>, CustomTuple2WithArray<T>, CustomTuple2WithArray<T>> {
+
+		@Override
+		public CustomTuple2WithArray<T> join(CustomTuple2WithArray<T> first, CustomTuple2WithArray<T> second) throws Exception {
+			return null;
+		}
+	}
+
+	@Test
+	public void testInputInferenceWithCustomTupleAndRichFunction() {
+		JoinFunction<CustomTuple2WithArray<Long>, CustomTuple2WithArray<Long>, CustomTuple2WithArray<Long>> function = new JoinWithCustomTuple2WithArray<>();
+
+		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(
+			function,
+			new TypeHint<CustomTuple2WithArray<Long>>(){}.getTypeInfo(),
+			new TypeHint<CustomTuple2WithArray<Long>>(){}.getTypeInfo());
+
+		Assert.assertTrue(ti.isTupleType());
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, tti.getTypeAt(1));
+
+		Assert.assertTrue(tti.getTypeAt(0) instanceof ObjectArrayTypeInfo<?, ?>);
+		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) tti.getTypeAt(0);
+		Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, oati.getComponentInfo());
+	}
+
 	public static enum MyEnum {
 		ONE, TWO, THREE
 	}

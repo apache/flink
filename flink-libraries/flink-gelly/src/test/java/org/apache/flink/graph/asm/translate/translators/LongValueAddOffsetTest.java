@@ -19,10 +19,14 @@
 package org.apache.flink.graph.asm.translate.translators;
 
 import org.apache.flink.types.LongValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link LongValueAddOffset}.
+ */
 public class LongValueAddOffsetTest {
 
 	@Test

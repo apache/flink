@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -28,28 +27,42 @@ import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 import org.apache.flink.util.StringUtils;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
 import static java.util.Objects.requireNonNull;
 
+/**
+ * A request handler that provides an overview over all taskmanagers or details for a single one.
+ */
 public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 
+	private static final String TASKMANAGERS_REST_PATH = "/taskmanagers";
+	private static final String TASKMANAGER_DETAILS_REST_PATH = "/taskmanagers/:taskmanagerid";
+
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
-	
+
 	private final FiniteDuration timeout;
 
 	private final MetricFetcher fetcher;
-	
+
 	public TaskManagersHandler(FiniteDuration timeout, MetricFetcher fetcher) {
 		this.timeout = requireNonNull(timeout);
 		this.fetcher = fetcher;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{TASKMANAGERS_REST_PATH, TASKMANAGER_DETAILS_REST_PATH};
 	}
 
 	@Override
@@ -80,7 +93,7 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 				}
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeArrayFieldStart("taskmanagers");
@@ -104,17 +117,17 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 						MetricStore.TaskManagerMetricStore metrics = fetcher.getMetricStore().getTaskManagerMetricStore(instance.getId().toString());
 						if (metrics != null) {
 							gen.writeObjectFieldStart("metrics");
-							long heapUsed = Long.valueOf( metrics.getMetric("Status.JVM.Memory.Heap.Used", "0"));
-							long heapCommitted = Long.valueOf( metrics.getMetric("Status.JVM.Memory.Heap.Committed", "0"));
-							long heapTotal = Long.valueOf( metrics.getMetric("Status.JVM.Memory.Heap.Max", "0"));
+							long heapUsed = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Heap.Used", "0"));
+							long heapCommitted = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Heap.Committed", "0"));
+							long heapTotal = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Heap.Max", "0"));
 
 							gen.writeNumberField("heapCommitted", heapCommitted);
 							gen.writeNumberField("heapUsed", heapUsed);
 							gen.writeNumberField("heapMax", heapTotal);
 
-							long nonHeapUsed = Long.valueOf( metrics.getMetric("Status.JVM.Memory.NonHeap.Used", "0"));
-							long nonHeapCommitted = Long.valueOf( metrics.getMetric("Status.JVM.Memory.NonHeap.Committed", "0"));
-							long nonHeapTotal = Long.valueOf( metrics.getMetric("Status.JVM.Memory.NonHeap.Max", "0"));
+							long nonHeapUsed = Long.valueOf(metrics.getMetric("Status.JVM.Memory.NonHeap.Used", "0"));
+							long nonHeapCommitted = Long.valueOf(metrics.getMetric("Status.JVM.Memory.NonHeap.Committed", "0"));
+							long nonHeapTotal = Long.valueOf(metrics.getMetric("Status.JVM.Memory.NonHeap.Max", "0"));
 
 							gen.writeNumberField("nonHeapCommitted", nonHeapCommitted);
 							gen.writeNumberField("nonHeapUsed", nonHeapUsed);
@@ -124,16 +137,27 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 							gen.writeNumberField("totalUsed", heapUsed + nonHeapUsed);
 							gen.writeNumberField("totalMax", heapTotal + nonHeapTotal);
 
-							gen.writeStringField("directCount", metrics.getMetric("Status.JVM.Memory.Direct.Count", "0"));
-							gen.writeStringField("directUsed", metrics.getMetric("Status.JVM.Memory.Direct.MemoryUsed", "0"));
-							gen.writeStringField("directMax", metrics.getMetric("Status.JVM.Memory.Direct.TotalCapacity", "0"));
+							long directCount = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Direct.Count", "0"));
+							long directUsed = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Direct.MemoryUsed", "0"));
+							long directMax = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Direct.TotalCapacity", "0"));
 
-							gen.writeStringField("mappedCount", metrics.getMetric("Status.JVM.Memory.Mapped.Count", "0"));
-							gen.writeStringField("mappedUsed", metrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
-							gen.writeStringField("mappedMax", metrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
+							gen.writeNumberField("directCount", directCount);
+							gen.writeNumberField("directUsed", directUsed);
+							gen.writeNumberField("directMax", directMax);
 
-							gen.writeStringField("memorySegmentsAvailable", metrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
-							gen.writeStringField("memorySegmentsTotal", metrics.getMetric("Status.Network.TotalMemorySegments", "0"));
+							long mappedCount = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Mapped.Count", "0"));
+							long mappedUsed = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
+							long mappedMax = Long.valueOf(metrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
+
+							gen.writeNumberField("mappedCount", mappedCount);
+							gen.writeNumberField("mappedUsed", mappedUsed);
+							gen.writeNumberField("mappedMax", mappedMax);
+
+							long memorySegmentsAvailable = Long.valueOf(metrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
+							long memorySegmentsTotal = Long.valueOf(metrics.getMetric("Status.Network.TotalMemorySegments", "0"));
+
+							gen.writeNumberField("memorySegmentsAvailable", memorySegmentsAvailable);
+							gen.writeNumberField("memorySegmentsTotal", memorySegmentsTotal);
 
 							gen.writeArrayFieldStart("garbageCollectors");
 
@@ -143,8 +167,8 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 								if (count != null  && time != null) {
 									gen.writeStartObject();
 									gen.writeStringField("name", gcName);
-									gen.writeStringField("count", count);
-									gen.writeStringField("time", time);
+									gen.writeNumberField("count", Long.valueOf(count));
+									gen.writeNumberField("time", Long.valueOf(time));
 									gen.writeEndObject();
 								}
 							}

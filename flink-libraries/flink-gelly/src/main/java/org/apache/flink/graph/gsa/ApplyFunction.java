@@ -59,17 +59,17 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 	//---------------------------------------------------------------------------------------------
 
 	/**
-	 * This method is invoked once per superstep, after the {@link SumFunction} 
+	 * This method is invoked once per superstep, after the {@link SumFunction}
 	 * in a {@link GatherSumApplyIteration}.
 	 * It updates the Vertex values.
-	 * 
+	 *
 	 * @param newValue the value computed during the current superstep.
 	 * @param currentValue the current Vertex value.
 	 */
 	public abstract void apply(M newValue, VV currentValue);
 
 	/**
-	 * Sets the result for the apply function
+	 * Sets the result for the apply function.
 	 *
 	 * @param result the result of the apply phase
 	 */
@@ -137,7 +137,9 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	private Collector<Vertex<K, VV>> out;
 
-	private Vertex<K, VV> outVal;
+	// use a local vertex instance so that the user does not overwrite a system
+	// instance used by JoinDriver
+	private Vertex<K, VV> outVal = new Vertex<>();
 
 	public void init(IterationRuntimeContext iterationRuntimeContext) {
 		this.runtimeContext = iterationRuntimeContext;
@@ -145,7 +147,7 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	public void setOutput(Vertex<K, VV> vertex, Collector<Vertex<K, VV>> out) {
 		this.out = out;
-		this.outVal = vertex;
+		this.outVal.f0 = vertex.f0;
 	}
 
 }

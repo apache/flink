@@ -18,6 +18,22 @@
 
 package org.apache.flink.runtime.filecache;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -30,23 +46,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.util.IOUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * The FileCache is used to create the local files for the registered cache files when a task is deployed.
  * The files will be removed when the task is unregistered after a 5 second delay.
@@ -55,8 +54,8 @@ import org.slf4j.LoggerFactory;
 public class FileCache {
 
 	static final Logger LOG = LoggerFactory.getLogger(FileCache.class);
-	
-	/** cache-wide lock to ensure consistency. copies are not done under this lock */
+
+	/** cache-wide lock to ensure consistency. copies are not done under this lock. */
 	private final Object lock = new Object();
 
 	private final Map<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>> entries;
@@ -71,17 +70,15 @@ public class FileCache {
 
 	// ------------------------------------------------------------------------
 
-	public FileCache(Configuration config) throws IOException {
-		
-		String tempDirs = config.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+	public FileCache(String[] tempDirectories) throws IOException {
 
-		String[] directories = tempDirs.split(",|" + File.pathSeparator);
-		storageDirectories = new File[directories.length];
+		Preconditions.checkNotNull(tempDirectories);
 
-		for (int i = 0; i < directories.length; i++) {
+		storageDirectories = new File[tempDirectories.length];
+
+		for (int i = 0; i < tempDirectories.length; i++) {
 			String cacheDirName = "flink-dist-cache-" + UUID.randomUUID().toString();
-			storageDirectories[i] = new File(directories[i], cacheDirName);
+			storageDirectories[i] = new File(tempDirectories[i], cacheDirName);
 			String path = storageDirectories[i].getAbsolutePath();
 
 			if (storageDirectories[i].mkdirs()) {
@@ -102,11 +99,12 @@ public class FileCache {
 		this.shutdownHook = createShutdownHook(this, LOG);
 
 		this.entries = new HashMap<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>>();
-		this.executorService = Executors.newScheduledThreadPool(10, ExecutorThreadFactory.INSTANCE);
+		this.executorService = Executors.newScheduledThreadPool(10,
+				new ExecutorThreadFactory("flink-file-cache"));
 	}
 
 	/**
-	 * Shuts down the file cache by cancelling all
+	 * Shuts down the file cache by cancelling all.
 	 */
 	public void shutdown() {
 		synchronized (lock) {
@@ -121,9 +119,9 @@ public class FileCache {
 					// may happen
 				}
 			}
-			
+
 			entries.clear();
-			
+
 			// clean up the all storage directories
 			for (File dir : storageDirectories) {
 				try {
@@ -174,7 +172,7 @@ public class FileCache {
 				// file is already in the cache. return a future that
 				// immediately returns the file
 				fileEntry.f0 = fileEntry.f0 + 1;
-				
+
 				// return the future. may be that the copy is still in progress
 				return fileEntry.f3;
 			}
@@ -199,10 +197,10 @@ public class FileCache {
 				CopyProcess cp = new CopyProcess(entry, target);
 				FutureTask<Path> copyTask = new FutureTask<Path>(cp);
 				executorService.submit(copyTask);
-				
+
 				// store our entry
 				jobEntries.put(name, new Tuple4<Integer, File, Path, Future<Path>>(1, tempDirToUse, target, copyTask));
-				
+
 				return copyTask;
 			}
 		}
@@ -218,8 +216,7 @@ public class FileCache {
 		DeleteProcess dp = new DeleteProcess(lock, entries, name, jobID);
 		executorService.schedule(dp, 5000L, TimeUnit.MILLISECONDS);
 	}
-	
-	
+
 	boolean holdsStillReference(String name, JobID jobId) {
 		Map<String, Tuple4<Integer, File, Path, Future<Path>>> jobEntries = entries.get(jobId);
 		if (jobEntries != null) {
@@ -236,8 +233,10 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 
 	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
-		FileSystem sFS = sourcePath.getFileSystem();
-		FileSystem tFS = targetPath.getFileSystem();
+		// TODO rewrite this to make it participate in the closable registry and the lifecycle of a task.
+		// we unwrap the file system to get raw streams without safety net
+		FileSystem sFS = FileSystem.getUnguardedFileSystem(sourcePath.toUri());
+		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
 		if (!tFS.exists(targetPath)) {
 			if (sFS.getFileStatus(sourcePath).isDir()) {
 				tFS.mkdirs(targetPath);
@@ -253,16 +252,11 @@ public class FileCache {
 					copy(content.getPath(), new Path(localPath), executable);
 				}
 			} else {
-				try {
-					FSDataOutputStream lfsOutput = tFS.create(targetPath, false);
-					FSDataInputStream fsInput = sFS.open(sourcePath);
+				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, false); FSDataInputStream fsInput = sFS.open(sourcePath)) {
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					//noinspection ResultOfMethodCallIgnored
 					new File(targetPath.toString()).setExecutable(executable);
-					// closing the FSDataOutputStream
-					lfsOutput.close();
-				}
-				catch (IOException ioe) {
+				} catch (IOException ioe) {
 					LOG.error("could not copy file to local file cache.", ioe);
 				}
 			}
@@ -303,7 +297,7 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Asynchronous file copy process
+	 * Asynchronous file copy process.
 	 */
 	private static class CopyProcess implements Callable<Path> {
 
@@ -338,8 +332,7 @@ public class FileCache {
 		private final JobID jobID;
 
 		public DeleteProcess(Object lock, Map<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>> entries,
-								String name, JobID jobID)
-		{
+								String name, JobID jobID) {
 			this.lock = lock;
 			this.entries = entries;
 			this.name = name;
@@ -351,10 +344,10 @@ public class FileCache {
 			try {
 				synchronized (lock) {
 					Map<String, Tuple4<Integer, File, Path, Future<Path>>> jobEntries = entries.get(jobID);
-					
+
 					if (jobEntries != null) {
 						Tuple4<Integer, File, Path, Future<Path>> entry = jobEntries.get(name);
-						
+
 						if (entry != null) {
 							int count = entry.f0;
 							if (count > 1) {
@@ -367,7 +360,7 @@ public class FileCache {
 								if (jobEntries.isEmpty()) {
 									entries.remove(jobID);
 								}
-								
+
 								// abort the copy
 								entry.f3.cancel(true);
 
@@ -381,7 +374,7 @@ public class FileCache {
 										LOG.error("Could not delete locally cached file " + file.getAbsolutePath());
 									}
 								}
-								
+
 								// remove the job wide temp directory, if it is now empty
 								File parent = entry.f1;
 								if (parent.isDirectory()) {

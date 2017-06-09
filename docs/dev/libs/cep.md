@@ -37,7 +37,7 @@ because these are used for comparing and matching events.
 
 ## Getting Started
 
-If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/api_concepts.html#linking-with-flink).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
 Next, you have to add the FlinkCEP dependency to the `pom.xml` of your project.
 
 <div class="codetabs" markdown="1">
@@ -63,7 +63,7 @@ Next, you have to add the FlinkCEP dependency to the `pom.xml` of your project.
 </div>
 
 Note that FlinkCEP is currently not part of the binary distribution.
-See linking with it for cluster execution [here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 Now you can start writing your first CEP program using the pattern API.
 
@@ -124,13 +124,61 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 </div>
 </div>
 
-Each state must have an unique name to identify the matched events later on.
+Each state must have a unique name to identify the matched events later on.
 Additionally, we can specify a filter condition for the event to be accepted as the start event via the `where` method.
+These filtering conditions can be either an `IterativeCondition` or a `SimpleCondition`. 
+
+**Iterative Conditions:** This type of conditions can iterate over the previously accepted elements in the pattern and 
+decide to accept a new element or not, based on some statistic over those elements. 
+
+Below is the code for an iterative condition that accepts elements whose name start with "foo" and for which, the sum 
+of the prices of the previously accepted elements for a state named "middle", plus the price of the current event, do 
+not exceed the value of 5.0. Iterative condition can be very powerful, especially in combination with quantifiers, e.g.
+`oneToMany` or `zeroToMany`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-start.where(new FilterFunction<Event>() {
+start.where(new IterativeCondition<SubEvent>() {
+    @Override
+    public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
+        if (!value.getName().startsWith("foo")) {
+            return false;
+        }
+        
+        double sum = value.getPrice();
+        for (Event event : ctx.getEventsForPattern("middle")) {
+            sum += event.getPrice();
+        }
+        return Double.compare(sum, 5.0) < 0;
+    }
+});
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+start.where(
+    (value, ctx) => {
+        lazy val sum = ctx.getEventsForPattern("middle").asScala.map(_.getPrice).sum
+        value.getName.startsWith("foo") && sum + value.getPrice < 5.0
+    }
+)
+{% endhighlight %}
+</div>
+</div>
+
+<span class="label label-danger">Attention</span> The call to `Context.getEventsForPattern(...)` has to find the 
+elements that belong to the pattern. The cost of this operation can vary, so when implementing your condition, try 
+to minimize the times the method is called.
+
+**Simple Conditions:** This type of conditions extend the aforementioned `IterativeCondition` class. They are simple 
+filtering conditions that decide to accept an element or not, based only on properties of the element itself.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+start.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
         return ... // some condition
@@ -151,7 +199,7 @@ We can also restrict the type of the accepted event to some subtype of the initi
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-start.subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
+start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
     @Override
     public boolean filter(SubEvent value) {
         return ... // some condition
@@ -168,7 +216,7 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
 </div>
 
 As it can be seen here, the subtype condition can also be combined with an additional filter condition on the subtype.
-In fact you can always provide multiple conditions by calling `where` and `subtype` multiple times.
+In fact, you can always provide multiple conditions by calling `where` and `subtype` multiple times.
 These conditions will then be combined using the logical AND operator.
 
 In order to construct or conditions, one has to call the `or` method with a respective filter function.
@@ -177,12 +225,12 @@ Any existing filter function is then ORed with the given one.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-pattern.where(new FilterFunction<Event>() {
+pattern.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
         return ... // some condition
     }
-}).or(new FilterFunction<Event>() {
+}).or(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
         return ... // or condition
@@ -201,8 +249,8 @@ pattern.where(event => ... /* some condition */).or(event => ... /* or condition
 Next, we can append further states to detect complex patterns.
 We can control the contiguity of two succeeding events to be accepted by the pattern.
 
-Strict contiguity means that two matching events have to succeed directly.
-This means that no other events can occur in between.
+Strict contiguity means that two matching events have to be directly the one after the other.
+This means that no other events can occur in between. 
 A strict contiguity pattern state can be created via the `next` method.
 
 <div class="codetabs" markdown="1">
@@ -220,7 +268,7 @@ val strictNext: Pattern[Event, _] = start.next("middle")
 </div>
 
 Non-strict contiguity means that other events are allowed to occur in-between two matching events.
-A non-strict contiguity pattern state can be created via the `followedBy` method.
+A non-strict contiguity pattern state can be created via the `followedBy` or `followedByAny` method.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -235,8 +283,27 @@ val nonStrictNext : Pattern[Event, _] = start.followedBy("middle")
 {% endhighlight %}
 </div>
 </div>
+
+For non-strict contiguity one can specify if only the first succeeding matching event will be matched, or
+all. In the latter case multiple matches will be emitted for the same beginning.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Pattern<Event, ?> nonStrictNext = start.followedByAny("middle");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val nonStrictNext : Pattern[Event, _] = start.followedByAny("middle")
+{% endhighlight %}
+</div>
+
+</div>
 It is also possible to define a temporal constraint for the pattern to be valid.
-For example, one can define that a pattern should occur within 10 seconds via the `within` method.
+For example, one can define that a pattern should occur within 10 seconds via the `within` method. 
+Temporal patterns are supported for both [processing and event time]({{site.baseurl}}/dev/event_time.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -294,11 +361,11 @@ Pattern<Event, ?> followedBy = start.followedBy("next");
         <tr>
             <td><strong>Where</strong></td>
             <td>
-                <p>Defines a filter condition for the current pattern state. Only if an event passes the filter, it can match the state:</p>
+                <p>Defines a condition for the current pattern state. Only if an event satisifes the condition, it can match the state:</p>
 {% highlight java %}
-patternState.where(new FilterFunction<Event>() {
+patternState.where(new IterativeCondition<Event>() {
     @Override
-    public boolean filter(Event value) throws Exception {
+    public boolean filter(Event value, Context ctx) throws Exception {
         return ... // some condition
     }
 });
@@ -310,14 +377,14 @@ patternState.where(new FilterFunction<Event>() {
             <td>
                 <p>Adds a new filter condition which is ORed with an existing filter condition. Only if an event passes the filter condition, it can match the state:</p>
 {% highlight java %}
-patternState.where(new FilterFunction<Event>() {
+patternState.where(new IterativeCondition<Event>() {
     @Override
-    public boolean filter(Event value) throws Exception {
+    public boolean filter(Event value, Context ctx) throws Exception {
         return ... // some condition
     }
-}).or(new FilterFunction<Event>() {
+}).or(new IterativeCondition<Event>() {
     @Override
-    public boolean filter(Event value) throws Exception {
+    public boolean filter(Event value, Context ctx) throws Exception {
         return ... // alternative condition
     }
 });
@@ -341,7 +408,86 @@ patternState.subtype(SubEvent.class);
 patternState.within(Time.seconds(10));
 {% endhighlight %}
           </td>
-      </tr>
+       </tr>
+       <tr>
+          <td><strong>ZeroOrMore</strong></td>
+          <td>
+              <p>Specifies that this pattern can occur zero or more times(kleene star). This means any number of events can be matched in this state.</p>
+              <p>If eagerness is enabled(by default) for a pattern A*B and sequence A1 A2 B will generate patterns: B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
+      {% highlight java %}
+      patternState.zeroOrMore();
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>OneOrMore</strong></td>
+          <td>
+              <p>Specifies that this pattern can occur one or more times(kleene star). This means at least one and at most infinite number of events can be matched in this state.</p>
+              <p>If eagerness is enabled (by default) for a pattern A*B and sequence A1 A2 B will generate patterns: A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
+      {% highlight java %}
+      patternState.oneOrMore();
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Optional</strong></td>
+          <td>
+              <p>Specifies that this pattern can occur zero or once.</p>
+      {% highlight java %}
+      patternState.optional();
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Times</strong></td>
+          <td>
+              <p>Specifies exact number of times that this pattern should be matched.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
+      {% highlight java %}
+      patternState.times(2);
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong><a name="consecutive_java"></a></td>
+          <td>
+              <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+              
+              <p>If not applied a relaxed continuity (as in followedBy) is used.</p>
+
+          <p>E.g. a pattern like:</p>
+      {% highlight java %}
+      Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("c");
+           }
+      })
+      .followedBy("middle").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("a");
+           }
+      })
+      .oneOrMore(true).consecutive()
+      .followedBy("end1").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("b");
+           }
+      });
+      {% endhighlight %}
+
+             <p>Will generate the following matches for a sequence: C D A1 A2 A3 D A4 B</p>
+
+             <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+             <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+
+             <p><b>NOTICE:</b> This option can be applied only to zeroOrMore(), oneOrMore() and times()!</p>
+          </td>
+       </tr>
   </tbody>
 </table>
 </div>
@@ -419,6 +565,69 @@ patternState.within(Time.seconds(10))
 {% endhighlight %}
           </td>
       </tr>
+       <tr>
+          <td><strong>ZeroOrMore</strong></td>
+          <td>
+              <p>Specifies that this pattern can occur zero or more times(kleene star). This means any number of events can be matched in this state.</p>
+              <p>If eagerness is enabled(by default) for a pattern A*B and sequence A1 A2 B will generate patterns: B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
+      {% highlight scala %}
+      patternState.zeroOrMore()
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>OneOrMore</strong></td>
+          <td>
+              <p>Specifies that this pattern can occur one or more times(kleene star). This means at least one and at most infinite number of events can be matched in this state.</p>
+              <p>If eagerness is enabled (by default) for a pattern A*B and sequence A1 A2 B will generate patterns: A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
+      {% highlight scala %}
+      patternState.oneOrMore()
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Optional</strong></td>
+          <td>
+              <p>Specifies that this pattern can occur zero or once.</p>
+      {% highlight scala %}
+      patternState.optional()
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Times</strong></td>
+          <td>
+              <p>Specifies exact number of times that this pattern should be matched.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
+      {% highlight scala %}
+      patternState.times(2)
+      {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong><a name="consecutive_scala"></a></td>
+          <td>
+            <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+            
+            <p>If not applied a relaxed continuity (as in followedBy) is used.</p>
+            
+      {% highlight scala %}
+      Pattern.begin("start").where(_.getName().equals("c"))
+       .followedBy("middle").where(_.getName().equals("a"))
+                            .oneOrMore(true).consecutive()
+       .followedBy("end1").where(_.getName().equals("b"));
+      {% endhighlight %}
+
+            <p>Will generate the following matches for a sequence: C D A1 A2 A3 D A4 B</p>
+
+            <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+            <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+
+            <p><b>NOTICE:</b> This option can be applied only to zeroOrMore(), oneOrMore() and times()!</p>
+          </td>
+       </tr>
   </tbody>
 </table>
 </div>
@@ -586,6 +795,20 @@ DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect
 </div>
 </div>
 
+### Handling Lateness in Event Time
+
+In `CEP` the order in which elements are processed matters. To guarantee that elements are processed in the correct order
+when working in event time, an incoming element is initially put in a buffer where elements are *sorted in ascending 
+order based on their timestamp*, and when a watermark arrives, all the elements in this buffer with timestamps smaller 
+than that of the watermark are processed. This implies that elements between watermarks are processed in event-time order. 
+
+<span class="label label-danger">Attention</span> The library assumes correctness of the watermark when working 
+in event time.
+
+To also guarantee that elements across watermarks are processed in event-time order, Flink's CEP library assumes 
+*correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last 
+seen watermark. Late elements are not further processed.
+
 ## Examples
 
 The following example detects the pattern `start, middle(name = "error") -> end(name = "critical")` on a keyed data stream of `Events`.
@@ -608,12 +831,12 @@ DataStream<Event> partitionedInput = input.keyBy(new KeySelector<Event, Integer>
 });
 
 Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-	.next("middle").where(new FilterFunction<Event>() {
+	.next("middle").where(new SimpleCondition<Event>() {
 		@Override
 		public boolean filter(Event value) throws Exception {
 			return value.getName().equals("error");
 		}
-	}).followedBy("end").where(new FilterFunction<Event>() {
+	}).followedBy("end").where(new SimpleCondition<Event>() {
 		@Override
 		public boolean filter(Event value) throws Exception {
 			return value.getName().equals("critical");

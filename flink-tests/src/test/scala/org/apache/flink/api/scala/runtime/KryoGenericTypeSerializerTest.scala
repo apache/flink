@@ -17,17 +17,19 @@
  */
 package org.apache.flink.api.scala.runtime
 
-import com.esotericsoftware.kryo.{Kryo, Serializer}
-import com.esotericsoftware.kryo.io.{Input, Output}
+import java.io._
 
+import com.esotericsoftware.kryo.io.{Input, Output}
+import com.esotericsoftware.kryo.{Kryo, Serializer}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestInstance
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.joda.time.LocalDate
-
 import org.junit.Test
 
+import scala.collection.mutable
+import scala.io.Source
 import scala.reflect._
 
 class KryoGenericTypeSerializerTest {
@@ -145,6 +147,96 @@ class KryoGenericTypeSerializerTest {
 
     runTests(list)
   }
+
+  /**
+    * Tests that the registered classes in Kryo did not change.
+    *
+    * Once we have proper serializer versioning this test will become obsolete.
+    * But currently a change in the serializers can break savepoint backwards
+    * compatability between Flink versions.
+    */
+  @Test
+  def testDefaultKryoRegisteredClassesDidNotChange(): Unit = {
+    // Previous registration (id => registered class (Class#getName))
+    val previousRegistrations: mutable.HashMap[Int, String] = mutable.HashMap[Int, String]()
+
+    val stream = Thread.currentThread().getContextClassLoader()
+      .getResourceAsStream("flink_11-kryo_registrations")
+    Source.fromInputStream(stream).getLines().foreach{
+      line =>
+        val Array(id, registeredClass) = line.split(",")
+        previousRegistrations.put(id.toInt, registeredClass)
+    }
+
+    // Get Kryo and verify that the registered IDs and types in
+    // Kryo have not changed compared to the provided registrations
+    // file.
+    val kryo = new KryoSerializer[Integer](classOf[Integer], new ExecutionConfig()).getKryo
+    val nextId = kryo.getNextRegistrationId
+    for (i <- 0 until nextId) {
+      val registration = kryo.getRegistration(i)
+
+      previousRegistrations.get(registration.getId) match {
+        case None => throw new IllegalStateException(s"Expected no entry with ID " +
+          s"${registration.getId}, but got one for type ${registration.getType.getName}. This " +
+          s"can lead to registered user types being deserialized with the wrong serializer when " +
+          s"restoring a savepoint.")
+        case Some(registeredClass) =>
+          if (registeredClass != registration.getType.getName) {
+            throw new IllegalStateException(s"Expected type ${registration.getType.getName} with " +
+              s"ID ${registration.getId}, but got $registeredClass.")
+          }
+      }
+    }
+
+    // Verify number of registrations (required to check if current number of
+    // registrations is less than before).
+    if (previousRegistrations.size != nextId) {
+      throw new IllegalStateException(s"Number of registered classes changed (previously " +
+        s"${previousRegistrations.size}, but now $nextId). This can lead to registered user " +
+        s"types being deserialized with the wrong serializer when restoring a savepoint.")
+    }
+  }
+
+  /**
+    * Creates a Kryo serializer and writes the default registrations out to a
+    * comma separated file with one entry per line:
+    *
+    * id,class
+    *
+    * The produced file is used to check that the registered IDs don't change
+    * in future Flink versions.
+    *
+    * This method is not used in the tests, but documents how the test file
+    * has been created and can be used to re-create it if needed.
+    *
+    * @param filePath File path to write registrations to
+    */
+  private def writeDefaultKryoRegistrations(filePath: String) = {
+    val file = new File(filePath)
+    if (file.exists()) {
+      file.delete()
+    }
+
+    val writer = new BufferedWriter(new FileWriter(file))
+
+    try {
+      val kryo = new KryoSerializer[Integer](classOf[Integer], new ExecutionConfig()).getKryo
+
+      val nextId = kryo.getNextRegistrationId
+      for (i <- 0 until nextId) {
+        val registration = kryo.getRegistration(i)
+        val str = registration.getId + "," + registration.getType.getName
+        writer.write(str, 0, str.length)
+        writer.newLine()
+      }
+
+      println(s"Created file with registrations at $file.")
+    } finally {
+      writer.close()
+    }
+  }
+
 
   case class ComplexType(id: String, number: Int, values: List[Int]){
     override def equals(obj: Any): Boolean ={

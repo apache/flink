@@ -15,13 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
@@ -31,6 +27,12 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.Status;
+import akka.actor.UntypedActor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,7 @@ import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.Metr
 /**
  * The MetricQueryService creates a key-value representation of all metrics currently registered with Flink when queried.
  *
- * It is realized as an actor and can be notified of
+ * <p>It is realized as an actor and can be notified of
  * - an added metric by calling {@link MetricQueryService#notifyOfAddedMetric(ActorRef, Metric, String, AbstractMetricGroup)}
  * - a removed metric by calling {@link MetricQueryService#notifyOfRemovedMetric(ActorRef, Metric)}
  * - a metric dump request by sending the return value of {@link MetricQueryService#getCreateDump()}
@@ -106,7 +108,7 @@ public class MetricQueryService extends UntypedActor {
 					this.meters.remove(metric);
 				}
 			} else if (message instanceof CreateDump) {
-				byte[] dump = serializer.serialize(counters, gauges, histograms, meters);
+				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
 				getSender().tell(dump, getSelf());
 			} else {
 				LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());
@@ -217,6 +219,6 @@ public class MetricQueryService extends UntypedActor {
 	}
 
 	private static class CreateDump implements Serializable {
-		private static CreateDump INSTANCE = new CreateDump();
+		private static final CreateDump INSTANCE = new CreateDump();
 	}
 }

@@ -29,29 +29,32 @@ import org.apache.flink.util.Collector;
 /**
  * Implements a streaming windowed version of the "WordCount" program.
  *
- * This program connects to a server socket and reads strings from the socket.
+ * <p>This program connects to a server socket and reads strings from the socket.
  * The easiest way to try this out is to open a text server (at port 12345)
  * using the <i>netcat</i> tool via
  * <pre>
  * nc -l 12345
  * </pre>
- * and run this example with the port as an argument.
+ * and run this example with the hostname and the port as arguments.
  */
 @SuppressWarnings("serial")
 public class SocketWindowWordCount {
 
 	public static void main(String[] args) throws Exception {
 
-		// the port to connect to
+		// the host and the port to connect to
+		final String hostname;
 		final int port;
 		try {
 			final ParameterTool params = ParameterTool.fromArgs(args);
+			hostname = params.has("hostname") ? params.get("hostname") : "localhost";
 			port = params.getInt("port");
 		} catch (Exception e) {
-			System.err.println("No port specified. Please run 'SocketWindowWordCount --port <port>', " +
-					"where port is the address of the text server");
-			System.err.println("To start a simple text server, run 'netcat -l <port>' and type the input text " +
-					"into the command line");
+			System.err.println("No port specified. Please run 'SocketWindowWordCount " +
+				"--hostname <hostname> --port <port>', where hostname (localhost by default) " +
+				"and port is the address of the text server");
+			System.err.println("To start a simple text server, run 'netcat -l <port>' and " +
+				"type the input text into the command line");
 			return;
 		}
 
@@ -59,7 +62,7 @@ public class SocketWindowWordCount {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data by connecting to the socket
-		DataStream<String> text = env.socketTextStream("localhost", port, "\n");
+		DataStream<String> text = env.socketTextStream(hostname, port, "\n");
 
 		// parse the data, group it, window it, and aggregate the counts
 		DataStream<WordWithCount> windowCounts = text
@@ -74,7 +77,7 @@ public class SocketWindowWordCount {
 				})
 
 				.keyBy("word")
-				.timeWindow(Time.seconds(5), Time.seconds(1))
+				.timeWindow(Time.seconds(5))
 
 				.reduce(new ReduceFunction<WordWithCount>() {
 					@Override
@@ -92,7 +95,7 @@ public class SocketWindowWordCount {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Data type for words with count
+	 * Data type for words with count.
 	 */
 	public static class WordWithCount {
 

@@ -18,20 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.GZIPOutputStream;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -40,15 +27,29 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.util.Arrays;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPOutputStream;
+
+import static org.apache.flink.api.common.io.DelimitedInputFormatTest.createTempFile;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 public class GenericCsvInputFormatTest {
 
-	private File tempFile;
-	
 	private TestCsvInputFormat format;
 	
 	// --------------------------------------------------------------------------------------------
@@ -63,9 +64,6 @@ public class GenericCsvInputFormatTest {
 	public void setdown() throws Exception {
 		if (this.format != null) {
 			this.format.close();
-		}
-		if (this.tempFile != null) {
-			this.tempFile.delete();
 		}
 	}
 	
@@ -86,7 +84,7 @@ public class GenericCsvInputFormatTest {
 	public void testReadNoPosAll() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 		
 			final Configuration parameters = new Configuration();
 			
@@ -484,8 +482,7 @@ public class GenericCsvInputFormatTest {
 				format.nextRecord(values);
 				fail("Input format accepted on invalid input.");
 			}
-			catch (ParseException e) {
-				; // all good
+			catch (ParseException ignored) {
 			}
 		}
 		catch (Exception ex) {
@@ -525,14 +522,14 @@ public class GenericCsvInputFormatTest {
 									"kkz|777|foobar|hhg\n" +  // wrong data type in field
 									"kkz|777foobarhhg  \n" +  // too short, a skipped field never ends
 									"xyx|ignored|42|\n";      // another good line
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 		
 			final Configuration parameters = new Configuration();
 
 			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(StringValue.class, null, IntValue.class);
 			format.setLenient(true);
-			
+
 			format.configure(parameters);
 			format.open(split);
 			
@@ -547,12 +544,67 @@ public class GenericCsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testReadWithCharset() throws IOException {
+		// Unicode row fragments
+		String[] records = new String[]{"\u020e\u021f", "Flink", "\u020b\u020f"};
+
+		// Unicode delimiter
+		String delimiter = "\u05c0\u05c0";
+
+		String fileContent = StringUtils.join(records, delimiter);
+
+		// StringValueParser does not use charset so rely on StringParser
+		GenericCsvInputFormat<String[]> format = new GenericCsvInputFormat<String[]>() {
+			@Override
+			public String[] readRecord(String[] target, byte[] bytes, int offset, int numBytes) throws IOException {
+				return parseRecord(target, bytes, offset, numBytes) ? target : null;
+			}
+		};
+		format.setFilePath("file:///some/file/that/will/not/be/read");
+
+		for (String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
+			File tempFile = File.createTempFile("test_contents", "tmp");
+			tempFile.deleteOnExit();
+
+			// write string with proper encoding
+			try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile), charset)) {
+				out.write(fileContent);
+			}
+
+			FileInputSplit split = new FileInputSplit(0, new Path(tempFile.toURI().toString()),
+				0, tempFile.length(), new String[]{ "localhost" });
+
+			format.setFieldDelimiter(delimiter);
+			format.setFieldTypesGeneric(String.class, String.class, String.class);
+			// use the same encoding to parse the file as used to read the file;
+			// the field delimiter is reinterpreted when the charset is set
+			format.setCharset(charset);
+			format.configure(new Configuration());
+			format.open(split);
+
+			String[] values = new String[]{ "", "", "" };
+			values = format.nextRecord(values);
+
+			// validate results
+			assertNotNull(values);
+			for (int i = 0 ; i < records.length ; i++) {
+				assertEquals(records[i], values[i]);
+			}
+
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		}
+
+		format.close();
+	}
+
 	@Test
 	public void readWithEmptyField() {
 		try {
 			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 		
 			final Configuration parameters = new Configuration();
 
@@ -689,40 +741,29 @@ public class GenericCsvInputFormatTest {
 		}
 	}
 
-	private FileInputSplit createTempFile(String content) throws IOException {
-		this.tempFile = File.createTempFile("test_contents", "tmp");
-		this.tempFile.deleteOnExit();
-		
-		DataOutputStream dos = new DataOutputStream(new FileOutputStream(tempFile));
-		dos.writeBytes(content);
-		dos.close();
-			
-		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
-	}
-
 	private FileInputSplit createTempDeflateFile(String content) throws IOException {
-		this.tempFile = File.createTempFile("test_contents", "tmp.deflate");
-		this.tempFile.deleteOnExit();
+		File tempFile = File.createTempFile("test_contents", "tmp.deflate");
+		tempFile.deleteOnExit();
 
 		DataOutputStream dos = new DataOutputStream(new DeflaterOutputStream(new FileOutputStream(tempFile)));
 		dos.writeBytes(content);
 		dos.close();
 
-		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 
 	private FileInputSplit createTempGzipFile(String content) throws IOException {
-		this.tempFile = File.createTempFile("test_contents", "tmp.gz");
-		this.tempFile.deleteOnExit();
+		File tempFile = File.createTempFile("test_contents", "tmp.gz");
+		tempFile.deleteOnExit();
 
 		DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(tempFile)));
 		dos.writeBytes(content);
 		dos.close();
 
-		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 	
-	private final Value[] createIntValues(int num) {
+	private Value[] createIntValues(int num) {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {
@@ -732,7 +773,7 @@ public class GenericCsvInputFormatTest {
 		return v;
 	}
 	
-	private final Value[] createLongValues(int num) {
+	private Value[] createLongValues(int num) {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {

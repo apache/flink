@@ -19,9 +19,9 @@
 package org.apache.flink.ml.math.distributed
 
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.math._
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.distributed.DistributedMatrix._
-import org.apache.flink.ml.math._
 
 /** Represents distributed row-major matrix.
   *
@@ -37,6 +37,8 @@ class DistributedRowMatrix(
 
   /** Collects the data in the form of a sequence of coordinates associated with their values.
     * This operation immediately triggers program execution.
+    *
+    * @return Returns the matrix in the sparse coordinate format
     */
   def toCOO: Seq[(MatrixRowIndex, MatrixColIndex, Double)] = {
     val localRows = data.collect()
@@ -49,6 +51,8 @@ class DistributedRowMatrix(
 
   /** Collects the data in the form of a SparseMatrix. This operation immediately triggers program
     * execution.
+    *
+    * @return Returns the matrix as a local [[SparseMatrix]]
     */
   def toLocalSparseMatrix: SparseMatrix = {
     val localMatrix = SparseMatrix.fromCOO(this.numRows, this.numCols, this.toCOO)
@@ -61,6 +65,8 @@ class DistributedRowMatrix(
   // TODO: convert to dense representation on the distributed matrix and collect it afterward
   /** Collects the data in the form of a DenseMatrix. This operation immediately triggers program
     * execution.
+    *
+    * @return Returns the matrix as a [[DenseMatrix]]
     */
   def toLocalDenseMatrix: DenseMatrix = this.toLocalSparseMatrix.toDenseMatrix
 
@@ -68,6 +74,7 @@ class DistributedRowMatrix(
     *
     * @param func  a function to be applied
     * @param other a [[DistributedRowMatrix]] to apply the function together
+    * @return Applies the function and returns a new [[DistributedRowMatrix]]
     */
   def byRowOperation(
     func: (Vector, Vector) => Vector,
@@ -101,6 +108,7 @@ class DistributedRowMatrix(
   /** Adds this matrix to another matrix.
     *
     * @param other a [[DistributedRowMatrix]] to be added
+    * @return [[DistributedRowMatrix]] representing the two matrices added.
     */
   def add(other: DistributedRowMatrix): DistributedRowMatrix = {
     val addFunction = (x: Vector, y: Vector) => (x.asBreeze + y.asBreeze).fromBreeze
@@ -110,6 +118,8 @@ class DistributedRowMatrix(
   /** Subtracts another matrix from this matrix.
     *
     * @param other a [[DistributedRowMatrix]] to be subtracted from this matrix
+    * @return [[DistributedRowMatrix]] representing the original matrix subtracted by the supplied
+    *        matrix.
     */
   def subtract(other: DistributedRowMatrix): DistributedRowMatrix = {
     val subFunction = (x: Vector, y: Vector) => (x.asBreeze - y.asBreeze).fromBreeze
@@ -127,6 +137,7 @@ object DistributedRowMatrix {
     * @param numCols  Number of columns
     * @param isSorted If false, sorts the row to properly build the matrix representation.
     *                 If already sorted, set this parameter to true to skip sorting.
+    * @return the [[DistributedRowMatrix]] build from the original coordinate matrix
     */
   def fromCOO(data: DataSet[(MatrixRowIndex, MatrixColIndex, Double)],
     numRows: Int,

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.configuration.ConfigConstants;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -30,34 +32,26 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 
-import java.io.UnsupportedEncodingException;
-
 /**
  * Responder that returns a constant String.
  */
 @ChannelHandler.Sharable
 public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
-	
+
 	private final byte[] encodedText;
-	
+
 	public ConstantTextHandler(String text) {
-		try {
-			this.encodedText = text.getBytes("UTF-8");
-		}
-		catch (UnsupportedEncodingException e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
+		this.encodedText = text.getBytes(ConfigConstants.DEFAULT_CHARSET);
 	}
-	
+
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
 		HttpResponse response = new DefaultFullHttpResponse(
 			HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(encodedText));
 
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, encodedText.length);
-		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-		
+
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}
 }
