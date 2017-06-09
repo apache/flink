@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.query.netty;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -40,13 +35,19 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -62,12 +63,15 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link KvStateServerHandler}.
+ */
 public class KvStateServerHandlerTest extends TestLogger {
 
-	/** Shared Thread pool for query execution */
-	private final static ExecutorService TEST_THREAD_POOL = Executors.newSingleThreadExecutor();
+	/** Shared Thread pool for query execution. */
+	private static final ExecutorService TEST_THREAD_POOL = Executors.newSingleThreadExecutor();
 
-	private final static int READ_TIMEOUT_MILLIS = 10000;
+	private static final int READ_TIMEOUT_MILLIS = 10000;
 
 	@AfterClass
 	public static void tearDown() throws Exception {
@@ -91,7 +95,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 		desc.setQueryable("vanilla");
 
-		int numKeyGroups =1;
+		int numKeyGroups = 1;
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);

@@ -23,6 +23,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
+/**
+ * A gateway to listen for {@code KvState} registrations.
+ */
 public interface KvStateRegistryGateway extends RpcGateway {
 	/**
 	 * Notifies the listener about a registered KvState instance.
