@@ -435,7 +435,6 @@ under the License.
 						**/runtime/highavailability/**,
 						**/runtime/instance/**,
 						**/runtime/io/**,
-						**/runtime/iterative/**,
 						**/runtime/jobgraph/**,
 						**/runtime/jobmanager/**,
 						**/runtime/jobmaster/**,
