@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
   * Schema information consists of a data type, field names, and corresponding indices of
   * these names in the data type.
   *
-  * To define a TableSource one need to implement [[TableSource#getReturnType]]. In this case
+  * To define a TableSource one needs to implement [[TableSource#getReturnType]]. In this case
   * field names and field indices are derived from the returned type.
   *
   * In case if custom field names are required one need to additionally implement
