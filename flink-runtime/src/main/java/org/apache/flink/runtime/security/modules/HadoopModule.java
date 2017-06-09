@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.runtime.security.SecurityUtils;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -29,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.security.auth.Subject;
+
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -75,11 +78,11 @@ public class HadoopModule implements SecurityModule {
 						// and does not fallback to using Kerberos tickets
 						Method getAllTokensMethod = Credentials.class.getMethod("getAllTokens");
 						Credentials credentials = new Credentials();
-						final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
+						final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
 						Collection<Token<? extends TokenIdentifier>> usrTok = (Collection<Token<? extends TokenIdentifier>>) getAllTokensMethod.invoke(cred);
 						//If UGI use keytab for login, do not load HDFS delegation token.
 						for (Token<? extends TokenIdentifier> token : usrTok) {
-							if (!token.getKind().equals(HDFS_DELEGATION_TOKEN_KIND)) {
+							if (!token.getKind().equals(hdfsDelegationTokenKind)) {
 								final Text id = new Text(token.getIdentifier());
 								credentials.addToken(id, token);
 							}

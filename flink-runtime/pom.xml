@@ -455,7 +455,6 @@ under the License.
 						**/runtime/registration/**,
 						**/runtime/resourcemanager/**,
 						**/runtime/rpc/**,
-						**/runtime/security/**,
 						**/runtime/state/**,
 						**/runtime/taskexecutor/**,
 						**/runtime/taskmanager/**,
