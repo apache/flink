@@ -2,7 +2,7 @@
 title: "Table API"
 layout: redirect
 redirect: /dev/table/index.html
-permalink: /apis/table.html
+permalink: /dev/table_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
