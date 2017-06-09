@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.query.netty.message;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -37,6 +34,10 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -55,6 +56,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link KvStateRequestSerializer}.
+ */
 @RunWith(Parameterized.class)
 public class KvStateRequestSerializerTest {
 
@@ -388,7 +392,7 @@ public class KvStateRequestSerializerTest {
 			KvStateRequestSerializer.serializeKeyAndNamespace(
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
-		
+
 		final byte[] serializedValues = listState.getSerializedValue(serializedKey);
 
 		List<Long> actualValues = KvStateRequestSerializer.deserializeList(serializedValues, valueSerializer);

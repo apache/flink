@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.query.netty;
 
+import org.apache.flink.util.Preconditions;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.apache.flink.util.Preconditions;
 
 /**
  * A {@link ByteBuf} instance to be consumed in chunks by {@link ChunkedWriteHandler},
@@ -32,16 +33,16 @@ import org.apache.flink.util.Preconditions;
  */
 class ChunkedByteBuf implements ChunkedInput<ByteBuf> {
 
-	/** The buffer to chunk */
+	/** The buffer to chunk. */
 	private final ByteBuf buf;
 
-	/** Size of chunks */
+	/** Size of chunks. */
 	private final int chunkSize;
 
-	/** Closed flag */
+	/** Closed flag. */
 	private boolean isClosed;
 
-	/** End of input flag */
+	/** End of input flag. */
 	private boolean isEndOfInput;
 
 	public ChunkedByteBuf(ByteBuf buf, int chunkSize) {

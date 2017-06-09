@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.query.netty.message;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.query.KvStateID;
@@ -30,6 +26,11 @@ import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.apache.flink.util.Preconditions;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -447,7 +448,7 @@ public final class KvStateRequestSerializer {
 	/**
 	 * Deserializes all values with the given serializer.
 	 *
-	 * @param serializedValue Serialized value of type List<T>
+	 * @param serializedValue Serialized value of type List&lt;T&gt;
 	 * @param serializer      Serializer for T
 	 * @param <T>             Type of the value
 	 * @return Deserialized list or <code>null</code> if the serialized value
@@ -486,7 +487,7 @@ public final class KvStateRequestSerializer {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Serializes all values of the Iterable with the given serializer.
 	 *
@@ -519,11 +520,11 @@ public final class KvStateRequestSerializer {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Deserializes all kv pairs with the given serializer.
 	 *
-	 * @param serializedValue Serialized value of type Map<UK, UV>
+	 * @param serializedValue Serialized value of type Map&lt;UK, UV&gt;
 	 * @param keySerializer   Serializer for UK
 	 * @param valueSerializer Serializer for UV
 	 * @param <UK>            Type of the key

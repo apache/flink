@@ -18,12 +18,6 @@
 
 package org.apache.flink.runtime.query;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.dispatch.Futures;
-import akka.dispatch.Mapper;
-import akka.dispatch.Recover;
-import akka.pattern.Patterns;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -31,14 +25,22 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.dispatch.Futures;
+import akka.dispatch.Mapper;
+import akka.dispatch.Recover;
+import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
-import scala.reflect.ClassTag$;
 
 import java.util.UUID;
 import java.util.concurrent.Callable;
+
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+import scala.reflect.ClassTag$;
 
 /**
  * Akka-based {@link KvStateLocationLookupService} that retrieves the current
@@ -48,7 +50,7 @@ class AkkaKvStateLocationLookupService implements KvStateLocationLookupService, 
 
 	private static final Logger LOG = LoggerFactory.getLogger(KvStateLocationLookupService.class);
 
-	/** Future returned when no JobManager is available */
+	/** Future returned when no JobManager is available. */
 	private static final Future<ActorGateway> UNKNOWN_JOB_MANAGER = Futures.failed(new UnknownJobManager());
 
 	/** Leader retrieval service to retrieve the current job manager. */

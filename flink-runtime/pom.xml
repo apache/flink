@@ -446,7 +446,6 @@ under the License.
 						**/runtime/net/**,
 						**/runtime/operators/**,
 						**/runtime/plugable/**,
-						**/runtime/query/**,
 						**/runtime/registration/**,
 						**/runtime/resourcemanager/**,
 						**/runtime/rpc/**,

@@ -20,8 +20,8 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -35,6 +35,9 @@ public interface KvStateMessage extends Serializable {
 	// Lookup
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Actor message for looking up {@link KvStateLocation}.
+	 */
 	class LookupKvStateLocation implements KvStateMessage {
 
 		private static final long serialVersionUID = 1L;
@@ -88,6 +91,9 @@ public interface KvStateMessage extends Serializable {
 	// Registration
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Actor message for notification of {@code KvState} registration.
+	 */
 	class NotifyKvStateRegistered implements KvStateMessage {
 
 		private static final long serialVersionUID = 1L;
@@ -147,7 +153,7 @@ public interface KvStateMessage extends Serializable {
 		}
 
 		/**
-		 * Returns the JobVertexID the KvState instance belongs to
+		 * Returns the JobVertexID the KvState instance belongs to.
 		 *
 		 * @return JobVertexID the KvState instance belongs to
 		 */
@@ -204,6 +210,9 @@ public interface KvStateMessage extends Serializable {
 		}
 	}
 
+	/**
+	 * Actor message for notification of {@code KvState} unregistration.
+	 */
 	class NotifyKvStateUnregistered implements KvStateMessage {
 
 		private static final long serialVersionUID = 1L;
@@ -251,7 +260,7 @@ public interface KvStateMessage extends Serializable {
 		}
 
 		/**
-		 * Returns the JobVertexID the KvState instance belongs to
+		 * Returns the JobVertexID the KvState instance belongs to.
 		 *
 		 * @return JobVertexID the KvState instance belongs to
 		 */
