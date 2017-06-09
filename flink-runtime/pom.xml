@@ -440,7 +440,6 @@ under the License.
 						**/runtime/jobmanager/**,
 						**/runtime/jobmaster/**,
 						**/runtime/leaderelection/**,
-						**/runtime/memory/**,
 						**/runtime/messages/**,
 						**/runtime/minicluster/**,
 						**/runtime/net/**,
