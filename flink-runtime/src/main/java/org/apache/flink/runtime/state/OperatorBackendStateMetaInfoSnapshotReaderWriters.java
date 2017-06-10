@@ -25,7 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +156,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			super(userCodeClassLoader);
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException {
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
@@ -164,12 +164,20 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 			stateMetaInfo.setName(in.readUTF());
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
+
 			DataInputViewStream dis = new DataInputViewStream(in);
-			try {
-				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
+			ClassLoader previousClassLoader = Thread.currentThread().getContextClassLoader();
+			try (
+				TypeSerializerSerializationUtil.SerialUIDMismatchTolerantInputStream ois =
+					new TypeSerializerSerializationUtil.SerialUIDMismatchTolerantInputStream(dis, userCodeClassLoader)) {
+
+				Thread.currentThread().setContextClassLoader(userCodeClassLoader);
+				TypeSerializer<S> stateSerializer = (TypeSerializer<S>) ois.readObject();
 				stateMetaInfo.setPartitionStateSerializer(stateSerializer);
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
+			} finally {
+				Thread.currentThread().setContextClassLoader(previousClassLoader);
 			}
 
 			// old versions do not contain the partition state serializer's configuration snapshot
