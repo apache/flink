@@ -23,15 +23,15 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
-  * An example of grouped stream windowing in session windows with session timeout of 3 msec.
-  * A source fetches elements with key, timestamp, and count.
-  */
+ * An example of grouped stream windowing in session windows with session timeout of 3 msec.
+ * A source fetches elements with key, timestamp, and count.
+ */
 object SessionWindowing {
 
   def main(args: Array[String]): Unit = {
@@ -58,15 +58,13 @@ object SessionWindowing {
       ("c", 11L, 1)
     )
 
-    val source = env.addSource(new SourceFunction[(String, Long, Int)]() {
+    val source: DataStream[(String, Long, Int)] = env.addSource(new SourceFunction[(String, Long, Int)]() {
 
       override def run(ctx: SourceContext[(String, Long, Int)]): Unit = {
         input.foreach(value => {
           ctx.collectWithTimestamp(value, value._2)
           ctx.emitWatermark(new Watermark(value._2 - 1))
-          if (!fileOutput) {
-            println(s"Collected: ${value}")
-          }
+          println(s"Collected: ${value}")
         })
         ctx.emitWatermark(new Watermark(Long.MaxValue))
       }
@@ -76,7 +74,7 @@ object SessionWindowing {
     })
 
     // We create sessions for each id with max timeout of 3 time units
-    val aggregated = source
+    val aggregated: DataStream[(String, Long, Int)] = source
       .keyBy(0)
       .window(EventTimeSessionWindows.withGap(Time.milliseconds(3L)))
       .sum(2)

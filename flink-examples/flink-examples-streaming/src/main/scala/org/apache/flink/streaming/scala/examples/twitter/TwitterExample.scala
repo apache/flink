@@ -20,41 +20,43 @@ package org.apache.flink.streaming.scala.examples.twitter
 
 import java.util.StringTokenizer
 
+import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.connectors.twitter.TwitterSource
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
+import org.apache.flink.util.Collector
 import org.codehaus.jackson.JsonNode
 import org.codehaus.jackson.map.ObjectMapper
 
 import scala.collection.mutable.ListBuffer
 
 /**
-  * Implements the "TwitterStream" program that computes a most used word
-  * occurrence over JSON objects in a streaming fashion.
-  * <p>
-  * The input is a Tweet stream from a TwitterSource.
-  * </p>
-  * <p>
-  * Usage: <code>Usage: TwitterExample [--output <path>]
-  * [--twitter-source.consumerKey <key>
-  * --twitter-source.consumerSecret <secret>
-  * --twitter-source.token <token>
-  * --twitter-source.tokenSecret <tokenSecret>]
-  * </code><br>
-  *
-  * If no parameters are provided, the program is run with default data from
-  * {@link TwitterExampleData}.
-  * </p>
-  * <p>
-  * This example shows how to:
-  * <ul>
-  * <li>acquire external data,
-  * <li>use in-line defined functions,
-  * <li>handle flattened stream inputs.
-  * </ul>
-  */
+ * Implements the "TwitterStream" program that computes a most used word
+ * occurrence over JSON objects in a streaming fashion.
+ *
+ * The input is a Tweet stream from a TwitterSource.
+ *
+ * Usage:
+ * {{{
+ * TwitterExample [--output <path>]
+ * [--twitter-source.consumerKey <key>
+ * --twitter-source.consumerSecret <secret>
+ * --twitter-source.token <token>
+ * --twitter-source.tokenSecret <tokenSecret>]
+ * }}}
+ *
+ * If no parameters are provided, the program is run with default data from
+ * {@link TwitterExampleData}.
+ *
+ * This example shows how to:
+ *
+ *  - acquire external data,
+ *  - use in-line defined functions,
+ *  - handle flattened stream inputs.
+ *
+ */
 object TwitterExample {
 
   def main(args: Array[String]): Unit = {
@@ -76,7 +78,7 @@ object TwitterExample {
     env.setParallelism(params.getInt("parallelism", 1))
 
     // get input data
-    val streamSource =
+    val streamSource: DataStream[String] =
     if (params.has(TwitterSource.CONSUMER_KEY) &&
       params.has(TwitterSource.CONSUMER_SECRET) &&
       params.has(TwitterSource.TOKEN) &&
@@ -93,10 +95,36 @@ object TwitterExample {
       env.fromElements(TwitterExampleData.TEXTS: _*)
     }
 
-    val tweets = streamSource
+    val tweets: DataStream[(String, Int)] = streamSource
       // selecting English tweets and splitting to (word, 1)
-      .flatMap { value: String =>
-      val jsonParser = new ObjectMapper()
+      .flatMap(new SelectEnglishAndTokenizeFlatMap)
+      // group by words and sum their occurrences
+      .keyBy(0).sum(1)
+
+    // emit result
+    if (params.has("output")) {
+      tweets.writeAsText(params.get("output"))
+    } else {
+      println("Printing result to stdout. Use --output to specify output path.")
+      tweets.print()
+    }
+
+    // execute program
+    env.execute("Twitter Streaming Example")
+  }
+
+  /**
+   * Deserialize JSON from twitter source
+   *
+   * Implements a string tokenizer that splits sentences into words as a
+   * user-defined FlatMapFunction. The function takes a line (String) and
+   * splits it into multiple pairs in the form of "(word,1)" ({{{ Tuple2<String,
+	 * Integer> }}}).
+   */
+  private class SelectEnglishAndTokenizeFlatMap extends FlatMapFunction[String, (String, Int)] {
+    lazy val jsonParser = new ObjectMapper()
+
+    override def flatMap(value: String, out: Collector[(String, Int)]): Unit = {
       // deserialize JSON from twitter source
       val jsonNode = jsonParser.readValue(value, classOf[JsonNode])
       val isEnglish = jsonNode.has("user") &&
@@ -111,28 +139,11 @@ object TwitterExample {
 
           while (tokenizer.hasMoreTokens) {
             val token = tokenizer.nextToken().replaceAll("\\s*", "").toLowerCase()
-            if (token.nonEmpty) {
-              tokens += ((token, 1))
-            }
+            if (token.nonEmpty)out.collect((token, 1))
           }
-
-          tokens.toList
         }
-        case _ => List.empty
+        case _ =>
       }
     }
-      // group by words and sum their occurrences
-      .keyBy(0).sum(1)
-
-    // emit result
-    if (params.has("output")) {
-      tweets.writeAsText(params.get("output"))
-    } else {
-      println("Printing result to stdout. Use --output to specify output path.")
-      tweets.print()
-    }
-
-    // execute program
-    env.execute("Twitter Streaming Example")
   }
 }

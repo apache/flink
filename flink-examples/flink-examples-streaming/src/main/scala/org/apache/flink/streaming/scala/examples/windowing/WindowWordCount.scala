@@ -21,33 +21,32 @@ package org.apache.flink.streaming.scala.examples.windowing
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.wordcount.util.WordCountData
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
 /**
-  * Implements a windowed version of the streaming "WordCount" program.
-  *
-  * <p>
-  * The input is a plain text file with lines separated by newline characters.
-  *
-  * <p>
-  * Usage: <code>WordCount
-  * --input &lt;path&gt;
-  * --output &lt;path&gt;
-  * --window &lt;n&gt;
-  * --slide &lt;n&gt;
-  * </code><br>
-  * If no parameters are provided, the program is run with default data from
-  * [[org.apache.flink.examples.java.wordcount.util.WordCountData]].
-  *
-  * <p>
-  * This example shows how to:
-  * <ul>
-  * <li>write a simple Flink Streaming program,
-  * <li>use tuple data types,
-  * <li>use basic windowing abstractions.
-  * </ul>
-  *
-  */
+ * Implements a windowed version of the streaming "WordCount" program.
+ *
+ * The input is a plain text file with lines separated by newline characters.
+ *
+ * Usage:
+ * {{{
+ * WordCount
+ * --input <path>
+ * --output <path>
+ * --window <n>
+ * --slide <n>
+ * }}}
+ *
+ * If no parameters are provided, the program is run with default data from
+ * [[org.apache.flink.examples.java.wordcount.util.WordCountData]].
+ *
+ * This example shows how to:
+ *
+ *  - write a simple Flink Streaming program,
+ *  - use tuple data types,
+ *  - use basic windowing abstractions.
+ *
+ */
 object WindowWordCount {
 
   def main(args: Array[String]): Unit = {
@@ -75,7 +74,7 @@ object WindowWordCount {
     val windowSize = params.getInt("window", 250)
     val slideSize = params.getInt("slide", 150)
 
-    val counts = text
+    val counts: DataStream[(String, Int)] = text
       // split up the lines in pairs (2-tuple) containing: (word,1)
       .flatMap(_.toLowerCase.split("\\W+"))
       .filter(_.nonEmpty)

@@ -23,26 +23,26 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData
 import org.apache.flink.streaming.api.scala._
 
 /**
-  * Implements the "WordCount" program that computes a simple word occurrence
-  * histogram over text files in a streaming fashion.
-  *
-  * <p>
-  * The input is a plain text file with lines separated by newline characters.
-  *
-  * <p>
-  * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
-  * If no parameters are provided, the program is run with default data from
-  * {@link WordCountData}.
-  *
-  * <p>
-  * This example shows how to:
-  * <ul>
-  * <li>write a simple Flink Streaming program,
-  * <li>use tuple data types,
-  * <li>write and use transformation functions.
-  * </ul>
-  *
-  */
+ * Implements the "WordCount" program that computes a simple word occurrence
+ * histogram over text files in a streaming fashion.
+ *
+ * The input is a plain text file with lines separated by newline characters.
+ *
+ * Usage:
+ * {{{
+ * WordCount --input <path> --output <path>
+ * }}}
+ *
+ * If no parameters are provided, the program is run with default data from
+ * {@link WordCountData}.
+ *
+ * This example shows how to:
+ *
+ *  - write a simple Flink Streaming program,
+ *  - use tuple data types,
+ *  - write and use transformation functions.
+ *
+ */
 object WordCount {
 
   def main(args: Array[String]) {
@@ -68,7 +68,7 @@ object WordCount {
       env.fromElements(WordCountData.WORDS: _*)
     }
 
-    val counts = text
+    val counts: DataStream[(String, Int)] = text
       // split up the lines in pairs (2-tuples) containing: (word,1)
       .flatMap(_.toLowerCase.split("\\W+"))
       .filter(_.nonEmpty)

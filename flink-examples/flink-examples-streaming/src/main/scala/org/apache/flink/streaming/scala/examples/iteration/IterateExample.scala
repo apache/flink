@@ -27,19 +27,18 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
 /**
-  * Example illustrating iterations in Flink streaming.
-  * <p> The program sums up random numbers and counts additions
-  * it performs to reach a specific threshold in an iterative streaming fashion. </p>
-  *
-  * <p>
-  * This example shows how to use:
-  * <ul>
-  * <li>streaming iterations,
-  * <li>buffer timeout to enhance latency,
-  * <li>directed outputs.
-  * </ul>
-  * </p>
-  */
+ * Example illustrating iterations in Flink streaming.
+ *
+ * The program sums up random numbers and counts additions
+ * it performs to reach a specific threshold in an iterative streaming fashion.
+ *
+ * This example shows how to use:
+ *
+ *  - streaming iterations,
+ *  - buffer timeout to enhance latency,
+ *  - directed outputs.
+ *
+ */
 object IterateExample {
 
   private val Bound = 100
@@ -56,8 +55,9 @@ object IterateExample {
     env.getConfig.setGlobalJobParameters(params)
 
     // create input stream of integer pairs
-    val inputStream =
+    val inputStream: DataStream[(Int, Int)] =
     if (params.has("input")) {
+      // map a list of strings to integer pairs
       env.readTextFile(params.get("input")).map { value: String =>
         val record = value.substring(1, value.length - 1)
         val splitted = record.split(",")
@@ -72,7 +72,7 @@ object IterateExample {
     def withinBound(value: (Int, Int)) = value._1 < Bound && value._2 < Bound
 
     // create an iterative data stream from the input with 5 second timeout
-    val numbers = inputStream
+    val numbers: DataStream[((Int, Int), Int)] = inputStream
       // Map the inputs so that the next Fibonacci numbers can be calculated
       // while preserving the original input tuple
       // A counter is attached to the tuple and incremented in every iteration step
@@ -84,10 +84,8 @@ object IterateExample {
             (value._1, value._2, value._4, value._3 + value._4, value._5 + 1))
           // testing which tuple needs to be iterated again
           val feedback = step.filter(value => withinBound(value._3, value._4))
-          // get the input pairs that have the greatest iteration counter
-          // on a 1 second sliding window
-          // to produce the final output
-          val output = step
+          // giving back the input pair and the counter
+          val output: DataStream[((Int, Int), Int)] = step
             .filter(value => !withinBound(value._3, value._4))
             .map(value => ((value._1, value._2), value._5))
           (feedback, output)
@@ -111,8 +109,8 @@ object IterateExample {
   // *************************************************************************
 
   /**
-    * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2
-    */
+   * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2
+   */
   private class RandomFibonacciSource extends SourceFunction[(Int, Int)] {
 
     val rnd = new Random()

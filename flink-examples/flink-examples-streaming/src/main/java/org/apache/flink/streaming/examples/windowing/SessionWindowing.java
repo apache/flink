@@ -70,9 +70,7 @@ public class SessionWindowing {
 						for (Tuple3<String, Long, Integer> value : input) {
 							ctx.collectWithTimestamp(value, value.f1);
 							ctx.emitWatermark(new Watermark(value.f1 - 1));
-							if (!fileOutput) {
-								System.out.println("Collected: " + value);
-							}
+							System.out.println("Collected: " + value);
 						}
 						ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
 					}

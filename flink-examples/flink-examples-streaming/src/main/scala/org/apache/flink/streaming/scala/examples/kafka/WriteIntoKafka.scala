@@ -27,12 +27,15 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 
 /**
-  * Generate a String every 500 ms and write it into a Kafka topic
-  *
-  * Please pass the following arguments to run the example:
-  * --topic test --bootstrap.servers localhost:9092
-  *
-  */
+ * Generate a String every 500 ms and write it into a Kafka topic
+ *
+ * Please pass the following arguments to run the example:
+ * {{{
+ * --topic test
+ * --bootstrap.servers
+ * localhost:9092
+ * }}}
+ */
 object WriteIntoKafka {
 
   def main(args: Array[String]): Unit = {
@@ -51,7 +54,7 @@ object WriteIntoKafka {
     env.getConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(4, 10000))
 
     // very simple data generator
-    val messageStream = env.addSource(new SourceFunction[String]() {
+    val messageStream: DataStream[String] = env.addSource(new SourceFunction[String]() {
       var running = true
 
       override def run(ctx: SourceContext[String]): Unit = {

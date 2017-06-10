@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.function.AllWindowFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -35,23 +35,21 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
 /**
-  * Skeleton for incremental machine learning algorithm consisting of a
-  * pre-computed model, which gets updated for the new inputs and new input data
-  * for which the job provides predictions.
-  *
-  * <p>
-  * This may serve as a base of a number of algorithms, e.g. updating an
-  * incremental Alternating Least Squares model while also providing the
-  * predictions.
-  *
-  * <p>
-  * This example shows how to use:
-  * <ul>
-  * <li>Connected streams
-  * <li>CoFunctions
-  * <li>Tuple data types
-  * </ul>
-  */
+ * Skeleton for incremental machine learning algorithm consisting of a
+ * pre-computed model, which gets updated for the new inputs and new input data
+ * for which the job provides predictions.
+ *
+ * This may serve as a base of a number of algorithms, e.g. updating an
+ * incremental Alternating Least Squares model while also providing the
+ * predictions.
+ *
+ * This example shows how to use:
+ *
+ *  - Connected streams
+ *  - CoFunctions
+ *  - Tuple data types
+ *
+ */
 object IncrementalLearningSkeleton {
 
   // *************************************************************************
@@ -67,19 +65,16 @@ object IncrementalLearningSkeleton {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     // build new model on every second of new data
-    val trainingData = env.addSource(new FiniteTrainingDataSource)
-    val newData = env.addSource(new FiniteNewDataSource)
+    val trainingData: DataStream[Int] = env.addSource(new FiniteTrainingDataSource)
+    val newData: DataStream[Int] = env.addSource(new FiniteNewDataSource)
 
-    val model = trainingData
+    val model: DataStream[Array[Double]] = trainingData
       .assignTimestampsAndWatermarks(new LinearTimestamp)
       .timeWindowAll(Time.of(5000, TimeUnit.MILLISECONDS))
       .apply(new PartialModelBuilder)
 
     // use partial model for newData
-    val prediction = newData.connect(model).map(
-      (_: Int) => 0,
-      (_: Array[Double]) => 1
-    )
+    val prediction: DataStream[Int] = newData.connect(model).map(new Predictor)
 
     // emit result
     if (params.has("output")) {
@@ -98,23 +93,16 @@ object IncrementalLearningSkeleton {
   // *************************************************************************
 
   /**
-    * Feeds new data for newData. By default it is implemented as constantly
-    * emitting the Integer 1 in a loop.
-    */
+   * Feeds new data for newData. By default it is implemented as constantly
+   * emitting the Integer 1 in a loop.
+   */
   private class FiniteNewDataSource extends SourceFunction[Int] {
-    var counter: Int = 0
-
     override def run(ctx: SourceContext[Int]) = {
       Thread.sleep(15)
-      while (counter < 50) {
-        ctx.collect(getNewData)
+      (0 until 50).foreach{ _ =>
+        Thread.sleep(5)
+        ctx.collect(1)
       }
-    }
-
-    def getNewData = {
-      Thread.sleep(5)
-      counter += 1
-      1
     }
 
     override def cancel() = {
@@ -123,20 +111,11 @@ object IncrementalLearningSkeleton {
   }
 
   /**
-    * Feeds new training data for the partial model builder. By default it is
-    * implemented as constantly emitting the Integer 1 in a loop.
-    */
+   * Feeds new training data for the partial model builder. By default it is
+   * implemented as constantly emitting the Integer 1 in a loop.
+   */
   private class FiniteTrainingDataSource extends SourceFunction[Int] {
-    var counter = 0
-
-    override def run(ctx: SourceContext[Int]) = {
-      while (counter < 8200) ctx.collect(getTrainingData)
-    }
-
-    def getTrainingData = {
-      counter += 1
-      1
-    }
+    override def run(ctx: SourceContext[Int]) = (0 until 8200).foreach( _ => ctx.collect(1) )
 
     override def cancel() = {
       // No cleanup needed
@@ -157,8 +136,8 @@ object IncrementalLearningSkeleton {
   }
 
   /**
-    * Builds up-to-date partial models on new training data.
-    */
+   * Builds up-to-date partial models on new training data.
+   */
   private class PartialModelBuilder extends AllWindowFunction[Int, Array[Double], TimeWindow] {
 
     protected def buildPartialModel(values: Iterable[Int]): Array[Double] = Array[Double](1)
@@ -171,13 +150,13 @@ object IncrementalLearningSkeleton {
   }
 
   /**
-    * Creates newData using the model produced in batch-processing and the
-    * up-to-date partial model.
-    * <p>
-    * By default emits the Integer 0 for every newData and the Integer 1
-    * for every model update.
-    * </p>
-    */
+   * Creates newData using the model produced in batch-processing and the
+   * up-to-date partial model.
+   *
+   * By default emits the Integer 0 for every newData and the Integer 1
+   * for every model update.
+   *
+   */
   private class Predictor extends CoMapFunction[Int, Array[Double], Int] {
 
     var batchModel: Array[Double] = null
