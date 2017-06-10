@@ -29,7 +29,9 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -39,8 +41,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidClassException;
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -55,7 +60,10 @@ import static org.mockito.Mockito.mock;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(TypeSerializerSerializationUtil.class)
-public class TypeSerializerSerializationUtilTest {
+public class TypeSerializerSerializationUtilTest implements Serializable {
+
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Verifies that reading and writing serializers work correctly.
@@ -236,6 +244,36 @@ public class TypeSerializerSerializationUtilTest {
 		Assert.assertEquals(DoubleSerializer.INSTANCE.snapshotConfiguration(), restored.get(1).f1);
 	}
 
+	/**
+	 * Verifies that serializers of anonymous classes can be deserialized, even if serialVersionUID changes.
+	 */
+	@Test
+	public void testAnonymousSerializerClassWithChangedSerialVersionUID() throws Exception {
+
+		TypeSerializer anonymousClassSerializer = new AbstractIntSerializer() {};
+		// assert that our assumption holds
+		Assert.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
+
+		byte[] anonymousSerializerBytes;
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerSerializationUtil.writeSerializer(new DataOutputViewStreamWrapper(out), anonymousClassSerializer);
+			anonymousSerializerBytes = out.toByteArray();
+		}
+
+		long newSerialVersionUID = 1234567L;
+		// assert that we're actually modifying to a different serialVersionUID
+		Assert.assertNotEquals(ObjectStreamClass.lookup(anonymousClassSerializer.getClass()).getSerialVersionUID(), newSerialVersionUID);
+		modifySerialVersionUID(anonymousSerializerBytes, anonymousClassSerializer.getClass().getName(), newSerialVersionUID);
+
+		try (ByteArrayInputStream in = new ByteArrayInputStream(anonymousSerializerBytes)) {
+			anonymousClassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		// serializer should have been deserialized despite serialVersionUID mismatch
+		Assert.assertNotNull(anonymousClassSerializer);
+		Assert.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
+	}
+
 	public static class TestConfigSnapshot extends TypeSerializerConfigSnapshot {
 
 		static final int VERSION = 1;
@@ -290,6 +328,124 @@ public class TypeSerializerSerializationUtilTest {
 		@Override
 		public int hashCode() {
 			return 31 * val + msg.hashCode();
+		}
+	}
+
+	private static void modifySerialVersionUID(byte[] objectBytes, String classname, long newSerialVersionUID) throws Exception {
+		byte[] classnameBytes = classname.getBytes();
+
+		// serialVersionUID follows directly after classname in the object byte stream;
+		// advance serialVersionUIDPosition until end of classname in stream
+		int serialVersionUIDOffset;
+		boolean foundClass = false;
+		int numMatchedBytes = 0;
+		for (serialVersionUIDOffset = 0; serialVersionUIDOffset < objectBytes.length; serialVersionUIDOffset++) {
+			if (objectBytes[serialVersionUIDOffset] == classnameBytes[numMatchedBytes]) {
+				numMatchedBytes++;
+				foundClass = true;
+			} else {
+				if (objectBytes[serialVersionUIDOffset] == classnameBytes[0]) {
+					numMatchedBytes = 1;
+				} else {
+					numMatchedBytes = 0;
+					foundClass = false;
+				}
+			}
+
+			if (numMatchedBytes == classnameBytes.length) {
+				break;
+			}
+		}
+
+		if (!foundClass) {
+			throw new RuntimeException("Could not find class " + classname + " in object byte stream.");
+		}
+
+		byte[] newUIDBytes = ByteBuffer.allocate(Long.SIZE / Byte.SIZE).putLong(newSerialVersionUID).array();
+
+		// replace original serialVersionUID bytes with new serialVersionUID bytes
+		for (int uidIndex = 0; uidIndex < newUIDBytes.length; uidIndex++) {
+			objectBytes[serialVersionUIDOffset + 1 + uidIndex] = newUIDBytes[uidIndex];
+		}
+	}
+
+	public static abstract class AbstractIntSerializer extends TypeSerializer<Integer> {
+
+		public static final long serialVersionUID = 1;
+
+		@Override
+		public Integer createInstance() {
+			return IntSerializer.INSTANCE.createInstance();
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return IntSerializer.INSTANCE.isImmutableType();
+		}
+
+		@Override
+		public Integer copy(Integer from) {
+			return IntSerializer.INSTANCE.copy(from);
+		}
+
+		@Override
+		public Integer copy(Integer from, Integer reuse) {
+			return IntSerializer.INSTANCE.copy(from, reuse);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			IntSerializer.INSTANCE.copy(source, target);
+		}
+
+		@Override
+		public Integer deserialize(DataInputView source) throws IOException {
+			return IntSerializer.INSTANCE.deserialize(source);
+		}
+
+		@Override
+		public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
+			return IntSerializer.INSTANCE.deserialize(reuse, source);
+		}
+
+		@Override
+		public void serialize(Integer record, DataOutputView target) throws IOException {
+			IntSerializer.INSTANCE.serialize(record, target);
+		}
+
+		@Override
+		public TypeSerializer<Integer> duplicate() {
+			return IntSerializer.INSTANCE.duplicate();
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return IntSerializer.INSTANCE.snapshotConfiguration();
+		}
+
+		@Override
+		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			return IntSerializer.INSTANCE.ensureCompatibility(configSnapshot);
+		}
+
+		@Override
+		public int getLength() {
+			return IntSerializer.INSTANCE.getLength();
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return IntSerializer.INSTANCE.canEqual(obj);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return IntSerializer.INSTANCE.equals(obj);
+		}
+
+		@Override
+		public int hashCode() {
+			return IntSerializer.INSTANCE.hashCode();
 		}
 	}
 }
