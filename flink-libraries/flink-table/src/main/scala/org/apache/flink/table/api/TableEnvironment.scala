@@ -718,8 +718,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
     if (schema.physicalTypeInfo != inputTypeInfo) {
-      throw TableException("The field types of physical and logical row types do not match." +
-        "This is a bug and should not happen. Please file an issue.")
+      throw TableException(
+        s"The field types of physical and logical row types do not match. " +
+        s"Physical type is [${schema.physicalTypeInfo}], Logical type is [${inputTypeInfo}]. " +
+        s"This is a bug and should not happen. Please file an issue.")
     }
 
     val fieldTypes = schema.physicalFieldTypeInfo
@@ -727,7 +729,9 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // validate requested type
     if (requestedTypeInfo.getArity != fieldTypes.length) {
-      throw new TableException("Arity of result does not match requested type.")
+      throw new TableException(
+        s"Arity[${fieldTypes.length}] of result[${fieldTypes}] does not match " +
+        s"the number[${requestedTypeInfo.getArity}] of requested type[${requestedTypeInfo}].")
     }
 
     requestedTypeInfo match {
@@ -761,7 +765,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       case at: AtomicType[_] =>
         if (fieldTypes.size != 1) {
           throw new TableException(s"Requested result type is an atomic type but " +
-            s"result has more or less than a single field.")
+            s"result[$fieldTypes] has more or less than a single field.")
         }
         val fieldTypeInfo = fieldTypes.head
         if (fieldTypeInfo != at) {
@@ -804,10 +808,6 @@ abstract class TableEnvironment(val config: TableConfig) {
   * environment.
   */
 object TableEnvironment {
-
-  // default names that can be used in in TableSources etc.
-  val DEFAULT_ROWTIME_ATTRIBUTE = "rowtime"
-  val DEFAULT_PROCTIME_ATTRIBUTE = "proctime"
 
   /**
     * Returns a [[JavaBatchTableEnv]] for a Java [[JavaBatchExecEnv]].
