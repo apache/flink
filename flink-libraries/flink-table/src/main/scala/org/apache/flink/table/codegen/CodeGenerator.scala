@@ -939,7 +939,7 @@ class CodeGenerator(
     //s"requested: $requestedTypeInfo; Actual: $fType")
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException(
-        s"Arity[${returnType.getArity}] of result type[$returnType}] does not match " +
+        s"Arity[${returnType.getArity}] of result type[$returnType] does not match " +
         s"number[${fieldExprs.length}] of expressions[$fieldExprs].")
     }
     if (resultFieldNames.length != fieldExprs.length) {

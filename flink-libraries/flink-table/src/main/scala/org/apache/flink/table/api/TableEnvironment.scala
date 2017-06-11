@@ -730,8 +730,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     // validate requested type
     if (requestedTypeInfo.getArity != fieldTypes.length) {
       throw new TableException(
-        s"Arity[${requestedTypeInfo.getArity}] of result[${requestedTypeInfo}] does not match " +
-        s"the number[${fieldTypes.length}] of requested type[${fieldTypes}].")
+        s"Arity[${fieldTypes.length}] of result[${fieldTypes}] does not match " +
+        s"the number[${requestedTypeInfo.getArity}] of requested type[${requestedTypeInfo}].")
     }
 
     requestedTypeInfo match {
