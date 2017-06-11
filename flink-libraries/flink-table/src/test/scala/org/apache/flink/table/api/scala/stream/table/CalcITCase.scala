@@ -42,7 +42,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1, '_2, '_3)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -61,7 +61,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("1", "2", "3")
@@ -80,7 +80,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
       .select('a, 'b)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -100,7 +100,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
       .select('a, 'b, 'c)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -119,7 +119,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
     val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("no")
@@ -135,7 +135,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
     val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'b)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("no")
@@ -152,7 +152,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
     val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b as 'c, 'd)
 
     val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("no")
@@ -172,7 +172,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
 
     val filterDs = ds.filter('a === 3)
     val results = filterDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("3,2,Hello world")
@@ -192,7 +192,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
 
     val filterDs = ds.filter( Literal(false) )
     val results = filterDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     assertEquals(true, StreamITCase.testResults.isEmpty)
@@ -211,7 +211,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
 
     val filterDs = ds.filter( Literal(true) )
     val results = filterDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -234,7 +234,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
 
     val filterDs = ds.filter( 'a % 2 === 0 )
     val results = filterDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -258,7 +258,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
 
     val filterDs = ds.filter( 'a % 2 !== 0)
     val results = filterDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = mutable.MutableList(
       "1,1,Hi", "3,2,Hello world",

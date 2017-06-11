@@ -55,7 +55,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('c, 'name, 'age)
       .toAppendStream[Row]
 
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("Jack#22,Jack,22", "Anna#44,Anna,44")
@@ -72,7 +72,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('c, 'd, 'e)
       .toAppendStream[Row]
 
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -92,7 +92,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('c, 'd, 'e)
       .toAppendStream[Row]
 
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19")
@@ -112,7 +112,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('a, 's)
 
     val results = result.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("3,Hello", "3,world")
@@ -136,7 +136,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('a, 's)
 
     val results = result.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -166,7 +166,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
       .toAppendStream[Row]
 
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -189,7 +189,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
     val result = t.select(func0('c), func1('c),func2('c))
 
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -211,7 +211,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('c)
       .join(varArgsFunc0("1", "2", 'c))
 
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(

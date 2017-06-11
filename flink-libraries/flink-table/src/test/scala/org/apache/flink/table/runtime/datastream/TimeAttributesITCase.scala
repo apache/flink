@@ -104,7 +104,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = table.select('rowtime.cast(Types.STRING))
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -135,7 +135,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -162,7 +162,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = table.join(func('rowtime, 'proctime, 'string) as 's).select('rowtime, 's)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -197,7 +197,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .select('w.rowtime, 's.count)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -223,7 +223,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = table.unionAll(table).select('rowtime)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -261,7 +261,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -294,7 +294,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .select('w2.rowtime, 'w2.end, 'int.count)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(

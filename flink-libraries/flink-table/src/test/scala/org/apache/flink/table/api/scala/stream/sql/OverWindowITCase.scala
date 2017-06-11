@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.api.scala.stream.sql
 
+import java.sql.Timestamp
+
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala.stream.sql.OverWindowITCase.EventTimeSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -31,6 +33,7 @@ import org.junit.Assert._
 import org.junit._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.table.api.java.utils.Pojos.Pojo3
 
 import scala.collection.mutable
 
@@ -68,7 +71,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
   }
 
@@ -93,7 +96,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "FROM MyTable"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -135,7 +138,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -178,7 +181,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -206,7 +209,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "as cnt1 from T1)"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -236,7 +239,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -261,7 +264,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List("1", "2", "3", "4", "5", "6", "7", "8", "9")
@@ -323,7 +326,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       " FROM T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -384,7 +387,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "FROM T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -452,7 +455,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       " FROM T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -513,7 +516,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "FROM T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -574,7 +577,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -640,7 +643,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -702,7 +705,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -763,7 +766,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -835,7 +838,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -854,6 +857,90 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "2,5,Hello world,8,3,2,5,1",
       "3,5,Hello world,8,3,2,5,1"
     )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowTimeBoundedPartitionedRangeOverWithPojoType(): Unit = {
+    val data = Seq(
+      Left((1500L, (1L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((1600L, (1L, Timestamp.valueOf("2017-06-11 11:17:15"), "Hello"))),
+      Left((1000L, (1L, Timestamp.valueOf("2017-06-12 11:12:15"), "Hello"))),
+      Left((2000L, (2L, Timestamp.valueOf("2017-06-12 11:12:15"), "Hello"))),
+      Right(1000L),
+      Left((2000L, (2L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((2000L, (2L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((3000L, (3L, Timestamp.valueOf("2017-07-11 11:12:15"), "Hello"))),
+      Right(2000L),
+      Left((4000L, (4L, Timestamp.valueOf("2017-07-11 11:12:15"), "Hello"))),
+      Right(3000L),
+      Left((5000L, (5L, Timestamp.valueOf("2018-06-11 11:12:15"), "Hello"))),
+      Right(5000L),
+      Left((6000L, (6L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((6500L, (6L, Timestamp.valueOf("2017-06-11 11:12:12"), "Hello"))),
+      Right(7000L),
+      Left((9000L, (6L, Timestamp.valueOf("2017-06-11 11:01:15"), "Hello"))),
+      Left((9500L, (6L, Timestamp.valueOf("2017-06-19 11:12:15"), "Hello"))),
+      Left((9000L, (6L, Timestamp.valueOf("2015-06-11 11:12:15"), "Hello"))),
+      Right(10000L),
+      Left((10000L, (7L, Timestamp.valueOf("2017-07-11 11:12:15"), "Hello World"))),
+      Left((11000L, (7L, Timestamp.valueOf("2017-01-11 11:12:15"), "Hello World"))),
+      Left((11000L, (7L, Timestamp.valueOf("2018-06-11 11:12:15"), "Hello World"))),
+      Right(12000L),
+      Left((14000L, (7L, Timestamp.valueOf("2017-09-11 11:12:15"), "Hello World"))),
+      Right(14000L),
+      Left((15000L, (8L, Timestamp.valueOf("2020-06-11 11:12:15"), "Hello World"))),
+      Right(17000L),
+      Left((20000L, (20L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello World"))),
+      Right(19000L))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val table = env
+      .addSource[(Long, Timestamp, String)](
+        new EventTimeSourceFunction[(Long, Timestamp, String)](data))
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", table)
+
+    val sqlQuery = "SELECT " +
+      "c as myMsg," +
+      "b as myTs, " +
+      "count(a) over (partition by c order by rowtime range between interval '1' second preceding" +
+      " and current row) as myCnt, " +
+      "sum(a) over (partition by c order by rowtime range between interval '1' second preceding" +
+      " and current row) as mySum " +
+      "from T1"
+
+    val result = tEnv.sql(sqlQuery).toAppendStream[Pojo3]
+    result.addSink(new StreamITCase.StringSink[Pojo3])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Pojo3{myMsg='Hello World', myTs=2017-01-11 11:12:15.0, myCnt=3, mySum=21}",
+      "Pojo3{myMsg='Hello World', myTs=2017-06-11 11:12:15.0, myCnt=1, mySum=20}",
+      "Pojo3{myMsg='Hello World', myTs=2017-07-11 11:12:15.0, myCnt=1, mySum=7}",
+      "Pojo3{myMsg='Hello World', myTs=2017-09-11 11:12:15.0, myCnt=1, mySum=7}",
+      "Pojo3{myMsg='Hello World', myTs=2018-06-11 11:12:15.0, myCnt=3, mySum=21}",
+      "Pojo3{myMsg='Hello World', myTs=2020-06-11 11:12:15.0, myCnt=2, mySum=15}",
+      "Pojo3{myMsg='Hello', myTs=2015-06-11 11:12:15.0, myCnt=2, mySum=12}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:01:15.0, myCnt=2, mySum=12}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:12.0, myCnt=2, mySum=12}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=2, mySum=11}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=2, mySum=2}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=6, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=6, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:17:15.0, myCnt=3, mySum=3}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-12 11:12:15.0, myCnt=1, mySum=1}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-12 11:12:15.0, myCnt=6, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-19 11:12:15.0, myCnt=3, mySum=18}",
+      "Pojo3{myMsg='Hello', myTs=2017-07-11 11:12:15.0, myCnt=2, mySum=7}",
+      "Pojo3{myMsg='Hello', myTs=2017-07-11 11:12:15.0, myCnt=4, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2018-06-11 11:12:15.0, myCnt=2, mySum=9}")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

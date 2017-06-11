@@ -70,7 +70,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       .select('int.count, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -105,7 +105,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -142,7 +142,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -176,7 +176,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -205,7 +205,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -233,7 +233,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = Seq(
       "Hallo,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",

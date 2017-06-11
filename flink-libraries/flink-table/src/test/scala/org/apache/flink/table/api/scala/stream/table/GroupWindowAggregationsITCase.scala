@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.table.api.java.utils.Pojos.Pojo2
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
@@ -71,7 +72,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toAppendStream[Row](queryConfig)
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("Hello world,1,3,8,3", "Hello world,2,3,12,3", "Hello,1,2,2,2",
@@ -113,7 +114,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("Hello World,1,9,9,9", "Hello,1,16,16,16", "Hello,4,3,5,5")
@@ -139,7 +140,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toAppendStream[Row](queryConfig)
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("2,1,1,1", "2,2,6,2")
@@ -167,7 +168,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('int, 'int), 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -175,6 +176,50 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       "Hello world,1,3,16,3,3,3,3,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02",
       "Hello,2,2,3,2,2,2,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "Hi,1,1,1,1,1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testEventTimeTumblingWindowWithPojoType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(0L))
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string)
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
+
+    val windowedTable = table
+        .window(Tumble over 5.milli on 'rowtime as 'w)
+        .groupBy('w, 'string)
+        .select(
+          'string,
+          countFun('string) as 'myCnt,
+          'int.avg as 'myAvg,
+          weightAvgFun('int, 'int) as 'myWeightAvg,
+          'int.min as 'myMin,
+          'int.max as 'myMax,
+          'int.sum as 'mySum,
+          'w.start as 'winStart,
+          'w.end as 'winEnd)
+
+    val results = windowedTable.toAppendStream[Pojo2]
+    results.addSink(new StreamITCase.StringSink[Pojo2])
+    env.execute()
+
+    val expected = Seq(
+      "Pojo2{string='Hello world', myCnt=1, myAvg=3, myWeightAvg=3, myMin=3, myMax=3, mySum=3, " +
+        "winStart=1970-01-01 00:00:00.005, winEnd=1970-01-01 00:00:00.01}",
+      "Pojo2{string='Hello world', myCnt=1, myAvg=3, myWeightAvg=3, myMin=3, myMax=3, mySum=3, " +
+        "winStart=1970-01-01 00:00:00.015, winEnd=1970-01-01 00:00:00.02}",
+      "Pojo2{string='Hello', myCnt=2, myAvg=2, myWeightAvg=2, myMin=2, myMax=2, mySum=4, " +
+        "winStart=1970-01-01 00:00:00.0, winEnd=1970-01-01 00:00:00.005}",
+      "Pojo2{string='Hi', myCnt=1, myAvg=1, myWeightAvg=1, myMin=1, myMax=1, mySum=1, " +
+        "winStart=1970-01-01 00:00:00.0, winEnd=1970-01-01 00:00:00.005}")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -203,7 +248,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select(weightAvgFun('long, 'int))
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("12", "8", "2", "3", "1")

@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.api.scala.stream.table
 
+import java.sql.Timestamp
+
+import org.apache.flink.table.api.java.utils.Pojos.Pojo3
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -70,7 +73,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'mycount, 'wAvg)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -131,7 +134,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
         weightAvgFun('b, 'a) over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -186,7 +189,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
       .select('a, 'c.sum over 'w, 'c.min over 'w)
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -249,7 +252,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -312,7 +315,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'b, 'a.count over 'w, 'a.sum over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -326,6 +329,87 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello World,7,1,7", "Hello World,17,3,21", "Hello World,77,3,21", "Hello World,18,1,7",
       "Hello World,8,2,15",
       "Hello World,20,1,20")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowTimeBoundedPartitionedRangeOverWithPojoType(): Unit = {
+    val data = Seq(
+      Left((1500L, (1L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((1600L, (1L, Timestamp.valueOf("2017-06-11 11:17:15"), "Hello"))),
+      Left((1000L, (1L, Timestamp.valueOf("2017-06-12 11:12:15"), "Hello"))),
+      Left((2000L, (2L, Timestamp.valueOf("2017-06-12 11:12:15"), "Hello"))),
+      Right(1000L),
+      Left((2000L, (2L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((2000L, (2L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((3000L, (3L, Timestamp.valueOf("2017-07-11 11:12:15"), "Hello"))),
+      Right(2000L),
+      Left((4000L, (4L, Timestamp.valueOf("2017-07-11 11:12:15"), "Hello"))),
+      Right(3000L),
+      Left((5000L, (5L, Timestamp.valueOf("2018-06-11 11:12:15"), "Hello"))),
+      Right(5000L),
+      Left((6000L, (6L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello"))),
+      Left((6500L, (6L, Timestamp.valueOf("2017-06-11 11:12:12"), "Hello"))),
+      Right(7000L),
+      Left((9000L, (6L, Timestamp.valueOf("2017-06-11 11:01:15"), "Hello"))),
+      Left((9500L, (6L, Timestamp.valueOf("2017-06-19 11:12:15"), "Hello"))),
+      Left((9000L, (6L, Timestamp.valueOf("2015-06-11 11:12:15"), "Hello"))),
+      Right(10000L),
+      Left((10000L, (7L, Timestamp.valueOf("2017-07-11 11:12:15"), "Hello World"))),
+      Left((11000L, (7L, Timestamp.valueOf("2017-01-11 11:12:15"), "Hello World"))),
+      Left((11000L, (7L, Timestamp.valueOf("2018-06-11 11:12:15"), "Hello World"))),
+      Right(12000L),
+      Left((14000L, (7L, Timestamp.valueOf("2017-09-11 11:12:15"), "Hello World"))),
+      Right(14000L),
+      Left((15000L, (8L, Timestamp.valueOf("2020-06-11 11:12:15"), "Hello World"))),
+      Right(17000L),
+      Left((20000L, (20L, Timestamp.valueOf("2017-06-11 11:12:15"), "Hello World"))),
+      Right(19000L))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val table = env.addSource[(Long, Timestamp, String)](
+      new RowTimeSourceFunction[(Long, Timestamp, String)](data))
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    val windowedTable = table
+      .window(
+        Over partitionBy 'c orderBy 'rowtime preceding 1.seconds following CURRENT_RANGE as 'w)
+      .select(
+        'c as 'myMsg,
+        'b as 'myTs,
+        'a.count over 'w as 'myCnt,
+        'a.sum over 'w as 'mySum)
+
+    val result = windowedTable.toAppendStream[Pojo3]
+    result.addSink(new StreamITCase.StringSink[Pojo3])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Pojo3{myMsg='Hello World', myTs=2017-01-11 11:12:15.0, myCnt=3, mySum=21}",
+      "Pojo3{myMsg='Hello World', myTs=2017-06-11 11:12:15.0, myCnt=1, mySum=20}",
+      "Pojo3{myMsg='Hello World', myTs=2017-07-11 11:12:15.0, myCnt=1, mySum=7}",
+      "Pojo3{myMsg='Hello World', myTs=2017-09-11 11:12:15.0, myCnt=1, mySum=7}",
+      "Pojo3{myMsg='Hello World', myTs=2018-06-11 11:12:15.0, myCnt=3, mySum=21}",
+      "Pojo3{myMsg='Hello World', myTs=2020-06-11 11:12:15.0, myCnt=2, mySum=15}",
+      "Pojo3{myMsg='Hello', myTs=2015-06-11 11:12:15.0, myCnt=2, mySum=12}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:01:15.0, myCnt=2, mySum=12}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:12.0, myCnt=2, mySum=12}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=2, mySum=11}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=2, mySum=2}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=6, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:12:15.0, myCnt=6, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-11 11:17:15.0, myCnt=3, mySum=3}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-12 11:12:15.0, myCnt=1, mySum=1}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-12 11:12:15.0, myCnt=6, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2017-06-19 11:12:15.0, myCnt=3, mySum=18}",
+      "Pojo3{myMsg='Hello', myTs=2017-07-11 11:12:15.0, myCnt=2, mySum=7}",
+      "Pojo3{myMsg='Hello', myTs=2017-07-11 11:12:15.0, myCnt=4, mySum=9}",
+      "Pojo3{myMsg='Hello', myTs=2018-06-11 11:12:15.0, myCnt=2, mySum=9}")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

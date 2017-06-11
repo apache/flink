@@ -45,10 +45,19 @@ class RowSchema(private val logicalRowType: RelDataType) {
     FlinkTypeFactory.toTypeInfo(f.getType)
   }
 
+  private lazy val logicalRowFieldTypes: Seq[TypeInformation[_]] = logicalRowType.getFieldList map {
+    f => FlinkTypeFactory.toTypeInfo(f.getType)
+  }
+
   private lazy val physicalRowFieldNames: Seq[String] = physicalRowFields.map(_.getName)
+
+  private lazy val logicalRowFieldNames: Seq[String] = logicalRowType.getFieldList.map(_.getName)
 
   private lazy val physicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
     physicalRowFieldTypes.toArray, physicalRowFieldNames.toArray)
+
+  private lazy val logicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
+    logicalRowFieldTypes.toArray, logicalRowFieldNames.toArray)
 
   private lazy val indexMapping: Array[Int] = generateIndexMapping
 
@@ -113,9 +122,19 @@ class RowSchema(private val logicalRowType: RelDataType) {
   def physicalTypeInfo: TypeInformation[Row] = physicalRowTypeInfo
 
   /**
+    * Returns a logical [[TypeInformation]] of row with all logical fields.
+    */
+  def logicalTypeInfo: TypeInformation[Row] = logicalRowTypeInfo
+
+  /**
     * Returns [[TypeInformation]] of the row's fields with no logical fields (i.e. time indicators).
     */
   def physicalFieldTypeInfo: Seq[TypeInformation[_]] = physicalRowFieldTypes
+
+  /**
+    * Returns [[TypeInformation]] of the row's fields with all logical fields.
+    */
+  def logicalFieldTypeInfo: Seq[TypeInformation[_]] = logicalRowFieldTypes
 
   /**
     * Returns the logical fields names including logical fields (i.e. time indicators).
