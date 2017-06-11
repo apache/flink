@@ -1163,7 +1163,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				}
 			}
 
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 
