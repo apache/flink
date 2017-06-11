@@ -42,7 +42,7 @@ class ExternalTableSourceUtilTest {
     val schema = new TableSchema(Array("foo"), Array(BasicTypeInfo.INT_TYPE_INFO))
     val table = ExternalCatalogTable("mock", schema)
     val tableSource = ExternalTableSourceUtil.fromExternalCatalogTable(table)
-    assertTrue(tableSource.isInstanceOf[TableSourceTable[_]])
+    assertTrue(tableSource.tableSource.isInstanceOf[StreamTableSource[_]])
   }
 }
 
