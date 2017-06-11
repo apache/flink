@@ -60,6 +60,8 @@ public final class CompatibilityResult<T> {
 	 * @param convertDeserializer the convert deserializer to use, in the case that the preceding serializer
 	 *                            cannot be found.
 	 *
+	 * @param <T> the type of the data being migrated.
+	 *
 	 * @return a result that signals migration is necessary, also providing a convert deserializer.
 	 */
 	public static <T> CompatibilityResult<T> requiresMigration(@Nonnull TypeDeserializer<T> convertDeserializer) {
@@ -69,11 +71,29 @@ public final class CompatibilityResult<T> {
 	}
 
 	/**
+	 * Returns a result that signals migration to be performed, and in the case that the preceding serializer
+	 * cannot be found or restored to read the previous data during migration, a provided convert serializer
+	 * can be used. The provided serializer will only be used for deserialization.
+	 *
+	 * @param convertSerializer the convert serializer to use, in the case that the preceding serializer
+	 *                          cannot be found. The provided serializer will only be used for deserialization.
+	 *
+	 * @param <T> the type of the data being migrated.
+	 *
+	 * @return a result that signals migration is necessary, also providing a convert serializer.
+	 */
+	public static <T> CompatibilityResult<T> requiresMigration(@Nonnull TypeSerializer<T> convertSerializer) {
+		Preconditions.checkNotNull(convertSerializer, "Convert serializer cannot be null.");
+
+		return new CompatibilityResult<>(true, new TypeDeserializerAdapter<>(convertSerializer));
+	}
+
+	/**
 	 * Returns a result that signals migration to be performed. The migration will fail if the preceding
 	 * serializer for the previous data cannot be found.
 	 *
-	 * <p>You can also provide a convert deserializer using {@link #requiresMigration(TypeDeserializer)},
-	 * which will be used as a fallback resort in such cases.
+	 * <p>You can also provide a convert deserializer using {@link #requiresMigration(TypeDeserializer)}
+	 * or {@link #requiresMigration(TypeSerializer)}, which will be used as a fallback resort in such cases.
 	 *
 	 * @return a result that signals migration is necessary, without providing a convert deserializer.
 	 */

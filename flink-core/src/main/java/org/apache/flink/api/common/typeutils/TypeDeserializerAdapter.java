@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
@@ -25,27 +26,42 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A utility class that wraps a {@link TypeDeserializer} as a {@link TypeSerializer}.
+ * A utility class that is used to bridge a {@link TypeSerializer} and {@link TypeDeserializer}.
+ * It either wraps a type deserializer or serializer, and can only ever be used for deserialization
+ * (i.e. only read-related methods is functional).
  *
- * <p>Methods related to deserialization are directly forwarded to the wrapped deserializer,
+ * <p>Methods related to deserialization are directly forwarded to the wrapped deserializer or serializer,
  * while serialization methods are masked and not intended for use.
  *
  * @param <T> The data type that the deserializer deserializes.
  */
-public final class TypeDeserializerAdapter<T> extends TypeSerializer<T> {
+@Internal
+public final class TypeDeserializerAdapter<T> extends TypeSerializer<T> implements TypeDeserializer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The actual wrapped deserializer instance */
+	/** The actual wrapped deserializer or serializer instance */
 	private final TypeDeserializer<T> deserializer;
+	private final TypeSerializer<T> serializer;
 
 	/**
-	 * Creates a {@link TypeSerializer} that wraps a {@link TypeDeserializer}.
+	 * Creates a {@link TypeDeserializerAdapter} that wraps a {@link TypeDeserializer}.
 	 *
 	 * @param deserializer the actual deserializer to wrap.
 	 */
 	public TypeDeserializerAdapter(TypeDeserializer<T> deserializer) {
 		this.deserializer = Preconditions.checkNotNull(deserializer);
+		this.serializer = null;
+	}
+
+	/**
+	 * Creates a {@link TypeDeserializerAdapter} that wraps a {@link TypeSerializer}.
+	 *
+	 * @param serializer the actual serializer to wrap.
+	 */
+	public TypeDeserializerAdapter(TypeSerializer<T> serializer) {
+		this.deserializer = null;
+		this.serializer = Preconditions.checkNotNull(serializer);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -53,31 +69,31 @@ public final class TypeDeserializerAdapter<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	public T deserialize(DataInputView source) throws IOException {
-		return deserializer.deserialize(source);
+		return (deserializer != null) ? deserializer.deserialize(source) : serializer.deserialize(source);
 	}
 
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		return deserializer.deserialize(reuse, source);
+		return (deserializer != null) ? deserializer.deserialize(reuse, source) : serializer.deserialize(reuse, source);
 	}
 
 	public TypeSerializer<T> duplicate() {
-		return deserializer.duplicate();
+		return (deserializer != null) ? deserializer.duplicate() : serializer.duplicate();
 	}
 
 	public int getLength() {
-		return deserializer.getLength();
+		return (deserializer != null) ? deserializer.getLength() : serializer.getLength();
 	}
 
 	public boolean equals(Object obj) {
-		return deserializer.equals(obj);
+		return (deserializer != null) ? deserializer.equals(obj) : serializer.equals(obj);
 	}
 
 	public boolean canEqual(Object obj) {
-		return deserializer.canEqual(obj);
+		return (deserializer != null) ? deserializer.canEqual(obj) : serializer.canEqual(obj);
 	}
 
 	public int hashCode() {
-		return deserializer.hashCode();
+		return (deserializer != null) ? deserializer.hashCode() : serializer.hashCode();
 	}
 
 	// --------------------------------------------------------------------------------------------
