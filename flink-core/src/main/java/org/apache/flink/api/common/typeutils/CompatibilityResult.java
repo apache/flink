@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
 /**
  * A {@code CompatibilityResult} contains information about whether or not data migration
  * is required in order to continue using new serializers for previously serialized data.
@@ -60,10 +62,10 @@ public final class CompatibilityResult<T> {
 	 *
 	 * @return a result that signals migration is necessary, also providing a convert deserializer.
 	 */
-	public static <T> CompatibilityResult<T> requiresMigration(TypeDeserializer<T> convertDeserializer) {
+	public static <T> CompatibilityResult<T> requiresMigration(@Nonnull TypeDeserializer<T> convertDeserializer) {
 		Preconditions.checkNotNull(convertDeserializer, "Convert deserializer cannot be null.");
 
-		return new CompatibilityResult<>(true, Preconditions.checkNotNull(convertDeserializer));
+		return new CompatibilityResult<>(true, convertDeserializer);
 	}
 
 	/**
