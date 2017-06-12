@@ -1177,7 +1177,7 @@ public class Task implements Runnable, TaskActions {
 				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
-						// activate safety net for checkpointing thread
+						// set safety net from the task's context for checkpointing thread
 						LOG.debug("Creating FileSystem stream leak safety net for {}", Thread.currentThread().getName());
 						FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
@@ -1200,9 +1200,7 @@ public class Task implements Runnable, TaskActions {
 									taskNameWithSubtask, executionId, t);
 							}
 						} finally {
-							// close and de-activate safety net for checkpointing thread
-							LOG.debug("Ensuring all FileSystem streams are closed for {}",
-									Thread.currentThread().getName());
+							FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(null);
 						}
 					}
 				};
