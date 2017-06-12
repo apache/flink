@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.lang.reflect.Method
 import java.util
 
 import org.apache.calcite.rel.`type`._
@@ -83,13 +82,13 @@ object AggregateUtil {
       isRowsClause: Boolean)
     : ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, accTypes) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
         needRetraction = false)
 
-    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
     val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
@@ -160,7 +159,7 @@ object AggregateUtil {
       generateRetraction: Boolean,
       consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, accTypes) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputRowType,
@@ -170,7 +169,7 @@ object AggregateUtil {
 
     val outputArity = groupings.length + aggregates.length
 
-    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
 
     val genFunction = generator.generateAggregations(
       "NonWindowedAggregationHelper",
@@ -224,13 +223,13 @@ object AggregateUtil {
     : ProcessFunction[CRow, CRow] = {
 
     val needRetract = true
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, accTypes) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
         needRetract)
 
-    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
     val inputRowType = CRowTypeInfo(inputTypeInfo)
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
@@ -323,7 +322,7 @@ object AggregateUtil {
   : MapFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
       needRetract)
@@ -332,6 +331,7 @@ object AggregateUtil {
       createRowTypeForKeysAndAggregates(
         groupings,
         aggregates,
+        accTypes,
         inputType,
         Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
@@ -428,7 +428,7 @@ object AggregateUtil {
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -436,6 +436,7 @@ object AggregateUtil {
     val returnType: RowTypeInfo = createRowTypeForKeysAndAggregates(
       groupings,
       aggregates,
+      accTypes,
       physicalInputRowType,
       Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
@@ -541,7 +542,7 @@ object AggregateUtil {
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, _) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -688,7 +689,7 @@ object AggregateUtil {
     groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -703,6 +704,7 @@ object AggregateUtil {
           createRowTypeForKeysAndAggregates(
             groupings,
             aggregates,
+            accTypes,
             physicalInputRowType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
@@ -761,7 +763,7 @@ object AggregateUtil {
     : GroupCombineFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -777,6 +779,7 @@ object AggregateUtil {
           createRowTypeForKeysAndAggregates(
             groupings,
             aggregates,
+            accTypes,
             physicalInputRowType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
@@ -827,7 +830,7 @@ object AggregateUtil {
         RichGroupReduceFunction[Row, Row]) = {
 
     val needRetract = false
-    val (aggInFields, aggregates) = transformToAggregateFunctions(
+    val (aggInFields, aggregates, accTypes) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
       needRetract)
@@ -858,7 +861,7 @@ object AggregateUtil {
       // compute preaggregation type
       val preAggFieldTypes = gkeyOutMapping.map(_._2)
         .map(inputType.getFieldList.get(_).getType)
-        .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(aggregates)
+        .map(FlinkTypeFactory.toTypeInfo) ++ accTypes
       val preAggRowType = new RowTypeInfo(preAggFieldTypes: _*)
 
       val genPreAggFunction = generator.generateAggregations(
@@ -999,7 +1002,7 @@ object AggregateUtil {
     : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val needRetract = false
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, accTypes) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
@@ -1027,7 +1030,7 @@ object AggregateUtil {
 
     val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
 
-    val accumulatorRowType = createAccumulatorRowType(aggregates)
+    val accumulatorRowType = new RowTypeInfo(accTypes: _*)
     val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
     val aggFunction = new AggregateAggFunction(genFunction)
 
@@ -1158,11 +1161,12 @@ object AggregateUtil {
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       needRetraction: Boolean)
-  : (Array[Array[Int]], Array[TableAggregateFunction[_ <: Any, _ <: Any]]) = {
+  : (Array[Array[Int]], Array[TableAggregateFunction[_, _]], Array[TypeInformation[_]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     val aggFieldIndexes = new Array[Array[Int]](aggregateCalls.size)
     val aggregates = new Array[TableAggregateFunction[_ <: Any, _ <: Any]](aggregateCalls.size)
+    val accTypes = new Array[TypeInformation[_]](aggregateCalls.size)
 
     // create aggregate function instances by function type and aggregate field data type.
     aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
@@ -1388,50 +1392,27 @@ object AggregateUtil {
 
         case udagg: AggSqlFunction =>
           aggregates(index) = udagg.getFunction
+          accTypes(index) = udagg.accType
 
         case unSupported: SqlAggFunction =>
           throw new TableException(s"unsupported Function: '${unSupported.getName}'")
       }
     }
 
-    (aggFieldIndexes, aggregates)
-  }
-
-  private def createAccumulatorType(
-      aggregates: Array[TableAggregateFunction[_, _]]): Seq[TypeInformation[_]] = {
-
-    val aggTypes: Seq[TypeInformation[_]] =
-      aggregates.map {
-        agg =>
-          val accType = try {
-            val method: Method = agg.getClass.getMethod("getAccumulatorType")
-            method.invoke(agg).asInstanceOf[TypeInformation[_]]
-          } catch {
-            case _: NoSuchMethodException => null
-            case ite: Throwable => throw new TableException("Unexpected exception:", ite)
-          }
-          if (accType != null) {
-            accType
-          } else {
-            val accumulator = agg.createAccumulator()
-            try {
-              TypeInformation.of(accumulator.getClass)
-            } catch {
-              case ite: InvalidTypesException =>
-                throw new TableException(
-                  "Cannot infer type of accumulator. " +
-                    "You can override AggregateFunction.getAccumulatorType() to specify the type.",
-                  ite)
-            }
-          }
+    // create accumulator type information for every aggregate function
+    aggregates.zipWithIndex.foreach { case (agg, index) =>
+      if (null == accTypes(index)) {
+        accTypes(index) = getAccumulatorTypeOfAggregateFunction(agg)
       }
+    }
 
-    aggTypes
+    (aggFieldIndexes, aggregates, accTypes)
   }
 
   private def createRowTypeForKeysAndAggregates(
       groupings: Array[Int],
       aggregates: Array[TableAggregateFunction[_, _]],
+      aggTypes: Array[TypeInformation[_]],
       inputType: RelDataType,
       windowKeyTypes: Option[Array[TypeInformation[_]]] = None): RowTypeInfo = {
 
@@ -1441,9 +1422,6 @@ object AggregateUtil {
         .map(inputType.getFieldList.get(_).getType)
         .map(FlinkTypeFactory.toTypeInfo)
 
-    // get all field data types of all intermediate aggregates
-    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
-
     // concat group key types, aggregation types, and window key types
     val allFieldTypes: Seq[TypeInformation[_]] = windowKeyTypes match {
       case None => groupingTypes ++: aggTypes
@@ -1452,13 +1430,6 @@ object AggregateUtil {
     new RowTypeInfo(allFieldTypes: _*)
   }
 
-  private[flink] def createAccumulatorRowType(
-      aggregates: Array[TableAggregateFunction[_, _]]): RowTypeInfo = {
-
-    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
-
-    new RowTypeInfo(aggTypes: _*)
-  }
 
   private def getTimeFieldPosition(
     timeField: Expression,

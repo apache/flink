@@ -59,7 +59,7 @@ public class UserDefinedAggFunctions {
 	/**
 	 * Accumulator for WeightedAvg.
 	 */
-	public static class WeightedAvgAccum extends Tuple2<Long, Integer> {
+	public static class WeightedAvgAccum {
 		public long sum = 0;
 		public int count = 0;
 	}

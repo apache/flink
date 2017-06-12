@@ -196,6 +196,10 @@ class BatchTableEnvironment(
       .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
       .asInstanceOf[TypeInformation[T]]
 
+    implicit val accTypeInfo: TypeInformation[ACC] = TypeExtractor
+      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 1)
+      .asInstanceOf[TypeInformation[ACC]]
+
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
 }
