@@ -33,7 +33,7 @@ public interface QuarantineHandler {
 	 *                     actor system
 	 * @param actorSystem which has been quarantined
 	 */
-	void wasQuarantinedBy(final String remoteSystem, final ActorSystem actorSystem);
+	void wasQuarantinedBy(String remoteSystem, ActorSystem actorSystem);
 
 	/**
 	 * Callback when the given actor system has quarantined the given remote actor system.
@@ -42,5 +42,5 @@ public interface QuarantineHandler {
 	 *                     by our actor system
 	 * @param actorSystem which has quarantined the other actor system
 	 */
-	void hasQuarantined(final String remoteSystem, final ActorSystem actorSystem);
+	void hasQuarantined(String remoteSystem, ActorSystem actorSystem);
 }

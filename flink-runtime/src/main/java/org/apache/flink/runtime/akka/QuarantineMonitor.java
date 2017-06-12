@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.akka;
 
+import org.apache.flink.util.Preconditions;
+
 import akka.actor.UntypedActor;
 import akka.remote.AssociationErrorEvent;
 import akka.remote.transport.Transport;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import java.util.regex.Matcher;
@@ -33,7 +34,7 @@ import java.util.regex.Pattern;
  * or quarantine another remote actor system. If the actor detects that the actor system has been
  * quarantined or quarantined another system, then the {@link QuarantineHandler} is called.
  *
- * IMPORTANT: The implementation if highly specific for Akka 2.3.7. With different version the
+ * <p>IMPORTANT: The implementation if highly specific for Akka 2.3.7. With different version the
  * quarantine state might be detected differently.
  */
 public class QuarantineMonitor extends UntypedActor {
