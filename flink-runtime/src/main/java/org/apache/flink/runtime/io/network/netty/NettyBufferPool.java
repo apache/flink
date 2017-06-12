@@ -22,7 +22,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -60,10 +59,6 @@ public class NettyBufferPool implements ByteBufAllocator {
 	public NettyBufferPool(int numberOfArenas) {
 		checkArgument(numberOfArenas >= 1, "Number of arenas");
 		this.numberOfArenas = numberOfArenas;
-
-		if (!PlatformDependent.hasUnsafe()) {
-			LOG.warn("Using direct buffers, but sun.misc.Unsafe not available.");
-		}
 
 		// We strictly prefer direct buffers and disallow heap allocations.
 		boolean preferDirect = true;

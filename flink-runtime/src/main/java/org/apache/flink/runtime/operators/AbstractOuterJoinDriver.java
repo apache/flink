@@ -157,7 +157,8 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> outerJoinIterator = this.outerJoinIterator;
 		
-		while (this.running && outerJoinIterator.callWithNextKey(joinStub, collector)) ;
+		while (this.running && outerJoinIterator.callWithNextKey(joinStub, collector)) {
+		}
 	}
 	
 	
