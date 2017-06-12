@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.api.scala.stream.utils
 
+import java.util
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.java.stream.utils.Pojos.Pojo0
 import scala.collection.mutable
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
@@ -78,6 +81,30 @@ object StreamTestData {
     data.+=((5, 13L, 12, "IJK", 3L))
     data.+=((5, 14L, 13, "JKL", 2L))
     data.+=((5, 15L, 14, "KLM", 2L))
+    env.fromCollection(data)
+  }
+
+  def getPojo0DataStream(env: StreamExecutionEnvironment): DataStream[Pojo0] = {
+    val data =  new mutable.MutableList[Pojo0]
+    val p0 = new Pojo0
+    p0.setMyInt(1)
+    p0.setMyLong(2L)
+    p0.setMyLong2(3L)
+    p0.setMyString("Hello")
+    val p1 = new Pojo0
+    p1.setMyInt(2)
+    p1.setMyLong(4L)
+    p1.setMyLong2(6L)
+    p1.setMyString("Hello")
+    val p2 = new Pojo0
+    p2.setMyInt(3)
+    p2.setMyLong(8L)
+    p2.setMyLong2(12L)
+    p2.setMyString("Hello World")
+    data.+=(p0)
+    data.+=(p1)
+    data.+=(p2)
+
     env.fromCollection(data)
   }
 }

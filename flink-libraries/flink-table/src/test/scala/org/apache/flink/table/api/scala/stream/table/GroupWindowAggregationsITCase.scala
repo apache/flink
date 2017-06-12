@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.scala.stream.table
 
+import org.apache.flink.table.api.java.stream.utils.Pojos.Pojo0
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -25,11 +26,11 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.table.GroupWindowAggregationsITCase.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.api.scala.stream.utils.StreamITCase
+import org.apache.flink.table.api.scala.stream.table.GroupWindowAggregationsITCase.{TimestampAndWatermark, TimestampAndWatermarkWithOffset}
+import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -179,6 +180,36 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  def testEventTimeTumblingWindowWithPojoData(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = StreamTestData.getPojo0DataStream(env)
+        .assignTimestampsAndWatermarks(new TimestampAndWatermark())
+
+    val table = tEnv.fromDataStream(stream, 'myInt, 'myLong.rowtime, 'myLong2, 'myString)
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
+
+    val windowedTable = table
+        .window(Tumble over 5.milli on 'myLong as 'w)
+        .groupBy('w, 'myString)
+        .select('myString, countFun('myString), 'myInt.avg, weightAvgFun('myLong2, 'myInt),
+          weightAvgFun('myInt, 'myInt), 'myInt.min, 'myInt.max, 'myInt.sum, 'w.start, 'w.end)
+
+    val results = windowedTable.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "Hello World,1,3,12,3,3,3,3,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01",
+      "Hello,2,1,5,1,1,2,3,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testGroupWindowWithoutKeyInProjection(): Unit = {
     val data = List(
       (1L, 1, "Hi", 1, 1),
@@ -226,6 +257,22 @@ object GroupWindowAggregationsITCase {
         element: (Long, Int, String),
         previousElementTimestamp: Long): Long = {
       element._1
+    }
+  }
+
+  class TimestampAndWatermark extends AssignerWithPunctuatedWatermarks[Pojo0] {
+
+    override def checkAndGetNextWatermark(
+        lastElement: Pojo0,
+        extractedTimestamp: Long)
+      : Watermark = {
+      new Watermark(extractedTimestamp)
+    }
+
+    override def extractTimestamp(
+        element: Pojo0,
+        previousElementTimestamp: Long): Long = {
+      element.getMyLong
     }
   }
 }
