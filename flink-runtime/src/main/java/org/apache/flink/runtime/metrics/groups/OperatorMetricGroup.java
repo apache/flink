@@ -40,6 +40,9 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 
 	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
 		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorName), parent);
+		if (operatorName.length() > 80) {
+			operatorName = operatorName.substring(0, 80);
+		}
 		this.operatorName = operatorName;
 
 		ioMetrics = new OperatorIOMetricGroup(this);
