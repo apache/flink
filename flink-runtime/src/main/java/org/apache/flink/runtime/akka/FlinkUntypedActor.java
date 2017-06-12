@@ -40,7 +40,9 @@ import java.util.UUID;
  */
 public abstract class FlinkUntypedActor extends UntypedActor {
 
+	//CHECKSTYLE.OFF: MemberNameCheck - re-enable after JobManager/TaskManager refactoring in FLIP-6?
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
+	//CHECKSTYLE.ON: MemberNameCheck
 
 	/**
 	 * This method is called by Akka if a new message has arrived for the actor. It logs the
