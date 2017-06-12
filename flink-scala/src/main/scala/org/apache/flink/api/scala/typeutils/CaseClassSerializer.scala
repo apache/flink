@@ -28,6 +28,7 @@ import org.apache.flink.types.NullFieldException
  * our Java Tuples so we have to treat them differently.
  */
 @Internal
+@SerialVersionUID(7341356073446263475L)
 abstract class CaseClassSerializer[T <: Product](
     clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]])
@@ -78,6 +79,15 @@ abstract class CaseClassSerializer[T <: Product](
 
   override def createOrReuseInstance(fields: Array[Object], reuse: T) : T = {
     createInstance(fields)
+  }
+
+  override def createSerializerInstance(
+      tupleClass: Class[T],
+      fieldSerializers: Array[TypeSerializer[_]]): TupleSerializerBase[T] = {
+    this.getClass
+      .getConstructors()(0)
+      .newInstance(tupleClass, fieldSerializers)
+      .asInstanceOf[CaseClassSerializer[T]]
   }
 
   def copy(from: T, reuse: T): T = {

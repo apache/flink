@@ -32,8 +32,12 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InvalidClassException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamClass;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,6 +48,46 @@ import java.util.List;
 public class TypeSerializerSerializationUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TypeSerializerSerializationUtil.class);
+
+	/**
+	 * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing objects of
+	 * anonymous classes.
+	 *
+	 * <p>The {@link TypeSerializerSerializationProxy} uses this specific object input stream to read serializers,
+	 * so that mismatching serialVersionUIDs of anonymous classes are ignored. This is required for our Scala
+	 * case class serializers, since their classes are anonymous and generated at compile time and therefore is not
+	 * possible to fix a serialVersionUID for them.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6869">FLINK-6869</a>
+	 */
+	public static class AnonymousClassTolerantInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
+
+		public AnonymousClassTolerantInputStream(InputStream in, ClassLoader cl) throws IOException {
+			super(in, cl);
+		}
+
+		@Override
+		protected ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
+			ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
+
+			Class localClass = resolveClass(streamClassDescriptor);
+			if (localClass.isAnonymousClass()
+				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
+				|| localClass.getName().contains("$anon$") || localClass.getName().contains("$anonfun")) {
+
+				ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
+				if (localClassDescriptor != null
+					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
+					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
+						streamClassDescriptor.getName(), streamClassDescriptor.getSerialVersionUID(), localClassDescriptor.getSerialVersionUID());
+
+					streamClassDescriptor = localClassDescriptor;
+				}
+			}
+
+			return streamClassDescriptor;
+		}
+	}
 
 	/**
 	 * Writes a {@link TypeSerializer} to the provided data output view.
@@ -354,6 +398,7 @@ public class TypeSerializerSerializationUtil {
 			}
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public void read(DataInputView in) throws IOException {
 			super.read(in);
@@ -362,8 +407,14 @@ public class TypeSerializerSerializationUtil {
 			int serializerBytes = in.readInt();
 			byte[] buffer = new byte[serializerBytes];
 			in.readFully(buffer);
-			try {
-				typeSerializer = InstantiationUtil.deserializeObject(buffer, userClassLoader);
+
+			ClassLoader old = Thread.currentThread().getContextClassLoader();
+			try (
+				AnonymousClassTolerantInputStream ois =
+					new AnonymousClassTolerantInputStream(new ByteArrayInputStream(buffer), userClassLoader)) {
+
+				Thread.currentThread().setContextClassLoader(userClassLoader);
+				typeSerializer = (TypeSerializer<T>) ois.readObject();
 			} catch (ClassNotFoundException | InvalidClassException e) {
 				if (useDummyPlaceholder) {
 					// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
@@ -372,8 +423,10 @@ public class TypeSerializerSerializationUtil {
 						new UnloadableDummyTypeSerializer<>(buffer);
 					LOG.warn("Could not find requested TypeSerializer class in classpath. Created dummy.", e);
 				} else {
-					throw new IOException("Missing class for type serializer.", e);
+					throw new IOException("Unloadable class for type serializer.", e);
 				}
+			} finally {
+				Thread.currentThread().setContextClassLoader(old);
 			}
 		}
 
