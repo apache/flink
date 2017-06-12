@@ -30,8 +30,8 @@ import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, 
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.functions.aggfunctions.{LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction, IntSumWithRetractAggFunction}
-import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 class HarnessTestBase {
@@ -70,10 +70,10 @@ class HarnessTestBase {
     Array(new IntSumWithRetractAggFunction).asInstanceOf[Array[AggregateFunction[_, _]]]
 
   protected val minMaxAggregationStateType: RowTypeInfo =
-    AggregateUtil.createAccumulatorRowType(minMaxAggregates)
+    new RowTypeInfo(minMaxAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
 
   protected val sumAggregationStateType: RowTypeInfo =
-    AggregateUtil.createAccumulatorRowType(sumAggregates)
+    new RowTypeInfo(sumAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
 
   val minMaxCode: String =
     s"""

@@ -228,12 +228,14 @@ case class VarSamp(child: Expression) extends Aggregation {
 
 case class AggFunctionCall(
     aggregateFunction: AggregateFunction[_, _],
+    resultTypeInfo: TypeInformation[_],
+    accTypeInfo: TypeInformation[_],
     args: Seq[Expression])
   extends Aggregation {
 
   override private[flink] def children: Seq[Expression] = args
 
-  override def resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggregateFunction)
+  override def resultType: TypeInformation[_] = resultTypeInfo
 
   override def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
@@ -258,12 +260,13 @@ case class AggFunctionCall(
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val sqlAgg = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
-                   aggregateFunction,
-                   resultType,
-                   typeFactory,
-                   aggregateFunction.requiresOver)
-    sqlAgg
+    AggSqlFunction(
+      aggregateFunction.getClass.getSimpleName,
+      aggregateFunction,
+      resultType,
+      accTypeInfo,
+      typeFactory,
+      aggregateFunction.requiresOver)
   }
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {

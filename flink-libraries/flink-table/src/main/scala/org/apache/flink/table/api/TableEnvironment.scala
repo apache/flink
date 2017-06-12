@@ -358,20 +358,32 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Registers an [[AggregateFunction]] under a unique name. Replaces already existing
     * user-defined functions under this name.
     */
-  private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC](
+  private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
       name: String, function: AggregateFunction[T, ACC]): Unit = {
     // check if class not Scala object
     checkNotSingleton(function.getClass)
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    val typeInfo: TypeInformation[_] = implicitly[TypeInformation[T]]
+    val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
+      function,
+      implicitly[TypeInformation[T]])
+
+    val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
+      function,
+      implicitly[TypeInformation[ACC]])
 
     // register in Table API
     functionCatalog.registerFunction(name, function.getClass)
 
     // register in SQL API
-    val sqlFunctions = createAggregateSqlFunction(name, function, typeInfo, typeFactory)
+    val sqlFunctions = createAggregateSqlFunction(
+      name,
+      function,
+      resultTypeInfo,
+      accTypeInfo,
+      typeFactory)
+
     functionCatalog.registerSqlFunction(sqlFunctions)
   }
 
