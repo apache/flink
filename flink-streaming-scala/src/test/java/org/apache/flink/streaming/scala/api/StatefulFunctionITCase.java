@@ -20,6 +20,9 @@ package org.apache.flink.streaming.scala.api;
 import org.apache.flink.streaming.api.scala.StateTestPrograms;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * IT case using stateful functions.
+ */
 public class StatefulFunctionITCase extends StreamingProgramTestBase {
 
 	@Override
