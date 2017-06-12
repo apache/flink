@@ -25,9 +25,11 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -144,6 +146,23 @@ public class TaskMetricGroupTest extends TestLogger {
 		assertEquals(0, registry.getNumberRegisteredMetrics());
 
 		registry.shutdown();
+	}
+
+	@Test
+	public void testOperatorNameTruncation() {
+		Configuration cfg = new Configuration();
+		cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, ScopeFormat.SCOPE_OPERATOR_NAME);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, new JobID(), "jobname");
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(registry, job, new AbstractID(), new AbstractID(), "task", 0, 0);
+		
+		String originalName = new String(new char[100]).replace("\0", "-");
+		OperatorMetricGroup operatorMetricGroup = taskMetricGroup.addOperator(originalName);
+		
+		String storedName = operatorMetricGroup.getScopeComponents()[0];
+		Assert.assertEquals(TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH, storedName.length());
+		Assert.assertEquals(originalName.substring(0, TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH), storedName);
 	}
 
 	private static class CountingMetricRegistry extends MetricRegistry {

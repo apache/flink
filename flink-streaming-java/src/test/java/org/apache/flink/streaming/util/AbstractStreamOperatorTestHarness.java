@@ -76,6 +76,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
@@ -151,6 +152,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		Configuration underlyingConfig = environment.getTaskConfiguration();
 		this.config = new StreamConfig(underlyingConfig);
+		this.config.setOperatorName("operator_" + UUID.randomUUID());
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = environment.getExecutionConfig();
 		this.closableRegistry = new CloseableRegistry();
