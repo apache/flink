@@ -55,11 +55,14 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	public static final String ARG_HOST = "host";
 	public static final String ARG_PORT = "port";
+	public static final String ARG_MAX_COMPONENT_LENGTH = "maxComponentLength";
 
 	private boolean closed = false;
 
 	private DatagramSocket socket;
 	private InetSocketAddress address;
+
+	private int maxComponentLength = 80;
 
 	@Override
 	public void open(MetricConfig config) {
@@ -77,7 +80,9 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		} catch (SocketException e) {
 			throw new RuntimeException("Could not create datagram socket. ", e);
 		}
-		log.info("Configured StatsDReporter with {host:{}, port:{}}", host, port);
+		
+		maxComponentLength = config.getInteger(ARG_MAX_COMPONENT_LENGTH, 80);
+		log.info("Configured StatsDReporter with {host:{}, port:{}, maxComponentLength:{}}", host, port, maxComponentLength);
 	}
 
 	@Override
@@ -193,7 +198,11 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	@Override
 	public String filterCharacters(String input) {
 		char[] chars = null;
-		final int strLen = input.length();
+		int strLen = input.length();
+		if (strLen > maxComponentLength) {
+			log.warn("The metric name component {} exceeded the {} characters length limit and was truncated.", input, maxComponentLength);
+			strLen = maxComponentLength;
+		}
 		int pos = 0;
 
 		for (int i = 0; i < strLen; i++) {

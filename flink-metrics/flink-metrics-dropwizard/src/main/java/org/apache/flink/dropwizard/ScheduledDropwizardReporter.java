@@ -61,6 +61,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	public static final String ARG_PREFIX = "prefix";
 	public static final String ARG_CONVERSION_RATE = "rateConversion";
 	public static final String ARG_CONVERSION_DURATION = "durationConversion";
+	public static final String ARG_MAX_COMPONENT_LENGTH = "maxComponentLength";
 
 	// ------------------------------------------------------------------------
 
@@ -72,6 +73,8 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	private final Map<Counter, String> counters = new HashMap<>();
 	private final Map<Histogram, String> histograms = new HashMap<>();
 	private final Map<Meter, String> meters = new HashMap<>();
+
+	private int maxComponentLength = 80;
 
 	// ------------------------------------------------------------------------
 
@@ -109,6 +112,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 	@Override
 	public void open(MetricConfig config) {
+		this.maxComponentLength = config.getInteger(ARG_MAX_COMPONENT_LENGTH, 80);
 		this.reporter = getReporter(config);
 	}
 
@@ -184,7 +188,11 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	@Override
 	public String filterCharacters(String metricName) {
 		char[] chars = null;
-		final int strLen = metricName.length();
+		int strLen = metricName.length();
+		if (strLen > maxComponentLength) {
+			log.warn("The metric name component {} exceeded the {} characters length limit and was truncated.", metricName, maxComponentLength);
+			strLen = maxComponentLength;
+		}
 		int pos = 0;
 
 		for (int i = 0; i < strLen; i++) {

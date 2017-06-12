@@ -632,6 +632,7 @@ Parameters:
 - `host` - the Graphite server host
 - `port` - the Graphite server port
 - `protocol` - protocol to use (TCP/UDP)
+- `maxComponentLength` - limits the length of each scope component
 
 Example configuration:
 
@@ -641,6 +642,7 @@ metrics.reporter.grph.class: org.apache.flink.metrics.graphite.GraphiteReporter
 metrics.reporter.grph.host: localhost
 metrics.reporter.grph.port: 2003
 metrics.reporter.grph.protocol: TCP
+metrics.reporter.grph.maxComponentLength: 80
 
 {% endhighlight %}
 
@@ -708,6 +710,7 @@ Parameters:
 
 - `host` - the StatsD server host
 - `port` - the StatsD server port
+- `maxComponentLength` - limits the length of each scope component
 
 Example configuration:
 
@@ -716,6 +719,7 @@ Example configuration:
 metrics.reporter.stsd.class: org.apache.flink.metrics.statsd.StatsDReporter
 metrics.reporter.stsd.host: localhost
 metrics.reporter.stsd.port: 8125
+metrics.reporter.stsd.maxComponentLength: 80
 
 {% endhighlight %}
 
