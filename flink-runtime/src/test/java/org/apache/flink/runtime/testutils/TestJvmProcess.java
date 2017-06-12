@@ -174,7 +174,7 @@ public abstract class TestJvmProcess {
 		checkState(processOutput != null, "not started");
 
 		System.out.println("-----------------------------------------");
-		System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + getName());
+		System.out.println(" BEGIN SPAWNED PROCESS log FOR " + getName());
 		System.out.println("-----------------------------------------");
 
 		String out = processOutput.toString();
@@ -186,7 +186,7 @@ public abstract class TestJvmProcess {
 		}
 
 		System.out.println("-----------------------------------------");
-		System.out.println("		END SPAWNED PROCESS LOG " + getName());
+		System.out.println("		END SPAWNED PROCESS log " + getName());
 		System.out.println("-----------------------------------------");
 	}
 

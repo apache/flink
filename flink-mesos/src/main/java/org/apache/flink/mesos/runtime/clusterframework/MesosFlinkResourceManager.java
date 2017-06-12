@@ -147,7 +147,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	@Override
 	protected void initialize() throws Exception {
-		LOG.info("Initializing Mesos resource master");
+		log.info("Initializing Mesos resource master");
 
 		workerStore.start();
 
@@ -161,15 +161,15 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 		Option<Protos.FrameworkID> frameworkID = workerStore.getFrameworkID();
 		if (frameworkID.isEmpty()) {
-			LOG.info("Registering as new framework.");
+			log.info("Registering as new framework.");
 		}
 		else {
-			LOG.info("Recovery scenario: re-registering using framework ID {}.", frameworkID.get().getValue());
+			log.info("Recovery scenario: re-registering using framework ID {}.", frameworkID.get().getValue());
 			frameworkInfo.setId(frameworkID.get());
 		}
 
 		MesosConfiguration initializedMesosConfig = mesosConfig.withFrameworkInfo(frameworkInfo);
-		MesosConfiguration.logMesosConfig(LOG, initializedMesosConfig);
+		MesosConfiguration.logMesosConfig(log, initializedMesosConfig);
 		schedulerDriver = initializedMesosConfig.createDriver(schedulerCallbackHandler, false);
 
 		// create supporting actors
@@ -210,7 +210,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	@Override
 	public void postStop() {
-		LOG.info("Stopping Mesos resource master");
+		log.info("Stopping Mesos resource master");
 		super.postStop();
 	}
 
@@ -265,18 +265,18 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	@Override
 	protected void shutdownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
 
-		LOG.info("Shutting down and unregistering as a Mesos framework.");
+		log.info("Shutting down and unregistering as a Mesos framework.");
 		try {
 			// unregister the framework, which implicitly removes all tasks.
 			schedulerDriver.stop(false);
 		} catch (Exception ex) {
-			LOG.warn("unable to unregister the framework", ex);
+			log.warn("unable to unregister the framework", ex);
 		}
 
 		try {
 			workerStore.stop(true);
 		} catch (Exception ex) {
-			LOG.warn("unable to stop the worker state store", ex);
+			log.warn("unable to stop the worker state store", ex);
 		}
 
 		context().stop(self());
@@ -286,8 +286,8 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	protected void fatalError(String message, Throwable error) {
 		// we do not unregister, but cause a hard fail of this process, to have it
 		// restarted by the dispatcher
-		LOG.error("FATAL ERROR IN MESOS APPLICATION MASTER: " + message, error);
-		LOG.error("Shutting down process");
+		log.error("FATAL ERROR IN MESOS APPLICATION MASTER: " + message, error);
+		log.error("Shutting down process");
 
 		// kill this process, this will make an external supervisor (the dispatcher) restart the process
 		System.exit(EXIT_CODE_FATAL_ERROR);
@@ -306,7 +306,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		final List<MesosWorkerStore.Worker> tasksFromPreviousAttempts = workerStore.recoverWorkers();
 
 		if (!tasksFromPreviousAttempts.isEmpty()) {
-			LOG.info("Retrieved {} TaskManagers from previous attempt", tasksFromPreviousAttempts.size());
+			log.info("Retrieved {} TaskManagers from previous attempt", tasksFromPreviousAttempts.size());
 
 			List<Tuple2<TaskRequest, String>> toAssign = new ArrayList<>(tasksFromPreviousAttempts.size());
 			List<LaunchableTask> toLaunch = new ArrayList<>(tasksFromPreviousAttempts.size());
@@ -361,7 +361,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 				LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
-				LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
+				log.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
 					launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
 
 				toMonitor.add(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)));
@@ -406,7 +406,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 					workerStore.putWorker(worker);
 					workersInLaunch.put(extractResourceID(worker.taskID()), worker);
 
-					LOG.info("Launching Mesos task {} on host {}.",
+					log.info("Launching Mesos task {} on host {}.",
 						worker.taskID().getValue(), worker.hostname().get());
 
 					toMonitor.add(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)));
@@ -466,14 +466,14 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		for (ResourceID resourceID : toConsolidate) {
 			MesosWorkerStore.Worker worker = workersInLaunch.remove(resourceID);
 			if (worker != null) {
-				LOG.info("Mesos worker consolidation recognizes TaskManager {}.", resourceID);
+				log.info("Mesos worker consolidation recognizes TaskManager {}.", resourceID);
 				accepted.add(new RegisteredMesosWorkerNode(worker));
 			} else {
 				if (isStarted(resourceID)) {
-					LOG.info("TaskManager {} has already been registered at the resource manager.", resourceID);
+					log.info("TaskManager {} has already been registered at the resource manager.", resourceID);
 				}
 				else {
-					LOG.info("Mesos worker consolidation does not recognize TaskManager {}.", resourceID);
+					log.info("Mesos worker consolidation does not recognize TaskManager {}.", resourceID);
 				}
 			}
 		}
@@ -489,7 +489,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		if (worker != null) {
 			releaseWorker(worker);
 		} else {
-			LOG.error("Cannot find worker {} to release. Ignoring request.", id);
+			log.error("Cannot find worker {} to release. Ignoring request.", id);
 		}
 	}
 
@@ -506,7 +506,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 */
 	private void releaseWorker(MesosWorkerStore.Worker worker) {
 		try {
-			LOG.info("Releasing worker {}", worker.taskID());
+			log.info("Releasing worker {}", worker.taskID());
 
 			// update persistent state of worker to Released
 			worker = worker.releaseWorker();
@@ -600,25 +600,25 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		}
 
 		if (!existed) {
-			LOG.info("Received a termination notice for an unrecognized worker: {}", id);
+			log.info("Received a termination notice for an unrecognized worker: {}", id);
 			return;
 		}
 
 		// check if this is a failed task or a released task
 		if (workersBeingReturned.remove(id) != null) {
 			// regular finished worker that we released
-			LOG.info("Worker {} finished successfully with diagnostics: {}",
+			log.info("Worker {} finished successfully with diagnostics: {}",
 				id, status.getMessage());
 		} else {
 			// failed worker, either at startup, or running
 			final MesosWorkerStore.Worker launched = workersInLaunch.remove(id);
 			if (launched != null) {
-				LOG.info("Mesos task {} failed, with a TaskManager in launch or registration. " +
+				log.info("Mesos task {} failed, with a TaskManager in launch or registration. " +
 					"State: {} Reason: {} ({})", id, status.getState(), status.getReason(), status.getMessage());
 				// we will trigger re-acquiring new workers at the end
 			} else {
 				// failed registered worker
-				LOG.info("Mesos task {} failed, with a registered TaskManager. " +
+				log.info("Mesos task {} failed, with a registered TaskManager. " +
 					"State: {} Reason: {} ({})", id, status.getState(), status.getReason(), status.getMessage());
 
 				// notify the generic logic, which notifies the JobManager, etc.
@@ -633,8 +633,8 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 				id, status.getState(), status.getReason(), status.getMessage());
 			sendInfoMessage(diagMessage);
 
-			LOG.info(diagMessage);
-			LOG.info("Total number of failed tasks so far: {}", failedTasksSoFar);
+			log.info(diagMessage);
+			log.info("Total number of failed tasks so far: {}", failedTasksSoFar);
 
 			// maxFailedTasks == -1 is infinite number of retries.
 			if (maxFailedTasks >= 0 && failedTasksSoFar > maxFailedTasks) {
@@ -644,7 +644,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 					+ ConfigConstants.MESOS_MAX_FAILED_TASKS + "' configuration setting. "
 					+ "By default its the number of requested tasks.";
 
-				LOG.error(msg);
+				log.error(msg);
 				self().tell(decorateMessage(new StopCluster(ApplicationStatus.FAILED, msg)),
 					ActorRef.noSender());
 

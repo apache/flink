@@ -40,7 +40,7 @@ import java.util.UUID;
  */
 public abstract class FlinkUntypedActor extends UntypedActor {
 
-	protected final Logger LOG = LoggerFactory.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/**
 	 * This method is called by Akka if a new message has arrived for the actor. It logs the
@@ -55,8 +55,8 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 */
 	@Override
 	public final void onReceive(Object message) throws Exception {
-		if (LOG.isTraceEnabled()) {
-			LOG.trace("Received message {} at {} from {}.", message, getSelf().path(), getSender());
+		if (log.isTraceEnabled()) {
+			log.trace("Received message {} at {} from {}.", message, getSelf().path(), getSender());
 
 			long start = System.nanoTime();
 
@@ -64,7 +64,7 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 
 			long duration = (System.nanoTime() - start) / 1_000_000;
 
-			LOG.trace("Handled message {} in {} ms from {}.", message, duration, getSender());
+			log.trace("Handled message {} in {} ms from {}.", message, duration, getSender());
 		} else {
 			handleLeaderSessionID(message);
 		}
@@ -104,13 +104,13 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	}
 
 	private void handleDiscardedMessage(UUID expectedLeaderSessionID, LeaderSessionMessage msg) {
-		LOG.warn("Discard message {} because the expected leader session ID {} did not " +
+		log.warn("Discard message {} because the expected leader session ID {} did not " +
 				"equal the received leader session ID {}.", msg, expectedLeaderSessionID,
 				msg.leaderSessionID());
 	}
 
 	private void handleNoLeaderId(LeaderSessionMessage msg) {
-		LOG.warn("Discard message {} because there is currently no valid leader id known.", msg);
+		log.warn("Discard message {} because there is currently no valid leader id known.", msg);
 	}
 
 	/**
