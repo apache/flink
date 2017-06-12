@@ -420,7 +420,6 @@ under the License.
 					<logViolationsToConsole>true</logViolationsToConsole>
 					<failOnViolation>true</failOnViolation>
 					<excludes>
-						**/runtime/akka/**,
 						**/runtime/blob/**,
 						**/runtime/broadcast/**,
 						**/runtime/checkpoint/**,

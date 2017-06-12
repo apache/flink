@@ -49,7 +49,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 		if (jobManagerSel.anchorPath().root().equals(self().path().root())) {
 			super.triggerConnectingToJobManager(leaderAddress);
 		} else {
-			LOG.info("Received leader address but not running in leader ActorSystem. Cancelling registration.");
+			log.info("Received leader address but not running in leader ActorSystem. Cancelling registration.");
 		}
 	}
 
@@ -64,7 +64,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 
 	@Override
 	protected void fatalError(String message, Throwable error) {
-		LOG.error("FATAL ERROR IN RESOURCE MANAGER: " + message, error);
+		log.error("FATAL ERROR IN RESOURCE MANAGER: " + message, error);
 
 		// kill this process
 		System.exit(EXIT_CODE_FATAL_ERROR);

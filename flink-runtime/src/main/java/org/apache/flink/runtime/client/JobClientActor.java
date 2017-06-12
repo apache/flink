@@ -92,7 +92,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		try {
 			leaderRetrievalService.start(this);
 		} catch (Exception e) {
-			LOG.error("Could not start the leader retrieval service.");
+			log.error("Could not start the leader retrieval service.");
 			throw new RuntimeException("Could not start the leader retrieval service.", e);
 		}
 	}
@@ -102,7 +102,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		try {
 			leaderRetrievalService.stop();
 		} catch (Exception e) {
-			LOG.warn("Could not properly stop the leader retrieval service.");
+			log.warn("Could not properly stop the leader retrieval service.");
 		}
 	}
 
@@ -179,8 +179,8 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		// client is only interested in the final job result
 		else if (message instanceof JobManagerMessages.JobResultMessage) {
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Received {} message from JobManager", message.getClass().getSimpleName());
+			if (log.isDebugEnabled()) {
+				log.debug("Received {} message from JobManager", message.getClass().getSimpleName());
 			}
 
 			// forward the success to the original client
@@ -196,7 +196,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		else if (message instanceof Terminated) {
 			ActorRef target = ((Terminated) message).getActor();
 			if (jobManager.equals(target)) {
-				LOG.info("Lost connection to JobManager {}. Triggering connection timeout.",
+				log.info("Lost connection to JobManager {}. Triggering connection timeout.",
 					jobManager.path());
 				disconnectFromJobManager();
 
@@ -207,7 +207,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 					}
 				}
 			} else {
-				LOG.warn("Received 'Terminated' for unknown actor " + target);
+				log.warn("Received 'Terminated' for unknown actor " + target);
 			}
 		}
 		else if (message instanceof JobClientMessages.ConnectionTimeout) {
@@ -228,14 +228,14 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 					terminate();
 				}
 			} else {
-				LOG.debug("Received outdated connection timeout.");
+				log.debug("Received outdated connection timeout.");
 			}
 		}
 
 		// =========== Message Delegation ===============
 
 		else if (!isJobManagerConnected() && getClientMessageClass().equals(message.getClass())) {
-			LOG.info(
+			log.info(
 				"Received {} but there is no connection to a JobManager yet.",
 				message);
 			// We want to submit/attach to a job, but we haven't found a job manager yet.
@@ -253,7 +253,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 				// we're about to receive a PoisonPill because toBeTerminated == true
 				String msg = getClass().getName() + " is about to be terminated. Therefore, the " +
 					"job submission cannot be executed.";
-				LOG.error(msg);
+				log.error(msg);
 				getSender().tell(
 					decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
 			}
@@ -267,14 +267,14 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	}
 
 	protected void logAndPrintMessage(String message) {
-		LOG.info(message);
+		log.info(message);
 		if (sysoutUpdates) {
 			System.out.println(message);
 		}
 	}
 
 	private void logAndPrintMessage(ExecutionGraphMessages.ExecutionStateChanged message) {
-		LOG.info(message.toString());
+		log.info(message.toString());
 		if (sysoutUpdates) {
 			System.out.println(message.toString());
 		}
@@ -284,13 +284,13 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		// by default, this only prints the status, and not any exception.
 		// in state FAILING, we report the exception in addition
 		if (message.newJobStatus() != JobStatus.FAILING || message.error() == null) {
-			LOG.info(message.toString());
+			log.info(message.toString());
 			if (sysoutUpdates) {
 				System.out.println(message.toString());
 			}
 		} else {
 			Throwable error = SerializedThrowable.get(message.error(), getClass().getClassLoader());
-			LOG.info(message.toString(), error);
+			log.info(message.toString(), error);
 			if (sysoutUpdates) {
 				System.out.println(message.toString());
 				message.error().printStackTrace(System.out);
@@ -307,12 +307,12 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 
 	@Override
 	public void handleError(Exception exception) {
-		LOG.error("Error occurred in the LeaderRetrievalService.", exception);
+		log.error("Error occurred in the LeaderRetrievalService.", exception);
 		getSelf().tell(decorateMessage(PoisonPill.getInstance()), getSelf());
 	}
 
 	private void disconnectFromJobManager() {
-		LOG.info("Disconnect from JobManager {}.", jobManager);
+		log.info("Disconnect from JobManager {}.", jobManager);
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 			jobManager = ActorRef.noSender();
@@ -322,7 +322,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	}
 
 	private void connectToJobManager(ActorRef jobManager) {
-		LOG.info("Connect to JobManager {}.", jobManager);
+		log.info("Connect to JobManager {}.", jobManager);
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 		}
@@ -334,7 +334,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	}
 
 	protected void terminate() {
-		LOG.info("Terminate JobClientActor.");
+		log.info("Terminate JobClientActor.");
 		toBeTerminated = true;
 		disconnectFromJobManager();
 		getSelf().tell(decorateMessage(PoisonPill.getInstance()), ActorRef.noSender());

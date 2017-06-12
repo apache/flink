@@ -83,12 +83,12 @@ public class JobSubmissionClientActor extends JobClientActor {
 			if (this.client == null) {
 				jobGraph = ((SubmitJobAndWait) message).jobGraph();
 				if (jobGraph == null) {
-					LOG.error("Received null JobGraph");
+					log.error("Received null JobGraph");
 					sender().tell(
 						decorateMessage(new Status.Failure(new Exception("JobGraph is null"))),
 						getSelf());
 				} else {
-					LOG.info("Received job {} ({}).", jobGraph.getName(), jobGraph.getJobID());
+					log.info("Received job {} ({}).", jobGraph.getName(), jobGraph.getJobID());
 
 					this.client = getSender();
 
@@ -100,7 +100,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 			} else {
 				// repeated submission - tell failure to sender and kill self
 				String msg = "Received repeated 'SubmitJobAndWait'";
-				LOG.error(msg);
+				log.error(msg);
 				getSender().tell(
 					decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
 
@@ -108,7 +108,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 			}
 		} else if (message instanceof JobManagerMessages.JobSubmitSuccess) {
 			// job was successfully submitted :-)
-			LOG.info("Job {} was successfully submitted to the JobManager {}.",
+			log.info("Job {} was successfully submitted to the JobManager {}.",
 				((JobManagerMessages.JobSubmitSuccess) message).jobId(),
 				getSender().path());
 			jobSuccessfullySubmitted = true;
@@ -129,12 +129,12 @@ public class JobSubmissionClientActor extends JobClientActor {
 				terminate();
 			}
 		} else {
-			LOG.error("{} received unknown message: ", getClass());
+			log.error("{} received unknown message: ", getClass());
 		}
 	}
 
 	private void tryToSubmitJob() {
-		LOG.info("Sending message to JobManager {} to submit job {} ({}) and wait for progress",
+		log.info("Sending message to JobManager {} to submit job {} ({}) and wait for progress",
 			jobManager.path().toString(), jobGraph.getName(), jobGraph.getJobID());
 
 		Futures.future(new Callable<Object>() {
@@ -142,7 +142,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 			public Object call() throws Exception {
 				ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
 
-				LOG.info("Upload jar files to job manager {}.", jobManager.path());
+				log.info("Upload jar files to job manager {}.", jobManager.path());
 
 				try {
 					jobGraph.uploadUserJars(jobManagerGateway, timeout, clientConfig);
@@ -160,7 +160,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 					);
 				}
 
-				LOG.info("Submit job to the job manager {}.", jobManager.path());
+				log.info("Submit job to the job manager {}.", jobManager.path());
 
 				jobManager.tell(
 					decorateMessage(
