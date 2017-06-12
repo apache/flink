@@ -212,6 +212,35 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+
+				<configuration>
+					<configLocation>/tools/maven/checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions-runtime.xml</suppressionsLocation>
+					<includeTestSourceDirectory>false</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+			</plugin>
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
@@ -408,67 +437,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<version>6.19</version>
-					</dependency>
-				</dependencies>
-				<configuration>
-					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
-					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
-					<excludes>
-						**/runtime/blob/**,
-						**/runtime/checkpoint/**,
-						**/runtime/client/**,
-						**/runtime/clusterframework/**,       
-						**/runtime/concurrent/**,
-						**/runtime/execution/**,
-						**/runtime/executiongraph/**,
-						**/runtime/highavailability/**,
-						**/runtime/instance/**,
-						**/runtime/io/**,
-						**/runtime/jobgraph/**,
-						**/runtime/jobmanager/**,
-						**/runtime/jobmaster/**,
-						**/runtime/leaderelection/**,
-						**/runtime/messages/**,
-						**/runtime/minicluster/**,
-						**/runtime/operators/**,
-						**/runtime/resourcemanager/**,
-						**/runtime/rpc/**,
-						**/runtime/state/**,
-						**/runtime/taskexecutor/**,
-						**/runtime/taskmanager/**,
-						**/runtime/testutils/**,
-						**/runtime/util/**,
-						**/runtime/zookeeper/**,
-					</excludes>
-				</configuration>
-				<executions>
-					<!--
-					Execute checkstyle after compilation but before tests.
-
-					This ensures that any parsing or type checking errors are from
-					javac, so they look as expected. Beyond that, we want to
-					fail as early as possible.
-					-->
-					<execution>
-						<phase>test-compile</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 		</plugins>
 	</build>
 </project>
