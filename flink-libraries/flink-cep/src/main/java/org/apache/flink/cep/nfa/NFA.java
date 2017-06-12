@@ -1108,7 +1108,7 @@ public class NFA<T> implements Serializable {
 				}
 			}
 
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 
 		private void serializeStates(Set<State<T>> states, DataOutputView out) throws IOException {

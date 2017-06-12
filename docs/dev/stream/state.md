@@ -453,6 +453,13 @@ ListStateDescriptor<Tuple2<String, Integer>> descriptor =
 checkpointedState = getRuntimeContext().getListState(descriptor);
 {% endhighlight %}
 
+Note that Flink writes state serializers along with the state as metadata. In certain cases on restore (see following
+subsections), the written serializer needs to be deserialized and used. Therefore, it is recommended to avoid using
+anonymous classes as your state serializers. Anonymous classes do not have a guarantee on the generated classname,
+varying across compilers and depends on the order that they are instantiated within the enclosing class, which can 
+easily cause the previously written serializer to be unreadable (since the original class can no longer be found in the
+classpath).
+
 ### Handling serializer upgrades and compatibility
 
 Flink allows changing the serializers used to read and write managed state, so that users are not locked in to any
