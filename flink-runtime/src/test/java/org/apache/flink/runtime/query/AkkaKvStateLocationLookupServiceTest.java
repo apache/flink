@@ -358,7 +358,7 @@ public class AkkaKvStateLocationLookupServiceTest extends TestLogger {
 			} else if (message instanceof UUID) {
 				this.leaderSessionId = (UUID) message;
 			} else {
-				log.debug("Received unhandled message: {}", message);
+				LOG.debug("Received unhandled message: {}", message);
 			}
 		}
 

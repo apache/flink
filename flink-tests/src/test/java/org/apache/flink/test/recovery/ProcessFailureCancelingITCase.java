@@ -307,11 +307,11 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		}
 
 		System.out.println("-----------------------------------------");
-		System.out.println(" BEGIN SPAWNED PROCESS log FOR " + processName);
+		System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + processName);
 		System.out.println("-----------------------------------------");
 		System.out.println(log);
 		System.out.println("-----------------------------------------");
-		System.out.println("		END SPAWNED PROCESS log");
+		System.out.println("		END SPAWNED PROCESS LOG");
 		System.out.println("-----------------------------------------");
 	}
 }

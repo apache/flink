@@ -199,7 +199,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 			leaderRetriever.stop();
 		}
 		catch (Throwable t) {
-			log.error("Could not cleanly shut down leader retrieval service", t);
+			LOG.error("Could not cleanly shut down leader retrieval service", t);
 		}
 	}
 
@@ -281,7 +281,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 			// --- unknown messages
 
 			else {
-				log.error("Discarding unknown message: {}", message);
+				LOG.error("Discarding unknown message: {}", message);
 			}
 		}
 		catch (Throwable t) {
@@ -359,15 +359,15 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 			// check if resourceID is already registered (TaskManager may send duplicate register messages)
 			WorkerType oldWorker = startedWorkers.get(resourceID);
 			if (oldWorker != null) {
-				log.debug("Notification that TaskManager {} had been started was sent before.", resourceID);
+				LOG.debug("Notification that TaskManager {} had been started was sent before.", resourceID);
 			} else {
 				WorkerType newWorker = workerStarted(resourceID);
 
 				if (newWorker != null) {
 					startedWorkers.put(resourceID, newWorker);
-					log.info("TaskManager {} has started.", resourceID);
+					LOG.info("TaskManager {} has started.", resourceID);
 				} else {
-					log.info("TaskManager {} has not been started by this resource manager.", resourceID);
+					LOG.info("TaskManager {} has not been started by this resource manager.", resourceID);
 				}
 			}
 		}
@@ -388,7 +388,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 		if (worker != null) {
 			releaseStartedWorker(worker);
 		} else {
-			log.warn("Resource {} could not be released", resourceId);
+			LOG.warn("Resource {} could not be released", resourceId);
 		}
 	}
 
@@ -405,7 +405,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 * @param leaderSessionID The unique session ID marking the leadership session.
 	 */
 	private void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
-		log.debug("Received new leading JobManager {}. Connecting.", leaderAddress);
+		LOG.debug("Received new leading JobManager {}. Connecting.", leaderAddress);
 
 		// disconnect from the current leader (no-op if no leader yet)
 		jobManagerLostLeadership();
@@ -428,7 +428,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 */
 	protected void triggerConnectingToJobManager(String leaderAddress) {
 
-		log.info("Trying to associate with JobManager leader " + leaderAddress);
+		LOG.info("Trying to associate with JobManager leader " + leaderAddress);
 
 		final Object registerMessage = decorateMessage(new RegisterResourceManager(self()));
 		final Object retryMessage = decorateMessage(new TriggerRegistrationAtJobManager(leaderAddress));
@@ -448,12 +448,12 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 							((LeaderSessionMessage) msg).message() instanceof RegisterResourceManagerSuccessful) {
 							self().tell(msg, ActorRef.noSender());
 						} else {
-							log.error("Invalid response type to registration at JobManager: {}", msg);
+							LOG.error("Invalid response type to registration at JobManager: {}", msg);
 							self().tell(retryMessage, ActorRef.noSender());
 						}
 					} else {
 						// no success
-						log.error("Resource manager could not register at JobManager", failure);
+						LOG.error("Resource manager could not register at JobManager", failure);
 						self().tell(retryMessage, ActorRef.noSender());
 					}
 				}
@@ -467,7 +467,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 */
 	private void jobManagerLostLeadership() {
 		if (jobManager != null) {
-			log.info("Associated JobManager {} lost leader status", jobManager);
+			LOG.info("Associated JobManager {} lost leader status", jobManager);
 
 			jobManager = null;
 			leaderSessionID = null;
@@ -486,13 +486,13 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 						Collection<ResourceID> workers) {
 
 		if (jobManager == null) {
-			log.info("Resource Manager associating with leading JobManager {} - leader session {}",
+			LOG.info("Resource Manager associating with leading JobManager {} - leader session {}",
 						newJobManagerLeader, leaderSessionID);
 
 			jobManager = newJobManagerLeader;
 
 			if (workers.size() > 0) {
-				log.info("Received TaskManagers that were registered at the leader JobManager. " +
+				LOG.info("Received TaskManagers that were registered at the leader JobManager. " +
 						"Trying to consolidate.");
 
 				// keep track of which TaskManagers are not handled
@@ -502,7 +502,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 				try {
 					// ask the framework to tell us which ones we should keep for now
 					Collection<WorkerType> consolidated = reacceptRegisteredWorkers(workers);
-					log.info("Consolidated {} TaskManagers", consolidated.size());
+					LOG.info("Consolidated {} TaskManagers", consolidated.size());
 
 					// put the consolidated TaskManagers into our bookkeeping
 					for (WorkerType worker : consolidated) {
@@ -512,7 +512,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 					}
 				}
 				catch (Throwable t) {
-					log.error("Error during consolidation of known TaskManagers", t);
+					LOG.error("Error during consolidation of known TaskManagers", t);
 					// the framework should release the remaining unclear resources
 					for (ResourceID id : toHandle) {
 						releasePendingWorker(id);
@@ -536,7 +536,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	// ------------------------------------------------------------------------
 
 	private void shutdownCluster(ApplicationStatus status, String diagnostics) {
-		log.info("Shutting down cluster with status {} : {}", status, diagnostics);
+		LOG.info("Shutting down cluster with status {} : {}", status, diagnostics);
 
 		shutdownApplication(status, diagnostics);
 	}
@@ -583,11 +583,11 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 */
 	private void adjustDesignatedNumberOfWorkers(int num) {
 		if (num >= 0) {
-			log.info("Adjusting designated worker pool size to {}", num);
+			LOG.info("Adjusting designated worker pool size to {}", num);
 			designatedPoolSize = num;
 			checkWorkersPool();
 		} else {
-			log.warn("Ignoring invalid designated worker pool size: " + num);
+			LOG.warn("Ignoring invalid designated worker pool size: " + num);
 		}
 	}
 

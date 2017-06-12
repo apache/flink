@@ -71,12 +71,12 @@ public class JobAttachmentClientActor extends JobClientActor {
 			if (this.client == null) {
 				jobID = ((AttachToJobAndWait) message).jobID();
 				if (jobID == null) {
-					log.error("Received null JobID");
+					LOG.error("Received null JobID");
 					sender().tell(
 						decorateMessage(new Status.Failure(new Exception("JobID is null"))),
 						getSelf());
 				} else {
-					log.info("Received JobID {}.", jobID);
+					LOG.info("Received JobID {}.", jobID);
 
 					this.client = getSender();
 
@@ -88,7 +88,7 @@ public class JobAttachmentClientActor extends JobClientActor {
 			} else {
 				// repeated submission - tell failure to sender and kill self
 				String msg = "Received repeated 'AttachToJobAndWait'";
-				log.error(msg);
+				LOG.error(msg);
 				getSender().tell(
 					decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
 
@@ -102,7 +102,7 @@ public class JobAttachmentClientActor extends JobClientActor {
 			successfullyRegisteredForJob = true;
 		}
 		else if (message instanceof JobManagerMessages.JobNotFound) {
-			log.info("Couldn't register JobClient for JobID {}",
+			LOG.info("Couldn't register JobClient for JobID {}",
 				((JobManagerMessages.JobNotFound) message).jobID());
 			client.tell(decorateMessage(message), getSelf());
 			terminate();
@@ -124,19 +124,19 @@ public class JobAttachmentClientActor extends JobClientActor {
 				terminate();
 			}
 		} else {
-			log.error("{} received unknown message: ", getClass());
+			LOG.error("{} received unknown message: ", getClass());
 		}
 
 	}
 
 	private void tryToAttachToJob() {
-		log.info("Sending message to JobManager {} to attach to job {} and wait for progress",
+		LOG.info("Sending message to JobManager {} to attach to job {} and wait for progress",
 			jobManager, jobID);
 
 		Futures.future(new Callable<Object>() {
 			@Override
 			public Object call() throws Exception {
-				log.info("Attaching to job {} at the job manager {}.", jobID, jobManager.path());
+				LOG.info("Attaching to job {} at the job manager {}.", jobID, jobManager.path());
 
 				jobManager.tell(
 					decorateMessage(

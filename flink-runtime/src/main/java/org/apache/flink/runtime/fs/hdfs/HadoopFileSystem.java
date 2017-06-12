@@ -471,7 +471,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 //		try {
 //			clazz = org.apache.hadoop.fs.FileSystem.getFileSystemClass(scheme, hadoopConf);
 //		} catch (IOException e) {
-//			log.info("Flink could not load the Hadoop File system implementation for scheme "+scheme);
+//			LOG.info("Flink could not load the Hadoop File system implementation for scheme "+scheme);
 //			return null;
 //		}
 		clazz = hadoopConf.getClass("fs." + scheme + ".impl", null, org.apache.hadoop.fs.FileSystem.class);

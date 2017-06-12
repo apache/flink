@@ -223,11 +223,11 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 
 	private static void printProcessLog(String log) {
 		System.out.println("-----------------------------------------");
-		System.out.println("       BEGIN SPAWNED PROCESS log");
+		System.out.println("       BEGIN SPAWNED PROCESS LOG");
 		System.out.println("-----------------------------------------");
 		System.out.println(log);
 		System.out.println("-----------------------------------------");
-		System.out.println("        END SPAWNED PROCESS log");
+		System.out.println("        END SPAWNED PROCESS LOG");
 		System.out.println("-----------------------------------------");
 	}
 
