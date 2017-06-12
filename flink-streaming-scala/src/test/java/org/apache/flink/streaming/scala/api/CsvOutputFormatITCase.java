@@ -17,23 +17,25 @@
 
 package org.apache.flink.streaming.scala.api;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.scala.OutputFormatTestPrograms;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.util.Collector;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import static org.junit.Assert.*;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * IT cases for the {@link org.apache.flink.api.java.io.CsvOutputFormat}.
+ */
 public class CsvOutputFormatITCase extends StreamingMultipleProgramsTestBase  {
 
 	protected String resultPath;
@@ -115,24 +117,5 @@ public class CsvOutputFormatITCase extends StreamingMultipleProgramsTestBase  {
 				.replaceAll("[\\\\(\\\\)]", ""), resultPath);
 		fileInfo.stopCluster();
 	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
-				throws Exception {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<>(token, 1));
-				}
-			}
-		}
-	}
-
 }
 
