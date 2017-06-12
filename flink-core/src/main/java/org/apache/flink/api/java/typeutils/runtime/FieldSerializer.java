@@ -51,7 +51,7 @@ public class FieldSerializer {
 				clazz = clazz.getSuperclass();
 			}
 		}
-		throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
-				+ " (" + fieldName + ")");
+
+		return null;
 	}
 }

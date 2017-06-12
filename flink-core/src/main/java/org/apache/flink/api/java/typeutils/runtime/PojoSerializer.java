@@ -204,10 +204,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	protected void initializeFields(T t) {
 		for (int i = 0; i < numFields; i++) {
-			try {
-				fields[i].set(t, fieldSerializers[i].createInstance());
-			} catch (IllegalAccessException e) {
-				throw new RuntimeException("Cannot initialize fields.", e);
+			if (fields[i] != null) {
+				try {
+					fields[i].set(t, fieldSerializers[i].createInstance());
+				} catch (IllegalAccessException e) {
+					throw new RuntimeException("Cannot initialize fields.", e);
+				}
 			}
 		}
 	}
@@ -231,13 +233,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			// no subclass
 			try {
 				for (int i = 0; i < numFields; i++) {
-					Object value = fields[i].get(from);
-					if (value != null) {
-						Object copy = fieldSerializers[i].copy(value);
-						fields[i].set(target, copy);
-					}
-					else {
-						fields[i].set(target, null);
+					if (fields[i] != null) {
+						Object value = fields[i].get(from);
+						if (value != null) {
+							Object copy = fieldSerializers[i].copy(value);
+							fields[i].set(target, copy);
+						} else {
+							fields[i].set(target, null);
+						}
 					}
 				}
 			} catch (IllegalAccessException e) {
@@ -268,20 +271,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		if (actualType == clazz) {
 			try {
 				for (int i = 0; i < numFields; i++) {
-					Object value = fields[i].get(from);
-					if (value != null) {
-						Object reuseValue = fields[i].get(reuse);
-						Object copy;
-						if(reuseValue != null) {
-							copy = fieldSerializers[i].copy(value, reuseValue);
+					if (fields[i] != null) {
+						Object value = fields[i].get(from);
+						if (value != null) {
+							Object reuseValue = fields[i].get(reuse);
+							Object copy;
+							if (reuseValue != null) {
+								copy = fieldSerializers[i].copy(value, reuseValue);
+							} else {
+								copy = fieldSerializers[i].copy(value);
+							}
+							fields[i].set(reuse, copy);
+						} else {
+							fields[i].set(reuse, null);
 						}
-						else {
-							copy = fieldSerializers[i].copy(value);
-						}
-						fields[i].set(reuse, copy);
-					}
-					else {
-						fields[i].set(reuse, null);
 					}
 				}
 			} catch (IllegalAccessException e) {
@@ -342,7 +345,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		if ((flags & NO_SUBCLASS) != 0) {
 			try {
 				for (int i = 0; i < numFields; i++) {
-					Object o = fields[i].get(value);
+					Object o = (fields[i] != null) ? fields[i].get(value) : null;
 					if (o == null) {
 						target.writeBoolean(true); // null field handling
 					} else {
@@ -400,11 +403,17 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			try {
 				for (int i = 0; i < numFields; i++) {
 					boolean isNull = source.readBoolean();
-					if (isNull) {
-						fields[i].set(target, null);
-					} else {
-						Object field = fieldSerializers[i].deserialize(source);
-						fields[i].set(target, field);
+
+					if (fields[i] != null) {
+						if (isNull) {
+							fields[i].set(target, null);
+						} else {
+							Object field = fieldSerializers[i].deserialize(source);
+							fields[i].set(target, field);
+						}
+					} else if (!isNull) {
+						// read and dump a pre-existing field value
+						fieldSerializers[i].deserialize(source);
 					}
 				}
 			} catch (IllegalAccessException e) {
@@ -465,20 +474,25 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			try {
 				for (int i = 0; i < numFields; i++) {
 					boolean isNull = source.readBoolean();
-					if (isNull) {
-						fields[i].set(reuse, null);
-					} else {
-						Object field;
 
-						Object reuseField = fields[i].get(reuse);
-						if(reuseField != null) {
-							field = fieldSerializers[i].deserialize(reuseField, source);
-						}
-						else {
-							field = fieldSerializers[i].deserialize(source);
-						}
+					if (fields[i] != null) {
+						if (isNull) {
+							fields[i].set(reuse, null);
+						} else {
+							Object field;
 
-						fields[i].set(reuse, field);
+							Object reuseField = fields[i].get(reuse);
+							if (reuseField != null) {
+								field = fieldSerializers[i].deserialize(reuseField, source);
+							} else {
+								field = fieldSerializers[i].deserialize(source);
+							}
+
+							fields[i].set(reuse, field);
+						}
+					} else if (!isNull) {
+						// read and dump a pre-existing field value
+						fieldSerializers[i].deserialize(source);
 					}
 				}
 			} catch (IllegalAccessException e) {
@@ -600,18 +614,18 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 						(TypeSerializer<Object>[]) new TypeSerializer<?>[this.numFields];
 
 					int i = 0;
-					for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToConfigSnapshotEntry
+					for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToConfigSnapshotEntry
 							: config.getFieldToSerializerConfigSnapshot().entrySet()) {
 
 						int fieldIndex = findField(fieldToConfigSnapshotEntry.getKey());
 						if (fieldIndex != -1) {
-							reorderedFields[i] = fieldToConfigSnapshotEntry.getKey();
+							reorderedFields[i] = fields[fieldIndex];
 
 							compatResult = CompatibilityUtil.resolveCompatibilityResult(
-									fieldToConfigSnapshotEntry.getValue().f0,
-									UnloadableDummyTypeSerializer.class,
-									fieldToConfigSnapshotEntry.getValue().f1,
-									fieldSerializers[fieldIndex]);
+								fieldToConfigSnapshotEntry.getValue().f0,
+								UnloadableDummyTypeSerializer.class,
+								fieldToConfigSnapshotEntry.getValue().f1,
+								fieldSerializers[fieldIndex]);
 
 							if (compatResult.isRequiresMigration()) {
 								requiresMigration = true;
@@ -745,7 +759,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		 * may reorder the fields in case they are different. The order of the fields need to
 		 * stay the same for binary compatibility, as the field order is part of the serialization format.
 		 */
-		private LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot;
+		private LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot;
 
 		/**
 		 * Ordered map of registered subclasses to their corresponding serializers and its configuration snapshots.
@@ -771,7 +785,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 		public PojoSerializerConfigSnapshot(
 				Class<T> pojoType,
-				LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot,
+				LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot,
 				LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> registeredSubclassesToSerializerConfigSnapshots,
 				HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nonRegisteredSubclassesToSerializerConfigSnapshots) {
 
@@ -785,7 +799,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 		public PojoSerializerConfigSnapshot(
 				Class<T> pojoType,
-				LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot,
+				LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot,
 				LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> registeredSubclassesToSerializerConfigSnapshots,
 				HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nonRegisteredSubclassesToSerializerConfigSnapshots,
 				boolean ignoreTypeSerializerSerialization) {
@@ -813,10 +827,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				// --- write fields and their serializers, in order
 
 				out.writeInt(fieldToSerializerConfigSnapshot.size());
-				for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+				for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 						: fieldToSerializerConfigSnapshot.entrySet()) {
 
-					outViewWrapper.writeUTF(entry.getKey().getName());
+					outViewWrapper.writeUTF(entry.getKey());
 
 					out.writeInt(outWithPos.getPosition());
 					if (!ignoreTypeSerializerSerialization) {
@@ -904,39 +918,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 				this.fieldToSerializerConfigSnapshot = new LinkedHashMap<>(numFields);
 				String fieldName;
-				Field field;
 				TypeSerializer<?> fieldSerializer;
 				TypeSerializerConfigSnapshot fieldSerializerConfigSnapshot;
 				for (int i = 0; i < numFields; i++) {
 					fieldName = inViewWrapper.readUTF();
 
-					// search all superclasses for the field
-					Class<?> clazz = getTypeClass();
-					field = null;
-					while (clazz != null) {
-						try {
-							field = clazz.getDeclaredField(fieldName);
-							field.setAccessible(true);
-							break;
-						} catch (NoSuchFieldException e) {
-							clazz = clazz.getSuperclass();
-						}
-					}
+					inWithPos.setPosition(fieldSerializerOffsets[i * 2]);
+					fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader());
 
-					if (field == null) {
-						// the field no longer exists in the POJO
-						throw new IOException("Can't find field " + fieldName + " in POJO class " + getTypeClass().getName());
-					} else {
-						inWithPos.setPosition(fieldSerializerOffsets[i * 2]);
-						fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader());
+					inWithPos.setPosition(fieldSerializerOffsets[i * 2 + 1]);
+					fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
 
-						inWithPos.setPosition(fieldSerializerOffsets[i * 2 + 1]);
-						fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
-
-						fieldToSerializerConfigSnapshot.put(
-							field,
-							new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(fieldSerializer, fieldSerializerConfigSnapshot));
-					}
+					fieldToSerializerConfigSnapshot.put(
+						fieldName,
+						new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(fieldSerializer, fieldSerializerConfigSnapshot));
 				}
 
 				// --- read registered subclasses and their serializers, in registration order
@@ -998,7 +993,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			return VERSION;
 		}
 
-		public LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getFieldToSerializerConfigSnapshot() {
+		public LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getFieldToSerializerConfigSnapshot() {
 			return fieldToSerializerConfigSnapshot;
 		}
 
@@ -1031,8 +1026,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	private void writeObject(ObjectOutputStream out)
-		throws IOException, ClassNotFoundException {
+	private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
 		out.defaultWriteObject();
 		out.writeInt(fields.length);
 		for (Field field: fields) {
@@ -1040,12 +1034,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
-	private void readObject(ObjectInputStream in)
-		throws IOException, ClassNotFoundException {
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 		int numFields = in.readInt();
 		fields = new Field[numFields];
 		for (int i = 0; i < numFields; i++) {
+			// the deserialized Field may be null if the field no longer exists in the POJO;
+			// in this case, when de-/serializing and copying instances using this serializer
+			// instance, the missing fields will simply be skipped
 			fields[i] = FieldSerializer.deserializeField(in);
 		}
 
@@ -1144,10 +1140,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * Finds and returns the order (0-based) of a POJO field.
 	 * Returns -1 if the field does not exist for this POJO.
 	 */
-	private int findField(Field f) {
+	private int findField(String fieldName) {
 		int foundIndex = 0;
 		for (Field field : fields) {
-			if (f.equals(field)) {
+			if (field != null && fieldName.equals(field.getName())) {
 				return foundIndex;
 			}
 
@@ -1174,12 +1170,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<?>[] fieldSerializers,
 			HashMap<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
 
-		final LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshots =
+		final LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshots =
 			new LinkedHashMap<>(fields.length);
 
 		for (int i = 0; i < fields.length; i++) {
 			fieldToSerializerConfigSnapshots.put(
-				fields[i],
+				fields[i].getName(),
 				new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(fieldSerializers[i], fieldSerializers[i].snapshotConfiguration()));
 		}
 
