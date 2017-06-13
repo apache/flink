@@ -38,9 +38,9 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.base.Function;
+import org.apache.flink.shaded.guava18.com.google.common.collect.FluentIterable;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 

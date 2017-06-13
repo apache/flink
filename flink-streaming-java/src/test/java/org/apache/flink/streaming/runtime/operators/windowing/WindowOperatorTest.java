@@ -68,8 +68,9 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.Assert;
 import org.junit.Test;
 
