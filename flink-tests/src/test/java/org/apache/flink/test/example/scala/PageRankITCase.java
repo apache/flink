@@ -22,9 +22,8 @@ package org.apache.flink.test.example.scala;
 import org.apache.flink.examples.scala.graph.PageRankBasic;
 import org.apache.flink.test.testdata.PageRankData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.util.FileUtils;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,10 +60,10 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		resultPath = resultFile.toURI().toString();
 
 		File verticesFile = tempFolder.newFile();
-		Files.write(PageRankData.VERTICES, verticesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(verticesFile, PageRankData.VERTICES);
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(PageRankData.EDGES, edgesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(edgesFile, PageRankData.EDGES);
 
 		verticesPath = verticesFile.toURI().toString();
 		edgesPath = edgesFile.toURI().toString();
