@@ -63,7 +63,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface KeyedBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException;
 	}
 
 	static abstract class AbstractKeyedBackendStateMetaInfoWriter<N, S> implements KeyedBackendStateMetaInfoWriter {
@@ -83,10 +83,11 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
+			// V1 / V2 does not respect the exclude serializer flag
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getNamespaceSerializer());
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getStateSerializer());
 		}
@@ -99,7 +100,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
@@ -110,7 +111,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 						stateMetaInfo.getNamespaceSerializer(), stateMetaInfo.getNamespaceSerializerConfigSnapshot()),
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())));
+						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())),
+				excludeSerializers);
 		}
 	}
 
@@ -141,7 +143,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface KeyedBackendStateMetaInfoReader<N, S> {
-		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException;
+		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in, boolean excludeSerializers) throws IOException;
 	}
 
 	static abstract class AbstractKeyedBackendStateMetaInfoReader implements KeyedBackendStateMetaInfoReader {
@@ -161,13 +164,15 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in, boolean excludeSerializers) throws IOException {
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
+			// V1 / V2 does not respect the exclude serializer flag
 			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader));
 			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader));
 
@@ -187,7 +192,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in, boolean excludeSerializers) throws IOException {
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
@@ -195,7 +201,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setName(in.readUTF());
 
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader, excludeSerializers);
 
 			metaInfo.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(0).f0);
 			metaInfo.setNamespaceSerializerConfigSnapshot(serializersAndConfigs.get(0).f1);

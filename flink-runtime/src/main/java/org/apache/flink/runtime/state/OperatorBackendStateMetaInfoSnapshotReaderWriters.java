@@ -27,8 +27,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,8 +36,6 @@ import java.util.Collections;
  * Outdated formats are also kept here for documentation of history backlog.
  */
 public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
-
-	private static final Logger LOG = LoggerFactory.getLogger(OperatorBackendStateMetaInfoSnapshotReaderWriters.class);
 
 	// -------------------------------------------------------------------------------
 	//  Writers
@@ -66,7 +62,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface OperatorBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoWriter<S>
@@ -86,9 +82,11 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
+
+			// V1 does not respect the exclude serializer flag
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getPartitionStateSerializer());
 		}
 	}
@@ -100,7 +98,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
@@ -109,7 +107,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 				out,
 				Collections.singletonList(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 					stateMetaInfo.getPartitionStateSerializer(),
-					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())));
+					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())),
+				excludeSerializers);
 		}
 	}
 
@@ -138,7 +137,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface OperatorBackendStateMetaInfoReader<S> {
-		RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException;
+		RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
+			DataInputView in, boolean excludeSerializers) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoReader<S>
@@ -158,12 +158,16 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
+				DataInputView in, boolean excludeSerializers) throws IOException {
+
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
 
 			stateMetaInfo.setName(in.readUTF());
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
+
+			// V1 does not respect the exclude serializer flag
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
 				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
@@ -187,7 +191,9 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
+				DataInputView in, boolean excludeSerializers) throws IOException {
+
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
 
@@ -195,7 +201,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
 
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> stateSerializerAndConfig =
-				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
+					in, userCodeClassLoader, excludeSerializers).get(0);
 
 			stateMetaInfo.setPartitionStateSerializer((TypeSerializer<S>) stateSerializerAndConfig.f0);
 			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(stateSerializerAndConfig.f1);

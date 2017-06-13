@@ -602,7 +602,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			KeyedBackendSerializationProxy<K> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.getKeySerializer(), metaInfoSnapshots);
+					new KeyedBackendSerializationProxy<>(
+							stateBackend.getKeySerializer(),
+							metaInfoSnapshots,
+							false); // TODO make this configurable
 
 			serializationProxy.write(outputView);
 		}
@@ -808,7 +811,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				closeableRegistry.registerClosable(outputStream);
 
 				KeyedBackendSerializationProxy<K> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.keySerializer, stateMetaInfoSnapshots);
+						new KeyedBackendSerializationProxy<>(
+								stateBackend.keySerializer,
+								stateMetaInfoSnapshots,
+								false); // TODO make this configurable
 				DataOutputView out = new DataOutputViewStreamWrapper(outputStream);
 
 				serializationProxy.write(out);
@@ -1233,7 +1239,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateBackend.cancelStreamRegistry.registerClosable(inputStream);
 
 				KeyedBackendSerializationProxy<T> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader);
+						new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader);
 				DataInputView in = new DataInputViewStreamWrapper(inputStream);
 				serializationProxy.read(in);
 
