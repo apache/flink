@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
@@ -63,7 +64,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface KeyedBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	static abstract class AbstractKeyedBackendStateMetaInfoWriter<N, S> implements KeyedBackendStateMetaInfoWriter {
@@ -83,10 +84,11 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
+			// V1 / V2 does not respect the serializer index
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getNamespaceSerializer());
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getStateSerializer());
 		}
@@ -99,7 +101,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
@@ -110,7 +112,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 						stateMetaInfo.getNamespaceSerializer(), stateMetaInfo.getNamespaceSerializerConfigSnapshot()),
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())));
+						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())),
+				serializerIndex);
 		}
 	}
 
@@ -141,10 +144,11 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface KeyedBackendStateMetaInfoReader<N, S> {
-		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException;
+		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
-	static abstract class AbstractKeyedBackendStateMetaInfoReader implements KeyedBackendStateMetaInfoReader {
+	static abstract class AbstractKeyedBackendStateMetaInfoReader<N, S> implements KeyedBackendStateMetaInfoReader<N, S> {
 
 		protected final ClassLoader userCodeClassLoader;
 
@@ -154,20 +158,22 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 
 	}
 
-	static class KeyedBackendStateMetaInfoReaderV1V2<N, S> extends AbstractKeyedBackendStateMetaInfoReader {
+	static class KeyedBackendStateMetaInfoReaderV1V2<N, S> extends AbstractKeyedBackendStateMetaInfoReader<N, S> {
 
 		public KeyedBackendStateMetaInfoReaderV1V2(ClassLoader userCodeClassLoader) {
 			super(userCodeClassLoader);
 		}
 
 		@Override
-		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
+			// V1 / V2 does not respect the serializer index
 			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader));
 			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader));
 
@@ -180,14 +186,15 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	@SuppressWarnings("unchecked")
-	static class KeyedBackendStateMetaInfoReaderV3<N, S> extends AbstractKeyedBackendStateMetaInfoReader {
+	static class KeyedBackendStateMetaInfoReaderV3<N, S> extends AbstractKeyedBackendStateMetaInfoReader<N, S> {
 
 		public KeyedBackendStateMetaInfoReaderV3(ClassLoader userCodeClassLoader) {
 			super(userCodeClassLoader);
 		}
 
 		@Override
-		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
@@ -195,7 +202,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setName(in.readUTF());
 
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader, serializerIndex);
 
 			metaInfo.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(0).f0);
 			metaInfo.setNamespaceSerializerConfigSnapshot(serializersAndConfigs.get(0).f1);

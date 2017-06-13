@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -38,15 +39,20 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	private List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots;
 	private ClassLoader userCodeClassLoader;
 
+	private boolean excludeSerializers;
+
 	public OperatorBackendSerializationProxy(ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
 	public OperatorBackendSerializationProxy(
-			List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots) {
+			List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots,
+			boolean excludeSerializers) {
 
 		this.stateMetaInfoSnapshots = Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
+
+		this.excludeSerializers = excludeSerializers;
 	}
 
 	@Override
@@ -64,11 +70,19 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
+		out.writeBoolean(excludeSerializers);
+
+		IdentitySerializerIndex serializerIndex = null;
+		if (!excludeSerializers) {
+			serializerIndex = buildSerializerIndex();
+			serializerIndex.write(out);
+		}
+
 		out.writeShort(stateMetaInfoSnapshots.size());
 		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> kvState : stateMetaInfoSnapshots) {
 			OperatorBackendStateMetaInfoSnapshotReaderWriters
 				.getWriterForVersion(VERSION, kvState)
-				.writeStateMetaInfo(out);
+				.writeStateMetaInfo(out, serializerIndex);
 		}
 	}
 
@@ -76,17 +90,41 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
+		IdentitySerializerIndex serializerIndex = null;
+
+		// the excludeSerializers flag and serializer index was introduced only after version >= 2 (since Flink 1.3.x)
+		if (getReadVersion() >= 2) {
+			excludeSerializers = in.readBoolean();
+
+			if (!excludeSerializers) {
+				serializerIndex = new IdentitySerializerIndex(userCodeClassLoader);
+				serializerIndex.read(in);
+			}
+		} else {
+			excludeSerializers = false;
+		}
+
 		int numKvStates = in.readShort();
 		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
 		for (int i = 0; i < numKvStates; i++) {
 			stateMetaInfoSnapshots.add(
 				OperatorBackendStateMetaInfoSnapshotReaderWriters
 					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
-					.readStateMetaInfo(in));
+					.readStateMetaInfo(in, serializerIndex));
 		}
 	}
 
 	public List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> getStateMetaInfoSnapshots() {
 		return stateMetaInfoSnapshots;
+	}
+
+	private IdentitySerializerIndex buildSerializerIndex() {
+		final IdentitySerializerIndex serializerIndex = new IdentitySerializerIndex();
+
+		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+			serializerIndex.index(stateMetaInfoSnapshot.getPartitionStateSerializer());
+		}
+
+		return serializerIndex;
 	}
 }

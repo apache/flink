@@ -42,6 +42,8 @@ import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -230,6 +232,63 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		public float subDumm2;
 
 		public SubTestUserClassB() {}
+	}
+
+	public static class TestUserClassWithSameFieldTypes {
+		public int dumm1;
+		public int dumm2;
+		public double dumm3;
+		public double dumm4;
+
+		public NestedTestUserClass dumm5;
+		public NestedTestUserClass dumm6;
+
+		public TestUserClassWithSameFieldTypes() {
+		}
+
+		public TestUserClassWithSameFieldTypes(int dumm1, int dumm2, double dumm3, double dumm4, NestedTestUserClass dumm5, NestedTestUserClass dumm6) {
+			this.dumm1 = dumm1;
+			this.dumm2 = dumm2;
+			this.dumm3 = dumm3;
+			this.dumm4 = dumm4;
+			this.dumm5 = dumm5;
+			this.dumm6 = dumm6;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(dumm1, dumm2, dumm3, dumm4, dumm5, dumm6);
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			if (!(other instanceof TestUserClassWithSameFieldTypes)) {
+				return false;
+			}
+
+			TestUserClassWithSameFieldTypes otherTUC = (TestUserClassWithSameFieldTypes) other;
+			if (dumm1 != otherTUC.dumm1) {
+				return false;
+			}
+			if (dumm2 != otherTUC.dumm2) {
+				return false;
+			}
+			if (dumm3 != otherTUC.dumm3) {
+				return false;
+			}
+			if (dumm4 != otherTUC.dumm4) {
+				return false;
+			}
+			if ((dumm5 == null && otherTUC.dumm5 != null)
+				|| (dumm5 != null && !dumm5.equals(otherTUC.dumm5))) {
+				return false;
+			}
+			if ((dumm6 == null && otherTUC.dumm6 != null)
+				|| (dumm6 != null && !dumm6.equals(otherTUC.dumm6))) {
+				return false;
+			}
+			return true;
+		}
 	}
 	
 	/**
@@ -531,7 +590,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				TestUserClass.class,
 				mockOriginalFieldToSerializerConfigSnapshot, // this mocks the previous field order
 				new LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>(), // empty; irrelevant for this test
-				new HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>()); // empty; irrelevant for this test
+				new HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>(), // empty; irrelevant for this test
+				false);
 
 		// reconfigure - check reconfiguration result and that fields are reordered to the previous order
 		CompatibilityResult<TestUserClass> compatResult = pojoSerializer.ensureCompatibility(mockPreviousConfigSnapshot);
@@ -545,7 +605,37 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testSerializerSerializationFailureResilience() throws Exception{
+	public void testExcludeSerializerWithSerializationRoundtrip() throws Exception {
+		// TODO we're testing only POJOs that do not have nested POJO fields for now,
+		// TODO because excluding serializers from config snapshot isn't yet properly configurable
+		PojoSerializer<NestedTestUserClass> pojoSerializer = (PojoSerializer<NestedTestUserClass>)
+			TypeExtractor.getForClass(NestedTestUserClass.class).createSerializer(new ExecutionConfig());
+
+		// snapshot configuration and serialize to bytes
+		PojoSerializer.PojoSerializerConfigSnapshot<NestedTestUserClass> config = pojoSerializer.snapshotConfiguration();
+		config.setExcludeSerializers(true); // exclude serializers, so that only the config snapshots will be written
+		byte[] serializedConfig;
+		try (
+			ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), config);
+			serializedConfig = out.toByteArray();
+		}
+
+		// read configuration from bytes
+		PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass> deserializedConfig;
+		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+			deserializedConfig = (PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass>)
+				TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+					new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
+		verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(config, deserializedConfig);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSerializerSerializationFailureResilience() throws Exception {
 		PojoSerializer<TestUserClass> pojoSerializer = (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
 
 		// snapshot configuration and serialize to bytes
@@ -572,22 +662,61 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
-		verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(config, deserializedConfig);
+		verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(config, deserializedConfig);
 	}
 
-	private static void verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testNonDuplicatedStatelessSerializersInConfigSnapshot() throws IOException {
+		PojoSerializer<TestUserClassWithSameFieldTypes> pojoSerializer = (PojoSerializer<TestUserClassWithSameFieldTypes>)
+			TypeExtractor.getForClass(TestUserClassWithSameFieldTypes.class).createSerializer(new ExecutionConfig());
+
+		// snapshot configuration and serialize to bytes
+		PojoSerializer.PojoSerializerConfigSnapshot<TestUserClassWithSameFieldTypes> config = pojoSerializer.snapshotConfiguration();
+		byte[] serializedConfig;
+		try (
+			ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), config);
+			serializedConfig = out.toByteArray();
+		}
+
+		// read configuration from bytes
+		PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass> deserializedConfig;
+		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+			deserializedConfig = (PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass>)
+				TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+					new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
+
+		// the int fields
+		Assert.assertEquals(IntSerializer.INSTANCE, pojoSerializer.getFieldSerializers()[0]);
+		Assert.assertTrue(pojoSerializer.getFieldSerializers()[0] == pojoSerializer.getFieldSerializers()[1]);
+
+		// the double fields
+		Assert.assertEquals(DoubleSerializer.INSTANCE, pojoSerializer.getFieldSerializers()[2]);
+		Assert.assertTrue(pojoSerializer.getFieldSerializers()[2] == pojoSerializer.getFieldSerializers()[3]);
+
+		// the nested POJOs fields, should be separate PojoSerializers
+		Assert.assertTrue(pojoSerializer.getFieldSerializers()[4] instanceof PojoSerializer);
+		Assert.assertFalse(pojoSerializer.getFieldSerializers()[4] == pojoSerializer.getFieldSerializers()[5]);
+		Assert.assertTrue(pojoSerializer.getFieldSerializers()[4].equals(pojoSerializer.getFieldSerializers()[5]));
+	}
+
+	private static void verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(
 			PojoSerializer.PojoSerializerConfigSnapshot<?> original,
 			PojoSerializer.PojoSerializerConfigSnapshot<?> deserializedConfig) {
 
 		LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalFieldSerializersAndConfs =
-				original.getFieldToSerializerConfigSnapshot();
+				original.getFieldsToSerializersAndConfigSnapshots();
 		for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: deserializedConfig.getFieldToSerializerConfigSnapshot().entrySet()) {
+				: deserializedConfig.getFieldsToSerializersAndConfigSnapshots().entrySet()) {
 
 			Assert.assertEquals(null, entry.getValue().f0);
 
 			if (entry.getValue().f1 instanceof PojoSerializer.PojoSerializerConfigSnapshot) {
-				verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
+				verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) originalFieldSerializersAndConfs.get(entry.getKey()).f1,
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) entry.getValue().f1);
 			} else {
@@ -596,15 +725,15 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalRegistrations =
-				original.getRegisteredSubclassesToSerializerConfigSnapshots();
+				original.getRegisteredSubclassesToSerializersAndConfigSnapshots();
 
 		for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: deserializedConfig.getRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
+				: deserializedConfig.getRegisteredSubclassesToSerializersAndConfigSnapshots().entrySet()) {
 
 			Assert.assertEquals(null, entry.getValue().f0);
 
 			if (entry.getValue().f1 instanceof PojoSerializer.PojoSerializerConfigSnapshot) {
-				verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
+				verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) originalRegistrations.get(entry.getKey()).f1,
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) entry.getValue().f1);
 			} else {

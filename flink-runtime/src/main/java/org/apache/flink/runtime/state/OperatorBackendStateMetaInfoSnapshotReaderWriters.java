@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
@@ -27,8 +28,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,8 +37,6 @@ import java.util.Collections;
  * Outdated formats are also kept here for documentation of history backlog.
  */
 public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
-
-	private static final Logger LOG = LoggerFactory.getLogger(OperatorBackendStateMetaInfoSnapshotReaderWriters.class);
 
 	// -------------------------------------------------------------------------------
 	//  Writers
@@ -66,7 +63,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface OperatorBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoWriter<S>
@@ -86,9 +83,11 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
+
+			// V1 does not respect the serializer index
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getPartitionStateSerializer());
 		}
 	}
@@ -100,7 +99,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
@@ -109,7 +108,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 				out,
 				Collections.singletonList(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 					stateMetaInfo.getPartitionStateSerializer(),
-					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())));
+					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())),
+				serializerIndex);
 		}
 	}
 
@@ -138,7 +138,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface OperatorBackendStateMetaInfoReader<S> {
-		RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException;
+		RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
+			DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoReader<S>
@@ -158,12 +159,16 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
+
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
 
 			stateMetaInfo.setName(in.readUTF());
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
+
+			// V1 does not respect the serializer index
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
 				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
@@ -187,7 +192,9 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
+
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
 
@@ -195,7 +202,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
 
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> stateSerializerAndConfig =
-				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
+					in, userCodeClassLoader, serializerIndex).get(0);
 
 			stateMetaInfo.setPartitionStateSerializer((TypeSerializer<S>) stateSerializerAndConfig.f0);
 			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(stateSerializerAndConfig.f1);

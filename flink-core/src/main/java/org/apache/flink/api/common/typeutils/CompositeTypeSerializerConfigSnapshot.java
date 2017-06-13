@@ -42,6 +42,13 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 	private List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs;
 
+	/**
+	 * Flag indicating whether or not serializers should be excluded from the configuration snapshot.
+	 *
+	 * TODO this is currently a placeholder flag; the behaviour is not yet externally configurable.
+	 */
+	private boolean excludeSerializers = false;
+
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CompositeTypeSerializerConfigSnapshot() {}
 
@@ -61,14 +68,32 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs);
+
+		out.writeBoolean(excludeSerializers);
+
+		IdentitySerializerIndex serializerIndex = null;
+		if (!excludeSerializers) {
+			serializerIndex = buildSerializerIndex();
+			serializerIndex.write(out);
+		}
+
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs, serializerIndex);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
+
+		excludeSerializers = in.readBoolean();
+
+		IdentitySerializerIndex serializerIndex = null;
+		if (!excludeSerializers) {
+			serializerIndex = new IdentitySerializerIndex(getUserCodeClassLoader());
+			serializerIndex.read(in);
+		}
+
 		this.nestedSerializersAndConfigs =
-			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
+			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader(), serializerIndex);
 	}
 
 	public List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNestedSerializersAndConfigs() {
@@ -96,5 +121,15 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 	@Override
 	public int hashCode() {
 		return nestedSerializersAndConfigs.hashCode();
+	}
+
+	private IdentitySerializerIndex buildSerializerIndex() {
+		final IdentitySerializerIndex serializerIndex = new IdentitySerializerIndex();
+
+		for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerAndConfig : nestedSerializersAndConfigs) {
+			serializerIndex.index(serializerAndConfig.f0);
+		}
+
+		return serializerIndex;
 	}
 }
