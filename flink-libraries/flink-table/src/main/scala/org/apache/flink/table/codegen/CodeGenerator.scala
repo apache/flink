@@ -1353,7 +1353,7 @@ class CodeGenerator(
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = true, nullCheck, left, right)
+        generateTemporalPlusMinus(plus = true, nullCheck, call.`type`.getSqlTypeName, left, right)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
@@ -1367,7 +1367,7 @@ class CodeGenerator(
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = false, nullCheck, left, right)
+        generateTemporalPlusMinus(plus = false, nullCheck, call.`type`.getSqlTypeName, left, right)
 
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head

@@ -289,4 +289,14 @@ object CodeGenUtils {
       case java.lang.Character.TYPE => s"$fieldTerm.setChar($objectTerm, $valueTerm)"
       case _ => s"$fieldTerm.set($objectTerm, $valueTerm)"
     }
+
+  def absFloorRound(value: Double): Long = {
+
+    if (value >= 0) {
+      java.lang.Math.round(java.lang.Math.floor((value)))
+    } else {
+      0 - java.lang.Math.round(java.lang.Math.floor((java.lang.Math.abs(value))))
+    }
+
+  }
 }

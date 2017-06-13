@@ -1465,6 +1465,127 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "4")
   }
 
+  @Test
+  def testTimestampDiff: Unit ={
+
+    val startTs = ("timestamp '2019-06-01 07:01:11'", "timestamp '2017-2-20 10:10:01.899'")
+    val endTs = ("timestamp '2020-06-01 07:01:11'", "timestamp '2018-5-24 18:26:53.999'")
+
+    testSqlApi(s"timestampDiff(YEAR, ${startTs._1}, ${endTs._1})", "1")
+    testSqlApi(s"timestampDiff(SQL_TSI_YEAR, ${startTs._2}, ${endTs._2})", "1")
+
+    testSqlApi(s"timestampDiff(QUARTER, ${startTs._1}, ${endTs._1})", "4")
+    testSqlApi(s"timestampDiff(SQL_TSI_QUARTER, ${startTs._2}, ${endTs._2})", "5")
+
+    testSqlApi(s"timestampDiff(MONTH, ${startTs._1}, ${endTs._1})", "12")
+    testSqlApi(s"timestampDiff(SQL_TSI_MONTH, ${startTs._2}, ${endTs._2})", "15")
+
+    testSqlApi(s"timestampDiff(WEEK, ${startTs._1}, ${endTs._1})", "52")
+    testSqlApi(s"timestampDiff(SQL_TSI_WEEK, ${startTs._2}, ${endTs._2})", "65")
+
+    testSqlApi(s"timestampDiff(DAY, ${startTs._1}, ${endTs._1})", "366")
+    testSqlApi(s"timestampDiff(SQL_TSI_DAY, ${startTs._2}, ${endTs._2})", "458")
+
+    testSqlApi(s"timestampDiff(HOUR, ${startTs._1}, ${endTs._1})", "8784")
+    testSqlApi(s"timestampDiff(SQL_TSI_HOUR, ${startTs._2}, ${endTs._2})", "11000")
+
+    testSqlApi(s"timestampDiff(MINUTE, ${startTs._1}, ${endTs._1})", "527040")
+    testSqlApi(s"timestampDiff(SQL_TSI_MINUTE, ${startTs._2}, ${endTs._2})", "660016")
+
+    testSqlApi(s"timestampDiff(SECOND, ${startTs._1}, ${endTs._1})", "31622400")
+    testSqlApi(s"timestampDiff(SQL_TSI_SECOND, ${startTs._2}, ${endTs._2})", "39601012")
+
+    testSqlApi(
+      "timestampDiff(YEAR, timestamp '2012-10-10 22:22:22', timestamp '2013-10-09 22:22:22')","0")
+    testSqlApi(
+      "timestampDiff(YEAR, timestamp '2012-10-10 22:22:22', timestamp '2013-10-11 22:22:22')","1")
+
+    testSqlApi(
+      "timestampDiff(QUARTER, timestamp '2012-9-10 22:22:22', timestamp '2012-12-09 22:22:22')","0")
+    testSqlApi(
+      "timestampDiff(QUARTER, timestamp '2012-9-10 22:22:22', timestamp '2012-12-11 22:22:22')","1")
+
+    testSqlApi(
+      "timestampDiff(MONTH, timestamp '2012-10-10 22:22:22', timestamp '2012-11-09 22:22:22')","0")
+    testSqlApi(
+      "timestampDiff(MONTH, timestamp '2012-10-10 22:22:22', timestamp '2012-11-11 22:22:22')","1")
+
+    testSqlApi(
+      "timestampDiff(DAY, timestamp '2012-10-10 22:22:22', timestamp '2012-10-11 21:22:22')","0")
+    testSqlApi(
+      "timestampDiff(DAY, timestamp '2012-10-10 22:22:22', timestamp '2012-10-11 22:22:22')","1")
+
+    testSqlApi(
+      "timestampDiff(MINUTE, timestamp '2012-10-10 22:22:22', timestamp '2012-10-10 22:23:20')","0")
+    testSqlApi(
+      "timestampDiff(MINUTE, timestamp '2012-10-10 22:22:22', timestamp '2012-10-10 22:23:23')","1")
+
+  }
+
+  @Test
+  def testTimestampDiffWithDateType: Unit ={
+
+    val startTs = ("date '2019-06-01'", "date '2017-2-20'")
+    val endTs = ("date '2020-06-01'", "date '2018-5-24'")
+
+    testSqlApi(s"timestampDiff(YEAR, ${startTs._1}, ${endTs._1})", "1")
+    testSqlApi(s"timestampDiff(SQL_TSI_YEAR, ${startTs._2}, ${endTs._2})", "1")
+
+    testSqlApi(s"timestampDiff(QUARTER, ${startTs._1}, ${endTs._1})", "4")
+    testSqlApi(s"timestampDiff(SQL_TSI_QUARTER, ${startTs._2}, ${endTs._2})", "5")
+
+    testSqlApi(s"timestampDiff(MONTH, ${startTs._1}, ${endTs._1})", "12")
+    testSqlApi(s"timestampDiff(SQL_TSI_MONTH, ${startTs._2}, ${endTs._2})", "15")
+
+    testSqlApi(s"timestampDiff(WEEK, ${startTs._1}, ${endTs._1})", "52")
+    testSqlApi(s"timestampDiff(SQL_TSI_WEEK, ${startTs._2}, ${endTs._2})", "65")
+
+    testSqlApi(s"timestampDiff(DAY, ${startTs._1}, ${endTs._1})", "366")
+    testSqlApi(s"timestampDiff(SQL_TSI_DAY, ${startTs._2}, ${endTs._2})", "458")
+
+    testSqlApi(s"timestampDiff(HOUR, ${startTs._1}, ${endTs._1})", "8784")
+    testSqlApi(s"timestampDiff(SQL_TSI_HOUR, ${startTs._2}, ${endTs._2})", "10992")
+
+    testSqlApi(s"timestampDiff(MINUTE, ${startTs._1}, ${endTs._1})", "527040")
+    testSqlApi(s"timestampDiff(SQL_TSI_MINUTE, ${startTs._2}, ${endTs._2})", "659520")
+
+    testSqlApi(s"timestampDiff(SECOND, ${startTs._1}, ${endTs._1})", "31622400")
+    testSqlApi(s"timestampDiff(SQL_TSI_SECOND, ${startTs._2}, ${endTs._2})", "39571200")
+
+  }
+
+  @Test
+  def testTimestampDiffWithMixedType: Unit ={
+
+    val startTs = ("date '2018-5-24'", "timestamp '2017-2-20 10:10:10.999'")
+    val endTs = ("timestamp '2017-2-20 10:10:10.999'", "date '2018-5-24'")
+
+    testSqlApi(s"timestampDiff(YEAR, ${startTs._1}, ${endTs._1})", "-1")
+    testSqlApi(s"timestampDiff(SQL_TSI_YEAR, ${startTs._2}, ${endTs._2})", "1")
+
+    testSqlApi(s"timestampDiff(QUARTER, ${startTs._1}, ${endTs._1})", "-5")
+    testSqlApi(s"timestampDiff(SQL_TSI_QUARTER, ${startTs._2}, ${endTs._2})", "5")
+
+    testSqlApi(s"timestampDiff(MONTH, ${startTs._1}, ${endTs._1})", "-15")
+    testSqlApi(s"timestampDiff(SQL_TSI_MONTH, ${startTs._2}, ${endTs._2})", "15")
+
+    testSqlApi(s"timestampDiff(WEEK, ${startTs._1}, ${endTs._1})", "-65")
+    testSqlApi(s"timestampDiff(SQL_TSI_WEEK, ${startTs._2}, ${endTs._2})", "65")
+
+    testSqlApi(s"timestampDiff(DAY, ${startTs._1}, ${endTs._1})", "-457")
+    testSqlApi(s"timestampDiff(SQL_TSI_DAY, ${startTs._2}, ${endTs._2})", "457")
+
+    testSqlApi(s"timestampDiff(HOUR, ${startTs._1}, ${endTs._1})", "-10981")
+    testSqlApi(s"timestampDiff(SQL_TSI_HOUR, ${startTs._2}, ${endTs._2})", "10981")
+
+    testSqlApi(s"timestampDiff(MINUTE, ${startTs._1}, ${endTs._1})", "-658909")
+    testSqlApi(s"timestampDiff(SQL_TSI_MINUTE, ${startTs._2}, ${endTs._2})", "658909")
+
+    testSqlApi(s"timestampDiff(SECOND, ${startTs._1}, ${endTs._1})", "-39534589")
+    testSqlApi(s"timestampDiff(SQL_TSI_SECOND, ${startTs._2}, ${endTs._2})", "39534589")
+
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Other functions
   // ----------------------------------------------------------------------------------------------

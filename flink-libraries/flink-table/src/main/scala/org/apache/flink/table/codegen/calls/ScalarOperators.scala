@@ -19,6 +19,7 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
@@ -702,11 +703,14 @@ object ScalarOperators {
   def generateTemporalPlusMinus(
       plus: Boolean,
       nullCheck: Boolean,
+      typeName: SqlTypeName,
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
 
     val op = if (plus) "+" else "-"
+
+    val AVGDAYS_PRE_MONTH = 30.5
 
     (left.resultType, right.resultType) match {
       case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
@@ -735,6 +739,46 @@ object ScalarOperators {
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
           (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }
+
+      case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP) if !plus =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => typeName match {
+            case SqlTypeName.INTERVAL_YEAR | SqlTypeName.INTERVAL_MONTH =>
+              s"org.apache.flink.table.codegen.CodeGenUtils." +
+              s"absFloorRound(($l $op $r)/${MILLIS_PER_DAY}L/${AVGDAYS_PRE_MONTH})"
+            case _ => s"$l $op $r"
+          }
+        }
+
+      case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE) if !plus =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => typeName match {
+            case SqlTypeName.INTERVAL_YEAR | SqlTypeName.INTERVAL_MONTH =>
+              s"org.apache.flink.table.codegen.CodeGenUtils." +
+              s"absFloorRound(($l $op $r)/${AVGDAYS_PRE_MONTH})"
+            case _ => s"($l * ${MILLIS_PER_DAY}L) $op ($r * ${MILLIS_PER_DAY}L)"
+          }
+        }
+
+      case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) if !plus =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => typeName match {
+            case SqlTypeName.INTERVAL_YEAR | SqlTypeName.INTERVAL_MONTH =>
+              s"org.apache.flink.table.codegen.CodeGenUtils." +
+              s"absFloorRound((($l/${MILLIS_PER_DAY}L) $op $r)/${AVGDAYS_PRE_MONTH})"
+            case _ => s"$l $op ($r * ${MILLIS_PER_DAY}L)"
+          }
+        }
+
+      case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) if !plus =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => typeName match {
+            case SqlTypeName.INTERVAL_YEAR | SqlTypeName.INTERVAL_MONTH =>
+              s"org.apache.flink.table.codegen.CodeGenUtils." +
+              s"absFloorRound(($l $op ($r/${MILLIS_PER_DAY}L))/${AVGDAYS_PRE_MONTH})"
+            case _ => s"($l * ${MILLIS_PER_DAY}L) $op $r"
+          }
         }
 
       case _ =>
