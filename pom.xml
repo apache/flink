@@ -445,6 +445,22 @@ under the License.
 				<version>4.0.27.Final</version>
 			</dependency>
 
+			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
+			 version is used by the shaded hadoop jars and the flink-yarn-test project because of MNG-5899.
+
+			 See FLINK-6836 for more details -->
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpcore</artifactId>
+				<version>4.4.6</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.3</version>
+			</dependency>
+
 			<dependency>
 				<groupId>tv.cntt</groupId>
 				<artifactId>netty-router</artifactId>
