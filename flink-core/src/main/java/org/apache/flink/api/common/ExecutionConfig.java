@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common;
 
-import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.TaskManagerOptions;
+
+import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -145,6 +146,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * TaskManager error, usually killing the JVM.
 	 */
 	private long taskCancellationTimeoutMillis = -1;
+
+	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
+	private boolean useSnapshotCompression = false;
 
 	// ------------------------------- User code values --------------------------------------------
 
@@ -840,6 +844,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.autoTypeRegistrationEnabled = false;
 	}
 
+	public boolean isUseSnapshotCompression() {
+		return useSnapshotCompression;
+	}
+
+	public void setUseSnapshotCompression(boolean useSnapshotCompression) {
+		this.useSnapshotCompression = useSnapshotCompression;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ExecutionConfig) {
@@ -864,7 +876,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses) &&
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
-				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis;
+				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
+				useSnapshotCompression == other.useSnapshotCompression;
 
 		} else {
 			return false;
@@ -891,7 +904,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			defaultKryoSerializerClasses,
 			registeredKryoTypes,
 			registeredPojoTypes,
-			taskCancellationIntervalMillis);
+			taskCancellationIntervalMillis,
+			useSnapshotCompression);
 	}
 
 	public boolean canEqual(Object obj) {

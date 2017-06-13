@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.util.NonClosingStreamDecorator;
+import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -45,7 +45,7 @@ public class StatePartitionStreamProvider {
 	}
 
 	public StatePartitionStreamProvider(InputStream stream) {
-		this.stream = new NonClosingStreamDecorator(Preconditions.checkNotNull(stream));
+		this.stream = new NonClosingInputStreamDecorator(Preconditions.checkNotNull(stream));
 		this.creationException = null;
 	}
 
