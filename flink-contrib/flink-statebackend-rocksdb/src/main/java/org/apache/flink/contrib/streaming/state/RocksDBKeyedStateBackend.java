@@ -64,10 +64,13 @@ import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -97,7 +100,9 @@ import org.slf4j.LoggerFactory;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -106,6 +111,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedMap;
@@ -603,7 +609,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			KeyedBackendSerializationProxy<K> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.getKeySerializer(), metaInfoSnapshots);
+				new KeyedBackendSerializationProxy<>(
+					stateBackend.getKeySerializer(),
+					metaInfoSnapshots,
+					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, stateBackend.keyGroupCompressionDecorator));
 
 			serializationProxy.write(outputView);
 		}
@@ -612,71 +621,88 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			byte[] previousKey = null;
 			byte[] previousValue = null;
+			OutputStream kgOutStream = null;
+			DataOutputView kgOutView = null;
 
-			// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
-			try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
+			try {
+				// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
+				try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
 					kvStateIterators, stateBackend.keyGroupPrefixBytes)) {
 
-				// handover complete, null out to prevent double close
-				kvStateIterators = null;
+					// handover complete, null out to prevent double close
+					kvStateIterators = null;
 
-				//preamble: setup with first key-group as our lookahead
-				if (mergeIterator.isValid()) {
-					//begin first key-group by recording the offset
-					keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
-					//write the k/v-state id as metadata
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(mergeIterator.kvStateId());
-					previousKey = mergeIterator.key();
-					previousValue = mergeIterator.value();
-					mergeIterator.next();
-				}
-
-				//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
-				while (mergeIterator.isValid()) {
-
-					assert (!hasMetaDataFollowsFlag(previousKey));
-
-					//set signal in first key byte that meta data will follow in the stream after this k/v pair
-					if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
-
-						//be cooperative and check for interruption from time to time in the hot loop
-						checkInterrupted();
-
-						setMetaDataFollowsFlagInKey(previousKey);
-					}
-
-					writeKeyValuePair(previousKey, previousValue);
-
-					//write meta data if we have to
-					if (mergeIterator.isNewKeyGroup()) {
-						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-						outputView.writeShort(END_OF_KEY_GROUP_MARK);
-						//begin new key-group
+					//preamble: setup with first key-group as our lookahead
+					if (mergeIterator.isValid()) {
+						//begin first key-group by recording the offset
 						keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
-						//write the kev-state
+						//write the k/v-state id as metadata
+						kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
+						kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
 						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-						outputView.writeShort(mergeIterator.kvStateId());
-					} else if (mergeIterator.isNewKeyValueState()) {
-						//write the k/v-state
-						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-						outputView.writeShort(mergeIterator.kvStateId());
+						kgOutView.writeShort(mergeIterator.kvStateId());
+						previousKey = mergeIterator.key();
+						previousValue = mergeIterator.value();
+						mergeIterator.next();
 					}
 
-					//request next k/v pair
-					previousKey = mergeIterator.key();
-					previousValue = mergeIterator.value();
-					mergeIterator.next();
-				}
-			}
+					//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
+					while (mergeIterator.isValid()) {
 
-			//epilogue: write last key-group
-			if (previousKey != null) {
-				assert (!hasMetaDataFollowsFlag(previousKey));
-				setMetaDataFollowsFlagInKey(previousKey);
-				writeKeyValuePair(previousKey, previousValue);
-				//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-				outputView.writeShort(END_OF_KEY_GROUP_MARK);
+						assert (!hasMetaDataFollowsFlag(previousKey));
+
+						//set signal in first key byte that meta data will follow in the stream after this k/v pair
+						if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
+
+							//be cooperative and check for interruption from time to time in the hot loop
+							checkInterrupted();
+
+							setMetaDataFollowsFlagInKey(previousKey);
+						}
+
+						writeKeyValuePair(previousKey, previousValue, kgOutView);
+
+						//write meta data if we have to
+						if (mergeIterator.isNewKeyGroup()) {
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
+							// this will just close the outer stream
+							kgOutStream.close();
+							//begin new key-group
+							keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+							//write the kev-state
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
+							kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
+							kgOutView.writeShort(mergeIterator.kvStateId());
+						} else if (mergeIterator.isNewKeyValueState()) {
+							//write the k/v-state
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							kgOutView.writeShort(mergeIterator.kvStateId());
+						}
+
+						//request next k/v pair
+						previousKey = mergeIterator.key();
+						previousValue = mergeIterator.value();
+						mergeIterator.next();
+					}
+				}
+
+				//epilogue: write last key-group
+				if (previousKey != null) {
+					assert (!hasMetaDataFollowsFlag(previousKey));
+					setMetaDataFollowsFlagInKey(previousKey);
+					writeKeyValuePair(previousKey, previousValue, kgOutView);
+					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+					kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
+					// this will just close the outer stream
+					kgOutStream.close();
+					kgOutStream = null;
+				}
+
+			} finally {
+				// this will just close the outer stream
+				IOUtils.closeQuietly(kgOutStream);
 			}
 		}
 
@@ -687,9 +713,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return stateHandle != null ? new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle) : null;
 		}
 
-		private void writeKeyValuePair(byte[] key, byte[] value) throws IOException {
-			BytePrimitiveArraySerializer.INSTANCE.serialize(key, outputView);
-			BytePrimitiveArraySerializer.INSTANCE.serialize(value, outputView);
+		private void writeKeyValuePair(byte[] key, byte[] value, DataOutputView out) throws IOException {
+			BytePrimitiveArraySerializer.INSTANCE.serialize(key, out);
+			BytePrimitiveArraySerializer.INSTANCE.serialize(value, out);
 		}
 
 		static void setMetaDataFollowsFlagInKey(byte[] key) {
@@ -808,8 +834,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
 				closeableRegistry.registerClosable(outputStream);
 
+				//no need for compression scheme support because sst-files are already compressed
 				KeyedBackendSerializationProxy<K> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.keySerializer, stateMetaInfoSnapshots);
+					new KeyedBackendSerializationProxy<>(
+						stateBackend.keySerializer,
+						stateMetaInfoSnapshots,
+						false);
+
 				DataOutputView out = new DataOutputViewStreamWrapper(outputStream);
 
 				serializationProxy.write(out);
@@ -1044,6 +1075,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private DataInputView currentStateHandleInView;
 		/** Current list of ColumnFamilyHandles for all column families we restore from currentKeyGroupsStateHandle. */
 		private List<ColumnFamilyHandle> currentStateHandleKVStateColumnFamilies;
+		/** The compression decorator that was used for writing the state, as determined by the meta data. */
+		private StreamCompressionDecorator keygroupStreamCompressionDecorator;
 
 		/**
 		 * Creates a restore operation object for the given state backend instance.
@@ -1132,6 +1165,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					"Aborting now since state migration is currently not available");
 			}
 
+			this.keygroupStreamCompressionDecorator = serializationProxy.isUsingKeyGroupCompression() ?
+				SnappyStreamCompressionDecorator.INSTANCE : UncompressedStreamCompressionDecorator.INSTANCE;
+
 			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
 					serializationProxy.getStateMetaInfoSnapshots();
 			currentStateHandleKVStateColumnFamilies = new ArrayList<>(restoredMetaInfos.size());
@@ -1188,27 +1224,30 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				if (0L != offset) {
 					currentStateHandleInStream.seek(offset);
 					boolean keyGroupHasMoreKeys = true;
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					int kvStateId = currentStateHandleInView.readShort();
-					ColumnFamilyHandle handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
-					//insert all k/v pairs into DB
-					while (keyGroupHasMoreKeys) {
-						byte[] key = BytePrimitiveArraySerializer.INSTANCE.deserialize(currentStateHandleInView);
-						byte[] value = BytePrimitiveArraySerializer.INSTANCE.deserialize(currentStateHandleInView);
-						if (RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(key)) {
-							//clear the signal bit in the key to make it ready for insertion again
-							RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(key);
-							rocksDBKeyedStateBackend.db.put(handle, key, value);
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kvStateId = RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK
-									& currentStateHandleInView.readShort();
-							if (RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK == kvStateId) {
-								keyGroupHasMoreKeys = false;
+					try (InputStream compressedKgIn = keygroupStreamCompressionDecorator.decorateWithCompression(currentStateHandleInStream)) {
+						DataInputViewStreamWrapper compressedKgInputView = new DataInputViewStreamWrapper(compressedKgIn);
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						int kvStateId = compressedKgInputView.readShort();
+						ColumnFamilyHandle handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
+						//insert all k/v pairs into DB
+						while (keyGroupHasMoreKeys) {
+							byte[] key = BytePrimitiveArraySerializer.INSTANCE.deserialize(compressedKgInputView);
+							byte[] value = BytePrimitiveArraySerializer.INSTANCE.deserialize(compressedKgInputView);
+							if (RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(key)) {
+								//clear the signal bit in the key to make it ready for insertion again
+								RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(key);
+								rocksDBKeyedStateBackend.db.put(handle, key, value);
+								//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+								kvStateId = RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK
+									& compressedKgInputView.readShort();
+								if (RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK == kvStateId) {
+									keyGroupHasMoreKeys = false;
+								} else {
+									handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
+								}
 							} else {
-								handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
+								rocksDBKeyedStateBackend.db.put(handle, key, value);
 							}
-						} else {
-							rocksDBKeyedStateBackend.db.put(handle, key, value);
 						}
 					}
 				}

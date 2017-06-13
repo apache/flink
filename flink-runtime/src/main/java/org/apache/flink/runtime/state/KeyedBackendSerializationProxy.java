@@ -38,7 +38,11 @@ import java.util.List;
  */
 public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 3;
+	public static final int VERSION = 4;
+
+	//TODO allow for more (user defined) compression formats + backwards compatibility story.
+	/** This specifies if we use a compressed format write the key-groups */
+	private boolean usingKeyGroupCompression;
 
 	private TypeSerializer<K> keySerializer;
 	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
@@ -53,7 +57,10 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	public KeyedBackendSerializationProxy(
 			TypeSerializer<K> keySerializer,
-			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) {
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots,
+			boolean compression) {
+
+		this.usingKeyGroupCompression = compression;
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
@@ -75,6 +82,10 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		return keySerializerConfigSnapshot;
 	}
 
+	public boolean isUsingKeyGroupCompression() {
+		return usingKeyGroupCompression;
+	}
+
 	@Override
 	public int getVersion() {
 		return VERSION;
@@ -83,12 +94,15 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	@Override
 	public int[] getCompatibleVersions() {
 		// we are compatible with version 3 (Flink 1.3.x) and version 1 & 2 (Flink 1.2.x)
-		return new int[] {VERSION, 2, 1};
+		return new int[] {VERSION, 3, 2, 1};
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
+
+		// write the compression format used to write each key-group
+		out.writeBoolean(usingKeyGroupCompression);
 
 		// write in a way to be fault tolerant of read failures when deserializing the key serializer
 		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
@@ -110,8 +124,16 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
+		final int readVersion = getReadVersion();
+
+		if (readVersion >= 4) {
+			usingKeyGroupCompression = in.readBoolean();
+		} else {
+			usingKeyGroupCompression = false;
+		}
+
 		// only starting from version 3, we have the key serializer and its config snapshot written
-		if (getReadVersion() >= 3) {
+		if (readVersion >= 3) {
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
 					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
 			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;

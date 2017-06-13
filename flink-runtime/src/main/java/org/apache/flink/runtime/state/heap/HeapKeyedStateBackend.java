@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.commons.collections.map.HashedMap;
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -57,7 +55,10 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -67,15 +68,21 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
+
+import org.apache.commons.collections.map.HashedMap;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -316,7 +323,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		final KeyedBackendSerializationProxy<K> serializationProxy =
-				new KeyedBackendSerializationProxy<>(keySerializer, metaInfoSnapshots);
+			new KeyedBackendSerializationProxy<>(
+				keySerializer,
+				metaInfoSnapshots,
+				!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
 
 		//--------------------------------------------------- this becomes the end of sync part
 
@@ -331,6 +341,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				@Override
 				public KeyGroupsStateHandle performOperation() throws Exception {
 					long asyncStartTime = System.currentTimeMillis();
+
 					CheckpointStreamFactory.CheckpointStateOutputStream stream = getIoHandle();
 					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(stream);
 					serializationProxy.write(outView);
@@ -343,8 +354,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						outView.writeInt(keyGroupId);
 
 						for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
-							outView.writeShort(kVStateToId.get(kvState.getKey()));
-							cowStateStableSnapshots.get(kvState.getValue()).writeMappingsInKeyGroup(outView, keyGroupId);
+							OutputStream kgCompressionOut = keyGroupCompressionDecorator.decorateWithCompression(stream);
+							DataOutputViewStreamWrapper kgCompressionView = new DataOutputViewStreamWrapper(kgCompressionOut);
+							kgCompressionView.writeShort(kVStateToId.get(kvState.getKey()));
+							cowStateStableSnapshots.get(kvState.getValue()).writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
+							kgCompressionOut.close(); // this will just close the outer stream
 						}
 					}
 
@@ -492,6 +506,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					}
 				}
 
+				final StreamCompressionDecorator streamCompressionDecorator = serializationProxy.isUsingKeyGroupCompression() ?
+					SnappyStreamCompressionDecorator.INSTANCE : UncompressedStreamCompressionDecorator.INSTANCE;
+
 				for (Tuple2<Integer, Long> groupOffset : keyGroupsStateHandle.getGroupRangeOffsets()) {
 					int keyGroupIndex = groupOffset.f0;
 					long offset = groupOffset.f1;
@@ -503,19 +520,26 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					int writtenKeyGroupIndex = inView.readInt();
 
-					Preconditions.checkState(writtenKeyGroupIndex == keyGroupIndex,
+					try (InputStream kgCompressionInStream =
+							 streamCompressionDecorator.decorateWithCompression(fsDataInputStream)) {
+
+						DataInputViewStreamWrapper kgCompressionInView =
+							new DataInputViewStreamWrapper(kgCompressionInStream);
+
+						Preconditions.checkState(writtenKeyGroupIndex == keyGroupIndex,
 							"Unexpected key-group in restore.");
 
-					for (int i = 0; i < restoredMetaInfos.size(); i++) {
-						int kvStateId = inView.readShort();
-						StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
+						for (int i = 0; i < restoredMetaInfos.size(); i++) {
+							int kvStateId = kgCompressionInView.readShort();
+							StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
 
-						StateTableByKeyGroupReader keyGroupReader =
+							StateTableByKeyGroupReader keyGroupReader =
 								StateTableByKeyGroupReaders.readerForVersion(
-										stateTable,
-										serializationProxy.getReadVersion());
+									stateTable,
+									serializationProxy.getReadVersion());
 
-						keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
+							keyGroupReader.readMappingsInKeyGroup(kgCompressionInView, keyGroupIndex);
+						}
 					}
 				}
 			} finally {
