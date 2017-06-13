@@ -243,10 +243,10 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		//  verify that all deployments have happened
 
 		for (TaskManagerGateway gateway : sourceTaskManagers) {
-			verify(gateway, timeout(50)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+			verify(gateway, timeout(500L)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		}
 		for (TaskManagerGateway gateway : targetTaskManagers) {
-			verify(gateway, timeout(50)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+			verify(gateway, timeout(500L)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		}
 	}
 
