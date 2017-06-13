@@ -38,8 +38,9 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChann
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import akka.dispatch.Futures;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayDeque;
