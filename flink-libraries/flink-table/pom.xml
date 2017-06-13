@@ -218,8 +218,9 @@ under the License.
 									<include>org.apache.calcite:*</include>
 									<include>org.apache.calcite.avatica:*</include>
 									<include>net.hydromatic:*</include>
-                                    <include>org.reflections:*</include>
+									<include>org.reflections:*</include>
 									<include>org.codehaus.janino:*</include>
+									<include>com.google.guava:*</include>
                                 </includes>
 							</artifactSet>
 							<relocations>
