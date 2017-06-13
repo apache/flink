@@ -23,6 +23,9 @@ import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
 
 import org.apache.flink.util.OperatingSystem;
+
+import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

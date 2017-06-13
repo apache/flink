@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.operators;
 
-import com.google.common.base.Throwables;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -37,6 +36,9 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.InfiniteIntTupleIterator;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Throwables;
+
 import org.junit.Assert;
 import org.junit.Test;
 
