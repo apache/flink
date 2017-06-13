@@ -18,11 +18,10 @@
 
 package org.apache.flink.api.java.tuple;
 
-import com.google.common.io.Files;
+import org.apache.flink.util.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 /**
@@ -95,7 +94,7 @@ class TupleGenerator {
 	}
 
 	private static void insertCodeIntoFile(String code, File file) throws IOException {
-		String fileContent = Files.toString(file, StandardCharsets.UTF_8);
+		String fileContent = FileUtils.readFileUtf8(file);
 
 		try (Scanner s = new Scanner(fileContent)) {
 			StringBuilder sb = new StringBuilder();
@@ -137,7 +136,7 @@ class TupleGenerator {
 				sb.append(line).append("\n");
 			}
 			s.close();
-			Files.write(sb.toString(), file, StandardCharsets.UTF_8);
+			FileUtils.writeFileUtf8(file, sb.toString());
 		}
 	}
 
