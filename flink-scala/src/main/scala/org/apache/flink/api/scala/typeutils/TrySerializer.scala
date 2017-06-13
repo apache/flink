@@ -124,7 +124,7 @@ class TrySerializer[A](
 
   private def ensureCompatibility(
       compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot)
-      : CompatibilityResult[Option[A]] = {
+        : CompatibilityResult[Try[A]] = {
 
     val previousSerializersAndConfigs =
       compositeConfigSnapshot.getNestedSerializersAndConfigs
