@@ -31,6 +31,8 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
 import _root_.scala.util.{Failure, Success, Try}
 
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
@@ -396,6 +398,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.E,
     ScalarSqlFunctions.CONCAT,
     ScalarSqlFunctions.CONCAT_WS,
+    ScalarSqlFunctions.LOG,
 
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,

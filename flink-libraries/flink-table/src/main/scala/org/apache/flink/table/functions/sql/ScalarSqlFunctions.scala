@@ -48,4 +48,14 @@ object ScalarSqlFunctions {
     null,
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)
+
+  val LOG = new SqlFunction(
+    "LOG",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.or(OperandTypes.NUMERIC,
+      OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)),
+    SqlFunctionCategory.NUMERIC)
+
 }
