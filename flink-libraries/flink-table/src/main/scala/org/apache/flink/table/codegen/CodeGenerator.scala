@@ -936,6 +936,7 @@ class CodeGenerator(
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
     // initial type check
+    //s"requested: $requestedTypeInfo; Actual: $fType")
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException(
         s"Arity[${returnType.getArity}] of result type[$returnType] does not match " +
