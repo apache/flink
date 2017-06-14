@@ -106,7 +106,8 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
     assertTrue(checkCompatibility(enumA, enumD).isRequiresMigration)
   }
 
-  def checkCompatibility(enumSourceA: String, enumSourceB: String): CompatibilityResult[Enumeration#Value] = {
+  def checkCompatibility(enumSourceA: String, enumSourceB: String)
+    : CompatibilityResult[Enumeration#Value] = {
     import EnumValueSerializerUpgradeTest._
 
     val classLoader = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceA)
@@ -128,7 +129,9 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
     val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
 
-    val snapshot2 = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(input, classLoader2)
+    val snapshot2 = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+      input,
+      classLoader2)
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)
@@ -175,7 +178,8 @@ object EnumValueSerializerUpgradeTest {
     val classLoader = Thread.currentThread().getContextClassLoader
 
     val urls = classLoader match {
-      case urlClassLoader: URLClassLoader => urlClassLoader.getURLs
+      case urlClassLoader: URLClassLoader =>
+        urlClassLoader.getURLs
       case x => throw new IllegalStateException(s"Not possible to extract URLs " +
         s"from class loader $x.")
     }
