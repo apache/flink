@@ -100,6 +100,45 @@ public class HighAvailabilityOptions {
 			.defaultValue("/flink")
 			.withDeprecatedKeys("recovery.zookeeper.path.root");
 
+	public static final ConfigOption<String> HA_ZOOKEEPER_NAMESPACE =
+			key("high-availability.zookeeper.path.namespace")
+			.noDefaultValue();
+
+	public static final ConfigOption<String> HA_ZOOKEEPER_LATCH_PATH =
+			key("high-availability.zookeeper.path.latch")
+			.defaultValue("/leaderlatch")
+			.withDeprecatedKeys("recovery.zookeeper.path.latch");
+
+	/** ZooKeeper root path (ZNode) for job graphs. */
+	public static final ConfigOption<String> HA_ZOOKEEPER_JOBGRAPHS_PATH =
+			key("high-availability.zookeeper.path.jobgraphs")
+			.defaultValue("/jobgraphs")
+			.withDeprecatedKeys("recovery.zookeeper.path.jobgraphs");
+
+	public static final ConfigOption<String> HA_ZOOKEEPER_LEADER_PATH =
+			key("high-availability.zookeeper.path.leader")
+			.defaultValue("/leader")
+			.withDeprecatedKeys("recovery.zookeeper.path.leader");
+
+	/** ZooKeeper root path (ZNode) for completed checkpoints. */
+	public static final ConfigOption<String> HA_ZOOKEEPER_CHECKPOINTS_PATH =
+			key("high-availability.zookeeper.path.checkpoints")
+			.defaultValue("/checkpoints")
+			.withDeprecatedKeys("recovery.zookeeper.path.checkpoints");
+
+	/** ZooKeeper root path (ZNode) for checkpoint counters. */
+	public static final ConfigOption<String> HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH =
+			key("high-availability.zookeeper.path.checkpoint-counter")
+			.defaultValue("/checkpoint-counter")
+			.withDeprecatedKeys("recovery.zookeeper.path.checkpoint-counter");
+
+	/** ZooKeeper root path (ZNode) for Mesos workers. */
+	@PublicEvolving
+	public static final ConfigOption<String> HA_ZOOKEEPER_MESOS_WORKERS_PATH =
+			key("high-availability.zookeeper.path.mesos-workers")
+			.defaultValue("/mesos-workers")
+			.withDeprecatedKeys("recovery.zookeeper.path.mesos-workers");
+
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Client Settings
 	// ------------------------------------------------------------------------
@@ -127,6 +166,10 @@ public class HighAvailabilityOptions {
 	public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH = 
 			key("high-availability.zookeeper.path.running-registry")
 			.defaultValue("/running_job_registry/");
+
+	public static final ConfigOption<String> HA_ZOOKEEPER_CLIENT_ACL =
+			key("high-availability.zookeeper.client.acl")
+			.noDefaultValue();
 
 	// ------------------------------------------------------------------------
 
