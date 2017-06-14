@@ -144,6 +144,7 @@ class DataStreamGroupAggregate(
       physicalNamedAggregates,
       inputSchema.logicalType,
       inputSchema.physicalFieldTypeInfo,
+      outRowType.rowType,
       groupings,
       queryConfig,
       DataStreamRetractionRules.isAccRetract(this),

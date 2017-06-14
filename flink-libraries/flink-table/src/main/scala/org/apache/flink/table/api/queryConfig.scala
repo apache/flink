@@ -37,6 +37,13 @@ class BatchQueryConfig private[table] extends QueryConfig
 class StreamQueryConfig private[table] extends QueryConfig {
 
   /**
+    * The non-windowed groupby aggregate update the calculation result according a configuration of
+    * time interval. By default non-windowed groupby aggregate will update calculation result each
+    * row.
+    */
+  private var unboundedAggregateUpdateInterval: Time = Time.milliseconds(0)
+
+  /**
     * The minimum time until state which was not updated will be retained.
     * State might be cleared and removed if it was not updated for the defined period of time.
     */
@@ -47,6 +54,20 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * State will be cleared and removed if it was not updated for the defined period of time.
     */
   private var maxIdleStateRetentionTime: Long = Long.MinValue
+
+  /**
+    * Specifies the time interval for updating the calculation results.
+    *
+    * __Note__: The first record of each key will be emit, and the data after the first is update
+    * the calculation result by the value of updateInterval.
+    *
+    * @param updateInterval The time interval for updating the calculation result.
+    *                       Update calculation result each row if set to less than 1 milliseconds.
+    */
+  def withUnboundedAggregateUpdateInterval(updateInterval: Time): StreamQueryConfig = {
+    unboundedAggregateUpdateInterval = updateInterval
+    this
+  }
 
   /**
     * Specifies the time interval for how long idle state, i.e., state which was not updated, will
@@ -90,6 +111,10 @@ class StreamQueryConfig private[table] extends QueryConfig {
     minIdleStateRetentionTime = minTime.toMilliseconds
     maxIdleStateRetentionTime = maxTime.toMilliseconds
     this
+  }
+
+  def getUnboundedAggregateUpdateInterval: Long = {
+    unboundedAggregateUpdateInterval.toMilliseconds
   }
 
   def getMinIdleStateRetentionTime: Long = {

@@ -162,6 +162,7 @@ object AggregateUtil {
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputRowType: RelDataType,
       inputFieldTypes: Seq[TypeInformation[_]],
+      outputRowType: RowTypeInfo,
       groupings: Array[Int],
       queryConfig: StreamQueryConfig,
       generateRetraction: Boolean,
@@ -196,11 +197,20 @@ object AggregateUtil {
       needReset = false
     )
 
-    new GroupAggProcessFunction(
-      genFunction,
-      aggregationStateType,
-      generateRetraction,
-      queryConfig)
+    if (queryConfig.getUnboundedAggregateUpdateInterval >= 1) {
+      new GroupAggProcessFunctionWithUpdateInterval(
+        genFunction,
+        aggregationStateType,
+        outputRowType,
+        generateRetraction,
+        queryConfig)
+    } else {
+      new GroupAggProcessFunction(
+        genFunction,
+        aggregationStateType,
+        generateRetraction,
+        queryConfig)
+    }
 
   }
 

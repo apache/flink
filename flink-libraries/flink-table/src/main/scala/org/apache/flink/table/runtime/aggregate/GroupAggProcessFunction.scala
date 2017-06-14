@@ -57,8 +57,8 @@ class GroupAggProcessFunction(
   private var cntState: ValueState[JLong] = _
 
   override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
-      s"Code:\n$genAggregations.code")
+    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n" +
+      s"Code:\n${genAggregations.code}")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
