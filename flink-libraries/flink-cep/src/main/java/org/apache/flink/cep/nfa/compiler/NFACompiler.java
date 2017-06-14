@@ -28,6 +28,7 @@ import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.Quantifier.Times;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
@@ -372,14 +373,34 @@ public class NFACompiler {
 		 * @param times     number of times the state should be copied
 		 * @return the first state of the "complex" state, next state should point to it
 		 */
-		private State<T> createTimesState(final State<T> sinkState, int times) {
+		private State<T> createTimesState(final State<T> sinkState, Times times) {
 			State<T> lastSink = copyWithoutTransitiveNots(sinkState);
-			for (int i = 0; i < times - 1; i++) {
-				lastSink = createSingletonState(lastSink, getInnerIgnoreCondition(currentPattern), false);
+
+			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> innerIgnoreCondition = getInnerIgnoreCondition(currentPattern);
+
+			for (int i = times.getFrom(); i < times.getTo(); i++) {
+				final State<T> optionalState = createState(currentPattern.getName(), State.StateType.Normal);
+				optionalState.addTake(lastSink, currentCondition);
+				optionalState.addProceed(sinkState, BooleanConditions.<T>trueFunction());
+
+				if (innerIgnoreCondition != null) {
+					State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
+					ignoreState.addTake(lastSink, currentCondition);
+					ignoreState.addIgnore(innerIgnoreCondition);
+					optionalState.addIgnore(ignoreState, innerIgnoreCondition);
+					addStopStates(ignoreState);
+				}
+
+				lastSink = optionalState;
+				addStopStates(lastSink);
+			}
+
+			for (int i = 0; i < times.getFrom() - 1; i++) {
+				lastSink = createSingletonState(lastSink, innerIgnoreCondition, false);
 				addStopStateToLooping(lastSink);
 			}
 
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
 			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
 
 			// we created the intermediate states in the loop, now we create the start of the loop.
