@@ -22,9 +22,8 @@ import org.apache.flink.graph.examples.MusicProfiles;
 import org.apache.flink.graph.examples.data.MusicProfilesData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.FileUtils;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -67,11 +66,11 @@ public class MusicProfilesITCase extends MultipleProgramsTestBase {
 		communitiesResultPath = tempFolder.newFile().toURI().toString();
 
 		File tripletsFile = tempFolder.newFile();
-		Files.write(MusicProfilesData.USER_SONG_TRIPLETS, tripletsFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(tripletsFile, MusicProfilesData.USER_SONG_TRIPLETS);
 		tripletsPath = tripletsFile.toURI().toString();
 
 		File mismatchesFile = tempFolder.newFile();
-		Files.write(MusicProfilesData.MISMATCHES, mismatchesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(mismatchesFile, MusicProfilesData.MISMATCHES);
 		mismatchesPath = mismatchesFile.toURI().toString();
 	}
 

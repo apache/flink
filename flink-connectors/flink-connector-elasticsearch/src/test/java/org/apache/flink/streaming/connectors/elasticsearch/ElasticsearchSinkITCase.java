@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
@@ -34,6 +33,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +113,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 		userConfig.put("cluster.name", CLUSTER_NAME);
 		userConfig.put("node.local", "true");
 
-		List<TransportAddress> transports = Lists.newArrayList();
+		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new LocalTransportAddress("1"));
 
 		source.addSink(new ElasticsearchSink<>(
@@ -146,7 +146,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 		// LocalTransportAddress to connect to a local embedded node
 		userConfig.put("node.local", "true");
 
-		List<TransportAddress> transports = Lists.newArrayList();
+		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new LocalTransportAddress("1"));
 
 		return new ElasticsearchSink<>(
