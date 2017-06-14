@@ -316,6 +316,19 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
+    * Specifies that the pattern can occur between from and to times.
+    *
+    * @param from number of times matching event must appear at least
+    * @param to   number of times matching event must appear at most
+    * @return The same pattern with the number of times range applied
+    * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+    */
+  def times(from: Int, to: Int): Pattern[T, F] = {
+    jPattern.times(from, to)
+    this
+  }
+
+  /**
     * Applicable only to [[Quantifier.oneOrMore()]] and [[Quantifier.times()]] patterns,
     * this option allows more flexibility to the matching events.
     *

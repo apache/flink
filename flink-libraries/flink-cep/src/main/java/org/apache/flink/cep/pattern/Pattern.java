@@ -21,6 +21,7 @@ package org.apache.flink.cep.pattern;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
+import org.apache.flink.cep.pattern.Quantifier.Times;
 import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.OrCondition;
@@ -64,7 +65,7 @@ public class Pattern<T, F extends T> {
 	 * Applicable to a {@code times} pattern, and holds
 	 * the number of times it has to appear.
 	 */
-	private int times;
+	private Times times;
 
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
@@ -84,7 +85,7 @@ public class Pattern<T, F extends T> {
 		return previous;
 	}
 
-	public int getTimes() {
+	public Times getTimes() {
 		return times;
 	}
 
@@ -318,7 +319,27 @@ public class Pattern<T, F extends T> {
 		checkIfQuantifierApplied();
 		Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
 		this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
-		this.times = times;
+		this.times = Times.of(times);
+		return this;
+	}
+
+	/**
+	 * Specifies that the pattern can occur between from and to times.
+	 *
+	 * @param from number of times matching event must appear at least
+	 * @param to number of times matching event must appear at most
+	 * @return The same pattern with the number of times range applied
+	 *
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> times(int from, int to) {
+		checkIfNoNotPattern();
+		checkIfQuantifierApplied();
+		this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
+		if (from == 0) {
+			this.quantifier.optional();
+		}
+		this.times = Times.of(from, to);
 		return this;
 	}
 
