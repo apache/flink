@@ -20,17 +20,18 @@ package org.apache.flink.table.runtime.harness
 import java.util.{Comparator, Queue => JQueue}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.functions.aggfunctions.{LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction, IntSumWithRetractAggFunction}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
@@ -45,7 +46,7 @@ class HarnessTestBase {
   val intSumWithRetractAggFunction =
     UserDefinedFunctionUtils.serialize(new IntSumWithRetractAggFunction)
 
-  protected val MinMaxRowType = new RowTypeInfo(Array[TypeInformation[_]](
+  protected val minMaxRowType = new RowTypeInfo(Array[TypeInformation[_]](
     INT_TYPE_INFO,
     LONG_TYPE_INFO,
     INT_TYPE_INFO,
@@ -53,14 +54,14 @@ class HarnessTestBase {
     LONG_TYPE_INFO),
     Array("a", "b", "c", "d", "e"))
 
-  protected val SumRowType = new RowTypeInfo(Array[TypeInformation[_]](
+  protected val sumRowType = new RowTypeInfo(Array[TypeInformation[_]](
     LONG_TYPE_INFO,
     INT_TYPE_INFO,
     STRING_TYPE_INFO),
     Array("a", "b", "c"))
 
-  protected val minMaxCRowType = new CRowTypeInfo(MinMaxRowType)
-  protected val sumCRowType = new CRowTypeInfo(SumRowType)
+  protected val minMaxCRowType = new CRowTypeInfo(minMaxRowType)
+  protected val sumCRowType = new CRowTypeInfo(sumRowType)
 
   protected val minMaxAggregates =
     Array(new LongMinWithRetractAggFunction,
@@ -74,6 +75,9 @@ class HarnessTestBase {
 
   protected val sumAggregationStateType: RowTypeInfo =
     AggregateUtil.createAccumulatorRowType(sumAggregates)
+
+  protected val sumAggregationRowType: RowTypeInfo =
+    new RowTypeInfo(LONG_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO)
 
   val minMaxCode: String =
     s"""
@@ -219,7 +223,7 @@ class HarnessTestBase {
       |      sum;
       |
       |    output.setField(
-      |      1,
+      |      2,
       |      baseClass0.getValue((org.apache.flink.table.functions.aggfunctions
       |      .SumWithRetractAccumulator) accs.getField(0)));
       |  }
@@ -259,9 +263,8 @@ class HarnessTestBase {
       |    org.apache.flink.types.Row output)
       |     {
       |
-      |    output.setField(
-      |      0,
-      |      input.getField(0));
+      |    output.setField(0, input.getField(0));
+      |    output.setField(1, input.getField(2));
       |  }
       |
       |  public final void setConstantFlags(org.apache.flink.types.Row output)
@@ -270,7 +273,7 @@ class HarnessTestBase {
       |  }
       |
       |  public final org.apache.flink.types.Row createOutputRow() {
-      |    return new org.apache.flink.types.Row(2);
+      |    return new org.apache.flink.types.Row(3);
       |  }
       |
       |
