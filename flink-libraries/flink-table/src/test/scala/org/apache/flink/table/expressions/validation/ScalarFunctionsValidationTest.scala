@@ -26,6 +26,28 @@ import org.junit.Test
 class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
   // ----------------------------------------------------------------------------------------------
+  // Math functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testInvalidLog1(): Unit = {
+    // invalid arithmetic argument
+    testSqlApi(
+      "LOG(1, 100)",
+      "FAIL"
+    )
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testInvalidLog2(): Unit ={
+    // invalid arithmetic argument
+    testSqlApi(
+      "LOG(-1)",
+      "FAIL"
+    )
+  }
+
+  // ----------------------------------------------------------------------------------------------
   // String functions
   // ----------------------------------------------------------------------------------------------
 

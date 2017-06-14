@@ -1188,6 +1188,34 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       math.E.toString)
   }
 
+  @Test
+  def testLog(): Unit = {
+    testSqlApi(
+      "LOG(f6)",
+      "1.5260563034950492"
+    )
+
+    testSqlApi(
+      "LOG(f6-f6 + 10, f6-f6+100)",
+      "2.0"
+    )
+
+    testSqlApi(
+      "LOG(f6+20)",
+      "3.202746442938317"
+    )
+
+    testSqlApi(
+      "LOG(10)",
+      "2.302585092994046"
+    )
+
+    testSqlApi(
+      "LOG(10, 100)",
+      "2.0"
+    )
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

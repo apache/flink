@@ -405,12 +405,13 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SIGN,
     SqlStdOperatorTable.ROUND,
     SqlStdOperatorTable.PI,
+    ScalarSqlFunctions.E,
     SqlStdOperatorTable.RAND,
     SqlStdOperatorTable.RAND_INTEGER,
-    ScalarSqlFunctions.E,
     ScalarSqlFunctions.CONCAT,
     ScalarSqlFunctions.CONCAT_WS,
     SqlStdOperatorTable.TIMESTAMP_ADD,
+    ScalarSqlFunctions.LOG,
 
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,

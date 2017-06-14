@@ -25,6 +25,12 @@ import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.table.runtime.functions.ScalarFunctions
 
 object BuiltInMethods {
+
+  val LOG = Types.lookupMethod(classOf[ScalarFunctions], "log", classOf[Double])
+
+  val LOG_WITH_BASE =
+    Types.lookupMethod(classOf[ScalarFunctions], "log", classOf[Double], classOf[Double])
+
   val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
 
   val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
