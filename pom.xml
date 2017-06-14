@@ -221,7 +221,6 @@ under the License.
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
 			separatly in the flink-shaded-hadoop module).
-			We can use all guava versions everywhere by adding it directly as a dependency to each project.
 		-->
 		<dependencies>
 
@@ -1260,19 +1259,10 @@ under the License.
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
 									-->
 									<include>org.apache.flink:force-shading</include>
-									<include>com.google.guava:*</include>
 									<include>org.ow2.asm:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
-									<excludes>
-										<exclude>com.google.protobuf.**</exclude>
-										<exclude>com.google.inject.**</exclude>
-									</excludes>
-								</relocation>
 								<relocation>
 									<pattern>org.objectweb.asm</pattern>
 									<shadedPattern>org.apache.flink.shaded.org.objectweb.asm</shadedPattern>
