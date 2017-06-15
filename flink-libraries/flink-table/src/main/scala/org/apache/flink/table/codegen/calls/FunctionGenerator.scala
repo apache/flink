@@ -512,6 +512,17 @@ object FunctionGenerator {
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
     new DateFormatCallGen
   )
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.LPAD,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.LPAD)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.RPAD,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.RPAD)
 
   // ----------------------------------------------------------------------------------------------
   // Cryptographic Hash functions
