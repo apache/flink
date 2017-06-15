@@ -194,8 +194,20 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 		// Trigger savepoint
 		File targetDirectory = tmpFolder.newFolder();
 		msg = new JobManagerMessages.CancelJobWithSavepoint(jobToMigrate.getJobID(), targetDirectory.getAbsolutePath());
-		Future<Object> future = jobManager.ask(msg, timeout);
-		result = Await.result(future, timeout);
+
+		// FLINK-6918: Retry cancel with savepoint message in case that StreamTasks were not running
+		// TODO: The retry logic should be removed once the StreamTask lifecycle has been fixed (see FLINK-4714)
+		boolean retry = true;
+		for (int i = 0; retry && i < 10; i++) {
+			Future<Object> future = jobManager.ask(msg, timeout);
+			result = Await.result(future, timeout);
+
+			if (result instanceof JobManagerMessages.CancellationFailure) {
+				Thread.sleep(50L);
+			} else {
+				retry = false;
+			}
+		}
 
 		if (result instanceof JobManagerMessages.CancellationFailure) {
 			JobManagerMessages.CancellationFailure failure = (JobManagerMessages.CancellationFailure) result;
