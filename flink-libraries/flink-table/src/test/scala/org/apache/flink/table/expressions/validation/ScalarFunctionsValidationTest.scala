@@ -97,6 +97,17 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testLpadWithNull(): Unit = {
+    // Must fail. Parameter of base string must not be null.
+    testSqlApi("LPAD(null,1,'??')", "")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testRpadWithNull(): Unit = {
+    // Must fail. Parameter of base string must not be null.
+    testSqlApi("RPAD(null,1,'??')", "")
+  }
   // ----------------------------------------------------------------------------------------------
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
@@ -128,3 +139,4 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     )
   }
 }
+

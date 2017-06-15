@@ -90,11 +90,22 @@ object BuiltInMethods {
   val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Long], classOf[Int])
   val ROUND_DEC = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[JBigDecimal],
     classOf[Int])
-
   val CONCAT = Types.lookupMethod(classOf[ScalarFunctions], "concat", classOf[Array[String]])
   val CONCAT_WS =
     Types.lookupMethod(
       classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
+  val LPAD = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "lpad",
+    classOf[String],
+    classOf[Integer],
+    classOf[String])
+  val RPAD = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "rpad",
+    classOf[String],
+    classOf[Integer],
+    classOf[String])
 
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
 }
