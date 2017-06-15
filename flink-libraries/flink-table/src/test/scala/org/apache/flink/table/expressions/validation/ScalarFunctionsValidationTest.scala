@@ -39,7 +39,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testInvalidLog2(): Unit ={
+  def testInvalidLog2(): Unit = {
     // invalid arithmetic argument
     testSqlApi(
       "LOG(-1)",
@@ -68,17 +68,17 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampInterval(): Unit ={
+  def testTimestampAddWithWrongTimestampInterval(): Unit = {
     testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampFormat(): Unit ={
+  def testTimestampAddWithWrongTimestampFormat(): Unit = {
     testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[ValidationException])
-  def testTimestampAddWithWrongQuantity(): Unit ={
+  def testTimestampAddWithWrongQuantity(): Unit = {
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 
@@ -111,5 +111,20 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
       "f1.in('Hi','Hello world','Comment#1')",
       "true"
     )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidBin1(): Unit = {
+    testSqlApi("BIN(f12)", "101010") // float type
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidBin2(): Unit = {
+    testSqlApi("BIN(f15)", "101010") // BigDecimal type
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidBin3(): Unit = {
+    testSqlApi("BIN(f16)", "101010") // Date type
   }
 }

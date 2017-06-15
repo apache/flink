@@ -352,6 +352,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "Flink~~~~xx")
   }
 
+  @Test
+  def testBin(): Unit = {
+    testSqlApi("BIN(f2)", "101010")
+    testSqlApi("BIN(f3)", "101011")
+    testSqlApi("BIN(f4)", "101100")
+    testSqlApi("BIN(f7)", "11")
+    testSqlApi("BIN(12)", "1100")
+    testSqlApi("BIN(10)", "1010")
+    testSqlApi("BIN(0)", "0")
+    testSqlApi("BIN(f32)","1111111111111111111111111111111111111111111111111111111111111111")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------

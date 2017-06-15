@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.functions.sql
 
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
@@ -31,6 +32,14 @@ object ScalarSqlFunctions {
     ReturnTypes.DOUBLE,
     null,
     OperandTypes.NILADIC,
+    SqlFunctionCategory.NUMERIC)
+
+  val BIN = new SqlFunction(
+    "BIN",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.explicit(SqlTypeName.VARCHAR),
+    null,
+    OperandTypes.family(SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC)
 
   val CONCAT = new SqlFunction(
