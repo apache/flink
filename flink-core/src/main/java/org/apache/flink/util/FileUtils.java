@@ -25,9 +25,12 @@ import org.apache.flink.core.fs.Path;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -113,9 +116,18 @@ public final class FileUtils {
 		else if (file.exists()) {
 			try {
 				Files.delete(file.toPath());
+				System.out.println("Fil = " + file.toString() + " - " + Thread.currentThread().getName() + " - Del - " + file.exists());
 			}
 			catch (NoSuchFileException e) {
 				// if the file is already gone (concurrently), we don't mind
+			} catch (AccessDeniedException e) {
+				// this may occur on Windows if another process is currently
+				// deleting the file. We double check here to make sure the
+				// file was actually deleted by another process. Note that this
+				// isn't a perfect solution, but it's better than nothing.
+				if (Files.exists(file.toPath())) {
+					throw e;
+				}
 			}
 		}
 		// else: already deleted
@@ -148,14 +160,57 @@ public final class FileUtils {
 				return;
 			}
 
-			// delete the directory. this fails if the directory is not empty, meaning
-			// if new files got concurrently created. we want to fail then.
-			try {
-				Files.delete(directory.toPath());
-			}
-			catch (NoSuchFileException ignored) {
-				// if someone else deleted this concurrently, we don't mind
-				// the result is the same for us, after all
+			java.nio.file.Path directoryPath = directory.toPath();
+			if (OperatingSystem.isWindows()) {
+				// delete the directory. this fails if the directory is not empty, meaning
+				// if new files got concurrently created. we want to fail then.
+				try {
+					Files.delete(directoryPath);
+					System.out.println("Dir = " + directory.toString() + " - " + Thread.currentThread().getName() + " - Del - " + directory.exists());
+				} catch (NoSuchFileException ignored) {
+					// if someone else deleted this concurrently, we don't mind
+					// the result is the same for us, after all
+				} catch (AccessDeniedException e) {
+					// This may occur on Windows if another process is currently
+					// deleting the file, since the file must be opened in order
+					// to delete it. We double check here to make sure the file
+					// was actually deleted by another process. Note that this
+					// isn't a perfect solution, but it's better than nothing.
+					if (Files.exists(directoryPath)) {
+						throw e;
+					}
+				} catch (DirectoryNotEmptyException e) {
+					// This may occur on Windows for some reason even for empty
+					// directories. Apparently there's a timing/visibility
+					// issue when concurrently deleting the contents of a directory 
+					// and afterwards deleting the directory itself.
+					
+					File[] contents = directory.listFiles();
+					System.out.println("Dir = " + directory.toString() + " - " + Thread.currentThread().getName() + " - Fail - " + Arrays.toString(contents));
+					if (contents != null && contents.length > 0) {
+						boolean empty = true;
+						for (File f : contents) {
+							if (f.exists()) {
+								empty = false;
+							}
+							System.out.println(f + " - " + empty);
+						}
+						if (!empty) {
+							System.out.flush();
+							throw new RuntimeException("Dir = " + directory.toString() + " - " + Thread.currentThread().getName(), e);
+						}
+					}
+				}
+			} else {
+				// delete the directory. this fails if the directory is not empty, meaning
+				// if new files got concurrently created. we want to fail then.
+				try {
+					Files.delete(directoryPath);
+				}
+				catch (NoSuchFileException ignored) {
+					// if someone else deleted this concurrently, we don't mind
+					// the result is the same for us, after all
+				}
 			}
 		}
 		else if (directory.exists()) {
@@ -203,6 +258,7 @@ public final class FileUtils {
 
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
+			System.out.println("Dir = " + directory.toString() + " - " + Thread.currentThread().getName() + " - Attm - " + Arrays.toString(files));
 
 			if (files == null) {
 				// directory does not exist any more or no permissions

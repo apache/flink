@@ -128,7 +128,7 @@ public class FileUtilsTest {
 	private static void generateRandomDirs(File dir, int numFiles, int numDirs, int depth) throws IOException {
 		// generate the random files
 		for (int i = 0; i < numFiles; i++) {
-			File file = new File(dir, new AbstractID().toString());
+			File file = new File(dir, "f" + i);
 			try (FileOutputStream out = new FileOutputStream(file)) {
 				out.write(1);
 			}
@@ -137,7 +137,7 @@ public class FileUtilsTest {
 		if (depth > 0) {
 			// generate the directories
 			for (int i = 0; i < numDirs; i++) {
-				File subdir = new File(dir, new AbstractID().toString());
+				File subdir = new File(dir, "d" + i);
 				assertTrue(subdir.mkdir());
 				generateRandomDirs(subdir, numFiles, numDirs, depth - 1);
 			}
@@ -149,9 +149,10 @@ public class FileUtilsTest {
 	private static class Deleter extends CheckedThread {
 
 		private final File target;
+		private static int c;
 
 		Deleter(File target) {
-			this.target = target;
+			super("Thread-" + c++);this.target = target;
 		}
 
 		@Override
