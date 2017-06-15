@@ -58,14 +58,6 @@ public class HighAvailabilityOptions {
 			key("high-availability.storageDir")
 			.noDefaultValue()
 			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir");
-
-	/**
-	 * The ZooKeeper quorum to use, when running Flink in a high-availability mode with ZooKeeper.
-	 */
-	public static final ConfigOption<String> HA_ZOOKEEPER_QUORUM =
-			key("high-availability.zookeeper.quorum")
-			.noDefaultValue()
-			.withDeprecatedKeys("recovery.zookeeper.quorum");
 	
 
 	// ------------------------------------------------------------------------
@@ -91,6 +83,14 @@ public class HighAvailabilityOptions {
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Options
 	// ------------------------------------------------------------------------
+
+	/**
+	 * The ZooKeeper quorum to use, when running Flink in a high-availability mode with ZooKeeper.
+	 */
+	public static final ConfigOption<String> HA_ZOOKEEPER_QUORUM =
+			key("high-availability.zookeeper.quorum")
+			.noDefaultValue()
+			.withDeprecatedKeys("recovery.zookeeper.quorum");
 
 	/**
 	 * The root path under which Flink stores its entries in ZooKeeper
@@ -167,7 +167,7 @@ public class HighAvailabilityOptions {
 			key("high-availability.zookeeper.path.running-registry")
 			.defaultValue("/running_job_registry/");
 
-	public static final ConfigOption<String> HA_ZOOKEEPER_CLIENT_ACL =
+	public static final ConfigOption<String> ZOOKEEPER_CLIENT_ACL =
 			key("high-availability.zookeeper.client.acl")
 			.noDefaultValue();
 
