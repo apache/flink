@@ -45,7 +45,7 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	 * be the amounts of bytes the can be consumed sequentially within the seektime. Unfortunately, seektime is not
 	 * constant and devices, OS, and DFS potentially also use read buffers and read-ahead.
 	 */
-	private static final int MIN_SKIP_BYTES = 1024 * 1024;
+	public static final int MIN_SKIP_BYTES = 1024 * 1024;
 
 	/** The internal stream */
 	private final org.apache.hadoop.fs.FSDataInputStream fsDataInputStream;
@@ -71,7 +71,7 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 			skipFully(delta);
 		} else if (delta != 0L) {
 			// For larger gaps and backward seeks, we do a real seek
-			forceSeek(delta);
+			forceSeek(seekPos);
 		} // Do nothing if delta is zero.
 	}
 
