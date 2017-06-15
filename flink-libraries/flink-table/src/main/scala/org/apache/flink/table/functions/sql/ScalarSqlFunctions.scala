@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.functions.sql
 
+import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeFamily, SqlTypeName}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
-import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeFamily}
 
 /**
   * All built-in scalar SQL functions.
@@ -31,6 +31,14 @@ object ScalarSqlFunctions {
     ReturnTypes.DOUBLE,
     null,
     OperandTypes.NILADIC,
+    SqlFunctionCategory.NUMERIC)
+
+  val BIN = new SqlFunction(
+    "BIN",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.explicit(SqlTypeName.VARCHAR),
+    null,
+    OperandTypes.family(SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC)
 
   val CONCAT = new SqlFunction(
