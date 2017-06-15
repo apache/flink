@@ -22,6 +22,7 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
@@ -907,6 +908,29 @@ object array {
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
+  }
+}
+
+object rand {
+
+  def apply(expr: Expression*): Expression = {
+    expr.size match {
+      case 0 => new Rand()
+      case 1 => Rand(expr.head)
+      case _ => throw new ValidationException("Invalid arguments for rand([seed]).")
+    }
+  }
+}
+
+object rand_integer {
+
+  def apply(expr: Expression*): Expression = {
+    expr.size match {
+      case 1 => new RandInteger(expr.head)
+      case 2 => RandInteger(expr.head, expr(1))
+      case _ =>
+        throw new ValidationException("Invalid arguments for rand_integer([seed, ] bound).")
+    }
   }
 }
 

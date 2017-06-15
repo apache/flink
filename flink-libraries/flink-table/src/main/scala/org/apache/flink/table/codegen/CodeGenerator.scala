@@ -1971,6 +1971,45 @@ class CodeGenerator(
   }
 
   /**
+    * Adds a reusable [[java.util.Random]] to the member area of the generated [[Function]].
+    *
+    * @return member variable term
+    */
+  def addReusableRandom(seedExpr: GeneratedExpression): String = {
+    val fieldTerm = newName("random")
+
+    val field =
+      s"""
+         |final java.util.Random $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit = if (seedExpr != null && nullCheck) {
+      s"""
+         |${seedExpr.code}
+         |if(!${seedExpr.nullTerm}) {
+         |  $fieldTerm = new java.util.Random(${seedExpr.resultTerm});
+         |}
+         |else {
+         |  $fieldTerm = new java.util.Random();
+         |}
+         |""".stripMargin
+    } else if (seedExpr != null) {
+      s"""
+         |${seedExpr.code}
+         |$fieldTerm = new java.util.Random(${seedExpr.resultTerm});
+         |""".stripMargin
+    } else {
+      s"""
+         |$fieldTerm = new java.util.Random();
+         |""".stripMargin
+    }
+
+    reusableInitStatements.add(fieldInit)
+    fieldTerm
+  }
+
+  /**
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime

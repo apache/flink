@@ -240,6 +240,10 @@ object FunctionCatalog {
     "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
 
+    // random functions
+    "rand" -> classOf[Rand],
+    "rand_integer" -> classOf[RandInteger]
+
     // window properties
     "start" -> classOf[WindowStart],
     "end" -> classOf[WindowEnd],
@@ -375,6 +379,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
+    SqlStdOperatorTable.RAND,
+    SqlStdOperatorTable.RAND_INTEGER,
     SqlStdOperatorTable.SIN,
     SqlStdOperatorTable.COS,
     SqlStdOperatorTable.TAN,
