@@ -37,7 +37,7 @@ public class ResourceManagerOptions {
 		.key("local.number-resourcemanager")
 		.defaultValue(1);
 
-	public static final ConfigOption<Integer> RESOURCE_MANAGER_IPC_PORT_KEY = ConfigOptions
+	public static final ConfigOption<Integer> RESOURCE_MANAGER_IPC_PORT = ConfigOptions
 		.key("resourcemanager.rpc.port")
 		.defaultValue(0);
 
