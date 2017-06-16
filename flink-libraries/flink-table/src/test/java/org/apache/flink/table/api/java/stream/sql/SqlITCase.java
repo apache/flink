@@ -67,7 +67,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink());
+		resultSet.addSink(new StreamITCase.StringSink<Row>());
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
@@ -92,7 +92,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink());
+		resultSet.addSink(new StreamITCase.StringSink<Row>());
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
@@ -116,7 +116,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink());
+		resultSet.addSink(new StreamITCase.StringSink<Row>());
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
@@ -147,7 +147,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink());
+		resultSet.addSink(new StreamITCase.StringSink<Row>());
 		env.execute();
 
 		List<String> expected = new ArrayList<>();

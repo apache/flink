@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
+import org.apache.flink.table.api.java.utils.Pojos.Pojo1
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
 import org.apache.flink.table.api.{TableEnvironment, TableException, Types, ValidationException}
@@ -104,7 +105,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = table.select('rowtime.cast(Types.STRING))
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -135,7 +136,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -162,7 +163,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = table.join(func('rowtime, 'proctime, 'string) as 's).select('rowtime, 's)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -197,7 +198,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .select('w.rowtime, 's.count)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -223,7 +224,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = table.unionAll(table).select('rowtime)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -261,7 +262,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -294,7 +295,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .select('w2.rowtime, 'w2.end, 'int.count)
 
     val results = t.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -303,6 +304,36 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
       "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
     )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testCalcMaterializationWithPojoType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    tEnv.registerTable("T1", table)
+    val querySql = "select rowtime as ts, string as msg from T1"
+
+    val results = tEnv.sql(querySql).toAppendStream[Pojo1]
+    results.addSink(new StreamITCase.StringSink[Pojo1])
+    env.execute()
+
+    val expected = Seq(
+      "Pojo1{ts=1970-01-01 00:00:00.001, msg='Hi'}",
+      "Pojo1{ts=1970-01-01 00:00:00.002, msg='Hallo'}",
+      "Pojo1{ts=1970-01-01 00:00:00.003, msg='Hello'}",
+      "Pojo1{ts=1970-01-01 00:00:00.004, msg='Hello'}",
+      "Pojo1{ts=1970-01-01 00:00:00.007, msg='Hello'}",
+      "Pojo1{ts=1970-01-01 00:00:00.008, msg='Hello world'}",
+      "Pojo1{ts=1970-01-01 00:00:00.016, msg='Hello world'}")
+
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
