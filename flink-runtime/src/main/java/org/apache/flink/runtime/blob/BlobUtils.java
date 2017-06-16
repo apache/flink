@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
-import com.google.common.io.BaseEncoding;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -37,7 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
@@ -58,17 +55,12 @@ public class BlobUtils {
 	/**
 	 * The prefix of all BLOB files stored by the BLOB server.
 	 */
-	static final String BLOB_FILE_PREFIX = "blob_";
+	private static final String BLOB_FILE_PREFIX = "blob_";
 
 	/**
 	 * The prefix of all job-specific directories created by the BLOB server.
 	 */
-	static final String JOB_DIR_PREFIX = "job_";
-
-	/**
-	 * The default character set to translate between characters and bytes.
-	 */
-	static final Charset DEFAULT_CHARSET = ConfigConstants.DEFAULT_CHARSET;
+	private static final String JOB_DIR_PREFIX = "job_";
 
 	/**
 	 * Creates a BlobStore based on the parameters set in the configuration.
@@ -205,19 +197,6 @@ public class BlobUtils {
 	}
 
 	/**
-	 * Returns the (designated) physical storage location of the BLOB with the given job ID and key.
-	 *
-	 * @param jobID
-	 *        the ID of the job the BLOB belongs to
-	 * @param key
-	 *        the key of the BLOB
-	 * @return the (designated) physical storage location of the BLOB with the given job ID and key
-	 */
-	static File getStorageLocation(File storageDir, JobID jobID, String key) {
-		return new File(getJobDirectory(storageDir, jobID), BLOB_FILE_PREFIX + encodeKey(key));
-	}
-
-	/**
 	 * Returns the BLOB server's storage directory for BLOBs belonging to the job with the given ID.
 	 *
 	 * @param jobID
@@ -234,17 +213,6 @@ public class BlobUtils {
 		}
 
 		return jobDirectory;
-	}
-
-	/**
-	 * Translates the user's key for a BLOB into the internal name used by the BLOB server
-	 *
-	 * @param key
-	 *        the user's key for a BLOB
-	 * @return the internal name for the BLOB as used by the BLOB server
-	 */
-	static String encodeKey(String key) {
-		return BaseEncoding.base64().encode(key.getBytes(DEFAULT_CHARSET));
 	}
 
 	/**
@@ -406,19 +374,6 @@ public class BlobUtils {
 	static String getRecoveryPath(String basePath, BlobKey blobKey) {
 		// format: $base/cache/blob_$key
 		return String.format("%s/cache/%s%s", basePath, BLOB_FILE_PREFIX, blobKey.toString());
-	}
-
-	/**
-	 * Returns the path for the given job ID and key.
-	 *
-	 * <p>The returned path can be used with the state backend for recovery purposes.
-	 *
-	 * <p>This follows the same scheme as {@link #getStorageLocation(File, JobID, String)}.
-	 */
-	static String getRecoveryPath(String basePath, JobID jobId, String key) {
-		// format: $base/job_$id/blob_$key
-		return String.format("%s/%s%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString(),
-				BLOB_FILE_PREFIX, encodeKey(key));
 	}
 
 	/**
