@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, StreamTableSource}
 import org.apache.flink.table.utils.TableTestBase
@@ -120,6 +120,28 @@ class TableSourceTest extends TableTestBase {
         term("where", ">(w0$o0, 100)")
       )
     util.verifyTable(t, expected)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testRowtimeTableSourceWithEmptyName(): Unit = {
+    val util = streamTestUtil()
+    util.tEnv.registerTableSource("rowTimeT", new TestRowtimeSource(" "))
+
+    val t = util.tEnv.scan("rowTimeT")
+      .select('id)
+
+    util.tEnv.optimize(t.getRelNode, false)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testProctimeTableSourceWithEmptyName(): Unit = {
+    val util = streamTestUtil()
+    util.tEnv.registerTableSource("procTimeT", new TestProctimeSource(" "))
+
+    val t = util.tEnv.scan("procTimeT")
+      .select('id)
+
+    util.tEnv.optimize(t.getRelNode, false)
   }
 }
 
