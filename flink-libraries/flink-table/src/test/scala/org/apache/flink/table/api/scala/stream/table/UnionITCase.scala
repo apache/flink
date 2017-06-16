@@ -44,7 +44,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     val unionDs = ds1.unionAll(ds2).select('c)
 
     val results = unionDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -64,7 +64,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
     val results = unionDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hallo")
@@ -83,7 +83,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     val unionDs = ds1.unionAll(ds2)
 
     val results = unionDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     assertEquals(true, StreamITCase.testResults.isEmpty)
@@ -102,7 +102,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     val unionDs = ds1.unionAll(ds2)
 
     val results = unionDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     assertEquals(true, StreamITCase.testResults.isEmpty)
