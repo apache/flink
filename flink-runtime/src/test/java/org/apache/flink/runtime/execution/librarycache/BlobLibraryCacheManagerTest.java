@@ -67,6 +67,8 @@ public class BlobLibraryCacheManagerTest {
 			buf[0] += 1;
 			keys.add(bc.put(buf));
 
+			bc.close();
+
 			long cleanupInterval = 1000l;
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
 			libraryCacheManager.registerJob(jid, keys, Collections.<URL>emptyList());
@@ -96,13 +98,17 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
 
 			try {
-				bc.get(jid, "test");
+				server.getURL(keys.get(0));
 				fail("name-addressable BLOB should have been deleted");
 			} catch (IOException e) {
 				// expected
 			}
-
-			bc.close();
+			try {
+				server.getURL(keys.get(1));
+				fail("name-addressable BLOB should have been deleted");
+			} catch (IOException e) {
+				// expected
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -180,7 +186,6 @@ public class BlobLibraryCacheManagerTest {
 			keys.add(bc.put(buf));
 			buf[0] += 1;
 			keys.add(bc.put(buf));
-			bc.put(jid, "test", buf);
 
 			long cleanupInterval = 1000l;
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
