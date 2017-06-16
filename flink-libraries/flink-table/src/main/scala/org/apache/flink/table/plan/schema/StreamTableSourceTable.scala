@@ -39,6 +39,8 @@ class StreamTableSourceTable[T](
     val fieldCnt = fieldNames.length
 
     val rowtime = tableSource match {
+      case emptyStringTimeSource : DefinedRowtimeAttribute if emptyStringTimeSource.getRowtimeAttribute.trim.equals("")  =>
+        throw TableException("The name of the rowtime attribute must not be empty.")
       case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute != null =>
         val rowtimeAttribute = timeSource.getRowtimeAttribute
         Some((fieldCnt, rowtimeAttribute))
@@ -47,6 +49,8 @@ class StreamTableSourceTable[T](
     }
 
     val proctime = tableSource match {
+      case emptyStringTimeSource : DefinedProctimeAttribute if emptyStringTimeSource.getProctimeAttribute.trim.equals("")  =>
+        throw TableException("The name of the proctime attribute must not be empty.")
       case timeSource: DefinedProctimeAttribute if timeSource.getProctimeAttribute != null =>
         val proctimeAttribute = timeSource.getProctimeAttribute
         Some((fieldCnt + (if (rowtime.isDefined) 1 else 0), proctimeAttribute))
