@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, UnresolvedException}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.expressions.ExpressionUtils.isRowCountLiteral
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
@@ -650,6 +651,21 @@ case class WindowAggregate(
       case ValidationFailure(msg) =>
         failValidation(s"$window is invalid: $msg")
       case ValidationSuccess => // ok
+    }
+
+    // validate property
+    if (propertyExpressions.nonEmpty) {
+      resolvedWindowAggregate.window match {
+        case TumblingGroupWindow(_, _, size) if isRowCountLiteral(size) =>
+          failValidation("Window start and Window end cannot be selected " +
+                           "for a row-count Tumbling window.")
+
+        case SlidingGroupWindow(_, _, size, _) if isRowCountLiteral(size) =>
+          failValidation("Window start and Window end cannot be selected " +
+                           "for a row-count Sliding window.")
+
+        case _ => // ok
+      }
     }
 
     resolvedWindowAggregate
