@@ -58,7 +58,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTableRow", t)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List("Hello,Worlds,1","Hello again,Worlds,2")
@@ -100,7 +100,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTable", t)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List("2,0", "4,1", "6,1")
@@ -121,7 +121,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTable", t)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List("3,2,Hello world")
@@ -142,7 +142,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("MyTable", t)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List("3,2,Hello world")
@@ -166,7 +166,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T2", t2)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -193,7 +193,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T2", t2)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -219,7 +219,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerDataStream("T2", t2, 'a, 'b, 'c)
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List("Hello", "Hello world")
@@ -244,7 +244,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT a, b, s FROM T, UNNEST(T.b) AS A (s)"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -276,7 +276,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
@@ -306,7 +306,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(

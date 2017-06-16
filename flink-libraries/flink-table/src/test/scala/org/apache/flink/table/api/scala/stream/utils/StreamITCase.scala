@@ -44,8 +44,8 @@ object StreamITCase {
     assertEquals(expected.asScala, StreamITCase.testResults.sorted)
   }
 
-  final class StringSink extends RichSinkFunction[Row]() {
-    def invoke(value: Row) {
+  final class StringSink[T] extends RichSinkFunction[T]() {
+    def invoke(value: T) {
       testResults.synchronized {
         testResults += value.toString
       }

@@ -71,7 +71,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toAppendStream[Row](queryConfig)
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("Hello world,1,3,8,3", "Hello world,2,3,12,3", "Hello,1,2,2,2",
@@ -113,7 +113,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("Hello World,1,9,9,9", "Hello,1,16,16,16", "Hello,4,3,5,5")
@@ -139,7 +139,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toAppendStream[Row](queryConfig)
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("2,1,1,1", "2,2,6,2")
@@ -167,7 +167,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
               weightAvgFun('int, 'int), 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -203,7 +203,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select(weightAvgFun('long, 'int))
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq("12", "8", "2", "3", "1")
