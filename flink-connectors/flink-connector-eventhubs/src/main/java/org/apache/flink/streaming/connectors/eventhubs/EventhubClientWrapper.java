@@ -1,8 +1,5 @@
 package org.apache.flink.streaming.connectors.eventhubs;
 
-/**
- * Created by jozh on 6/14/2017.
- */
 import org.apache.flink.util.Preconditions;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -24,7 +21,8 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 /**
- *
+ * Created by jozh on 6/14/2017.
+ * Flink eventhub connnector has implemented with same design of flink kafka connector
  */
 public class EventhubClientWrapper implements Serializable {
 	private static final long serialVersionUID = -5319150387753930840L;

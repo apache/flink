@@ -1,32 +1,31 @@
 package org.apache.flink.streaming.connectors.eventhubs;
 
-/**
- * Created by jozh on 6/14/2017.
- */
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import com.microsoft.azure.eventhubs.EventData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-
-
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
+ * Created by jozh on 6/14/2017.
+ * Flink eventhub connnector has implemented with same design of flink kafka connector.
  * A fetcher that fetches data from Eventhub via the EventhubUtil.
  * Eventhub offset is stored at flink checkpoint backend
- *
  * @param <T> The type of elements produced by the fetcher.
  */
 public class EventFetcher<T> {
@@ -63,13 +62,14 @@ public class EventFetcher<T> {
 		Properties eventhubProps,
 		boolean useMetrics) throws Exception {
 
-		this.sourceContext = Preconditions.checkNotNull(sourceContext);
-		this.deserializer = Preconditions.checkNotNull(deserializer);
+		this.sourceContext = checkNotNull(sourceContext);
+		this.deserializer = checkNotNull(deserializer);
 		this.eventhubProps = eventhubProps;
 		this.checkpointLock = sourceContext.getCheckpointLock();
 		this.useMetrics = useMetrics;
 		this.taskNameWithSubtasks = taskNameWithSubtasks;
 		this.timestampWatermarkMode = getTimestampWatermarkMode(watermarksPeriodic, watermarksPunctuated);
+
 		this.subscribedPartitionStates = initializeSubscribedPartitionStates(
 			assignedPartitionsWithInitialOffsets,
 			timestampWatermarkMode,
@@ -82,6 +82,12 @@ public class EventFetcher<T> {
 			this.eventhubProps,
 			getFetcherName() + " for " + taskNameWithSubtasks,
 			this.subscribedPartitionStates.values().toArray(new EventhubPartitionState[this.subscribedPartitionStates.size()]));
+
+		if (this.timestampWatermarkMode == PERIODIC_WATERMARKS) {
+			PeriodicWatermarkEmitter periodicEmitter =
+				new PeriodicWatermarkEmitter(this.subscribedPartitionStates, sourceContext, processTimerProvider, autoWatermarkInterval);
+			periodicEmitter.start();
+		}
 
 	}
 
@@ -161,10 +167,52 @@ public class EventFetcher<T> {
 			}
 		}
 		else if (timestampWatermarkMode == PERIODIC_WATERMARKS){
-			throw new Exception("Not implemented yet for AssignerWithPeriodicWatermarks");
+			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, Long.MIN_VALUE);
 		}
 		else {
-			throw new Exception("Not implemented yet for AssignerWithPunctuatedWatermarks");
+			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, Long.MIN_VALUE);
+		}
+	}
+
+	protected void emitRecordWithTimestampAndPunctuatedWatermark(
+		T record,
+		EventhubPartitionState partitionState,
+		String offset,
+		long eventTimestamp) {
+
+		final EventhubPartitionStateWithPeriodicWatermarks<T> withWatermarksState =
+			(EventhubPartitionStateWithPeriodicWatermarks<T>) partitionState;
+
+		final long timestamp;
+		synchronized (withWatermarksState) {
+			timestamp = withWatermarksState.getTimestampForRecord(record, eventTimestamp);
+		}
+
+		synchronized (checkpointLock) {
+			sourceContext.collectWithTimestamp(record, timestamp);
+			partitionState.setOffset(offset);
+		}
+	}
+
+	protected void emitRecordWithTimestampAndPeriodicWatermark(
+		T record,
+		EventhubPartitionState partitionState,
+		String offset,
+		long eventTimestamp) {
+
+		final EventhubPartitionStateWithPunctuatedWatermarks<T> withWatermarksState =
+			(EventhubPartitionStateWithPunctuatedWatermarks<T>) partitionState;
+
+		final long timestamp = withWatermarksState.getTimestampForRecord(record, eventTimestamp);
+		final Watermark newWatermark = withWatermarksState.checkAndGetNewWatermark(record, timestamp);
+
+		synchronized (checkpointLock) {
+			sourceContext.collectWithTimestamp(record, timestamp);
+			partitionState.setOffset(offset);
+		}
+
+		if (newWatermark != null) {
+			updateMinPunctuatedWatermark(newWatermark);
 		}
 	}
 
@@ -195,16 +243,123 @@ public class EventFetcher<T> {
 
 	private Map<EventhubPartition, EventhubPartitionState> initializeSubscribedPartitionStates(
 		Map<EventhubPartition, String> assignedPartitionsWithInitialOffsets,
-		int timestampWatermarkMode, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+		int timestampWatermarkMode,
+		SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 		SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-		ClassLoader userCodeClassLoader) {
+		ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
+
+		if (timestampWatermarkMode != NO_TIMESTAMPS_WATERMARKS
+			&& timestampWatermarkMode != PERIODIC_WATERMARKS
+			&& timestampWatermarkMode != PUNCTUATED_WATERMARKS) {
+			throw new RuntimeException();
+		}
 
 		Map<EventhubPartition, EventhubPartitionState> partitionsState = new HashMap<>(assignedPartitionsWithInitialOffsets.size());
 		for (Map.Entry<EventhubPartition, String> partition : assignedPartitionsWithInitialOffsets.entrySet()){
-			partitionsState.put(partition.getKey(), new EventhubPartitionState(partition.getKey(), partition.getValue()));
-			logger.info("Assigned partition {}, offset is {}", partition.getKey(), partition.getValue());
+			switch (timestampWatermarkMode){
+				case NO_TIMESTAMPS_WATERMARKS:{
+					partitionsState.put(partition.getKey(), new EventhubPartitionState(partition.getKey(), partition.getValue()));
+					logger.info("NO_TIMESTAMPS_WATERMARKS: Assigned partition {}, offset is {}", partition.getKey(), partition.getValue());
+					break;
+				}
+
+				case PERIODIC_WATERMARKS:{
+					AssignerWithPeriodicWatermarks<T> assignerInstance =
+						watermarksPeriodic.deserializeValue(userCodeClassLoader);
+					partitionsState.put(partition.getKey(),
+						new EventhubPartitionStateWithPeriodicWatermarks(partition.getKey(), partition.getValue(), assignerInstance));
+					logger.info("PERIODIC_WATERMARKS: Assigned partition {}, offset is {}", partition.getKey(), partition.getValue());
+					break;
+				}
+
+				case PUNCTUATED_WATERMARKS: {
+					AssignerWithPunctuatedWatermarks<T> assignerInstance =
+						watermarksPunctuated.deserializeValue(userCodeClassLoader);
+					partitionsState.put(partition.getKey(),
+						new EventhubPartitionStateWithPunctuatedWatermarks(partition.getKey(), partition.getValue(), assignerInstance));
+					logger.info("PUNCTUATED_WATERMARKS: Assigned partition {}, offset is {}", partition.getKey(), partition.getValue());
+					break;
+				}
+			}
+		}
+		return partitionsState;
+	}
+
+	private void updateMinPunctuatedWatermark(Watermark nextWatermark) {
+		if (nextWatermark.getTimestamp() > maxWatermarkSoFar) {
+			long newMin = Long.MAX_VALUE;
+
+			for (Map.Entry<EventhubPartition, EventhubPartitionState> partition : subscribedPartitionStates.entrySet()){
+				final EventhubPartitionStateWithPunctuatedWatermarks<T> withWatermarksState =
+					(EventhubPartitionStateWithPunctuatedWatermarks<T>) partition.getValue();
+
+				newMin = Math.min(newMin, withWatermarksState.getCurrentPartitionWatermark());
+			}
+
+			// double-check locking pattern
+			if (newMin > maxWatermarkSoFar) {
+				synchronized (checkpointLock) {
+					if (newMin > maxWatermarkSoFar) {
+						maxWatermarkSoFar = newMin;
+						sourceContext.emitWatermark(new Watermark(newMin));
+					}
+				}
+			}
+		}
+	}
+
+	private static class PeriodicWatermarkEmitter implements ProcessingTimeCallback {
+
+		private final Map<EventhubPartition, EventhubPartitionState> allPartitions;
+
+		private final SourceFunction.SourceContext<?> emitter;
+
+		private final ProcessingTimeService timerService;
+
+		private final long interval;
+
+		private long lastWatermarkTimestamp;
+
+		//-------------------------------------------------
+
+		PeriodicWatermarkEmitter(
+			Map<EventhubPartition, EventhubPartitionState> allPartitions,
+			SourceFunction.SourceContext<?> emitter,
+			ProcessingTimeService timerService,
+			long autoWatermarkInterval) {
+			this.allPartitions = checkNotNull(allPartitions);
+			this.emitter = checkNotNull(emitter);
+			this.timerService = checkNotNull(timerService);
+			this.interval = autoWatermarkInterval;
+			this.lastWatermarkTimestamp = Long.MIN_VALUE;
 		}
 
-		return partitionsState;
+		public void start() {
+			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
+		}
+
+		@Override
+		public void onProcessingTime(long timestamp) throws Exception {
+
+			long minAcrossAll = Long.MAX_VALUE;
+			for (Map.Entry<EventhubPartition, EventhubPartitionState> partition : allPartitions.entrySet()){
+				final long curr;
+				EventhubPartitionStateWithPeriodicWatermarks state =
+					(EventhubPartitionStateWithPeriodicWatermarks) partition.getValue();
+
+				synchronized (state) {
+					curr = state.getCurrentWatermarkTimestamp();
+				}
+
+				minAcrossAll = Math.min(minAcrossAll, curr);
+			}
+
+			if (minAcrossAll > lastWatermarkTimestamp) {
+				lastWatermarkTimestamp = minAcrossAll;
+				emitter.emitWatermark(new Watermark(minAcrossAll));
+			}
+
+			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
+		}
 	}
 }

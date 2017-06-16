@@ -7,7 +7,9 @@ import java.util.Properties;
 
 /**
  * Created by jozh on 5/23/2017.
+ * Flink eventhub connnector has implemented with same design of flink kafka connector
  */
+
 public class EventhubPartition implements Serializable {
 	private static final long serialVersionUID = 134878919919793479L;
 	private final int cachedHash;

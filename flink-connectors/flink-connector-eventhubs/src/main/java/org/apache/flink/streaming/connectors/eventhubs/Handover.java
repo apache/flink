@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by jozh on 5/23/2017.
+ * Flink eventhub connnector has implemented with same design of flink kafka connector
  * Coming from flink kafka connector
  */
 @ThreadSafe
