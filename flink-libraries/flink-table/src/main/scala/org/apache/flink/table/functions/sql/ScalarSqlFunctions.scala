@@ -18,12 +18,13 @@
 package org.apache.flink.table.functions.sql
 
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
-import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeFamily}
 
 /**
   * All build-in scalar sql functions.
   */
 object ScalarSqlFunctions {
+
   val E = new SqlFunction(
     "E",
     SqlKind.OTHER_FUNCTION,
@@ -31,4 +32,20 @@ object ScalarSqlFunctions {
     null,
     OperandTypes.NILADIC,
     SqlFunctionCategory.NUMERIC)
+
+  val CONCAT = new SqlFunction(
+    "CONCAT",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.VARCHAR_2000,
+    null,
+    OperandTypes.ONE_OR_MORE,
+    SqlFunctionCategory.STRING)
+
+  val CONCAT_WS = new SqlFunction(
+    "CONCAT_WS",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.VARCHAR_2000,
+    null,
+    OperandTypes.ONE_OR_MORE,
+    SqlFunctionCategory.STRING)
 }

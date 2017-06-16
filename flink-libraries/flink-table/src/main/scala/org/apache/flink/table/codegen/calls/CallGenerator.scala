@@ -64,6 +64,7 @@ object CallGenerator {
         |""".stripMargin
     } else{
       s"""
+        |boolean $nullTerm = false;
         |${operands.map(_.code).mkString("\n")}
         |$resultTypeTerm $resultTerm = ${call(operands.map(_.resultTerm))};
         |""".stripMargin
