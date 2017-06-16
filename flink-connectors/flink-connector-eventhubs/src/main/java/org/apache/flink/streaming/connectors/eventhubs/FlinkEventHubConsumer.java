@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Properties;
 /**
  * Created by jozh on 5/22/2017.
+ * Flink eventhub connnector has implemented with same design of flink kafka connector
  * This class is used to create datastream from event hub
  */
 

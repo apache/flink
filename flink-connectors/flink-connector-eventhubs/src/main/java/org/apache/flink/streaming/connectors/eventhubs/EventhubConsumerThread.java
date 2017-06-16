@@ -11,6 +11,7 @@ import java.util.Properties;
 
 /**
  * Created by jozh on 5/24/2017.
+ * Flink eventhub connnector has implemented with same design of flink kafka connector
  * Cause eventhub client can only access one partition at one time, so here we should have multiple eventhub clients
  * In this worker thread, it will receive event from each partition in round robin mode, any partition failed to retrive
  * events will lead thread exception, and leverage flink HA framework to start from begining again
