@@ -325,6 +325,22 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
   }
 
+  @Test
+  def testMultiConcat(): Unit = {
+   testSqlApi("CONCAT('xx', f33)","null")
+   testSqlApi("concat('xx','bb','cc','---')","xxbbcc---")
+   testSqlApi("CONCAT('x~x','b~b','c~~~~c','---')","x~xb~bc~~~~c---")
+  }
+
+  @Test
+  def testConcatWs(): Unit = {
+   testSqlApi("CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)","Flink~~~~xx")
+   testSqlApi("CONCAT_WS(f33, 'Flink')","null")
+   testSqlApi("concat_ws('~~~~','Flink')","Flink")
+   testSqlApi("concat_ws('~~~~',f33, 'Flink')","Flink")
+   testSqlApi("CONCAT_WS('~~~~','bb','cc','---')","bb~~~~cc~~~~---")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -1565,7 +1581,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(33)
+    val testData = new Row(34)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -1599,6 +1615,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(30, 1)
     testData.setField(31, BigDecimal("-0.1231231321321321111").bigDecimal)
     testData.setField(32, -1)
+    testData.setField(33, null)
     testData
   }
 
@@ -1636,7 +1653,8 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.DOUBLE,
       Types.INT,
       Types.DECIMAL,
-      Types.INT).asInstanceOf[TypeInformation[Any]]
+      Types.INT,
+      Types.STRING).asInstanceOf[TypeInformation[Any]]
 
   }
 }

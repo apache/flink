@@ -28,8 +28,8 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
 import scala.collection.mutable
 
 /**
@@ -142,6 +142,18 @@ object FunctionGenerator {
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO),
     STRING_TYPE_INFO,
     BuiltInMethod.OVERLAY.method)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.CONCAT,
+    Seq(new GenericTypeInfo(classOf[Array[String]])),
+    STRING_TYPE_INFO,
+    BuiltInMethods.CONCAT)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.CONCAT_WS,
+    Seq(new GenericTypeInfo(classOf[Array[String]])),
+    STRING_TYPE_INFO,
+    BuiltInMethods.CONCAT_WS)
 
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
@@ -395,7 +407,7 @@ object FunctionGenerator {
     new RandCallGen(isRandInteger = true, hasSeed = true))
 
   addSqlFunction(
-    E,
+    ScalarSqlFunctions.E,
     Seq(),
     new ConstantCallGen(DOUBLE_TYPE_INFO, Math.E.toString))
 

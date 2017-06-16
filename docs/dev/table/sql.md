@@ -1573,6 +1573,29 @@ INITCAP(string)
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight text %}
+CONCAT(string1, string2,...)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string that results from concatenating the arguments. Returns NULL if any argument is NULL.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CONCAT_WS(separator, string1, string2,...)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string that results from concatenating the arguments and separator. The separator is added between the strings to be concatenated. Returns NULL If the separator is NULL.</p>
+        <p>CONCAT_WS() does not skip empty strings. However, it does skip any NULL argument.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 

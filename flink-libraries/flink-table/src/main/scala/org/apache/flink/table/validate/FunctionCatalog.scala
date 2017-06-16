@@ -393,6 +393,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.RAND,
     SqlStdOperatorTable.RAND_INTEGER,
     ScalarSqlFunctions.E,
+    ScalarSqlFunctions.CONCAT,
+    ScalarSqlFunctions.CONCAT_WS,
 
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,
