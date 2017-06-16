@@ -657,12 +657,12 @@ case class WindowAggregate(
     if (propertyExpressions.nonEmpty) {
       resolvedWindowAggregate.window match {
         case TumblingGroupWindow(_, _, size) if isRowCountLiteral(size) =>
-          failValidation("Window start and Window end are not accessed " +
-                           "on row-counts Tumbling window.")
+          failValidation("Window start and Window end cannot be selected " +
+                           "for a row-count Tumbling window.")
 
         case SlidingGroupWindow(_, _, size, _) if isRowCountLiteral(size) =>
-          failValidation("Window start and Window end are not accessed " +
-                           "on row-counts Sliding window.")
+          failValidation("Window start and Window end cannot be selected " +
+                           "for a row-count Sliding window.")
 
         case _ => // ok
       }
