@@ -42,9 +42,6 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSABLE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_ID_SCOPE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.MAX_KEY_LENGTH;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.NAME_ADDRESSABLE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
@@ -112,7 +109,6 @@ class BlobServerConnection extends Thread {
 		try {
 			final InputStream inputStream = this.clientSocket.getInputStream();
 			final OutputStream outputStream = this.clientSocket.getOutputStream();
-			final byte[] buffer = new byte[BUFFER_SIZE];
 
 			while (true) {
 				// Read the requested operation
@@ -124,13 +120,13 @@ class BlobServerConnection extends Thread {
 
 				switch (operation) {
 				case PUT_OPERATION:
-					put(inputStream, outputStream, buffer);
+					put(inputStream, outputStream, new byte[BUFFER_SIZE]);
 					break;
 				case GET_OPERATION:
-					get(inputStream, outputStream, buffer);
+					get(inputStream, outputStream, new byte[BUFFER_SIZE]);
 					break;
 				case DELETE_OPERATION:
-					delete(inputStream, outputStream, buffer);
+					delete(inputStream, outputStream);
 					break;
 				default:
 					throw new IOException("Unknown operation " + operation);
@@ -182,7 +178,7 @@ class BlobServerConnection extends Thread {
 	 *         thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
 	private void get(InputStream inputStream, OutputStream outputStream, byte[] buf) throws IOException {
-		/**
+		/*
 		 * Retrieve the file from the (distributed?) BLOB store and store it
 		 * locally, then send it to the service which requested it.
 		 *
@@ -194,7 +190,6 @@ class BlobServerConnection extends Thread {
 		File blobFile;
 		int contentAddressable = -1;
 		JobID jobId = null;
-		String key = null;
 		BlobKey blobKey = null;
 
 		try {
@@ -203,16 +198,7 @@ class BlobServerConnection extends Thread {
 			if (contentAddressable < 0) {
 				throw new EOFException("Premature end of GET request");
 			}
-			if (contentAddressable == NAME_ADDRESSABLE) {
-				// Receive the job ID and key
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-
-				jobId = JobID.fromByteArray(jidBytes);
-				key = readKey(buf, inputStream);
-				blobFile = blobServer.getStorageLocation(jobId, key);
-			}
-			else if (contentAddressable == CONTENT_ADDRESSABLE) {
+			if (contentAddressable == CONTENT_ADDRESSABLE) {
 				blobKey = BlobKey.readFromInputStream(inputStream);
 				blobFile = blobServer.getStorageLocation(blobKey);
 			}
@@ -248,13 +234,7 @@ class BlobServerConnection extends Thread {
 						if (blobFile.exists()) {
 							LOG.debug("Blob file {} has downloaded from the BlobStore by a different connection.", blobFile);
 						} else {
-							if (contentAddressable == NAME_ADDRESSABLE) {
-								blobStore.get(jobId, key, blobFile);
-							} else if (contentAddressable == CONTENT_ADDRESSABLE) {
-								blobStore.get(blobKey, blobFile);
-							} else {
-								throw new IOException("Unknown type of BLOB addressing: " + contentAddressable + '.');
-							}
+							blobStore.get(blobKey, blobFile);
 						}
 					} finally {
 						writeLock.unlock();
@@ -321,7 +301,6 @@ class BlobServerConnection extends Thread {
 	 */
 	private void put(InputStream inputStream, OutputStream outputStream, byte[] buf) throws IOException {
 		JobID jobID = null;
-		String key = null;
 		MessageDigest md = null;
 
 		File incomingFile = null;
@@ -333,14 +312,7 @@ class BlobServerConnection extends Thread {
 				throw new EOFException("Premature end of PUT request");
 			}
 
-			if (contentAddressable == NAME_ADDRESSABLE) {
-				// Receive the job ID and key
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-				jobID = JobID.fromByteArray(jidBytes);
-				key = readKey(buf, inputStream);
-			}
-			else if (contentAddressable == CONTENT_ADDRESSABLE) {
+			if (contentAddressable == CONTENT_ADDRESSABLE) {
 				md = BlobUtils.createMessageDigest();
 			}
 			else {
@@ -348,11 +320,7 @@ class BlobServerConnection extends Thread {
 			}
 
 			if (LOG.isDebugEnabled()) {
-				if (contentAddressable == NAME_ADDRESSABLE) {
-					LOG.debug(String.format("Received PUT request for BLOB under %s / \"%s\"", jobID, key));
-				} else {
-					LOG.debug("Received PUT request for content addressable BLOB");
-				}
+				LOG.debug("Received PUT request for content addressable BLOB");
 			}
 
 			incomingFile = blobServer.createTemporaryFilename();
@@ -377,89 +345,47 @@ class BlobServerConnection extends Thread {
 			}
 			fos.close();
 
-			if (contentAddressable == NAME_ADDRESSABLE) {
-				File storageFile = blobServer.getStorageLocation(jobID, key);
+			BlobKey blobKey = new BlobKey(md.digest());
+			File storageFile = blobServer.getStorageLocation(blobKey);
 
-				writeLock.lock();
+			writeLock.lock();
 
-				try {
-					// first check whether the file already exists
-					if (!storageFile.exists()) {
-						try {
-							// only move the file if it does not yet exist
-							Files.move(incomingFile.toPath(), storageFile.toPath());
+			try {
+				// first check whether the file already exists
+				if (!storageFile.exists()) {
+					try {
+						// only move the file if it does not yet exist
+						Files.move(incomingFile.toPath(), storageFile.toPath());
 
-							incomingFile = null;
+						incomingFile = null;
 
-						} catch (FileAlreadyExistsException ignored) {
-							LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
-								"BlobServer use the same storage directory.");
-							// we cannot be sure at this point whether the file has already been uploaded to the blob
-							// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
-							// persist the blob. Otherwise we might not be able to recover the job.
-						}
-
-						// only the one moving the incoming file to its final destination is allowed to upload the
-						// file to the blob store
-						blobStore.put(storageFile, jobID, key);
-					}
-				} catch(IOException ioe) {
-					// we failed to either create the local storage file or to upload it --> try to delete the local file
-					// while still having the write lock
-					if (storageFile.exists() && !storageFile.delete()) {
-						LOG.warn("Could not delete the storage file.");
+					} catch (FileAlreadyExistsException ignored) {
+						LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
+							"BlobServer use the same storage directory.");
+						// we cannot be sure at this point whether the file has already been uploaded to the blob
+						// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
+						// persist the blob. Otherwise we might not be able to recover the job.
 					}
 
-					throw ioe;
-				} finally {
-					writeLock.unlock();
+					// only the one moving the incoming file to its final destination is allowed to upload the
+					// file to the blob store
+					blobStore.put(storageFile, blobKey);
+				}
+			} catch(IOException ioe) {
+				// we failed to either create the local storage file or to upload it --> try to delete the local file
+				// while still having the write lock
+				if (storageFile.exists() && !storageFile.delete()) {
+					LOG.warn("Could not delete the storage file.");
 				}
 
-				outputStream.write(RETURN_OKAY);
+				throw ioe;
+			} finally {
+				writeLock.unlock();
 			}
-			else {
-				BlobKey blobKey = new BlobKey(md.digest());
-				File storageFile = blobServer.getStorageLocation(blobKey);
 
-				writeLock.lock();
-
-				try {
-					// first check whether the file already exists
-					if (!storageFile.exists()) {
-						try {
-							// only move the file if it does not yet exist
-							Files.move(incomingFile.toPath(), storageFile.toPath());
-
-							incomingFile = null;
-
-						} catch (FileAlreadyExistsException ignored) {
-							LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
-								"BlobServer use the same storage directory.");
-							// we cannot be sure at this point whether the file has already been uploaded to the blob
-							// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
-							// persist the blob. Otherwise we might not be able to recover the job.
-						}
-
-						// only the one moving the incoming file to its final destination is allowed to upload the
-						// file to the blob store
-						blobStore.put(storageFile, blobKey);
-					}
-				} catch(IOException ioe) {
-					// we failed to either create the local storage file or to upload it --> try to delete the local file
-					// while still having the write lock
-					if (storageFile.exists() && !storageFile.delete()) {
-						LOG.warn("Could not delete the storage file.");
-					}
-
-					throw ioe;
-				} finally {
-					writeLock.unlock();
-				}
-
-				// Return computed key to client for validation
-				outputStream.write(RETURN_OKAY);
-				blobKey.writeToOutputStream(outputStream);
-			}
+			// Return computed key to client for validation
+			outputStream.write(RETURN_OKAY);
+			blobKey.writeToOutputStream(outputStream);
 		}
 		catch (SocketException e) {
 			// happens when the other side disconnects
@@ -499,7 +425,7 @@ class BlobServerConnection extends Thread {
 	 * @param outputStream The output stream to write the response to.
 	 * @throws java.io.IOException Thrown if an I/O error occurs while reading the request data from the input stream.
 	 */
-	private void delete(InputStream inputStream, OutputStream outputStream, byte[] buf) throws IOException {
+	private void delete(InputStream inputStream, OutputStream outputStream) throws IOException {
 
 		try {
 			int type = inputStream.read();
@@ -510,46 +436,6 @@ class BlobServerConnection extends Thread {
 			if (type == CONTENT_ADDRESSABLE) {
 				BlobKey key = BlobKey.readFromInputStream(inputStream);
 				blobServer.delete(key);
-			}
-			else if (type == NAME_ADDRESSABLE) {
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-				JobID jobID = JobID.fromByteArray(jidBytes);
-
-				String key = readKey(buf, inputStream);
-
-				File blobFile = this.blobServer.getStorageLocation(jobID, key);
-
-				writeLock.lock();
-
-				try {
-					// we should make the local and remote file deletion atomic, otherwise we might risk not
-					// removing the remote file in case of a concurrent put operation
-					if (blobFile.exists() && !blobFile.delete()) {
-						LOG.warn("Cannot delete local BLOB file " + blobFile.getAbsolutePath());
-					}
-
-					blobStore.delete(jobID, key);
-				} finally {
-					writeLock.unlock();
-				}
-			}
-			else if (type == JOB_ID_SCOPE) {
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-				JobID jobID = JobID.fromByteArray(jidBytes);
-
-				writeLock.lock();
-
-				try {
-					// we should make the local and remote file deletion atomic, otherwise we might risk not
-					// removing the remote file in case of a concurrent put operation
-					blobServer.deleteJobDirectory(jobID);
-
-					blobStore.deleteAll(jobID);
-				} finally {
-					writeLock.unlock();
-				}
 			}
 			else {
 				throw new IOException("Unrecognized addressing type: " + type);
@@ -573,27 +459,6 @@ class BlobServerConnection extends Thread {
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Reads the key of a BLOB from the given input stream.
-	 * 
-	 * @param buf
-	 *        auxiliary buffer to data deserialization
-	 * @param inputStream
-	 *        the input stream to read the key from
-	 * @return the key of a BLOB
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while reading the key data from the input stream
-	 */
-	private static String readKey(byte[] buf, InputStream inputStream) throws IOException {
-		final int keyLength = readLength(inputStream);
-		if (keyLength > MAX_KEY_LENGTH) {
-			throw new IOException("Unexpected key length " + keyLength);
-		}
-
-		readFully(inputStream, buf, 0, keyLength, "BlobKey");
-		return new String(buf, 0, keyLength, BlobUtils.DEFAULT_CHARSET);
-	}
 
 	/**
 	 * Writes to the output stream the error return code, and the given exception in serialized form.

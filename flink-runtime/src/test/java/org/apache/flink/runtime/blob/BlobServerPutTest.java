@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -44,7 +43,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -121,47 +124,6 @@ public class BlobServerPutTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * Checked thread that calls {@link BlobServer#getStorageLocation(JobID, String)}
-	 */
-	public static class NameAddressableGetStorageLocation extends CheckedThread {
-		private final BlobServer server;
-		private final JobID jid;
-		private final String name;
-
-		public NameAddressableGetStorageLocation(BlobServer server, JobID jid, String name) {
-			this.server = server;
-			this.jid = jid;
-			this.name = name;
-		}
-
-		@Override
-		public void go() throws Exception {
-			server.getStorageLocation(jid, name);
-		}
-	}
-
-	/**
-	 * Tests concurrent calls to {@link BlobServer#getStorageLocation(JobID, String)}.
-	 */
-	@Test
-	public void testServerNameAddressableGetStorageLocationConcurrent() throws Exception {
-		BlobServer server = new BlobServer(new Configuration(), new VoidBlobStore());
-
-		try {
-			JobID jid = new JobID();
-			String stringKey = "my test key";
-			CheckedThread[] threads = new CheckedThread[] {
-				new NameAddressableGetStorageLocation(server, jid, stringKey),
-				new NameAddressableGetStorageLocation(server, jid, stringKey),
-				new NameAddressableGetStorageLocation(server, jid, stringKey)
-			};
-			checkedThreadSimpleTest(threads);
-		} finally {
-			server.close();
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	@Test
@@ -186,11 +148,6 @@ public class BlobServerPutTest extends TestLogger {
 			BlobKey key2 = client.put(data, 10, 44);
 			assertNotNull(key2);
 
-			// put under job and name scope
-			JobID jid = new JobID();
-			String stringKey = "my test key";
-			client.put(jid, stringKey, data);
-
 			// --- GET the data and check that it is equal ---
 
 			// one get request on the same client
@@ -212,12 +169,6 @@ public class BlobServerPutTest extends TestLogger {
 			BlobUtils.readFully(is2, result2, 0, result2.length, null);
 			is2.close();
 			assertArrayEquals(data, result2);
-
-			InputStream is3 = client.get(jid, stringKey);
-			byte[] result3 = new byte[data.length];
-			BlobUtils.readFully(is3, result3, 0, result3.length, null);
-			is3.close();
-			assertArrayEquals(data, result3);
 		} finally {
 			if (client != null) {
 				client.close();
@@ -248,14 +199,6 @@ public class BlobServerPutTest extends TestLogger {
 			{
 				BlobKey key1 = client.put(new ByteArrayInputStream(data));
 				assertNotNull(key1);
-
-			}
-
-			// put under job and name scope
-			{
-				JobID jid = new JobID();
-				String stringKey = "my test key";
-				client.put(jid, stringKey, new ByteArrayInputStream(data));
 			}
 		} finally {
 			if (client != null) {
@@ -290,14 +233,6 @@ public class BlobServerPutTest extends TestLogger {
 			{
 				BlobKey key1 = client.put(new ChunkedInputStream(data, 19));
 				assertNotNull(key1);
-
-			}
-
-			// put under job and name scope
-			{
-				JobID jid = new JobID();
-				String stringKey = "my test key";
-				client.put(jid, stringKey, new ChunkedInputStream(data, 17));
 			}
 		} finally {
 			if (client != null) {
@@ -350,64 +285,6 @@ public class BlobServerPutTest extends TestLogger {
 				// expected
 			}
 
-		} finally {
-			// set writable again to make sure we can remove the directory
-			if (tempFileDir != null) {
-				tempFileDir.setWritable(true, false);
-			}
-			if (client != null) {
-				client.close();
-			}
-			if (server != null) {
-				server.close();
-			}
-		}
-	}
-
-	@Test
-	public void testPutNamedBufferFails() throws IOException {
-		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
-
-		BlobServer server = null;
-		BlobClient client = null;
-
-		File tempFileDir = null;
-		try {
-			Configuration config = new Configuration();
-			server = new BlobServer(config, new VoidBlobStore());
-
-			// make sure the blob server cannot create any files in its storage dir
-			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
-			assertTrue(tempFileDir.setExecutable(true, false));
-			assertTrue(tempFileDir.setReadable(true, false));
-			assertTrue(tempFileDir.setWritable(false, false));
-
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress, config);
-
-			byte[] data = new byte[2000000];
-			rnd.nextBytes(data);
-
-			// put under job and name scope
-			try {
-				JobID jid = new JobID();
-				String stringKey = "my test key";
-				client.put(jid, stringKey, data);
-				fail("This should fail.");
-			}
-			catch (IOException e) {
-				assertTrue(e.getMessage(), e.getMessage().contains("Server side error"));
-			}
-
-			try {
-				JobID jid = new JobID();
-				String stringKey = "another key";
-				client.put(jid, stringKey, data);
-				fail("Client should be closed");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
 		} finally {
 			// set writable again to make sure we can remove the directory
 			if (tempFileDir != null) {

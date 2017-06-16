@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,31 +195,6 @@ public class BlobServer extends Thread implements BlobService {
 	 */
 	File getStorageLocation(BlobKey key) {
 		return BlobUtils.getStorageLocation(storageDir, key);
-	}
-
-	/**
-	 * Returns a file handle to the file identified by the given jobID and key.
-	 *
-	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
-	 *
-	 * @param jobID to which the file is associated
-	 * @param key to identify the file within the job context
-	 * @return file handle to the file
-	 */
-	File getStorageLocation(JobID jobID, String key) {
-		return BlobUtils.getStorageLocation(storageDir, jobID, key);
-	}
-
-	/**
-	 * Method which deletes all files associated with the given jobID.
-	 *
-	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
-	 *
-	 * @param jobID all files associated to this jobID will be deleted
-	 * @throws IOException
-	 */
-	void deleteJobDirectory(JobID jobID) throws IOException {
-		BlobUtils.deleteJobDirectory(storageDir, jobID);
 	}
 
 	/**

@@ -32,24 +32,13 @@ public class VoidBlobStore implements BlobStoreService {
 	public void put(File localFile, BlobKey blobKey) throws IOException {
 	}
 
-	@Override
-	public void put(File localFile, JobID jobId, String key) throws IOException {
-	}
 
 	@Override
 	public void get(BlobKey blobKey, File localFile) throws IOException {
 	}
 
 	@Override
-	public void get(JobID jobId, String key, File localFile) throws IOException {
-	}
-
-	@Override
 	public void delete(BlobKey blobKey) {
-	}
-
-	@Override
-	public void delete(JobID jobId, String key) {
 	}
 
 	@Override

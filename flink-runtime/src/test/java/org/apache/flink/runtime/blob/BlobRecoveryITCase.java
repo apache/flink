@@ -97,10 +97,6 @@ public class BlobRecoveryITCase extends TestLogger {
 			keys[1] = client.put(expected, 32, 256); // Request 2
 
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
-			String[] testKey = new String[] { "test-key-1", "test-key-2" };
-
-			client.put(jobId[0], testKey[0], expected); // Request 3
-			client.put(jobId[1], testKey[1], expected, 32, 256); // Request 4
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
@@ -132,31 +128,9 @@ public class BlobRecoveryITCase extends TestLogger {
 				}
 			}
 
-			// Verify request 3
-			try (InputStream is = client.get(jobId[0], testKey[0])) {
-				byte[] actual = new byte[expected.length];
-				BlobUtils.readFully(is, actual, 0, expected.length, null);
-
-				for (int i = 0; i < expected.length; i++) {
-					assertEquals(expected[i], actual[i]);
-				}
-			}
-
-			// Verify request 4
-			try (InputStream is = client.get(jobId[1], testKey[1])) {
-				byte[] actual = new byte[256];
-				BlobUtils.readFully(is, actual, 0, 256, null);
-
-				for (int i = 32, j = 0; i < 256; i++, j++) {
-					assertEquals(expected[i], actual[j]);
-				}
-			}
-
 			// Remove again
 			client.delete(keys[0]);
 			client.delete(keys[1]);
-			client.delete(jobId[0], testKey[0]);
-			client.delete(jobId[1], testKey[1]);
 
 			// Verify everything is clean
 			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
