@@ -1005,8 +1005,8 @@ public class WindowedStream<T, K, W extends Window> {
 			ProcessWindowFunction.class,
 			0,
 			1,
-			new int[]{2, 0},
-			new int[]{3, 0},
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
 			inType,
 			functionName,
 			false);

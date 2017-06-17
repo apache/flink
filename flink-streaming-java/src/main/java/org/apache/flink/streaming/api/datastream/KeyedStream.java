@@ -271,8 +271,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			ProcessFunction.class,
 			0,
 			1,
-			new int[]{0},
-			new int[]{2, 0},
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
 			true);

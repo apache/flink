@@ -533,8 +533,8 @@ public class AllWindowedStream<T, W extends Window> {
 			ProcessAllWindowFunction.class,
 			0,
 			1,
-			new int[]{1, 0},
-			new int[]{2, 0},
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
 			inType,
 			null,
 			false);
