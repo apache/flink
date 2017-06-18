@@ -124,7 +124,7 @@ RocksDBStateBackend is currently the only backend that offers incremental checkp
 ## Configuring a State Backend
 
 State backends can be configured per job. In addition, you can define a default state backend to be used when the
-job does not explicitly define a state backend.
+job does not explicitly define a state backend. Besides, state backend configured per-job will overwrite the default state backend configured in `flink-conf.yaml`
 
 
 ### Setting the Per-job State Backend
