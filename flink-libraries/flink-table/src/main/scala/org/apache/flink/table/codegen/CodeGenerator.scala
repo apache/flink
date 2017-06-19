@@ -871,12 +871,16 @@ class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
-    val input1AccessExprs = for (i <- 0 until input1.getArity if input1Mapping.contains(i))
-      yield generateInputAccess(input1, input1Term, i, input1Mapping)
+    val input1AccessExprs = input1Mapping.map { idx =>
+      generateInputAccess(input1, input1Term, idx)
+    }
 
     val input2AccessExprs = input2 match {
-      case Some(ti) => for (i <- 0 until ti.getArity if input2Mapping.contains(i))
-        yield generateInputAccess(ti, input2Term, i, input2Mapping)
+      case Some(ti) =>
+        input2Mapping.map { idx =>
+          generateInputAccess(ti, input2Term, idx)
+        }.toSeq
+
       case None => Seq() // add nothing
     }
 
@@ -887,15 +891,18 @@ class CodeGenerator(
     * Generates an expression from the left input and the right table function.
     */
   def generateCorrelateAccessExprs: (Seq[GeneratedExpression], Seq[GeneratedExpression]) = {
-    val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, input1Term, i, input1Mapping)
+    val input1AccessExprs = input1Mapping.map { idx =>
+      generateInputAccess(input1, input1Term, idx)
+    }
 
     val input2AccessExprs = input2 match {
-      case Some(ti) => for (i <- 0 until ti.getArity if input2Mapping.contains(i))
+      case Some(ti) =>
         // use generateFieldAccess instead of generateInputAccess to avoid the generated table
         // function's field access code is put on the top of function body rather than
         // the while loop
-        yield generateFieldAccess(ti, input2Term, i, input2Mapping)
+        input2Mapping.map { idx =>
+          generateFieldAccess(ti, input2Term, idx)
+        }.toSeq
       case None => throw new CodeGenException("Type information of input2 must not be null.")
     }
     (input1AccessExprs, input2AccessExprs)
@@ -1150,11 +1157,9 @@ class CodeGenerator(
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
     // if inputRef index is within size of input1 we work with input1, input2 otherwise
     val input = if (inputRef.getIndex < input1.getArity) {
-      (input1, input1Term, input1Mapping)
+      (input1, input1Term)
     } else {
-      (input2.getOrElse(throw new CodeGenException("Invalid input access.")),
-        input2Term,
-        input2Mapping)
+      (input2.getOrElse(throw new CodeGenException("Invalid input access.")), input2Term)
     }
 
     val index = if (input._2 == input1Term) {
@@ -1163,7 +1168,7 @@ class CodeGenerator(
       inputRef.getIndex - input1.getArity
     }
 
-    generateInputAccess(input._1, input._2, index, input._3)
+    generateInputAccess(input._1, input._2, index)
   }
 
   override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
@@ -1172,8 +1177,7 @@ class CodeGenerator(
     val fieldAccessExpr = generateFieldAccess(
       refExpr.resultType,
       refExpr.resultTerm,
-      index,
-      input1Mapping)
+      index)
 
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1581,8 +1585,7 @@ class CodeGenerator(
   private def generateInputAccess(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
-      index: Int,
-      fieldMapping: Array[Int])
+      index: Int)
     : GeneratedExpression = {
     // if input has been used before, we can reuse the code that
     // has already been generated
@@ -1594,9 +1597,9 @@ class CodeGenerator(
       // generate input access and unboxing if necessary
       case None =>
         val expr = if (nullableInput) {
-          generateNullableInputFieldAccess(inputType, inputTerm, index, fieldMapping)
+          generateNullableInputFieldAccess(inputType, inputTerm, index)
         } else {
-          generateFieldAccess(inputType, inputTerm, index, fieldMapping)
+          generateFieldAccess(inputType, inputTerm, index)
         }
 
         reusableInputUnboxingExprs((inputTerm, index)) = expr
@@ -1609,27 +1612,19 @@ class CodeGenerator(
   private def generateNullableInputFieldAccess(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
-      index: Int,
-      fieldMapping: Array[Int])
+      index: Int)
     : GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
 
     val fieldType = inputType match {
-      case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-          fieldMapping(index)
-        }
-        else {
-          index
-        }
-        ct.getTypeAt(fieldIndex)
+      case ct: CompositeType[_] => ct.getTypeAt(index)
       case at: AtomicType[_] => at
       case _ => throw new CodeGenException("Unsupported type for input field access.")
     }
     val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
-    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index, fieldMapping)
+    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index)
 
     val inputCheckCode =
       s"""
@@ -1652,19 +1647,12 @@ class CodeGenerator(
   private def generateFieldAccess(
       inputType: TypeInformation[_],
       inputTerm: String,
-      index: Int,
-      fieldMapping: Array[Int])
+      index: Int)
     : GeneratedExpression = {
     inputType match {
       case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-          fieldMapping(index)
-        }
-        else {
-          index
-        }
-        val accessor = fieldAccessorFor(ct, fieldIndex)
-        val fieldType: TypeInformation[Any] = ct.getTypeAt(fieldIndex)
+        val accessor = fieldAccessorFor(ct, index)
+        val fieldType: TypeInformation[Any] = ct.getTypeAt(index)
         val fieldTypeTerm = boxedTypeTermForTypeInfo(fieldType)
 
         accessor match {

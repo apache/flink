@@ -20,11 +20,10 @@ package org.apache.flink.table.api
 
 import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util.concurrent.atomic.AtomicInteger
-import _root_.java.util.{List => JList}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
@@ -34,14 +33,14 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{Expression, ProctimeAttribute, RowtimeAttribute, UnresolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait, _}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -438,39 +437,69 @@ abstract class StreamTableEnvironment(
     var rowtime: Option[(Int, String)] = None
     var proctime: Option[(Int, String)] = None
 
-    exprs.zipWithIndex.foreach {
-      case (RowtimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
-        if (rowtime.isDefined) {
-          throw new TableException(
-            "The rowtime attribute can only be defined once in a table schema.")
-        } else {
-          // check type of field that is replaced
-          if (idx < fieldTypes.length &&
-            !(TypeCheckUtils.isLong(fieldTypes(idx)) ||
-              TypeCheckUtils.isTimePoint(fieldTypes(idx)))) {
-            throw new TableException(
-              "The rowtime attribute can only be replace a field with a valid time type, such as " +
-                "Timestamp or Long.")
-          }
-          rowtime = Some(idx, name)
+    def extractRowtime(idx: Int, name: String, origName: Option[String]): Unit = {
+      if (rowtime.isDefined) {
+        throw new TableException(
+          "The rowtime attribute can only be defined once in a table schema.")
+      } else {
+        val mappedIdx = streamType match {
+          case pti: PojoTypeInfo[_] =>
+            pti.getFieldIndex(origName.getOrElse(name))
+          case _ => idx;
         }
-      case (ProctimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
-        if (proctime.isDefined) {
+        // check type of field that is replaced
+        if (mappedIdx < 0) {
+          throw new TableException(
+            s"The rowtime attribute can only replace a valid field. " +
+              s"${origName.getOrElse(name)} is not a field of type $streamType.")
+        }
+        else if (mappedIdx < fieldTypes.length &&
+          !(TypeCheckUtils.isLong(fieldTypes(mappedIdx)) ||
+            TypeCheckUtils.isTimePoint(fieldTypes(mappedIdx)))) {
+          throw new TableException(
+            s"The rowtime attribute can only replace a field with a valid time type, " +
+              s"such as Timestamp or Long. But was: ${fieldTypes(mappedIdx)}")
+        }
+
+        rowtime = Some(idx, name)
+      }
+    }
+
+    def extractProctime(idx: Int, name: String): Unit = {
+      if (proctime.isDefined) {
           throw new TableException(
             "The proctime attribute can only be defined once in a table schema.")
-        } else {
-          // check that proctime is only appended
-          if (idx < fieldTypes.length) {
-            throw new TableException(
-              "The proctime attribute can only be appended to the table schema and not replace " +
-                "an existing field. Please move it to the end of the schema.")
-          }
-          proctime = Some(idx, name)
+      } else {
+        // check that proctime is only appended
+        if (idx < fieldTypes.length) {
+          throw new TableException(
+            "The proctime attribute can only be appended to the table schema and not replace " +
+              "an existing field. Please move it to the end of the schema.")
         }
-      case (u: UnresolvedFieldReference, _) => fieldNames = u.name :: fieldNames
+        proctime = Some(idx, name)
+      }
+    }
 
-      case _ =>
-        throw new TableException("Time attributes can only be defined on field references.")
+    exprs.zipWithIndex.foreach {
+      case (RowtimeAttribute(UnresolvedFieldReference(name)), idx) =>
+        extractRowtime(idx, name, None)
+
+      case (RowtimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
+        extractRowtime(idx, name, Some(origName))
+
+      case (ProctimeAttribute(UnresolvedFieldReference(name)), idx) =>
+        extractProctime(idx, name)
+
+      case (ProctimeAttribute(Alias(UnresolvedFieldReference(_), name, _)), idx) =>
+        extractProctime(idx, name)
+
+      case (UnresolvedFieldReference(name), _) => fieldNames = name :: fieldNames
+
+      case (Alias(UnresolvedFieldReference(_), name, _), _) => fieldNames = name :: fieldNames
+
+      case (e, _) =>
+        throw new TableException(s"Time attributes can only be defined on field references or " +
+          s"aliases of field references. But was: $e")
     }
 
     if (rowtime.isDefined && fieldNames.contains(rowtime.get._2)) {
@@ -606,21 +635,10 @@ abstract class StreamTableEnvironment(
     val relNode = table.getRelNode
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
 
-    // zip original field names with optimized field types
-    val fieldTypes = relNode.getRowType.getFieldList.asScala
-      .zip(dataStreamPlan.getRowType.getFieldList.asScala)
-      // get name of original plan and type of optimized plan
-      .map(x => (x._1.getName, x._2.getType))
-      // add field indexes
-      .zipWithIndex
-      // build new field types
-      .map(x => new RelDataTypeFieldImpl(x._1._1, x._2, x._1._2))
+    // we convert the logical row type to the output row type
+    val convertedOutputType = RelTimeIndicatorConverter.convertOutputType(relNode)
 
-    // build a record type from list of field types
-    val rowType = new RelRecordType(
-      fieldTypes.toList.asJava.asInstanceOf[JList[RelDataTypeField]])
-
-    translate(dataStreamPlan, rowType, queryConfig, withChangeFlag)
+    translate(dataStreamPlan, convertedOutputType, queryConfig, withChangeFlag)
   }
 
   /**
