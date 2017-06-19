@@ -61,6 +61,9 @@ public class Pattern<T, F extends T> {
 	/** A quantifier for the pattern. By default set to {@link Quantifier#one(ConsumingStrategy)}. */
 	private Quantifier quantifier = Quantifier.one(ConsumingStrategy.STRICT);
 
+	/** The condition an event has to satisfy to stop collecting events into looping state. */
+	private IterativeCondition<F> untilCondition;
+
 	/**
 	 * Applicable to a {@code times} pattern, and holds
 	 * the number of times it has to appear.
@@ -103,6 +106,10 @@ public class Pattern<T, F extends T> {
 
 	public IterativeCondition<F> getCondition() {
 		return condition;
+	}
+
+	public IterativeCondition<F> getUntilCondition() {
+		return untilCondition;
 	}
 
 	/**
@@ -183,6 +190,29 @@ public class Pattern<T, F extends T> {
 		Pattern<T, S> result = (Pattern<T, S>) this;
 
 		return result;
+	}
+
+	/**
+	 * Applies a stop condition for a looping state. It allows cleaning the underlying state.
+	 *
+	 * @param untilCondition a condition an event has to satisfy to stop collecting events into looping state
+	 * @return The same pattern with applied untilCondition
+	 */
+	public Pattern<T, F> until(IterativeCondition<F> untilCondition) {
+		Preconditions.checkNotNull(untilCondition, "The condition cannot be null");
+
+		if (this.untilCondition != null) {
+			throw new MalformedPatternException("Only one until condition can be applied.");
+		}
+
+		if (!quantifier.hasProperty(Quantifier.QuantifierProperty.LOOPING)) {
+			throw new MalformedPatternException("The until condition is only applicable to looping states.");
+		}
+
+		ClosureCleaner.clean(untilCondition, true);
+		this.untilCondition = untilCondition;
+
+		return this;
 	}
 
 	/**

@@ -29,6 +29,7 @@ import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.Quantifier.Times;
+import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
@@ -463,19 +464,25 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createLooping(final State<T> sinkState) {
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> ignoreCondition = getInnerIgnoreCondition(currentPattern);
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+			final IterativeCondition<T> untilCondition = (IterativeCondition<T>) currentPattern.getUntilCondition();
 
+			final IterativeCondition<T> ignoreCondition = extendWithUntilCondition(
+				getInnerIgnoreCondition(currentPattern),
+				untilCondition);
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				(IterativeCondition<T>) currentPattern.getCondition(),
+				untilCondition);
+
+			final IterativeCondition<T> proceedCondition = BooleanConditions.trueFunction();
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
-			loopingState.addProceed(sinkState, trueFunction);
-			loopingState.addTake(currentCondition);
+			loopingState.addProceed(sinkState, proceedCondition);
+			loopingState.addTake(takeCondition);
 
 			addStopStateToLooping(loopingState);
 
 			if (ignoreCondition != null) {
 				final State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
-				ignoreState.addTake(loopingState, currentCondition);
+				ignoreState.addTake(loopingState, takeCondition);
 				ignoreState.addIgnore(ignoreCondition);
 				loopingState.addIgnore(ignoreState, ignoreCondition);
 
@@ -493,10 +500,13 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				(IterativeCondition<T>) currentPattern.getCondition(),
+				(IterativeCondition<T>) currentPattern.getUntilCondition()
+			);
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
-			firstState.addTake(sinkState, currentCondition);
+			firstState.addTake(sinkState, takeCondition);
 
 			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
 			if (ignoreCondition != null) {
@@ -514,22 +524,45 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				(IterativeCondition<T>) currentPattern.getCondition(),
+				(IterativeCondition<T>) currentPattern.getUntilCondition()
+			);
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
 			firstState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
-			firstState.addTake(loopingState, currentCondition);
+			firstState.addTake(loopingState, takeCondition);
 
 			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
 			if (ignoreFunction != null) {
 				final State<T> firstStateWithoutProceed = createState(currentPattern.getName(), State.StateType.Normal);
 				firstState.addIgnore(firstStateWithoutProceed, ignoreFunction);
 				firstStateWithoutProceed.addIgnore(ignoreFunction);
-				firstStateWithoutProceed.addTake(loopingState, currentCondition);
+				firstStateWithoutProceed.addTake(loopingState, takeCondition);
 
 				addStopStates(firstStateWithoutProceed);
 			}
 			return firstState;
+		}
+
+		/**
+		 * This method extends the given condition with stop(until) condition if necessary.
+		 * The until condition needs to be applied only if both of the given conditions are not null.
+		 *
+		 * @param condition the condition to extend
+		 * @param untilCondition the until condition to join with the given condition
+		 * @return condition with AND applied or the original condition
+		 */
+		private IterativeCondition<T> extendWithUntilCondition(
+				IterativeCondition<T> condition,
+				IterativeCondition<T> untilCondition) {
+			if (untilCondition != null && condition != null) {
+				return new AndCondition<>(new NotCondition<>(untilCondition), condition);
+			} else if (untilCondition != null) {
+				return new NotCondition<>(untilCondition);
+			}
+
+			return condition;
 		}
 
 		/**
