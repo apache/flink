@@ -1006,7 +1006,7 @@ class OverWindowedTable(
 
     if(fields.exists(_.isInstanceOf[WindowProperty])){
       throw ValidationException(
-        "Window start and Window end can not be used on over windowed tables.")
+        "Window start and end properties are not available for Over windows.")
     }
 
     val expandedOverFields = resolveOverWindows(expandedFields, overWindows, table.tableEnv)
