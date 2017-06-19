@@ -107,6 +107,16 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
+  def testAccessesWindowProperties(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Window start and end properties are not available for Over windows.")
+
+    table
+    .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
+    .select('c, 'a.count over 'w, 'w.start, 'w.end)
+  }
+
+  @Test
   def testProcTimeBoundedPartitionedRowsOver() = {
     val weightedAvg = new WeightedAvgWithRetract
 
