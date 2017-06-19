@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl, RelRecordType}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
@@ -26,10 +26,10 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.functions.TimeMaterializationSqlFunction
-import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.calcite.FlinkTypeFactory.isTimeIndicatorType
+import org.apache.flink.table.functions.TimeMaterializationSqlFunction
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -390,5 +390,26 @@ object RelTimeIndicatorConverter {
     } else {
       convertedRoot
     }
+  }
+
+  def convertOutputType(rootRel: RelNode): RelDataType = {
+
+    val timestamp = rootRel
+      .getCluster
+      .getRexBuilder
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+
+    // convert all time indicators types to timestamps
+    val fields = rootRel.getRowType.getFieldList.map { field =>
+      if (isTimeIndicatorType(field.getType)) {
+        new RelDataTypeFieldImpl(field.getName, field.getIndex, timestamp)
+      } else {
+        field
+      }
+    }
+
+    new RelRecordType(fields)
   }
 }
