@@ -264,7 +264,7 @@ public class NFACompiler {
 			} else {
 				lastSink = createSingletonState(sinkState);
 			}
-			addStopState(lastSink);
+			addStopStates(lastSink);
 
 			return lastSink;
 		}
@@ -349,7 +349,7 @@ public class NFACompiler {
 			return copyOfSink;
 		}
 
-		private void addStopState(final State<T> state) {
+		private void addStopStates(final State<T> state) {
 			for (Tuple2<IterativeCondition<T>, String> notCondition: getCurrentNotCondition()) {
 				final State<T> stopState = createStopState(notCondition.f0, notCondition.f1);
 				state.addProceed(stopState, notCondition.f0);
@@ -444,7 +444,7 @@ public class NFACompiler {
 					ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
 					ignoreState.addTake(sink, currentCondition);
 					ignoreState.addIgnore(ignoreCondition);
-					addStopState(ignoreState);
+					addStopStates(ignoreState);
 				} else {
 					ignoreState = singletonState;
 				}
@@ -527,7 +527,7 @@ public class NFACompiler {
 				firstStateWithoutProceed.addIgnore(ignoreFunction);
 				firstStateWithoutProceed.addTake(loopingState, currentCondition);
 
-				addStopState(firstStateWithoutProceed);
+				addStopStates(firstStateWithoutProceed);
 			}
 			return firstState;
 		}
