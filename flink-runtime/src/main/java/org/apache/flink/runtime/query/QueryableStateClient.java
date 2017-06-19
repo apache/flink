@@ -22,8 +22,13 @@ import akka.actor.ActorSystem;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.Recover;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -38,7 +43,10 @@ import org.apache.flink.runtime.query.netty.KvStateClient;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKeyOrNamespace;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceTypeInfo;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +58,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.net.ConnectException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -94,6 +103,8 @@ public class QueryableStateClient {
 
 	/** This is != null, if we started the actor system. */
 	private final ActorSystem actorSystem;
+
+	private ExecutionConfig executionConfig;
 
 	/**
 	 * Creates a client from the given configuration.
@@ -157,8 +168,14 @@ public class QueryableStateClient {
 		this.lookupService = lookupService;
 		this.kvStateClient = networkClient;
 		this.executionContext = actorSystem.dispatcher();
+		this.executionConfig = new ExecutionConfig();
 
 		this.lookupService.start();
+	}
+
+	/** Gets the {@link ExecutionConfig} object. */
+	public ExecutionConfig getConfig() {
+		return executionConfig;
 	}
 
 	/**
@@ -216,6 +233,14 @@ public class QueryableStateClient {
 	}
 
 	/**
+	 * @deprecated Use instead one of the:
+	 * <ol>
+	 * 	<li>{@link #getKvState(JobID, String, Object, TypeHint, StateDescriptor)}</li>
+	 * 	<li>{@link #getKvState(JobID, String, Object, TypeInformation, StateDescriptor)}</li>
+	 * 	<li>{@link #getKvState(JobID, String, Object, Object, TypeInformation, TypeInformation, StateDescriptor)}</li>
+	 * 	<li>{@link #getKvState(JobID, String, Object, Object, TypeInformation, TypeInformation, TypeSerializer)}</li>
+	 * </ol>
+	 *
 	 * Returns a future holding the serialized request result.
 	 *
 	 * <p>If the server does not serve a KvState instance with the given ID,
@@ -235,6 +260,7 @@ public class QueryableStateClient {
 	 *                                  KvState instance with
 	 * @return Future holding the serialized result
 	 */
+	@Deprecated
 	@SuppressWarnings("unchecked")
 	public Future<byte[]> getKvState(
 			final JobID jobId,
@@ -261,6 +287,177 @@ public class QueryableStateClient {
 									true);
 						} else {
 							return Futures.failed(failure);
+						}
+					}
+				}, executionContext);
+	}
+
+	/**
+	 * Returns a future holding the request result.
+	 *
+	 * <p>If the server does not serve a KvState instance with the given ID,
+	 * the Future will be failed with a {@link UnknownKvStateID}.
+	 *
+	 * <p>If the KvState instance does not hold any data for the given key
+	 * and namespace, the Future will be failed with a {@link UnknownKeyOrNamespace}.
+	 *
+	 * <p>All other failures are forwarded to the Future.
+	 *
+	 * @param jobId                     JobID of the job the queryable state belongs to.
+	 * @param queryableStateName        Name under which the state is queryable.
+	 * @param key			            The key we are interested in.
+	 * @param keyTypeHint				A {@link TypeHint} used to extract the type of the key.
+	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
+	 * @return Future holding the result.
+	 */
+	@PublicEvolving
+	public <K, V> Future<V> getKvState(
+			final JobID jobId,
+			final String queryableStateName,
+			final K key,
+			final TypeHint<K> keyTypeHint,
+			final StateDescriptor<?, V> stateDescriptor) {
+
+		Preconditions.checkNotNull(keyTypeHint);
+
+		TypeInformation<K> keyTypeInfo = keyTypeHint.getTypeInfo();
+		return getKvState(jobId, queryableStateName, key, keyTypeInfo, stateDescriptor);
+	}
+
+	/**
+	 * Returns a future holding the request result.
+	 *
+	 * <p>If the server does not serve a KvState instance with the given ID,
+	 * the Future will be failed with a {@link UnknownKvStateID}.
+	 *
+	 * <p>If the KvState instance does not hold any data for the given key
+	 * and namespace, the Future will be failed with a {@link UnknownKeyOrNamespace}.
+	 *
+	 * <p>All other failures are forwarded to the Future.
+	 *
+	 * @param jobId                     JobID of the job the queryable state belongs to.
+	 * @param queryableStateName        Name under which the state is queryable.
+	 * @param key			            The key we are interested in.
+	 * @param keyTypeInfo				The {@link TypeInformation} of the key.
+	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
+	 * @return Future holding the result.
+	 */
+	@PublicEvolving
+	public <K, V> Future<V> getKvState(
+			final JobID jobId,
+			final String queryableStateName,
+			final K key,
+			final TypeInformation<K> keyTypeInfo,
+			final StateDescriptor<?, V> stateDescriptor) {
+
+		Preconditions.checkNotNull(keyTypeInfo);
+
+		return getKvState(jobId, queryableStateName, key, VoidNamespace.INSTANCE,
+				keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, stateDescriptor);
+	}
+
+	/**
+	 * Returns a future holding the request result.
+	 *
+	 * <p>If the server does not serve a KvState instance with the given ID,
+	 * the Future will be failed with a {@link UnknownKvStateID}.
+	 *
+	 * <p>If the KvState instance does not hold any data for the given key
+	 * and namespace, the Future will be failed with a {@link UnknownKeyOrNamespace}.
+	 *
+	 * <p>All other failures are forwarded to the Future.
+	 *
+	 * @param jobId                     JobID of the job the queryable state belongs to.
+	 * @param queryableStateName        Name under which the state is queryable.
+	 * @param key			            The key that the state we request is associated with.
+	 * @param namespace					The namespace of the state.
+	 * @param keyTypeInfo				The {@link TypeInformation} of the keys.
+	 * @param namespaceTypeInfo			The {@link TypeInformation} of the namespace.
+	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
+	 * @return Future holding the result.
+	 */
+	@PublicEvolving
+	public <K, V, N> Future<V> getKvState(
+			final JobID jobId,
+			final String queryableStateName,
+			final K key,
+			final N namespace,
+			final TypeInformation<K> keyTypeInfo,
+			final TypeInformation<N> namespaceTypeInfo,
+			final StateDescriptor<?, V> stateDescriptor) {
+
+		Preconditions.checkNotNull(stateDescriptor);
+
+		// initialize the value serializer based on the execution config.
+		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+		TypeSerializer<V> valueSerializer = stateDescriptor.getSerializer();
+
+		return getKvState(jobId, queryableStateName, key,
+				namespace, keyTypeInfo, namespaceTypeInfo, valueSerializer);
+	}
+
+	/**
+	 * Returns a future holding the request result.
+	 *
+	 * <p>If the server does not serve a KvState instance with the given ID,
+	 * the Future will be failed with a {@link UnknownKvStateID}.
+	 *
+	 * <p>If the KvState instance does not hold any data for the given key
+	 * and namespace, the Future will be failed with a {@link UnknownKeyOrNamespace}.
+	 *
+	 * <p>All other failures are forwarded to the Future.
+	 *
+	 * @param jobId                     JobID of the job the queryable state belongs to.
+	 * @param queryableStateName        Name under which the state is queryable.
+	 * @param key			            The key that the state we request is associated with.
+	 * @param namespace					The namespace of the state.
+	 * @param keyTypeInfo				The {@link TypeInformation} of the keys.
+	 * @param namespaceTypeInfo			The {@link TypeInformation} of the namespace.
+	 * @param valueSerializer			The {@link TypeSerializer} of the state we want to query.
+	 * @return Future holding the result.
+	 */
+	@PublicEvolving
+	public <K, V, N> Future<V> getKvState(
+			final JobID jobId,
+			final String queryableStateName,
+			final K key,
+			final N namespace,
+			final TypeInformation<K> keyTypeInfo,
+			final TypeInformation<N> namespaceTypeInfo,
+			final TypeSerializer<V> valueSerializer) {
+
+		Preconditions.checkNotNull(queryableStateName);
+
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(namespace);
+
+		Preconditions.checkNotNull(keyTypeInfo);
+		Preconditions.checkNotNull(namespaceTypeInfo);
+		Preconditions.checkNotNull(valueSerializer);
+
+		TypeSerializer<K> keySerializer = keyTypeInfo.createSerializer(executionConfig);
+		TypeSerializer<N> namespaceSerializer = namespaceTypeInfo.createSerializer(executionConfig);
+
+		final byte[] serializedKeyAndNamespace;
+		try {
+			serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+					key,
+					keySerializer,
+					namespace,
+					namespaceSerializer);
+		} catch (IOException e) {
+			return Futures.failed(e);
+		}
+
+		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace)
+				.flatMap(new Mapper<byte[], Future<V>>() {
+					@Override
+					public Future<V> apply(byte[] parameter) {
+						try {
+							return Futures.successful(
+									KvStateRequestSerializer.deserializeValue(parameter, valueSerializer));
+						} catch (IOException e) {
+							return Futures.failed(e);
 						}
 					}
 				}, executionContext);
