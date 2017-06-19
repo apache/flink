@@ -74,6 +74,16 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
        |}
     """.stripMargin
 
+  val enumE =
+    s"""
+       |@SerialVersionUID(1L)
+       |object $enumName extends Enumeration {
+       |  val A = Value(42)
+       |  val B = Value(5)
+       |  val C = Value(1337)
+       |}
+    """.stripMargin
+
   /**
     * Check that identical enums don't require migration
     */
@@ -104,6 +114,16 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
   @Test
   def checkDifferentFieldOrder(): Unit = {
     assertTrue(checkCompatibility(enumA, enumD).isRequiresMigration)
+  }
+
+  /**
+    * Check that changing the enum ids causes a migration
+    */
+  @Test
+  def checkDifferentIds(): Unit = {
+    assertTrue(
+      "Different ids should cause a migration.",
+      checkCompatibility(enumA, enumE).isRequiresMigration)
   }
 
   def checkCompatibility(enumSourceA: String, enumSourceB: String)
