@@ -335,9 +335,6 @@ public class Pattern<T, F extends T> {
 	public Pattern<T, F> times(int from, int to) {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
-		Preconditions.checkArgument(from >= 0, "The from should be a non-negative number greater than or equal to 0.");
-		Preconditions.checkArgument(to >= from, "The to should be a number greater than or equal to from: " + from + ".");
-		Preconditions.checkArgument(from != to || from != 0, "The from and to should not be both equal to 0.");
 		this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
 		if (from == 0) {
 			this.quantifier.optional();
