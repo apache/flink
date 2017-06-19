@@ -33,12 +33,20 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.apache.flink.table.functions.AggregateFunction
 import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.rules.ExpectedException
 import org.mockito.Mockito.{mock, when}
 
 /**
   * Test base for testing Table API / SQL plans.
   */
 class TableTestBase {
+
+  // used for accurate exception information checking.
+  val expectedException = ExpectedException.none()
+
+  @Rule
+  def thrown = expectedException
 
   def batchTestUtil(): BatchTableTestUtil = {
     BatchTableTestUtil()
