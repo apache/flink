@@ -70,7 +70,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'mycount, 'wAvg)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -131,7 +131,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
         weightAvgFun('b, 'a) over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -186,7 +186,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
       .select('a, 'c.sum over 'w, 'c.min over 'w)
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -249,7 +249,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -312,7 +312,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'b, 'a.count over 'w, 'a.sum over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
