@@ -222,7 +222,7 @@ public class TypeExtractionUtils {
 	public static Method getSingleAbstractMethod(Class<?> baseClass) {
 
 		if (!baseClass.isInterface()) {
-			throw new InvalidTypesException("FunctionalInterface must be an interface");
+			throw new InvalidTypesException("Given class: " + baseClass + "is not a FunctionalInterface.");
 		}
 
 		Method sam = null;
