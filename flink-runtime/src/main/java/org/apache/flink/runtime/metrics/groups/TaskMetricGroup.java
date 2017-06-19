@@ -131,6 +131,10 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	// ------------------------------------------------------------------------
 
 	public OperatorMetricGroup addOperator(String name) {
+		if (name.length() > 80) {
+			LOG.warn("The operator name {} exceeded the 80 characters length limit and was truncated.", name);
+			name = name.substring(0, 80);
+		}
 		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, name);
 
 		synchronized (this) {
