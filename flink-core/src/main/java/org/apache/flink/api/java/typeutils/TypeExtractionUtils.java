@@ -215,22 +215,33 @@ public class TypeExtractionUtils {
 	 * Extracts a Single Abstract Method (SAM) as defined in Java Specification (4.3.2. The Class Object,
 	 * 9.8 Functional Interfaces, 9.4.3 Interface Method Body) from given class.
 	 *
-	 * @param baseClass
-	 * @throws InvalidTypesException if the given class does not implement
-	 * @return
+	 * @param baseClass a class that is a FunctionalInterface to retrieve a SAM from
+	 * @throws InvalidTypesException if the given class does not implement FunctionalInterface
+	 * @return single abstract method of the given class
 	 */
 	public static Method getSingleAbstractMethod(Class<?> baseClass) {
+
+		if (!baseClass.isInterface()) {
+			throw new InvalidTypesException("Given class: " + baseClass + "is not a FunctionalInterface.");
+		}
+
 		Method sam = null;
 		for (Method method : baseClass.getMethods()) {
 			if (Modifier.isAbstract(method.getModifiers())) {
 				if (sam == null) {
 					sam = method;
 				} else {
-					throw new InvalidTypesException(
-						"Given class: " + baseClass + " is not a FunctionalInterface. It does not have a SAM.");
+					throw new InvalidTypesException("Given class: " + baseClass +
+						" is not a FunctionalInterface. It has more than one abstract method.");
 				}
 			}
 		}
+
+		if (sam == null) {
+			throw new InvalidTypesException(
+				"Given class: " + baseClass + " is not a FunctionalInterface. It does not have any abstract methods.");
+		}
+
 		return sam;
 	}
 
