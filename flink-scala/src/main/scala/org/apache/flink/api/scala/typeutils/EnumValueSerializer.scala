@@ -92,11 +92,14 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 
           if (previousEnumConstants != null) {
             for (i <- enum.values.iterator) {
-              if (!previousEnumConstants(i.id).equals(i.toString)) {
-                // compatible only if new enum constants are only appended,
-                // and original constants must be in the exact same order
+              // skip the check for all newly added fields
+              if (i.id < previousEnumConstants.length) {
+                if (!previousEnumConstants(i.id).equals(i.toString)) {
+                  // compatible only if new enum constants are only appended,
+                  // and original constants must be in the exact same order
 
-                return CompatibilityResult.requiresMigration()
+                  return CompatibilityResult.requiresMigration()
+                }
               }
             }
           }
