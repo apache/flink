@@ -101,9 +101,7 @@ public class ConditionRegistry implements Serializable {
 		}
 
 		TransitionInfo(StateTransition<?> transition) {
-			this.action = transition.getAction();
-			this.sourceStateName = transition.getSourceState().getName();
-			this.targetStateName = transition.getTargetState().getName();
+			update(transition);
 		}
 
 		void update(StateTransition<?> transition) {
