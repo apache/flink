@@ -1904,7 +1904,6 @@ public class NFAITCase extends TestLogger {
 				Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)
 		));
 	}
-
 	///////////////////////////////         Consecutive           ////////////////////////////////////////
 
 	private static class ConsecutiveData {

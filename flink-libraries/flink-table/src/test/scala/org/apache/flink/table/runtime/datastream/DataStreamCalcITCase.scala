@@ -49,7 +49,7 @@ class DataStreamCalcITCase extends StreamingMultipleProgramsTestBase {
       .select('c)
 
     val results = result.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("Hello")
@@ -72,7 +72,7 @@ class DataStreamCalcITCase extends StreamingMultipleProgramsTestBase {
       .select('c)
 
     val results = result.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList("Hello", "Hello world")

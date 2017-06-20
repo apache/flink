@@ -28,6 +28,7 @@ import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.Quantifier.Times;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
@@ -372,33 +373,23 @@ public class NFACompiler {
 		 * @param times     number of times the state should be copied
 		 * @return the first state of the "complex" state, next state should point to it
 		 */
-		private State<T> createTimesState(final State<T> sinkState, int times) {
-			State<T> lastSink = copyWithoutTransitiveNots(sinkState);
-			for (int i = 0; i < times - 1; i++) {
-				lastSink = createSingletonState(lastSink, getInnerIgnoreCondition(currentPattern), false);
+		private State<T> createTimesState(final State<T> sinkState, Times times) {
+			State<T> lastSink = sinkState;
+			final IterativeCondition<T> innerIgnoreCondition = getInnerIgnoreCondition(currentPattern);
+			for (int i = times.getFrom(); i < times.getTo(); i++) {
+				lastSink = createSingletonState(lastSink, sinkState, innerIgnoreCondition, true);
 				addStopStateToLooping(lastSink);
 			}
-
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
-
+			for (int i = 0; i < times.getFrom() - 1; i++) {
+				lastSink = createSingletonState(lastSink, null, innerIgnoreCondition, false);
+				addStopStateToLooping(lastSink);
+			}
 			// we created the intermediate states in the loop, now we create the start of the loop.
-			if (!currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-				return createSingletonState(lastSink, ignoreCondition, false);
-			}
-
-			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal);
-			singletonState.addTake(lastSink, currentCondition);
-			singletonState.addProceed(sinkState, BooleanConditions.<T>trueFunction());
-
-			if (ignoreCondition != null) {
-				State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
-				ignoreState.addTake(lastSink, currentCondition);
-				ignoreState.addIgnore(ignoreCondition);
-				singletonState.addIgnore(ignoreState, ignoreCondition);
-				addStopStates(ignoreState);
-			}
-			return singletonState;
+			return createSingletonState(
+				lastSink,
+				sinkState,
+				getIgnoreCondition(currentPattern),
+				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
 		}
 
 		/**
@@ -413,6 +404,7 @@ public class NFACompiler {
 		private State<T> createSingletonState(final State<T> sinkState) {
 			return createSingletonState(
 				sinkState,
+				sinkState,
 				getIgnoreCondition(currentPattern),
 				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
 		}
@@ -424,10 +416,15 @@ public class NFACompiler {
 		 *
 		 * @param ignoreCondition condition that should be applied to IGNORE transition
 		 * @param sinkState state that the state being converted should point to
+		 * @param proceedState state that the state being converted should proceed to
+		 * @param isOptional whether the state being converted is optional
 		 * @return the created state
 		 */
 		@SuppressWarnings("unchecked")
-		private State<T> createSingletonState(final State<T> sinkState, final IterativeCondition<T> ignoreCondition, final boolean isOptional) {
+		private State<T> createSingletonState(final State<T> sinkState,
+			final State<T> proceedState,
+			final IterativeCondition<T> ignoreCondition,
+			final boolean isOptional) {
 			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
 			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
 
@@ -438,7 +435,7 @@ public class NFACompiler {
 
 			if (isOptional) {
 				// if no element accepted the previous nots are still valid.
-				singletonState.addProceed(sinkState, trueFunction);
+				singletonState.addProceed(proceedState, trueFunction);
 			}
 
 			if (ignoreCondition != null) {
