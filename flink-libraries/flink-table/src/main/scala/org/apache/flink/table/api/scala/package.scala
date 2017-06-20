@@ -82,7 +82,7 @@ package object scala extends ImplicitExpressionConversions {
   }
 
   implicit def dataStream2DataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {
-    new DataStreamConversions[T](set, set.dataType.asInstanceOf[CompositeType[T]])
+    new DataStreamConversions[T](set, set.dataType)
   }
 
   implicit def table2RowDataStream(table: Table): DataStream[Row] = {

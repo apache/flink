@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 
 /**
- * POJOs for table api testing.
+ * POJOs for Table API testing.
  */
 public class Pojos {
 

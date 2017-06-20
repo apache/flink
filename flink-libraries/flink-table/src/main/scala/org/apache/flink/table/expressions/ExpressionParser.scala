@@ -469,13 +469,15 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val timeIndicator: PackratParser[Expression] = proctime | rowtime
 
-  lazy val proctime: PackratParser[Expression] = fieldReference ~ "." ~ PROCTIME ^^ {
-    case f ~ _ ~ _ => ProctimeAttribute(f)
-  }
+  lazy val proctime: PackratParser[Expression] =
+    (aliasMapping | "(" ~> aliasMapping <~ ")" | fieldReference) ~ "." ~ PROCTIME ^^ {
+      case f ~ _ ~ _ => ProctimeAttribute(f)
+    }
 
-  lazy val rowtime: PackratParser[Expression] = fieldReference ~ "." ~ ROWTIME ^^ {
-    case f ~ _ ~ _ => RowtimeAttribute(f)
-  }
+  lazy val rowtime: PackratParser[Expression] =
+    (aliasMapping | "(" ~> aliasMapping <~ ")" | fieldReference) ~ "." ~ ROWTIME ^^ {
+      case f ~ _ ~ _ => RowtimeAttribute(f)
+    }
 
   // alias
 
@@ -484,6 +486,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   } | logic ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
     case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.tail.map(_.name))
   } | logic
+
+  lazy val aliasMapping: PackratParser[Expression] = fieldReference ~ AS ~ fieldReference ^^ {
+      case e ~ _ ~ name => Alias(e, name.name)
+  }
 
   lazy val expression: PackratParser[Expression] = timeIndicator | overConstant | alias |
     failure("Invalid expression.")
