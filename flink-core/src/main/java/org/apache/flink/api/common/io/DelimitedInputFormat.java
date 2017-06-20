@@ -246,9 +246,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
 		this.delimiter = delimiter.getBytes(getCharset());
-		if (this.bufferSize > 0 && this.delimiter.length >= this.bufferSize) {
-			throw new IllegalArgumentException("Delimiter must be shorter than buffer size.");
-		}
 		this.delimiterString = delimiter;
 	}
 	
@@ -269,13 +266,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 	
 	public void setBufferSize(int bufferSize) {
-		if (bufferSize < 1) {
-			throw new IllegalArgumentException("Buffer size must be at least 1.");
+		if (bufferSize < 2) {
+			throw new IllegalArgumentException("Buffer size must be at least 2.");
 		}
-		if (bufferSize <= delimiter.length) {
-			throw new IllegalArgumentException("Buffer size must be larger than length of delimiter");
-		}
-		
+
 		this.bufferSize = bufferSize;
 	}
 	
@@ -499,6 +493,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	private void initBuffers() {
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
+
+		if (this.bufferSize <= this.delimiter.length) {
+			throw new IllegalArgumentException("Buffer size must be greater than length of delimiter.");
+		}
 
 		if (this.readBuffer == null || this.readBuffer.length != this.bufferSize) {
 			this.readBuffer = new byte[this.bufferSize];
