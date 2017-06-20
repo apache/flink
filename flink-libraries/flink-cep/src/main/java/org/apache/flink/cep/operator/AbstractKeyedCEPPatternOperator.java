@@ -20,6 +20,7 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -31,7 +32,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.State;
+import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -49,6 +54,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -95,6 +101,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
+	private final Configuration conf;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
@@ -114,6 +122,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		} else {
 			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 		}
+
+		this.conf = new Configuration();
 	}
 
 	@Override
@@ -295,18 +305,42 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		this.lastWatermark = timestamp;
 	}
 
-	private NFA<IN> getNFA() throws IOException {
+	private NFA<IN> getNFA() throws Exception {
 		NFA<IN> nfa = nfaOperatorState.value();
-		return nfa != null ? nfa : nfaFactory.createNFA();
+		if (nfa == null) {
+			nfa = nfaFactory.createNFA();
+		}
+		initStates(nfa.getStates());
+		return nfa;
 	}
 
-	private void updateNFA(NFA<IN> nfa) throws IOException {
+	private void updateNFA(NFA<IN> nfa) throws Exception {
 		if (nfa.isNFAChanged()) {
 			if (nfa.isEmpty()) {
 				nfaOperatorState.clear();
 			} else {
 				nfa.resetNFAChanged();
 				nfaOperatorState.update(nfa);
+			}
+		}
+		destroyStates(nfa.getStates());
+	}
+
+	private void initStates(Set<State<IN>> states) throws Exception {
+		for (State<IN> state : states) {
+			for (StateTransition<IN> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.setFunctionRuntimeContext(condition, getRuntimeContext());
+				FunctionUtils.openFunction(condition, conf);
+			}
+		}
+	}
+
+	private void destroyStates(Set<State<IN>> states) throws Exception {
+		for (State<IN> state : states) {
+			for (StateTransition<IN> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.closeFunction(condition);
 			}
 		}
 	}

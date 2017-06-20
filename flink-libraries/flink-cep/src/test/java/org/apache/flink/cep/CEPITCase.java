@@ -24,7 +24,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -43,6 +45,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.fail;
 
 /**
  * End to end tests of both CEP operators and {@link NFA}.
@@ -95,13 +99,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			new Event(8, "end", 1.0)
 		);
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("start");
-			}
-		})
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new NameCondition("start"))
 		.followedByAny("middle").subtype(SubEvent.class).where(
 				new SimpleCondition<SubEvent>() {
 
@@ -111,13 +109,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 					}
 				}
 			)
-		.followedByAny("end").where(new SimpleCondition<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
-		});
+		.followedByAny("end").where(new NameCondition("end"));
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -139,6 +131,29 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		expected = "2,6,8";
 
 		env.execute();
+	}
+
+	private static class NameCondition extends RichIterativeCondition<Event> {
+
+		private final String matchName;
+		private boolean isOpen = false;
+
+		private NameCondition(String matchName) {
+			this.matchName = matchName;
+		}
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			isOpen = true;
+		}
+
+		@Override
+		public boolean filter(Event value, Context<Event> ctx) throws Exception {
+			if (!isOpen) {
+				fail("open() method is not called.");
+			}
+			return value.getName().equals(matchName);
+		}
 	}
 
 	@Test
