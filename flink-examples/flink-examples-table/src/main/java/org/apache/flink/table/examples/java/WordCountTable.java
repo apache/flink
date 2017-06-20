@@ -62,7 +62,10 @@ public class WordCountTable {
 	//     USER DATA TYPES
 	// *************************************************************************
 
-	private static class WC {
+	/**
+	 * Simple POJO containing a word and its respective count.
+	 */
+	public static class WC {
 		public String word;
 		public long frequency;
 
