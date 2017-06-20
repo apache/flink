@@ -1267,7 +1267,161 @@ A session window is defined by using the `Session` class as follows:
 
 ### Over Windows
 
-**TO BE DONE**
+Over window aggregates is standard SQL features so-called "analytic functions" that can be used in the <code>select()</code> clause. Unlike group window, these do not collapse records. Over windows are computed for each row, and the aggregate function is based on an over window of many rows.
+
+Over windows are defined using the <code>window(w: OverWindow*)</code> clause and require an alias, which is specified using the <code>as</code> clause. The following example shows how to define an over window aggregation on a table.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Table table = input
+  .window([OverWindow w].as("w"))  // define over window with alias w
+  .select("a.sum over w");  // aggregate over the over window w
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val table = input
+  .window([w: OverWindow] as 'w)  // define over window with alias w
+  .select('a.sum over 'w)  // aggregate over the over window w
+{% endhighlight %}
+</div>
+</div>
+
+The <code>OverWindow</code> parameter defines how rows are mapped to a over window. <code>OverWindow</code> is not an interface that users can implement. Instead, the Table API provides a set of predefined <code>OverWindow</code> classes with specific semantics, which are translated into underlying <code>DataStream</code> operations. The over windows can be defined on event-time, processing-time, or on a row-count, which are defined by using the <code>Over</code> class, the supported over window definitions are listed below:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Required?</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>partitionBy</code></td>
+      <td>Optional</td>
+      <td>Divides the data into partitions according one or more attributes. The aggregate function is applied to each partition separately and computation restarts for each partition.
+      <br/>
+      <br/>
+      In streaming environments, over window aggregates can only be computed in parallel if they partition by one or more attributes. i.e., partitionBy(...) clause references at least one additional attribute. Without partitionBy(...) clause can only be evaluated by a single, non-parallel task, i.e., with parallelism 1.
+      </td>
+    </tr>
+    <tr>
+      <td><code>orderBy</code></td>
+      <td>Required</td>
+      <td>Defines the logical order of the rows within each partition. i.e., it specifies the logical order in which the aggregate function calculation is performed. For streaming queries this must be a <a href="streaming.html#time-attributes">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>preceding</code></td>
+      <td>Required</td>
+      <td>Defines the preceding length of the over window,  either as time or row-count interval. For <a href="tableApi.html#bounded-over-windows">bounded over window</a> using specific value identification time(e.g.: 10.minutes) or row-count(e.g.: 10.rows) interval. For <a href="tableApi.html#unbounded-over-windows">unbounded over window</a> using constant identification time(<code>UNBOUNDED_RANGE</code>) or row-count(<code>UNBOUNDED_ROW</code>) interval.
+      <br/>
+      <br/>
+      <code>UNBOUNDED_RANGE</code>|<code>UNBOUNDED_ROW</code> : Specifies that the over window starts at the first row of the partition. 
+      <br/>
+      <br/>
+      <code>UNBOUNDED_RANGE</code>|<code>UNBOUNDED_ROW</code> can only be specified as over window starting point.</td>
+    </tr>
+    <tr>
+      <td><code>following</code></td>
+      <td>Optional</td>
+      <td>Defines the following length of the over window. Keep consistent with preceding interval types, using <code>CURRENT_RANGE</code> for time interval, using <code>CURRENT_ROW</code> for row-count interval.
+      <br/>
+      <br/>
+      <code>CURRENT_RANGE</code> : Specifies that the over window ends at the the current value.
+      <br/>
+      <code>CURRENT_ROW</code> : Specifies that the over window ends at the current row.
+      <br/>
+      <br/>
+      <code>CURRENT_RANGE</code>|<code>CURRENT_ROW</code> can only be specified as over window ending point.</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Required</td>
+      <td>Assigns an alias to the over window. The alias is used to reference the over window in the following <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Unbounded Over Windows
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// Unbounded Event-time over window (assuming a event-time attribute "rowtime")
+.window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_range").as("w"));
+
+// Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
+.window(Over.partitionBy("a").orderBy("proctime").preceding("unbounded_range").as("w"));
+
+// Unbounded Event-time Row-count over window (assuming a event-time attribute "rowtime")
+.window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_row").as("w"));
+ 
+// Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+.window(Over.partitionBy("a").orderBy("proctime").preceding("unbounded_row").as("w"));
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Unbounded Event-time over window (assuming a event-time attribute "rowtime")
+.window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
+
+// Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
+.window(Over partitionBy 'a orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
+
+// Unbounded Event-time Row-count over window (assuming a event-time attribute "rowtime")
+.window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
+ 
+// Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+.window(Over partitionBy 'a orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
+{% endhighlight %}
+</div>
+</div>
+
+#### Bounded Over Windows
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// Bounded Event-time over window (assuming a event-time attribute "rowtime")
+.window(Over.partitionBy("a").orderBy("rowtime").preceding("1.minutes").as("w"))
+
+// Bounded Processing-time over window (assuming a processing-time attribute "proctime")
+.window(Over.partitionBy("a").orderBy("proctime").preceding("1.minutes").as("w"))
+
+// Bounded Event-time Row-count over window (assuming a event-time attribute "rowtime")
+.window(Over.partitionBy("a").orderBy("rowtime").preceding("10.rows").as("w"))
+ 
+// Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+.window(Over.partitionBy("a").orderBy("proctime").preceding("10.rows").as("w"))
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Bounded Event-time over window (assuming a event-time attribute "rowtime")
+.window(Over partitionBy 'a orderBy 'rowtime preceding 1.minutes as 'w)
+
+// Bounded Processing-time over window (assuming a processing-time attribute "proctime")
+.window(Over partitionBy 'a orderBy 'proctime preceding 1.minutes as 'w)
+
+// Bounded Event-time Row-count over window (assuming a event-time attribute "rowtime")
+.window(Over partitionBy 'a orderBy 'rowtime preceding 10.rows as 'w)
+  
+// Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+.window(Over partitionBy 'a orderBy 'proctime preceding 10.rows as 'w)
+{% endhighlight %}
+</div>
+</div>
+
+<b>Note:</b> Over window properties such as the start and end timestamp of an over window can not be added in the select statement.
+
+<b>Note:</b> Over windows for batch tables are currently not supported.
+
+{% top %}
 
 Data Types
 ----------
