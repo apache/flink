@@ -21,9 +21,9 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Array;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
@@ -33,7 +33,6 @@ import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -185,22 +184,47 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 			if (enumClass.equals(config.getTypeClass())) {
 
-				// reorder enum constants so that previously existing constants
-				// remain in the same order, and new
-				LinkedHashSet<T> reorderedEnumConstants = new LinkedHashSet<>();
-				reorderedEnumConstants.addAll(Arrays.asList(config.getEnumConstants()));
-				reorderedEnumConstants.addAll(Arrays.asList(enumClass.getEnumConstants()));
+				T[] reorderedEnumConstants = (T[]) Array.newInstance(enumClass, this.values.length);
+				Map<T, Integer> rebuiltEnumConstantToOrdinalMap = new HashMap<>(this.values.length);
 
-				// regenerate enum constant to ordinal bidirectional map
-				this.values = (T[]) Array.newInstance(enumClass, reorderedEnumConstants.size());
-				this.valueToOrdinal.clear();
-				int i = 0;
-				for (T constant : reorderedEnumConstants) {
-					this.values[i] = constant;
-					this.valueToOrdinal.put(constant, i);
-					i++;
+				List<String> previousEnumConstants = config.getEnumConstants();
+
+				if (previousEnumConstants.size() <= this.values.length) {
+					for (int i = 0; i < previousEnumConstants.size(); i++) {
+						String previousEnumConstantStr = previousEnumConstants.get(i);
+
+						try {
+							// fetch the actual enum, and use it to populate the reconstructed bi-directional map
+							T enumConstant = Enum.valueOf(enumClass, previousEnumConstantStr);
+
+							reorderedEnumConstants[i] = enumConstant;
+							rebuiltEnumConstantToOrdinalMap.put(enumConstant, i);
+						} catch (IllegalArgumentException e) {
+							// a previous enum constant no longer exists, and therefore requires migration
+							return CompatibilityResult.requiresMigration();
+						}
+					}
+				} else {
+					// some enum constants have been removed (because there are
+					// fewer constants now), and therefore requires migration
+					return CompatibilityResult.requiresMigration();
 				}
 
+				// if there are new enum constants, append them to the end
+				if (this.values.length > previousEnumConstants.size()) {
+					int appendedNewOrdinal = previousEnumConstants.size();
+					for (T currentEnumConstant : this.values) {
+						if (!rebuiltEnumConstantToOrdinalMap.containsKey(currentEnumConstant)) {
+							reorderedEnumConstants[appendedNewOrdinal] = currentEnumConstant;
+							rebuiltEnumConstantToOrdinalMap.put(currentEnumConstant, appendedNewOrdinal);
+							appendedNewOrdinal++;
+						}
+					}
+				}
+
+				// if we reach here, we can simply reconfigure ourselves to be compatible
+				this.values = reorderedEnumConstants;
+				this.valueToOrdinal = rebuiltEnumConstantToOrdinalMap;
 				return CompatibilityResult.compatible();
 			}
 		}
@@ -219,24 +243,25 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	public static final class EnumSerializerConfigSnapshot<T extends Enum<T>>
 			extends GenericTypeSerializerConfigSnapshot<T> {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
-		private T[] enumConstants;
+		private List<String> enumConstants;
 
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public EnumSerializerConfigSnapshot() {}
 
-		public EnumSerializerConfigSnapshot(Class<T> enumClass, T[] enumConstants) {
+		public EnumSerializerConfigSnapshot(Class<T> enumClass, T[] enumConstantsArr) {
 			super(enumClass);
-			this.enumConstants = Preconditions.checkNotNull(enumConstants);
+			this.enumConstants = buildEnumConstantsList(Preconditions.checkNotNull(enumConstantsArr));
 		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
 			super.write(out);
 
-			try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(out)) {
-				InstantiationUtil.serializeObject(outViewWrapper, enumConstants);
+			out.writeInt(enumConstants.size());
+			for (String enumConstant : enumConstants) {
+				out.writeUTF(enumConstant);
 			}
 		}
 
@@ -244,15 +269,27 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		public void read(DataInputView in) throws IOException {
 			super.read(in);
 
-			try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
-				try {
-					enumConstants = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader());
-				} catch (ClassNotFoundException e) {
-					throw new IOException("The requested enum class cannot be found in classpath.", e);
-				} catch (IllegalArgumentException e) {
-					throw new IOException("A previously existing enum constant of "
-						+ getTypeClass().getName() + " no longer exists.", e);
+			if (getReadVersion() == 1) {
+				try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+					try {
+						T[] legacyEnumConstants = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader());
+						this.enumConstants = buildEnumConstantsList(legacyEnumConstants);
+					} catch (ClassNotFoundException e) {
+						throw new IOException("The requested enum class cannot be found in classpath.", e);
+					} catch (IllegalArgumentException e) {
+						throw new IOException("A previously existing enum constant of "
+							+ getTypeClass().getName() + " no longer exists.", e);
+					}
 				}
+			} else if (getReadVersion() == VERSION) {
+				int numEnumConstants = in.readInt();
+
+				this.enumConstants = new ArrayList<>(numEnumConstants);
+				for (int i = 0; i < numEnumConstants; i++) {
+					enumConstants.add(in.readUTF());
+				}
+			} else {
+				throw new IOException("Cannot deserialize EnumSerializerConfigSnapshot with version " + getReadVersion());
 			}
 		}
 
@@ -261,21 +298,33 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 			return VERSION;
 		}
 
-		public T[] getEnumConstants() {
+		@Override
+		public int[] getCompatibleVersions() {
+			return new int[] {VERSION, 1};
+		}
+
+		public List<String> getEnumConstants() {
 			return enumConstants;
 		}
 
 		@Override
 		public boolean equals(Object obj) {
-			return super.equals(obj)
-					&& Arrays.equals(
-						enumConstants,
-						((EnumSerializerConfigSnapshot) obj).getEnumConstants());
+			return super.equals(obj) && enumConstants.equals(((EnumSerializerConfigSnapshot) obj).getEnumConstants());
 		}
 
 		@Override
 		public int hashCode() {
-			return super.hashCode() * 31 + Arrays.hashCode(enumConstants);
+			return super.hashCode() * 31 + enumConstants.hashCode();
+		}
+
+		private static <T extends Enum<T>> List<String> buildEnumConstantsList(T[] enumConstantsArr) {
+			List<String> res = new ArrayList<>(enumConstantsArr.length);
+
+			for (T enumConstant : enumConstantsArr) {
+				res.add(enumConstant.name());
+			}
+
+			return res;
 		}
 	}
 
