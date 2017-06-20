@@ -103,6 +103,12 @@ public abstract class AbstractFetcher<T, KPH> {
 	/** Only relevant for punctuated watermarks: The current cross partition watermark. */
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
 
+	/** Expose current processing/in-flight record partition. */
+	private volatile int inFlightRecordPartition = -1;
+
+	/** Expose current processing/in-flight record offset. */
+	private volatile long inFlightRecordOffset = -1;
+	
 	// ------------------------------------------------------------------------
 
 	protected AbstractFetcher(
@@ -294,7 +300,11 @@ public abstract class AbstractFetcher<T, KPH> {
 
 				// emit the record, using the checkpoint lock to guarantee
 				// atomicity of record emission and offset state update
+				// also remember the current record partition and offset while the record goes
+				// through processing
 				synchronized (checkpointLock) {
+					inFlightRecordPartition = partitionState.getPartition();
+					inFlightRecordOffset = offset;
 					sourceContext.collect(record);
 					partitionState.setOffset(offset);
 				}
@@ -306,6 +316,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		} else {
 			// if the record is null, simply just update the offset state for partition
 			synchronized (checkpointLock) {
+				inFlightRecordPartition = partitionState.getPartition();
+				inFlightRecordOffset = offset;
 				partitionState.setOffset(offset);
 			}
 		}
@@ -331,6 +343,8 @@ public abstract class AbstractFetcher<T, KPH> {
 				// emit the record, using the checkpoint lock to guarantee
 				// atomicity of record emission and offset state update
 				synchronized (checkpointLock) {
+					inFlightRecordPartition = partitionState.getPartition();
+					inFlightRecordOffset = offset;
 					sourceContext.collectWithTimestamp(record, timestamp);
 					partitionState.setOffset(offset);
 				}
@@ -342,6 +356,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		} else {
 			// if the record is null, simply just update the offset state for partition
 			synchronized (checkpointLock) {
+				inFlightRecordPartition = partitionState.getPartition();
+				inFlightRecordOffset = offset;
 				partitionState.setOffset(offset);
 			}
 		}
@@ -369,6 +385,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		// emit the record with timestamp, using the usual checkpoint lock to guarantee
 		// atomicity of record emission and offset state update
 		synchronized (checkpointLock) {
+			inFlightRecordPartition = partitionState.getPartition();
+			inFlightRecordOffset = offset;
 			sourceContext.collectWithTimestamp(record, timestamp);
 			partitionState.setOffset(offset);
 		}
@@ -392,6 +410,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		// emit the record with timestamp, using the usual checkpoint lock to guarantee
 		// atomicity of record emission and offset state update
 		synchronized (checkpointLock) {
+			inFlightRecordPartition = partitionState.getPartition();
+			inFlightRecordOffset = offset;
 			sourceContext.collectWithTimestamp(record, timestamp);
 			partitionState.setOffset(offset);
 		}
@@ -550,6 +570,31 @@ public abstract class AbstractFetcher<T, KPH> {
 			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
 			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
 		}
+	}
+
+
+	/**
+	 * Returns the offset of the current collecting record or last collected record's
+	 * offset before a new record being collected.
+	 * This allows concrete fetcher implementation to leverage the current in flight record offset
+	 * information to make custom source operator specific decisions outside the checkpoint mechanism.
+	 * i.e. on-demand kafka offset commit not triggered by checkpointing barrier.
+	 * @return -1 if fetcher has not collected any record, or current in flight record offset
+	 */
+	protected long getInFlightRecordOffset() {
+		return this.inFlightRecordOffset;
+	}
+
+	/**
+	 * Returns the partition of the current collecting record or last collected record's
+	 * partition before a new record being collected.
+	 * This allows concrete fetcher implementation to leverage the current in flight record partition
+	 * information to make custom source operator specific decisions outside the checkpoint mechanism.
+	 * i.e. on-demand kafka offset commit not triggered by checkpointing barrier.
+	 * @return -1 if fetcher has not collected any record, or current in flight record offset
+	 */
+	protected long getInFlightRecordPartition() {
+		return this.inFlightRecordPartition;
 	}
 
 	/**
