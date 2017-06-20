@@ -17,11 +17,11 @@
 # limitations under the License.
 ################################################################################
 
+echo "Warning: this file is deprecated and will be removed in 1.5."
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-# stop local job manager (has an internal task manager)
-"$FLINK_BIN_DIR"/jobmanager.sh stop
+"$FLINK_BIN_DIR"/stop-cluster.sh
