@@ -44,7 +44,6 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
   val enumA =
     s"""
-      |@SerialVersionUID(1L)
       |object $enumName extends Enumeration {
       |  val A, B, C = Value
       |}
@@ -52,7 +51,6 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
   val enumB =
     s"""
-       |@SerialVersionUID(1L)
        |object $enumName extends Enumeration {
        |  val A, B, C, D = Value
        |}
@@ -60,7 +58,6 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
   val enumC =
     s"""
-       |@SerialVersionUID(1L)
        |object $enumName extends Enumeration {
        |  val A, C = Value
        |}
@@ -68,7 +65,6 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
   val enumD =
     s"""
-       |@SerialVersionUID(1L)
        |object $enumName extends Enumeration {
        |  val A, C, B = Value
        |}
@@ -76,7 +72,6 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
   val enumE =
     s"""
-       |@SerialVersionUID(1L)
        |object $enumName extends Enumeration {
        |  val A = Value(42)
        |  val B = Value(5)

@@ -28,8 +28,6 @@ class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
   /**
     * Tests that the snapshot configuration can be created and that the serializer
     * is compatible when being called with the created serializer snapshot
-    *
-    * FLINK-6914
     */
   @Test
   def testEnumValueSerializerEnsureCompatibilityIdempotency() {
