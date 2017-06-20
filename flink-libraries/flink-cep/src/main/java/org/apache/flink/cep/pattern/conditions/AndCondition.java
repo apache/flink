@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -26,7 +29,7 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <T> Type of the element to filter
  */
-public class AndCondition<T> extends IterativeCondition<T> {
+public class AndCondition<T> extends RichIterativeCondition<T> {
 
 	private static final long serialVersionUID = -2471892317390197319L;
 
@@ -36,6 +39,27 @@ public class AndCondition<T> extends IterativeCondition<T> {
 	public AndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
 		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");
 		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext t) {
+		super.setRuntimeContext(t);
+		FunctionUtils.setFunctionRuntimeContext(left, t);
+		FunctionUtils.setFunctionRuntimeContext(right, t);
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		FunctionUtils.openFunction(left, parameters);
+		FunctionUtils.openFunction(right, parameters);
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		FunctionUtils.closeFunction(left);
+		FunctionUtils.closeFunction(right);
 	}
 
 	@Override

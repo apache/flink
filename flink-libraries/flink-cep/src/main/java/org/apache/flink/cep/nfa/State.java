@@ -76,30 +76,57 @@ public class State<T> implements Serializable {
 	}
 
 	public void addStateTransition(
-			final StateTransitionAction action,
-			final State<T> targetState,
-			final IterativeCondition<T> condition) {
-		stateTransitions.add(new StateTransition<T>(this, action, targetState, condition));
+		final StateTransitionAction action,
+		final State<T> targetState,
+		final IterativeCondition<T> condition,
+		final ConditionRegistry conditionRegistry) {
+		StateTransition<T> transition = new StateTransition<>(this, action, targetState);
+		conditionRegistry.registerCondition(transition, condition);
+		stateTransitions.add(transition);
 	}
 
-	public void addIgnore(final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.IGNORE, this, condition);
+	public void addStateTransition(
+		final StateTransitionAction action,
+		final State<T> targetState) {
+		StateTransition<T> transition = new StateTransition<>(this, action, targetState);
+		stateTransitions.add(transition);
 	}
 
-	public void addIgnore(final State<T> targetState, final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.IGNORE, targetState, condition);
+	public void addIgnore(
+		final IterativeCondition<T> condition,
+		ConditionRegistry conditionRegistry) {
+		addStateTransition(StateTransitionAction.IGNORE, this, condition, conditionRegistry);
 	}
 
-	public void addTake(final State<T> targetState, final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.TAKE, targetState, condition);
+	public void addIgnore(
+		final State<T> targetState,
+		final IterativeCondition<T> condition,
+		ConditionRegistry conditionRegistry) {
+		addStateTransition(StateTransitionAction.IGNORE, targetState, condition, conditionRegistry);
 	}
 
-	public void addProceed(final State<T> targetState, final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.PROCEED, targetState, condition);
+	public void addTake(
+		final State<T> targetState,
+		final IterativeCondition<T> condition,
+		ConditionRegistry conditionRegistry) {
+		addStateTransition(StateTransitionAction.TAKE, targetState, condition, conditionRegistry);
 	}
 
-	public void addTake(final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.TAKE, this, condition);
+	public void addProceed(
+		final State<T> targetState,
+		final IterativeCondition<T> condition,
+		ConditionRegistry conditionRegistry) {
+		addStateTransition(
+			StateTransitionAction.PROCEED,
+			targetState,
+			condition,
+			conditionRegistry);
+	}
+
+	public void addTake(
+		final IterativeCondition<T> condition,
+		ConditionRegistry conditionRegistry) {
+		addStateTransition(StateTransitionAction.TAKE, this, condition, conditionRegistry);
 	}
 
 	@Override
@@ -109,8 +136,8 @@ public class State<T> implements Serializable {
 			State<T> other = (State<T>) obj;
 
 			return name.equals(other.name) &&
-				stateType == other.stateType &&
-				stateTransitions.equals(other.stateTransitions);
+					stateType == other.stateType &&
+					stateTransitions.equals(other.stateTransitions);
 		} else {
 			return false;
 		}
@@ -121,7 +148,7 @@ public class State<T> implements Serializable {
 		StringBuilder builder = new StringBuilder();
 
 		builder.append(stateType).append(" State ").append(name).append(" [\n");
-		for (StateTransition<T> stateTransition: stateTransitions) {
+		for (StateTransition<T> stateTransition : stateTransitions) {
 			builder.append("\t").append(stateTransition).append(",\n");
 		}
 		builder.append("])");
@@ -160,7 +187,7 @@ public class State<T> implements Serializable {
 
 			this.stateTransitions.clear();
 			for (StateTransition<T> transition : tmp) {
-				addStateTransition(transition.getAction(), transition.getTargetState(), transition.getCondition());
+				addStateTransition(transition.getAction(), transition.getTargetState());
 			}
 		}
 	}

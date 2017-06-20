@@ -21,6 +21,7 @@ package org.apache.flink.cep.nfa.compiler;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.ConditionRegistry;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
@@ -90,11 +91,21 @@ public class NFACompiler {
 		boolean timeoutHandling) {
 		if (pattern == null) {
 			// return a factory for empty NFAs
-			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
+			return new NFAFactoryImpl<>(
+				inputTypeSerializer,
+				0,
+				Collections.<State<T>>emptyList(),
+				timeoutHandling,
+				new ConditionRegistry());
 		} else {
 			final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
 			nfaFactoryCompiler.compileFactory();
-			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
+			return new NFAFactoryImpl<>(
+				inputTypeSerializer,
+				nfaFactoryCompiler.getWindowTime(),
+				nfaFactoryCompiler.getStates(),
+				timeoutHandling,
+				nfaFactoryCompiler.getConditionRegistry());
 		}
 	}
 
@@ -109,6 +120,7 @@ public class NFACompiler {
 		private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
 		private final Map<String, State<T>> stopStates = new HashMap<>();
 		private final List<State<T>> states = new ArrayList<>();
+		private final ConditionRegistry conditionRegistry = new ConditionRegistry();
 
 		private long windowTime = 0;
 		private Pattern<T, ?> currentPattern;
@@ -133,6 +145,10 @@ public class NFACompiler {
 			sinkState = createMiddleStates(sinkState);
 			// add the beginning state
 			createStartState(sinkState);
+		}
+
+		ConditionRegistry getConditionRegistry() {
+			return conditionRegistry;
 		}
 
 		List<State<T>> getStates() {
@@ -206,11 +222,11 @@ public class NFACompiler {
 
 					if (lastSink.isFinal()) {
 						//so that the proceed to final is not fired
-						notNext.addIgnore(lastSink, new NotCondition<>(notCondition));
+						notNext.addIgnore(lastSink, new NotCondition<>(notCondition), conditionRegistry);
 					} else {
-						notNext.addProceed(lastSink, new NotCondition<>(notCondition));
+						notNext.addProceed(lastSink, new NotCondition<>(notCondition), conditionRegistry);
 					}
-					notNext.addProceed(stopState, notCondition);
+					notNext.addProceed(stopState, notCondition, conditionRegistry);
 					lastSink = notNext;
 				} else {
 					stateNameHandler.checkNameUniqueness(currentPattern.getName());
@@ -287,7 +303,7 @@ public class NFACompiler {
 			State<T> stopState = stopStates.get(name);
 			if (stopState == null) {
 				stopState = createState(name, State.StateType.Stop);
-				stopState.addTake(notCondition);
+				stopState.addTake(notCondition, conditionRegistry);
 				stopStates.put(name, stopState);
 			}
 			return stopState;
@@ -333,7 +349,11 @@ public class NFACompiler {
 					}
 
 					if (!remove) {
-						copyOfSink.addStateTransition(tStateTransition.getAction(), targetState, tStateTransition.getCondition());
+						copyOfSink.addStateTransition(
+							tStateTransition.getAction(),
+							targetState,
+							tStateTransition.getCondition(conditionRegistry),
+							conditionRegistry);
 					}
 				} else {
 					copyOfSink.addStateTransition(
@@ -341,7 +361,8 @@ public class NFACompiler {
 							tStateTransition.getTargetState().equals(tStateTransition.getSourceState())
 									? copyOfSink
 									: tStateTransition.getTargetState(),
-							tStateTransition.getCondition()
+							tStateTransition.getCondition(conditionRegistry),
+							conditionRegistry
 					);
 				}
 
@@ -352,7 +373,7 @@ public class NFACompiler {
 		private void addStopStates(final State<T> state) {
 			for (Tuple2<IterativeCondition<T>, String> notCondition: getCurrentNotCondition()) {
 				final State<T> stopState = createStopState(notCondition.f0, notCondition.f1);
-				state.addProceed(stopState, notCondition.f0);
+				state.addProceed(stopState, notCondition.f0, conditionRegistry);
 			}
 		}
 
@@ -361,7 +382,7 @@ public class NFACompiler {
 					followingPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
 				final IterativeCondition<T> notCondition = (IterativeCondition<T>) followingPattern.getCondition();
 				final State<T> stopState = createStopState(notCondition, followingPattern.getName());
-				loopingState.addProceed(stopState, notCondition);
+				loopingState.addProceed(stopState, notCondition, conditionRegistry);
 			}
 		}
 
@@ -431,24 +452,24 @@ public class NFACompiler {
 			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal);
 			// if event is accepted then all notPatterns previous to the optional states are no longer valid
 			final State<T> sink = copyWithoutTransitiveNots(sinkState);
-			singletonState.addTake(sink, currentCondition);
+			singletonState.addTake(sink, currentCondition, conditionRegistry);
 
 			if (isOptional) {
 				// if no element accepted the previous nots are still valid.
-				singletonState.addProceed(proceedState, trueFunction);
+				singletonState.addProceed(proceedState, trueFunction, conditionRegistry);
 			}
 
 			if (ignoreCondition != null) {
 				final State<T> ignoreState;
 				if (isOptional) {
 					ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
-					ignoreState.addTake(sink, currentCondition);
-					ignoreState.addIgnore(ignoreCondition);
+					ignoreState.addTake(sink, currentCondition, conditionRegistry);
+					ignoreState.addIgnore(ignoreCondition, conditionRegistry);
 					addStopStates(ignoreState);
 				} else {
 					ignoreState = singletonState;
 				}
-				singletonState.addIgnore(ignoreState, ignoreCondition);
+				singletonState.addIgnore(ignoreState, ignoreCondition, conditionRegistry);
 			}
 			return singletonState;
 		}
@@ -468,16 +489,16 @@ public class NFACompiler {
 			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
 
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
-			loopingState.addProceed(sinkState, trueFunction);
-			loopingState.addTake(currentCondition);
+			loopingState.addProceed(sinkState, trueFunction, conditionRegistry);
+			loopingState.addTake(currentCondition, conditionRegistry);
 
 			addStopStateToLooping(loopingState);
 
 			if (ignoreCondition != null) {
 				final State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
-				ignoreState.addTake(loopingState, currentCondition);
-				ignoreState.addIgnore(ignoreCondition);
-				loopingState.addIgnore(ignoreState, ignoreCondition);
+				ignoreState.addTake(loopingState, currentCondition, conditionRegistry);
+				ignoreState.addIgnore(ignoreCondition, conditionRegistry);
+				loopingState.addIgnore(ignoreState, ignoreCondition, conditionRegistry);
 
 				addStopStateToLooping(ignoreState);
 			}
@@ -496,11 +517,11 @@ public class NFACompiler {
 			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
-			firstState.addTake(sinkState, currentCondition);
+			firstState.addTake(sinkState, currentCondition, conditionRegistry);
 
 			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
 			if (ignoreCondition != null) {
-				firstState.addIgnore(ignoreCondition);
+				firstState.addIgnore(ignoreCondition, conditionRegistry);
 			}
 			return firstState;
 		}
@@ -517,15 +538,15 @@ public class NFACompiler {
 			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
-			firstState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
-			firstState.addTake(loopingState, currentCondition);
+			firstState.addProceed(lastSink, BooleanConditions.<T>trueFunction(), conditionRegistry);
+			firstState.addTake(loopingState, currentCondition, conditionRegistry);
 
 			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
 			if (ignoreFunction != null) {
 				final State<T> firstStateWithoutProceed = createState(currentPattern.getName(), State.StateType.Normal);
-				firstState.addIgnore(firstStateWithoutProceed, ignoreFunction);
-				firstStateWithoutProceed.addIgnore(ignoreFunction);
-				firstStateWithoutProceed.addTake(loopingState, currentCondition);
+				firstState.addIgnore(firstStateWithoutProceed, ignoreFunction, conditionRegistry);
+				firstStateWithoutProceed.addIgnore(ignoreFunction, conditionRegistry);
+				firstStateWithoutProceed.addTake(loopingState, currentCondition, conditionRegistry);
 
 				addStopStates(firstStateWithoutProceed);
 			}
@@ -579,6 +600,8 @@ public class NFACompiler {
 	 */
 	@Internal
 	public static <T> Map<String, State<T>> migrateGraph(State<T> oldStartState) {
+		ConditionRegistry conditionRegistry = new ConditionRegistry();
+
 		State<T> oldFirst = oldStartState;
 		State<T> oldSecond = oldStartState.getStateTransitions().iterator().next().getTargetState();
 
@@ -620,10 +643,10 @@ public class NFACompiler {
 
 			newSecond = new State<T>(oldSecondToThirdTake.getTargetState().getName(), State.StateType.Normal);
 			convertedStates.put(newSecond.getName(), newSecond);
-			newFirst.addTake(newSecond, oldFirstToSecondTake.getCondition());
+			newFirst.addTake(newSecond, oldFirstToSecondTake.getCondition(), conditionRegistry);
 
 			if (oldFirstIgnore != null) {
-				newFirst.addIgnore(oldFirstIgnore.getCondition());
+				newFirst.addIgnore(oldFirstIgnore.getCondition(), conditionRegistry);
 			}
 
 			oldFirst = oldSecond;
@@ -665,10 +688,10 @@ public class NFACompiler {
 
 		final State<T> endingState = new State<>(ENDING_STATE_NAME, State.StateType.Final);
 
-		newFirst.addTake(endingState, oldFirstToSecondTake.getCondition());
+		newFirst.addTake(endingState, oldFirstToSecondTake.getCondition(), conditionRegistry);
 
 		if (oldFirstIgnore != null) {
-			newFirst.addIgnore(oldFirstIgnore.getCondition());
+			newFirst.addIgnore(oldFirstIgnore.getCondition(), conditionRegistry);
 		}
 
 		convertedStates.put(endingState.getName(), endingState);
@@ -701,22 +724,25 @@ public class NFACompiler {
 		private final long windowTime;
 		private final Collection<State<T>> states;
 		private final boolean timeoutHandling;
+		private final ConditionRegistry conditionRegistry;
 
 		private NFAFactoryImpl(
 			TypeSerializer<T> inputTypeSerializer,
 			long windowTime,
 			Collection<State<T>> states,
-			boolean timeoutHandling) {
+			boolean timeoutHandling,
+			ConditionRegistry conditionRegistry) {
 
 			this.inputTypeSerializer = inputTypeSerializer;
 			this.windowTime = windowTime;
 			this.states = states;
 			this.timeoutHandling = timeoutHandling;
+			this.conditionRegistry = conditionRegistry;
 		}
 
 		@Override
 		public NFA<T> createNFA() {
-			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling);
+			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling, conditionRegistry);
 
 			result.addStates(states);
 

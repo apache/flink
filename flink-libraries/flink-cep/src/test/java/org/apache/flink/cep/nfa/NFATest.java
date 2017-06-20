@@ -72,7 +72,8 @@ public class NFATest extends TestLogger {
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("start");
 				}
-			});
+			},
+			nfa.getConditionRegistry());
 		endState.addTake(
 			endingState,
 			new SimpleCondition<Event>() {
@@ -82,8 +83,9 @@ public class NFATest extends TestLogger {
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("end");
 				}
-			});
-		endState.addIgnore(BooleanConditions.<Event>trueFunction());
+			},
+			nfa.getConditionRegistry());
+		endState.addIgnore(BooleanConditions.<Event>trueFunction(), nfa.getConditionRegistry());
 
 		nfa.addState(startState);
 		nfa.addState(endState);
@@ -340,7 +342,8 @@ public class NFATest extends TestLogger {
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("start");
 				}
-			});
+			},
+			nfa.getConditionRegistry());
 		endState.addTake(
 			endingState,
 			new SimpleCondition<Event>() {
@@ -350,8 +353,9 @@ public class NFATest extends TestLogger {
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("end");
 				}
-			});
-		endState.addIgnore(BooleanConditions.<Event>trueFunction());
+			},
+			nfa.getConditionRegistry());
+		endState.addIgnore(BooleanConditions.<Event>trueFunction(), nfa.getConditionRegistry());
 
 		nfa.addState(startState);
 		nfa.addState(endState);

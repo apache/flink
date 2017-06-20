@@ -36,6 +36,12 @@ public class StateTransition<T> implements Serializable {
 	private final StateTransitionAction action;
 	private final State<T> sourceState;
 	private final State<T> targetState;
+
+	/**
+	 * @deprecated 	This field remains for backwards compatibility.
+	 * Now the condition is stored in {@link ConditionRegistry}.
+	 */
+	@Deprecated
 	private IterativeCondition<T> newCondition;
 
 	/**
@@ -48,12 +54,10 @@ public class StateTransition<T> implements Serializable {
 	public StateTransition(
 			final State<T> sourceState,
 			final StateTransitionAction action,
-			final State<T> targetState,
-			final IterativeCondition<T> condition) {
+			final State<T> targetState) {
 		this.action = action;
 		this.targetState = targetState;
 		this.sourceState = sourceState;
-		this.newCondition = condition;
 	}
 
 	public StateTransitionAction getAction() {
@@ -68,6 +72,15 @@ public class StateTransition<T> implements Serializable {
 		return sourceState;
 	}
 
+	public IterativeCondition<T> getCondition(ConditionRegistry conditionRegistry) {
+		return conditionRegistry.getCondition(this);
+	}
+
+	/**
+	 * @deprecated 	This field remains for backwards compatibility.
+	 * Now the condition getter should use {@link #getCondition(ConditionRegistry)}.
+	 */
+	@Deprecated
 	public IterativeCondition<T> getCondition() {
 		if (condition != null) {
 			this.newCondition = new FilterWrapper<>(condition);
@@ -98,13 +111,10 @@ public class StateTransition<T> implements Serializable {
 
 	@Override
 	public String toString() {
-		return new StringBuilder()
-				.append("StateTransition(")
-				.append(action).append(", ")
-				.append("from ").append(sourceState.getName())
-				.append("to ").append(targetState.getName())
-				.append(newCondition != null ? ", with condition)" : ")")
-				.toString();
+		return "StateTransition(" +
+				action + ", " +
+				"from " + sourceState.getName() +
+				" to " + targetState.getName();
 	}
 
 	/**

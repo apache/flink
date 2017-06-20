@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnap
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.ConditionRegistry;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -101,6 +102,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
+	protected final ConditionRegistry conditionRegistry;
+
 	private transient InternalTimerService<VoidNamespace> timerService;
 
 	/**
@@ -126,6 +129,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
+		this.conditionRegistry = nfaFactory.createNFA().getConditionRegistry();
 
 		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 	}
@@ -160,6 +164,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 				"watermark-callbacks",
 				VoidNamespaceSerializer.INSTANCE,
 				this);
+
+		conditionRegistry.setRuntimeContext(getRuntimeContext());
+		conditionRegistry.open();
 	}
 
 	@Override
@@ -266,7 +273,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	private NFA<IN> getNFA() throws IOException {
 		NFA<IN> nfa = nfaOperatorState.value();
-		return nfa != null ? nfa : nfaFactory.createNFA();
+		if (nfa == null) {
+			nfa = nfaFactory.createNFA();
+		}
+		nfa.setConditionRegistry(conditionRegistry);
+		return nfa;
 	}
 
 	private void updateNFA(NFA<IN> nfa) throws IOException {

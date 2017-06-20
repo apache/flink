@@ -152,10 +152,21 @@ public class NFA<T> implements Serializable {
 
 	private TypeSerializer<T> eventSerializer;
 
+	private transient ConditionRegistry conditionRegistry;
+
 	public NFA(
 			final TypeSerializer<T> eventSerializer,
 			final long windowTime,
 			final boolean handleTimeout) {
+
+		this(eventSerializer, windowTime, handleTimeout, new ConditionRegistry());
+	}
+
+	public NFA(
+		final TypeSerializer<T> eventSerializer,
+		final long windowTime,
+		final boolean handleTimeout,
+		ConditionRegistry conditionRegistry) {
 
 		this.eventSerializer = eventSerializer;
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
@@ -164,6 +175,15 @@ public class NFA<T> implements Serializable {
 		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		this.computationStates = new LinkedList<>();
 		this.states = new HashSet<>();
+		this.conditionRegistry = conditionRegistry;
+	}
+
+	public ConditionRegistry getConditionRegistry() {
+		return conditionRegistry;
+	}
+
+	public void setConditionRegistry(ConditionRegistry conditionRegistry) {
+		this.conditionRegistry = conditionRegistry;
 	}
 
 	public Set<State<T>> getStates() {
@@ -573,7 +593,7 @@ public class NFA<T> implements Serializable {
 				final State<T> currentState = statesToCheck.pop();
 				for (StateTransition<T> transition : currentState.getStateTransitions()) {
 					if (transition.getAction() == StateTransitionAction.PROCEED &&
-							checkFilterCondition(computationState, transition.getCondition(), event)) {
+						checkFilterCondition(computationState, transition.getCondition(conditionRegistry), event)) {
 						if (transition.getTargetState().isFinal()) {
 							return transition.getTargetState();
 						} else {
@@ -607,7 +627,7 @@ public class NFA<T> implements Serializable {
 			// check all state transitions for each state
 			for (StateTransition<T> stateTransition : stateTransitions) {
 				try {
-					if (checkFilterCondition(computationState, stateTransition.getCondition(), event)) {
+					if (checkFilterCondition(computationState, stateTransition.getCondition(conditionRegistry), event)) {
 						// filter condition is true
 						switch (stateTransition.getAction()) {
 							case PROCEED:
@@ -730,7 +750,8 @@ public class NFA<T> implements Serializable {
 	}
 
 	/**
-	 * Needed for backward compatibility. First migrates the {@link State} graph see {@link NFACompiler#migrateGraph(State)}.
+	 * Needed for backward compatibility. First migrates the {@link State} graph see
+	 * {@link NFACompiler#migrateGraph(State)}.
 	 * Than recreates the {@link ComputationState}s with the new {@link State} graph.
 	 * @param readStates computation states read from snapshot
 	 * @return collection of migrated computation states
@@ -1131,6 +1152,7 @@ public class NFA<T> implements Serializable {
 					nameSerializer.serialize(transition.getTargetState().getName(), out);
 					actionSerializer.serialize(transition.getAction(), out);
 
+					// backward compatibility
 					serializeCondition(transition.getCondition(), out);
 				}
 			}
@@ -1164,16 +1186,16 @@ public class NFA<T> implements Serializable {
 					String trgt = nameSerializer.deserialize(in);
 					StateTransitionAction action = actionSerializer.deserialize(in);
 
-					IterativeCondition<T> condition = null;
 					try {
-						condition = deserializeCondition(in);
+						// backward compatibility
+						deserializeCondition(in);
 					} catch (ClassNotFoundException e) {
 						e.printStackTrace();
 					}
 
 					State<T> srcState = states.get(src);
 					State<T> trgtState = states.get(trgt);
-					srcState.addStateTransition(action, trgtState, condition);
+					srcState.addStateTransition(action, trgtState);
 				}
 
 			}
