@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
@@ -326,7 +327,6 @@ public class LambdaExtractionTest {
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
 
-	@FunctionalInterface
 	public interface InterfaceWithDefaultMethod {
 		void samMethod();
 
@@ -340,6 +340,37 @@ public class LambdaExtractionTest {
 		final Method sam = TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithDefaultMethod.class);
 		assertNotNull(sam);
 		assertEquals("samMethod", sam.getName());
+	}
+
+	public interface InterfaceWithMultipleMethods {
+		void firstMethod();
+
+		void secondMethod();
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getSingleAbstractMethodMultipleMethods() throws Exception {
+		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
+	}
+
+	public interface InterfaceWithoutAbstractMethod {
+		default void defaultMethod() {
+
+		};
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getSingleAbstractMethodNoAbstractMethods() throws Exception {
+		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
+	}
+
+	public abstract class AbstractClassWithSingleAbstractMethod {
+		public abstract void defaultMethod();
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getSingleAbstractMethodNotAnInterface() throws Exception {
+		TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
 	}
 
 }
