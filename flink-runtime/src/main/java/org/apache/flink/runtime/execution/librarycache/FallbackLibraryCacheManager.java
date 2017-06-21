@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 
@@ -36,11 +34,6 @@ public class FallbackLibraryCacheManager implements LibraryCacheManager {
 	@Override
 	public ClassLoader getClassLoader(JobID id) {
 		return getClass().getClassLoader();
-	}
-
-	@Override
-	public File getFile(BlobKey blobKey) throws IOException {
-		throw new IOException("There is no file associated to the blob key " + blobKey);
 	}
 
 	@Override

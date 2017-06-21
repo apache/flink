@@ -37,15 +37,6 @@ public interface LibraryCacheManager {
 	ClassLoader getClassLoader(JobID id);
 
 	/**
-	 * Returns a file handle to the file identified by the blob key.
-	 *
-	 * @param blobKey identifying the requested file
-	 * @return File handle
-	 * @throws IOException if any error occurs when retrieving the file
-	 */
-	File getFile(BlobKey blobKey) throws IOException;
-
-	/**
 	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.
 	 *
 	 * @param id job ID

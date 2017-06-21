@@ -18,7 +18,14 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
-import java.io.File;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
@@ -32,15 +39,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobService;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.util.ExceptionUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -51,8 +49,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>
  * All files registered via {@link #registerJob(JobID, Collection, Collection)} are reference-counted
  * and are removed by a timer-based cleanup task if their reference counter is zero.
- * <strong>NOTE:</strong> this does not apply to files that enter the blob service via
- * {@link #getFile(BlobKey)}!
  */
 public final class BlobLibraryCacheManager extends TimerTask implements LibraryCacheManager {
 
@@ -200,22 +196,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 				throw new IllegalStateException("No libraries are registered for job " + id);
 			}
 		}
-	}
-
-	/**
-	 * Returns a file handle to the file identified by the blob key.
-	 * <p>
-	 * <strong>NOTE:</strong> if not already registered during
-	 * {@link #registerJob(JobID, Collection, Collection)}, files that enter the library cache /
-	 * backing blob store using this method will not be reference-counted and garbage-collected!
-	 *
-	 * @param blobKey identifying the requested file
-	 * @return File handle
-	 * @throws IOException if any error occurs when retrieving the file
-	 */
-	@Override
-	public File getFile(BlobKey blobKey) throws IOException {
-		return new File(blobService.getURL(blobKey).getFile());
 	}
 
 	public int getBlobServerPort() {
