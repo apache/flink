@@ -179,6 +179,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The identifier of the last completed checkpoint */
 	private long lastCompletedCheckpointId = -1;
 
+	/** Unique ID of this backend. */
+	private UUID backendUID;
+
 	private static final String SST_FILE_SUFFIX = ".sst";
 
 	public RocksDBKeyedStateBackend(
@@ -227,6 +230,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.kvStateInformation = new HashMap<>();
 		this.restoredKvStateMetaInfos = new HashMap<>();
 		this.materializedSstFiles = new TreeMap<>();
+		this.backendUID = UUID.randomUUID();
+		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
 
 	/**
@@ -897,7 +902,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			return new IncrementalKeyedStateHandle(
-				stateBackend.operatorIdentifier,
+				stateBackend.backendUID,
 				stateBackend.keyGroupRange,
 				checkpointId,
 				sstFiles,
@@ -1401,6 +1406,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						}
 					}
 				} else {
+					// pick up again the old backend id, so the we can reference existing state
+					stateBackend.backendUID = restoreStateHandle.getBackendIdentifier();
+
+					LOG.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
+						stateBackend.operatorIdentifier, stateBackend.backendUID);
 
 					// create hard links in the instance directory
 					if (!stateBackend.instanceRocksDBPath.mkdirs()) {

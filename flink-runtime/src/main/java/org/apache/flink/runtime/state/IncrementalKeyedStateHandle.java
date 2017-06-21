@@ -20,10 +20,12 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The handle to states of an incremental snapshot.
@@ -57,9 +59,10 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	private static final long serialVersionUID = -8328808513197388231L;
 
 	/**
-	 * The operator instance identifier for this handle
+	 * UUID to identify the backend which created this state handle. This is in creating the key for the
+	 * {@link SharedStateRegistry}.
 	 */
-	private final String operatorIdentifier;
+	private final UUID backendIdentifier;
 
 	/**
 	 * The key-group range covered by this state handle
@@ -97,14 +100,14 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	private transient SharedStateRegistry sharedStateRegistry;
 
 	public IncrementalKeyedStateHandle(
-		String operatorIdentifier,
+		UUID backendIdentifier,
 		KeyGroupRange keyGroupRange,
 		long checkpointId,
 		Map<StateHandleID, StreamStateHandle> sharedState,
 		Map<StateHandleID, StreamStateHandle> privateState,
 		StreamStateHandle metaStateHandle) {
 
-		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
+		this.backendIdentifier = Preconditions.checkNotNull(backendIdentifier);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 		this.checkpointId = checkpointId;
 		this.sharedState = Preconditions.checkNotNull(sharedState);
@@ -134,8 +137,8 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 		return metaStateHandle;
 	}
 
-	public String getOperatorIdentifier() {
-		return operatorIdentifier;
+	public UUID getBackendIdentifier() {
+		return backendIdentifier;
 	}
 
 	@Override
@@ -231,7 +234,7 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	 */
 	@VisibleForTesting
 	public SharedStateRegistryKey createSharedStateRegistryKeyFromFileName(StateHandleID shId) {
-		return new SharedStateRegistryKey(operatorIdentifier + '-' + keyGroupRange, shId);
+		return new SharedStateRegistryKey(String.valueOf(backendIdentifier) + '-' + keyGroupRange, shId);
 	}
 
 	/**
@@ -252,7 +255,7 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 		if (getCheckpointId() != that.getCheckpointId()) {
 			return false;
 		}
-		if (!getOperatorIdentifier().equals(that.getOperatorIdentifier())) {
+		if (!getBackendIdentifier().equals(that.getBackendIdentifier())) {
 			return false;
 		}
 		if (!getKeyGroupRange().equals(that.getKeyGroupRange())) {
@@ -273,7 +276,7 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	@VisibleForTesting
 	@Override
 	public int hashCode() {
-		int result = getOperatorIdentifier().hashCode();
+		int result = getBackendIdentifier().hashCode();
 		result = 31 * result + getKeyGroupRange().hashCode();
 		result = 31 * result + (int) (getCheckpointId() ^ (getCheckpointId() >>> 32));
 		result = 31 * result + getSharedState().hashCode();
