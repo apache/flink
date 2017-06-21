@@ -79,13 +79,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<!-- managed version -->
-			<exclusions>
-				<exclusion>
-					<groupId>org.xerial.snappy</groupId>
-					<artifactId>snappy-java</artifactId>
-				</exclusion>
-			</exclusions>
+		</dependency>
+
+		<!-- We explicitly depend on snappy since connectors that require it load it through the system class loader -->
+		<dependency>
+			<groupId>org.xerial.snappy</groupId>
+			<artifactId>snappy-java</artifactId>
 		</dependency>
 
 		<!-- ASM is needed for type extraction -->
