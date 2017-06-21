@@ -19,8 +19,8 @@ package org.apache.flink.storm.wordcount;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.wordcount.operators.BoltTokenizer;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 import org.apache.flink.storm.wrappers.BoltWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;

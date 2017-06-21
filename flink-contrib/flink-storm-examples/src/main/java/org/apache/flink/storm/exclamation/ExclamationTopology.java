@@ -17,7 +17,6 @@
 
 package org.apache.flink.storm.exclamation;
 
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
@@ -25,6 +24,7 @@ import org.apache.flink.storm.util.FiniteFileSpout;
 import org.apache.flink.storm.util.FiniteInMemorySpout;
 import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.SimpleOutputFormatter;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 
 import org.apache.storm.topology.TopologyBuilder;
 
