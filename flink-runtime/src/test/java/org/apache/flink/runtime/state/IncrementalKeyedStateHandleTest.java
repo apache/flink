@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -187,7 +188,7 @@ public class IncrementalKeyedStateHandleTest {
 
 	private static IncrementalKeyedStateHandle create(Random rnd) {
 		return new IncrementalKeyedStateHandle(
-			"test",
+			UUID.nameUUIDFromBytes("test".getBytes()),
 			KeyGroupRange.of(0, 0),
 			1L,
 			placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
