@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import java.io.IOException
+import java.net.{URI, URISyntaxException}
 import java.util
 
 import akka.actor.ActorRef
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
-import org.apache.flink.core.fs.Path
+import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils
@@ -33,7 +35,6 @@ import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, Executio
 import org.apache.flink.runtime.history.FsJobArchivist
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.state.filesystem.FsStateBackend
 
 import scala.collection.mutable
 import scala.concurrent.future
@@ -197,7 +198,7 @@ class MemoryArchivist(
     // so we aren't archiving it yet.
     if (archivePath.isDefined && graph.getState.isGloballyTerminalState) {
       try {
-        val p = FsStateBackend.validateAndNormalizeUri(archivePath.get.toUri)
+        val p = validateAndNormalizeUri(archivePath.get.toUri)
         future {
           try {
             FsJobArchivist.archiveJob(p, graph)
@@ -252,6 +253,77 @@ class MemoryArchivist(
       // get first graph inserted
       val (jobID, value) = graphs.head
       graphs.remove(jobID)
+    }
+  }
+
+  /**
+    * Checks and normalizes the archive path URI. This method first checks the validity of the
+    * URI (scheme, path, availability of a matching file system) and then normalizes the URL
+    * to a path.
+    *
+    * If the URI does not include an authority, but the file system configured for the URI has an
+    * authority, then the normalized path will include this authority.
+    *
+    * @param archivePathUri The URI to check and normalize.
+    * @return a normalized URI as a Path.
+    *
+    * @throws IllegalArgumentException Thrown, if the URI misses schema or path.
+    * @throws IOException Thrown, if no file system can be found for the URI's scheme.
+    */
+  @throws[IOException]
+  private def validateAndNormalizeUri(archivePathUri: URI): Path = {
+    val scheme = archivePathUri.getScheme
+    val path = archivePathUri.getPath
+
+    // some validity checks
+    if (scheme == null) {
+      throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
+        "Please specify the file system scheme explicitly in the URI.")
+    }
+
+    if (path == null) {
+      throw new IllegalArgumentException("The path to store the archive job is null. " +
+        "Please specify a directory path for archive.")
+    }
+
+    if (path.length == 0 || path == "/") {
+      throw new IllegalArgumentException("Cannot use the root directory for archive.")
+    }
+    if (!FileSystem.isFlinkSupportedScheme(archivePathUri.getScheme)) {
+      // skip verification checks for non-flink supported filesystem
+      // this is because the required filesystem classes may not be available to the flink client
+      new Path(archivePathUri)
+    }
+    else {
+      // we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
+      // (distributed) filesystem on all hosts and includes full host/port information, even if the
+      // original URI did not include that. We count on the filesystem loading from the configuration
+      // to fill in the missing data.
+
+      // try to grab the file system for this path/URI
+      val filesystem = FileSystem.get(archivePathUri)
+      if (filesystem == null) {
+        val reason = "Could not find a file system for the given scheme in" +
+          "the available configurations."
+        log.warn(s"Could not verify archive path. This might be caused by a genuine " +
+          "problem or by the fact that the file system is not accessible from the " +
+          s"client. Reason: $reason")
+        new Path(archivePathUri)
+      }
+      val fsURI = filesystem.getUri
+      try {
+        val baseURI = new URI(fsURI.getScheme, fsURI.getAuthority, path, null, null)
+        new Path(baseURI)
+      } catch {
+        case e: URISyntaxException =>
+          val reason = String.format(
+                "Cannot create file system URI for archivePathUri %s and filesystem URI %s: " +
+                  e.toString, archivePathUri, fsURI)
+          log.warn("Could not verify archive path. This might be caused by a genuine " +
+            "problem or by the fact that the file system is not accessible from the " +
+            s"client. Reason: $reason")
+          new Path(archivePathUri)
+      }
     }
   }
 }
