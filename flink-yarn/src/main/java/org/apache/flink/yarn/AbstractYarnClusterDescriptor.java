@@ -421,7 +421,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 			return createYarnClusterClient(this, yarnClient, appReport, flinkConfiguration, false);
 		} catch (Exception e) {
-			if(null != yarnClient) {
+			if (null != yarnClient) {
 				yarnClient.stop();
 			}
 			throw new RuntimeException("Couldn't retrieve Yarn cluster", e);
@@ -543,7 +543,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			"The allocation might take more time than usual because the Flink YARN client needs to wait until " +
 			"the resources become available.";
 		int totalMemoryRequired = jobManagerMemoryMb + taskManagerMemoryMb * taskManagerCount;
-		ClusterResourceDescription freeClusterMem = getCurrentFreeClusterResources(yarnClient);
+		ClusterResourceDescription freeClusterMem;
+		try {
+			freeClusterMem = getCurrentFreeClusterResources(yarnClient);
+		} catch(YarnException | IOException e) {
+			failSessionDuringDeployment(yarnClient, yarnApplication);
+			throw e;
+		}
+
 		if (freeClusterMem.totalFreeMemory < totalMemoryRequired) {
 			LOG.warn("This YARN session requires " + totalMemoryRequired + "MB of memory in the cluster. "
 				+ "There are currently only " + freeClusterMem.totalFreeMemory + "MB available." + noteRsc);
