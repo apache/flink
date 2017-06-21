@@ -109,7 +109,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			// delete a file directly on the server
 			server.delete(key2);
 			try {
-				server.getURL(key2);
+				server.getFile(key2);
 				fail("BLOB should have been deleted");
 			}
 			catch (IOException e) {
@@ -209,7 +209,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			server.delete(key);
 
 			// the file should still be there
-			server.getURL(key);
+			server.getFile(key);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());

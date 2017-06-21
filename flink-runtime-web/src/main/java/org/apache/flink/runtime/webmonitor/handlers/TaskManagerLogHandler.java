@@ -208,7 +208,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 								lastSubmittedFile.put(taskManagerID, blobKey);
 							}
 							try {
-								return blobCache.getURL(blobKey).getFile();
+								return blobCache.getFile(blobKey).getAbsolutePath();
 							} catch (IOException e) {
 								throw new FlinkFutureException("Could not retrieve blob for " + blobKey + '.', e);
 							}

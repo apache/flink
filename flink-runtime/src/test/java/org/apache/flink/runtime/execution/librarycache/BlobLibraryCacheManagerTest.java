@@ -108,13 +108,13 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(0, checkFilesExist(keys, server, false));
 
 			try {
-				server.getURL(keys.get(0));
+				server.getFile(keys.get(0));
 				fail("name-addressable BLOB should have been deleted");
 			} catch (IOException e) {
 				// expected
 			}
 			try {
-				server.getURL(keys.get(1));
+				server.getFile(keys.get(1));
 				fail("name-addressable BLOB should have been deleted");
 			} catch (IOException e) {
 				// expected
@@ -150,7 +150,7 @@ public class BlobLibraryCacheManagerTest {
 	 * @param doThrow
 	 * 		whether exceptions should be ignored (<tt>false</tt>), or throws (<tt>true</tt>)
 	 *
-	 * @return number of files we were able to retrieve via {@link BlobService#getURL(BlobKey)}
+	 * @return number of files we were able to retrieve via {@link BlobService#getFile(BlobKey)}
 	 */
 	private static int checkFilesExist(
 		List<BlobKey> keys, BlobService blobService, boolean doThrow)
@@ -159,7 +159,7 @@ public class BlobLibraryCacheManagerTest {
 
 		for (BlobKey key : keys) {
 			try {
-				blobService.getURL(key);
+				blobService.getFile(key);
 				++numFiles;
 			} catch (IOException e) {
 				if (doThrow) {
