@@ -25,7 +25,6 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 
@@ -194,36 +193,6 @@ public class BlobUtils {
 	 */
 	static File getStorageLocation(File storageDir, BlobKey key) {
 		return new File(getCacheDirectory(storageDir), BLOB_FILE_PREFIX + key.toString());
-	}
-
-	/**
-	 * Returns the BLOB server's storage directory for BLOBs belonging to the job with the given ID.
-	 *
-	 * @param jobID
-	 *        the ID of the job to return the storage directory for
-	 * @return the storage directory for BLOBs belonging to the job with the given ID
-	 */
-	private static File getJobDirectory(File storageDir, JobID jobID) {
-		final File jobDirectory = new File(storageDir, JOB_DIR_PREFIX + jobID.toString());
-
-		// note: thread-safe create should try to mkdir first and then ignore the case that the
-		//       directory already existed
-		if (!jobDirectory.mkdirs() && !jobDirectory.exists()) {
-			throw new RuntimeException("Could not create jobId directory '" + jobDirectory.getAbsolutePath() + "'.");
-		}
-
-		return jobDirectory;
-	}
-
-	/**
-	 * Deletes the storage directory for the job with the given ID.
-	 *
-	 * @param jobID
-	 *			jobID whose directory shall be deleted
-	 */
-	static void deleteJobDirectory(File storageDir, JobID jobID) throws IOException {
-		File directory = getJobDirectory(storageDir, jobID);
-		FileUtils.deleteDirectory(directory);
 	}
 
 	/**
