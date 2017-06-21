@@ -107,7 +107,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = libCache.getFile(keys.get(0));
+			File f = new File(cache.getURL(keys.get(0)).toURI());
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -126,7 +126,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Verify key 1
-			f = libCache.getFile(keys.get(0));
+			f = new File(cache.getURL(keys.get(0)).toURI());
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -138,7 +138,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = libCache.getFile(keys.get(1));
+			f = new File(cache.getURL(keys.get(1)).toURI());
 			assertEquals(256, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
