@@ -36,6 +36,8 @@ under the License.
 		<aws.sdk.version>1.10.71</aws.sdk.version>
 		<aws.kinesis-kcl.version>1.6.2</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.10.2</aws.kinesis-kpl.version>
+		<apache.httpclient.version>4.3.6</apache.httpclient.version>
+		<apache.httpcore.version>4.3.3</apache.httpcore.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -53,6 +55,18 @@ under the License.
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
+		</dependency>
+
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpclient</artifactId>
+		    <version>${apache.httpclient.version}</version>
+		</dependency>
+
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpcore</artifactId>
+		    <version>${apache.httpcore.version}</version>
 		</dependency>
 
 		<dependency>
@@ -154,6 +168,7 @@ under the License.
 								<includes>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
+									<include>org.apache.httpcomponents:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -167,8 +182,8 @@ under the License.
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>com.amazonaws</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.com.amazonaws</shadedPattern>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
