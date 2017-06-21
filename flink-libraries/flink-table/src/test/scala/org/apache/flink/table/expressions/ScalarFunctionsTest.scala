@@ -1147,6 +1147,17 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       random4.nextInt(44).toString)
   }
 
+  @Test
+  def testE(): Unit = {
+    testSqlApi(
+      "E()",
+      math.E.toString)
+
+    testSqlApi(
+      "e()",
+      math.E.toString)
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

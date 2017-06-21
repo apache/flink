@@ -1385,6 +1385,16 @@ PI()
         <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+        {% highlight text %}
+E()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to e.</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
