@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -28,6 +29,7 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -40,7 +42,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -58,7 +60,7 @@ public class BlobServer extends Thread implements BlobService {
 	private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
 
 	/** Counter to generate unique names for temporary files. */
-	private final AtomicInteger tempFileCounter = new AtomicInteger(0);
+	private final AtomicLong tempFileCounter = new AtomicLong(0);
 
 	/** The server socket listening for incoming connections. */
 	private final ServerSocket serverSocket;
@@ -110,7 +112,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
-		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
+		this.storageDir = BlobUtils.initLocalStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
 		// configure the maximum number of concurrent connections
@@ -189,11 +191,12 @@ public class BlobServer extends Thread implements BlobService {
 	 *
 	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
 	 *
+	 * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param key identifying the file
 	 * @return file handle to the file
 	 */
-	File getStorageLocation(BlobKey key) {
-		return BlobUtils.getStorageLocation(storageDir, key);
+	File getStorageLocation(JobID jobId, BlobKey key) {
+		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 
 	/**
@@ -333,20 +336,27 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Method which retrieves the local path of a file associated with a blob key. The blob server
-	 * looks the blob key up in its local storage. If the file exists, it is returned. If the
-	 * file does not exist, it is retrieved from the HA blob store (if available) or a
-	 * FileNotFoundException is thrown.
+	 * Method which retrieves the local path of a file associated with a job and a blob key.
+	 * <p>
+	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
+	 * or a {@link FileNotFoundException} is thrown.
 	 *
-	 * @param requiredBlob blob key associated with the requested file
-	 * @return file referring to the local storage location of the BLOB.
-	 * @throws IOException Thrown if the file retrieval failed.
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param requiredBlob
+	 * 		blob key associated with the requested file
+	 *
+	 * @return file referring to the local storage location of the BLOB
+	 *
+	 * @throws IOException
+	 * 		Thrown if the file retrieval failed.
 	 */
 	@Override
-	public File getFile(BlobKey requiredBlob) throws IOException {
+	public File getFile(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
-		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, requiredBlob);
 
 		if (localFile.exists()) {
 			return localFile;
@@ -354,10 +364,11 @@ public class BlobServer extends Thread implements BlobService {
 		else {
 			try {
 				// Try the blob store
-				blobStore.get(requiredBlob, localFile);
+				blobStore.get(jobId, requiredBlob, localFile);
 			}
 			catch (Exception e) {
-				throw new IOException("Failed to copy from blob store.", e);
+				throw new IOException(
+					"Failed to copy BLOB " + requiredBlob + " from blob store to " + localFile, e);
 			}
 
 			if (localFile.exists()) {
@@ -371,24 +382,28 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * This method deletes the file associated to the blob key if it exists in the local storage
-	 * of the blob server.
+	 * This method deletes the file associated with the blob key in both the local storage as well
+	 * as in the HA store of the blob server.
 	 *
-	 * @param key associated with the file to be deleted
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param key
+	 * 		blob key associated with the file to be deleted
+	 *
 	 * @throws IOException
 	 */
 	@Override
-	public void delete(BlobKey key) throws IOException {
-		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
+	public void delete(@Nullable JobID jobId, BlobKey key) throws IOException {
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
 
 		readWriteLock.writeLock().lock();
 
 		try {
 			if (!localFile.delete() && localFile.exists()) {
-				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
+				LOG.warn("Failed to locally delete BLOB " + key + " at " + localFile.getAbsolutePath());
 			}
 
-			blobStore.delete(key);
+			blobStore.delete(jobId, key);
 		} finally {
 			readWriteLock.writeLock().unlock();
 		}

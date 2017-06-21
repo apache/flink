@@ -552,7 +552,8 @@ public class JobGraph implements Serializable {
 				FSDataInputStream is = null;
 				try {
 					is = fs.open(jar);
-					final BlobKey key = bc.put(is);
+					// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
+					final BlobKey key = bc.put(null, is);
 					this.userJarBlobKeys.add(key);
 				}
 				finally {
@@ -581,7 +582,8 @@ public class JobGraph implements Serializable {
 	 */
 	public void uploadUserJars(ActorGateway jobManager, FiniteDuration askTimeout,
 			Configuration blobClientConfig) throws IOException {
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jobManager, askTimeout, blobClientConfig, userJars);
+		// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jobManager, askTimeout, blobClientConfig, null, userJars);
 
 		for (BlobKey blobKey : blobKeys) {
 			if (!userJarBlobKeys.contains(blobKey)) {
