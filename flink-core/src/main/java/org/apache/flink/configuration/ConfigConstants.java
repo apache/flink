@@ -1014,7 +1014,7 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS = "high-availability.zookeeper.client.max-retry-attempts";
 
-	/** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CLIENT_ACL}. */
+	/** @deprecated in favor of {@link HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL}. */
 	@PublicEvolving
 	@Deprecated
 	public static final String HA_ZOOKEEPER_CLIENT_ACL = "high-availability.zookeeper.client.acl";
@@ -1734,7 +1734,7 @@ public final class ConfigConstants {
 
 	/**
 	 * ACL options supported "creator" or "open".
-	 * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CLIENT_ACL}.
+	 * @deprecated in favor of {@link HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL}.
 	 */
 	@Deprecated
 	public static final String DEFAULT_HA_ZOOKEEPER_CLIENT_ACL = "open";

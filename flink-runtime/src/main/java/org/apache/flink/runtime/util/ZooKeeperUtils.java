@@ -370,11 +370,11 @@ public class ZooKeeperUtils {
 		 * Return the configured {@link ZkClientACLMode}.
 		 *
 		 * @param config The config to parse
-		 * @return Configured ACL mode or {@link HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL} if not
+		 * @return Configured ACL mode or "open" if not
 		 * configured.
 		 */
 		public static ZkClientACLMode fromConfig(Configuration config) {
-			String aclMode = config.getString(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL, null);
+			String aclMode = config.getString(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
 			if (aclMode == null || aclMode.equalsIgnoreCase(ZkClientACLMode.OPEN.name())) {
 				return ZkClientACLMode.OPEN;
 			} else if (aclMode.equalsIgnoreCase(ZkClientACLMode.CREATOR.name())) {

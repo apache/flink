@@ -102,7 +102,8 @@ public class HighAvailabilityOptions {
 
 	public static final ConfigOption<String> HA_ZOOKEEPER_NAMESPACE =
 			key("high-availability.zookeeper.path.namespace")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDeprecatedKeys("recovery.zookeeper.path.namespace");
 
 	public static final ConfigOption<String> HA_ZOOKEEPER_LATCH_PATH =
 			key("high-availability.zookeeper.path.latch")
@@ -169,7 +170,7 @@ public class HighAvailabilityOptions {
 
 	public static final ConfigOption<String> ZOOKEEPER_CLIENT_ACL =
 			key("high-availability.zookeeper.client.acl")
-			.noDefaultValue();
+			.defaultValue("open");
 
 	// ------------------------------------------------------------------------
 
