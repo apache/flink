@@ -34,7 +34,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -334,22 +333,23 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Method which retrieves the URL of a file associated with a blob key. The blob server looks
-	 * the blob key up in its local storage. If the file exists, then the URL is returned. If the
-	 * file does not exist, then a FileNotFoundException is thrown.
+	 * Method which retrieves the local path of a file associated with a blob key. The blob server
+	 * looks the blob key up in its local storage. If the file exists, it is returned. If the
+	 * file does not exist, it is retrieved from the HA blob store (if available) or a
+	 * FileNotFoundException is thrown.
 	 *
 	 * @param requiredBlob blob key associated with the requested file
-	 * @return URL of the file
-	 * @throws IOException
+	 * @return file referring to the local storage location of the BLOB.
+	 * @throws IOException Thrown if the file retrieval failed.
 	 */
 	@Override
-	public URL getURL(BlobKey requiredBlob) throws IOException {
+	public File getFile(BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
 		if (localFile.exists()) {
-			return localFile.toURI().toURL();
+			return localFile;
 		}
 		else {
 			try {
@@ -361,7 +361,7 @@ public class BlobServer extends Thread implements BlobService {
 			}
 
 			if (localFile.exists()) {
-				return localFile.toURI().toURL();
+				return localFile;
 			}
 			else {
 				throw new FileNotFoundException("Local file " + localFile + " does not exist " +
