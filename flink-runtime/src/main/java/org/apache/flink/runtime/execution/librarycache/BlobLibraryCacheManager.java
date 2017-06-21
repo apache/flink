@@ -254,7 +254,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		// it is important that we fetch the URL before increasing the counter.
 		// in case the URL cannot be created (failed to fetch the BLOB), we have no stale counter
 		try {
-			URL url = blobService.getURL(key);
+			URL url = blobService.getFile(key).toURI().toURL();
 
 			Integer references = blobKeyReferenceCounters.get(key);
 			int newReferences = references == null ? 1 : references + 1;

@@ -115,7 +115,7 @@ public class BlobCacheRetriesTest {
 			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
 
 			// trigger a download - it should fail the first two times, but retry, and succeed eventually
-			URL url = cache.getURL(key);
+			URL url = cache.getFile(key).toURI().toURL();
 			InputStream is = url.openStream();
 			try {
 				byte[] received = new byte[data.length];
@@ -211,7 +211,7 @@ public class BlobCacheRetriesTest {
 
 			// trigger a download - it should fail eventually
 			try {
-				cache.getURL(key);
+				cache.getFile(key);
 				fail("This should fail");
 			}
 			catch (IOException e) {

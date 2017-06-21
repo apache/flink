@@ -28,15 +28,12 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * This class contains unit tests for the {@link BlobCache}.
@@ -141,7 +138,7 @@ public class BlobCacheSuccessTest {
 			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
 
 			for (BlobKey blobKey : blobKeys) {
-				blobCache.getURL(blobKey);
+				blobCache.getFile(blobKey);
 			}
 
 			if (blobServer != null) {
@@ -150,28 +147,20 @@ public class BlobCacheSuccessTest {
 				blobServer = null;
 			}
 
-			final URL[] urls = new URL[blobKeys.size()];
+			final File[] files = new File[blobKeys.size()];
 
 			for(int i = 0; i < blobKeys.size(); i++){
-				urls[i] = blobCache.getURL(blobKeys.get(i));
+				files[i] = blobCache.getFile(blobKeys.get(i));
 			}
 
 			// Verify the result
-			assertEquals(blobKeys.size(), urls.length);
+			assertEquals(blobKeys.size(), files.length);
 
-			for (final URL url : urls) {
+			for (final File file : files) {
+				assertNotNull(file);
 
-				assertNotNull(url);
-
-				try {
-					final File cachedFile = new File(url.toURI());
-
-					assertTrue(cachedFile.exists());
-					assertEquals(buf.length, cachedFile.length());
-
-				} catch (URISyntaxException e) {
-					fail(e.getMessage());
-				}
+				assertTrue(file.exists());
+				assertEquals(buf.length, file.length());
 			}
 		} finally {
 			if (blobServer != null) {

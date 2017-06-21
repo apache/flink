@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -39,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The BLOB cache implements a local cache for content-addressable BLOBs.
  *
- * <p>When requesting BLOBs through the {@link BlobCache#getURL} methods, the
+ * <p>When requesting BLOBs through the {@link BlobCache#getFile(BlobKey)} method, the
  * BLOB cache will first attempt to serve the file from its local cache. Only if
  * the local cache does not contain the desired BLOB, the BLOB cache will try to
  * download it from a distributed file system (if available) or the BLOB
@@ -111,21 +110,22 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
-	 * Returns the URL for the BLOB with the given key. The method will first attempt to serve
+	 * Returns local copy of the file for the BLOB with the given key. The method will first attempt to serve
 	 * the BLOB from its local cache. If the BLOB is not in the cache, the method will try to download it
 	 * from this cache's BLOB server.
 	 *
 	 * @param requiredBlob The key of the desired BLOB.
-	 * @return URL referring to the local storage location of the BLOB.
+	 * @return file referring to the local storage location of the BLOB.
 	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
-	public URL getURL(final BlobKey requiredBlob) throws IOException {
+	@Override
+	public File getFile(final BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localJarFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
 		if (localJarFile.exists()) {
-			return localJarFile.toURI().toURL();
+			return localJarFile;
 		}
 
 		// first try the distributed blob store (if available)
@@ -136,7 +136,7 @@ public final class BlobCache implements BlobService {
 		}
 
 		if (localJarFile.exists()) {
-			return localJarFile.toURI().toURL();
+			return localJarFile;
 		}
 
 		// fallback: download from the BlobServer
@@ -160,7 +160,7 @@ public final class BlobCache implements BlobService {
 				}
 
 				// success, we finished
-				return localJarFile.toURI().toURL();
+				return localJarFile;
 			}
 			catch (Throwable t) {
 				String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
@@ -188,6 +188,7 @@ public final class BlobCache implements BlobService {
 	 * Deletes the file associated with the given key from the BLOB cache.
 	 * @param key referring to the file to be deleted
 	 */
+	@Override
 	public void delete(BlobKey key) throws IOException{
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
