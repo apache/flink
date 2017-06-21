@@ -29,16 +29,15 @@ import java.io.IOException;
 public class VoidBlobStore implements BlobStoreService {
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws IOException {
-	}
-
-
-	@Override
-	public void get(BlobKey blobKey, File localFile) throws IOException {
+	public void put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
 	}
 
 	@Override
-	public void delete(BlobKey blobKey) {
+	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+	}
+
+	@Override
+	public void delete(JobID jobId, BlobKey blobKey) {
 	}
 
 	@Override

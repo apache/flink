@@ -91,10 +91,14 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			List<BlobKey> keys = new ArrayList<>(2);
 
+			JobID jobId = new JobID();
+			// TODO: replace+adapt by jobId after adapting the BlobLibraryCacheManager
+			JobID blobJobId = null;
+
 			// Upload some data (libraries)
 			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
-				keys.add(client.put(expected)); // Request 1
-				keys.add(client.put(expected, 32, 256)); // Request 2
+				keys.add(client.put(blobJobId, expected)); // Request 1
+				keys.add(client.put(blobJobId, expected, 32, 256)); // Request 2
 			}
 
 			// The cache
@@ -102,7 +106,6 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Register uploaded libraries
-			JobID jobId = new JobID();
 			ExecutionAttemptID executionId = new ExecutionAttemptID();
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 

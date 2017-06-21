@@ -535,6 +535,7 @@ public class JobGraph implements Serializable {
 			InetSocketAddress blobServerAddress,
 			Configuration blobClientConfig) throws IOException {
 		if (!userJars.isEmpty()) {
+			// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
 			List<BlobKey> blobKeys = BlobClient.uploadJarFiles(blobServerAddress, blobClientConfig, userJars);
 
 			for (BlobKey blobKey : blobKeys) {

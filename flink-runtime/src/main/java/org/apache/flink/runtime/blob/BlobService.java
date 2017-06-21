@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
+
+import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +31,8 @@ import java.io.IOException;
 public interface BlobService extends Closeable {
 
 	/**
-	 * Returns the path to a local copy of the file associated with the provided blob key.
+	 * Returns the path to a local copy of the (job-unrelated) file associated with the provided
+	 * blob key.
 	 *
 	 * @param key blob key associated with the requested file
 	 * @return The path to the file.
@@ -37,9 +41,19 @@ public interface BlobService extends Closeable {
 	 */
 	File getFile(BlobKey key) throws IOException;
 
+	/**
+	 * Returns the path to a local copy of the file associated with the provided job ID and blob key.
+	 *
+	 * @param jobId ID of the job this blob belongs to
+	 * @param key blob key associated with the requested file
+	 * @return The path to the file.
+	 * @throws java.io.FileNotFoundException when the path does not exist;
+	 * @throws IOException if any other error occurs when retrieving the file
+	 */
+	File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException;
 
 	/**
-	 * Deletes the file associated with the provided blob key.
+	 * Deletes the (job-unrelated) file associated with the provided blob key.
 	 *
 	 * @param key associated with the file to be deleted
 	 * @throws IOException
@@ -47,10 +61,19 @@ public interface BlobService extends Closeable {
 	void delete(BlobKey key) throws IOException;
 
 	/**
+	 * Deletes the file associated with the provided job ID and blob key.
+	 *
+	 * @param jobId ID of the job this blob belongs to
+	 * @param key associated with the file to be deleted
+	 * @throws IOException
+	 */
+	void delete(@Nonnull JobID jobId, BlobKey key) throws IOException;
+
+	/**
 	 * Returns the port of the blob service.
 	 * @return the port of the blob service.
 	 */
 	int getPort();
-	
+
 	BlobClient createClient() throws IOException;
 }
