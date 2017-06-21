@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.utils;
 
+import com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -25,6 +26,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 
@@ -34,8 +36,7 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 
 	@Test(expected = RuntimeException.class)
 	public void testIllegalArgs() {
-		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"berlin"});
-		Assert.assertEquals(0, parameter.getNumberOfParameters());
+		ParameterTool.fromArgs(new String[]{"berlin"});
 	}
 
 	@Test
@@ -78,18 +79,12 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testEmptyVal() {
-		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--a", "-b", "--"});
-		Assert.assertEquals(2, parameter.getNumberOfParameters());
-		Assert.assertTrue(parameter.has("a"));
-		Assert.assertTrue(parameter.has("b"));
+		ParameterTool.fromArgs(new String[]{"--a", "-b", "--"});
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testEmptyValShort() {
-		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--a", "-b", "-"});
-		Assert.assertEquals(2, parameter.getNumberOfParameters());
-		Assert.assertTrue(parameter.has("a"));
-		Assert.assertTrue(parameter.has("b"));
+		ParameterTool.fromArgs(new String[]{"--a", "-b", "-"});
 	}
 
 	@Test
@@ -153,5 +148,150 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 	public void testFromGenericOptionsParser() throws IOException {
 		ParameterTool parameter = ParameterTool.fromGenericOptionsParser(new String[]{"-D", "input=myInput", "-DexpectedCount=15"});
 		validate(parameter);
+	}
+
+	@Test
+	public void testUnrequestedBoolean() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-boolean", "true"});
+		Assert.assertEquals(Sets.newHashSet("boolean"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertTrue(parameter.getBoolean("boolean"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertTrue(parameter.getBoolean("boolean"));
+	}
+
+	@Test
+	public void testUnrequestedByte() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-byte", "1"});
+		Assert.assertEquals(Sets.newHashSet("byte"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals(1, parameter.getByte("byte"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals(1, parameter.getByte("byte"));
+	}
+
+	@Test
+	public void testUnrequestedShort() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-short", "2"});
+		Assert.assertEquals(Sets.newHashSet("short"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals(2, parameter.getShort("short"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals(2, parameter.getShort("short"));
+	}
+
+	@Test
+	public void testUnrequestedInt() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-int", "4"});
+		Assert.assertEquals(Sets.newHashSet("int"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals(4, parameter.getByte("int"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals(4, parameter.getByte("int"));
+	}
+
+	@Test
+	public void testUnrequestedLong() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-long", "8"});
+		Assert.assertEquals(Sets.newHashSet("long"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals(8, parameter.getByte("long"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals(8, parameter.getByte("long"));
+	}
+
+	@Test
+	public void testUnrequestedFloat() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-float", "4"});
+		Assert.assertEquals(Sets.newHashSet("float"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals(4.0, parameter.getFloat("float"), 0.00001);
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals(4.0, parameter.getFloat("float"), 0.00001);
+	}
+
+	@Test
+	public void testUnrequestedDouble() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-double", "8"});
+		Assert.assertEquals(Sets.newHashSet("double"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals(8.0, parameter.getDouble("double"), 0.00001);
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals(8.0, parameter.getDouble("double"), 0.00001);
+	}
+
+	@Test
+	public void testUnrequestedString() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-string", "∞"});
+		Assert.assertEquals(Sets.newHashSet("string"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals("∞", parameter.get("string"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals("∞", parameter.get("string"));
+	}
+
+	@Test
+	public void testUnrequestedHas() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-boolean"});
+		Assert.assertEquals(Sets.newHashSet("boolean"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertTrue(parameter.has("boolean"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertTrue(parameter.has("boolean"));
+	}
+
+	@Test
+	public void testUnrequestedRequired() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-required", "∞"});
+		Assert.assertEquals(Sets.newHashSet("required"), parameter.getUnrequestedParameters());
+
+		// test parameter access
+		Assert.assertEquals("∞", parameter.getRequired("required"));
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		// test repeated access
+		Assert.assertEquals("∞", parameter.getRequired("required"));
+	}
+
+	@Test
+	public void testUnrequestedUnknown() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{});
+		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+
+		Assert.assertTrue(parameter.getBoolean("boolean", true));
+		Assert.assertEquals(0, parameter.getByte("byte", (byte) 0));
+		Assert.assertEquals(0, parameter.getShort("short", (short) 0));
+		Assert.assertEquals(0, parameter.getInt("int", 0));
+		Assert.assertEquals(0, parameter.getLong("long", 0));
+		Assert.assertEquals(0, parameter.getFloat("float", 0), 0.00001);
+		Assert.assertEquals(0, parameter.getDouble("double", 0), 0.00001);
+		Assert.assertEquals("0", parameter.get("string", "0"));
 	}
 }

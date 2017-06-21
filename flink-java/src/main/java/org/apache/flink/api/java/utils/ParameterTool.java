@@ -34,9 +34,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources
@@ -208,11 +211,23 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// ------------------ ParameterUtil  ------------------------
 	protected final Map<String, String> data;
-	protected final HashMap<String, String> defaultData;
+	protected final Map<String, String> defaultData;
+	protected final Set<String> unrequestedParameters;
 
 	private ParameterTool(Map<String, String> data) {
-		this.data = new HashMap<String, String>(data);
-		this.defaultData = new HashMap<String, String>();
+		this.data = new HashMap<>(data);
+		this.defaultData = new HashMap<>();
+		this.unrequestedParameters = new HashSet<>(data.keySet());
+	}
+
+	/**
+	 * Returns the set of parameter names which have not been requested with
+	 * {@link #has(String)} or one of the {@code get} methods. Access to the
+	 * map returned by {@link #toMap()} is not tracked.
+	 */
+	@PublicEvolving
+	public Set<String> getUnrequestedParameters() {
+		return Collections.unmodifiableSet(unrequestedParameters);
 	}
 
 	// ------------------ Get data from the util ----------------
@@ -230,6 +245,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 */
 	public String get(String key) {
 		addToDefaults(key, null);
+		unrequestedParameters.remove(key);
 		return data.get(key);
 	}
 
@@ -266,6 +282,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 */
 	public boolean has(String value) {
 		addToDefaults(value, null);
+		unrequestedParameters.remove(value);
 		return data.containsKey(value);
 	}
 
@@ -548,6 +565,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public ParameterTool mergeWith(ParameterTool other) {
 		ParameterTool ret = new ParameterTool(this.data);
 		ret.data.putAll(other.data);
+		ret.unrequestedParameters.addAll(other.data.keySet());
 		return ret;
 	}
 
