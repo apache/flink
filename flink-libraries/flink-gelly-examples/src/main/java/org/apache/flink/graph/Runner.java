@@ -19,6 +19,7 @@
 package org.apache.flink.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -48,14 +49,22 @@ import org.apache.flink.graph.drivers.input.StarGraph;
 import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Output;
 import org.apache.flink.graph.drivers.output.Print;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
+import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
+import org.apache.flink.graph.drivers.parameter.StringParameter;
 import org.apache.flink.util.InstantiationUtil;
 
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.commons.lang3.text.StrBuilder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This default main class executes Flink drivers.
@@ -70,7 +79,8 @@ import java.util.List;
  * <p>Algorithms must explicitly support each type of output via implementation of
  * interfaces. This is scalable as the number of outputs is small and finite.
  */
-public class Runner {
+public class Runner
+extends ParameterizedBase {
 
 	private static final String INPUT = "input";
 
@@ -107,6 +117,18 @@ public class Runner {
 		.addClass(org.apache.flink.graph.drivers.output.CSV.class)
 		.addClass(Hash.class)
 		.addClass(Print.class);
+
+	private ParameterTool parameters;
+
+	private BooleanParameter disableObjectReuse = new BooleanParameter(this, "__disable_object_reuse");
+
+	private StringParameter jobDetails = new StringParameter(this, "__write_job_details")
+		.setDefaultValue("");
+
+	@Override
+	public String getName() {
+		return this.getClass().getSimpleName();
+	}
 
 	/**
 	 * List available algorithms. This is displayed to the user when no valid
@@ -192,7 +214,7 @@ public class Runner {
 			.toString();
 	}
 
-	public static void main(String[] args) throws Exception {
+	public void run(String[] args) throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		ExecutionConfig config = env.getConfig();
@@ -202,11 +224,18 @@ public class Runner {
 		config.disableForceAvro();
 		config.disableForceKryo();
 
-		ParameterTool parameters = ParameterTool.fromArgs(args);
+		parameters = ParameterTool.fromArgs(args);
 		config.setGlobalJobParameters(parameters);
 
+		// configure local parameters and throw proper exception on error
+		try {
+			this.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
+		}
+
 		// integration tests run with with object reuse both disabled and enabled
-		if (parameters.has("__disable_object_reuse")) {
+		if (disableObjectReuse.getValue()) {
 			config.disableObjectReuse();
 		} else {
 			config.enableObjectReuse();
@@ -296,6 +325,41 @@ public class Runner {
 		}
 
 		algorithm.printAnalytics(System.out);
+
+		// ----------------------------------------------------------------------------------------
+		// Write job details
+		// ----------------------------------------------------------------------------------------
+
+		if (jobDetails.getValue().length() > 0) {
+			JobExecutionResult result = env.getLastJobExecutionResult();
+
+			File jsonFile = new File(jobDetails.getValue());
+
+			try (JsonGenerator json = new JsonFactory().createGenerator(jsonFile, JsonEncoding.UTF8)) {
+				json.writeStartObject();
+
+				json.writeStringField("job_id", result.getJobID().toString());
+				json.writeNumberField("runtime_ms", result.getNetRuntime());
+
+				json.writeObjectFieldStart("parameters");
+				for (Map.Entry<String, String> entry : parameters.toMap().entrySet()) {
+					json.writeStringField(entry.getKey(), entry.getValue());
+				}
+				json.writeEndObject();
+
+				json.writeObjectFieldStart("accumulators");
+				for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
+					json.writeStringField(entry.getKey(), entry.getValue().toString());
+				}
+				json.writeEndObject();
+
+				json.writeEndObject();
+			}
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		new Runner().run(args);
 	}
 
 	/**
