@@ -418,6 +418,40 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     this
   }
 
+  /**
+    * Appends a new group pattern to the existing one. The new pattern enforces non-strict
+    * temporal contiguity. This means that a matching event of this pattern and the
+    * preceding matching event might be interleaved with other events which are ignored.
+    *
+    * @param pattern the pattern to append
+    * @return A new pattern which is appended to this one
+    */
+  def followedBy(pattern: Pattern[T, F]): GroupPattern[T, F] =
+    GroupPattern[T, F](jPattern.followedBy(pattern.wrappedPattern))
+
+  /**
+    * Appends a new group pattern to the existing one. The new pattern enforces non-strict
+    * temporal contiguity. This means that a matching event of this pattern and the
+    * preceding matching event might be interleaved with other events which are ignored.
+    *
+    * @param pattern the pattern to append
+    * @return A new pattern which is appended to this one
+    */
+  def followedByAny(pattern: Pattern[T, F]): GroupPattern[T, F] =
+    GroupPattern[T, F](jPattern.followedByAny(pattern.wrappedPattern))
+
+  /**
+    * Appends a new group pattern to the existing one. The new pattern enforces strict
+    * temporal contiguity. This means that the whole pattern sequence matches only
+    * if an event which matches this pattern directly follows the preceding matching
+    * event. Thus, there cannot be any events in between two matching events.
+    *
+    * @param pattern the pattern to append
+    * @return A new pattern which is appended to this one
+    */
+  def next(pattern: Pattern[T, F]): GroupPattern[T, F] =
+    GroupPattern[T, F](jPattern.next(pattern.wrappedPattern))
+
 }
 
 object Pattern {
@@ -442,4 +476,13 @@ object Pattern {
     */
   def begin[X](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
 
+  /**
+    * Starts a new pattern sequence. The provided pattern is the initial pattern
+    * of the new sequence.
+    *
+    * @param pattern the pattern to begin with
+    * @return the first pattern of a pattern sequence
+    */
+  def begin[T, F <: T](pattern: Pattern[T, F]): GroupPattern[T, F] =
+    GroupPattern[T, F](JPattern.begin(pattern.wrappedPattern))
 }

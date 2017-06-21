@@ -67,12 +67,12 @@ public class Quantifier {
 		return properties.contains(property);
 	}
 
-	public ConsumingStrategy getConsumingStrategy() {
-		return consumingStrategy;
-	}
-
 	public ConsumingStrategy getInnerConsumingStrategy() {
 		return innerConsumingStrategy;
+	}
+
+	public ConsumingStrategy getConsumingStrategy() {
+		return consumingStrategy;
 	}
 
 	private static void checkPattern(boolean condition, Object errorMessage) {

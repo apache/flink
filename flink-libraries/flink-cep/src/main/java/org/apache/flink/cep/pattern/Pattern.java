@@ -430,6 +430,54 @@ public class Pattern<T, F extends T> {
 		return this;
 	}
 
+	/**
+	 * Starts a new pattern sequence. The provided pattern is the initial pattern
+	 * of the new sequence.
+	 *
+	 * @param group the pattern to begin with
+	 * @return the first pattern of a pattern sequence
+	 */
+	public static <T, F extends T> GroupPattern<T, F> begin(Pattern<T, F> group) {
+		return new GroupPattern<>(null, group);
+	}
+
+	/**
+	 * Appends a new group pattern to the existing one. The new pattern enforces non-strict
+	 * temporal contiguity. This means that a matching event of this pattern and the
+	 * preceding matching event might be interleaved with other events which are ignored.
+	 *
+	 * @param group the pattern to append
+	 * @return A new pattern which is appended to this one
+	 */
+	public GroupPattern<T, F> followedBy(Pattern<T, F> group) {
+		return new GroupPattern<>(this, group, ConsumingStrategy.SKIP_TILL_NEXT);
+	}
+
+	/**
+	 * Appends a new group pattern to the existing one. The new pattern enforces non-strict
+	 * temporal contiguity. This means that a matching event of this pattern and the
+	 * preceding matching event might be interleaved with other events which are ignored.
+	 *
+	 * @param group the pattern to append
+	 * @return A new pattern which is appended to this one
+	 */
+	public GroupPattern<T, F> followedByAny(Pattern<T, F> group) {
+		return new GroupPattern<>(this, group, ConsumingStrategy.SKIP_TILL_ANY);
+	}
+
+	/**
+	 * Appends a new group pattern to the existing one. The new pattern enforces strict
+	 * temporal contiguity. This means that the whole pattern sequence matches only
+	 * if an event which matches this pattern directly follows the preceding matching
+	 * event. Thus, there cannot be any events in between two matching events.
+	 *
+	 * @param group the pattern to append
+	 * @return A new pattern which is appended to this one
+	 */
+	public GroupPattern<T, F> next(Pattern<T, F> group) {
+		return new GroupPattern<>(this, group, ConsumingStrategy.STRICT);
+	}
+
 	private void checkIfNoNotPattern() {
 		if (quantifier.getConsumingStrategy() == ConsumingStrategy.NOT_FOLLOW ||
 				quantifier.getConsumingStrategy() == ConsumingStrategy.NOT_NEXT) {
