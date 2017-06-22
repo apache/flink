@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.scalarSqlFunctions.MathSqlFunctions._
+import org.apache.flink.table.functions.sqlFunctions.ScalarSqlFunctions._
 import scala.collection.mutable
 
 /**

@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.scalarSqlFunctions
+package org.apache.flink.table.functions.sqlFunctions
 
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
 import org.apache.calcite.sql.`type`._
 
-class MathSqlFunctions {
-
-}
-
-object MathSqlFunctions {
+/**
+  * All build-in scalar sql functions.
+  */
+object ScalarSqlFunctions {
   val E = new SqlFunction(
     "E",
     SqlKind.OTHER_FUNCTION,
-    ReturnTypes.DOUBLE_NULLABLE,
+    ReturnTypes.DOUBLE,
     null,
     OperandTypes.NILADIC,
     SqlFunctionCategory.NUMERIC)
