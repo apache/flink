@@ -370,7 +370,7 @@ public class ZooKeeperUtils {
 		 * Return the configured {@link ZkClientACLMode}.
 		 *
 		 * @param config The config to parse
-		 * @return Configured ACL mode or "open" if not
+		 * @return Configured ACL mode or the default defined by {@link HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL} if not
 		 * configured.
 		 */
 		public static ZkClientACLMode fromConfig(Configuration config) {
