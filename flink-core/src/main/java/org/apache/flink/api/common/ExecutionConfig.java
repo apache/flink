@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.common;
 
+import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -145,6 +147,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * TaskManager error, usually killing the JVM.
 	 */
 	private long taskCancellationTimeoutMillis = -1;
+
+	private Kryo kryo = new Kryo();
 
 	// ------------------------------- User code values --------------------------------------------
 
@@ -678,7 +682,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Adds a new Kryo default serializer to the Runtime.
 	 *
 	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
-	 * because it may be distributed to the worker nodes by java serialization.
+	 * because it may be distributed to the worker nodes by java serialization. Also, this method
+	 * can only tied to specific class which correspond to the addDefaultSerializer method in Kryo.
 	 *
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
@@ -694,6 +699,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
 	 *
+	 * Note that this method can only tied to specific class which correspond
+	 * to the addDefaultSerializer method in Kryo.
+	 *
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializerClass The class of the serializer to use.
 	 */
@@ -701,6 +709,25 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		if (type == null || serializerClass == null) {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
+		defaultKryoSerializerClasses.put(type, serializerClass);
+	}
+
+	/**
+	 * Sets a new Kryo default serializer to the Runtime.
+	 *
+	 * Note that this method is different from {@link #addDefaultKryoSerializer(Class, Class)},
+	 * you can specify your own serializer class to use when no {@link #addDefaultKryoSerializer(Class, Class)
+	 * default serializers} match an object's type.
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializerClass The class of the serializer to use.
+	 */
+	public void setDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		if (type == null || serializerClass == null) {
+			throw new NullPointerException("Cannot register null class or serializer.");
+		}
+		kryo.newInstance(type);
+		kryo.setDefaultSerializer(serializerClass);
 		defaultKryoSerializerClasses.put(type, serializerClass);
 	}
 

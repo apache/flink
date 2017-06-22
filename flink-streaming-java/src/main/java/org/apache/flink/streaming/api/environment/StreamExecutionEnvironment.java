@@ -560,6 +560,22 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets a new Kryo default serializer to the Runtime.
+	 *
+	 * <p>Note that this method is different from {@link #addDefaultKryoSerializer(Class, Class)},
+	 * you can specify your own serializer class to use when no {@link #addDefaultKryoSerializer(Class, Class)
+	 * default serializers} match an object's type.
+	 *
+	 * @param type
+	 * 		The class of the types serialized with the given serializer.
+	 * @param serializerClass
+	 * 		The class of the serializer to use.
+	 */
+	public void setDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.setDefaultKryoSerializer(type, serializerClass);
+	}
+
+	/**
 	 * Registers the given type with a Kryo Serializer.
 	 *
 	 * <p>Note that the serializer instance must be serializable (as defined by
