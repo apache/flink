@@ -42,7 +42,7 @@ import org.apache.flink.annotation.PublicEvolving;
  *     }
  *
  *     public void restoreState(List<Integer> state) throws Exception {
- *         this.value = state.count.isEmpty() ? 0 : state.get(0);
+ *         this.value = state.isEmpty() ? 0 : state.get(0);
  *     }
  *
  *     public T map(T value) {
