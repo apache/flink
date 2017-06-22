@@ -111,7 +111,7 @@ public class StateTransition<T> implements Serializable {
 	 * A wrapper to transform a {@link FilterFunction} into a {@link SimpleCondition}.
 	 * This is used only when migrating from an older Flink version.
 	 */
-	private static class FilterWrapper<T> extends SimpleCondition<T> {
+	private static class FilterWrapper<T> implements IterativeCondition<T> {
 
 		private static final long serialVersionUID = -4973016745698940430L;
 
@@ -122,7 +122,7 @@ public class StateTransition<T> implements Serializable {
 		}
 
 		@Override
-		public boolean filter(T value) throws Exception {
+		public boolean filter(T value, Context<T> ctx) throws Exception {
 			return filterFunction.filter(value);
 		}
 	}

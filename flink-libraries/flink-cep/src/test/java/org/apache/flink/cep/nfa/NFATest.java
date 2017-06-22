@@ -65,21 +65,21 @@ public class NFATest extends TestLogger {
 
 		startState.addTake(
 			endState,
-			new SimpleCondition<Event>() {
+			new IterativeCondition<Event>() {
 				private static final long serialVersionUID = -4869589195918650396L;
 
 				@Override
-				public boolean filter(Event value) throws Exception {
+				public boolean filter(Event value, Context<Event> ctx) throws Exception {
 					return value.getName().equals("start");
 				}
 			});
 		endState.addTake(
 			endingState,
-			new SimpleCondition<Event>() {
+			new IterativeCondition<Event>() {
 				private static final long serialVersionUID = 2979804163709590673L;
 
 				@Override
-				public boolean filter(Event value) throws Exception {
+				public boolean filter(Event value, Context<Event> ctx) throws Exception {
 					return value.getName().equals("end");
 				}
 			});
@@ -333,21 +333,21 @@ public class NFATest extends TestLogger {
 
 		startState.addTake(
 			endState,
-			new SimpleCondition<Event>() {
+			new IterativeCondition<Event>() {
 				private static final long serialVersionUID = -4869589195918650396L;
 
 				@Override
-				public boolean filter(Event value) throws Exception {
+				public boolean filter(Event value, Context<Event> ctx) throws Exception {
 					return value.getName().equals("start");
 				}
 			});
 		endState.addTake(
 			endingState,
-			new SimpleCondition<Event>() {
+			new IterativeCondition<Event>() {
 				private static final long serialVersionUID = 2979804163709590673L;
 
 				@Override
-				public boolean filter(Event value) throws Exception {
+				public boolean filter(Event value, Context<Event> ctx) throws Exception {
 					return value.getName().equals("end");
 				}
 			});

@@ -352,7 +352,7 @@ public class CEPMigration11to13Test {
 		}
 	}
 
-	private static class StartFilter extends SimpleCondition<Event> {
+	private static class StartFilter implements SimpleCondition<Event> {
 		private static final long serialVersionUID = 5726188262756267490L;
 
 		@Override
@@ -361,7 +361,7 @@ public class CEPMigration11to13Test {
 		}
 	}
 
-	private static class MiddleFilter extends SimpleCondition<SubEvent> {
+	private static class MiddleFilter implements SimpleCondition<SubEvent> {
 		private static final long serialVersionUID = 6215754202506583964L;
 
 		@Override
@@ -370,7 +370,7 @@ public class CEPMigration11to13Test {
 		}
 	}
 
-	private static class EndFilter extends SimpleCondition<Event> {
+	private static class EndFilter implements SimpleCondition<Event> {
 		private static final long serialVersionUID = 7056763917392056548L;
 
 		@Override

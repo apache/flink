@@ -30,6 +30,7 @@ import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.util.TestLogger;
 
@@ -109,12 +110,12 @@ public class NFACompilerTest extends TestLogger {
 	 * A filter implementation to test invalid pattern specification with
 	 * duplicate pattern names. Check {@link #testNFACompilerUniquePatternName()}.
 	 */
-	private static class TestFilter extends SimpleCondition<Event> {
+	private static class TestFilter implements IterativeCondition<Event> {
 
 		private static final long serialVersionUID = -3863103355752267133L;
 
 		@Override
-		public boolean filter(Event value) throws Exception {
+		public boolean filter(Event value, Context<Event> ctx) throws Exception {
 			throw new RuntimeException("It should never arrive here.");
 		}
 	}

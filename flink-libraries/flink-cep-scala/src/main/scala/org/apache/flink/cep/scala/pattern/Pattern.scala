@@ -18,8 +18,8 @@
 package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.cep
+import org.apache.flink.cep.pattern.conditions.IterativeCondition
 import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JContext}
-import org.apache.flink.cep.pattern.conditions.{IterativeCondition, SimpleCondition}
 import org.apache.flink.cep.pattern.{MalformedPatternException, Quantifier, Pattern => JPattern}
 import org.apache.flink.cep.scala.conditions.Context
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -156,10 +156,10 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @return The pattern with the new condition is set.
     */
   def or(condition: F => Boolean): Pattern[T, F] = {
-    val condFun = new SimpleCondition[F] {
+    val condFun = new IterativeCondition[F] {
       val cleanCond = cep.scala.cleanClosure(condition)
 
-      override def filter(value: F): Boolean =
+      override def filter(value: F, context: JContext[F]): Boolean =
         cleanCond(value)
     }
     or(condFun)

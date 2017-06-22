@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <T> Type of the elements to be filtered
  */
-public class SubtypeCondition<T> extends SimpleCondition<T> {
+public class SubtypeCondition<T> implements IterativeCondition<T> {
 	private static final long serialVersionUID = -2990017519957561355L;
 
 	/** The subtype to filter for. */
@@ -37,7 +37,7 @@ public class SubtypeCondition<T> extends SimpleCondition<T> {
 	}
 
 	@Override
-	public boolean filter(T value) throws Exception {
+	public boolean filter(T value, Context<T> ctx) throws Exception {
 		return subtype.isAssignableFrom(value.getClass());
 	}
 }

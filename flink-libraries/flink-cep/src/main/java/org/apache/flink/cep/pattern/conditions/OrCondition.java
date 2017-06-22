@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <T> Type of the element to filter
  */
-public class OrCondition<T> extends IterativeCondition<T> {
+public class OrCondition<T> implements IterativeCondition<T> {
 
 	private static final long serialVersionUID = 2554610954278485106L;
 
