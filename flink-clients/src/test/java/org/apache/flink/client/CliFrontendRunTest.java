@@ -58,7 +58,7 @@ public class CliFrontendRunTest {
 			// test without parallelism
 			{
 				String[] parameters = {"-v", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1, true, false);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(1, true, false);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 

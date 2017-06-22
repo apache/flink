@@ -18,6 +18,7 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -143,6 +144,8 @@ public class CliFrontend {
 
 	private final FiniteDuration clientTimeout;
 
+	private final int defaultParallelism;
+
 	/**
 	 *
 	 * @throws Exception Thrown if the configuration directory was not found, the configuration could not be loaded
@@ -169,6 +172,9 @@ public class CliFrontend {
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
+		this.defaultParallelism = GlobalConfiguration.loadConfiguration().getInteger(
+														ConfigConstants.DEFAULT_PARALLELISM_KEY,
+														ConfigConstants.DEFAULT_PARALLELISM);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -250,6 +256,8 @@ public class CliFrontend {
 					+ client.getMaxSlots() + "). "
 					+ "To use another parallelism, set it at the ./bin/flink client.");
 				userParallelism = client.getMaxSlots();
+			} else if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
+				userParallelism = defaultParallelism;
 			}
 
 			return executeProgram(program, client, userParallelism);
@@ -314,6 +322,9 @@ public class CliFrontend {
 
 		try {
 			int parallelism = options.getParallelism();
+			if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
+				parallelism = defaultParallelism;
+			}
 
 			LOG.info("Creating program plan dump");
 
