@@ -145,6 +145,8 @@ public class CliFrontend {
 
 	private final FiniteDuration clientTimeout;
 
+	private final int defaultParallelism;
+
 	/**
 	 *
 	 * @throws Exception Thrown if the configuration directory was not found, the configuration could not be loaded
@@ -171,6 +173,9 @@ public class CliFrontend {
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
+		this.defaultParallelism = GlobalConfiguration.loadConfiguration().getInteger(
+														ConfigConstants.DEFAULT_PARALLELISM_KEY,
+														ConfigConstants.DEFAULT_PARALLELISM);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -241,6 +246,7 @@ public class CliFrontend {
 			client = createClient(options, program);
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			client.setDetached(options.getDetachedMode());
+			client.setDefaultParallelism(defaultParallelism);
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
 			LOG.debug(options.getSavepointRestoreSettings().toString());
