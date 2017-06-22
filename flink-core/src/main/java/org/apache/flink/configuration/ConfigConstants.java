@@ -135,7 +135,7 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the resource manager.
-	 * @deprecated Use {@link ResourceManagerOptions#RESOURCE_MANAGER_IPC_PORT_KEY} instead.
+	 * @deprecated Use {@link ResourceManagerOptions#RESOURCE_MANAGER_IPC_PORT} instead.
 	 */
 	@Deprecated
 	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
@@ -386,7 +386,7 @@ public final class ConfigConstants {
 
 	/**
 	 * The vcores exposed by YARN.
-	 * @deprecated in favor of {@code YarnConfigOptions#YARN_VCORES}.
+	 * @deprecated in favor of {@code YarnConfigOptions#VCORES}.
 	 */
 	@Deprecated
 	public static final String YARN_VCORES = "yarn.containers.vcores";
@@ -418,7 +418,7 @@ public final class ConfigConstants {
 	 * the YARN session / job on YARN.
 	 *
 	 * By default, we take the number of of initially requested containers.
-	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_MIN}.
+	 * @deprecated in favor of {@code YarnConfigOptions#MAX_FAILED_CONTAINERS}.
 	 */
 	@Deprecated
 	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
@@ -428,7 +428,7 @@ public final class ConfigConstants {
 	 * availability mode. This value is usually limited by YARN.
 	 *
 	 * By default, it's 1 in the standalone case and 2 in the high availability case.
-	 * @deprecated in favor of {@code YarnConfigOptions#YARN_APPLICATION_ATTEMPTS}.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_ATTEMPTS}.
 	 */
 	@Deprecated
 	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
@@ -437,7 +437,7 @@ public final class ConfigConstants {
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 *
 	 * The default value is 5 (seconds).
-	 * @deprecated in favor of {@code YarnConfigOptions#YARN_HEARTBEAT_DELAY_SECONDS}.
+	 * @deprecated in favor of {@code YarnConfigOptions#HEARTBEAT_DELAY_SECONDS}.
 	 */
 	@Deprecated
 	public static final String YARN_HEARTBEAT_DELAY_SECONDS = "yarn.heartbeat-delay";
@@ -448,7 +448,7 @@ public final class ConfigConstants {
 	 * to pick those details up.
 	 * This configuration parameter allows changing the default location of that file (for example
 	 * for environments sharing a Flink installation between users).
-	 * @deprecated in favor of {@code YarnConfigOptions#YARN_PROPERTIES_FILE_LOCATION}.
+	 * @deprecated in favor of {@code YarnConfigOptions#PROPERTIES_FILE_LOCATION}.
 	 */
 	@Deprecated
 	public static final String YARN_PROPERTIES_FILE_LOCATION = "yarn.properties-file.location";
@@ -494,14 +494,14 @@ public final class ConfigConstants {
 	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
 	 *
 	 * Setting the port to 0 will let the OS choose an available port.
-	 * @deprecated in favor of {@code YarnConfigOptions#YARN_APPLICATION_MASTER_PORT}.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_MASTER_PORT}.
 	 */
 	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
 	/**
 	 * A comma-separated list of strings to use as YARN application tags.
-	 * @deprecated in favor of {@code YarnConfigOptions#YARN_APPLICATION_TAGS}.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_TAGS}.
 	 */
 	@Deprecated
 	public static final String YARN_APPLICATION_TAGS = "yarn.tags";
@@ -1263,7 +1263,7 @@ public final class ConfigConstants {
 
 	/**
 	 * The default network port of the resource manager.
-	 * @deprecated Use {@link ResourceManagerOptions#RESOURCE_MANAGER_IPC_PORT_KEY} instead.
+	 * @deprecated Use {@link ResourceManagerOptions#RESOURCE_MANAGER_IPC_PORT} instead.
 	 */
 	@Deprecated
 	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;

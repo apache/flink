@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
-import scala.concurrent.duration.Duration;
 
 /**
  * Specialized Flink Resource Manager implementation for YARN clusters. It is started as the
@@ -335,7 +334,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 			// Resource requirements for worker containers
 			int taskManagerSlots = taskManagerParameters.numSlots();
-			int vcores = config.getInteger(YarnConfigOptions.YARN_VCORES.key(), Math.max(taskManagerSlots, 1));
+			int vcores = config.getInteger(YarnConfigOptions.VCORES.key(), Math.max(taskManagerSlots, 1));
 			Resource capability = Resource.newInstance(containerMemorySizeMB, vcores);
 
 			resourceManagerClient.addContainerRequest(
@@ -548,7 +547,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 					String msg = "Stopping YARN session because the number of failed containers ("
 						+ failedContainersSoFar + ") exceeded the maximum failed containers ("
 						+ maxFailedContainers + "). This number is controlled by the '"
-						+ YarnConfigOptions.YARN_MAX_FAILED_CONTAINERS.key() + "' configuration setting. "
+						+ YarnConfigOptions.MAX_FAILED_CONTAINERS.key() + "' configuration setting. "
 						+ "By default its the number of requested containers.";
 
 					LOG.error(msg);
@@ -707,8 +706,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			int numInitialTaskManagers,
 			Logger log) {
 
-		final int yarnHeartbeatIntervalMS = (int)Duration.create(flinkConfig.getString(
-			YarnConfigOptions.YARN_HEARTBEAT_DELAY_SECONDS)).toMillis();
+		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(
+			YarnConfigOptions.HEARTBEAT_DELAY_SECONDS) * 1000;
 
 		final long yarnExpiryIntervalMS = yarnConfig.getLong(
 			YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
@@ -721,7 +720,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		}
 
 		final int maxFailedContainers = flinkConfig.getInteger(
-			YarnConfigOptions.YARN_MAX_FAILED_CONTAINERS.key(), numInitialTaskManagers);
+			YarnConfigOptions.MAX_FAILED_CONTAINERS.key(), numInitialTaskManagers);
 		if (maxFailedContainers >= 0) {
 			log.info("YARN application tolerates {} failed TaskManager containers before giving up",
 				maxFailedContainers);

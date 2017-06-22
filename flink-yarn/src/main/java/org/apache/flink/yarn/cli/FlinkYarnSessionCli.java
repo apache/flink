@@ -760,7 +760,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
 		String currentUser = System.getProperty("user.name");
 		String propertiesFileLocation =
-			conf.getString(YarnConfigOptions.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+			conf.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
 
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}

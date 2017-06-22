@@ -301,7 +301,7 @@ public class YarnApplicationMasterRunner {
 			// try to start the actor system, JobManager and JobManager actor system
 			// using the port range definition from the config.
 			final String amPortRange = config.getString(
-					YarnConfigOptions.YARN_APPLICATION_MASTER_PORT);
+					YarnConfigOptions.APPLICATION_MASTER_PORT);
 
 			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, amPortRange, LOG);
 

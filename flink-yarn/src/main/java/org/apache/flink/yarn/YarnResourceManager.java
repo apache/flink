@@ -135,8 +135,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
 		this.env = env;
-		final int yarnHeartbeatIntervalMS = (int)Duration.create(flinkConfig.getString(
-				YarnConfigOptions.YARN_HEARTBEAT_DELAY_SECONDS)).toMillis();
+		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(
+				YarnConfigOptions.HEARTBEAT_DELAY_SECONDS) * 1000;
 
 		final long yarnExpiryIntervalMS = yarnConfig.getLong(
 				YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,

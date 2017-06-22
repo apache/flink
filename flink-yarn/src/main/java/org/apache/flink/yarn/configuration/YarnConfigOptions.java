@@ -55,9 +55,9 @@ public class YarnConfigOptions {
 	/**
 	 * The vcores exposed by YARN.
 	 */
-	public static final ConfigOption<Integer> YARN_VCORES =
+	public static final ConfigOption<Integer> VCORES =
 		key("yarn.containers.vcores")
-		.defaultValue(Integer.MAX_VALUE);
+		.defaultValue(-1);
 
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
@@ -65,7 +65,7 @@ public class YarnConfigOptions {
 	 *
 	 * By default, we take the number of of initially requested containers.
 	 */
-	public static final ConfigOption<String> YARN_MAX_FAILED_CONTAINERS =
+	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
 		key("yarn.maximum-failed-containers")
 		.noDefaultValue();
 
@@ -75,7 +75,7 @@ public class YarnConfigOptions {
 	 *
 	 * By default, it's 1 in the standalone case and 2 in the high availability case.
 	 */
-	public static final ConfigOption<String> YARN_APPLICATION_ATTEMPTS =
+	public static final ConfigOption<String> APPLICATION_ATTEMPTS =
 		key("yarn.application-attempts")
 		.noDefaultValue();
 
@@ -84,9 +84,9 @@ public class YarnConfigOptions {
 	 *
 	 * The default value is 5 (seconds).
 	 */
-	public static final ConfigOption<String> YARN_HEARTBEAT_DELAY_SECONDS =
+	public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
 		key("yarn.heartbeat-delay")
-		.defaultValue("5 s");
+		.defaultValue(5);
 
 	/**
 	 * When a Flink job is submitted to YARN, the JobManager's host and the number of available
@@ -95,7 +95,7 @@ public class YarnConfigOptions {
 	 * This configuration parameter allows changing the default location of that file (for example
 	 * for environments sharing a Flink installation between users)
 	 */
-	public static final ConfigOption<String> YARN_PROPERTIES_FILE_LOCATION =
+	public static final ConfigOption<String> PROPERTIES_FILE_LOCATION =
 		key("yarn.properties-file.location")
 		.noDefaultValue();
 
@@ -109,14 +109,14 @@ public class YarnConfigOptions {
 	 *
 	 * Setting the port to 0 will let the OS choose an available port.
 	 */
-	public static final ConfigOption<String> YARN_APPLICATION_MASTER_PORT =
+	public static final ConfigOption<String> APPLICATION_MASTER_PORT =
 		key("yarn.application-master.port")
 		.defaultValue("0");
 
 	/**
 	 * A comma-separated list of strings to use as YARN application tags.
 	 */
-	public static final ConfigOption<String> YARN_APPLICATION_TAGS =
+	public static final ConfigOption<String> APPLICATION_TAGS =
 		key("yarn.tags")
 		.defaultValue("");
 	

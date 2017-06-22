@@ -88,7 +88,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	public void testConfigOverwrite() {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
-		configuration.setInteger(YarnConfigOptions.YARN_VCORES, Integer.MAX_VALUE);
+		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
