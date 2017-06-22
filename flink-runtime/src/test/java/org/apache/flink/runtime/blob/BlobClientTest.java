@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.blob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.EOFException;
 import java.io.File;
@@ -32,12 +35,8 @@ import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.Path;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * This class contains unit tests for the {@link BlobClient}.
@@ -47,19 +46,21 @@ public class BlobClientTest {
 	/** The buffer size used during the tests in bytes. */
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
 
-	/** The instance of the BLOB server used during the tests. */
-	private static BlobServer BLOB_SERVER;
+	/** The instance of the (non-ssl) BLOB server used during the tests. */
+	static BlobServer BLOB_SERVER;
 
-	/** The blob service client and server configuration */
-	private static Configuration blobServiceConfig;
+	/** The blob service (non-ssl) client configuration */
+	static Configuration clientConfig;
 
 	/**
 	 * Starts the BLOB server.
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException {
-		blobServiceConfig = new Configuration();
-		BLOB_SERVER = new BlobServer(blobServiceConfig, new VoidBlobStore());
+		Configuration config = new Configuration();
+		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
+
+		clientConfig = new Configuration();
 	}
 
 	/**
@@ -204,8 +205,8 @@ public class BlobClientTest {
 			md.update(testBuffer);
 			BlobKey origKey = new BlobKey(md.digest());
 
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-			client = new BlobClient(serverAddress, blobServiceConfig);
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
+			client = new BlobClient(serverAddress, getBlobClientConfig());
 
 			// Store the data
 			BlobKey receivedKey = client.put(testBuffer);
@@ -232,9 +233,17 @@ public class BlobClientTest {
 			if (client != null) {
 				try {
 					client.close();
-				} catch (Throwable t) {}
+				} catch (Throwable ignored) {}
 			}
 		}
+	}
+
+	protected Configuration getBlobClientConfig() {
+		return clientConfig;
+	}
+
+	protected BlobServer getBlobServer() {
+		return BLOB_SERVER;
 	}
 
 	/**
@@ -252,8 +261,8 @@ public class BlobClientTest {
 
 			BlobKey origKey = prepareTestFile(testFile);
 
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-			client = new BlobClient(serverAddress, blobServiceConfig);
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
+			client = new BlobClient(serverAddress, getBlobClientConfig());
 
 			// Store the data
 			is = new FileInputStream(testFile);
@@ -275,12 +284,12 @@ public class BlobClientTest {
 			if (is != null) {
 				try {
 					is.close();
-				} catch (Throwable t) {}
+				} catch (Throwable ignored) {}
 			}
 			if (client != null) {
 				try {
 					client.close();
-				} catch (Throwable t) {}
+				} catch (Throwable ignored) {}
 			}
 		}
 	}
@@ -290,18 +299,25 @@ public class BlobClientTest {
 	 */
 	@Test
 	public void testUploadJarFilesHelper() throws Exception {
+		uploadJarFile(getBlobServer(), getBlobClientConfig());
+	}
+
+	/**
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
+	 */
+	static void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
 		final File testFile = File.createTempFile("testfile", ".dat");
 		testFile.deleteOnExit();
 		prepareTestFile(testFile);
 
-		InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
+		InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
 
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobServiceConfig,
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
 			Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
-		try (BlobClient blobClient = new BlobClient(serverAddress, blobServiceConfig)) {
+		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
 			InputStream is = blobClient.get(blobKeys.get(0));
 			validateGet(is, testFile);
 		}
