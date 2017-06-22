@@ -23,28 +23,26 @@ import org.apache.flink.configuration.ConfigOption;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * This class holds configuration constants used by Flink's MESOS runners.
- *
- * <p>These options are not expected to be ever configured by users explicitly.
+ * The set of configuration options relating to mesos settings.
  */
 public class MesosConfigOptions {
 
 	/**
 	 * The initial number of Mesos tasks to allocate.
 	 */
-	public static final ConfigOption<Integer> MESOS_INITIAL_TASKS =
+	public static final ConfigOption<Integer> INITIAL_TASKS =
 		key("mesos.initial-tasks")
-		.defaultValue(0);
+			.defaultValue(0);
 
 	/**
 	 * The maximum number of failed Mesos tasks before entirely stopping
 	 * the Mesos session / job on Mesos.
 	 *
-	 * <p>By default, we take the number of of initially requested tasks.
+	 * <p>By default, we take the number of initially requested tasks.
 	 */
-	public static final ConfigOption<String> MESOS_MAX_FAILED_TASKS =
+	public static final ConfigOption<Integer> MAX_FAILED_TASKS =
 		key("mesos.maximum-failed-tasks")
-		.noDefaultValue();
+			.defaultValue(-1);
 
 	/**
 	 * The Mesos master URL.
@@ -58,53 +56,51 @@ public class MesosConfigOptions {
 	 *     file:///path/to/file (where file contains one of the above)
 	 * }
 	 * </pre>
-	 *
 	 */
-	public static final ConfigOption<String> MESOS_MASTER_URL =
-		key("mesos.master").noDefaultValue();
+	public static final ConfigOption<String> MASTER_URL =
+		key("mesos.master")
+			.noDefaultValue();
 
 	/**
 	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
-	 *
-	 * <p>The default value is 600 (seconds).
 	 */
-	public static final ConfigOption<Integer> MESOS_FAILOVER_TIMEOUT_SECONDS =
+	public static final ConfigOption<Integer> FAILOVER_TIMEOUT_SECONDS =
 		key("mesos.failover-timeout")
-		.defaultValue(600);
+			.defaultValue(600);
 
 	/**
 	 * The config parameter defining the Mesos artifact server port to use.
 	 * Setting the port to 0 will let the OS choose an available port.
 	 */
-	public static final ConfigOption<Integer> MESOS_ARTIFACT_SERVER_PORT_KEY =
+	public static final ConfigOption<Integer> ARTIFACT_SERVER_PORT_KEY =
 		key("mesos.resourcemanager.artifactserver.port")
-		.defaultValue(0);
+			.defaultValue(0);
 
-	public static final ConfigOption<String> MESOS_RESOURCEMANAGER_FRAMEWORK_NAME =
+	public static final ConfigOption<String> RESOURCEMANAGER_FRAMEWORK_NAME =
 		key("mesos.resourcemanager.framework.name")
-		.defaultValue("Flink");
+			.defaultValue("Flink");
 
-	public static final ConfigOption<String> MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE =
+	public static final ConfigOption<String> RESOURCEMANAGER_FRAMEWORK_ROLE =
 		key("mesos.resourcemanager.framework.role")
-		.defaultValue("*");
+			.defaultValue("*");
 
-	public static final ConfigOption<String> MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL =
+	public static final ConfigOption<String> RESOURCEMANAGER_FRAMEWORK_PRINCIPAL =
 		key("mesos.resourcemanager.framework.principal")
-		.noDefaultValue();
+			.noDefaultValue();
 
-	public static final ConfigOption<String> MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET =
+	public static final ConfigOption<String> RESOURCEMANAGER_FRAMEWORK_SECRET =
 		key("mesos.resourcemanager.framework.secret")
-		.noDefaultValue();
+			.noDefaultValue();
 
-	public static final ConfigOption<String> MESOS_RESOURCEMANAGER_FRAMEWORK_USER =
+	public static final ConfigOption<String> RESOURCEMANAGER_FRAMEWORK_USER =
 		key("mesos.resourcemanager.framework.user")
-		.defaultValue("");
+			.defaultValue("");
 
 	/**
 	 * Config parameter to override SSL support for the Artifact Server.
 	 */
-	public static final ConfigOption<Boolean> MESOS_ARTIFACT_SERVER_SSL_ENABLED =
+	public static final ConfigOption<Boolean> ARTIFACT_SERVER_SSL_ENABLED =
 		key("mesos.resourcemanager.artifactserver.ssl.enabled")
-		.defaultValue(true);
+			.defaultValue(true);
 
 }

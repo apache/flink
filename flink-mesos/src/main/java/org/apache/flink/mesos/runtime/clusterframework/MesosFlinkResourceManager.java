@@ -641,7 +641,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 				String msg = "Stopping Mesos session because the number of failed tasks ("
 					+ failedTasksSoFar + ") exceeded the maximum failed tasks ("
 					+ maxFailedTasks + "). This number is controlled by the '"
-					+ MesosConfigOptions.MESOS_MAX_FAILED_TASKS.key() + "' configuration setting. "
+					+ MesosConfigOptions.MAX_FAILED_TASKS.key() + "' configuration setting. "
 					+ "By default its the number of requested tasks.";
 
 				LOG.error(msg);
@@ -757,18 +757,18 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			Logger log) {
 
 		final int numInitialTaskManagers = flinkConfig.getInteger(
-			MesosConfigOptions.MESOS_INITIAL_TASKS);
+			MesosConfigOptions.INITIAL_TASKS);
 		if (numInitialTaskManagers >= 0) {
 			log.info("Mesos framework to allocate {} initial tasks",
 				numInitialTaskManagers);
 		}
 		else {
 			throw new IllegalConfigurationException("Invalid value for " +
-				MesosConfigOptions.MESOS_INITIAL_TASKS.key() + ", which must be at least zero.");
+				MesosConfigOptions.INITIAL_TASKS.key() + ", which must be at least zero.");
 		}
 
 		final int maxFailedTasks = flinkConfig.getInteger(
-			MesosConfigOptions.MESOS_MAX_FAILED_TASKS.key(), numInitialTaskManagers);
+			MesosConfigOptions.MAX_FAILED_TASKS.key(), numInitialTaskManagers);
 		if (maxFailedTasks >= 0) {
 			log.info("Mesos framework tolerates {} failed tasks before giving up",
 				maxFailedTasks);

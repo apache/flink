@@ -114,7 +114,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		// Config to enable https access to the artifact server
 		boolean enableSSL = config.getBoolean(
-				MesosConfigOptions.MESOS_ARTIFACT_SERVER_SSL_ENABLED) &&
+				MesosConfigOptions.ARTIFACT_SERVER_SSL_ENABLED) &&
 				SSLUtils.getSSLEnabled(config);
 
 		if (enableSSL) {

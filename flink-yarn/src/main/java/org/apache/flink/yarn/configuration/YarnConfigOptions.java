@@ -81,8 +81,6 @@ public class YarnConfigOptions {
 
 	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
-	 *
-	 * The default value is 5 (seconds).
 	 */
 	public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
 		key("yarn.heartbeat-delay")

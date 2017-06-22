@@ -105,8 +105,8 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 		private static final long serialVersionUID = -952579203067648838L;
 
 		{
-			setInteger(MesosConfigOptions.MESOS_MAX_FAILED_TASKS.key(), -1);
-			setInteger(MesosConfigOptions.MESOS_INITIAL_TASKS, 0);
+			setInteger(MesosConfigOptions.MAX_FAILED_TASKS, -1);
+			setInteger(MesosConfigOptions.INITIAL_TASKS, 0);
 	}};
 
 	@BeforeClass
