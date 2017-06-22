@@ -1336,9 +1336,14 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the window interval of rows that are included in the window and follow the current row. The interval must be specified in the same unit as the preceding interval (time or row-count).</p>
 
-        <p>At the moment, over windows with rows following the current row are not supported. All over windows must stop at the current row and only two values are supported for <code>following</code>, <code>CURRENT_RANGE</code> for a time interval and <code>CURRENT_ROW</code> for a row-count interval.</p>
+        <p>At the moment, over windows with rows following the current row are not supported. Instead you can specify one of two constants:</p>
 
-        <p>If the `following` clause is omitted, the window will end at the current row.</p>
+        <ul>
+          <li><code>CURRENT_ROW</code> sets the upper bound of the window to the current row.</li>
+          <li><code>CURRENT_RANGE</code> sets the upper bound of the window to sort key of the the current row, i.e., all rows with the same sort key as the current row are included in the window.</li>
+        </ul>
+
+        <p>If the <code>following</code> clause is omitted, the upper bound of a time interval window is defined as <code>CURRENT_RANGE</code> and the upper bound of a row-count interval window is defined as <code>CURRENT_ROW</code>.</p>
       </td>
     </tr>
     <tr>
