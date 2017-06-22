@@ -137,7 +137,7 @@ public class TaskManagerOptions {
 			.defaultValue(1024L << 20); // 1 GB
 
 	/**
-	 * Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel).
+	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).
 	 *
 	 * Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization
 	 */
@@ -146,7 +146,7 @@ public class TaskManagerOptions {
 			.defaultValue(2);
 
 	/**
-	 * Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate).
+	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
 	 */
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
 			key("taskmanager.network.memory.floating-buffers-per-gate")
