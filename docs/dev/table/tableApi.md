@@ -1338,7 +1338,10 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
         <p>At the moment, over windows with rows following the current row are not supported. All over windows must stop at the current row and only two values are supported for <code>following</code>, <code>CURRENT_RANGE</code> for a time interval and <code>CURRENT_ROW</code> for a row-count interval.</p>
 
-        <p>If the `following` clause is omitted, the window will end at the current row.</p>
+       <p><code>CURRENT_ROW</code> meants the window will end at the current row.</p>
+       <p><code>CURRENT_RANGE</code> means the window will end at the current row’s last peer in the ORDER BY ordering.</p>
+
+        <p>If the `following` clause is omitted, for row-count interval the window will end at <code>CURRENT_ROW</code>, for time interval the window will end at the <code>CURRENT_RANGE</code>.</p>
       </td>
     </tr>
     <tr>
