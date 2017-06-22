@@ -6,6 +6,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -16,6 +17,8 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.eventhubs.internals.EventFetcher;
+import org.apache.flink.streaming.connectors.eventhubs.internals.EventhubPartition;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
@@ -59,6 +62,8 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 	private transient volatile HashMap<EventhubPartition, String> restoreToOffset;
 	private volatile boolean running = true;
 
+	private Counter receivedCount;
+
 	public FlinkEventHubConsumer(Properties eventhubsProps, DeserializationSchema<T> deserializer){
 		this(eventhubsProps, new KeyedDeserializationSchemaWrapper<T>(deserializer));
 	}
@@ -91,6 +96,9 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		receivedCount = getRuntimeContext().getMetricGroup().addGroup(this.getClass().getName()).counter("received_event_count");
+
 		List<EventhubPartition> eventhubPartitions = this.getAllEventhubPartitions();
 		this.subscribedPartitionsToStartOffsets = new HashMap<>(eventhubPartitions.size());
 
@@ -144,7 +152,8 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 				runtimeContext.getUserCodeClassLoader(),
 				runtimeContext.getTaskNameWithSubtasks(),
 				eventhubsProps,
-				false);
+				false,
+				receivedCount);
 
 			this.eventhubFetcher = fetcher;
 			if (!this.running){

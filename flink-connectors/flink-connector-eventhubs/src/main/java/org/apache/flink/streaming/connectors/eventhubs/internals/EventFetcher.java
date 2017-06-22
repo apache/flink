@@ -1,6 +1,7 @@
-package org.apache.flink.streaming.connectors.eventhubs;
+package org.apache.flink.streaming.connectors.eventhubs.internals;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -48,6 +49,7 @@ public class EventFetcher<T> {
 	protected final int timestampWatermarkMode;
 	protected final boolean useMetrics;
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
+	private Counter receivedCount;
 
 	public EventFetcher(
 		SourceFunction.SourceContext sourceContext,
@@ -60,13 +62,15 @@ public class EventFetcher<T> {
 		ClassLoader userCodeClassLoader,
 		String taskNameWithSubtasks,
 		Properties eventhubProps,
-		boolean useMetrics) throws Exception {
+		boolean useMetrics,
+		Counter receivedCount) throws Exception {
 
 		this.sourceContext = checkNotNull(sourceContext);
 		this.deserializer = checkNotNull(deserializer);
 		this.eventhubProps = eventhubProps;
 		this.checkpointLock = sourceContext.getCheckpointLock();
 		this.useMetrics = useMetrics;
+		this.receivedCount = receivedCount;
 		this.taskNameWithSubtasks = taskNameWithSubtasks;
 		this.timestampWatermarkMode = getTimestampWatermarkMode(watermarksPeriodic, watermarksPunctuated);
 
@@ -125,6 +129,7 @@ public class EventFetcher<T> {
 						break;
 					}
 					emitRecord(value, subscribedPartitionStates.get(eventsTuple.f0), event.getSystemProperties().getOffset());
+					receivedCount.inc();
 				}
 			}
 		}

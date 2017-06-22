@@ -1,4 +1,4 @@
-package org.apache.flink.streaming.connectors.eventhubs;
+package org.apache.flink.streaming.connectors.eventhubs.internals;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;

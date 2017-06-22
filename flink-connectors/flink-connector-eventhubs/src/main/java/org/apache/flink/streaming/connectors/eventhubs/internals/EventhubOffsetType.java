@@ -1,4 +1,4 @@
-package org.apache.flink.streaming.connectors.eventhubs;
+package org.apache.flink.streaming.connectors.eventhubs.internals;
 
 /**
  * Created by jozh on 5/22/2017.

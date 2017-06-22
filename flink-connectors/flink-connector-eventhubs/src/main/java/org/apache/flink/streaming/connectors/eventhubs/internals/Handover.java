@@ -1,4 +1,4 @@
-package org.apache.flink.streaming.connectors.eventhubs;
+package org.apache.flink.streaming.connectors.eventhubs.internals;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.ExceptionUtils;
@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Created by jozh on 5/23/2017.
  * Flink eventhub connnector has implemented with same design of flink kafka connector
- * Coming from flink kafka connector
  */
 @ThreadSafe
 public final class Handover implements Closeable {
@@ -36,7 +35,7 @@ public final class Handover implements Closeable {
 				eventQueue.wait();
 			}
 
-			logger.debug("### Get notified from eventhub consummer thread");
+			logger.debug("### Get notified from consummer thread");
 			Tuple2<EventhubPartition, Iterable<EventData>> events = eventQueue.poll();
 			if (events != null && events.f0 != null && events.f1 != null){
 				logger.debug("### Get event data from {}", events.f0.toString());
@@ -55,7 +54,7 @@ public final class Handover implements Closeable {
 
 	public void produce(final Tuple2<EventhubPartition, Iterable<EventData>> events) throws InterruptedException{
 		if (events == null || events.f0 == null || events.f1 == null){
-			logger.error("Received empty events from eventhub consumer thread");
+			logger.error("Received empty events from event producer");
 			return;
 		}
 

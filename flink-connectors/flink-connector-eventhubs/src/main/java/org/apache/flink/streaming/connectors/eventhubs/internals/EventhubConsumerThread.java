@@ -1,4 +1,4 @@
-package org.apache.flink.streaming.connectors.eventhubs;
+package org.apache.flink.streaming.connectors.eventhubs.internals;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -59,8 +59,6 @@ public class EventhubConsumerThread extends Thread {
 			logger.info("Eventhub consumer thread is set to STOP, thread {} exit", this.getName());
 			return;
 		}
-
-		final Handover handover = this.handover;
 
 		try {
 			logger.info("Starting create {} eventhub clients on {}", this.subscribedPartitionStates.length, this.getName());
