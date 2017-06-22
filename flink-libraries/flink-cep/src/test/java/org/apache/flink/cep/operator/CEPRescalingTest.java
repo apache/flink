@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.nfa.ConditionRegistry;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
@@ -431,6 +432,11 @@ public class CEPRescalingTest {
 				.within(Time.milliseconds(10L));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+		}
+
+		@Override
+		public ConditionRegistry getConditionRegistry() {
+			return createNFA().getConditionRegistry();
 		}
 	}
 

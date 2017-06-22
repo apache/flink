@@ -643,10 +643,10 @@ public class NFACompiler {
 
 			newSecond = new State<T>(oldSecondToThirdTake.getTargetState().getName(), State.StateType.Normal);
 			convertedStates.put(newSecond.getName(), newSecond);
-			newFirst.addTake(newSecond, oldFirstToSecondTake.getCondition(), conditionRegistry);
+			newFirst.addTake(newSecond, null, conditionRegistry);
 
 			if (oldFirstIgnore != null) {
-				newFirst.addIgnore(oldFirstIgnore.getCondition(), conditionRegistry);
+				newFirst.addIgnore(null, conditionRegistry);
 			}
 
 			oldFirst = oldSecond;
@@ -688,10 +688,10 @@ public class NFACompiler {
 
 		final State<T> endingState = new State<>(ENDING_STATE_NAME, State.StateType.Final);
 
-		newFirst.addTake(endingState, oldFirstToSecondTake.getCondition(), conditionRegistry);
+		newFirst.addTake(endingState, null, conditionRegistry);
 
 		if (oldFirstIgnore != null) {
-			newFirst.addIgnore(oldFirstIgnore.getCondition(), conditionRegistry);
+			newFirst.addIgnore(null, conditionRegistry);
 		}
 
 		convertedStates.put(endingState.getName(), endingState);
@@ -706,6 +706,7 @@ public class NFACompiler {
 	 */
 	public interface NFAFactory<T> extends Serializable {
 		NFA<T> createNFA();
+		ConditionRegistry getConditionRegistry();
 	}
 
 	/**
@@ -747,6 +748,11 @@ public class NFACompiler {
 			result.addStates(states);
 
 			return result;
+		}
+
+		@Override
+		public ConditionRegistry getConditionRegistry() {
+			return conditionRegistry;
 		}
 	}
 }

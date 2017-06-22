@@ -849,7 +849,7 @@ public class NFA<T> implements Serializable {
 	 */
 	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty constructor is required for deserializing the configuration. */
 		public NFASerializerConfigSnapshot() {}
@@ -865,6 +865,12 @@ public class NFA<T> implements Serializable {
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			// we are compatible with version 1 (Flink 1.3.x)
+			return new int[]{VERSION, 1};
+		}
 	}
 
 	/**
@@ -877,6 +883,8 @@ public class NFA<T> implements Serializable {
 		private final TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer;
 
 		private final TypeSerializer<T> eventSerializer;
+
+		private int readVersion = NFASerializerConfigSnapshot.VERSION;
 
 		public NFASerializer(TypeSerializer<T> typeSerializer) {
 			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer));
@@ -1100,6 +1108,8 @@ public class NFA<T> implements Serializable {
 		@Override
 		public CompatibilityResult<NFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
+				readVersion = configSnapshot.getReadVersion();
+
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
 						((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
@@ -1151,9 +1161,6 @@ public class NFA<T> implements Serializable {
 					nameSerializer.serialize(transition.getSourceState().getName(), out);
 					nameSerializer.serialize(transition.getTargetState().getName(), out);
 					actionSerializer.serialize(transition.getAction(), out);
-
-					// backward compatibility
-					serializeCondition(transition.getCondition(), out);
 				}
 			}
 		}
@@ -1186,11 +1193,13 @@ public class NFA<T> implements Serializable {
 					String trgt = nameSerializer.deserialize(in);
 					StateTransitionAction action = actionSerializer.deserialize(in);
 
-					try {
-						// backward compatibility
-						deserializeCondition(in);
-					} catch (ClassNotFoundException e) {
-						e.printStackTrace();
+					if (readVersion < 2) {
+						// backward compatibility (Flink 1.3.x serializes conditions)
+						try {
+							deserializeCondition(in);
+						} catch (ClassNotFoundException e) {
+							// ignore
+						}
 					}
 
 					State<T> srcState = states.get(src);
@@ -1200,23 +1209,6 @@ public class NFA<T> implements Serializable {
 
 			}
 			return new HashSet<>(states.values());
-		}
-
-		private void serializeCondition(IterativeCondition<T> condition, DataOutputView out) throws IOException {
-			out.writeBoolean(condition != null);
-			if (condition != null) {
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-				oos.writeObject(condition);
-
-				oos.close();
-				baos.close();
-
-				byte[] serCondition = baos.toByteArray();
-				out.writeInt(serCondition.length);
-				out.write(serCondition);
-			}
 		}
 
 		private IterativeCondition<T> deserializeCondition(DataInputView in) throws IOException, ClassNotFoundException {

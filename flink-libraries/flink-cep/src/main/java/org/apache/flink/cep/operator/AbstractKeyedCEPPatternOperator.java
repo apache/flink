@@ -129,7 +129,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
-		this.conditionRegistry = nfaFactory.createNFA().getConditionRegistry();
+		this.conditionRegistry = nfaFactory.getConditionRegistry();
 
 		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 	}
