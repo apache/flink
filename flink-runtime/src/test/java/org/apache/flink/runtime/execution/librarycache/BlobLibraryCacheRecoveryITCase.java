@@ -92,7 +92,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			List<BlobKey> keys = new ArrayList<>(2);
 
 			JobID jobId = new JobID();
-			// TODO: replace by jobId after adapting the BlobLibraryCacheManager
+			// TODO: replace+adapt by jobId after adapting the BlobLibraryCacheManager
 			JobID blobJobId = null;
 
 			// Upload some data (libraries)
@@ -110,7 +110,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = cache.getFile(blobJobId, keys.get(0));
+			File f = cache.getFile(keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -129,7 +129,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Verify key 1
-			f = cache.getFile(blobJobId, keys.get(0));
+			f = cache.getFile(keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -141,7 +141,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = cache.getFile(blobJobId, keys.get(1));
+			f = cache.getFile(keys.get(1));
 			assertEquals(256, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -154,8 +154,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Remove blobs again
 			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
-				client.delete(blobJobId, keys.get(0));
-				client.delete(blobJobId, keys.get(1));
+				client.delete(keys.get(0));
+				client.delete(keys.get(1));
 			}
 
 			// Verify everything is clean below recoveryDir/<cluster_id>

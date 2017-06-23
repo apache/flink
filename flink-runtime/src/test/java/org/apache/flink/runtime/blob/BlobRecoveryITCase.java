@@ -116,7 +116,7 @@ public class BlobRecoveryITCase extends TestLogger {
 			client = new BlobClient(serverAddress[1], config);
 
 			// Verify request 1
-			try (InputStream is = client.get(null, keys[0])) {
+			try (InputStream is = client.get(keys[0])) {
 				byte[] actual = new byte[expected.length];
 
 				BlobUtils.readFully(is, actual, 0, expected.length, null);
@@ -127,7 +127,7 @@ public class BlobRecoveryITCase extends TestLogger {
 			}
 
 			// Verify request 2
-			try (InputStream is = client.get(null, keys[1])) {
+			try (InputStream is = client.get(keys[1])) {
 				byte[] actual = new byte[256];
 				BlobUtils.readFully(is, actual, 0, 256, null);
 
@@ -157,8 +157,8 @@ public class BlobRecoveryITCase extends TestLogger {
 			}
 
 			// Remove again
-			client.delete(null, keys[0]);
-			client.delete(null, keys[1]);
+			client.delete(keys[0]);
+			client.delete(keys[1]);
 			client.delete(jobId[0], keys[0]);
 			client.delete(jobId[1], keys[1]);
 

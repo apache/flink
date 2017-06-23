@@ -123,7 +123,7 @@ public class BlobServerGetTest extends TestLogger {
 			assertNotNull(key);
 			assertEquals(key, key2);
 			// request for jobId2 should succeed
-			client.get(jobId2, key);
+			getFileHelper(client, jobId2, key);
 			// request for jobId1 should still fail
 			client = verifyDeleted(client, jobId1, key, serverAddress, config);
 
@@ -162,7 +162,7 @@ public class BlobServerGetTest extends TestLogger {
 			BlobClient client, JobID jobId, BlobKey key,
 			InetSocketAddress serverAddress, Configuration config) throws IOException {
 		try {
-			client.get(jobId, key);
+			getFileHelper(client, jobId, key);
 			fail("This should not succeed.");
 		} catch (IOException e) {
 			// expected
@@ -207,7 +207,7 @@ public class BlobServerGetTest extends TestLogger {
 			assertNotNull(key);
 
 			// issue a GET request that succeeds
-			InputStream is = client.get(jobId, key);
+			InputStream is = getFileHelper(client, jobId, key);
 
 			byte[] receiveBuffer = new byte[data.length];
 			int firstChunkLen = 50000;
@@ -298,7 +298,7 @@ public class BlobServerGetTest extends TestLogger {
 					@Override
 					public InputStream call() throws Exception {
 						try (BlobClient blobClient = blobServer.createClient();
-							 InputStream inputStream = blobClient.get(jobId, blobKey)) {
+							InputStream inputStream = getFileHelper(blobClient, jobId, blobKey)) {
 							byte[] buffer = new byte[data.length];
 
 							IOUtils.readFully(inputStream, buffer);
@@ -333,6 +333,15 @@ public class BlobServerGetTest extends TestLogger {
 			verify(blobStore, times(1)).get(eq(jobId), eq(blobKey), any(File.class));
 		} finally {
 			executor.shutdownNow();
+		}
+	}
+
+	static InputStream getFileHelper(BlobClient blobClient, JobID jobId, BlobKey blobKey)
+		throws IOException {
+		if (jobId == null) {
+			return blobClient.get(blobKey);
+		} else {
+			return blobClient.get(jobId, blobKey);
 		}
 	}
 }

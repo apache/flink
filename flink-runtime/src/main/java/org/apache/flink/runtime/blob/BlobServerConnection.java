@@ -495,7 +495,7 @@ class BlobServerConnection extends Thread {
 			}
 			BlobKey key = BlobKey.readFromInputStream(inputStream);
 
-			blobServer.delete(jobId, key);
+			blobServer.deleteInternal(jobId, key);
 
 			outputStream.write(RETURN_OKAY);
 		}

@@ -227,7 +227,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!blobKey.equals(lastSubmittedFile.get(taskManagerID))) {
 									try {
-										blobCache.deleteGlobal(null, lastSubmittedFile.get(taskManagerID));
+										blobCache.deleteGlobal(lastSubmittedFile.get(taskManagerID));
 									} catch (IOException e) {
 										return FlinkCompletableFuture.completedExceptionally(
 											new Exception("Could not delete file for " + taskManagerID + '.', e));
@@ -238,7 +238,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 								lastSubmittedFile.put(taskManagerID, blobKey);
 							}
 							try {
-								return FlinkCompletableFuture.completed(blobCache.getFile(null, blobKey).getAbsolutePath());
+								return FlinkCompletableFuture.completed(blobCache.getFile(blobKey).getAbsolutePath());
 							} catch (IOException e) {
 								return FlinkCompletableFuture.completedExceptionally(
 									new Exception("Could not retrieve blob for " + blobKey + '.', e));

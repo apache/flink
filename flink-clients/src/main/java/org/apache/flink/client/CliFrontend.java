@@ -776,8 +776,7 @@ public class CliFrontend {
 
 						logAndSysout("Uploading JAR files.");
 						LOG.debug("JAR files: " + libPaths);
-						// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
-						blobKeys = BlobClient.uploadJarFiles(jobManager, clientTimeout, config, null, libPaths);
+						blobKeys = BlobClient.uploadJarFiles(jobManager, clientTimeout, config, libPaths);
 						LOG.debug("Blob keys: " + blobKeys.toString());
 					}
 				} finally {

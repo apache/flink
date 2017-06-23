@@ -230,7 +230,7 @@ public class JobClient {
 			for (BlobKey blobKey : props.requiredJarFiles()) {
 				try {
 					// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
-					allURLs[pos++] = blobClient.getFile(null, blobKey).toURI().toURL();
+					allURLs[pos++] = blobClient.getFile(blobKey).toURI().toURL();
 				} catch (Exception e) {
 					try {
 						blobClient.close();
