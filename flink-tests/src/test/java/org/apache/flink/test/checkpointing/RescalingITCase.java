@@ -127,7 +127,7 @@ public class RescalingITCase extends TestLogger {
 
 			config.setString(CoreOptions.STATE_BACKEND, currentBackend);
 			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
-			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
+			config.setString(CoreOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
 			cluster = new TestingCluster(config);
 			cluster.start();

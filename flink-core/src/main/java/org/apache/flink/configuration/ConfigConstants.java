@@ -1164,18 +1164,26 @@ public final class ConfigConstants {
 
 	// ---------------------------- Checkpoints -------------------------------
 
-	/** The default directory for savepoints. */
+	/**
+	 * The default directory for savepoints.
+	 * @deprecated Use {@link CoreOptions#SAVEPOINT_DIRECTORY} instead.
+	 */
 	@PublicEvolving
+	@Deprecated
 	public static final String SAVEPOINT_DIRECTORY_KEY = "state.savepoints.dir";
 
-	/** The default directory used for persistent checkpoints. */
+	/**
+	 * The default directory used for persistent checkpoints.
+	 * @deprecated Use {@link CoreOptions#CHECKPOINTS_DIRECTORY} instead.
+	 */
 	@PublicEvolving
+	@Deprecated
 	public static final String CHECKPOINTS_DIRECTORY_KEY = "state.checkpoints.dir";
 
 	/**
 	 * @deprecated This key was used in Flink versions <= 1.1.X with the savepoint backend
 	 * configuration. We now always use the FileSystem for savepoints. For this,
-	 * the only relevant config key is {@link #SAVEPOINT_DIRECTORY_KEY}.
+	 * the only relevant config key is {@link CoreOptions#SAVEPOINT_DIRECTORY}.
 	 */
 	@Deprecated
 	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
