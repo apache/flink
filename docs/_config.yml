@@ -30,8 +30,8 @@
 version: "1.4-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_short: "1.4-SNAPSHOT"
-is_snapshot_version: true
+version_title: "1.4-SNAPSHOT"
+version_javadocs: "1.4"
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.10"
