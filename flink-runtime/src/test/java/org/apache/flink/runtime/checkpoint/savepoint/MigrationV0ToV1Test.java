@@ -109,7 +109,7 @@ public class MigrationV0ToV1Test {
 				}
 
 				try {
-					fdos = fs.create(path, false);
+					fdos = fs.create(path, FileSystem.WriteMode.NO_OVERWRITE);
 					break;
 				} catch (Exception e) {
 					latestException = e;
