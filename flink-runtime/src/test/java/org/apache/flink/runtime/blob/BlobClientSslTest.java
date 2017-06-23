@@ -23,11 +23,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-
-import static org.junit.Assert.fail;
 
 /**
  * This class contains unit tests for the {@link BlobClient} with ssl enabled.
@@ -46,12 +46,17 @@ public class BlobClientSslTest extends BlobClientTest {
 	/** The non-SSL blob service client configuration with SSL-enabled security options. */
 	private static Configuration nonSslClientConfig;
 
+	@ClassRule
+	public static TemporaryFolder temporarySslFolder = new TemporaryFolder();
+
 	/**
 	 * Starts the SSL enabled BLOB server.
 	 */
 	@BeforeClass
 	public static void startSSLServer() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporarySslFolder.newFolder().getAbsolutePath());
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
@@ -67,6 +72,8 @@ public class BlobClientSslTest extends BlobClientTest {
 	@BeforeClass
 	public static void startNonSSLServer() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporarySslFolder.newFolder().getAbsolutePath());
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
 		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
