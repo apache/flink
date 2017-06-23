@@ -94,9 +94,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	///////////////			State			//////////////
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
+	private static final String NFA_METASTATES_OPERATOR_STATE_NAME = "nfaMetaStatesOperatorStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
+	private transient ValueState<NFA.MetaStates<IN>> nfaMetaStatesOperatorState;
 	private transient MapState<Long, List<IN>> elementQueueState;
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
@@ -133,13 +135,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-
-		if (nfaOperatorState == null) {
-			nfaOperatorState = getRuntimeContext().getState(
-				new ValueStateDescriptor<>(
-						NFA_OPERATOR_STATE_NAME,
-						new NFA.NFASerializer<>(inputSerializer)));
-		}
 
 		if (elementQueueState == null) {
 			elementQueueState = getRuntimeContext().getMapState(
@@ -264,7 +259,35 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.lastWatermark = timestamp;
 	}
 
+	private NFA.MetaStates<IN> getNFAMetaStates() throws IOException {
+		return nfaMetaStatesOperatorState.value();
+	}
+
+	private void updateNFAMetaStates(NFA.MetaStates<IN> metaStates) throws IOException {
+		nfaMetaStatesOperatorState.update(metaStates);
+	}
+
 	private NFA<IN> getNFA() throws IOException {
+		if (nfaMetaStatesOperatorState == null) {
+			nfaMetaStatesOperatorState = getRuntimeContext().getState(
+				new ValueStateDescriptor<>(
+					NFA_METASTATES_OPERATOR_STATE_NAME,
+					new NFA.MetaStates.MetaStatesSerializer<IN>()));
+		}
+
+		if (nfaOperatorState == null) {
+			NFA.MetaStates<IN> metaStates = getNFAMetaStates();
+			if (metaStates == null) {
+				metaStates = nfaFactory.createNFA().getMetaStates();
+				updateNFAMetaStates(metaStates);
+			}
+
+			nfaOperatorState = getRuntimeContext().getState(
+				new ValueStateDescriptor<>(
+					NFA_OPERATOR_STATE_NAME,
+					new NFA.NFASerializer<>(inputSerializer, metaStates)));
+		}
+
 		NFA<IN> nfa = nfaOperatorState.value();
 		return nfa != null ? nfa : nfaFactory.createNFA();
 	}

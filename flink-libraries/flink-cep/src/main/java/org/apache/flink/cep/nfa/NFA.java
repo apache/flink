@@ -118,25 +118,7 @@ public class NFA<T> implements Serializable {
 
 	//////////////////			End of Backwards Compatibility Fields			//////////////////
 
-	/**
-	 * A set of all the valid NFA states, as returned by the
-	 * {@link NFACompiler NFACompiler}.
-	 * These are directly derived from the user-specified pattern.
-	 */
-	private Set<State<T>> states;
-
-	/**
-	 * The length of a windowed pattern, as specified using the
-	 * {@link org.apache.flink.cep.pattern.Pattern#within(Time)}  Pattern.within(Time)}
-	 * method.
-	 */
-	private final long windowTime;
-
-	/**
-	 * A flag indicating if we want timed-out patterns (in case of windowed patterns)
-	 * to be emitted ({@code true}), or silently discarded ({@code false}).
-	 */
-	private final boolean handleTimeout;
+	private final MetaStates<T> metaStates;
 
 	/**
 	 * Current set of {@link ComputationState computation states} within the state machine.
@@ -159,15 +141,17 @@ public class NFA<T> implements Serializable {
 
 		this.eventSerializer = eventSerializer;
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
-		this.windowTime = windowTime;
-		this.handleTimeout = handleTimeout;
+		this.metaStates = new MetaStates<>(windowTime, handleTimeout);
 		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		this.computationStates = new LinkedList<>();
-		this.states = new HashSet<>();
+	}
+
+	public MetaStates<T> getMetaStates() {
+		return metaStates;
 	}
 
 	public Set<State<T>> getStates() {
-		return states;
+		return metaStates.states;
 	}
 
 	public void addStates(final Collection<State<T>> newStates) {
@@ -177,7 +161,7 @@ public class NFA<T> implements Serializable {
 	}
 
 	public void addState(final State<T> state) {
-		states.add(state);
+		metaStates.states.add(state);
 
 		if (state.isStart()) {
 			computationStates.add(ComputationState.createStartState(this, state));
@@ -221,10 +205,10 @@ public class NFA<T> implements Serializable {
 			final Collection<ComputationState<T>> newComputationStates;
 
 			if (!computationState.isStartState() &&
-				windowTime > 0L &&
-				timestamp - computationState.getStartTimestamp() >= windowTime) {
+				metaStates.windowTime > 0L &&
+				timestamp - computationState.getStartTimestamp() >= metaStates.windowTime) {
 
-				if (handleTimeout) {
+				if (metaStates.handleTimeout) {
 					// extract the timed out event pattern
 					Map<String, List<T>> timedoutPattern = extractCurrentMatches(computationState);
 					timeoutResult.add(Tuple2.of(timedoutPattern, timestamp));
@@ -294,8 +278,8 @@ public class NFA<T> implements Serializable {
 		}
 
 		// prune shared buffer based on window length
-		if (windowTime > 0L) {
-			long pruningTimestamp = timestamp - windowTime;
+		if (metaStates.windowTime > 0L) {
+			long pruningTimestamp = timestamp - metaStates.windowTime;
 
 			if (pruningTimestamp < timestamp) {
 				// the check is to guard against underflows
@@ -317,8 +301,8 @@ public class NFA<T> implements Serializable {
 
 			return nonDuplicatingTypeSerializer.equals(other.nonDuplicatingTypeSerializer) &&
 				eventSharedBuffer.equals(other.eventSharedBuffer) &&
-				states.equals(other.states) &&
-				windowTime == other.windowTime;
+				metaStates.states.equals(other.metaStates.states) &&
+				metaStates.windowTime == other.metaStates.windowTime;
 		} else {
 			return false;
 		}
@@ -326,7 +310,11 @@ public class NFA<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(nonDuplicatingTypeSerializer, eventSharedBuffer, states, windowTime);
+		return Objects.hash(
+			nonDuplicatingTypeSerializer,
+			eventSharedBuffer,
+			metaStates.states,
+			metaStates.windowTime);
 	}
 
 	private static <T> boolean isEquivalentState(final State<T> s1, final State<T> s2) {
@@ -788,8 +776,8 @@ public class NFA<T> implements Serializable {
 			convertedStates.get(startName),
 			new DeweyNumber(this.startEventCounter)));
 
-		this.states.clear();
-		this.states.addAll(convertedStates.values());
+		this.metaStates.states.clear();
+		this.metaStates.states.addAll(convertedStates.values());
 
 		return computationStates;
 	}
@@ -857,15 +845,22 @@ public class NFA<T> implements Serializable {
 
 		private final TypeSerializer<T> eventSerializer;
 
-		public NFASerializer(TypeSerializer<T> typeSerializer) {
-			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer));
+		private final MetaStates<T> metaStates;
+
+		public NFASerializer(TypeSerializer<T> typeSerializer, MetaStates<T> metaStates) {
+			this(
+				typeSerializer,
+				new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer),
+				metaStates);
 		}
 
 		public NFASerializer(
 				TypeSerializer<T> typeSerializer,
-				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
+				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer,
+				MetaStates<T> metaStates) {
 			this.eventSerializer = typeSerializer;
 			this.sharedBufferSerializer = sharedBufferSerializer;
+			this.metaStates = metaStates;
 		}
 
 		@Override
@@ -921,10 +916,6 @@ public class NFA<T> implements Serializable {
 
 		@Override
 		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
-			serializeStates(record.states, target);
-			target.writeLong(record.windowTime);
-			target.writeBoolean(record.handleTimeout);
-
 			sharedBufferSerializer.serialize(record.eventSharedBuffer, target);
 
 			target.writeInt(record.computationStates.size());
@@ -954,12 +945,8 @@ public class NFA<T> implements Serializable {
 
 		@Override
 		public NFA<T> deserialize(DataInputView source) throws IOException {
-			Set<State<T>> states = deserializeStates(source);
-			long windowTime = source.readLong();
-			boolean handleTimeout = source.readBoolean();
-
-			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout);
-			nfa.states = states;
+			NFA<T> nfa = new NFA<>(eventSerializer, metaStates.windowTime, metaStates.handleTimeout);
+			nfa.metaStates.states = metaStates.states;
 
 			nfa.eventSharedBuffer = sharedBufferSerializer.deserialize(source);
 
@@ -991,7 +978,7 @@ public class NFA<T> implements Serializable {
 		}
 
 		private State<T> getStateByName(String name, NFA<T> nfa) {
-			for (State<T> state: nfa.states) {
+			for (State<T> state: nfa.metaStates.states) {
 				if (state.getName().equals(name)) {
 					return state;
 				}
@@ -1006,15 +993,6 @@ public class NFA<T> implements Serializable {
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			Set<State<T>> states = deserializeStates(source);
-			serializeStates(states, target);
-
-			long windowTime = source.readLong();
-			target.writeLong(windowTime);
-
-			boolean handleTimeout = source.readBoolean();
-			target.writeBoolean(handleTimeout);
-
 			SharedBuffer<String, T> sharedBuffer = sharedBufferSerializer.deserialize(source);
 			sharedBufferSerializer.serialize(sharedBuffer, target);
 
@@ -1103,118 +1081,238 @@ public class NFA<T> implements Serializable {
 						return CompatibilityResult.requiresMigration(
 								new NFASerializer<>(
 										new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
-										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
+										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer()),
+										metaStates));
 					}
 				}
 			}
 
 			return CompatibilityResult.requiresMigration();
 		}
+	}
 
-		private void serializeStates(Set<State<T>> states, DataOutputView out) throws IOException {
-			TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
-			TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
-			TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+	public static class MetaStates<T> {
 
-			out.writeInt(states.size());
-			for (State<T> state: states) {
-				nameSerializer.serialize(state.getName(), out);
-				stateTypeSerializer.serialize(state.getStateType(), out);
-			}
-
-			for (State<T> state: states) {
-				nameSerializer.serialize(state.getName(), out);
-
-				out.writeInt(state.getStateTransitions().size());
-				for (StateTransition<T> transition : state.getStateTransitions()) {
-					nameSerializer.serialize(transition.getSourceState().getName(), out);
-					nameSerializer.serialize(transition.getTargetState().getName(), out);
-					actionSerializer.serialize(transition.getAction(), out);
-
-					serializeCondition(transition.getCondition(), out);
-				}
-			}
+		MetaStates(final long windowTime, final boolean handleTimeout) {
+			this(windowTime, handleTimeout, new HashSet<State<T>>());
 		}
 
-		private Set<State<T>> deserializeStates(DataInputView in) throws IOException {
-			TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
-			TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
-			TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+		MetaStates(final long windowTime, final boolean handleTimeout, final Set<State<T>> states) {
+			this.windowTime = windowTime;
+			this.handleTimeout = handleTimeout;
+			this.states = states;
+		}
 
-			final int noOfStates = in.readInt();
-			Map<String, State<T>> states = new HashMap<>(noOfStates);
+		/**
+		 * A set of all the valid NFA states, as returned by the
+		 * {@link NFACompiler NFACompiler}.
+		 * These are directly derived from the user-specified pattern.
+		 */
+		private Set<State<T>> states;
 
-			for (int i = 0; i < noOfStates; i++) {
-				String stateName = nameSerializer.deserialize(in);
-				State.StateType stateType = stateTypeSerializer.deserialize(in);
+		/**
+		 * The length of a windowed pattern, as specified using the
+		 * {@link org.apache.flink.cep.pattern.Pattern#within(Time)}  Pattern.within(Time)}
+		 * method.
+		 */
+		private final long windowTime;
 
-				State<T> state = new State<>(stateName, stateType);
-				states.put(stateName, state);
+		/**
+		 * A flag indicating if we want timed-out patterns (in case of windowed patterns)
+		 * to be emitted ({@code true}), or silently discarded ({@code false}).
+		 */
+		private final boolean handleTimeout;
+
+		public static class MetaStatesSerializer<T> extends TypeSerializerSingleton<MetaStates<T>> {
+
+			@Override
+			public boolean isImmutableType() {
+				return false;
 			}
 
-			for (int i = 0; i < noOfStates; i++) {
-				String srcName = nameSerializer.deserialize(in);
+			@Override
+			public MetaStates<T> createInstance() {
+				return null;
+			}
 
-				int noOfTransitions = in.readInt();
-				for (int j = 0; j < noOfTransitions; j++) {
-					String src = nameSerializer.deserialize(in);
-					Preconditions.checkState(src.equals(srcName),
-							"Source Edge names do not match (" + srcName + " - " + src + ").");
+			@Override
+			public MetaStates<T> copy(MetaStates<T> from) {
+				try {
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					ObjectOutputStream oos = new ObjectOutputStream(baos);
 
-					String trgt = nameSerializer.deserialize(in);
-					StateTransitionAction action = actionSerializer.deserialize(in);
+					serialize(from, new DataOutputViewStreamWrapper(oos));
 
-					IterativeCondition<T> condition = null;
-					try {
-						condition = deserializeCondition(in);
-					} catch (ClassNotFoundException e) {
-						e.printStackTrace();
+					oos.close();
+					baos.close();
+
+					byte[] data = baos.toByteArray();
+
+					ByteArrayInputStream bais = new ByteArrayInputStream(data);
+					ObjectInputStream ois = new ObjectInputStream(bais);
+
+					@SuppressWarnings("unchecked")
+					MetaStates<T> copy = deserialize(new DataInputViewStreamWrapper(ois));
+					ois.close();
+					bais.close();
+					return copy;
+				} catch (IOException e) {
+					throw new RuntimeException("Could not copy NFA.", e);
+				}
+			}
+
+			@Override
+			public MetaStates<T> copy(MetaStates<T> from, MetaStates<T> reuse) {
+				return copy(from);
+			}
+
+			@Override
+			public int getLength() {
+				return -1;
+			}
+
+			@Override
+			public void serialize(MetaStates<T> record, DataOutputView target) throws IOException {
+				serializeStates(record.states, target);
+				target.writeLong(record.windowTime);
+				target.writeBoolean(record.handleTimeout);
+			}
+
+			@Override
+			public MetaStates<T> deserialize(DataInputView source) throws IOException {
+				Set<State<T>> states = deserializeStates(source);
+				long windowTime = source.readLong();
+				boolean handleTimeout = source.readBoolean();
+				return new MetaStates<>(windowTime, handleTimeout, states);
+			}
+
+			@Override
+			public MetaStates<T> deserialize(MetaStates<T> reuse, DataInputView source) throws IOException {
+				return deserialize(source);
+			}
+
+			@Override
+			public void copy(DataInputView source, DataOutputView target) throws IOException {
+				Set<State<T>> states = deserializeStates(source);
+				serializeStates(states, target);
+
+				long windowTime = source.readLong();
+				target.writeLong(windowTime);
+
+				boolean handleTimeout = source.readBoolean();
+				target.writeBoolean(handleTimeout);
+			}
+
+			@Override
+			public boolean canEqual(Object obj) {
+				return true;
+			}
+
+			private void serializeStates(Set<State<T>> states, DataOutputView out) throws IOException {
+				TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
+				TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
+				TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+
+				out.writeInt(states.size());
+				for (State<T> state: states) {
+					nameSerializer.serialize(state.getName(), out);
+					stateTypeSerializer.serialize(state.getStateType(), out);
+				}
+
+				for (State<T> state: states) {
+					nameSerializer.serialize(state.getName(), out);
+
+					out.writeInt(state.getStateTransitions().size());
+					for (StateTransition<T> transition : state.getStateTransitions()) {
+						nameSerializer.serialize(transition.getSourceState().getName(), out);
+						nameSerializer.serialize(transition.getTargetState().getName(), out);
+						actionSerializer.serialize(transition.getAction(), out);
+
+						serializeCondition(transition.getCondition(), out);
+					}
+				}
+			}
+
+			private Set<State<T>> deserializeStates(DataInputView in) throws IOException {
+				TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
+				TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
+				TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+
+				final int noOfStates = in.readInt();
+				Map<String, State<T>> states = new HashMap<>(noOfStates);
+
+				for (int i = 0; i < noOfStates; i++) {
+					String stateName = nameSerializer.deserialize(in);
+					State.StateType stateType = stateTypeSerializer.deserialize(in);
+
+					State<T> state = new State<>(stateName, stateType);
+					states.put(stateName, state);
+				}
+
+				for (int i = 0; i < noOfStates; i++) {
+					String srcName = nameSerializer.deserialize(in);
+
+					int noOfTransitions = in.readInt();
+					for (int j = 0; j < noOfTransitions; j++) {
+						String src = nameSerializer.deserialize(in);
+						Preconditions.checkState(src.equals(srcName),
+											"Source Edge names do not match (" + srcName + " - " + src + ").");
+
+						String trgt = nameSerializer.deserialize(in);
+						StateTransitionAction action = actionSerializer.deserialize(in);
+
+						IterativeCondition<T> condition = null;
+						try {
+							condition = deserializeCondition(in);
+						} catch (ClassNotFoundException e) {
+							e.printStackTrace();
+						}
+
+						State<T> srcState = states.get(src);
+						State<T> trgtState = states.get(trgt);
+						srcState.addStateTransition(action, trgtState, condition);
 					}
 
-					State<T> srcState = states.get(src);
-					State<T> trgtState = states.get(trgt);
-					srcState.addStateTransition(action, trgtState, condition);
 				}
-
+				return new HashSet<>(states.values());
 			}
-			return new HashSet<>(states.values());
-		}
 
-		private void serializeCondition(IterativeCondition<T> condition, DataOutputView out) throws IOException {
-			out.writeBoolean(condition != null);
-			if (condition != null) {
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ObjectOutputStream oos = new ObjectOutputStream(baos);
+			private void serializeCondition(IterativeCondition<T> condition, DataOutputView out) throws IOException {
+				out.writeBoolean(condition != null);
+				if (condition != null) {
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					ObjectOutputStream oos = new ObjectOutputStream(baos);
 
-				oos.writeObject(condition);
+					oos.writeObject(condition);
 
-				oos.close();
-				baos.close();
+					oos.close();
+					baos.close();
 
-				byte[] serCondition = baos.toByteArray();
-				out.writeInt(serCondition.length);
-				out.write(serCondition);
+					byte[] serCondition = baos.toByteArray();
+					out.writeInt(serCondition.length);
+					out.write(serCondition);
+				}
 			}
-		}
 
-		private IterativeCondition<T> deserializeCondition(DataInputView in) throws IOException, ClassNotFoundException {
-			boolean hasCondition = in.readBoolean();
-			if (hasCondition) {
-				int length = in.readInt();
+			private IterativeCondition<T> deserializeCondition(DataInputView in) throws IOException, ClassNotFoundException {
+				boolean hasCondition = in.readBoolean();
+				if (hasCondition) {
+					int length = in.readInt();
 
-				byte[] serCondition = new byte[length];
-				in.read(serCondition);
+					byte[] serCondition = new byte[length];
+					in.read(serCondition);
 
-				ByteArrayInputStream bais = new ByteArrayInputStream(serCondition);
-				ObjectInputStream ois = new ObjectInputStream(bais);
+					ByteArrayInputStream bais = new ByteArrayInputStream(serCondition);
+					ObjectInputStream ois = new ObjectInputStream(bais);
 
-				IterativeCondition<T> condition = (IterativeCondition<T>) ois.readObject();
-				ois.close();
-				bais.close();
+					IterativeCondition<T> condition = (IterativeCondition<T>) ois.readObject();
+					ois.close();
+					bais.close();
 
-				return condition;
+					return condition;
+				}
+				return null;
 			}
-			return null;
 		}
 	}
 
