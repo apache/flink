@@ -83,11 +83,6 @@ extends GeneratedMultiGraph<LongValue> {
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() +
 			" (s" + scale + "e" + edgeFactor + getSimplifyShortString() + ")";

@@ -52,13 +52,8 @@ extends GeneratedGraph<LongValue> {
 	private List<OffsetRange> offsetRanges = new ArrayList<>();
 
 	@Override
-	public String getName() {
-		return CirculantGraph.class.getSimpleName();
-	}
-
-	@Override
 	public String getUsage() {
-		return "--" + PREFIX + "0 offset:length [--" + PREFIX + "1 offset:length [--" + PREFIX + "2 ...]]"
+		return "--" + PREFIX + "0 offset:length [--" + PREFIX + "1 offset:length [--" + PREFIX + "2 ...]] "
 			+ super.getUsage();
 	}
 

@@ -26,7 +26,6 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.translators.LongValueToStringValue;
 import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.CharValue;
 import org.apache.flink.types.LongValue;
@@ -41,8 +40,7 @@ import org.apache.commons.lang3.text.WordUtils;
  * @param <K> graph ID type
  */
 public abstract class GeneratedGraph<K>
-extends ParameterizedBase
-implements Input<K, NullValue, NullValue> {
+extends InputBase<K, NullValue, NullValue> {
 
 	private static final String BYTE = "byte";
 	private static final String NATIVE_BYTE = "nativeByte";

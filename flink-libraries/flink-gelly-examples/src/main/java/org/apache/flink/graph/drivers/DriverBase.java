@@ -16,35 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.drivers.output;
+package org.apache.flink.graph.drivers;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
-import org.apache.flink.graph.drivers.parameter.BooleanParameter;
+import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 
 import java.io.PrintStream;
 
 /**
- * Print hash of algorithm output.
+ * Base class for example drivers.
  *
- * @param <T> result Type
+ * @param <K> graph ID type
+ * @param <VV> vertex value type
+ * @param <EV> edge value type
  */
-public class Hash<T>
-extends OutputBase<T> {
-
-	private BooleanParameter printExecutionPlan = new BooleanParameter(this, "__print_execution_plan");
+public abstract class DriverBase<K, VV, EV>
+extends ParameterizedBase
+implements Driver<K, VV, EV> {
 
 	@Override
-	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
-		ChecksumHashCode<T> checksumHashCode = new ChecksumHashCode<T>().run(data);
+	public String getName() {
+		return this.getClass().getSimpleName();
+	}
 
-		if (printExecutionPlan.getValue()) {
-			System.out.println(data.getExecutionEnvironment().getExecutionPlan());
-		}
-
-		ChecksumHashCode.Checksum checksum = checksumHashCode
-			.execute(executionName);
-
-		out.println(checksum);
+	@Override
+	public void printAnalytics(PrintStream out) {
+		// analytics are optionally executed by drivers overriding this method
 	}
 }

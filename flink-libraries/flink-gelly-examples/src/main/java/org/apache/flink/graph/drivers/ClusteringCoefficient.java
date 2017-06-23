@@ -22,15 +22,14 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.asm.result.PrintableResult;
-import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Hash;
-import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.types.CopyableValue;
 
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
+
+import java.io.PrintStream;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
@@ -45,8 +44,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @see org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient
  */
 public class ClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends SimpleDriver<K, VV, EV, PrintableResult>
-implements CSV, Hash, Print {
+extends DriverBase<K, VV, EV> {
 
 	private static final String DIRECTED = "directed";
 
@@ -61,11 +59,6 @@ implements CSV, Hash, Print {
 	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> globalClusteringCoefficient;
 
 	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> averageClusteringCoefficient;
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
 
 	@Override
 	public String getShortDescription() {
@@ -87,7 +80,7 @@ implements CSV, Hash, Print {
 	}
 
 	@Override
-	protected DataSet<PrintableResult> simplePlan(Graph<K, VV, EV> graph) throws Exception {
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		int lp = littleParallelism.getValue().intValue();
 
 		switch (order.getValue()) {
@@ -127,25 +120,8 @@ implements CSV, Hash, Print {
 	}
 
 	@Override
-	public void hash(String executionName) throws Exception {
-		super.hash(executionName);
-		printAnalytics();
-	}
-
-	@Override
-	public void print(String executionName) throws Exception {
-		super.print(executionName);
-		printAnalytics();
-	}
-
-	@Override
-	public void writeCSV(String filename, String lineDelimiter, String fieldDelimiter) {
-		super.writeCSV(filename, lineDelimiter, fieldDelimiter);
-		printAnalytics();
-	}
-
-	private void printAnalytics() {
-		System.out.println(globalClusteringCoefficient.getResult().toPrintableString());
-		System.out.println(averageClusteringCoefficient.getResult().toPrintableString());
+	public void printAnalytics(PrintStream out) {
+		out.println(globalClusteringCoefficient.getResult().toPrintableString());
+		out.println(averageClusteringCoefficient.getResult().toPrintableString());
 	}
 }

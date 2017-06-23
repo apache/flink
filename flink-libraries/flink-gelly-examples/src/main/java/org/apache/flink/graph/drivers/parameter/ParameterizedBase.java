@@ -51,9 +51,11 @@ implements Parameterized {
 
 		// print parameters as ordered list
 		for (Parameter<?> parameter : parameters) {
-			strBuilder
-				.append(parameter.getUsage())
-				.append(" ");
+			if (!parameter.isHidden()) {
+				strBuilder
+					.append(parameter.getUsage())
+					.append(" ");
+			}
 		}
 
 		return strBuilder.toString();

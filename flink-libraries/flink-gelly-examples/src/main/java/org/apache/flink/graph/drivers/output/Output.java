@@ -19,31 +19,23 @@
 package org.apache.flink.graph.drivers.output;
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.graph.drivers.parameter.StringParameter;
+import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.drivers.parameter.Parameterized;
 
 import java.io.PrintStream;
 
 /**
- * Write algorithm output to file using CSV format.
- *
- * @param <T> result Type
+ * Output writer for a {@link GraphAlgorithm} result.
  */
-public class CSV<T>
-extends OutputBase<T> {
+public interface Output<T>
+extends Parameterized {
 
-	private StringParameter filename = new StringParameter(this, "output_filename");
-
-	private StringParameter lineDelimiter = new StringParameter(this, "output_line_delimiter")
-		.setDefaultValue(CsvOutputFormat.DEFAULT_LINE_DELIMITER);
-
-	private StringParameter fieldDelimiter = new StringParameter(this, "output_field_delimiter")
-		.setDefaultValue(CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-
-	@Override
-	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
-		data
-			.writeAsCsv(filename.getValue(), lineDelimiter.getValue(), fieldDelimiter.getValue())
-				.name("CSV: " + filename.getValue());
-	}
+	/**
+	 * Write the output {@link DataSet}.
+	 *
+	 * @param executionName job name
+	 * @param out output printer
+	 * @param data the output
+	 */
+	void write(String executionName, PrintStream out, DataSet<T> data) throws Exception;
 }
