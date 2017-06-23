@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.concurrent.Future;
@@ -26,7 +27,9 @@ import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -63,6 +66,8 @@ public class BlobServerPutTest extends TestLogger {
 
 	private final Random rnd = new Random();
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	// --- concurrency tests for utility methods which could fail during the put operation ---
 
@@ -89,7 +94,10 @@ public class BlobServerPutTest extends TestLogger {
 	 */
 	@Test
 	public void testServerContentAddressableGetStorageLocationConcurrent() throws Exception {
-		BlobServer server = new BlobServer(new Configuration(), new VoidBlobStore());
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
+		BlobServer server = new BlobServer(config, new VoidBlobStore());
 
 		try {
 			BlobKey key = new BlobKey();
@@ -132,7 +140,9 @@ public class BlobServerPutTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -186,7 +196,9 @@ public class BlobServerPutTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -220,7 +232,9 @@ public class BlobServerPutTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -253,7 +267,9 @@ public class BlobServerPutTest extends TestLogger {
 
 		File tempFileDir = null;
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			// make sure the blob server cannot create any files in its storage dir
@@ -306,7 +322,9 @@ public class BlobServerPutTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentPutOperations() throws IOException, ExecutionException, InterruptedException {
-		final Configuration configuration = new Configuration();
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 		BlobStore blobStore = mock(BlobStore.class);
 		int concurrentPutOperations = 2;
 		int dataSize = 1024;
@@ -319,7 +337,7 @@ public class BlobServerPutTest extends TestLogger {
 		ExecutorService executor = Executors.newFixedThreadPool(concurrentPutOperations);
 
 		try (
-			final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+			final BlobServer blobServer = new BlobServer(config, blobStore)) {
 
 			for (int i = 0; i < concurrentPutOperations; i++) {
 				Future<BlobKey> putFuture = FlinkCompletableFuture.supplyAsync(new Callable<BlobKey>() {

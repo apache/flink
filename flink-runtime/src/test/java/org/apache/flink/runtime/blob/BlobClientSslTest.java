@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 
@@ -39,12 +42,17 @@ public class BlobClientSslTest extends BlobClientTest {
 	/** The SSL blob service client configuration */
 	private static Configuration sslClientConfig;
 
+	@ClassRule
+	public static TemporaryFolder temporarySslFolder = new TemporaryFolder();
+
 	/**
 	 * Starts the SSL enabled BLOB server.
 	 */
 	@BeforeClass
 	public static void startSSLServer() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporarySslFolder.newFolder().getAbsolutePath());
 		config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");

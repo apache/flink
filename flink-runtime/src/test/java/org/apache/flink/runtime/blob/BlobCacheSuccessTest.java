@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.junit.Rule;
@@ -49,6 +50,9 @@ public class BlobCacheSuccessTest {
 	@Test
 	public void testBlobCache() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+
 		uploadFileGetTest(config, false, false);
 	}
 
@@ -60,9 +64,11 @@ public class BlobCacheSuccessTest {
 	@Test
 	public void testBlobCacheHa() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-			temporaryFolder.getRoot().getPath());
+			temporaryFolder.newFolder().getPath());
 		uploadFileGetTest(config, true, true);
 	}
 
@@ -73,9 +79,11 @@ public class BlobCacheSuccessTest {
 	@Test
 	public void testBlobCacheHaFallback() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-			temporaryFolder.getRoot().getPath());
+			temporaryFolder.newFolder().getPath());
 		uploadFileGetTest(config, false, false);
 	}
 
@@ -89,15 +97,15 @@ public class BlobCacheSuccessTest {
 		BlobCache blobCache = null;
 		BlobStoreService blobStoreService = null;
 		try {
-			final Configuration cacheConfig;
-			if (cacheHasAccessToFs) {
-				cacheConfig = config;
-			} else {
-				// just in case parameters are still read from the server,
-				// create a separate configuration object for the cache
-				cacheConfig = new Configuration(config);
+			final Configuration cacheConfig = new Configuration(config);
+			cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+			if (!cacheHasAccessToFs) {
+				// make sure the cache cannot access the HA store directly
+				cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
+					temporaryFolder.newFolder().getAbsolutePath());
 				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-					temporaryFolder.getRoot().getPath() + "/does-not-exist");
+					temporaryFolder.newFolder().getPath() + "/does-not-exist");
 			}
 
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -28,7 +29,9 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.OperatingSystem;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -43,6 +46,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class BlobLibraryCacheManagerTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
@@ -60,6 +66,9 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
@@ -180,6 +189,9 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
@@ -250,6 +262,9 @@ public class BlobLibraryCacheManagerTest {
 		try {
 			// create the blob transfer services
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new BlobCache(serverAddress, config, new VoidBlobStore());

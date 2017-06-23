@@ -18,9 +18,14 @@
 
 package org.apache.flink.runtime.blob;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.EOFException;
 import java.io.File;
@@ -33,11 +38,9 @@ import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * This class contains unit tests for the {@link BlobClient}.
@@ -53,12 +56,18 @@ public class BlobClientTest {
 	/** The blob service (non-ssl) client configuration */
 	static Configuration clientConfig;
 
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	/**
 	 * Starts the BLOB server.
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+
 		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
 
 		clientConfig = new Configuration();
