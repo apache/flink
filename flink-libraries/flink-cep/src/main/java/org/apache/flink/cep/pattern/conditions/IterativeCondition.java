@@ -59,9 +59,7 @@ import java.io.Serializable;
  * the elements that belong to the pattern among the elements stored by the NFA. The cost of this operation can vary,
  * so when implementing your condition, try to minimize the times the method is called.
  */
-public abstract class IterativeCondition<T> implements Function, Serializable {
-
-	private static final long serialVersionUID = 7067817235759351255L;
+public interface IterativeCondition<T> extends Function, Serializable {
 
 	/**
 	 * The filter function that evaluates the predicate.
@@ -79,12 +77,12 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	public abstract boolean filter(T value, Context<T> ctx) throws Exception;
+	boolean filter(T value, Context<T> ctx) throws Exception;
 
 	/**
 	 * The context used when evaluating the {@link IterativeCondition condition}.
 	 */
-	public interface Context<T> extends Serializable {
+	interface Context<T> extends Serializable {
 
 		/**
 		 * @return An {@link Iterable} over the already accepted elements

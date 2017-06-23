@@ -24,7 +24,7 @@ package org.apache.flink.cep.pattern.conditions;
  *
  * @param <T> Type of the element to filter
  */
-public class NotCondition<T> extends IterativeCondition<T> {
+public class NotCondition<T> implements IterativeCondition<T> {
 	private static final long serialVersionUID = -2109562093871155005L;
 
 	private final IterativeCondition<T> original;

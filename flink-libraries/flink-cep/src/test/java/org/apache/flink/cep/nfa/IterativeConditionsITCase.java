@@ -140,7 +140,7 @@ public class IterativeConditionsITCase extends TestLogger {
 		return feedNFA(inputEvents, nfa);
 	}
 
-	private static class MySubeventIterCondition extends IterativeCondition<SubEvent> {
+	private static class MySubeventIterCondition implements IterativeCondition<SubEvent> {
 
 		private static final long serialVersionUID = 6215754202506583964L;
 
@@ -227,7 +227,7 @@ public class IterativeConditionsITCase extends TestLogger {
 		return feedNFA(inputEvents, nfa);
 	}
 
-	private static class MyEventIterCondition extends IterativeCondition<Event> {
+	private static class MyEventIterCondition implements IterativeCondition<Event> {
 
 		private static final long serialVersionUID = 6215754202506583964L;
 

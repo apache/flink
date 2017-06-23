@@ -25,6 +25,7 @@ import org.apache.flink.cep.pattern.Quantifier.Times;
 import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
@@ -137,6 +138,44 @@ public class Pattern<T, F extends T> {
 			this.condition = new AndCondition<>(this.condition, condition);
 		}
 		return this;
+	}
+
+	/**
+	 * Adds a condition that has to be satisfied by an event
+	 * in order to be considered a match. If another condition has already been
+	 * set, the new one is going to be combined with the previous with a
+	 * logical {@code AND}. In other case, this is going to be the only
+	 * condition.
+	 *
+	 * @param condition The condition as an {@link SimpleCondition}.
+	 * @return The pattern with the new condition is set.
+	 */
+	public Pattern<T, F> where(SimpleCondition<F> condition) {
+		return where(new IterativeCondition<F>() {
+			@Override
+			public boolean filter(F value, Context<F> ctx) throws Exception {
+				return condition.filter(value);
+			}
+		});
+	}
+
+	/**
+	 * Adds a condition that has to be satisfied by an event
+	 * in order to be considered a match. If another condition has already been
+	 * set, the new one is going to be combined with the previous with a
+	 * logical {@code OR}. In other case, this is going to be the only
+	 * condition.
+	 *
+	 * @param condition The condition as an {@link SimpleCondition}.
+	 * @return The pattern with the new condition is set.
+	 */
+	public Pattern<T, F> or(SimpleCondition<F> condition) {
+		return or(new IterativeCondition<F>() {
+			@Override
+			public boolean filter(F value, Context<F> ctx) throws Exception {
+				return condition.filter(value);
+			}
+		});
 	}
 
 	/**

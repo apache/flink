@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <T> Type of the element to filter
  */
-public class AndCondition<T> extends IterativeCondition<T> {
+public class AndCondition<T> implements IterativeCondition<T> {
 
 	private static final long serialVersionUID = -2471892317390197319L;
 
