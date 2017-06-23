@@ -32,6 +32,7 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -39,10 +40,17 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.FiniteDuration;
+
+import static org.junit.Assert.fail;
 
 /**
  * The base for the Kafka tests. It brings up:
@@ -209,4 +217,80 @@ public abstract class KafkaTestBase extends TestLogger {
 		kafkaServer.deleteTestTopic(topic);
 	}
 
+	/**
+	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
+	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
+	 */
+	protected void assertAtLeastOnceForTopic(
+			Properties properties,
+			String topic,
+			int partition,
+			Set<Integer> expectedElements,
+			long timeoutMillis) throws Exception {
+
+		long startMillis = System.currentTimeMillis();
+		Set<Integer> actualElements = new HashSet<>();
+
+		// until we timeout...
+		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
+			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+
+			// query kafka for new records ...
+			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
+
+			for (ConsumerRecord<Integer, Integer> record : records) {
+				actualElements.add(record.value());
+			}
+
+			// succeed if we got all expectedElements
+			if (actualElements.containsAll(expectedElements)) {
+				return;
+			}
+		}
+
+		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
+	}
+
+	/**
+	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
+	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
+	 */
+	protected void assertExactlyOnceForTopic(
+			Properties properties,
+			String topic,
+			int partition,
+			List<Integer> expectedElements,
+			long timeoutMillis) throws Exception {
+
+		long startMillis = System.currentTimeMillis();
+		List<Integer> actualElements = new ArrayList<>();
+
+		Properties consumerProperties = new Properties();
+		consumerProperties.putAll(properties);
+		consumerProperties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+		consumerProperties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+		consumerProperties.put("isolation.level", "read_committed");
+
+		// until we timeout...
+		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
+			// query kafka for new records ...
+			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(consumerProperties, topic, partition, 1000);
+
+			for (ConsumerRecord<Integer, Integer> record : records) {
+				actualElements.add(record.value());
+			}
+
+			// succeed if we got all expectedElements
+			if (actualElements.equals(expectedElements)) {
+				return;
+			}
+			// fail early if we already have too many elements
+			if (actualElements.size() > expectedElements.size()) {
+				break;
+			}
+		}
+
+		fail(String.format("Expected number of elements: <%s>, but was: <%s>", expectedElements.size(), actualElements.size()));
+	}
 }
