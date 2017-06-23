@@ -131,9 +131,10 @@ public class BlobServerGetTest extends TestLogger {
 			// issue a GET request that succeeds
 			InputStream is = client.get(key);
 
-			byte[] receiveBuffer = new byte[50000];
-			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
-			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
+			byte[] receiveBuffer = new byte[data.length];
+			int firstChunkLen = 50000;
+			BlobUtils.readFully(is, receiveBuffer, 0, firstChunkLen, null);
+			BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
 
 			// shut down the server
 			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
@@ -141,10 +142,10 @@ public class BlobServerGetTest extends TestLogger {
 			}
 
 			try {
-				byte[] remainder = new byte[data.length - 2*receiveBuffer.length];
-				BlobUtils.readFully(is, remainder, 0, remainder.length, null);
+				BlobUtils.readFully(is, receiveBuffer, 2 * firstChunkLen, data.length - 2 * firstChunkLen, null);
 				// we tolerate that this succeeds, as the receiver socket may have buffered
-				// everything already
+				// everything already, but in this case, also verify the contents
+				assertArrayEquals(data, receiveBuffer);
 			}
 			catch (IOException e) {
 				// expected

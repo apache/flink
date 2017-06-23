@@ -35,6 +35,7 @@ import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -135,19 +136,21 @@ public class BlobClientTest {
 	 *         thrown if an I/O error occurs while reading the input stream
 	 */
 	private static void validateGet(final InputStream inputStream, final byte[] buf) throws IOException {
+		byte[] receivedBuffer = new byte[buf.length];
 
 		int bytesReceived = 0;
 
 		while (true) {
 
-			final int read = inputStream.read(buf, bytesReceived, buf.length - bytesReceived);
+			final int read = inputStream.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
 			if (read < 0) {
 				throw new EOFException();
 			}
 			bytesReceived += read;
 
-			if (bytesReceived == buf.length) {
+			if (bytesReceived == receivedBuffer.length) {
 				assertEquals(-1, inputStream.read());
+				assertArrayEquals(buf, receivedBuffer);
 				return;
 			}
 		}
