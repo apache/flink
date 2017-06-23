@@ -141,7 +141,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
         Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 2))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
 
     testHarness.close()
   }
@@ -267,7 +267,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 11005))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
 
     testHarness.close()
   }
@@ -371,7 +371,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 5003))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
     testHarness.close()
   }
 
@@ -539,7 +539,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
         Row.of(3: JInt, 0L: JLong, 0: JInt, "ccc", 3L: JLong, 3L: JLong, 3L: JLong), true), 20011))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
     testHarness.close()
   }
 
@@ -700,7 +700,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
         Row.of(3: JInt, 0L: JLong, 0: JInt, "ccc", 3L: JLong, 3L: JLong, 3L: JLong), true), 20011))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
     testHarness.close()
   }
 
@@ -851,7 +851,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
         Row.of(2: JInt, 0L: JLong, 0: JInt, "ccc", 2L: JLong, 1L: JLong, 2L: JLong), true), 20002))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
     testHarness.close()
   }
 
@@ -998,7 +998,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(
         Row.of(2: JInt, 0L: JLong, 0: JInt, "ccc", 2L: JLong, 1L: JLong, 2L: JLong), true), 20002))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
     testHarness.close()
   }
 }

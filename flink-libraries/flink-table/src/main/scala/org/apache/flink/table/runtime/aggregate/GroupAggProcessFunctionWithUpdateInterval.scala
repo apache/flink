@@ -52,7 +52,6 @@ with Compiler[GeneratedAggregations] {
   protected val LOG: Logger = LoggerFactory.getLogger(this.getClass)
   protected var function: GeneratedAggregations = _
 
-  private var emitRow: Row = _
   protected var newRow: CRow = _
   protected var prevRow: CRow = _
 
@@ -64,10 +63,10 @@ with Compiler[GeneratedAggregations] {
   // counts the number of added and retracted input records
   protected var cntState: ValueState[JLong] = _
 
-  // stores the last emit row
-  private var preEmitState: ValueState[Row] = _
+  // stores the input for group keys
+  private var inputState: ValueState[Row] = _
 
-  // stores the current emit row
+  // stores the last emit row
   private var emitState: ValueState[Row] = _
 
   // stores the emit time
@@ -76,7 +75,7 @@ with Compiler[GeneratedAggregations] {
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name}\n\n" +
-                s"Code:\n${genAggregations.code}")
+      s"Code:\n${genAggregations.code}")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
@@ -84,7 +83,6 @@ with Compiler[GeneratedAggregations] {
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    emitRow = function.createOutputRow
     newRow = new CRow(function.createOutputRow, true)
     prevRow = new CRow(function.createOutputRow, false)
     typeSerializer = outputRowType.createSerializer(new ExecutionConfig())
@@ -93,8 +91,8 @@ with Compiler[GeneratedAggregations] {
       new ValueStateDescriptor[Row]("GroupAggregateState", aggregationStateType))
     cntState = getRuntimeContext.getState(
       new ValueStateDescriptor[JLong]("GroupAggregateInputCounter", Types.LONG))
-    preEmitState = getRuntimeContext.getState(
-      new ValueStateDescriptor[Row]("GroupAggregatePreEmitState", outputRowType))
+    inputState = getRuntimeContext.getState(
+      new ValueStateDescriptor[Row]("GroupAggregatePreEmitState", classOf[Row]))
     emitState = getRuntimeContext.getState(
       new ValueStateDescriptor[Row]("GroupAggregateEmitState", outputRowType))
     emitTimerState = getRuntimeContext.getState(
@@ -120,6 +118,7 @@ with Compiler[GeneratedAggregations] {
 
     if (null == accumulators) {
       accumulators = function.createAccumulators()
+      inputState.update(input)
       inputCnt = 0L
     }
 
@@ -143,25 +142,9 @@ with Compiler[GeneratedAggregations] {
       triggerTimer = 0L
     }
 
-    if (0 == triggerTimer || currentTime >= triggerTimer) {
+    if (currentTime >= triggerTimer) {
 
-      // set group keys value to the final output
-      function.setForwardedFields(input, emitRow)
-      // set previous aggregate result to the prevRow
-      function.setAggregationResults(accumulators, emitRow)
-      // store emit row
-      emitState.update(typeSerializer.copy(emitRow))
-
-      // emit the first row for each key
-      if (0 == triggerTimer) {
-        ctx.timerService().registerProcessingTimeTimer(currentTime)
-      }
-
-      val newTimer = if (currentTime > triggerTimer) {
-        currentTime + queryConfig.getUnboundedAggregateUpdateInterval
-      } else {
-        triggerTimer + queryConfig.getUnboundedAggregateUpdateInterval
-      }
+      val newTimer = currentTime + queryConfig.getUnboundedAggregateUpdateInterval
 
       emitTimerState.update(newTimer)
 
@@ -176,10 +159,16 @@ with Compiler[GeneratedAggregations] {
       out: Collector[CRow]): Unit = {
 
     if (needToCleanupState(timestamp)) {
-      cleanupState(state, cntState, preEmitState, emitTimerState, emitState)
+      cleanupState(state, cntState, inputState, emitTimerState, emitState)
     } else {
-      newRow.row = emitState.value
-      val preEmit = preEmitState.value
+      val accumulators = state.value()
+      val input = inputState.value
+      val preEmit = emitState.value()
+
+      // set group keys value to the final output
+      function.setForwardedFields(input, newRow.row)
+      // set previous aggregate result to the prevRow
+      function.setAggregationResults(accumulators, newRow.row)
 
       if (null != preEmit) {
         prevRow.row = preEmit
@@ -197,8 +186,8 @@ with Compiler[GeneratedAggregations] {
           }
           // emit the new result
           out.collect(newRow)
-          // update preState
-          preEmitState.update(typeSerializer.copy(newRow.row))
+          // update emit row
+          emitState.update(typeSerializer.copy(newRow.row))
         } else {
           if (null != preEmit) {
             // we retracted the last record for this key
@@ -207,7 +196,7 @@ with Compiler[GeneratedAggregations] {
           }
 
           // and clear all state
-          cleanupState(state, cntState, preEmitState, emitTimerState, emitState)
+          cleanupState(state, cntState, inputState, emitTimerState, emitState)
         }
       }
     }

@@ -308,6 +308,22 @@ class HarnessTestBase {
   def verify(
     expected: JQueue[Object],
     actual: JQueue[Object],
+    checkWaterMark: Boolean = false): Unit = {
+    if (!checkWaterMark) {
+      val it = actual.iterator()
+      while (it.hasNext) {
+        val data = it.next()
+        if (data.isInstanceOf[Watermark]) {
+          actual.remove(data)
+        }
+      }
+    }
+    TestHarnessUtil.assertOutputEquals("Verify Error...", expected, actual)
+  }
+
+  def verifySorted(
+    expected: JQueue[Object],
+    actual: JQueue[Object],
     comparator: Comparator[Object],
     checkWaterMark: Boolean = false): Unit = {
     if (!checkWaterMark) {
@@ -328,7 +344,7 @@ object HarnessTestBase {
   /**
     * Return 0 for equal Rows and non zero for different rows
     */
-  class RowResultSortComparator(indexCounter: Int) extends Comparator[Object] with Serializable {
+  class RowResultSortComparator extends Comparator[Object] with Serializable {
 
     override def compare(o1: Object, o2: Object): Int = {
 

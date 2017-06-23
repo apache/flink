@@ -91,7 +91,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, "aaa", 18: JInt), true), 1))
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 3: JInt), true), 1))
 
-    verify(expectedOutput, result, new RowResultSortComparator(0))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
 
     testHarness.close()
   }
@@ -144,15 +144,15 @@ class NonWindowHarnessTest extends HarnessTestBase {
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 1: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 1: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(5L: JLong, "aaa", 10: JInt), true), 2002))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(6L: JLong, "bbb", 3: JInt), true), 2002))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(7L: JLong, "aaa", 15: JInt), true), 5001))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, "aaa", 7: JInt), true), 10003))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 3: JInt), true), 10003))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 6: JInt), true), 1001))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 1: JInt), true), 1001))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 10: JInt), true), 2002))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 3: JInt), true), 2002))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 21: JInt), true), 5001))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, "aaa", 7: JInt), true), 11003))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 3: JInt), true), 11003))
 
-    verify(expectedOutput, result, new RowResultSortComparator(0))
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -211,7 +211,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 2: JInt), false), 10))
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 5: JInt), true), 10))
 
-    verify(expectedOutput, result, new RowResultSortComparator(0))
+    verifySorted(expectedOutput, result, new RowResultSortComparator)
 
     testHarness.close()
   }
@@ -261,18 +261,18 @@ class NonWindowHarnessTest extends HarnessTestBase {
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 1: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 1: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(4L: JLong, "ccc", 3: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 1: JInt), false), 4002))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(5L: JLong, "aaa", 7: JInt), true), 4002))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 3: JInt), true), 1001))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 1: JInt), true), 1001))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(4L: JLong, "ccc", 3: JInt), true), 1001))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 3: JInt), false), 4002))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(1L: JLong, "aaa", 12: JInt), true), 4002))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(8L: JLong, "eee", 6: JInt), true), 4002))
     expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 1: JInt), false), 4002))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(6L: JLong, "bbb", 3: JInt), true), 4002))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(8L: JLong, "eee", 6: JInt), true), 3002))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, "aaa", 7: JInt), true), 8003))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 3: JInt), true), 8003))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, "bbb", 3: JInt), true), 4002))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, "aaa", 7: JInt), true), 9003))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, "bbb", 3: JInt), true), 9003))
 
-    verify(expectedOutput, result, new RowResultSortComparator(0))
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
