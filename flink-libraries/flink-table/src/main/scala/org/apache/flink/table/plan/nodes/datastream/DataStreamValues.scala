@@ -25,7 +25,7 @@ import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.InputFormatCodeGenerator
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.io.CRowValuesInputFormat
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -63,7 +63,7 @@ class DataStreamValues(
     val config = tableEnv.getConfig
 
     val returnType = CRowTypeInfo(schema.physicalTypeInfo)
-    val generator = new CodeGenerator(config)
+    val generator = new InputFormatCodeGenerator(config)
 
     // generate code for every record
     val generatedRecords = getTuples.asScala.map { r =>

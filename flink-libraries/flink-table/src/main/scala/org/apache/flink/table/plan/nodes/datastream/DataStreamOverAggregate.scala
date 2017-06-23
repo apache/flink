@@ -32,7 +32,7 @@ import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.api.java.functions.NullByteKeySelector
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -131,7 +131,7 @@ class DataStreamOverAggregate(
         "excessive state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val generator = new CodeGenerator(
+    val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
       inputSchema.physicalTypeInfo)
@@ -200,7 +200,7 @@ class DataStreamOverAggregate(
 
   def createUnboundedAndCurrentRowOverWindow(
     queryConfig: StreamQueryConfig,
-    generator: CodeGenerator,
+    generator: AggregationCodeGenerator,
     inputDS: DataStream[CRow],
     isRowTimeType: Boolean,
     isRowsClause: Boolean): DataStream[CRow] = {
@@ -252,7 +252,7 @@ class DataStreamOverAggregate(
 
   def createBoundedAndCurrentRowOverWindow(
     queryConfig: StreamQueryConfig,
-    generator: CodeGenerator,
+    generator: AggregationCodeGenerator,
     inputDS: DataStream[CRow],
     isRowTimeType: Boolean,
     isRowsClause: Boolean): DataStream[CRow] = {

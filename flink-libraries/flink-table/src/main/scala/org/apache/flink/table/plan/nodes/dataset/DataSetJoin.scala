@@ -30,7 +30,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.types.Row
 
@@ -158,7 +158,7 @@ class DataSetJoin(
       throw TableException("Null check in TableConfig must be enabled for outer joins.")
     }
 
-    val generator = new CodeGenerator(
+    val generator = new FunctionCodeGenerator(
       config,
       nullCheck,
       leftDataSet.getType,

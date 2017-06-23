@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
 import org.apache.flink.types.Row
 
@@ -129,7 +129,7 @@ class DataSetSingleRowJoin(
       case _ => false
     }    
     
-    val codeGenerator = new CodeGenerator(
+    val codeGenerator = new FunctionCodeGenerator(
       config,
       isOuterJoin,
       inputType1,
