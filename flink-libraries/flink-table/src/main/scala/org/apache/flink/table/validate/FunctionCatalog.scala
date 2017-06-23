@@ -222,6 +222,8 @@ object FunctionCatalog {
     "sign" -> classOf[Sign],
     "round" -> classOf[Round],
     "pi" -> classOf[Pi],
+    "rand" -> classOf[Rand],
+    "randInteger" -> classOf[RandInteger],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -244,18 +246,9 @@ object FunctionCatalog {
     "start" -> classOf[WindowStart],
     "end" -> classOf[WindowEnd],
 
-<<<<<<< HEAD
     // ordering
     "asc" -> classOf[Asc],
     "desc" -> classOf[Desc]
-=======
-    // extensions to support streaming query
-    "rowtime" -> classOf[RowTime],
-    "proctime" -> classOf[ProcTime],
-
-    "rand" -> classOf[Rand],
-    "rand_integer" -> classOf[RandInteger]
->>>>>>> support RAND and RAND_INTEGER on TableAPI, update the documentation
   )
 
   /**
@@ -384,7 +377,6 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
-<<<<<<< HEAD
     SqlStdOperatorTable.SIN,
     SqlStdOperatorTable.COS,
     SqlStdOperatorTable.TAN,
@@ -397,10 +389,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SIGN,
     SqlStdOperatorTable.ROUND,
     SqlStdOperatorTable.PI,
-=======
     SqlStdOperatorTable.RAND,
     SqlStdOperatorTable.RAND_INTEGER,
->>>>>>> [FLINK-6237] [table] support RAND and RAND_INTEGER on SQL
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,
     SqlStdOperatorTable.TUMBLE_START,

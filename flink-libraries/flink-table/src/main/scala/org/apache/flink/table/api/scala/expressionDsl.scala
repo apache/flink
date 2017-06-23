@@ -22,18 +22,11 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-<<<<<<< HEAD
 import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
-=======
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
-import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
-import org.apache.flink.table.expressions._
->>>>>>> support RAND and RAND_INTEGER on TableAPI, update the documentation
 
 import scala.language.implicitConversions
 
@@ -917,7 +910,6 @@ object array {
   }
 }
 
-<<<<<<< HEAD
 /**
   * Returns a value that is closer than any other value to pi.
   */
@@ -928,44 +920,52 @@ object pi {
     */
   def apply(): Expression = {
     Pi()
-=======
+  }
+}
+
+/**
+  * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
+  */
 object rand {
 
-  def apply(expr: Expression*): Expression = {
-    expr.size match {
-      case 0 => new Rand()
-      case 1 => Rand(expr.head)
-      case _ => throw new ValidationException("Invalid arguments for rand([seed]).")
-    }
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
+    */
+  def apply(): Expression = {
+    new Rand()
   }
-}
 
-object rand_integer {
-
-  def apply(expr: Expression*): Expression = {
-    expr.size match {
-      case 1 => new RandInteger(expr.head)
-      case 2 => RandInteger(expr.head, expr(1))
-      case _ =>
-        throw new ValidationException("Invalid arguments for rand_integer([seed, ] bound).")
-    }
-<<<<<<< HEAD
->>>>>>> support RAND and RAND_INTEGER on TableAPI, update the documentation
-=======
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
+    * initial seed. Two rand() functions will return identical sequences of numbers if they
+    * have same initial seed.
+    */
+  def apply(seed: Expression): Expression = {
+    Rand(seed)
   }
 }
 
 /**
-  * Returns a value that is closer than any other value to pi.
+  * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified
+  * value (exclusive).
   */
-object pi {
+object randInteger {
 
   /**
-    * Returns a value that is closer than any other value to pi.
+    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified
+    * value (exclusive).
     */
-  def apply(): Expression = {
-    Pi()
->>>>>>> fix merging error
+  def apply(bound: Expression): Expression = {
+   new RandInteger(bound)
+  }
+
+  /**
+    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+    * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
+    * of numbers if they have same initial seed and same bound.
+    */
+  def apply(seed: Expression, bound: Expression): Expression = {
+    RandInteger(seed, bound)
   }
 }
 
