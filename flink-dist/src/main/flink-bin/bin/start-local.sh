@@ -19,10 +19,11 @@
 
 STREAMING_MODE=$1
 
+echo "Warning: this file is deprecated and will be removed in 1.5."
+
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-# local mode, only bring up job manager. The job manager will start an internal task manager
-"$FLINK_BIN_DIR"/jobmanager.sh start local
+"$FLINK_BIN_DIR"/start-cluster.sh
