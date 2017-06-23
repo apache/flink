@@ -25,6 +25,7 @@ import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -40,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The BLOB cache implements a local cache for content-addressable BLOBs.
  *
- * <p>When requesting BLOBs through the {@link BlobCache#getFile(JobID, BlobKey)} method, the
+ * <p>When requesting BLOBs through the {@link BlobCache#getFile} methods, the
  * BLOB cache will first attempt to serve the file from its local cache. Only if
  * the local cache does not contain the desired BLOB, the BLOB cache will try to
  * download it from a distributed file system (if available) or the BLOB
@@ -112,6 +113,47 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
+	 * Returns local copy of the (job-unrelated) file for the BLOB with the given key.
+	 * <p>
+	 * The method will first attempt to serve the BLOB from its local cache. If the BLOB is not in
+	 * the cache, the method will try to download it from this cache's BLOB server.
+	 *
+	 * @param key
+	 * 		The key of the desired BLOB.
+	 *
+	 * @return file referring to the local storage location of the BLOB.
+	 *
+	 * @throws IOException
+	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
+	 */
+	@Override
+	public File getFile(BlobKey key) throws IOException {
+		return getFileInternal(null, key);
+	}
+
+	/**
+	 * Returns local copy of the file for the BLOB with the given key.
+	 * <p>
+	 * The method will first attempt to serve the BLOB from its local cache. If the BLOB is not in
+	 * the cache, the method will try to download it from this cache's BLOB server.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param key
+	 * 		The key of the desired BLOB.
+	 *
+	 * @return file referring to the local storage location of the BLOB.
+	 *
+	 * @throws IOException
+	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
+	 */
+	@Override
+	public File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException {
+		checkNotNull(jobId);
+		return getFileInternal(jobId, key);
+	}
+
+	/**
 	 * Returns local copy of the file for the BLOB with the given key.
 	 * <p>
 	 * The method will first attempt to serve the BLOB from its local cache. If the BLOB is not in
@@ -127,8 +169,7 @@ public final class BlobCache implements BlobService {
 	 * @throws IOException
 	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
-	@Override
-	public File getFile(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
+	private File getFileInternal(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localJarFile = BlobUtils.getStorageLocation(storageDir, jobId, requiredBlob);
@@ -157,7 +198,7 @@ public final class BlobCache implements BlobService {
 		while (true) {
 			try (
 				final BlobClient bc = new BlobClient(serverAddress, blobClientConfig);
-				final InputStream is = bc.get(jobId, requiredBlob);
+				final InputStream is = bc.getInternal(jobId, requiredBlob);
 				final OutputStream os = new FileOutputStream(localJarFile)
 			) {
 				while (true) {
@@ -194,7 +235,36 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
-	 * This method deletes the file associated with the blob key in this BLOB cache.
+	 * Deletes the (job-unrelated) file associated with the blob key in this BLOB cache.
+	 *
+	 * @param key
+	 * 		blob key associated with the file to be deleted
+	 *
+	 * @throws IOException
+	 */
+	@Override
+	public void delete(BlobKey key) throws IOException {
+		deleteInternal(null, key);
+	}
+
+	/**
+	 * Deletes the file associated with the blob key in this BLOB cache.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param key
+	 * 		blob key associated with the file to be deleted
+	 *
+	 * @throws IOException
+	 */
+	@Override
+	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+		checkNotNull(jobId);
+		deleteInternal(jobId, key);
+	}
+
+	/**
+	 * Deletes the file associated with the blob key in this BLOB cache.
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
@@ -203,12 +273,43 @@ public final class BlobCache implements BlobService {
 	 *
 	 * @throws IOException
 	 */
-	@Override
-	public void delete(@Nullable JobID jobId, BlobKey key) throws IOException{
+	private void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException{
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
 		if (!localFile.delete() && localFile.exists()) {
 			LOG.warn("Failed to delete locally cached BLOB {} at {}", key, localFile.getAbsolutePath());
 		}
+	}
+
+	/**
+	 * Deletes the (job-unrelated) file associated with the given key from the BLOB cache and
+	 * BLOB server.
+	 *
+	 * @param key
+	 * 		referring to the file to be deleted
+	 *
+	 * @throws IOException
+	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
+	 * 		BLOB server cannot delete the file
+	 */
+	public void deleteGlobal(BlobKey key) throws IOException {
+		deleteGlobalInternal(null, key);
+	}
+
+	/**
+	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param key
+	 * 		referring to the file to be deleted
+	 *
+	 * @throws IOException
+	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
+	 * 		BLOB server cannot delete the file
+	 */
+	public void deleteGlobal(@Nonnull JobID jobId, BlobKey key) throws IOException {
+		checkNotNull(jobId);
+		deleteGlobalInternal(jobId, key);
 	}
 
 	/**
@@ -224,14 +325,14 @@ public final class BlobCache implements BlobService {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void deleteGlobal(@Nullable JobID jobId, BlobKey key) throws IOException {
+	private void deleteGlobalInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
 		// delete locally
-		delete(jobId, key);
+		deleteInternal(jobId, key);
 		// then delete on the BLOB server
 		// (don't use the distributed storage directly - this way the blob
 		// server is aware of the delete operation, too)
 		try (BlobClient bc = createClient()) {
-			bc.delete(jobId, key);
+			bc.deleteInternal(jobId, key);
 		}
 	}
 

@@ -29,6 +29,7 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -336,7 +337,50 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Method which retrieves the local path of a file associated with a job and a blob key.
+	 * Retrieves the local path of a (job-unrelated) file associated with a job and a blob key.
+	 * <p>
+	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
+	 * or a {@link FileNotFoundException} is thrown.
+	 *
+	 * @param key
+	 * 		blob key associated with the requested file
+	 *
+	 * @return file referring to the local storage location of the BLOB
+	 *
+	 * @throws IOException
+	 * 		Thrown if the file retrieval failed.
+	 */
+	@Override
+	public File getFile(BlobKey key) throws IOException {
+		return getFileInternal(null, key);
+	}
+
+	/**
+	 * Retrieves the local path of a file associated with a job and a blob key.
+	 * <p>
+	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
+	 * or a {@link FileNotFoundException} is thrown.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param key
+	 * 		blob key associated with the requested file
+	 *
+	 * @return file referring to the local storage location of the BLOB
+	 *
+	 * @throws IOException
+	 * 		Thrown if the file retrieval failed.
+	 */
+	@Override
+	public File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException {
+		checkNotNull(jobId);
+		return getFileInternal(jobId, key);
+	}
+
+	/**
+	 * Retrieves the local path of a file associated with a job and a blob key.
 	 * <p>
 	 * The blob server looks the blob key up in its local storage. If the file exists, it is
 	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
@@ -352,8 +396,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * @throws IOException
 	 * 		Thrown if the file retrieval failed.
 	 */
-	@Override
-	public File getFile(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
+	private File getFileInternal(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, requiredBlob);
@@ -382,8 +425,39 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * This method deletes the file associated with the blob key in both the local storage as well
-	 * as in the HA store of the blob server.
+	 * Deletes the (job-unrelated) file associated with the blob key in both the local storage as
+	 * well as in the HA store of the blob server.
+	 *
+	 * @param key
+	 * 		blob key associated with the file to be deleted
+	 *
+	 * @throws IOException
+	 */
+	@Override
+	public void delete(BlobKey key) throws IOException {
+		deleteInternal(null, key);
+	}
+
+	/**
+	 * Deletes the file associated with the blob key in both the local storage as well as in the HA
+	 * store of the blob server.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param key
+	 * 		blob key associated with the file to be deleted
+	 *
+	 * @throws IOException
+	 */
+	@Override
+	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+		checkNotNull(jobId);
+		deleteInternal(jobId, key);
+	}
+
+	/**
+	 * Deletes the file associated with the blob key in both the local storage as well as in the HA
+	 * store of the blob server.
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
@@ -392,8 +466,7 @@ public class BlobServer extends Thread implements BlobService {
 	 *
 	 * @throws IOException
 	 */
-	@Override
-	public void delete(@Nullable JobID jobId, BlobKey key) throws IOException {
+	void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
 
 		readWriteLock.writeLock().lock();

@@ -47,6 +47,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobServerGetTest.getFileHelper;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -246,7 +247,7 @@ public class BlobServerPutTest extends TestLogger {
 
 		try {
 			// one get request on the same client
-			is1 = client.get(jobId, key2);
+			is1 = getFileHelper(client, jobId, key2);
 			byte[] result1 = new byte[44];
 			BlobUtils.readFully(is1, result1, 0, result1.length, null);
 			is1.close();
@@ -259,7 +260,7 @@ public class BlobServerPutTest extends TestLogger {
 			client.close();
 			client = new BlobClient(serverAddress, config);
 
-			is2 = client.get(jobId, key1);
+			is2 = getFileHelper(client, jobId, key1);
 			BlobClientTest.validateGet(is2, data);
 			is2.close();
 		} finally {
@@ -301,7 +302,12 @@ public class BlobServerPutTest extends TestLogger {
 
 			// put content addressable (like libraries)
 			{
-				BlobKey key1 = client.put(jobId, new ByteArrayInputStream(data));
+				BlobKey key1;
+				if (jobId == null) {
+					key1 = client.put(new ByteArrayInputStream(data));
+				} else {
+					key1 = client.put(jobId, new ByteArrayInputStream(data));
+				}
 				assertNotNull(key1);
 			}
 		} finally {
@@ -346,7 +352,12 @@ public class BlobServerPutTest extends TestLogger {
 
 			// put content addressable (like libraries)
 			{
-				BlobKey key1 = client.put(jobId, new ChunkedInputStream(data, 19));
+				BlobKey key1;
+				if (jobId == null) {
+					key1 = client.put(new ChunkedInputStream(data, 19));
+				} else {
+					key1 = client.put(jobId, new ChunkedInputStream(data, 19));
+				}
 				assertNotNull(key1);
 			}
 		} finally {
@@ -470,7 +481,13 @@ public class BlobServerPutTest extends TestLogger {
 					@Override
 					public BlobKey call() throws Exception {
 						try (BlobClient blobClient = blobServer.createClient()) {
-							return blobClient.put(jobId, new BlockingInputStream(countDownLatch, data));
+							if (jobId == null) {
+								return blobClient
+									.put(new BlockingInputStream(countDownLatch, data));
+							} else {
+								return blobClient
+									.put(jobId, new BlockingInputStream(countDownLatch, data));
+							}
 						}
 					}
 				}, executor);

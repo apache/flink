@@ -179,7 +179,11 @@ public class BlobCacheSuccessTest {
 			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
 
 			for (BlobKey blobKey : blobKeys) {
-				blobCache.getFile(jobId, blobKey);
+				if (jobId == null) {
+					blobCache.getFile(blobKey);
+				} else {
+					blobCache.getFile(jobId, blobKey);
+				}
 			}
 
 			if (blobServer != null) {
@@ -191,7 +195,11 @@ public class BlobCacheSuccessTest {
 			final File[] files = new File[blobKeys.size()];
 
 			for(int i = 0; i < blobKeys.size(); i++){
-				files[i] = blobCache.getFile(jobId, blobKeys.get(i));
+				if (jobId == null) {
+					files[i] = blobCache.getFile(blobKeys.get(i));
+				} else {
+					files[i] = blobCache.getFile(jobId, blobKeys.get(i));
+				}
 			}
 
 			// Verify the result

@@ -145,7 +145,7 @@ public class JobSubmitTest {
 				key2 = bc.put(jobId, new byte[10]);
 
 				// delete one of the blobs to make sure that the startup failed
-				bc.delete(jobId, key2);
+				bc.delete(key2);
 			}
 			finally {
 				bc.close();

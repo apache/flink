@@ -841,7 +841,7 @@ class TaskManager(
           val fis = new FileInputStream(file);
           Future {
             val client: BlobClient = blobService.get.createClient()
-            client.put(null, fis);
+            client.put(fis);
           }(context.dispatcher)
             .onComplete {
               case scala.util.Success(value) =>

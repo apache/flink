@@ -96,12 +96,12 @@ public class BlobServerDeleteTest extends TestLogger {
 			assertEquals(key1, key1b);
 
 			// issue a DELETE request via the client
-			client.delete(null, key1);
+			client.delete(key1);
 			client.close();
 
 			client = new BlobClient(serverAddress, config);
 			try {
-				client.get(null, key1);
+				client.get(key1);
 				fail("BLOB should have been deleted");
 			}
 			catch (IOException e) {
@@ -120,9 +120,9 @@ public class BlobServerDeleteTest extends TestLogger {
 			}
 
 			// delete a file directly on the server
-			server.delete(null, key2);
+			server.delete(key2);
 			try {
-				server.getFile(null, key2);
+				server.getFile(key2);
 				fail("BLOB should have been deleted");
 			}
 			catch (IOException e) {
@@ -186,14 +186,18 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			// issue a DELETE request via the client
 			try {
-				client.delete(jobId, key);
+				deleteHelper(client, jobId, key);
 			}
 			catch (IOException e) {
 				fail("DELETE operation should not fail if file is already deleted");
 			}
 
 			// issue a DELETE request on the server
-			server.delete(jobId, key);
+			if (jobId == null) {
+				server.delete(key);
+			} else {
+				server.delete(jobId, key);
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -201,6 +205,14 @@ public class BlobServerDeleteTest extends TestLogger {
 		}
 		finally {
 			cleanup(server, client);
+		}
+	}
+
+	private static void deleteHelper(BlobClient client, JobID jobId, BlobKey key) throws IOException {
+		if (jobId == null) {
+			client.delete(key);
+		} else {
+			client.delete(jobId, key);
 		}
 	}
 
@@ -246,13 +258,21 @@ public class BlobServerDeleteTest extends TestLogger {
 			assertTrue(directory.setWritable(false, false));
 
 			// issue a DELETE request via the client
-			client.delete(jobId, key);
+			deleteHelper(client, jobId, key);
 
 			// issue a DELETE request on the server
-			server.delete(jobId, key);
+			if (jobId == null) {
+				server.delete(key);
+			} else {
+				server.delete(jobId, key);
+			}
 
 			// the file should still be there
-			server.getFile(jobId, key);
+			if (jobId == null) {
+				server.getFile(key);
+			} else {
+				server.getFile(jobId, key);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
@@ -325,7 +345,7 @@ public class BlobServerDeleteTest extends TestLogger {
 					@Override
 					public Void call() throws Exception {
 						try (BlobClient blobClient = blobServer.createClient()) {
-							blobClient.delete(jobId, blobKey);
+							deleteHelper(blobClient, jobId, blobKey);
 						}
 
 						return null;

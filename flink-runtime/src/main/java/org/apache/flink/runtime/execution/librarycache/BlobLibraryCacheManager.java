@@ -229,7 +229,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 				
 				try {
 					if (references <= 0) {
-						blobService.delete(null, key);
+						blobService.delete(key);
 						entryIter.remove();
 					}
 				} catch (Throwable t) {
@@ -254,7 +254,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		// it is important that we fetch the URL before increasing the counter.
 		// in case the URL cannot be created (failed to fetch the BLOB), we have no stale counter
 		try {
-			URL url = blobService.getFile(null, key).toURI().toURL();
+			URL url = blobService.getFile(key).toURI().toURL();
 
 			Integer references = blobKeyReferenceCounters.get(key);
 			int newReferences = references == null ? 1 : references + 1;
