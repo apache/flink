@@ -166,7 +166,7 @@ public class SavepointITCase extends TestLogger {
 			config.setString(CoreOptions.STATE_BACKEND, "filesystem");
 			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
 			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
-			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, savepointRootDir.toURI().toString());
+			config.setString(CoreOptions.SAVEPOINT_DIRECTORY, savepointRootDir.toURI().toString());
 
 			// Start Flink
 			flink = new TestingCluster(config);
@@ -433,7 +433,7 @@ public class SavepointITCase extends TestLogger {
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
-			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+			config.setString(CoreOptions.SAVEPOINT_DIRECTORY,
 				savepointDir.toURI().toString());
 
 			LOG.info("Flink configuration: " + config + ".");
@@ -503,7 +503,7 @@ public class SavepointITCase extends TestLogger {
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
-			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+			config.setString(CoreOptions.SAVEPOINT_DIRECTORY,
 					savepointDir.toURI().toString());
 
 			LOG.info("Flink configuration: " + config + ".");
@@ -812,7 +812,7 @@ public class SavepointITCase extends TestLogger {
 		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
 				checkpointDir.toURI().toString());
 		config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
-		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+		config.setString(CoreOptions.SAVEPOINT_DIRECTORY,
 				savepointDir.toURI().toString());
 
 		TestingCluster cluster = new TestingCluster(config, false);

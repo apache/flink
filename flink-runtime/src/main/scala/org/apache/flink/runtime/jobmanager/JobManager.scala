@@ -176,11 +176,7 @@ class JobManager(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
   /** The default directory for savepoints. */
-  val defaultSavepointDir: String = ConfigurationUtil.getStringWithDeprecatedKeys(
-    flinkConfiguration,
-    ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
-    null,
-    ConfigConstants.SAVEPOINT_FS_DIRECTORY_KEY)
+  val defaultSavepointDir: String = flinkConfiguration.getString(CoreOptions.SAVEPOINT_DIRECTORY)
 
   /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
@@ -611,7 +607,7 @@ class JobManager(
           sender ! decorateMessage(CancellationFailure(jobId, new IllegalStateException(
             "No savepoint directory configured. You can either specify a directory " +
               "while cancelling via -s :targetDirectory or configure a cluster-wide " +
-              "default via key '" + ConfigConstants.SAVEPOINT_DIRECTORY_KEY + "'.")))
+              "default via key '" + CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.")))
         } else {
           log.info(s"Trying to cancel job $jobId with savepoint to $targetDirectory")
 
@@ -786,13 +782,13 @@ class JobManager(
             val senderRef = sender()
             try {
               val targetDirectory : String = savepointDirectory.getOrElse(
-                flinkConfiguration.getString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, null))
+                flinkConfiguration.getString(CoreOptions.SAVEPOINT_DIRECTORY))
 
               if (targetDirectory == null) {
                 throw new IllegalStateException("No savepoint directory configured. " +
                   "You can either specify a directory when triggering this savepoint or " +
                   "configure a cluster-wide default via key '" +
-                  ConfigConstants.SAVEPOINT_DIRECTORY_KEY + "'.")
+                  CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.")
               }
 
               // Do this async, because checkpoint coordinator operations can
