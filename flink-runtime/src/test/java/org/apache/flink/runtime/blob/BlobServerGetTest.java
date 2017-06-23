@@ -74,7 +74,9 @@ public class BlobServerGetTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -114,7 +116,9 @@ public class BlobServerGetTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -166,9 +170,9 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentGetOperations() throws IOException, ExecutionException, InterruptedException {
-		final Configuration configuration = new Configuration();
 
-		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		final BlobStore blobStore = mock(BlobStore.class);
 
@@ -198,7 +202,7 @@ public class BlobServerGetTest extends TestLogger {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
 				CompletableFuture<InputStream> getOperation = CompletableFuture.supplyAsync(
 					() -> {

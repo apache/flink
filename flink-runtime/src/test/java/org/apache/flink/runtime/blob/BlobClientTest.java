@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.EOFException;
 import java.io.File;
@@ -53,12 +56,18 @@ public class BlobClientTest {
 	/** The blob service (non-ssl) client configuration */
 	static Configuration clientConfig;
 
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	/**
 	 * Starts the BLOB server.
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+
 		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
 
 		clientConfig = new Configuration();
