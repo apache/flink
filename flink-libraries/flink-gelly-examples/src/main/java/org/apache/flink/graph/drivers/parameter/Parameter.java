@@ -40,6 +40,15 @@ public interface Parameter<T> {
 	String getUsage();
 
 	/**
+	 * A hidden parameter is parsed from the command-line configuration but is
+	 * not printed in the usage string. This can be used for power-user options
+	 * not displayed to the general user.
+	 *
+	 * @return whether this parameter should be hidden from standard usage
+	 */
+	boolean isHidden();
+
+	/**
 	 * Read and parse the parameter value from command-line arguments.
 	 *
 	 * @param parameterTool parameter parser

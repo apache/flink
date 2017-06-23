@@ -18,14 +18,17 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
 
+import java.io.PrintStream;
+
 /**
- * A driver for one or more {@link GraphAlgorithm}s and/or
- * {@link GraphAnalytic}s.
+ * A driver for one or more {@link GraphAlgorithm} and/or
+ * {@link GraphAnalytic}.
  *
  * <p>It is preferable to include multiple, overlapping algorithms/analytics in
  * the same driver both for simplicity and since this examples module
@@ -59,8 +62,20 @@ extends Parameterized {
 	 * <p>Drivers are first configured, next planned, and finally the chosen
 	 * output method is called.
 	 *
+	 * <p>A {@code null} value should be returned when the {@link Driver} does
+	 * not execute a {@link GraphAlgorithm} but only executes a
+	 * {@link GraphAnalytic}.
+	 *
 	 * @param graph input graph
 	 * @throws Exception on error
 	 */
-	void plan(Graph<K, VV, EV> graph) throws Exception;
+	DataSet plan(Graph<K, VV, EV> graph) throws Exception;
+
+	/**
+	 * Analytic results are summaries so are always printed to the console
+	 * irrespective of the chosen {@code Output}.
+	 *
+	 * @param out output stream for printing results
+	 */
+	void printAnalytics(PrintStream out);
 }

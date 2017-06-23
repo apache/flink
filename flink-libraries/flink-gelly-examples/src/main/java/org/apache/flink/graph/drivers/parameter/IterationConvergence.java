@@ -53,7 +53,12 @@ implements Parameter<Value> {
 
 	@Override
 	public String getUsage() {
-		return "[--iterations ITERATIONS] [--convergence_threshold CONVERGENCE_THRESHOLD]";
+		return "[--iterations ITERATIONS] [--convergence_threshold CONVERGENCE_THRESHOLD] ";
+	}
+
+	@Override
+	public boolean isHidden() {
+		return false;
 	}
 
 	@Override

@@ -66,6 +66,11 @@ implements Parameter<T> {
 	}
 
 	@Override
+	public boolean isHidden() {
+		return name.startsWith("__");
+	}
+
+	@Override
 	public T getValue() {
 		return value;
 	}
