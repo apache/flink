@@ -530,7 +530,7 @@ public class NFACompiler {
 			);
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
-			firstState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
+			firstState.addProceed(lastSink, BooleanConditions.trueFunction());
 			firstState.addTake(loopingState, takeCondition);
 
 			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
@@ -558,9 +558,11 @@ public class NFACompiler {
 				IterativeCondition<T> untilCondition) {
 			if (untilCondition != null && condition != null) {
 				return new AndCondition<>(new NotCondition<>(untilCondition), condition);
-			} else {
-				return condition;
+			} else if (untilCondition != null) {
+				return new NotCondition<>(untilCondition);
 			}
+
+			return condition;
 		}
 
 		/**

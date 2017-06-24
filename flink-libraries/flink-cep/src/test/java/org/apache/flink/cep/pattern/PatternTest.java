@@ -269,6 +269,12 @@ public class PatternTest extends TestLogger {
 		Pattern.begin("start").where(dummyCondition()).until(dummyCondition());
 	}
 
+	@Test(expected = MalformedPatternException.class)
+	public void testUntilCannotBeAppliedTwice() throws Exception {
+
+		Pattern.begin("start").where(dummyCondition()).until(dummyCondition()).until(dummyCondition());
+	}
+
 	private SimpleCondition<Object> dummyCondition() {
 		return new SimpleCondition<Object>() {
 			private static final long serialVersionUID = -2205071036073867531L;

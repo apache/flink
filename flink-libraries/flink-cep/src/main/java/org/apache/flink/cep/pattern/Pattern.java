@@ -200,6 +200,11 @@ public class Pattern<T, F extends T> {
 	 */
 	public Pattern<T, F> until(IterativeCondition<F> untilCondition) {
 		Preconditions.checkNotNull(untilCondition, "The condition cannot be null");
+
+		if (this.untilCondition != null) {
+			throw new MalformedPatternException("Only one until condition can be applied.");
+		}
+
 		if (!quantifier.hasProperty(Quantifier.QuantifierProperty.LOOPING)) {
 			throw new MalformedPatternException("The until condition is only applicable to looping states.");
 		}

@@ -335,7 +335,7 @@ pattern.where(event => ... /* some condition */).or(event => ... /* or condition
 </div>
 
 
-**Stop condition:** In case of kleene operators (`oneOrMore()` and `oneOrMore().optional()`) you can
+**Stop condition:** In case of looping patterns (`oneOrMore()` and `oneOrMore().optional()`) you can
 also specify a stop condition, e.g. accept events with value larger than 5 until the sum of values is smaller than 50.
 
 To better understand it, have a look at the following example. Given
@@ -427,7 +427,7 @@ pattern.where(new IterativeCondition<Event>() {
               <tr>
                  <td><strong>until(condition)</strong></td>
                  <td>
-                     <p>Specifies a stop condition for kleene operator. Meaning if event matching the given condition occurs, no more
+                     <p>Specifies a stop condition for looping pattern. Meaning if event matching the given condition occurs, no more
                      events will be accepted into the pattern.</p>
                      <p>Applicable only in conjunction with <code>oneOrMore()</code></p>
                      <p><b>NOTE:</b> It allows for cleaning state for corresponding pattern on event-based condition.</p>
@@ -590,7 +590,7 @@ pattern.where(event => ... /* some condition */)
 <tr>
           <td><strong>until(condition)</strong></td>
           <td>
-              <p>Specifies a stop condition for kleene operator. Meaning if event matching the given condition occurs, no more
+              <p>Specifies a stop condition for looping pattern. Meaning if event matching the given condition occurs, no more
               events will be accepted into the pattern.</p>
               <p>Applicable only in conjunction with <code>oneOrMore()</code></p>
               <p><b>NOTE:</b> It allows for cleaning state for corresponding pattern on event-based condition.</p>
