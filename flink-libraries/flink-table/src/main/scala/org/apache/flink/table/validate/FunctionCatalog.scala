@@ -23,7 +23,7 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.sqlFunctions.ScalarSqlFunctions
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
