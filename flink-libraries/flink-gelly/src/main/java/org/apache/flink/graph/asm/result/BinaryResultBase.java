@@ -16,40 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.drivers.parameter;
-
-import org.apache.flink.api.java.utils.ParameterTool;
+package org.apache.flink.graph.asm.result;
 
 /**
- * A {@link Parameter} storing a {@link String}.
+ * Base class for algorithm results for a pair of vertices.
+ *
+ * @param <K> graph ID type
  */
-public class StringParameter
-extends SimpleParameter<String> {
+public abstract class BinaryResultBase<K>
+extends ResultBase
+implements BinaryResult<K> {
 
-	/**
-	 * Set the parameter name and add this parameter to the list of parameters
-	 * stored by owner.
-	 *
-	 * @param owner the {@link Parameterized} using this {@link Parameter}
-	 * @param name the parameter name
-	 */
-	public StringParameter(ParameterizedBase owner, String name) {
-		super(owner, name);
+	private K vertexId0;
+
+	private K vertexId1;
+
+	@Override
+	public K getVertexId0() {
+		return vertexId0;
 	}
 
 	@Override
-	public StringParameter setDefaultValue(String defaultValue) {
-		super.setDefaultValue(defaultValue);
-		return this;
+	public void setVertexId0(K vertexId0) {
+		this.vertexId0 = vertexId0;
 	}
 
 	@Override
-	public void configure(ParameterTool parameterTool) {
-		value = hasDefaultValue ? parameterTool.get(name, defaultValue) : parameterTool.getRequired(name);
+	public K getVertexId1() {
+		return vertexId1;
 	}
 
 	@Override
-	public String toString() {
-		return value;
+	public void setVertexId1(K vertexId1) {
+		this.vertexId1 = vertexId1;
 	}
 }

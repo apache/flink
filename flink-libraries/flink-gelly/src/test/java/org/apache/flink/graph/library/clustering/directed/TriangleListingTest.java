@@ -69,7 +69,7 @@ extends AsmTestBase {
 		assertEquals(expectedCount, results.size());
 
 		for (Result<LongValue> result : results) {
-			assertEquals(0b111111, result.f3.getValue());
+			assertEquals(0b111111, result.getBitmask().getValue());
 		}
 	}
 
@@ -85,6 +85,6 @@ extends AsmTestBase {
 			.execute();
 
 		assertEquals(75049, checksum.getCount());
-		assertEquals(0x00000033111f11baL, checksum.getChecksum());
+		assertEquals(0x000092399c79299eL, checksum.getChecksum());
 	}
 }

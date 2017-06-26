@@ -34,20 +34,17 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
 import org.apache.flink.graph.asm.result.PrintableResult;
-import org.apache.flink.graph.asm.result.TertiaryResult;
+import org.apache.flink.graph.asm.result.TertiaryResultBase;
+import org.apache.flink.graph.library.clustering.TriangleListingBase;
 import org.apache.flink.graph.library.clustering.undirected.TriangleListing.Result;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
-import org.apache.flink.graph.utils.proxy.OptionalBoolean;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
@@ -68,62 +65,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
-
-	// Optional configuration
-	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
-
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Normalize the triangle listing such that for each result (K0, K1, K2)
-	 * the vertex IDs are sorted K0 < K1 < K2.
-	 *
-	 * @param sortTriangleVertices whether to output each triangle's vertices in sorted order
-	 * @return this
-	 */
-	public TriangleListing<K, VV, EV> setSortTriangleVertices(boolean sortTriangleVertices) {
-		this.sortTriangleVertices.set(sortTriangleVertices);
-
-		return this;
-	}
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public TriangleListing<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
-	@Override
-	protected String getAlgorithmName() {
-		return TriangleListing.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (!TriangleListing.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
-
-		TriangleListing rhs = (TriangleListing) other;
-
-		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
-	}
+extends TriangleListingBase<K, VV, EV, Result<K>> {
 
 	/*
 	 * Implementation notes:
@@ -291,8 +233,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFieldsFirst("0; 1; 2")
-	@ForwardedFieldsSecond("0; 1")
+	@ForwardedFieldsFirst("0->vertexId0; 1->vertexId1; 2->vertexId2")
+	@ForwardedFieldsSecond("0->vertexId0; 1->vertexId1")
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Result<T>> {
 		private Result<T> output = new Result<>();
@@ -300,9 +242,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		@Override
 		public Result<T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
 				throws Exception {
-			output.f0 = triplet.f0;
-			output.f1 = triplet.f1;
-			output.f2 = triplet.f2;
+			output.setVertexId0(triplet.f0);
+			output.setVertexId1(triplet.f1);
+			output.setVertexId2(triplet.f2);
 			return output;
 		}
 	}
@@ -319,15 +261,15 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		public Result<T> map(Result<T> value)
 				throws Exception {
 			// by the triangle listing algorithm we know f1 < f2
-			if (value.f0.compareTo(value.f1) > 0) {
-				T tempVal = value.f0;
-				value.f0 = value.f1;
+			if (value.getVertexId0().compareTo(value.getVertexId1()) > 0) {
+				T tempVal = value.getVertexId0();
+				value.setVertexId0(value.getVertexId1());
 
-				if (tempVal.compareTo(value.f2) <= 0) {
-					value.f1 = tempVal;
+				if (tempVal.compareTo(value.getVertexId2()) <= 0) {
+					value.setVertexId1(tempVal);
 				} else {
-					value.f1 = value.f2;
-					value.f2 = tempVal;
+					value.setVertexId1(value.getVertexId2());
+					value.setVertexId2(tempVal);
 				}
 			}
 
@@ -336,52 +278,45 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Wraps {@link Tuple3} to encapsulate results from the undirected Triangle Listing algorithm.
+	 * A result for the undirected Triangle Listing algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple3<T, T, T>
-	implements PrintableResult, TertiaryResult<T> {
+	extends TertiaryResultBase<T>
+	implements PrintableResult {
 		@Override
-		public T getVertexId0() {
-			return f0;
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + getVertexId1()
+				+ "," + getVertexId2()
+				+ ")";
 		}
 
 		@Override
-		public void setVertexId0(T value) {
-			f0 = value;
-		}
-
-		@Override
-		public T getVertexId1() {
-			return f1;
-		}
-
-		@Override
-		public void setVertexId1(T value) {
-			f1 = value;
-		}
-
-		@Override
-		public T getVertexId2() {
-			return f2;
-		}
-
-		@Override
-		public void setVertexId2(T value) {
-			f2 = value;
-		}
-
-		/**
-		 * Format values into a human-readable string.
-		 *
-		 * @return verbose string
-		 */
 		public String toPrintableString() {
 			return "1st vertex ID: " + getVertexId0()
 				+ ", 2nd vertex ID: " + getVertexId1()
 				+ ", 3rd vertex ID: " + getVertexId2();
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0xd39fd1ab;
+
+		private transient MurmurHash hasher;
+
+		@Override
+		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
+			return hasher.reset()
+				.hash(getVertexId0().hashCode())
+				.hash(getVertexId1().hashCode())
+				.hash(getVertexId2().hashCode())
+				.hash();
 		}
 	}
 }

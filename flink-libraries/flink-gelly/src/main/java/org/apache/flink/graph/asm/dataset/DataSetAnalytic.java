@@ -35,14 +35,16 @@ import org.apache.flink.api.java.operators.CustomUnaryOperation;
 public interface DataSetAnalytic<T, R> {
 
 	/**
-	 * This method must be called after the program has executed.
-	 *  1) "run" analytics and algorithms
-	 *  2) call ExecutionEnvironment.execute()
-	 *  3) get analytic results
+	 * All {@code DataSetAnalytic} processing must be terminated by an
+	 * {@link OutputFormat} and obtained via accumulators rather than
+	 * returned by a {@link DataSet}.
 	 *
-	 * @return the result
+	 * @param input input dataset
+	 * @return this
+	 * @throws Exception
 	 */
-	R getResult();
+
+	DataSetAnalytic<T, R> run(DataSet<T> input) throws Exception;
 
 	/**
 	 * Execute the program and return the result.
@@ -62,13 +64,12 @@ public interface DataSetAnalytic<T, R> {
 	R execute(String jobName) throws Exception;
 
 	/**
-	 * All {@code DataSetAnalytic} processing must be terminated by an
-	 * {@link OutputFormat} and obtained via accumulators rather than
-	 * returned by a {@link DataSet}.
+	 * This method must be called after the program has executed.
+	 *  1) "run" analytics and algorithms
+	 *  2) call ExecutionEnvironment.execute()
+	 *  3) get analytic results
 	 *
-	 * @param input input dataset
-	 * @return this
-	 * @throws Exception
+	 * @return the result
 	 */
-	DataSetAnalytic<T, R> run(DataSet<T> input) throws Exception;
+	R getResult();
 }

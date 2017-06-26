@@ -41,11 +41,12 @@ import org.apache.flink.graph.asm.degree.annotate.directed.EdgeSourceDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.asm.result.PrintableResult;
-import org.apache.flink.graph.asm.result.UnaryResult;
+import org.apache.flink.graph.asm.result.UnaryResultBase;
 import org.apache.flink.graph.library.linkanalysis.Functions.SumScore;
 import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
 import org.apache.flink.graph.utils.GraphUtils;
 import org.apache.flink.graph.utils.MurmurHash;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.LongValue;
@@ -143,12 +144,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	@Override
-	protected String getAlgorithmName() {
-		return PageRank.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
 		Preconditions.checkNotNull(other);
 
 		if (!PageRank.class.isAssignableFrom(other.getClass())) {
@@ -483,40 +479,28 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0; 1")
+	@ForwardedFields("0->vertexId0; 1->pageRankScore")
 	private static class TranslateResult<T>
 		implements MapFunction<Tuple2<T, DoubleValue>, Result<T>> {
 		private Result<T> output = new Result<>();
 
 		@Override
 		public Result<T> map(Tuple2<T, DoubleValue> value) throws Exception {
-			output.f0 = value.f0;
-			output.f1 = value.f1;
+			output.setVertexId0(value.f0);
+			output.setPageRankScore(value.f1);
 			return output;
 		}
 	}
 
 	/**
-	 * Wraps the {@link Tuple2} to encapsulate results from the PageRank algorithm.
+	 * A result for the PageRank algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple2<T, DoubleValue>
-	implements PrintableResult, UnaryResult<T> {
-		public static final int HASH_SEED = 0x4010af29;
-
-		private MurmurHash hasher = new MurmurHash(HASH_SEED);
-
-		@Override
-		public T getVertexId0() {
-			return f0;
-		}
-
-		@Override
-		public void setVertexId0(T value) {
-			f0 = value;
-		}
+	extends UnaryResultBase<T>
+	implements PrintableResult {
+		private DoubleValue pageRankScore;
 
 		/**
 		 * Get the PageRank score.
@@ -524,20 +508,46 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return the PageRank score
 		 */
 		public DoubleValue getPageRankScore() {
-			return f1;
+			return pageRankScore;
+		}
+
+		/**
+		 * Set the PageRank score.
+		 *
+		 * @param pageRankScore the PageRank score
+		 */
+		public void setPageRankScore(DoubleValue pageRankScore) {
+			this.pageRankScore = pageRankScore;
+		}
+
+		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + pageRankScore
+				+ ")";
 		}
 
 		@Override
 		public String toPrintableString() {
 			return "Vertex ID: " + getVertexId0()
-				+ ", PageRank score: " + getPageRankScore();
+				+ ", PageRank score: " + pageRankScore;
 		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0x4010af29;
+
+		private transient MurmurHash hasher;
 
 		@Override
 		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
 			return hasher.reset()
-				.hash(f0.hashCode())
-				.hash(f1.getValue())
+				.hash(getVertexId0().hashCode())
+				.hash(pageRankScore.getValue())
 				.hash();
 		}
 	}

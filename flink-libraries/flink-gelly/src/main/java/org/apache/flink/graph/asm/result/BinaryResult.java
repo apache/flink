@@ -18,12 +18,17 @@
 
 package org.apache.flink.graph.asm.result;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * A {@link GraphAlgorithm} result for a pair vertices.
  */
-public interface BinaryResult<T> {
+public interface BinaryResult<T>
+extends Serializable {
 
 	/**
 	 * Get the first vertex ID.
@@ -52,4 +57,25 @@ public interface BinaryResult<T> {
 	 * @param value new vertex ID
 	 */
 	void setVertexId1(T value);
+
+	/**
+	 * Output each input and a second result with the vertex order flipped.
+	 *
+	 * @param <T> ID type
+	 * @param <RT> result type
+	 */
+	class MirrorResult<T, RT extends BinaryResult<T>>
+	implements FlatMapFunction<RT, RT> {
+		@Override
+		public void flatMap(RT value, Collector<RT> out)
+				throws Exception {
+			out.collect(value);
+
+			T tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			out.collect(value);
+		}
+	}
 }

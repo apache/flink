@@ -19,11 +19,9 @@
 package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.Collect;
 import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
-import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -70,9 +68,9 @@ extends AsmTestBase {
 		expectedResults.add(0.18579060129496028);
 		expectedResults.add(0.09091296131286301);
 
-		for (Tuple2<IntValue, DoubleValue> result : pr.collect()) {
-			int id = result.f0.getValue();
-			assertEquals(expectedResults.get(id), result.f1.getValue(), 0.000001);
+		for (Result<IntValue> result : pr.collect()) {
+			int id = result.getVertexId0().getValue();
+			assertEquals(expectedResults.get(id), result.getPageRankScore().getValue(), 0.000001);
 		}
 	}
 
@@ -88,8 +86,8 @@ extends AsmTestBase {
 
 		assertEquals(completeGraphVertexCount, results.size());
 
-		for (Tuple2<LongValue, DoubleValue> result : results) {
-			assertEquals(expectedScore, result.f1.getValue(), 0.000001);
+		for (Result<LongValue> result : results) {
+			assertEquals(expectedScore, result.getPageRankScore().getValue(), 0.000001);
 		}
 	}
 

@@ -102,24 +102,24 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 		BigInteger three = BigInteger.valueOf(3);
 		BigInteger six = BigInteger.valueOf(6);
 
-		BigInteger vertexCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "vc"));
-		BigInteger unidirectionalEdgeCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "uec") / 2);
-		BigInteger bidirectionalEdgeCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "bec") / 2);
-		BigInteger triplet021dCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "021d"));
-		BigInteger triplet021uCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "021u"));
-		BigInteger triplet021cCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "021c"));
-		BigInteger triplet111dCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "111d"));
-		BigInteger triplet111uCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "111u"));
-		BigInteger triplet201Count = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "201"));
+		BigInteger vertexCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "vc"));
+		BigInteger unidirectionalEdgeCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "uec") / 2);
+		BigInteger bidirectionalEdgeCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "bec") / 2);
+		BigInteger triplet021dCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "021d"));
+		BigInteger triplet021uCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "021u"));
+		BigInteger triplet021cCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "021c"));
+		BigInteger triplet111dCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "111d"));
+		BigInteger triplet111uCount = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "111u"));
+		BigInteger triplet201Count = BigInteger.valueOf(vertexDegreesHelper.<Long>getAccumulator(env, "201"));
 
 		// triads with three connecting edges = closed triplet = triangle
-		BigInteger triangle030tCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "030t"));
-		BigInteger triangle030cCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "030c"));
-		BigInteger triangle120dCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "120d"));
-		BigInteger triangle120uCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "120u"));
-		BigInteger triangle120cCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "120c"));
-		BigInteger triangle210Count = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "210"));
-		BigInteger triangle300Count = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "300"));
+		BigInteger triangle030tCount = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "030t"));
+		BigInteger triangle030cCount = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "030c"));
+		BigInteger triangle120dCount = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "120d"));
+		BigInteger triangle120uCount = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "120u"));
+		BigInteger triangle120cCount = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "120c"));
+		BigInteger triangle210Count = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "210"));
+		BigInteger triangle300Count = BigInteger.valueOf(triangleListingHelper.<Long>getAccumulator(env, "300"));
 
 		// triads with two connecting edges = open triplet;
 		// each triangle deducts the count of three triplets
@@ -211,7 +211,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 		@Override
 		public void writeRecord(TriangleListing.Result<T> record) throws IOException {
-			triangleCount[record.f3.getValue()]++;
+			triangleCount[record.getBitmask().getValue()]++;
 		}
 
 		@Override
