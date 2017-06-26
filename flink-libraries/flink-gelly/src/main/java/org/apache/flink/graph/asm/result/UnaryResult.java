@@ -20,10 +20,13 @@ package org.apache.flink.graph.asm.result;
 
 import org.apache.flink.graph.GraphAlgorithm;
 
+import java.io.Serializable;
+
 /**
  * A {@link GraphAlgorithm} result for a single vertex.
  */
-public interface UnaryResult<T> {
+public interface UnaryResult<T>
+extends Serializable {
 
 	/**
 	 * Get the first vertex ID.

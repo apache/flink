@@ -81,6 +81,6 @@ extends AsmTestBase {
 			.execute();
 
 		assertEquals(75049, checksum.getCount());
-		assertEquals(0x00000001a5b500afL, checksum.getChecksum());
+		assertEquals(0x000092826c991dd9L, checksum.getChecksum());
 	}
 }
