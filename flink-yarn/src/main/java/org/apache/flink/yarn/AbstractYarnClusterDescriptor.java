@@ -332,6 +332,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// The number of cores can be configured in the config.
 		// If not configured, it is set to the number of task slots
 		int numYarnVcores = conf.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
+		numYarnVcores = numYarnVcores <= 0 ? YarnConfiguration.DEFAULT_NM_VCORES : numYarnVcores;
 		int configuredVcores = flinkConfiguration.getInteger(ConfigConstants.YARN_VCORES, slots);
 		// don't configure more than the maximum configured number of vcores
 		if (configuredVcores > numYarnVcores) {
