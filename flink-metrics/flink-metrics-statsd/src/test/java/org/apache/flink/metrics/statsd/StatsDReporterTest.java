@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.MetricConfig;
@@ -31,11 +32,14 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
+import com.google.common.base.Joiner;
 
 import org.junit.Test;
 
@@ -44,10 +48,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
@@ -62,10 +68,36 @@ public class StatsDReporterTest extends TestLogger {
 	@Test
 	public void testReplaceInvalidChars() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		StatsDReporter reporter = new StatsDReporter();
+		String triggerWindowName = "TriggerWindow(TumblingProcessingTimeWindows(5000), ReducingStateDescriptor{serializer=org.apache.flink.api.java.typeutils.runtime.PojoSerializer@f3395ffa, reduceFunction=org.apache.flink.streaming.examples.socket.SocketWindowWordCount$1@4201c465}, ProcessingTimeTrigger(), WindowedStream.reduce(WindowedStream.java-301))";
+		String triggerWindowAltInstance = triggerWindowName.replace("@f3395ffa", "@f3395ffb").replace("@4201c465", "@564c1024");
 
 		assertEquals("", reporter.filterCharacters(""));
 		assertEquals("abc", reporter.filterCharacters("abc"));
-		assertEquals("a-b--", reporter.filterCharacters("a:b::"));
+		assertEquals("a_b", reporter.filterCharacters("a:b::"));
+		assertEquals("metric_name", reporter.filterCharacters(" (metric -> name) "));
+		assertEquals("TriggerWin_c2910b88", reporter.filterCharacters(triggerWindowName));
+		assertEquals("TriggerWin_c2910b88", reporter.filterCharacters(triggerWindowAltInstance));
+	}
+
+	@Test
+	public void testShortIds() {
+		// set up a configured reporter:
+		Configuration config = new Configuration();
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.shortids", "true");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + 8125);
+
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+		TaskManagerMetricGroup ignored = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+		StatsDReporter reporter = (StatsDReporter) registry.getReporters().get(0);
+
+		assertEquals("0c3d7952", reporter.filterCharacters("0c3d7952a3c76c029ecf80ef239d475b"));
+		assertEquals("ad25ca60", reporter.filterCharacters("ad25ca6074f1ec1a20030e9b9e11c476"));
+		assertEquals("this_isn_t_an_id_but_same_length", reporter.filterCharacters("this_isn_t_an_id_but_same_length"));
+
+		registry.shutdown();
 	}
 
 	/**
@@ -126,6 +158,254 @@ public class StatsDReporterTest extends TestLogger {
 
 		metricRegistry.shutdown();
 	}
+
+	/**
+	 * Tests that statsd lines are valid.
+	 */
+	@Test
+	public void testIgnoreInvalidValues() throws Exception {
+		MetricRegistry registry = null;
+		DatagramSocketReceiver receiver = null;
+		Thread receiverThread = null;
+		long timeout = 5000;
+		long joinTimeout = 30000;
+
+		try {
+			receiver = new DatagramSocketReceiver();
+
+			receiverThread = new Thread(receiver);
+
+			receiverThread.start();
+
+			int port = receiver.getPort();
+
+			Configuration config = new Configuration();
+			config.setString(MetricOptions.REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+
+			Gauge<Integer> negOne = new Gauge<Integer>() {
+				@Override
+				public Integer getValue() {
+					return -1;
+				}
+			};
+			Gauge <Long> negMin = new Gauge<Long>() {
+				@Override
+				public Long getValue() {
+					return Long.MIN_VALUE;
+				}
+			};
+			Gauge <String> na = new Gauge<String>() {
+				@Override
+				public String getValue() {
+					return "n/a";
+				}
+			};
+			Gauge <Double> nan = new Gauge<Double>() {
+				@Override
+				public Double getValue() {
+					return Double.NaN;
+				}
+			};
+			Gauge <Double> valid = new Gauge<Double>() {
+				@Override
+				public Double getValue() {
+					return 1.23;
+				}
+			};
+
+			// these should be ignored
+			metricGroup.gauge("negOne", negOne);
+			metricGroup.gauge("negMin", negMin);
+			metricGroup.gauge("na", na);
+			metricGroup.gauge("nan", nan);
+
+			// this should be the only received metric
+			metricGroup.gauge("valid", valid);
+
+			receiver.waitUntilNumLines(1, timeout);
+			Set<String> lines = receiver.getLines();
+
+			Set<String> expectedLines = new HashSet<>();
+			expectedLines.add(metricGroup.getMetricIdentifier("valid") + ":1.23|g");
+
+			assertEquals(expectedLines, lines);
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+
+			if (receiver != null) {
+				receiver.stop();
+			}
+
+			if (receiverThread != null) {
+				receiverThread.join(joinTimeout);
+			}
+		}
+	}
+
+	@Test
+	public void testTags() throws Exception {
+		MetricRegistry registry = null;
+		DatagramSocketReceiver receiver = null;
+		Thread receiverThread = null;
+		long timeout = 5000;
+		long joinTimeout = 30000;
+
+		try {
+			receiver = new DatagramSocketReceiver();
+
+			receiverThread = new Thread(receiver);
+
+			receiverThread.start();
+
+			int port = receiver.getPort();
+
+			Configuration config = new Configuration();
+			config.setString(MetricOptions.REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.dogstatsd", "true");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.shortids", "true");
+
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+
+			JobID jobID = new JobID();
+			AbstractID taskId = new AbstractID();
+			AbstractID attemptId = new AbstractID();
+
+			TaskManagerMetricGroup mg = new TaskManagerMetricGroup(registry, "hostName", "taskManagerId");
+			TaskManagerJobMetricGroup jmg = new TaskManagerJobMetricGroup(registry, mg, jobID, "jobName");
+			TaskMetricGroup tmg = new TaskMetricGroup(registry, jmg, taskId, attemptId, "taskName", 1, 2);
+			OperatorMetricGroup omg = new OperatorMetricGroup(registry, tmg, "operatorName");
+
+			Gauge <Double> sample = new Gauge<Double>() {
+				@Override
+				public Double getValue() {
+					return 1.23;
+				}
+			};
+
+			omg.gauge("sample", sample);
+
+			receiver.waitUntilNumLines(22, timeout);
+			Set<String> lines = receiver.getLines();
+
+			Map<String, String> expectedTags = new TreeMap<>();
+			expectedTags.put("host", "hostName");
+			expectedTags.put("job_id", jobID.toString().substring(0, 8));
+			expectedTags.put("job_name", "jobName");
+			expectedTags.put("operator_name", "operatorName");
+			expectedTags.put("subtask_index", "1");
+			expectedTags.put("task_attempt_id", attemptId.toString().substring(0, 8));
+			expectedTags.put("task_attempt_num", "2");
+			expectedTags.put("task_id", taskId.toString().substring(0, 8));
+			expectedTags.put("task_name", "taskName");
+			expectedTags.put("tm_id", "taskManagerId");
+
+			Joiner.MapJoiner joiner = Joiner.on(",").withKeyValueSeparator(":");
+
+			Set<String> expectedLines = new HashSet<>();
+			expectedLines.add(String.format("%s:1.23|g|#%s", omg.getMetricIdentifier("sample"), joiner.join(expectedTags)));
+
+			assertTrue(lines.containsAll(expectedLines));
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+
+			if (receiver != null) {
+				receiver.stop();
+			}
+
+			if (receiverThread != null) {
+				receiverThread.join(joinTimeout);
+			}
+		}
+	}
+
+
+	/**
+	 * Tests that latency is properly reported via the StatsD reporter.
+	 */
+	@Test
+	public void testStatsDLatencyReporting() throws Exception {
+		MetricRegistry registry = null;
+		DatagramSocketReceiver receiver = null;
+		Thread receiverThread = null;
+		long timeout = 5000;
+		long joinTimeout = 30000;
+
+		String latencyName = "latency";
+
+		try {
+			receiver = new DatagramSocketReceiver();
+
+			receiverThread = new Thread(receiver);
+
+			receiverThread.start();
+
+			int port = receiver.getPort();
+
+			Configuration config = new Configuration();
+			config.setString(MetricOptions.REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+
+			TestingLatencyGauge latency = new TestingLatencyGauge();
+
+			metricGroup.gauge(latencyName, latency);
+
+			receiver.waitUntilNumLines(6, timeout);
+
+			Set<String> lines = receiver.getLines();
+
+			String prefix = metricGroup.getMetricIdentifier(latencyName);
+
+			Set<String> expectedLines = new HashSet<>();
+
+			expectedLines.add(prefix + ".min:1.0|g");
+			expectedLines.add(prefix + ".mean:51.0|g");
+			expectedLines.add(prefix + ".p50:50.0|g");
+			expectedLines.add(prefix + ".p95:95.0|g");
+			expectedLines.add(prefix + ".p99:99.0|g");
+			expectedLines.add(prefix + ".max:999.0|g");
+
+			assertEquals(expectedLines, lines);
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+
+			if (receiver != null) {
+				receiver.stop();
+			}
+
+			if (receiverThread != null) {
+				receiverThread.join(joinTimeout);
+			}
+		}
+	}
+
 
 	/**
 	 * Tests that histograms are properly reported via the StatsD reporter.
@@ -276,7 +556,30 @@ public class StatsDReporterTest extends TestLogger {
 		}
 	}
 
-	private static class TestingHistogram implements Histogram {
+	/**
+	 * Imitate a LatencyGauge.
+	 * eg: {LatencySourceDescriptor{vertexID=1, subtaskIndex=-1}={p99=79.0, p50=79.0, min=79.0, max=79.0, p95=79.0, mean=79.0}}
+	 */
+	public static class TestingLatencyGauge implements Gauge<Map<String, HashMap<String, Double>>> {
+		@Override
+		public Map<String, HashMap<String, Double>> getValue() {
+			Map<String, HashMap<String, Double>> ret = new HashMap<>();
+			HashMap<String, Double> v = new HashMap<>();
+			v.put("max", 999.);
+			v.put("mean", 51.);
+			v.put("min", 1.);
+			v.put("p50", 50.);
+			v.put("p95", 95.);
+			v.put("p99", 99.);
+			ret.put("{LatencySourceDescriptor{vertexID=1, subtaskIndex=-1}", v);
+			return ret;
+		}
+	}
+
+	/**
+	 * TestingHistogram.
+	 */
+	public static class TestingHistogram implements Histogram {
 
 		@Override
 		public void update(long value) {

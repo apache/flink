@@ -420,10 +420,30 @@ metrics.reporter.grph.protocol: TCP
 In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/lib` folder
 of your Flink distribution.
 
+In `dogstatsd` mode, all variables in Flink metrics such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`,
+`<operator_name>` and others, will be included as tags.  It is recommended to define scopes for this reporter such that no
+variables are included in the name itself, as they will be provided in tags (see below for example.)
+
+In `shortids` mode, Flink variables like `<tm_id>`, `<task_id>`, `<job_id>`, `<task_attempt_id>` will print only the first
+8 hex characters of the 32 hex character value.  This is to provide good enough distinction and identification, while
+avoiding truncation in the case where metrics are otherwise too long.
+
+Statsd metrics are output with ascii alphanumeric characters, separated by underbar and period characters, and attempted
+to be kept short enough to survive without truncation.  Instance references like serializer object hashes are removed from
+names, where found, so metric names are stable across runs. Where task or operator names are quite long, such as can be
+seen with latency metrics or default trigger window names, the name will be compressed to the first ten valid characters
+and a short hash signature of the original name.  For example, you might see `TriggerWin_c2910b88` instead of the default
+Trigger Window name.  Readable names can be provided by your application where needed, this compression strategy is more for
+dealing with long and complex default names.
+
+This reporter handles latency metrics, in addition to the usual types.
+
 Parameters:
 
 - `host` - the StatsD server host
 - `port` - the StatsD server port
+- `dogstatsd` - use dogstatsd tags, default false
+- `shortids` - use short ids, default false
 
 Example configuration:
 
@@ -435,6 +455,26 @@ metrics.reporter.stsd.host: localhost
 metrics.reporter.stsd.port: 8125
 
 {% endhighlight %}
+
+{% highlight yaml %}
+
+// in dogstatsd mode, all scope variables will be provided in tags:
+metrics.scope.jm: flink.jobmanager
+metrics.scope.jm.job: flink.jobmanager.job
+metrics.scope.tm: flink.taskmanager
+metrics.scope.tm.job: flink.taskmanager.job
+metrics.scope.task: flink.taskmanager.task
+metrics.scope.operator: flink.taskmanager.operator
+
+metrics.reporters: stsd
+metrics.reporter.stsd.class: org.apache.flink.metrics.statsd.StatsDReporter
+metrics.reporter.stsd.host: localhost
+metrics.reporter.stsd.port: 8125
+metrics.reporter.stsd.dogstatsd: true
+metrics.reporter.stsd.shortids: true
+
+{% highlight yaml %}
+
 
 ### Datadog (org.apache.flink.metrics.datadog.DatadogHttpReporter)
 
