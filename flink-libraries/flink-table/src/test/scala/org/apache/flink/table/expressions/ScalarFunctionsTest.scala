@@ -328,17 +328,17 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   @Test
   def testMultiConcat(): Unit = {
    testSqlApi("CONCAT('xx', f33)","null")
-   testSqlApi("concat('xx','bb','cc','---')","xxbbcc---")
+   testSqlApi("CONCAT('AA','BB','CC','---')","AABBCC---")
    testSqlApi("CONCAT('x~x','b~b','c~~~~c','---')","x~xb~bc~~~~c---")
   }
 
   @Test
   def testConcatWs(): Unit = {
-   testSqlApi("CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)","Flink~~~~xx")
-   testSqlApi("CONCAT_WS(f33, 'Flink')","null")
-   testSqlApi("concat_ws('~~~~','Flink')","Flink")
-   testSqlApi("concat_ws('~~~~',f33, 'Flink')","Flink")
-   testSqlApi("CONCAT_WS('~~~~','bb','cc','---')","bb~~~~cc~~~~---")
+    testSqlApi("CONCAT_WS(f33, 'AA')", "null")
+    testSqlApi("concat_ws('~~~~','AA')", "AA")
+    testSqlApi("concat_ws('~','AA','BB')", "AA~BB")
+    testSqlApi("concat_ws('~',f33, 'AA','BB','',f33, 'CC')", "AA~BB~~CC")
+    testSqlApi("CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)", "Flink~~~~xx")
   }
 
   // ----------------------------------------------------------------------------------------------

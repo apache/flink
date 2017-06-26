@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.codegen.calls
 
+import java.lang.reflect.Method
+
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
@@ -24,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -931,6 +934,15 @@ object ScalarOperators {
 
     generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, array) {
       (operandTerm) => s"${array.resultTerm}.length"
+    }
+  }
+
+  def generateConcat(
+      method: Method,
+      operands: Seq[GeneratedExpression]): GeneratedExpression = {
+
+    generateCallIfArgsNotNull(false, STRING_TYPE_INFO, operands) {
+      (terms) =>s"${qualifyMethod(method)}(${terms.mkString(", ")})"
     }
   }
 

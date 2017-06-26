@@ -22,7 +22,7 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.lang.{StringBuffer => JStringBuffer}
 
 /**
-  * All build-in scalar scalar functions.
+  * Built-in scalar runtime functions.
   */
 class ScalarFunctions {}
 
@@ -69,11 +69,19 @@ object ScalarFunctions {
     val sb = new JStringBuffer
 
     var i = 1
-    val dataList = args.filter(null != _)
-    while (i < dataList.length - 1) {
-      sb.append(dataList(i)).append(separator)
+
+    var hasValueAppended = false
+
+    while (i < args.length) {
+      if (null != args(i)) {
+        if (hasValueAppended) {
+          sb.append(separator)
+        }
+        sb.append(args(i))
+        hasValueAppended = true
+      }
       i = i + 1
     }
-    sb.append(dataList(i)).toString
+    sb.toString
   }
 }

@@ -36,7 +36,7 @@ object ScalarSqlFunctions {
   val CONCAT = new SqlFunction(
     "CONCAT",
     SqlKind.OTHER_FUNCTION,
-    ReturnTypes.ARG0,
+    ReturnTypes.VARCHAR_2000,
     null,
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)
@@ -44,7 +44,7 @@ object ScalarSqlFunctions {
   val CONCAT_WS = new SqlFunction(
     "CONCAT_WS",
     SqlKind.OTHER_FUNCTION,
-    ReturnTypes.ARG0,
+    ReturnTypes.VARCHAR_2000,
     null,
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)
