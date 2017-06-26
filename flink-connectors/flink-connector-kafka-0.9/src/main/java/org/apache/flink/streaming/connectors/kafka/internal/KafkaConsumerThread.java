@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
@@ -92,6 +93,8 @@ public class KafkaConsumerThread extends Thread {
 	/** Flag tracking whether the latest commit request has completed */
 	private volatile boolean commitInProgress;
 
+	/** User callback to be invoked when commits completed. */
+	private volatile KafkaCommitCallback callerCommitCallback;
 
 	public KafkaConsumerThread(
 			Logger log,
@@ -283,17 +286,38 @@ public class KafkaConsumerThread extends Thread {
 	 * 
 	 * <p>Only one commit operation may be pending at any time. If the committing takes longer than
 	 * the frequency with which this method is called, then some commits may be skipped due to being
+<<<<<<< HEAD
 	 * superseded  by newer ones.
 	 * 
+=======
+	 * superseded by newer ones.
+	 *
+>>>>>>> 8828648b4f... [FLINK-6998] [kafka] Add Kafka offset commit metrics to Flink Kafka Consumer
 	 * @param offsetsToCommit The offsets to commit
 	 */
 	public void setOffsetsToCommit(Map<TopicPartition, OffsetAndMetadata> offsetsToCommit) {
+		setOffsetsToCommit(offsetsToCommit, null);
+	}
+
+	/**
+	 * Tells this thread to commit a set of offsets. This method does not block, the committing
+	 * operation will happen asynchronously.
+	 *
+	 * <p>Only one commit operation may be pending at any time. If the committing takes longer than
+	 * the frequency with which this method is called, then some commits may be skipped due to being
+	 * superseded by newer ones.
+	 *
+	 * @param offsetsToCommit The offsets to commit
+	 * @param commitCallback callback when kafka commit completes
+	 */
+	public void setOffsetsToCommit(Map<TopicPartition, OffsetAndMetadata> offsetsToCommit, KafkaCommitCallback commitCallback) {
 		// record the work to be committed by the main consumer thread and make sure the consumer notices that
 		if (nextOffsetsToCommit.getAndSet(offsetsToCommit) != null) {
 			log.warn("Committing offsets to Kafka takes longer than the checkpoint interval. " +
 					"Skipping commit of previous offsets because newer complete checkpoint offsets are available. " +
 					"This does not compromise Flink's checkpoint integrity.");
 		}
+		this.callerCommitCallback = commitCallback;
 
 		// if the consumer is blocked in a poll() or handover operation, wake it up to commit soon
 		handover.wakeupProducer();
@@ -324,6 +348,12 @@ public class KafkaConsumerThread extends Thread {
 
 			if (ex != null) {
 				log.warn("Committing offsets to Kafka failed. This does not compromise Flink's checkpoints.", ex);
+				if (callerCommitCallback != null) {
+					callerCommitCallback.onException(ex);
+				}
+			}
+			else if (callerCommitCallback != null) {
+				callerCommitCallback.onSuccess();
 			}
 		}
 	}
