@@ -220,7 +220,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	@Override
 	public void endSession(JobID jobID) throws Exception {
-		synchronized (LocalExecutor.class) {
+		synchronized (this.lock) {
 			LocalFlinkMiniCluster flink = this.flink;
 			if (flink != null) {
 				ActorGateway leaderGateway = flink.getLeaderGateway(AkkaUtils.getDefaultTimeoutAsFiniteDuration());
