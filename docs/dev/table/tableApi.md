@@ -2071,6 +2071,17 @@ pi()
     <tr>
       <td>
         {% highlight java %}
+e()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to e.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 rand()
 {% endhighlight %}
       </td>
@@ -3317,6 +3328,17 @@ pi()
       </td>
       <td>
         <p>Returns a value that is closer than any other value to pi.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+e()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to e.</p>
       </td>
     </tr>
 

@@ -223,6 +223,7 @@ object FunctionCatalog {
     "sign" -> classOf[Sign],
     "round" -> classOf[Round],
     "pi" -> classOf[Pi],
+    "e" -> classOf[E],
     "rand" -> classOf[Rand],
     "randInteger" -> classOf[RandInteger],
 

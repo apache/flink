@@ -1149,11 +1149,15 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testE(): Unit = {
-    testSqlApi(
+    testAllApis(
+      e(),
+      "E()",
       "E()",
       math.E.toString)
 
-    testSqlApi(
+    testAllApis(
+      e(),
+      "e()",
       "e()",
       math.E.toString)
   }
