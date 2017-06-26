@@ -22,6 +22,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.validate._
 
@@ -284,6 +285,16 @@ case class Pi() extends LeafExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.PI)
+  }
+}
+
+case class E() extends LeafExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override def toString: String = s"e()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.E)
   }
 }
 

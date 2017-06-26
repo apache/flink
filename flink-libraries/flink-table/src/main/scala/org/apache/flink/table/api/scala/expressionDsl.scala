@@ -924,6 +924,19 @@ object pi {
 }
 
 /**
+  * Returns a value that is closer than any other value to e.
+  */
+object e {
+
+  /**
+    * Returns a value that is closer than any other value to e.
+    */
+  def apply(): Expression = {
+    E()
+  }
+}
+
+/**
   * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
   */
 object rand {
