@@ -36,8 +36,6 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Removes vertices from a graph with degree greater than the given maximum.
  * Any edge with with a source or target vertex with degree greater than the
@@ -57,8 +55,6 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false, false);
 
 	private OptionalBoolean broadcastHighDegreeVertices = new OptionalBoolean(false, false);
-
-	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Filter out vertices with degree greater than the given maximum.
@@ -103,42 +99,25 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 		return this;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public MaximumDegree<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!MaximumDegree.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		MaximumDegree rhs = (MaximumDegree) other;
 
-		// verify that configurations can be merged
+		return maximumDegree == rhs.maximumDegree;
+	}
 
-		if (maximumDegree != rhs.maximumDegree) {
-			return false;
-		}
+	@Override
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
-		// merge configurations
+		MaximumDegree rhs = (MaximumDegree) other;
 
 		reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
 		broadcastHighDegreeVertices.mergeWith(rhs.broadcastHighDegreeVertices);
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
 	}
 
 	/*

@@ -25,7 +25,6 @@ import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingGraph;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexValues;
 
 /**
@@ -42,9 +41,6 @@ extends GraphAlgorithmWrappingGraph<K, OLD, EV, K, NEW, EV> {
 	// Required configuration
 	private TranslateFunction<OLD, NEW> translator;
 
-	// Optional configuration
-	private int parallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * Translate {@link Vertex} values using the given {@link TranslateFunction}.
 	 *
@@ -56,43 +52,13 @@ extends GraphAlgorithmWrappingGraph<K, OLD, EV, K, NEW, EV> {
 		this.translator = translator;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public TranslateVertexValues<K, OLD, NEW, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!TranslateVertexValues.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
 		TranslateVertexValues rhs = (TranslateVertexValues) other;
 
-		// verify that configurations can be merged
-
-		if (translator != rhs.translator) {
-			return false;
-		}
-
-		// merge configurations
-
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
+		return translator == rhs.translator;
 	}
 
 	@Override

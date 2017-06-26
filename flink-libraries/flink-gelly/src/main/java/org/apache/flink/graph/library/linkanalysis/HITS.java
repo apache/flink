@@ -49,8 +49,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Hyperlink-Induced Topic Search computes two interdependent scores for every
  * vertex in a directed graph. A good "hub" links to good "authorities" and
@@ -78,9 +76,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	private int maxIterations;
 
 	private double convergenceThreshold;
-
-	// Optional configuration
-	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Hyperlink-Induced Topic Search with a fixed number of iterations.
@@ -119,36 +114,14 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		this.convergenceThreshold = convergenceThreshold;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public HITS<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!HITS.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
 		HITS rhs = (HITS) other;
 
-		// merge configurations
-
 		maxIterations = Math.max(maxIterations, rhs.maxIterations);
 		convergenceThreshold = Math.min(convergenceThreshold, rhs.convergenceThreshold);
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
 	}
 
 	@Override
@@ -172,7 +145,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.name("Sum");
 
 		IterativeDataSet<Tuple3<K, DoubleValue, DoubleValue>> iterative = initialScores
-			.iterate(maxIterations);
+			.iterate(maxIterations)
+			.setParallelism(parallelism);
 
 		// ID, hubbiness
 		DataSet<Tuple2<K, DoubleValue>> hubbiness = iterative

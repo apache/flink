@@ -51,8 +51,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf
  *
@@ -84,8 +82,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private float minimumRatio = 0.0f;
 
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * Filter out Adamic-Adar scores less than the given minimum.
 	 *
@@ -114,44 +110,15 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		return this;
 	}
 
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public AdamicAdar<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!AdamicAdar.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		AdamicAdar rhs = (AdamicAdar) other;
 
-		// verify that configurations can be merged
-
-		if (minimumRatio != rhs.minimumRatio ||
-			minimumScore != rhs.minimumScore) {
-			return false;
-		}
-
-		// merge configurations
-
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
+		return minimumRatio == rhs.minimumRatio && minimumScore == rhs.minimumScore;
 	}
 
 	/*
@@ -168,9 +135,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// s, d(s), 1/log(d(s))
 		DataSet<Tuple3<K, LongValue, FloatValue>> inverseLogDegree = input
 			.run(new VertexDegree<K, VV, EV>()
-				.setParallelism(littleParallelism))
+				.setParallelism(parallelism))
 			.map(new VertexInverseLogDegree<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Vertex score");
 
 		// s, t, 1/log(d(s))
@@ -181,7 +148,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.equalTo(0)
 			.projectFirst(0, 1)
 			.<Tuple3<K, K, FloatValue>>projectSecond(2)
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Edge score");
 
 		// group span, s, t, 1/log(d(s))
@@ -189,16 +156,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
 			.reduceGroup(new GenerateGroupSpans<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Generate group spans");
 
 		// group, s, t, 1/log(d(s))
 		DataSet<Tuple4<IntValue, K, K, FloatValue>> groups = groupSpans
 			.rebalance()
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Rebalance")
 			.flatMap(new GenerateGroups<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Generate groups");
 
 		// t, u, 1/log(d(s)) where (s, t) and (s, u) are edges in graph
@@ -218,7 +185,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			// total score, number of pairs of neighbors
 			DataSet<Tuple2<FloatValue, LongValue>> sumOfScoresAndNumberOfNeighborPairs = inverseLogDegree
 				.map(new ComputeScoreFromVertex<K>())
-					.setParallelism(littleParallelism)
+					.setParallelism(parallelism)
 					.name("Average score")
 				.sum(0)
 				.andSum(1);

@@ -40,9 +40,6 @@ import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * The local clustering coefficient measures the connectedness of each vertex's
@@ -66,8 +63,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	// Optional configuration
 	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(true, true);
 
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * By default the vertex set is checked for zero degree vertices. When this
 	 * flag is disabled only clustering coefficient scores for vertices with
@@ -83,44 +78,24 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		return this;
 	}
 
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public LocalClusteringCoefficient<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!LocalClusteringCoefficient.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
 
-		// verify that configurations can be merged
+		return !includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices);
+	}
 
-		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
-			return false;
-		}
+	@Override
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
-		// merge configurations
+		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
 
 		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
 	}
 
 	/*
@@ -139,7 +114,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// u, v, w
 		DataSet<TriangleListing.Result<K>> triangles = input
 			.run(new TriangleListing<K, VV, EV>()
-				.setLittleParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, 1
 		DataSet<Tuple2<K, LongValue>> triangleVertices = triangles
@@ -157,7 +132,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Vertex<K, LongValue>> vertexDegree = input
 			.run(new VertexDegree<K, VV, EV>()
 				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices.get())
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, deg(u), triangle count
 		return vertexDegree
@@ -165,7 +140,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.where(0)
 			.equalTo(0)
 			.with(new JoinVertexDegreeWithTriangleCount<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Clustering coefficient");
 	}
 

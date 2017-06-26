@@ -36,8 +36,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import java.io.IOException;
 import java.text.NumberFormat;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Compute the following vertex metrics in a directed graph.
  *  - number of vertices
@@ -79,8 +77,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = false;
 
-	private int parallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * By default only the edge set is processed for the computation of degree.
 	 * When this flag is set an additional join is performed against the vertex
@@ -92,18 +88,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	public VertexMetrics<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
 		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
-
-		return this;
-	}
-
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public VertexMetrics<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
 
 		return this;
 	}

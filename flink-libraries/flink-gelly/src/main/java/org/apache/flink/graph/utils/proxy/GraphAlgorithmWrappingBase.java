@@ -22,6 +22,9 @@ package org.apache.flink.graph.utils.proxy;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * A {@link GraphAlgorithm} transforms an input {@link Graph} into an output of
@@ -39,6 +42,29 @@ import org.apache.flink.graph.GraphAlgorithm;
 public abstract class GraphAlgorithmWrappingBase<K, VV, EV, R>
 implements GraphAlgorithm<K, VV, EV, R> {
 
+	protected int parallelism = PARALLELISM_DEFAULT;
+
+	/**
+	 * Set the parallelism for this algorithm's operators. This parameter is
+	 * necessary because processing a small amount of data with high operator
+	 * parallelism is slow and wasteful with memory and buffers.
+	 *
+	 * <p>Operator parallelism should be set to this given value unless
+	 * processing asymptotically more data, in which case the default job
+	 * parallelism should be inherited.
+	 *
+	 * @param parallelism operator parallelism
+	 * @return this
+	 */
+	public GraphAlgorithmWrappingBase<K, VV, EV, R> setParallelism(int parallelism) {
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
+		this.parallelism = parallelism;
+
+		return this;
+	}
+
 	/**
 	 * Algorithms are identified by name rather than by class to allow subclassing.
 	 *
@@ -50,12 +76,34 @@ implements GraphAlgorithm<K, VV, EV, R> {
 	}
 
 	/**
-	 * An algorithm must first test whether the configurations can be merged
-	 * before merging individual fields.
+	 * First test whether the algorithm configurations can be merged before the
+	 * call to {@link #mergeConfiguration}.
 	 *
-	 * @param other the algorithm with which to compare and merge
-	 * @return true if and only if configuration has been merged and the
-	 *          algorithm's output can be reused
+	 * @param other the algorithm with which to compare configuration
+	 * @return true if and only if configuration can be merged and the
+	 *         algorithm's output can be reused
+	 *
+	 * @see #mergeConfiguration(GraphAlgorithmWrappingBase)
 	 */
-	protected abstract boolean mergeConfiguration(GraphAlgorithmWrappingBase<K, VV, EV, R> other);
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		Preconditions.checkNotNull(other);
+
+		return this.getClass().equals(other.getClass());
+	}
+
+	/**
+	 * Merge the other configuration into this algorithm's after the call to
+	 * {@link #canMergeConfigurationWith} has checked that the configurations
+	 * can be merged.
+	 *
+	 * @param other the algorithm from which to merge configuration
+	 *
+	 * @see #canMergeConfigurationWith(GraphAlgorithmWrappingBase)
+	 */
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		Preconditions.checkNotNull(other);
+
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? other.parallelism :
+			((other.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, other.parallelism));
+	}
 }

@@ -18,9 +18,12 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 
 import java.io.PrintStream;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Base class for example drivers.
@@ -32,6 +35,9 @@ import java.io.PrintStream;
 public abstract class DriverBase<K, VV, EV>
 extends ParameterizedBase
 implements Driver<K, VV, EV> {
+
+	protected LongParameter parallelism = new LongParameter(this, "__parallelism")
+		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
 	public String getName() {
