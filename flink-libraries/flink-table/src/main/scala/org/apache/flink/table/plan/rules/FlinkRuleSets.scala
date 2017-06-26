@@ -28,11 +28,14 @@ import org.apache.flink.table.plan.nodes.logical._
 
 object FlinkRuleSets {
 
-  val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
-
-    // convert a logical table scan to a relational expression
+  /**
+    * Convert a logical table scan to a relational expression.
+    */
+  val TABLE_CONV_RULES: RuleSet = RuleSets.ofList(
     TableScanRule.INSTANCE,
-    EnumerableToLogicalTableScan.INSTANCE,
+    EnumerableToLogicalTableScan.INSTANCE)
+
+  val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
 
     // push a filter into a join
     FilterJoinRule.FILTER_ON_JOIN,

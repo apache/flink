@@ -422,4 +422,40 @@ class ExpressionReductionTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
+  @Test
+  def testNestedTablesReductionStream(): Unit = {
+    val util = streamTestUtil()
+
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val newTable = util.tEnv.sql("SELECT 1 + 1 + a AS a FROM MyTable")
+
+    util.tEnv.registerTable("NewTable", newTable)
+
+    val sqlQuery = "SELECT a FROM NewTable"
+
+    // 1+1 should be normalized to 2
+    val expected = unaryNode("DataStreamCalc", streamTableNode(0), term("select", "+(2, a) AS a"))
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testNestedTablesReductionBatch(): Unit = {
+    val util = batchTestUtil()
+
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val newTable = util.tEnv.sql("SELECT 1 + 1 + a AS a FROM MyTable")
+
+    util.tEnv.registerTable("NewTable", newTable)
+
+    val sqlQuery = "SELECT a FROM NewTable"
+
+    // 1+1 should be normalized to 2
+    val expected = unaryNode("DataSetCalc", batchTableNode(0), term("select", "+(2, a) AS a"))
+
+    util.verifySql(sqlQuery, expected)
+  }
+
 }
