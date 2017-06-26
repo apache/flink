@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
@@ -144,9 +145,11 @@ public class InterruptSensitiveRestoreTest {
 			case KEYED_RAW:
 				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
 				cfg.setStreamOperator(new StreamSource<>(new TestSource()));
+				cfg.setOperatorID(new OperatorID());
 				break;
 			case LEGACY:
 				cfg.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
+				cfg.setOperatorID(new OperatorID());
 				break;
 			default:
 				throw new IllegalArgumentException();

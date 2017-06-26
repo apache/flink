@@ -30,8 +30,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Simple container class which contains the raw/managed/legacy operator state and key-group state handles for the sub
- * tasks of an operator.
+ * Simple container class which contains the raw/managed/legacy operator state and key-group state handles from all sub
+ * tasks of an operator and therefore represents the complete state of a logical operator.
  */
 public class OperatorState implements CompositeStateHandle {
 

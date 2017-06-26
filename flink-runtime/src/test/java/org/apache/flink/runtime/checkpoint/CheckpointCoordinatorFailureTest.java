@@ -23,14 +23,15 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -42,8 +43,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,29 +91,26 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		assertFalse(pendingCheckpoint.isDiscarded());
 
 		final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
-		
-		SubtaskState subtaskState = mock(SubtaskState.class);
+
 
 		StreamStateHandle legacyHandle = mock(StreamStateHandle.class);
-		ChainedStateHandle<StreamStateHandle> chainedLegacyHandle = mock(ChainedStateHandle.class);
-		when(chainedLegacyHandle.get(anyInt())).thenReturn(legacyHandle);
-		when(subtaskState.getLegacyOperatorState()).thenReturn(chainedLegacyHandle);
-
-		OperatorStateHandle managedHandle = mock(OperatorStateHandle.class);
-		ChainedStateHandle<OperatorStateHandle> chainedManagedHandle = mock(ChainedStateHandle.class);
-		when(chainedManagedHandle.get(anyInt())).thenReturn(managedHandle);
-		when(subtaskState.getManagedOperatorState()).thenReturn(chainedManagedHandle);
-
-		OperatorStateHandle rawHandle = mock(OperatorStateHandle.class);
-		ChainedStateHandle<OperatorStateHandle> chainedRawHandle = mock(ChainedStateHandle.class);
-		when(chainedRawHandle.get(anyInt())).thenReturn(rawHandle);
-		when(subtaskState.getRawOperatorState()).thenReturn(chainedRawHandle);
-
 		KeyedStateHandle managedKeyedHandle = mock(KeyedStateHandle.class);
-		when(subtaskState.getRawKeyedState()).thenReturn(managedKeyedHandle);
-		KeyedStateHandle managedRawHandle = mock(KeyedStateHandle.class);
-		when(subtaskState.getManagedKeyedState()).thenReturn(managedRawHandle);
-		
+		KeyedStateHandle rawKeyedHandle = mock(KeyedStateHandle.class);
+		OperatorStateHandle managedOpHandle = mock(OperatorStateHandle.class);
+		OperatorStateHandle rawOpHandle = mock(OperatorStateHandle.class);
+
+		final OperatorSubtaskState operatorSubtaskState = spy(new OperatorSubtaskState(
+			legacyHandle,
+			managedOpHandle,
+			rawOpHandle,
+			managedKeyedHandle,
+			rawKeyedHandle));
+
+		TaskStateSnapshot subtaskState = spy(new TaskStateSnapshot());
+		subtaskState.putSubtaskStateByOperatorID(new OperatorID(), operatorSubtaskState);
+
+		when(subtaskState.getSubtaskStateByOperatorID(OperatorID.fromJobVertexID(vertex.getJobvertexId()))).thenReturn(operatorSubtaskState);
+
 		AcknowledgeCheckpoint acknowledgeMessage = new AcknowledgeCheckpoint(jid, executionAttemptId, checkpointId, new CheckpointMetrics(), subtaskState);
 		
 		try {
@@ -126,11 +125,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		assertTrue(pendingCheckpoint.isDiscarded());
 
 		// make sure that the subtask state has been discarded after we could not complete it.
-		verify(subtaskState.getLegacyOperatorState().get(0)).discardState();
-		verify(subtaskState.getManagedOperatorState().get(0)).discardState();
-		verify(subtaskState.getRawOperatorState().get(0)).discardState();
-		verify(subtaskState.getManagedKeyedState()).discardState();
-		verify(subtaskState.getRawKeyedState()).discardState();
+		verify(operatorSubtaskState).discardState();
+		verify(operatorSubtaskState.getLegacyOperatorState()).discardState();
+		verify(operatorSubtaskState.getManagedOperatorState()).discardState();
+		verify(operatorSubtaskState.getRawOperatorState()).discardState();
+		verify(operatorSubtaskState.getManagedKeyedState()).discardState();
+		verify(operatorSubtaskState.getRawKeyedState()).discardState();
 	}
 
 	private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {

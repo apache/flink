@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -265,12 +266,8 @@ public class StateAssignmentOperation {
 
 		if (newParallelism == oldParallelism) {
 			if (operatorState.getState(subTaskIndex) != null) {
-				KeyedStateHandle oldSubManagedKeyedState = operatorState.getState(subTaskIndex).getManagedKeyedState();
-				KeyedStateHandle oldSubRawKeyedState = operatorState.getState(subTaskIndex).getRawKeyedState();
-				subManagedKeyedState = oldSubManagedKeyedState != null ? Collections.singletonList(
-					oldSubManagedKeyedState) : null;
-				subRawKeyedState = oldSubRawKeyedState != null ? Collections.singletonList(
-					oldSubRawKeyedState) : null;
+				subManagedKeyedState = operatorState.getState(subTaskIndex).getManagedKeyedState();
+				subRawKeyedState = operatorState.getState(subTaskIndex).getRawKeyedState();
 			} else {
 				subManagedKeyedState = null;
 				subRawKeyedState = null;
@@ -355,14 +352,14 @@ public class StateAssignmentOperation {
 						if (managedOperatorState == null) {
 							managedOperatorState = new ArrayList<>();
 						}
-						managedOperatorState.add(operatorSubtaskState.getManagedOperatorState());
+						managedOperatorState.addAll(operatorSubtaskState.getManagedOperatorState());
 					}
 
 					if (operatorSubtaskState.getRawOperatorState() != null) {
 						if (rawOperatorState == null) {
 							rawOperatorState = new ArrayList<>();
 						}
-						rawOperatorState.add(operatorSubtaskState.getRawOperatorState());
+						rawOperatorState.addAll(operatorSubtaskState.getRawOperatorState());
 					}
 				}
 
@@ -389,13 +386,23 @@ public class StateAssignmentOperation {
 
 		for (int i = 0; i < operatorState.getParallelism(); i++) {
 			if (operatorState.getState(i) != null && operatorState.getState(i).getManagedKeyedState() != null) {
-				KeyedStateHandle intersectedKeyedStateHandle = operatorState.getState(i).getManagedKeyedState().getIntersection(subtaskKeyGroupRange);
 
-				if (intersectedKeyedStateHandle != null) {
-					if (subtaskKeyedStateHandles == null) {
-						subtaskKeyedStateHandles = new ArrayList<>();
+				Collection<KeyedStateHandle> keyedStateHandles = operatorState.getState(i).getManagedKeyedState();
+				for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
+
+					//TODO deduplicate code!!!!!!!
+					if(keyedStateHandle != null) {
+
+						KeyedStateHandle intersectedKeyedStateHandle =
+							keyedStateHandle.getIntersection(subtaskKeyGroupRange);
+
+						if (intersectedKeyedStateHandle != null) {
+							if (subtaskKeyedStateHandles == null) {
+								subtaskKeyedStateHandles = new ArrayList<>();
+							}
+							subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
+						}
 					}
-					subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
 				}
 			}
 		}
@@ -419,13 +426,22 @@ public class StateAssignmentOperation {
 
 		for (int i = 0; i < operatorState.getParallelism(); i++) {
 			if (operatorState.getState(i) != null && operatorState.getState(i).getRawKeyedState() != null) {
-				KeyedStateHandle intersectedKeyedStateHandle = operatorState.getState(i).getRawKeyedState().getIntersection(subtaskKeyGroupRange);
 
-				if (intersectedKeyedStateHandle != null) {
-					if (subtaskKeyedStateHandles == null) {
-						subtaskKeyedStateHandles = new ArrayList<>();
+				Collection<KeyedStateHandle> rawKeyedState = operatorState.getState(i).getRawKeyedState();
+
+				for (KeyedStateHandle keyedStateHandle : rawKeyedState) {
+
+					if (keyedStateHandle != null) {
+
+						KeyedStateHandle intersectedKeyedStateHandle = keyedStateHandle.getIntersection(subtaskKeyGroupRange);
+
+						if (intersectedKeyedStateHandle != null) {
+							if (subtaskKeyedStateHandles == null) {
+								subtaskKeyedStateHandles = new ArrayList<>();
+							}
+							subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
+						}
 					}
-					subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
 				}
 			}
 		}
