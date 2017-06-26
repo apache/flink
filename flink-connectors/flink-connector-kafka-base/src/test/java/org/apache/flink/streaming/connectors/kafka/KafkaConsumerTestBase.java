@@ -788,7 +788,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DataGenerators.generateRandomizedIntegerSequence(
 				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
-				topic, parallelism, numElementsPerPartition, true);
+				topic,
+				parallelism,
+				numElementsPerPartition,
+				true);
 
 		// run the topology that fails and recovers
 
@@ -837,7 +840,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DataGenerators.generateRandomizedIntegerSequence(
 				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
-				topic, numPartitions, numElementsPerPartition, false);
+				topic,
+				numPartitions,
+				numElementsPerPartition,
+				true);
 
 		// run the topology that fails and recovers
 
@@ -885,7 +891,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DataGenerators.generateRandomizedIntegerSequence(
 				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
-				topic, numPartitions, numElementsPerPartition, true);
+				topic,
+				numPartitions,
+				numElementsPerPartition,
+				true);
 
 		// run the topology that fails and recovers
 

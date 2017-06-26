@@ -136,7 +136,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			props.putAll(secureProps);
 
 			// sink partitions into
-			kafkaServer.produceIntoKafka(stream, defaultTopic,
+			kafkaServer.produceIntoKafka(
+					stream,
+					defaultTopic,
 					// this serialization schema will route between the default topic and dynamic topic
 					new CustomKeyedSerializationSchemaWrapper(serSchema, defaultTopic, dynamicTopic),
 					props,
