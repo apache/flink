@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
@@ -76,6 +77,7 @@ public class StreamConfig implements Serializable {
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
 	private static final String OPERATOR_NAME = "operatorName";
+	private static final String OPERATOR_ID = "operatorID";
 	private static final String CHAIN_END = "chainEnd";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
@@ -213,7 +215,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public <T> T getStreamOperator(ClassLoader cl) {
+	public <T extends StreamOperator<?>> T getStreamOperator(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
 		}
@@ -409,6 +411,15 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
+	}
+
+	public void setOperatorID(OperatorID operatorID) {
+		this.config.setBytes(OPERATOR_ID, operatorID.getBytes());
+	}
+
+	public OperatorID getOperatorID() {
+		byte[] operatorIDBytes = config.getBytes(OPERATOR_ID, null);
+		return new OperatorID(Preconditions.checkNotNull(operatorIDBytes));
 	}
 
 	public void setOperatorName(String name) {

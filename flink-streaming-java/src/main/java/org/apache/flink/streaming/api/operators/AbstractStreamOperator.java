@@ -36,6 +36,8 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -60,7 +62,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
@@ -179,7 +180,6 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
 		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
 		if (config.isChainStart()) {
@@ -208,13 +208,13 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final void initializeState(OperatorStateHandles stateHandles) throws Exception {
+	public final void initializeState(OperatorSubtaskState stateHandles) throws Exception {
 
 		Collection<KeyedStateHandle> keyedStateHandlesRaw = null;
 		Collection<OperatorStateHandle> operatorStateHandlesRaw = null;
 		Collection<OperatorStateHandle> operatorStateHandlesBackend = null;
 
-		boolean restoring = null != stateHandles;
+		boolean restoring = (null != stateHandles);
 
 		initKeyedState(); //TODO we should move the actual initialization of this from StreamTask to this class
 
@@ -266,13 +266,13 @@ public abstract class AbstractStreamOperator<OUT>
 	 * Can be removed when we remove the APIs for non-repartitionable operator state.
 	 */
 	@Deprecated
-	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
+	private void restoreStreamCheckpointed(OperatorSubtaskState stateHandles) throws Exception {
 		StreamStateHandle state = stateHandles.getLegacyOperatorState();
 		if (null != state) {
 			if (this instanceof CheckpointedRestoringOperator) {
 
-				LOG.debug("Restore state of task {} in chain ({}).",
-						stateHandles.getOperatorChainIndex(), getContainingTask().getName());
+				LOG.debug("Restore state of task {} in operator with id ({}).",
+					getContainingTask().getName(), getOperatorID());
 
 				FSDataInputStream is = state.openInputStream();
 				try {
@@ -971,6 +971,11 @@ public abstract class AbstractStreamOperator<OUT>
 			combinedWatermark = newMin;
 			processWatermark(new Watermark(combinedWatermark));
 		}
+	}
+
+	@Override
+	public OperatorID getOperatorID() {
+		return config.getOperatorID();
 	}
 
 	@VisibleForTesting

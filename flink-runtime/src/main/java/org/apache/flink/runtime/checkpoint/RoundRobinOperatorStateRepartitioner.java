@@ -89,6 +89,10 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 
 		for (OperatorStateHandle psh : previousParallelSubtaskStates) {
 
+			if (psh == null) {
+				continue;
+			}
+
 			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> e :
 					psh.getStateNameToPartitionOffsets().entrySet()) {
 				OperatorStateHandle.StateMetaInfo metaInfo = e.getValue();

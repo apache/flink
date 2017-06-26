@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -133,7 +133,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private volatile Throwable failureCause;          // once assigned, never changes
 
 	/** The handle to the state that the task gets on restore */
-	private volatile TaskStateHandles taskState;
+	private volatile TaskStateSnapshot taskState;
 
 	// ------------------------ Accumulators & Metrics ------------------------
 
@@ -253,7 +253,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return state.isTerminal();
 	}
 
-	public TaskStateHandles getTaskStateHandles() {
+	public TaskStateSnapshot getTaskStateSnapshot() {
 		return taskState;
 	}
 
@@ -263,7 +263,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param checkpointStateHandles all checkpointed operator state
 	 */
-	public void setInitialState(TaskStateHandles checkpointStateHandles) {
+	public void setInitialState(TaskStateSnapshot checkpointStateHandles) {
 		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
 		this.taskState = checkpointStateHandles;
 	}

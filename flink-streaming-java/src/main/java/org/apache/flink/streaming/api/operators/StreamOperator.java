@@ -20,10 +20,11 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
@@ -123,7 +124,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *
 	 * @param stateHandles state handles to the operator state.
 	 */
-	void initializeState(OperatorStateHandles stateHandles) throws Exception;
+	void initializeState(OperatorSubtaskState stateHandles) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.
@@ -149,4 +150,5 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	MetricGroup getMetricGroup();
 
+	OperatorID getOperatorID();
 }
