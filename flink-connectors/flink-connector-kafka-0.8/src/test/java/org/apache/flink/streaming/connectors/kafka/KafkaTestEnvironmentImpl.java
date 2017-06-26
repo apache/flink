@@ -25,12 +25,14 @@ import kafka.network.SocketServer;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.commons.collections.list.UnmodifiableList;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
+
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -41,6 +43,12 @@ import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSeri
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Seq;
@@ -50,8 +58,10 @@ import java.io.IOException;
 import java.net.BindException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -105,6 +115,27 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
+	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition, long timeout) {
+		List<ConsumerRecord<K, V>> result = new ArrayList<>();
+		KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties);
+		consumer.subscribe(new TopicPartition(topic, partition));
+
+		while (true) {
+			Map<String, ConsumerRecords<K, V>> topics = consumer.poll(timeout);
+			if (topics == null || !topics.containsKey(topic)) {
+				break;
+			}
+			List<ConsumerRecord<K, V>> records = topics.get(topic).records(partition);
+			result.addAll(records);
+			if (records.size() == 0) {
+				break;
+			}
+		}
+
+		return UnmodifiableList.decorate(result);
+	}
+
+	@Override
 	public <T> StreamSink<T> getProducerSink(
 			String topic,
 			KeyedSerializationSchema<T> serSchema,
@@ -124,6 +155,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		FlinkKafkaProducer08<T> prod = new FlinkKafkaProducer08<>(topic, serSchema, props, partitioner);
 		prod.setFlushOnCheckpoint(true);
 		return stream.addSink(prod);
+	}
+
+	@Override
+	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
