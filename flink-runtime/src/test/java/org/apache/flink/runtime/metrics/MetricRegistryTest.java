@@ -253,15 +253,13 @@ public class MetricRegistryTest extends TestLogger {
 		assertTrue(TestReporter6.addedMetric instanceof Counter);
 		assertEquals("rootCounter", TestReporter6.addedMetricName);
 
-
 		assertTrue(TestReporter7.addedMetric instanceof Counter);
 		assertEquals("rootCounter", TestReporter7.addedMetricName);
-		
+
 		root.close();
 
 		assertTrue(TestReporter6.removedMetric instanceof Counter);
 		assertEquals("rootCounter", TestReporter6.removedMetricName);
-
 
 		assertTrue(TestReporter7.removedMetric instanceof Counter);
 		assertEquals("rootCounter", TestReporter7.removedMetricName);
@@ -275,7 +273,7 @@ public class MetricRegistryTest extends TestLogger {
 	protected static class TestReporter6 extends TestReporter {
 		static Metric addedMetric;
 		static String addedMetricName;
-		
+
 		static Metric removedMetric;
 		static String removedMetricName;
 
