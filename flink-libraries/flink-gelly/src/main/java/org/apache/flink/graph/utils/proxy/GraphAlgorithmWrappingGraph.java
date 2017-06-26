@@ -106,7 +106,9 @@ extends GraphAlgorithmWrappingBase<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_
 
 		if (cache.containsKey(this)) {
 			for (GraphAlgorithmWrappingGraph<IN_K, IN_VV, IN_EV, OUT_K, OUT_VV, OUT_EV> other : cache.get(this)) {
-				if (mergeConfiguration(other)) {
+				if (canMergeConfigurationWith(other)) {
+					mergeConfiguration(other);
+
 					// configuration has been merged so generate new output
 					Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
 

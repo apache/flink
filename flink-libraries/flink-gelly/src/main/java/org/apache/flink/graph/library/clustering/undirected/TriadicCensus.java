@@ -20,6 +20,7 @@ package org.apache.flink.graph.library.clustering.undirected;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.asm.dataset.Count;
 import org.apache.flink.graph.asm.result.PrintableResult;
@@ -33,8 +34,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.math.BigInteger;
 import java.text.NumberFormat;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * A triad is formed by three connected or unconnected vertices in a graph.
@@ -54,22 +53,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private Count<TriangleListing.Result<K>> triangleCount;
 
-	private VertexMetrics<K, VV, EV> vertexMetrics;
-
-	// Optional configuration
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public TriadicCensus<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
+	private GraphAnalytic<K, VV, EV, VertexMetrics.Result> vertexMetrics;
 
 	@Override
 	public TriadicCensus<K, VV, EV> run(Graph<K, VV, EV> input)
@@ -81,12 +65,12 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 		DataSet<TriangleListing.Result<K>> triangles = input
 			.run(new TriangleListing<K, VV, EV>()
 				.setSortTriangleVertices(false)
-				.setLittleParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		triangleCount.run(triangles);
 
 		vertexMetrics = new VertexMetrics<K, VV, EV>()
-			.setParallelism(littleParallelism);
+			.setParallelism(parallelism);
 
 		input.run(vertexMetrics);
 

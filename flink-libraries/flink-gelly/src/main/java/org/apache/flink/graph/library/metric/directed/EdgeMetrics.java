@@ -46,8 +46,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import java.io.IOException;
 import java.text.NumberFormat;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Compute the following edge metrics in a directed graph.
  *  - number of triangle triplets
@@ -71,20 +69,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	private static final String MAXIMUM_RECTANGLE_TRIPLETS = "maximumRectangleTriplets";
 
 	private EdgeMetricsHelper<K> edgeMetricsHelper;
-
-	private int parallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public EdgeMetrics<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-
-		return this;
-	}
 
 	/*
 	 * Implementation notes:

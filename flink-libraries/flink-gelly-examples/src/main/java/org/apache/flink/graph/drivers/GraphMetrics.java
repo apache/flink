@@ -85,18 +85,22 @@ extends DriverBase<K, VV, EV> {
 		switch (order.getValue()) {
 			case DIRECTED:
 				vertexMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.directed.VertexMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.directed.VertexMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 
 				edgeMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.directed.EdgeMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.directed.EdgeMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 				break;
 
 			case UNDIRECTED:
 				vertexMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.undirected.VertexMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.undirected.VertexMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 
 				edgeMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.undirected.EdgeMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.undirected.EdgeMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 				break;
 		}
 

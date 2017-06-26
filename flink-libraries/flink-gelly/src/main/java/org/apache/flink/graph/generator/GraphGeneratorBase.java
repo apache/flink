@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.generator;
 
+import org.apache.flink.util.Preconditions;
+
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
@@ -35,6 +37,9 @@ implements GraphGenerator<K, VV, EV> {
 
 	@Override
 	public GraphGenerator<K, VV, EV> setParallelism(int parallelism) {
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.parallelism = parallelism;
 
 		return this;

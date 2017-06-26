@@ -101,7 +101,9 @@ extends GraphAlgorithmWrappingBase<K, VV, EV, DataSet<T>> {
 
 		if (cache.containsKey(this)) {
 			for (GraphAlgorithmWrappingDataSet<K, VV, EV, T> other : cache.get(this)) {
-				if (mergeConfiguration(other)) {
+				if (canMergeConfigurationWith(other)) {
+					mergeConfiguration(other);
+
 					// configuration has been merged so generate new output
 					DataSet<T> output = runInternal(input);
 

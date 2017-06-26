@@ -37,8 +37,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.text.NumberFormat;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * A triad is formed by three connected or unconnected vertices in a graph.
  * The triadic census counts the occurrences of each type of triad.
@@ -56,21 +54,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private VertexDegreesHelper<K> vertexDegreesHelper;
 
-	// Optional configuration
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public TriadicCensus<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	@Override
 	public TriadicCensus<K, VV, EV> run(Graph<K, VV, EV> input)
 			throws Exception {
@@ -80,7 +63,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 		input
 			.run(new TriangleListing<K, VV, EV>()
-				.setLittleParallelism(littleParallelism))
+				.setParallelism(parallelism))
 			.output(triangleListingHelper)
 				.name("Triangle counts");
 
@@ -88,7 +71,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 		input
 			.run(new VertexDegrees<K, VV, EV>()
-				.setParallelism(littleParallelism))
+				.setParallelism(parallelism))
 			.output(vertexDegreesHelper)
 				.name("Edge and triplet counts");
 
