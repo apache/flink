@@ -84,6 +84,42 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
+	public void testNoConditionLoopingNFA() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event a = new Event(40, "a", 1.0);
+		Event b = new Event(41, "b", 2.0);
+		Event c = new Event(42, "c", 3.0);
+		Event d = new Event(43, "d", 4.0);
+		Event e = new Event(44, "e", 5.0);
+
+		inputEvents.add(new StreamRecord<>(a, 1));
+		inputEvents.add(new StreamRecord<>(b, 2));
+		inputEvents.add(new StreamRecord<>(c, 3));
+		inputEvents.add(new StreamRecord<>(d, 4));
+		inputEvents.add(new StreamRecord<>(e, 5));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").followedBy("end").oneOrMore();
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+			Lists.newArrayList(a, b, c, d, e),
+			Lists.newArrayList(a, b, c, d),
+			Lists.newArrayList(a, b, c),
+			Lists.newArrayList(a, b),
+			Lists.newArrayList(b, c, d, e),
+			Lists.newArrayList(b, c, d),
+			Lists.newArrayList(b, c),
+			Lists.newArrayList(c, d, e),
+			Lists.newArrayList(c, d),
+			Lists.newArrayList(d, e)
+		));
+	}
+
+	@Test
 	public void testAnyWithNoConditionNFA() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
