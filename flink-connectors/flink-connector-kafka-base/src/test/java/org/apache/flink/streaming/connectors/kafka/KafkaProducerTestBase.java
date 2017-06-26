@@ -34,6 +34,8 @@ import org.apache.flink.streaming.util.serialization.TypeInformationSerializatio
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.Test;
+
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -77,7 +79,8 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	 * <p>Each topic also has a final sink that validates that there are no duplicates and that all
 	 * partitions are present.
 	 */
-	public void runCustomPartitioningTest() {
+	@Test
+	public void testCustomPartitioning() {
 		try {
 			LOG.info("Starting KafkaProducerITCase.testCustomPartitioning()");
 

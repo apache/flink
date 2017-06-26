@@ -18,17 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.junit.Test;
-
 /**
  * IT cases for the {@link FlinkKafkaProducer09}.
  */
 @SuppressWarnings("serial")
 public class Kafka09ProducerITCase extends KafkaProducerTestBase {
-
-	@Test
-	public void testCustomPartitioning() {
-		runCustomPartitioningTest();
-	}
-
 }
