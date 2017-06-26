@@ -1,7 +1,8 @@
 # s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
 
-# send to container based infrastructure: http://docs.travis-ci.com/user/workers/container-based-infrastructure/
-sudo: false
+# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
+sudo: required
+dist: trusty
 
 #cache:
 #  directories:
@@ -30,9 +31,9 @@ matrix:
     - jdk: "openjdk7"
       env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis"
 
-    - jdk: "oraclejdk7"
+    - jdk: "openjdk7"
       env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-a,include-kinesis"
-    - jdk: "oraclejdk7"
+    - jdk: "openjdk7"
       env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-b,include-kinesis"
 
 
@@ -51,6 +52,14 @@ env:
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
+
+# Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
+before_install:
+   - "wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.zip"
+   - "unzip -qq apache-maven-3.2.5-bin.zip"
+   - "rm apache-maven-3.2.5-bin.zip"
+   - "export M2_HOME=$PWD/apache-maven-3.2.5"
+   - "export PATH=$M2_HOME/bin:$PATH"
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.
