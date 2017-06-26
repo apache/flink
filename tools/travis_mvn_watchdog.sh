@@ -183,7 +183,7 @@ check_shaded_artifacts() {
 	fi
 
 	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
-	if [ SNAPPY == "0" ]; then
+	if [ $SNAPPY == "0" ]; then
 		echo "=============================================================================="
 		echo "Missing snappy dependencies in fat jar"
 		echo "=============================================================================="
