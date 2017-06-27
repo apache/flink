@@ -160,11 +160,6 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
-	public void testStartFromKafkaCommitOffsets() throws Exception {
-		runStartFromKafkaCommitOffsets();
-	}
-
-	@Test(timeout = 60000)
 	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
 		runAutoOffsetRetrievalAndCommitToKafka();
 	}
