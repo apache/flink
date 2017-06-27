@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Helper class which encapsulates the state of the NFA computation. It points to the current state,
@@ -112,6 +113,28 @@ public class ComputationState<T> {
 
 	public DeweyNumber getVersion() {
 		return version;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof ComputationState) {
+			ComputationState other = (ComputationState) obj;
+			return Objects.equals(state, other.state) &&
+				Objects.equals(event, other.event) &&
+				counter == other.counter &&
+				timestamp == other.timestamp &&
+				Objects.equals(version, other.version) &&
+				startTimestamp == other.startTimestamp &&
+				Objects.equals(previousState, other.previousState);
+
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(state, event, counter, timestamp, version, startTimestamp, previousState);
 	}
 
 	public static <T> ComputationState<T> createStartState(final NFA<T> nfa, final State<T> state) {
