@@ -196,6 +196,13 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `blob.storage.directory`: Directory for storing blobs (such as user JARs) on the TaskManagers.
 
+- `blob.service.cleanup.interval`: Cleanup interval (in seconds) of the blob caches (DEFAULT: 1 hour).
+Whenever a job is not referenced at the cache anymore, we set a TTL and let the periodic cleanup task
+(executed every `blob.service.cleanup.interval` seconds) remove its blob files after this TTL has passed.
+This means that a blob will be retained at most <tt>2 * `blob.service.cleanup.interval`</tt> seconds after
+not being referenced anymore. Therefore, a recovery still has the chance to use existing files rather
+than to download them again.
+
 - `blob.server.port`: Port definition for the blob server (serving user JARs) on the TaskManagers. By default the port is set to 0, which means that the operating system is picking an ephemeral port. Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running on the same machine.
 
 - `blob.service.ssl.enabled`: Flag to enable ssl for the blob client/server communication. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: true).

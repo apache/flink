@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -45,6 +44,7 @@ public class JobManagerServices {
 
 	public final ScheduledExecutorService executorService;
 
+	public final BlobServer blobServer;
 	public final BlobLibraryCacheManager libraryCacheManager;
 
 	public final RestartStrategyFactory restartStrategyFactory;
@@ -53,11 +53,13 @@ public class JobManagerServices {
 
 	public JobManagerServices(
 			ScheduledExecutorService executorService,
+			BlobServer blobServer,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout) {
 
 		this.executorService = checkNotNull(executorService);
+		this.blobServer = checkNotNull(blobServer);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
 		this.rpcAskTimeout = checkNotNull(rpcAskTimeout);
@@ -80,8 +82,9 @@ public class JobManagerServices {
 			firstException = t;
 		}
 
+		libraryCacheManager.shutdown();
 		try {
-			libraryCacheManager.shutdown();
+			blobServer.close();
 		}
 		catch (Throwable t) {
 			if (firstException == null) {
@@ -103,16 +106,12 @@ public class JobManagerServices {
 
 	public static JobManagerServices fromConfiguration(
 			Configuration config,
-			BlobService blobService) throws Exception {
+			BlobServer blobServer) throws Exception {
 
 		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(blobService);
+		Preconditions.checkNotNull(blobServer);
 
-		final long cleanupInterval = config.getLong(
-			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
-
-		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobService, cleanupInterval);
+		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobServer);
 
 		final FiniteDuration timeout;
 		try {
@@ -127,6 +126,7 @@ public class JobManagerServices {
 
 		return new JobManagerServices(
 			futureExecutor,
+			blobServer,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()));

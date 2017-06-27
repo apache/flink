@@ -39,6 +39,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.TestLogger;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -46,7 +48,7 @@ import static org.junit.Assert.fail;
 /**
  * This class contains unit tests for the {@link BlobClient}.
  */
-public class BlobClientTest {
+public class BlobClientTest extends TestLogger {
 
 	/** The buffer size used during the tests in bytes. */
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
@@ -214,7 +216,7 @@ public class BlobClientTest {
 	 * Tests the PUT/GET operations for content-addressable buffers.
 	 */
 	@Test
-	public void testContentAddressableBuffer() {
+	public void testContentAddressableBuffer() throws IOException {
 
 		BlobClient client = null;
 
@@ -256,10 +258,6 @@ public class BlobClientTest {
 				// expected
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			if (client != null) {
 				try {
@@ -281,7 +279,7 @@ public class BlobClientTest {
 	 * Tests the PUT/GET operations for content-addressable streams.
 	 */
 	@Test
-	public void testContentAddressableStream() {
+	public void testContentAddressableStream() throws IOException {
 
 		BlobClient client = null;
 		InputStream is = null;
@@ -313,10 +311,6 @@ public class BlobClientTest {
 			validateGetAndClose(client.get(receivedKey), testFile);
 			validateGetAndClose(client.get(jobId, receivedKey), testFile);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			if (is != null) {
 				try {
@@ -332,7 +326,7 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)} helper.
 	 */
 	@Test
 	public void testUploadJarFilesHelper() throws Exception {
@@ -340,7 +334,7 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}} helper.
 	 */
 	static void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
 		final File testFile = File.createTempFile("testfile", ".dat");
@@ -354,15 +348,16 @@ public class BlobClientTest {
 	}
 
 	private static void uploadJarFile(
-		final InetSocketAddress serverAddress, final Configuration blobClientConfig,
-		final File testFile) throws IOException {
+			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
+			final File testFile) throws IOException {
+		JobID jobId = new JobID();
 		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
-			Collections.singletonList(new Path(testFile.toURI())));
+			jobId, Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			validateGetAndClose(blobClient.get(blobKeys.get(0)), testFile);
+			validateGetAndClose(blobClient.get(jobId, blobKeys.get(0)), testFile);
 		}
 	}
 }

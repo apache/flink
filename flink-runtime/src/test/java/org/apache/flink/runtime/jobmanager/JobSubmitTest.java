@@ -137,14 +137,13 @@ public class JobSubmitTest {
 			// upload two dummy bytes and add their keys to the job graph as dependencies
 			BlobKey key1, key2;
 			BlobClient bc = new BlobClient(new InetSocketAddress("localhost", blobPort), jmConfig);
-			// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
-			JobID jobId = null;
+			JobID jobId = jg.getJobID();
 			try {
 				key1 = bc.put(jobId, new byte[10]);
 				key2 = bc.put(jobId, new byte[10]);
 
 				// delete one of the blobs to make sure that the startup failed
-				bc.delete(key2);
+				bc.delete(jobId, key2);
 			}
 			finally {
 				bc.close();

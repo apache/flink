@@ -30,7 +30,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -166,7 +165,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		if an I/O error occurs during the download
 	 */
-	public InputStream get(@Nonnull JobID jobId, BlobKey blobKey) throws IOException {
+	public InputStream get(JobID jobId, BlobKey blobKey) throws IOException {
 		checkNotNull(jobId);
 		return getInternal(jobId, blobKey);
 	}
@@ -339,7 +338,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	public BlobKey put(@Nonnull JobID jobId, InputStream inputStream) throws IOException {
+	public BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		return putInputStream(jobId, inputStream);
 	}
@@ -369,7 +368,7 @@ public final class BlobClient implements Closeable {
 		checkNotNull(value);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("PUT BLOB buffer ({} bytes) to {}.", len, socket.getLocalSocketAddress());
+			LOG.debug("PUT BLOB buffer (" + len + " bytes) to " + socket.getLocalSocketAddress() + ".");
 		}
 
 		try {
@@ -556,7 +555,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}
@@ -603,23 +602,21 @@ public final class BlobClient implements Closeable {
 
 	/**
 	 * Uploads the JAR files to a {@link BlobServer} at the given address.
-	 * <p>
-	 * TODO: add jobId to signature after adapting the BlobLibraryCacheManager
 	 *
 	 * @param serverAddress
 	 * 		Server address of the {@link BlobServer}
 	 * @param clientConfig
 	 * 		Any additional configuration for the blob client
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param jars
 	 * 		List of JAR files to upload
 	 *
 	 * @throws IOException
 	 * 		if the upload fails
 	 */
-	public static List<BlobKey> uploadJarFiles(
-			InetSocketAddress serverAddress,
-			Configuration clientConfig,
-			List<Path> jars) throws IOException {
+	public static List<BlobKey> uploadJarFiles(InetSocketAddress serverAddress,
+			Configuration clientConfig, JobID jobId, List<Path> jars) throws IOException {checkNotNull(jobId);
 		if (jars.isEmpty()) {
 			return Collections.emptyList();
 		} else {
@@ -631,7 +628,7 @@ public final class BlobClient implements Closeable {
 					FSDataInputStream is = null;
 					try {
 						is = fs.open(jar);
-						final BlobKey key = blobClient.putInputStream(null, is);
+						final BlobKey key = blobClient.putInputStream(jobId, is);
 						blobKeys.add(key);
 					} finally {
 						if (is != null) {

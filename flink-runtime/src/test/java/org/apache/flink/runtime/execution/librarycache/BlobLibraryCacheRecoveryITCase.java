@@ -32,6 +32,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -49,6 +50,9 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+/**
+ * Integration test for {@link BlobLibraryCacheManager}.
+ */
 public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 	@Rule
@@ -65,7 +69,6 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
 		BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
 		BlobCache cache = null;
-		BlobLibraryCacheManager libCache = null;
 		BlobStoreService blobStoreService = null;
 
 		Configuration config = new Configuration();
@@ -75,6 +78,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getAbsolutePath());
+		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
@@ -82,7 +86,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config, blobStoreService);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-				libServer[i] = new BlobLibraryCacheManager(server[i], 3600 * 1000);
+				libServer[i] = new BlobLibraryCacheManager(server[i]);
 			}
 
 			// Random data
@@ -92,25 +96,22 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			List<BlobKey> keys = new ArrayList<>(2);
 
 			JobID jobId = new JobID();
-			// TODO: replace+adapt by jobId after adapting the BlobLibraryCacheManager
-			JobID blobJobId = null;
 
 			// Upload some data (libraries)
 			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
-				keys.add(client.put(blobJobId, expected)); // Request 1
-				keys.add(client.put(blobJobId, expected, 32, 256)); // Request 2
+				keys.add(client.put(jobId, expected)); // Request 1
+				keys.add(client.put(jobId, expected, 32, 256)); // Request 2
 			}
 
 			// The cache
 			cache = new BlobCache(serverAddress[0], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Register uploaded libraries
 			ExecutionAttemptID executionId = new ExecutionAttemptID();
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = cache.getFile(keys.get(0));
+			File f = cache.getFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -123,13 +124,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Shutdown cache and start with other server
 			cache.close();
-			libCache.shutdown();
 
 			cache = new BlobCache(serverAddress[1], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Verify key 1
-			f = cache.getFile(keys.get(0));
+			f = cache.getFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -141,7 +140,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = cache.getFile(keys.get(1));
+			f = cache.getFile(jobId, keys.get(1));
 			assertEquals(256, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -154,8 +153,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Remove blobs again
 			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
-				client.delete(keys.get(0));
-				client.delete(keys.get(1));
+				client.delete(jobId, keys.get(0));
+				client.delete(jobId, keys.get(1));
 			}
 
 			// Verify everything is clean below recoveryDir/<cluster_id>
@@ -167,6 +166,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 		}
 		finally {
+			for (BlobLibraryCacheManager s : libServer) {
+				if (s != null) {
+					s.shutdown();
+				}
+			}
 			for (BlobServer s : server) {
 				if (s != null) {
 					s.close();
@@ -175,10 +179,6 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			if (cache != null) {
 				cache.close();
-			}
-
-			if (libCache != null) {
-				libCache.shutdown();
 			}
 
 			if (blobStoreService != null) {

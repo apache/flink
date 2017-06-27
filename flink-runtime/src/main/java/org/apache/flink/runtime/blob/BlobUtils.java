@@ -29,8 +29,8 @@ import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -175,7 +175,7 @@ public class BlobUtils {
 	static File getIncomingDirectory(File storageDir) {
 		final File incomingDir = new File(storageDir, "incoming");
 
-		mkdirTolerateExisting(incomingDir, "incoming");
+		mkdirTolerateExisting(incomingDir);
 
 		return incomingDir;
 	}
@@ -185,15 +185,13 @@ public class BlobUtils {
 	 *
 	 * @param dir
 	 * 		directory to create
-	 * @param dirType
-	 * 		the type of the directory (included in error message if something fails)
 	 */
-	private static void mkdirTolerateExisting(final File dir, final String dirType) {
+	private static void mkdirTolerateExisting(final File dir) {
 		// note: thread-safe create should try to mkdir first and then ignore the case that the
 		//       directory already existed
 		if (!dir.mkdirs() && !dir.exists()) {
 			throw new RuntimeException(
-				"Cannot create " + dirType + " directory '" + dir.getAbsolutePath() + "'.");
+				"Cannot create directory '" + dir.getAbsolutePath() + "'.");
 		}
 	}
 
@@ -210,10 +208,10 @@ public class BlobUtils {
 	 * @return the (designated) physical storage location of the BLOB
 	 */
 	static File getStorageLocation(
-			@Nonnull File storageDir, @Nullable JobID jobId, @Nonnull BlobKey key) {
+			File storageDir, @Nullable JobID jobId, BlobKey key) {
 		File file = new File(getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 
-		mkdirTolerateExisting(file.getParentFile(), "cache");
+		mkdirTolerateExisting(file.getParentFile());
 
 		return file;
 	}
@@ -229,7 +227,7 @@ public class BlobUtils {
 	 *
 	 * @return the storage directory for BLOBs belonging to the job with the given ID
 	 */
-	static String getStorageLocationPath(@Nonnull String storageDir, @Nullable JobID jobId) {
+	static String getStorageLocationPath(String storageDir, @Nullable JobID jobId) {
 		if (jobId == null) {
 			// format: $base/no_job
 			return String.format("%s/%s", storageDir, NO_JOB_DIR_PREFIX);
@@ -256,7 +254,7 @@ public class BlobUtils {
 	 * @return the path to the given BLOB
 	 */
 	static String getStorageLocationPath(
-			@Nonnull String storageDir, @Nullable JobID jobId, @Nonnull BlobKey key) {
+			String storageDir, @Nullable JobID jobId, BlobKey key) {
 		if (jobId == null) {
 			// format: $base/no_job/blob_$key
 			return String.format("%s/%s/%s%s",
@@ -273,7 +271,6 @@ public class BlobUtils {
 	 *
 	 * @return a new instance of the message digest to use for the BLOB key computation
 	 */
-	@Nonnull
 	static MessageDigest createMessageDigest() {
 		try {
 			return MessageDigest.getInstance(HASHING_ALGORITHM);
@@ -285,7 +282,7 @@ public class BlobUtils {
 	/**
 	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
 	 */
-	static Thread addShutdownHook(final BlobService service, final Logger logger) {
+	static Thread addShutdownHook(final Closeable service, final Logger logger) {
 		checkNotNull(service);
 		checkNotNull(logger);
 
@@ -399,9 +396,7 @@ public class BlobUtils {
 			try {
 				socket.close();
 			} catch (Throwable t) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Error while closing resource after BLOB transfer.", t);
-				}
+				LOG.debug("Exception while closing BLOB server connection socket.", t);
 			}
 		}
 	}
