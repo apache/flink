@@ -18,23 +18,20 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestProbe;
-import com.netflix.fenzo.ConstraintEvaluator;
-import junit.framework.AssertionFailedError;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
-import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
-import org.apache.flink.mesos.scheduler.messages.*;
-import org.apache.flink.mesos.scheduler.messages.Error;
+import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
+import org.apache.flink.mesos.scheduler.messages.Disconnected;
+import org.apache.flink.mesos.scheduler.messages.OfferRescinded;
+import org.apache.flink.mesos.scheduler.messages.ReRegistered;
+import org.apache.flink.mesos.scheduler.messages.Registered;
+import org.apache.flink.mesos.scheduler.messages.ResourceOffers;
+import org.apache.flink.mesos.scheduler.messages.StatusUpdate;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -55,7 +52,9 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.*;
+import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
+import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -66,30 +65,51 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
+import akka.testkit.TestProbe;
+import com.netflix.fenzo.ConstraintEvaluator;
+import junit.framework.AssertionFailedError;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.collection.JavaConverters;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractGoalState;
 import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractResourceID;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * General tests for the Mesos resource manager component (v2).
@@ -151,13 +171,24 @@ public class MesosResourceManagerTest extends TestLogger {
 		}
 
 		@Override
-		protected ActorRef createConnectionMonitor() { return connectionMonitor.ref(); }
+		protected ActorRef createConnectionMonitor() {
+			return connectionMonitor.ref();
+		}
+
 		@Override
-		protected ActorRef createTaskRouter() { return taskRouter.ref(); }
+		protected ActorRef createTaskMonitor(SchedulerDriver schedulerDriver) {
+			return taskRouter.ref();
+		}
+
 		@Override
-		protected ActorRef createLaunchCoordinator() { return launchCoordinator.ref(); }
+		protected ActorRef createLaunchCoordinator(SchedulerDriver schedulerDriver, ActorRef selfActorRef) {
+			return launchCoordinator.ref();
+		}
+
 		@Override
-		protected ActorRef createReconciliationCoordinator() { return reconciliationCoordinator.ref(); }
+		protected ActorRef createReconciliationCoordinator(SchedulerDriver schedulerDriver) {
+			return reconciliationCoordinator.ref();
+		}
 
 		@Override
 		protected void closeTaskManagerConnection(ResourceID resourceID, Exception cause) {
@@ -179,7 +210,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		// RM
 		ResourceManagerConfiguration rmConfiguration;
 		ResourceID rmResourceID;
-		static final String rmAddress = "/resourceManager";
+		static final String RM_ADDRESS = "/resourceManager";
 		TestingMesosResourceManager resourceManager;
 
 		// domain objects for test purposes
@@ -227,7 +258,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			resourceManager =
 				new TestingMesosResourceManager(
 					rpcService,
-					rmAddress,
+					RM_ADDRESS,
 					rmResourceID,
 					rmConfiguration,
 					rmServices.highAvailabilityServices,
@@ -252,7 +283,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			task3Executor = mockTaskExecutor(task3);
 
 			// JobMaster
-			jobMaster1 = mockJobMaster(rmServices, new JobID(1,0));
+			jobMaster1 = mockJobMaster(rmServices, new JobID(1, 0));
 		}
 
 		/**
@@ -290,7 +321,7 @@ public class MesosResourceManagerTest extends TestLogger {
 						rmActions = invocation.getArgumentAt(2, ResourceManagerActions.class);
 						return null;
 					}
-				}).when(slotManager).start(any(UUID.class),any(Executor.class),any(ResourceManagerActions.class));
+				}).when(slotManager).start(any(UUID.class), any(Executor.class), any(ResourceManagerActions.class));
 
 				when(slotManager.registerSlotRequest(any(SlotRequest.class))).thenReturn(true);
 			}
@@ -668,42 +699,5 @@ public class MesosResourceManagerTest extends TestLogger {
 			resourceManager.launchCoordinator.expectMsgClass(Disconnected.class);
 			resourceManager.taskRouter.expectMsgClass(Disconnected.class);
 		}};
-	}
-
-	/**
-	 * Test Mesos scheduler error.
-	 */
-	@Test
-	public void testError() throws Exception {
-		new Context() {{
-			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
-			startResourceManager();
-			resourceManager.error(new Error("test"));
-			assertTrue(fatalErrorHandler.hasExceptionOccurred());
-		}};
-	}
-
-	@Test
-	public void testAdapter() throws Exception {
-		Protos.TaskID task1 = Protos.TaskID.newBuilder().setValue("taskmanager-00001").build();
-		Protos.TaskStatus status1 = Protos.TaskStatus.newBuilder().setTaskId(task1).setState(Protos.TaskState.TASK_KILLED).build();
-		String host1 = "host1";
-
-		MesosResourceManagerGateway gateway = mock(MesosResourceManagerGateway.class);
-		ActorRef adapter = system.actorOf(MesosResourceManager.AkkaAdapter.createActorProps(gateway));
-
-		List<Protos.TaskStatus> tasks = Collections.singletonList(status1);
-		ReconciliationCoordinator.Reconcile msg1 = new ReconciliationCoordinator.Reconcile(
-			JavaConverters.asScalaBufferConverter(tasks).asScala(), false);
-		adapter.tell(msg1, ActorRef.noSender());
-		verify(gateway, timeout(1000L)).reconcile(eq(msg1));
-
-		TaskMonitor.TaskTerminated msg2 = new TaskMonitor.TaskTerminated(task1, status1);
-		adapter.tell(msg2, ActorRef.noSender());
-		verify(gateway, timeout(1000L)).taskTerminated(eq(msg2));
-
-		AcceptOffers msg3 = new AcceptOffers(host1, Collections.<Protos.OfferID>emptyList(), Collections.<Protos.Offer.Operation>emptyList());
-		adapter.tell(msg3, ActorRef.noSender());
-		verify(gateway, timeout(1000L)).acceptOffers(eq(msg3));
 	}
 }

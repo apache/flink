@@ -36,7 +36,7 @@ import org.apache.flink.runtime.rpc.RpcService;
  *
  * This ResourceManager doesn't acquire new resources.
  */
-public class StandaloneResourceManager extends ResourceManager<StandaloneResourceManagerGateway, ResourceID> {
+public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	public StandaloneResourceManager(
 			RpcService rpcService,

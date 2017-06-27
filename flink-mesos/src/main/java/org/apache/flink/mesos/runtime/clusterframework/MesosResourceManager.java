@@ -18,15 +18,6 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.TaskScheduler;
-import com.netflix.fenzo.VirtualMachineLease;
-import com.netflix.fenzo.functions.Action1;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
@@ -34,13 +25,11 @@ import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
-import org.apache.flink.mesos.scheduler.SchedulerProxyV2;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.TaskSchedulerBuilder;
 import org.apache.flink.mesos.scheduler.Tasks;
 import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
 import org.apache.flink.mesos.scheduler.messages.Disconnected;
-import org.apache.flink.mesos.scheduler.messages.Error;
 import org.apache.flink.mesos.scheduler.messages.ExecutorLost;
 import org.apache.flink.mesos.scheduler.messages.FrameworkMessage;
 import org.apache.flink.mesos.scheduler.messages.OfferRescinded;
@@ -66,14 +55,23 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.UntypedActor;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.VirtualMachineLease;
+import com.netflix.fenzo.functions.Action1;
 import org.apache.mesos.Protos;
+import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,42 +79,40 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import scala.Option;
+
 /**
  * The Mesos implementation of the resource manager.
  */
-public class MesosResourceManager extends ResourceManager<MesosResourceManagerGateway, RegisteredMesosWorkerNode> {
+public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerNode> {
 	protected static final Logger LOG = LoggerFactory.getLogger(MesosResourceManager.class);
 
-	/** The Flink configuration */
+	/** The Flink configuration. */
 	private final Configuration flinkConfig;
 
-	/** The Mesos configuration (master and framework info) */
+	/** The Mesos configuration (master and framework info). */
 	private final MesosConfiguration mesosConfig;
 
-	/** The TaskManager container parameters (like container memory size) */
+	/** The TaskManager container parameters (like container memory size). */
 	private final MesosTaskManagerParameters taskManagerParameters;
 
-	/** Container specification for launching a TM */
+	/** Container specification for launching a TM. */
 	private final ContainerSpecification taskManagerContainerSpec;
 
-	/** Resolver for HTTP artifacts */
+	/** Resolver for HTTP artifacts. */
 	private final MesosArtifactResolver artifactResolver;
 
-	/** Persistent storage of allocated containers */
+	/** Persistent storage of allocated containers. */
 	private final MesosWorkerStore workerStore;
 
-	/** A local actor system for using the helper actors */
+	/** A local actor system for using the helper actors. */
 	private final ActorSystem actorSystem;
 
-	/** Callback handler for the asynchronous Mesos scheduler */
-	private SchedulerProxyV2 schedulerCallbackHandler;
-
-	/** Mesos scheduler driver */
+	/** Mesos scheduler driver. */
 	private SchedulerDriver schedulerDriver;
 
-	/** an adapter to receive messages from Akka actors */
-	@VisibleForTesting
-	ActorRef selfActor;
+	/** an adapter to receive messages from Akka actors. */
+	private ActorRef selfActor;
 
 	private ActorRef connectionMonitor;
 
@@ -126,7 +122,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 	private ActorRef reconciliationCoordinator;
 
-	/** planning state related to workers - package private for unit test purposes */
+	/** planning state related to workers - package private for unit test purposes. */
 	final Map<ResourceID, MesosWorkerStore.Worker> workersInNew;
 	final Map<ResourceID, MesosWorkerStore.Worker> workersInLaunch;
 	final Map<ResourceID, MesosWorkerStore.Worker> workersBeingReturned;
@@ -181,7 +177,8 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 	protected ActorRef createSelfActor() {
 		return actorSystem.actorOf(
-			AkkaAdapter.createActorProps(getSelf()),"ResourceManager");
+			Props.create(AkkaAdapter.class, this),
+			"ResourceManager");
 	}
 
 	protected ActorRef createConnectionMonitor() {
@@ -190,19 +187,21 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 			"connectionMonitor");
 	}
 
-	protected ActorRef createTaskRouter() {
+	protected ActorRef createTaskMonitor(SchedulerDriver schedulerDriver) {
 		return actorSystem.actorOf(
 			Tasks.createActorProps(Tasks.class, flinkConfig, schedulerDriver, TaskMonitor.class),
 			"tasks");
 	}
 
-	protected ActorRef createLaunchCoordinator() {
+	protected ActorRef createLaunchCoordinator(
+			SchedulerDriver schedulerDriver,
+			ActorRef selfActor) {
 		return actorSystem.actorOf(
 			LaunchCoordinator.createActorProps(LaunchCoordinator.class, selfActor, flinkConfig, schedulerDriver, createOptimizer()),
 			"launchCoordinator");
 	}
 
-	protected ActorRef createReconciliationCoordinator() {
+	protected ActorRef createReconciliationCoordinator(SchedulerDriver schedulerDriver) {
 		return actorSystem.actorOf(
 			ReconciliationCoordinator.createActorProps(ReconciliationCoordinator.class, flinkConfig, schedulerDriver),
 			"reconciliationCoordinator");
@@ -220,13 +219,9 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		// start the worker store
 		try {
 			workerStore.start();
-		}
-		catch(Exception e) {
+		} catch (Exception e) {
 			throw new ResourceManagerException("Unable to initialize the worker store.", e);
 		}
-
-		// create the scheduler driver to communicate with Mesos
-		schedulerCallbackHandler = new SchedulerProxyV2(getSelf());
 
 		// register with Mesos
 		// TODO : defer connection until RM acquires leadership
@@ -242,27 +237,27 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 				LOG.info("Recovery scenario: re-registering using framework ID {}.", frameworkID.get().getValue());
 				frameworkInfo.setId(frameworkID.get());
 			}
-		}
-		catch(Exception e) {
+		} catch (Exception e) {
 			throw new ResourceManagerException("Unable to recover the framework ID.", e);
 		}
 
 		MesosConfiguration initializedMesosConfig = mesosConfig.withFrameworkInfo(frameworkInfo);
 		MesosConfiguration.logMesosConfig(LOG, initializedMesosConfig);
-		schedulerDriver = initializedMesosConfig.createDriver(schedulerCallbackHandler, false);
+		schedulerDriver = initializedMesosConfig.createDriver(
+			new MesosResourceManagerSchedulerCallback(),
+			false);
 
 		// create supporting actors
 		selfActor = createSelfActor();
 		connectionMonitor = createConnectionMonitor();
-		launchCoordinator = createLaunchCoordinator();
-		reconciliationCoordinator = createReconciliationCoordinator();
-		taskMonitor = createTaskRouter();
+		launchCoordinator = createLaunchCoordinator(schedulerDriver, selfActor);
+		reconciliationCoordinator = createReconciliationCoordinator(schedulerDriver);
+		taskMonitor = createTaskMonitor(schedulerDriver);
 
 		// recover state
 		try {
 			recoverWorkers();
-		}
-		catch(Exception e) {
+		} catch (Exception e) {
 			throw new ResourceManagerException("Unable to recover Mesos worker state.", e);
 		}
 
@@ -288,7 +283,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		if (!tasksFromPreviousAttempts.isEmpty()) {
 			LOG.info("Retrieved {} TaskManagers from previous attempt", tasksFromPreviousAttempts.size());
 
-			List<Tuple2<TaskRequest,String>> toAssign = new ArrayList<>(tasksFromPreviousAttempts.size());
+			List<Tuple2<TaskRequest, String>> toAssign = new ArrayList<>(tasksFromPreviousAttempts.size());
 
 			for (final MesosWorkerStore.Worker worker : tasksFromPreviousAttempts) {
 				LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID(), worker.profile());
@@ -310,31 +305,38 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 			}
 
 			// tell the launch coordinator about prior assignments
-			if(toAssign.size() >= 1) {
+			if (toAssign.size() >= 1) {
 				launchCoordinator.tell(new LaunchCoordinator.Assign(toAssign), selfActor);
 			}
 		}
 	}
 
 	@Override
-	protected void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
+	protected void shutDownApplication(
+			ApplicationStatus finalStatus,
+			String optionalDiagnostics) throws ResourceManagerException {
 		LOG.info("Shutting down and unregistering as a Mesos framework.");
+
+		Exception exception = null;
+
 		try {
 			// unregister the framework, which implicitly removes all tasks.
 			schedulerDriver.stop(false);
-		}
-		catch(Exception ex) {
-			LOG.warn("unable to unregister the framework", ex);
+		} catch (Exception ex) {
+			exception = new Exception("Could not unregister the Mesos framework.", ex);
 		}
 
 		try {
 			workerStore.stop(true);
-		}
-		catch(Exception ex) {
-			LOG.warn("unable to stop the worker state store", ex);
+		} catch (Exception ex) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not stop the Mesos worker store.", ex),
+				exception);
 		}
 
-		LOG.info("Shutdown completed.");
+		if (exception != null) {
+			throw new ResourceManagerException("Could not properly shut down the Mesos application.", exception);
+		}
 	}
 
 	@Override
@@ -356,8 +358,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 			// tell the launch coordinator to launch the new tasks
 			launchCoordinator.tell(new LaunchCoordinator.Launch(Collections.singletonList((LaunchableTask) launchable)), selfActor);
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			onFatalErrorAsync(new ResourceManagerException("Unable to request new workers.", ex));
 		}
 	}
@@ -387,16 +388,14 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 	}
 
 	// ------------------------------------------------------------------------
-	//  RPC methods
+	//  Mesos specific methods
 	// ------------------------------------------------------------------------
 
-	@RpcMethod
-	public void registered(Registered message) {
+	protected void registered(Registered message) {
 		connectionMonitor.tell(message, selfActor);
 		try {
 			workerStore.setFrameworkID(Option.apply(message.frameworkId()));
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			onFatalError(new ResourceManagerException("Unable to store the assigned framework ID.", ex));
 			return;
 		}
@@ -409,8 +408,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 	/**
 	 * Called when reconnected to Mesos following a failover event.
 	 */
-	@RpcMethod
-	public void reregistered(ReRegistered message) {
+	protected void reregistered(ReRegistered message) {
 		connectionMonitor.tell(message, selfActor);
 		launchCoordinator.tell(message, selfActor);
 		reconciliationCoordinator.tell(message, selfActor);
@@ -420,8 +418,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 	/**
 	 * Called when disconnected from Mesos.
 	 */
-	@RpcMethod
-	public void disconnected(Disconnected message) {
+	protected void disconnected(Disconnected message) {
 		connectionMonitor.tell(message, selfActor);
 		launchCoordinator.tell(message, selfActor);
 		reconciliationCoordinator.tell(message, selfActor);
@@ -431,26 +428,38 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 	/**
 	 * Called when resource offers are made to the framework.
 	 */
-	@RpcMethod
-	public void resourceOffers(ResourceOffers message) {
+	protected void resourceOffers(ResourceOffers message) {
 		launchCoordinator.tell(message, selfActor);
 	}
 
 	/**
 	 * Called when resource offers are rescinded.
 	 */
-	@RpcMethod
-	public void offerRescinded(OfferRescinded message) {
+	protected void offerRescinded(OfferRescinded message) {
 		launchCoordinator.tell(message, selfActor);
 	}
 
 	/**
+	 * Handles a task status update from Mesos.
+	 */
+	protected void statusUpdate(StatusUpdate message) {
+		taskMonitor.tell(message, selfActor);
+		reconciliationCoordinator.tell(message, selfActor);
+		schedulerDriver.acknowledgeStatusUpdate(message.status());
+	}
+
+	protected void frameworkMessage(FrameworkMessage message) {}
+
+	protected void slaveLost(SlaveLost message) {}
+
+	protected void executorLost(ExecutorLost message) {}
+
+	/**
 	 * Accept offers as advised by the launch coordinator.
 	 *
-	 * Acceptance is routed through the RM to update the persistent state before
+	 * <p>Acceptance is routed through the RM to update the persistent state before
 	 * forwarding the message to Mesos.
 	 */
-	@RpcMethod
 	public void acceptOffers(AcceptOffers msg) {
 		try {
 			List<TaskMonitor.TaskGoalStateUpdated> toMonitor = new ArrayList<>(msg.operations().size());
@@ -481,26 +490,14 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 			// send the acceptance message to Mesos
 			schedulerDriver.acceptOffers(msg.offerIds(), msg.operations(), msg.filters());
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			onFatalError(new ResourceManagerException("unable to accept offers", ex));
 		}
 	}
 
 	/**
-	 * Handles a task status update from Mesos.
-	 */
-	@RpcMethod
-	public void statusUpdate(StatusUpdate message) {
-		taskMonitor.tell(message, selfActor);
-		reconciliationCoordinator.tell(message, selfActor);
-		schedulerDriver.acknowledgeStatusUpdate(message.status());
-	}
-
-	/**
 	 * Handles a reconciliation request from a task monitor.
 	 */
-	@RpcMethod
 	public void reconcile(ReconciliationCoordinator.Reconcile message) {
 		// forward to the reconciliation coordinator
 		reconciliationCoordinator.tell(message, selfActor);
@@ -509,7 +506,6 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 	/**
 	 * Handles a termination notification from a task monitor.
 	 */
-	@RpcMethod
 	public void taskTerminated(TaskMonitor.TaskTerminated message) {
 		Protos.TaskID taskID = message.taskID();
 		Protos.TaskStatus status = message.status();
@@ -520,13 +516,12 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		boolean existed;
 		try {
 			existed = workerStore.removeWorker(taskID);
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			onFatalError(new ResourceManagerException("unable to remove worker", ex));
 			return;
 		}
 
-		if(!existed) {
+		if (!existed) {
 			LOG.info("Received a termination notice for an unrecognized worker: {}", id);
 			return;
 		}
@@ -548,23 +543,6 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		}
 
 		closeTaskManagerConnection(id, new Exception(status.getMessage()));
-	}
-
-	@RpcMethod
-	public void frameworkMessage(FrameworkMessage message) {}
-
-	@RpcMethod
-	public void slaveLost(SlaveLost message) {}
-
-	@RpcMethod
-	public void executorLost(ExecutorLost message) {}
-
-	/**
-	 * Called when an error is reported by the scheduler callback.
-	 */
-	@RpcMethod
-	public void error(Error message) {
-		onFatalError(new ResourceManagerException("Connection to Mesos failed", new Exception(message.message())));
 	}
 
 	// ------------------------------------------------------------------------
@@ -650,29 +628,139 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		};
 	}
 
+	private class MesosResourceManagerSchedulerCallback implements Scheduler {
+
+		@Override
+		public void registered(SchedulerDriver driver, final Protos.FrameworkID frameworkId, final Protos.MasterInfo masterInfo) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.registered(new Registered(frameworkId, masterInfo));
+				}
+			});
+		}
+
+		@Override
+		public void reregistered(SchedulerDriver driver, final Protos.MasterInfo masterInfo) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.reregistered(new ReRegistered(masterInfo));
+				}
+			});
+		}
+
+		@Override
+		public void resourceOffers(SchedulerDriver driver, final List<Protos.Offer> offers) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.resourceOffers(new ResourceOffers(offers));
+				}
+			});
+		}
+
+		@Override
+		public void offerRescinded(SchedulerDriver driver, final Protos.OfferID offerId) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.offerRescinded(new OfferRescinded(offerId));
+				}
+			});
+		}
+
+		@Override
+		public void statusUpdate(SchedulerDriver driver, final Protos.TaskStatus status) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.statusUpdate(new StatusUpdate(status));
+				}
+			});
+		}
+
+		@Override
+		public void frameworkMessage(SchedulerDriver driver, final Protos.ExecutorID executorId, final Protos.SlaveID slaveId, final byte[] data) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.frameworkMessage(new FrameworkMessage(executorId, slaveId, data));
+				}
+			});
+		}
+
+		@Override
+		public void disconnected(SchedulerDriver driver) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.disconnected(new Disconnected());
+				}
+			});
+		}
+
+		@Override
+		public void slaveLost(SchedulerDriver driver, final Protos.SlaveID slaveId) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.slaveLost(new SlaveLost(slaveId));
+				}
+			});
+		}
+
+		@Override
+		public void executorLost(SchedulerDriver driver, final Protos.ExecutorID executorId, final Protos.SlaveID slaveId, final int status) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					MesosResourceManager.this.executorLost(new ExecutorLost(executorId, slaveId, status));
+				}
+			});
+		}
+
+		@Override
+		public void error(SchedulerDriver driver, final String message) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					onFatalError(new ResourceManagerException(message));
+				}
+			});
+		}
+	}
+
 	/**
 	 * Adapts incoming Akka messages as RPC calls to the resource manager.
 	 */
-	static class AkkaAdapter extends UntypedActor {
-		private final MesosResourceManagerGateway gateway;
-		AkkaAdapter(MesosResourceManagerGateway gateway) {
-			this.gateway = gateway;
-		}
+	private class AkkaAdapter extends UntypedActor {
 		@Override
-		public void onReceive(Object message) throws Exception {
+		public void onReceive(final Object message) throws Exception {
 			if (message instanceof ReconciliationCoordinator.Reconcile) {
-				gateway.reconcile((ReconciliationCoordinator.Reconcile) message);
+				runAsync(new Runnable() {
+					@Override
+					public void run() {
+						reconcile((ReconciliationCoordinator.Reconcile) message);
+					}
+				});
 			} else if (message instanceof TaskMonitor.TaskTerminated) {
-				gateway.taskTerminated((TaskMonitor.TaskTerminated) message);
+				runAsync(new Runnable() {
+					@Override
+					public void run() {
+						taskTerminated((TaskMonitor.TaskTerminated) message);
+					}
+				});
 			} else if (message instanceof AcceptOffers) {
-				gateway.acceptOffers((AcceptOffers) message);
+				runAsync(new Runnable() {
+					@Override
+					public void run() {
+						acceptOffers((AcceptOffers) message);
+					}
+				});
 			} else {
 				MesosResourceManager.LOG.error("unrecognized message: " + message);
 			}
-		}
-
-		public static Props createActorProps(MesosResourceManagerGateway gateway) {
-			return Props.create(AkkaAdapter.class, gateway);
 		}
 	}
 }
