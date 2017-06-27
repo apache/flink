@@ -134,11 +134,6 @@ public class NFA<T> implements Serializable {
 
 	private TypeSerializer<T> eventSerializer;
 
-	/**
-	 * Flag indicating whether the matching status of the state machine has changed.
-	 */
-	private boolean nfaChanged;
-
 	public NFA(
 			final TypeSerializer<T> eventSerializer,
 			final long windowTime,
@@ -149,7 +144,6 @@ public class NFA<T> implements Serializable {
 		this.metaStates = new MetaStates<>(windowTime, handleTimeout);
 		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		this.computationStates = new LinkedList<>();
-		this.nfaChanged = false;
 	}
 
 	public MetaStates<T> getMetaStates() {
@@ -183,15 +177,6 @@ public class NFA<T> implements Serializable {
 	 */
 	public boolean isEmpty() {
 		return eventSharedBuffer.isEmpty();
-	}
-
-	/**
-	 * Check if the matching status of the NFA has changed so far.
-	 *
-	 * @return {@code true} if matching status has changed, {@code false} otherwise
-	 */
-	public boolean isNFAChanged() {
-		return nfaChanged;
 	}
 
 	/**
@@ -236,15 +221,8 @@ public class NFA<T> implements Serializable {
 						computationState.getCounter());
 
 				newComputationStates = Collections.emptyList();
-				nfaChanged = true;
 			} else if (event != null) {
 				newComputationStates = computeNextStates(computationState, event, timestamp);
-
-				if (newComputationStates.size() != 1) {
-					nfaChanged = true;
-				} else if (!newComputationStates.iterator().next().equals(computationState)) {
-					nfaChanged = true;
-				}
 			} else {
 				newComputationStates = Collections.singleton(computationState);
 			}
@@ -308,9 +286,7 @@ public class NFA<T> implements Serializable {
 
 				// remove all elements which are expired
 				// with respect to the window length
-				if (eventSharedBuffer.prune(pruningTimestamp)) {
-					nfaChanged = true;
-				}
+				eventSharedBuffer.prune(pruningTimestamp);
 			}
 		}
 
