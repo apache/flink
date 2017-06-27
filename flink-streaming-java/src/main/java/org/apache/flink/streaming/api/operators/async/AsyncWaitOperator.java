@@ -277,10 +277,25 @@ public class AsyncWaitOperator<IN, OUT>
 		try {
 			assert(Thread.holdsLock(checkpointingLock));
 
+			long timeoutTimestamp = timeout + System.currentTimeMillis();
+
 			while (!queue.isEmpty()) {
+
+				// FLINK-6958: fail all remaining elements after the timeout
+				if (timeoutTimestamp <= System.currentTimeMillis()) {
+					for (StreamElementQueueEntry<?> value : queue.values()) {
+						if (value instanceof StreamRecordQueueEntry) {
+							StreamRecordQueueEntry record = (StreamRecordQueueEntry) value;
+							if (!record.isDone()) {
+								record.collect(new TimeoutException("Async function call has timed out."));
+							}
+						}
+					}
+				}
+
 				// wait for the emitter thread to output the remaining elements
 				// for that he needs the checkpointing lock and thus we have to free it
-				checkpointingLock.wait();
+				checkpointingLock.wait(timeout);
 			}
 		}
 		finally {
