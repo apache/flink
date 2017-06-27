@@ -26,6 +26,7 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -44,6 +45,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link NFA}.
@@ -322,6 +325,83 @@ public class NFATest extends TestLogger {
 
 			assertEquals(nfa, copy);
 		}
+	}
+
+	@Test
+	public void testNFAChange() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 1858562682635302605L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).notFollowedBy("not").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = -6085237016591726715L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).oneOrMore().optional().allowCombinations().followedBy("middle2").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().equals("d");
+			}
+		}).followedBy("end").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().equals("e");
+			}
+		}).within(Time.milliseconds(10));
+
+		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, Event.createTypeSerializer(), true);
+		NFA<Event> nfa = nfaFactory.createNFA();
+		nfa.process(new Event(1, "b", 1.0), 1L);
+		assertFalse(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(new Event(2, "a", 1.0), 2L);
+		assertTrue(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(new Event(3, "f", 1.0), 3L);
+		assertTrue(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(new Event(4, "f", 1.0), 4L);
+		assertFalse(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(new Event(5, "b", 1.0), 5L);
+		assertTrue(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(new Event(6, "d", 1.0), 6L);
+		assertTrue(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(new Event(7, "f", 1.0), 7L);
+		assertFalse(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(null, 8L);
+		assertFalse(nfa.isNFAChanged());
+
+		nfa.nfaChanged = false;
+		nfa.process(null, 12L);
+		assertTrue(nfa.isNFAChanged());
 	}
 
 	private NFA<Event> createStartEndNFA(long windowLength) {

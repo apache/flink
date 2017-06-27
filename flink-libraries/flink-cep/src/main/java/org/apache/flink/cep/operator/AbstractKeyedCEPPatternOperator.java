@@ -270,10 +270,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	}
 
 	private void updateNFA(NFA<IN> nfa) throws IOException {
-		if (nfa.isEmpty()) {
-			nfaOperatorState.clear();
-		} else {
-			nfaOperatorState.update(nfa);
+		if (nfa.isNFAChanged()) {
+			if (nfa.isEmpty()) {
+				nfaOperatorState.clear();
+			} else {
+				nfaOperatorState.update(nfa);
+			}
 		}
 	}
 
