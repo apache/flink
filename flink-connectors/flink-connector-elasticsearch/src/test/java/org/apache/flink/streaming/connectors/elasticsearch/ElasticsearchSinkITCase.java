@@ -30,6 +30,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
@@ -67,7 +68,11 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 	/**
 	 * Tests that the Elasticsearch sink works properly using an embedded node to connect to Elasticsearch.
+	 *
+	 * NOTE: This is ignored, since executing both embedded client mode and transport client mode introduces
+	 * instability for node discovery in ES 1.x. See FLINK-6867.
 	 */
+	@Ignore
 	@Test
 	public void testEmbeddedNode() throws Exception {
 		final String index = "embedded-node-test-index";
