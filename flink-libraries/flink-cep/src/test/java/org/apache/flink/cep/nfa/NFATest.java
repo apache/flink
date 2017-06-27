@@ -299,8 +299,8 @@ public class NFATest extends TestLogger {
 			nfa.process(d, 7);
 			nfa.process(a, 8);
 
-			NFA.NFASerializer<Event> serializer =
-				new NFA.NFASerializer<>(Event.createTypeSerializer(), nfa.getMetaStates());
+			NFA.NFASerializerV2<Event> serializer =
+				new NFA.NFASerializerV2<>(Event.createTypeSerializer(), nfa.getMetaStates());
 
 			//serialize
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -308,8 +308,8 @@ public class NFATest extends TestLogger {
 			baos.close();
 
 			// copy
-			NFA.NFASerializer<Event> copySerializer =
-				new NFA.NFASerializer<>(Event.createTypeSerializer(), nfa.getMetaStates());
+			NFA.NFASerializerV2<Event> copySerializer =
+				new NFA.NFASerializerV2<>(Event.createTypeSerializer(), nfa.getMetaStates());
 			ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			copySerializer.copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
@@ -318,8 +318,8 @@ public class NFATest extends TestLogger {
 
 			// deserialize
 			ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
-			NFA.NFASerializer<Event> deserializer =
-				new NFA.NFASerializer<>(Event.createTypeSerializer(), nfa.getMetaStates());
+			NFA.NFASerializerV2<Event> deserializer =
+				new NFA.NFASerializerV2<>(Event.createTypeSerializer(), nfa.getMetaStates());
 			NFA<Event> copy = deserializer.deserialize(new DataInputViewStreamWrapper(bais));
 			bais.close();
 
