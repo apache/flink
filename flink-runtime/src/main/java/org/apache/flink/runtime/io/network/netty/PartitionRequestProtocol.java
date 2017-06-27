@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.ChannelHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder.createFrameLengthDecoder;

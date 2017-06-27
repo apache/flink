@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.NetUtils;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringDecoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncoder;
+
 import org.junit.Assert;
 import org.junit.Test;
 

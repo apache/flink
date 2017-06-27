@@ -204,6 +204,11 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-netty</artifactId>
+		</dependency>
 
 		<!-- Concrete logging framework - we add this only here (and not in the 
 			root POM) to not tie the projects to one specific framework and make

@@ -290,6 +290,15 @@ check_shaded_artifacts() {
 		echo "=============================================================================="
 		return 1
 	fi
+
+    NETTY=`cat allClasses | grep '^io/netty' | wc -1`
+	if [ $NETTY != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected $NETTY unshaded netty dependencies in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
 	return 0
 }
 
