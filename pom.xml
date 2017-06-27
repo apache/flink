@@ -446,8 +446,8 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-all</artifactId>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-netty</artifactId>
 				<!-- Don't upgrade for now. Netty versions >= 4.0.28.Final
 				contain an improvement by Netty, which slices a Netty buffer
 				instead of doing a memory copy [1] in the
@@ -456,7 +456,7 @@ under the License.
 				errors.
 
 				[1] https://github.com/netty/netty/issues/3704 -->
-				<version>4.0.27.Final</version>
+				<version>4.0.27.Final-1.0</version>
 			</dependency>
 
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
@@ -473,12 +473,6 @@ under the License.
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpclient</artifactId>
 				<version>4.5.3</version>
-			</dependency>
-
-			<dependency>
-				<groupId>tv.cntt</groupId>
-				<artifactId>netty-router</artifactId>
-				<version>1.10</version>
 			</dependency>
 
 			<dependency>

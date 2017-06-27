@@ -108,8 +108,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>tv.cntt</groupId>
-			<artifactId>netty-router</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-netty</artifactId>
 		</dependency>
 
 		<dependency>
