@@ -19,6 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+
 import org.apache.mesos.Protos;
 
 import java.io.Serializable;

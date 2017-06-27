@@ -20,20 +20,21 @@ package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
-import org.apache.flink.mesos.scheduler.SchedulerGateway;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 
 /**
- * The {@link MesosResourceManager}'s RPC gateway interface.
+ * Actions defined by the MesosResourceManager.
+ *
+ * <p>These are called by the MesosResourceManager components such
+ * as {@link LaunchCoordinator}, and {@link TaskMonitor}.
  */
-public interface MesosResourceManagerGateway extends ResourceManagerGateway, SchedulerGateway {
+public interface MesosResourceManagerActions {
 
 	/**
 	 * Accept the given offers as advised by the launch coordinator.
 	 *
-	 * Note: This method is a callback for the {@link LaunchCoordinator}.
+	 * <p>Note: This method is a callback for the {@link LaunchCoordinator}.
 	 *
 	 * @param offersToAccept Offers to accept from Mesos
 	 */
@@ -42,7 +43,7 @@ public interface MesosResourceManagerGateway extends ResourceManagerGateway, Sch
 	/**
 	 * Trigger reconciliation with the Mesos master.
 	 *
-	 * Note: This method is a callback for the {@link TaskMonitor}.
+	 * <p>Note: This method is a callback for the {@link TaskMonitor}.
 	 *
 	 * @param reconciliationRequest Message containing the tasks which shall be reconciled
 	 */
@@ -51,7 +52,7 @@ public interface MesosResourceManagerGateway extends ResourceManagerGateway, Sch
 	/**
 	 * Notify that the given Mesos task has been terminated.
 	 *
-	 * Note: This method is a callback for the {@link TaskMonitor}.
+	 * <p>Note: This method is a callback for the {@link TaskMonitor}.
 	 *
 	 * @param terminatedTask Message containing the terminated task
 	 */

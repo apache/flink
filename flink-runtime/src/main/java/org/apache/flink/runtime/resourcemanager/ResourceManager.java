@@ -83,8 +83,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
-public abstract class ResourceManager<C extends ResourceManagerGateway, WorkerType extends Serializable>
-		extends RpcEndpoint<C>
+public abstract class ResourceManager<WorkerType extends Serializable>
+		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
 
 	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
@@ -609,8 +609,13 @@ public abstract class ResourceManager<C extends ResourceManagerGateway, WorkerTy
 	 */
 	@RpcMethod
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
-		log.info("shut down cluster because application is in {}, diagnostics {}", finalStatus, optionalDiagnostics);
-		shutDownApplication(finalStatus, optionalDiagnostics);
+		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, optionalDiagnostics);
+
+		try {
+			shutDownApplication(finalStatus, optionalDiagnostics);
+		} catch (ResourceManagerException e) {
+			log.warn("Could not properly shutdown the application.", e);
+		}
 	}
 
 	@RpcMethod
@@ -880,8 +885,9 @@ public abstract class ResourceManager<C extends ResourceManagerGateway, WorkerTy
 	 *
 	 * @param finalStatus The application status to report.
 	 * @param optionalDiagnostics An optional diagnostics message.
+	 * @throws ResourceManagerException if the application could not be shut down.
 	 */
-	protected abstract void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics);
+	protected abstract void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) throws ResourceManagerException;
 
 	/**
 	 * Allocates a resource using the resource profile.
