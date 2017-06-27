@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -284,7 +285,7 @@ public class BlobUtils {
 	/**
 	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
 	 */
-	static Thread addShutdownHook(final BlobService service, final Logger logger) {
+	static Thread addShutdownHook(final Closeable service, final Logger logger) {
 		checkNotNull(service);
 		checkNotNull(logger);
 

@@ -619,6 +619,8 @@ public final class BlobClient implements Closeable {
 	 * 		Ask timeout for blob server address retrieval
 	 * @param clientConfig
 	 * 		Any additional configuration for the blob client
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param jars
 	 * 		List of JAR files to upload
 	 *
@@ -629,7 +631,10 @@ public final class BlobClient implements Closeable {
 			ActorGateway jobManager,
 			FiniteDuration askTimeout,
 			Configuration clientConfig,
+			JobID jobId,
 			List<Path> jars) throws IOException {
+
+		checkNotNull(jobId);
 
 		if (jars.isEmpty()) {
 			return Collections.emptyList();
@@ -649,7 +654,7 @@ public final class BlobClient implements Closeable {
 					InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
 
 					// Now, upload
-					return uploadJarFiles(serverAddress, clientConfig, jars);
+					return uploadJarFiles(serverAddress, clientConfig, jobId, jars);
 				} else {
 					throw new Exception("Expected port number (int) as answer, received " + result);
 				}
@@ -661,13 +666,13 @@ public final class BlobClient implements Closeable {
 
 	/**
 	 * Uploads the JAR files to a {@link BlobServer} at the given address.
-	 * <p>
-	 * TODO: add jobId to signature after adapting the BlobLibraryCacheManager
 	 *
 	 * @param serverAddress
 	 * 		Server address of the {@link BlobServer}
 	 * @param clientConfig
 	 * 		Any additional configuration for the blob client
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param jars
 	 * 		List of JAR files to upload
 	 *
@@ -675,7 +680,9 @@ public final class BlobClient implements Closeable {
 	 * 		if the upload fails
 	 */
 	public static List<BlobKey> uploadJarFiles(InetSocketAddress serverAddress,
-			Configuration clientConfig, List<Path> jars) throws IOException {
+			Configuration clientConfig, JobID jobId, List<Path> jars) throws IOException {
+		checkNotNull(jobId);
+
 		if (jars.isEmpty()) {
 			return Collections.emptyList();
 		} else {
@@ -687,7 +694,7 @@ public final class BlobClient implements Closeable {
 					FSDataInputStream is = null;
 					try {
 						is = fs.open(jar);
-						final BlobKey key = blobClient.putInputStream(null, is);
+						final BlobKey key = blobClient.putInputStream(jobId, is);
 						blobKeys.add(key);
 					} finally {
 						if (is != null) {

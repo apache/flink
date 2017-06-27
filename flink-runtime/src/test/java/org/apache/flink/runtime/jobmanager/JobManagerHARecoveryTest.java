@@ -159,6 +159,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 		flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().toString());
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
+		flinkConfiguration.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3_600L);
 
 		try {
 			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -190,8 +191,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				new BlobLibraryCacheManager(
 					new BlobServer(
 						flinkConfiguration,
-						testingHighAvailabilityServices.createBlobStore()),
-					3600000L),
+						testingHighAvailabilityServices.createBlobStore())),
 				archive,
 				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
 				timeout,
@@ -361,7 +361,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				mock(InstanceManager.class),
 				mock(Scheduler.class),
-				new BlobLibraryCacheManager(mock(BlobService.class), 1 << 20),
+				new BlobLibraryCacheManager(mock(BlobService.class)),
 				ActorRef.noSender(),
 				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
 				timeout,

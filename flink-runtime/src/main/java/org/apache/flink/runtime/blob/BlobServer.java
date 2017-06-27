@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -38,6 +39,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -196,7 +198,8 @@ public class BlobServer extends Thread implements BlobService {
 	 * @param key identifying the file
 	 * @return file handle to the file
 	 */
-	File getStorageLocation(JobID jobId, BlobKey key) {
+	@VisibleForTesting
+	public File getStorageLocation(JobID jobId, BlobKey key) {
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 
@@ -334,6 +337,41 @@ public class BlobServer extends Thread implements BlobService {
 	public BlobClient createClient() throws IOException {
 		return new BlobClient(new InetSocketAddress(serverSocket.getInetAddress(), getPort()),
 			blobServiceConfiguration);
+	}
+
+	/**
+	 * Retrieves a collection of BLOBs.
+	 * <p>
+	 * Note that no job registration/release is required on the {@link BlobServer} since local
+	 * data is only supposed to be cleaned up in {@link #cleanupJob(JobID)} when the job enters a
+	 * final state.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param requiredBlobs
+	 * 		BLOB keys associated with the requested files
+	 *
+	 * @return paths to the requested files
+	 *
+	 * @throws java.io.FileNotFoundException
+	 * 		if any of the requested BLOBs does not exist;
+	 * @throws IOException
+	 * 		if any other error occurs when retrieving the file
+	 */
+	@Override
+	public Collection<File> registerJob(JobID jobId, Collection<BlobKey> requiredBlobs)
+		throws IOException {
+
+		ArrayList<File> fetched = new ArrayList<>(requiredBlobs.size());
+		for (BlobKey key : requiredBlobs) {
+			fetched.add(getFile(jobId, key));
+		}
+		return fetched;
+	}
+
+	@Override
+	public void releaseJob(JobID jobId) {
+		// nothing to do
 	}
 
 	/**
@@ -481,6 +519,37 @@ public class BlobServer extends Thread implements BlobService {
 			readWriteLock.writeLock().unlock();
 		}
 	}
+
+	/**
+	 * Removes all BLOBs from local and HA store belonging to the given job ID.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 */
+	public void cleanupJob(@Nonnull JobID jobId) {
+		checkNotNull(jobId);
+
+		final File jobDir =
+			new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+
+		readWriteLock.writeLock().lock();
+
+		try {
+			// delete locally
+			try {
+				FileUtils.deleteDirectory(storageDir);
+			} catch (IOException e) {
+				LOG.warn("Failed to locally delete BLOB storage directory at " +
+					jobDir.getAbsolutePath(), e);
+			}
+
+			// delete in HA store
+			blobStore.deleteAll(jobId);
+		} finally {
+			readWriteLock.writeLock().unlock();
+		}
+	}
+
 
 	/**
 	 * Returns the port on which the server is listening.

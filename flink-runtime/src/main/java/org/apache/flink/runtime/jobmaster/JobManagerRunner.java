@@ -174,16 +174,12 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 			// libraries and class loader first
 			final BlobLibraryCacheManager libraryCacheManager = jobManagerServices.libraryCacheManager;
+			final ClassLoader userCodeLoader;
 			try {
-				libraryCacheManager.registerJob(
+				userCodeLoader = libraryCacheManager.registerJob(
 						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
 			} catch (IOException e) {
 				throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
-			}
-
-			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID());
-			if (userCodeLoader == null) {
-				throw new Exception("The user code class loader could not be initialized.");
 			}
 
 			// high availability services next

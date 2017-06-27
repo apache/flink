@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
@@ -75,6 +75,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getAbsolutePath());
+		config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3_600L);
+
 
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
@@ -82,7 +84,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config, blobStoreService);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-				libServer[i] = new BlobLibraryCacheManager(server[i], 3600 * 1000);
+				libServer[i] = new BlobLibraryCacheManager(server[i]);
 			}
 
 			// Random data
@@ -92,25 +94,22 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			List<BlobKey> keys = new ArrayList<>(2);
 
 			JobID jobId = new JobID();
-			// TODO: replace+adapt by jobId after adapting the BlobLibraryCacheManager
-			JobID blobJobId = null;
 
 			// Upload some data (libraries)
 			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
-				keys.add(client.put(blobJobId, expected)); // Request 1
-				keys.add(client.put(blobJobId, expected, 32, 256)); // Request 2
+				keys.add(client.put(jobId, expected)); // Request 1
+				keys.add(client.put(jobId, expected, 32, 256)); // Request 2
 			}
 
 			// The cache
 			cache = new BlobCache(serverAddress[0], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
+			libCache = new BlobLibraryCacheManager(cache);
 
 			// Register uploaded libraries
-			ExecutionAttemptID executionId = new ExecutionAttemptID();
-			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
+			libServer[0].registerJob(jobId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = cache.getFile(keys.get(0));
+			File f = cache.getFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -126,10 +125,10 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache.shutdown();
 
 			cache = new BlobCache(serverAddress[1], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
+			libCache = new BlobLibraryCacheManager(cache);
 
 			// Verify key 1
-			f = cache.getFile(keys.get(0));
+			f = cache.getFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -141,7 +140,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = cache.getFile(keys.get(1));
+			f = cache.getFile(jobId, keys.get(1));
 			assertEquals(256, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -154,8 +153,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Remove blobs again
 			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
-				client.delete(keys.get(0));
-				client.delete(keys.get(1));
+				client.delete(jobId, keys.get(0));
+				client.delete(jobId, keys.get(1));
 			}
 
 			// Verify everything is clean below recoveryDir/<cluster_id>

@@ -332,7 +332,7 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)} helper.
 	 */
 	@Test
 	public void testUploadJarFilesHelper() throws Exception {
@@ -340,7 +340,7 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}} helper.
 	 */
 	static void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
 		final File testFile = File.createTempFile("testfile", ".dat");
@@ -354,15 +354,16 @@ public class BlobClientTest {
 	}
 
 	private static void uploadJarFile(
-		final InetSocketAddress serverAddress, final Configuration blobClientConfig,
-		final File testFile) throws IOException {
+			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
+			final File testFile) throws IOException {
+		JobID jobId = new JobID();
 		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
-			Collections.singletonList(new Path(testFile.toURI())));
+			jobId, Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			InputStream is = blobClient.get(blobKeys.get(0));
+			InputStream is = blobClient.get(jobId, blobKeys.get(0));
 			validateGet(is, testFile);
 		}
 	}

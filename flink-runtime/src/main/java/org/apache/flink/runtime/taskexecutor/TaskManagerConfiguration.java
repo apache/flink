@@ -53,8 +53,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private final Time maxRegistrationPause;
 	private final Time refusedRegistrationPause;
 
-	private final long cleanupInterval;
-
 	private final UnmodifiableConfiguration configuration;
 
 	private final boolean exitJvmOnOutOfMemory;
@@ -78,7 +76,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
-		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 	}
@@ -105,10 +102,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public Time getRefusedRegistrationPause() {
 		return refusedRegistrationPause;
-	}
-
-	public long getCleanupInterval() {
-		return cleanupInterval;
 	}
 
 	@Override

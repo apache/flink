@@ -839,6 +839,7 @@ class JobManager(
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
           //TODO user code class loader ?
+          // (has not been used so far and new savepoints can simply be deleted by file)
           val savepoint = SavepointStore.loadSavepoint(
             savepointPath,
             Thread.currentThread().getContextClassLoader)
@@ -1252,20 +1253,15 @@ class JobManager(
         // Important: We need to make sure that the library registration is the first action,
         // because this makes sure that the uploaded jar files are removed in case of
         // unsuccessful
+        var userCodeLoader: ClassLoader = null;
         try {
-          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys,
-            jobGraph.getClasspaths)
+          userCodeLoader = libraryCacheManager.registerJob(
+            jobGraph.getJobID, jobGraph.getUserJarBlobKeys, jobGraph.getClasspaths)
         }
         catch {
           case t: Throwable =>
             throw new JobSubmissionException(jobId,
               "Cannot set up the user code libraries: " + t.getMessage, t)
-        }
-
-        val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
-        if (userCodeLoader == null) {
-          throw new JobSubmissionException(jobId,
-            "The user code class loader could not be initialized.")
         }
 
         if (jobGraph.getNumberOfVertices == 0) {
@@ -2468,10 +2464,6 @@ object JobManager {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
-    val cleanupInterval = configuration.getLong(
-      ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-      ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
-
     val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 
     val archiveCount = configuration.getInteger(JobManagerOptions.WEB_ARCHIVE_COUNT)
@@ -2502,7 +2494,7 @@ object JobManager {
       blobServer = new BlobServer(configuration, blobStore)
       instanceManager = new InstanceManager()
       scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(futureExecutor))
-      libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval)
+      libraryCacheManager = new BlobLibraryCacheManager(blobServer)
 
       instanceManager.addInstanceListener(scheduler)
     }

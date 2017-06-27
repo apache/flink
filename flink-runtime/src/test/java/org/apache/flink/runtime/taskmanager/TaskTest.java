@@ -69,6 +69,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -262,7 +263,8 @@ public class TaskTest extends TestLogger {
 		try {
 			// mock a working library cache
 			LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-			when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
+			//noinspection unchecked
+			when(libCache.registerJob(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
 			
 			// mock a network manager that rejects registration
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
@@ -618,7 +620,8 @@ public class TaskTest extends TestLogger {
 		ResultPartitionID partitionId = new ResultPartitionID();
 
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
+		//noinspection unchecked
+		when(libCache.registerJob(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
 
 		PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
 
@@ -883,13 +886,15 @@ public class TaskTest extends TestLogger {
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config) throws IOException {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
+		//noinspection unchecked
+		when(libCache.registerJob(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, libCache, config, new ExecutionConfig());
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config, ExecutionConfig execConfig) throws IOException {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
+		//noinspection unchecked
+		when(libCache.registerJob(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, libCache, config, execConfig);
 	}
 

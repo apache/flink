@@ -27,59 +27,25 @@ import java.net.URL;
 import java.util.Collection;
 
 public interface LibraryCacheManager {
-	/**
-	 * Returns the user code class loader associated with id.
-	 *
-	 * @param id identifying the job
-	 * @return ClassLoader which can load the user code
-	 */
-	ClassLoader getClassLoader(JobID id);
 
 	/**
-	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.
+	 * Registers a job with its required jar files and classpaths and returns a user code class loader.
+	 * The jar files are identified by their blob keys.
 	 *
 	 * @param id job ID
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
 	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
+	 * @return ClassLoader which can load the user code
+	 *
 	 * @throws IOException if any error occurs when retrieving the required jar files
 	 *
 	 * @see #unregisterJob(JobID) counterpart of this method
 	 */
-	void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+	ClassLoader registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
 			throws IOException;
-	
-	/**
-	 * Registers a job task execution with its required jar files and classpaths. The jar files are identified by their blob keys.
-	 *
-	 * @param id job ID
-	 * @param requiredJarFiles collection of blob keys identifying the required jar files
-	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
-	 * @throws IOException
-	 *
-	 * @see #unregisterTask(JobID, ExecutionAttemptID) counterpart of this method
-	 */
-	void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
-			Collection<URL> requiredClasspaths) throws IOException;
-
-	/**
-	 * Unregisters a job task execution from the library cache manager.
-	 * <p>
-	 * <strong>Note:</strong> this is the counterpart of {@link #registerTask(JobID,
-	 * ExecutionAttemptID, Collection, Collection)} and it will not remove any job added via
-	 * {@link #registerJob(JobID, Collection, Collection)}!
-	 *
-	 * @param id job ID
-	 *
-	 * @see #registerTask(JobID, ExecutionAttemptID, Collection, Collection) counterpart of this method
-	 */
-	void unregisterTask(JobID id, ExecutionAttemptID execution);
 
 	/**
 	 * Unregisters a job from the library cache manager.
-	 * <p>
-	 * <strong>Note:</strong> this is the counterpart of {@link #registerJob(JobID, Collection,
-	 * Collection)} and it will not remove any job task execution added via {@link
-	 * #registerTask(JobID, ExecutionAttemptID, Collection, Collection)}!
 	 *
 	 * @param id job ID
 	 *
