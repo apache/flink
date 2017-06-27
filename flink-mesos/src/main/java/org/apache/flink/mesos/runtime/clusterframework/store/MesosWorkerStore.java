@@ -104,17 +104,11 @@ public interface MesosWorkerStore {
 
 		private Worker(Protos.TaskID taskID, ResourceProfile profile,
 				Option<Protos.SlaveID> slaveID, Option<String> hostname, WorkerState state) {
-			requireNonNull(taskID, "taskID");
-			requireNonNull(profile, "profile");
-			requireNonNull(slaveID, "slaveID");
-			requireNonNull(hostname, "hostname");
-			requireNonNull(state, "state");
-
-			this.taskID = taskID;
-			this.profile = profile;
-			this.slaveID = slaveID;
-			this.hostname = hostname;
-			this.state = state;
+			this.taskID = requireNonNull(taskID, "taskID");
+			this.profile = requireNonNull(profile, "profile");
+			this.slaveID = requireNonNull(slaveID, "slaveID");
+			this.hostname = requireNonNull(hostname, "hostname");
+			this.state = requireNonNull(state, "state");
 		}
 
 		/**
@@ -207,12 +201,13 @@ public interface MesosWorkerStore {
 			return Objects.equals(taskID, worker.taskID) &&
 				Objects.equals(slaveID, worker.slaveID) &&
 				Objects.equals(hostname, worker.hostname) &&
+				Objects.equals(profile, worker.profile) &&
 				state == worker.state;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(taskID, slaveID, hostname, state);
+			return Objects.hash(taskID, slaveID, hostname, state, profile);
 		}
 
 		@Override
