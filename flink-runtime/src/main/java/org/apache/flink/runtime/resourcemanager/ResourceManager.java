@@ -79,7 +79,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
- *     <li>{@link #registerJobManager(UUID, UUID, String, JobID, ResourceID)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #registerJobManager(UUID, UUID, ResourceID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
@@ -418,36 +418,38 @@ public abstract class ResourceManager<C extends ResourceManagerGateway, WorkerTy
 							slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
 						}
 
-						WorkerType newWorker = workerStarted(taskExecutorResourceId);
+						final WorkerType newWorker = workerStarted(taskExecutorResourceId);
+
 						if(newWorker == null) {
 							log.warn("Discard registration from TaskExecutor {} at ({}) because the framework did " +
 									"not recognize it", taskExecutorResourceId, taskExecutorAddress);
 							return new RegistrationResponse.Decline("unrecognized TaskExecutor");
+						} else {
+							WorkerRegistration<WorkerType> registration =
+								new WorkerRegistration<>(taskExecutorGateway, newWorker);
+
+							taskExecutors.put(taskExecutorResourceId, registration);
+
+							slotManager.registerTaskManager(registration, slotReport);
+
+							taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
+								@Override
+								public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+									// the ResourceManager will always send heartbeat requests to the
+									// TaskManager
+								}
+
+								@Override
+								public void requestHeartbeat(ResourceID resourceID, Void payload) {
+									taskExecutorGateway.heartbeatFromResourceManager(resourceID);
+								}
+							});
+
+							return new TaskExecutorRegistrationSuccess(
+								registration.getInstanceID(),
+								resourceId,
+								resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 						}
-						WorkerRegistration<WorkerType> registration =
-							new WorkerRegistration<>(taskExecutorGateway, newWorker);
-
-						taskExecutors.put(taskExecutorResourceId, registration);
-
-						slotManager.registerTaskManager(registration, slotReport);
-
-						taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
-							@Override
-							public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-								// the ResourceManager will always send heartbeat requests to the
-								// TaskManager
-							}
-
-							@Override
-							public void requestHeartbeat(ResourceID resourceID, Void payload) {
-								taskExecutorGateway.heartbeatFromResourceManager(resourceID);
-							}
-						});
-
-						return new TaskExecutorRegistrationSuccess(
-							registration.getInstanceID(),
-							resourceId,
-							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
 			}, getMainThreadExecutor());

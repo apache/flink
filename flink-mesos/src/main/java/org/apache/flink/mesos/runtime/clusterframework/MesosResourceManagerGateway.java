@@ -18,6 +18,7 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.SchedulerGateway;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
@@ -29,9 +30,30 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
  */
 public interface MesosResourceManagerGateway extends ResourceManagerGateway, SchedulerGateway {
 
-	void acceptOffers(AcceptOffers msg);
+	/**
+	 * Accept the given offers as advised by the launch coordinator.
+	 *
+	 * Note: This method is a callback for the {@link LaunchCoordinator}.
+	 *
+	 * @param offersToAccept Offers to accept from Mesos
+	 */
+	void acceptOffers(AcceptOffers offersToAccept);
 
-	void reconcile(ReconciliationCoordinator.Reconcile message);
+	/**
+	 * Trigger reconciliation with the Mesos master.
+	 *
+	 * Note: This method is a callback for the {@link TaskMonitor}.
+	 *
+	 * @param reconciliationRequest Message containing the tasks which shall be reconciled
+	 */
+	void reconcile(ReconciliationCoordinator.Reconcile reconciliationRequest);
 
-	void taskTerminated(TaskMonitor.TaskTerminated message);
+	/**
+	 * Notify that the given Mesos task has been terminated.
+	 *
+	 * Note: This method is a callback for the {@link TaskMonitor}.
+	 *
+	 * @param terminatedTask Message containing the terminated task
+	 */
+	void taskTerminated(TaskMonitor.TaskTerminated terminatedTask);
 }

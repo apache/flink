@@ -68,6 +68,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.Preconditions;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
@@ -79,8 +80,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * The Mesos implementation of the resource manager.
@@ -121,7 +120,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 	private ActorRef connectionMonitor;
 
-	private ActorRef taskRouter;
+	private ActorRef taskMonitor;
 
 	private ActorRef launchCoordinator;
 
@@ -164,20 +163,20 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 			jobLeaderIdService,
 			fatalErrorHandler);
 
-		this.actorSystem = actorSystem;
+		this.actorSystem = Preconditions.checkNotNull(actorSystem);
 
-		this.flinkConfig = requireNonNull(flinkConfig);
-		this.mesosConfig = requireNonNull(mesosConfig);
+		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
+		this.mesosConfig = Preconditions.checkNotNull(mesosConfig);
 
-		this.workerStore = requireNonNull(workerStore);
-		this.artifactResolver = requireNonNull(artifactResolver);
+		this.workerStore = Preconditions.checkNotNull(workerStore);
+		this.artifactResolver = Preconditions.checkNotNull(artifactResolver);
 
-		this.taskManagerParameters = requireNonNull(taskManagerParameters);
-		this.taskManagerContainerSpec = requireNonNull(taskManagerContainerSpec);
+		this.taskManagerParameters = Preconditions.checkNotNull(taskManagerParameters);
+		this.taskManagerContainerSpec = Preconditions.checkNotNull(taskManagerContainerSpec);
 
-		this.workersInNew = new HashMap<>();
-		this.workersInLaunch = new HashMap<>();
-		this.workersBeingReturned = new HashMap<>();
+		this.workersInNew = new HashMap<>(8);
+		this.workersInLaunch = new HashMap<>(8);
+		this.workersBeingReturned = new HashMap<>(8);
 	}
 
 	protected ActorRef createSelfActor() {
@@ -257,7 +256,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		connectionMonitor = createConnectionMonitor();
 		launchCoordinator = createLaunchCoordinator();
 		reconciliationCoordinator = createReconciliationCoordinator();
-		taskRouter = createTaskRouter();
+		taskMonitor = createTaskRouter();
 
 		// recover state
 		try {
@@ -307,7 +306,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 						workersBeingReturned.put(extractResourceID(worker.taskID()), worker);
 						break;
 				}
-				taskRouter.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
+				taskMonitor.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
 			}
 
 			// tell the launch coordinator about prior assignments
@@ -352,14 +351,14 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 			LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
 				launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
 
-			// tell the task router about the new plans
-			taskRouter.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
+			// tell the task monitor about the new plans
+			taskMonitor.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
 
 			// tell the launch coordinator to launch the new tasks
 			launchCoordinator.tell(new LaunchCoordinator.Launch(Collections.singletonList((LaunchableTask) launchable)), selfActor);
 		}
 		catch(Exception ex) {
-			onFatalErrorAsync(new ResourceManagerException("unable to request new workers", ex));
+			onFatalErrorAsync(new ResourceManagerException("Unable to request new workers.", ex));
 		}
 	}
 
@@ -370,6 +369,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 	/**
 	 * Callback when a worker was started.
+	 *
 	 * @param resourceID The worker resource id (as provided by the TaskExecutor)
 	 */
 	@Override
@@ -379,11 +379,11 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		MesosWorkerStore.Worker inLaunch = workersInLaunch.get(resourceID);
 		if (inLaunch != null) {
 			return new RegisteredMesosWorkerNode(inLaunch);
+		} else {
+			// the worker is unrecognized or was already released
+			// return null to indicate that TaskExecutor registration should be declined
+			return null;
 		}
-
-		// the worker is unrecognized or was already released
-		// return null to indicate that TaskExecutor registration should be declined
-		return null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -397,12 +397,13 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 			workerStore.setFrameworkID(Option.apply(message.frameworkId()));
 		}
 		catch(Exception ex) {
-			onFatalError(new ResourceManagerException("unable to store the assigned framework ID", ex));
+			onFatalError(new ResourceManagerException("Unable to store the assigned framework ID.", ex));
 			return;
 		}
+
 		launchCoordinator.tell(message, selfActor);
 		reconciliationCoordinator.tell(message, selfActor);
-		taskRouter.tell(message, selfActor);
+		taskMonitor.tell(message, selfActor);
 	}
 
 	/**
@@ -413,7 +414,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		connectionMonitor.tell(message, selfActor);
 		launchCoordinator.tell(message, selfActor);
 		reconciliationCoordinator.tell(message, selfActor);
-		taskRouter.tell(message, selfActor);
+		taskMonitor.tell(message, selfActor);
 	}
 
 	/**
@@ -424,7 +425,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 		connectionMonitor.tell(message, selfActor);
 		launchCoordinator.tell(message, selfActor);
 		reconciliationCoordinator.tell(message, selfActor);
-		taskRouter.tell(message, selfActor);
+		taskMonitor.tell(message, selfActor);
 	}
 
 	/**
@@ -456,27 +457,26 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 			// transition the persistent state of some tasks to Launched
 			for (Protos.Offer.Operation op : msg.operations()) {
-				if (op.getType() != Protos.Offer.Operation.Type.LAUNCH) {
-					continue;
-				}
-				for (Protos.TaskInfo info : op.getLaunch().getTaskInfosList()) {
-					MesosWorkerStore.Worker worker = workersInNew.remove(extractResourceID(info.getTaskId()));
-					assert (worker != null);
+				if (op.getType() == Protos.Offer.Operation.Type.LAUNCH) {
+					for (Protos.TaskInfo info : op.getLaunch().getTaskInfosList()) {
+						MesosWorkerStore.Worker worker = workersInNew.remove(extractResourceID(info.getTaskId()));
+						assert (worker != null);
 
-					worker = worker.launchWorker(info.getSlaveId(), msg.hostname());
-					workerStore.putWorker(worker);
-					workersInLaunch.put(extractResourceID(worker.taskID()), worker);
+						worker = worker.launchWorker(info.getSlaveId(), msg.hostname());
+						workerStore.putWorker(worker);
+						workersInLaunch.put(extractResourceID(worker.taskID()), worker);
 
-					LOG.info("Launching Mesos task {} on host {}.",
-						worker.taskID().getValue(), worker.hostname().get());
+						LOG.info("Launching Mesos task {} on host {}.",
+							worker.taskID().getValue(), worker.hostname().get());
 
-					toMonitor.add(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)));
+						toMonitor.add(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)));
+					}
 				}
 			}
 
-			// tell the task router about the new plans
+			// tell the task monitor about the new plans
 			for (TaskMonitor.TaskGoalStateUpdated update : toMonitor) {
-				taskRouter.tell(update, selfActor);
+				taskMonitor.tell(update, selfActor);
 			}
 
 			// send the acceptance message to Mesos
@@ -492,7 +492,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 	 */
 	@RpcMethod
 	public void statusUpdate(StatusUpdate message) {
-		taskRouter.tell(message, selfActor);
+		taskMonitor.tell(message, selfActor);
 		reconciliationCoordinator.tell(message, selfActor);
 		schedulerDriver.acknowledgeStatusUpdate(message.status());
 	}
@@ -541,8 +541,8 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 			// failed worker, either at startup, or running
 			final MesosWorkerStore.Worker launched = workersInLaunch.remove(id);
 			assert(launched != null);
-			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}. " +
-				"State: {} Reason: {} ({})", id, status.getState(), status.getReason(), status.getMessage());
+			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
+				id, status.getState(), status.getReason(), status.getMessage());
 
 			// TODO : launch a replacement worker?
 		}
@@ -578,7 +578,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 		// create the specific TM parameters from the resource profile and some defaults
 		MesosTaskManagerParameters params = new MesosTaskManagerParameters(
-			resourceProfile.getCpuCores() < 1 ? taskManagerParameters.cpus() : resourceProfile.getCpuCores(),
+			resourceProfile.getCpuCores() < 1.0 ? taskManagerParameters.cpus() : resourceProfile.getCpuCores(),
 			taskManagerParameters.containerType(),
 			taskManagerParameters.containerImageName(),
 			new ContaineredTaskManagerParameters(
@@ -616,6 +616,7 @@ public class MesosResourceManager extends ResourceManager<MesosResourceManagerGa
 
 	/**
 	 * Extracts the Mesos task goal state from the worker information.
+	 *
 	 * @param worker the persistent worker information.
 	 * @return goal state information for the {@Link TaskMonitor}.
 	 */
