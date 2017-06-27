@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import io.netty.util.internal.ConcurrentSet;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -74,6 +73,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -863,7 +863,7 @@ public class RescalingITCase extends TestLogger {
 
 	private static class CollectionSink<IN> implements SinkFunction<IN> {
 
-		private static ConcurrentSet<Object> elements = new ConcurrentSet<Object>();
+		private static Set<Object> elements = Collections.newSetFromMap(new ConcurrentHashMap<Object, Boolean>());
 
 		private static final long serialVersionUID = -1652452958040267745L;
 
