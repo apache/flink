@@ -279,49 +279,43 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		// read some records so that some offsets are committed to Kafka
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env.setParallelism(parallelism);
+		env.enableCheckpointing(20); // fast checkpoints to make sure we commit some offsets
 
-		Long o1;
-		Long o2;
-		Long o3;
-		int attempt = 0;
-		// make sure that o1, o2, o3 are not all null before proceeding
-		do {
-			attempt++;
-			LOG.info("Attempt " + attempt + " to read records and commit some offsets to Kafka");
-
-			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.getConfig().disableSysoutLogging();
-			env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			env.setParallelism(parallelism);
-			env.enableCheckpointing(20); // fast checkpoints to make sure we commit some offsets
-
-			env
-				.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
-				.map(new ThrottledMapper<String>(consumePause))
-				.map(new MapFunction<String, Object>() {
-					int count = 0;
-					@Override
-					public Object map(String value) throws Exception {
-						count++;
-						if (count == recordsToConsume) {
-							throw new SuccessException();
-						}
-						return null;
+		env
+			.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
+			.map(new ThrottledMapper<String>(consumePause))
+			.map(new MapFunction<String, Object>() {
+				int count = 0;
+				@Override
+				public Object map(String value) throws Exception {
+					count++;
+					if (count == recordsToConsume) {
+						throw new SuccessException();
 					}
-				})
-				.addSink(new DiscardingSink<>());
+					return null;
+				}
+			})
+			.addSink(new DiscardingSink<>());
 
-			tryExecute(env, "Read some records to commit offsets to Kafka");
+		tryExecute(env, "Read some records to commit offsets to Kafka");
 
+		// make sure that we indeed have some offsets committed to Kafka
+		Long o1 = null;
+		Long o2 = null;
+		Long o3 = null;
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		while (o1 == null && o2 == null && o3 == null) {
+			Thread.sleep(100);
 			o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
 			o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
 			o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
-		} while (o1 == null && o2 == null && o3 == null && attempt < 3);
-
-		if (o1 == null && o2 == null && o3 == null) {
-			throw new RuntimeException("No offsets have been committed after 3 attempts");
 		}
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 
 		LOG.info("Got final committed offsets from Kafka o1={}, o2={}, o3={}", o1, o2, o3);
 
