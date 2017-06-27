@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -29,7 +30,6 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -196,7 +196,8 @@ public class BlobServer extends Thread implements BlobService {
 	 * @param key identifying the file
 	 * @return file handle to the file
 	 */
-	File getStorageLocation(JobID jobId, BlobKey key) {
+	@VisibleForTesting
+	public File getStorageLocation(JobID jobId, BlobKey key) {
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 
@@ -374,7 +375,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * 		Thrown if the file retrieval failed.
 	 */
 	@Override
-	public File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public File getFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
 	}
@@ -450,7 +451,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * @throws IOException
 	 */
 	@Override
-	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}
@@ -481,6 +482,37 @@ public class BlobServer extends Thread implements BlobService {
 			readWriteLock.writeLock().unlock();
 		}
 	}
+
+	/**
+	 * Removes all BLOBs from local and HA store belonging to the given job ID.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 */
+	public void cleanupJob(JobID jobId) {
+		checkNotNull(jobId);
+
+		final File jobDir =
+			new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+
+		readWriteLock.writeLock().lock();
+
+		try {
+			// delete locally
+			try {
+				FileUtils.deleteDirectory(jobDir);
+			} catch (IOException e) {
+				LOG.warn("Failed to locally delete BLOB storage directory at " +
+					jobDir.getAbsolutePath(), e);
+			}
+
+			// delete in HA store
+			blobStore.deleteAll(jobId);
+		} finally {
+			readWriteLock.writeLock().unlock();
+		}
+	}
+
 
 	/**
 	 * Returns the port on which the server is listening.

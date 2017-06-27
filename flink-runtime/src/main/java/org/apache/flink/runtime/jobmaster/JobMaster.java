@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -149,7 +150,10 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	/** Service to contend for and retrieve the leadership of JM and RM */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** Blob cache manager used across jobs */
+	/** Blob server used across jobs */
+	private final BlobServer blobServer;
+
+	/** Blob library cache manager used across jobs */
 	private final BlobLibraryCacheManager libraryCacheManager;
 
 	/** The metrics for the JobManager itself */
@@ -204,6 +208,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 			HighAvailabilityServices highAvailabilityService,
 			HeartbeatServices heartbeatServices,
 			ScheduledExecutorService executor,
+			BlobServer blobServer,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,
@@ -221,6 +226,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		this.configuration = checkNotNull(configuration);
 		this.rpcTimeout = rpcAskTimeout;
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
+		this.blobServer = checkNotNull(blobServer);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.executor = checkNotNull(executor);
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
@@ -698,7 +704,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	@Override
 	public CompletableFuture<ClassloadingProps> requestClassloadingProps() {
 		return CompletableFuture.completedFuture(
-			new ClassloadingProps(libraryCacheManager.getBlobServerPort(),
+			new ClassloadingProps(blobServer.getPort(),
 				executionGraph.getRequiredJarFiles(),
 				executionGraph.getRequiredClasspaths()));
 	}
@@ -785,7 +791,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
-				resourceId, libraryCacheManager.getBlobServerPort());
+				resourceId, blobServer.getPort());
 			return CompletableFuture.completedFuture(response);
 		} else {
 			return getRpcService()
@@ -819,7 +825,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 							}
 						});
 
-						return new JMTMRegistrationSuccess(resourceId, libraryCacheManager.getBlobServerPort());
+						return new JMTMRegistrationSuccess(resourceId, blobServer.getPort());
 					},
 					getMainThreadExecutor());
 		}

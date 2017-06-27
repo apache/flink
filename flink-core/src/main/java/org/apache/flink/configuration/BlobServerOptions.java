@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * Configuration options for the BlobServer.
+ * Configuration options for the BlobServer and BlobCache.
  */
 @PublicEvolving
 public class BlobServerOptions {
@@ -73,4 +73,9 @@ public class BlobServerOptions {
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("blob.service.ssl.enabled")
 			.defaultValue(true);
+
+	public static final ConfigOption<Long> CLEANUP_INTERVAL =
+		key("blob.service.cleanup.interval")
+			.defaultValue(3_600L) // once per hour
+			.withDeprecatedKeys("library-cache-manager.cleanup.interval");
 }

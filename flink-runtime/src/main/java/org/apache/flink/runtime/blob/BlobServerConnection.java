@@ -139,14 +139,7 @@ class BlobServerConnection extends Thread {
 			LOG.error("Error while executing BLOB connection.", t);
 		}
 		finally {
-			try {
-				if (clientSocket != null) {
-					clientSocket.close();
-				}
-			} catch (Throwable t) {
-				LOG.debug("Exception while closing BLOB server connection socket.", t);
-			}
-
+			closeSilently(clientSocket, LOG);
 			blobServer.unregisterConnection(this);
 		}
 	}
@@ -433,9 +426,8 @@ class BlobServerConnection extends Thread {
 			final InputStream inputStream, final File incomingFile, final byte[] buf)
 			throws IOException {
 		MessageDigest md = BlobUtils.createMessageDigest();
-		FileOutputStream fos = new FileOutputStream(incomingFile);
 
-		try {
+		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
 			while (true) {
 				final int bytesExpected = readLength(inputStream);
 				if (bytesExpected == -1) {
@@ -453,12 +445,6 @@ class BlobServerConnection extends Thread {
 				md.update(buf, 0, bytesExpected);
 			}
 			return new BlobKey(md.digest());
-		} finally {
-			try {
-				fos.close();
-			} catch (Throwable t) {
-				LOG.warn("Cannot close stream to BLOB staging file", t);
-			}
 		}
 	}
 
