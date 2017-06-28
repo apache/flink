@@ -510,8 +510,8 @@ public class YarnApplicationMasterRunner {
 		}
 
 		// if a web monitor shall be started, set the port to random binding
-		if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-			configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+		if (configuration.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
+			configuration.setInteger(JobManagerOptions.WEB_PORT, 0);
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the
