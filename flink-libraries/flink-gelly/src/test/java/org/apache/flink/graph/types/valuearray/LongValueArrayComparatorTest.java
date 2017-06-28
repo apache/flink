@@ -46,8 +46,8 @@ public class LongValueArrayComparatorTest extends ComparatorTestBase<LongValueAr
 		lva1.add(new LongValue(5));
 
 		LongValueArray lva2 = new LongValueArray();
-		lva2.add(new LongValue(50));
-		lva2.add(new LongValue(100));
+		lva2.add(new LongValue(5));
+		lva2.add(new LongValue(10));
 
 		return new LongValueArray[]{ lva0, lva1, lva2 };
 	}

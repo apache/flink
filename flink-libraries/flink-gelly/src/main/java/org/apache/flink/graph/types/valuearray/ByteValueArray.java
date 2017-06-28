@@ -7,13 +7,14 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.apache.flink.graph.types.valuearray;
@@ -22,59 +23,39 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.graph.utils.MurmurHash;
+import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.nio.CharBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 
 /**
- * An array of {@link StringValue}.
- *
- * <p>Strings are serialized to a byte array. Concatenating arrays is as simple
- * and fast as extending and copying byte arrays. Strings are serialized when
- * individually added to {@code StringValueArray}.
- *
- * <p>For each string added to the array the length is first serialized using a
- * variable length integer. Then the string characters are serialized using a
- * variable length encoding where the lower 128 ASCII/UFT-8 characters are
- * encoded in a single byte. This ensures that common characters are serialized
- * in only two bytes.
+ * An array of {@link ByteValue}.
  */
-public class StringValueArray
-implements ValueArray<StringValue> {
+public class ByteValueArray
+implements ValueArray<ByteValue> {
 
-	protected static final int DEFAULT_CAPACITY_IN_BYTES = 4096;
+	protected static final int ELEMENT_LENGTH_IN_BYTES = 1;
+
+	protected static final int DEFAULT_CAPACITY_IN_BYTES = 1024;
 
 	// see note in ArrayList, HashTable, ...
 	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
-	protected static final int HIGH_BIT = 0x1 << 7;
-
 	private boolean isBounded;
-
-	// the initial length of a bounded array, which is allowed to expand to
-	// store one additional element beyond this initial length
-	private int boundedLength;
 
 	private byte[] data;
 
-	// number of StringValue elements currently stored
-	private int length;
-
-	// the number of bytes currently stored
+	// the number of elements currently stored
 	private int position;
 
-	// state for the bookmark used by mark() and reset()
-	private transient int markLength;
-
-	private transient int markPosition;
+	// location of the bookmark used by mark() and reset()
+	private transient int mark;
 
 	// hasher used to generate the normalized key
-	private MurmurHash hash = new MurmurHash(0x19264330);
+	private MurmurHash hash = new MurmurHash(0x18d7b696);
 
 	// hash result stored as normalized key
 	private IntValue hashValue = new IntValue();
@@ -82,7 +63,7 @@ implements ValueArray<StringValue> {
 	/**
 	 * Initializes an expandable array with default capacity.
 	 */
-	public StringValueArray() {
+	public ByteValueArray() {
 		isBounded = false;
 		initialize(DEFAULT_CAPACITY_IN_BYTES);
 	}
@@ -92,9 +73,8 @@ implements ValueArray<StringValue> {
 	 *
 	 * @param bytes number of bytes of the encapsulated array
 	 */
-	public StringValueArray(int bytes) {
+	public ByteValueArray(int bytes) {
 		isBounded = true;
-		boundedLength = bytes;
 		initialize(bytes);
 	}
 
@@ -104,10 +84,12 @@ implements ValueArray<StringValue> {
 	 * @param bytes initial size of the encapsulated array in bytes
 	 */
 	private void initialize(int bytes) {
-		Preconditions.checkArgument(bytes > 0, "Requested array with zero capacity");
-		Preconditions.checkArgument(bytes <= MAX_ARRAY_SIZE, "Requested capacity exceeds limit of " + MAX_ARRAY_SIZE);
+		int capacity = bytes / ELEMENT_LENGTH_IN_BYTES;
 
-		data = new byte[bytes];
+		Preconditions.checkArgument(capacity > 0, "Requested array with zero capacity");
+		Preconditions.checkArgument(capacity <= MAX_ARRAY_SIZE, "Requested capacity exceeds limit of " + MAX_ARRAY_SIZE);
+
+		data = new byte[capacity];
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -140,15 +122,12 @@ implements ValueArray<StringValue> {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("[");
-		String separator = "";
-
-		for (StringValue sv : this) {
-			sb
-				.append(sv.getValue())
-				.append(separator);
-			separator = ",";
+		for (int idx = 0; idx < this.position; idx++) {
+			sb.append(data[idx]);
+			if (idx < position - 1) {
+				sb.append(",");
+			}
 		}
-
 		sb.append("]");
 
 		return sb.toString();
@@ -161,18 +140,14 @@ implements ValueArray<StringValue> {
 	private final ReadIterator iterator = new ReadIterator();
 
 	@Override
-	public Iterator<StringValue> iterator() {
+	public Iterator<ByteValue> iterator() {
 		iterator.reset();
 		return iterator;
 	}
 
 	private class ReadIterator
-	implements Iterator<StringValue> {
-		private static final int DEFAULT_SIZE = 64;
-
-		private StringValue value = new StringValue(CharBuffer.allocate(DEFAULT_SIZE));
-
-		private int size = DEFAULT_SIZE;
+	implements Iterator<ByteValue> {
+		private ByteValue value = new ByteValue();
 
 		private int pos;
 
@@ -182,50 +157,9 @@ implements ValueArray<StringValue> {
 		}
 
 		@Override
-		public StringValue next() {
-			// read length
-			int len = data[pos++] & 0xFF;
-
-			if (len >= HIGH_BIT) {
-				int shift = 7;
-				int curr;
-				len = len & 0x7F;
-				while ((curr = data[pos++] & 0xFF) >= HIGH_BIT) {
-					len |= (curr & 0x7F) << shift;
-					shift += 7;
-				}
-				len |= curr << shift;
-			}
-
-			// ensure capacity
-			if (len > size) {
-				while (size < len) {
-					size *= 2;
-				}
-
-				value = new StringValue(CharBuffer.allocate(size));
-			}
-
-			// read string characters
-			final char[] valueData = value.getCharArray();
-
-			for (int i = 0; i < len; i++) {
-				int c = data[pos++] & 0xFF;
-				if (c >= HIGH_BIT) {
-					int shift = 7;
-					int curr;
-					c = c & 0x7F;
-					while ((curr = data[pos++] & 0xFF) >= HIGH_BIT) {
-						c |= (curr & 0x7F) << shift;
-						shift += 7;
-					}
-					c |= curr << shift;
-				}
-				valueData[i] = (char) c;
-			}
-
-			// cannot prevent allocation of new StringValue!
-			return value.substring(0, len);
+		public ByteValue next() {
+			value.setValue(data[pos++]);
+			return value;
 		}
 
 		@Override
@@ -244,23 +178,23 @@ implements ValueArray<StringValue> {
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeInt(length);
 		out.writeInt(position);
 
-		out.write(data, 0, position);
+		for (int i = 0; i < position; i++) {
+			out.writeByte(data[i]);
+		}
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		length = in.readInt();
 		position = in.readInt();
-
-		markLength = 0;
-		markPosition = 0;
+		mark = 0;
 
 		ensureCapacity(position);
 
-		in.read(data, 0, position);
+		for (int i = 0; i < position; i++) {
+			data[i] = in.readByte();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -290,26 +224,19 @@ implements ValueArray<StringValue> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public int compareTo(ValueArray<StringValue> o) {
-		StringValueArray other = (StringValueArray) o;
+	public int compareTo(ValueArray<ByteValue> o) {
+		ByteValueArray other = (ByteValueArray) o;
 
-		// sorts first on number of data in the array, then comparison between
-		// the first non-equal element in the arrays
-		int cmp = Integer.compare(position, other.position);
-
-		if (cmp != 0) {
-			return cmp;
-		}
-
-		for (int i = 0; i < position; i++) {
-			cmp = Byte.compare(data[i], other.data[i]);
+		int min = Math.min(position, other.position);
+		for (int i = 0; i < min; i++) {
+			int cmp = Byte.compare(data[i], other.data[i]);
 
 			if (cmp != 0) {
 				return cmp;
 			}
 		}
 
-		return 0;
+		return Integer.compare(position, other.position);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -329,12 +256,8 @@ implements ValueArray<StringValue> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof StringValueArray) {
-			StringValueArray other = (StringValueArray) obj;
-
-			if (length != other.length) {
-				return false;
-			}
+		if (obj instanceof ByteValueArray) {
+			ByteValueArray other = (ByteValueArray) obj;
 
 			if (position != other.position) {
 				return false;
@@ -357,7 +280,7 @@ implements ValueArray<StringValue> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void setValue(ValueArray<StringValue> value) {
+	public void setValue(ValueArray<ByteValue> value) {
 		value.copyTo(this);
 	}
 
@@ -371,21 +294,19 @@ implements ValueArray<StringValue> {
 	}
 
 	@Override
-	public void copyTo(ValueArray<StringValue> target) {
-		StringValueArray other = (StringValueArray) target;
+	public void copyTo(ValueArray<ByteValue> target) {
+		ByteValueArray other = (ByteValueArray) target;
 
-		other.length = length;
 		other.position = position;
-		other.markLength = markLength;
-		other.markPosition = markPosition;
+		other.mark = mark;
 
 		other.ensureCapacity(position);
 		System.arraycopy(data, 0, other.data, 0, position);
 	}
 
 	@Override
-	public ValueArray<StringValue> copy() {
-		ValueArray<StringValue> copy = new StringValueArray();
+	public ValueArray<ByteValue> copy() {
+		ValueArray<ByteValue> copy = new ByteValueArray();
 
 		this.copyTo(copy);
 
@@ -398,13 +319,11 @@ implements ValueArray<StringValue> {
 	}
 
 	protected static void copyInternal(DataInputView source, DataOutputView target) throws IOException {
-		int length = source.readInt();
-		target.writeInt(length);
+		int count = source.readInt();
+		target.writeInt(count);
 
-		int position = source.readInt();
-		target.writeInt(position);
-
-		target.write(source, position);
+		int bytes = ELEMENT_LENGTH_IN_BYTES * count;
+		target.write(source, bytes);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -413,73 +332,39 @@ implements ValueArray<StringValue> {
 
 	@Override
 	public int size() {
-		return length;
+		return position;
 	}
 
 	@Override
 	public boolean isFull() {
 		if (isBounded) {
-			return position >= boundedLength;
+			return position == data.length;
 		} else {
 			return position == MAX_ARRAY_SIZE;
 		}
 	}
 
 	@Override
-	public boolean add(StringValue value) {
-		if (isBounded && position >= boundedLength) {
-			return false;
-		}
+	public boolean add(ByteValue value) {
+		int newPosition = position + 1;
 
-		// up to five bytes storing length
-		if (position + 5 > data.length) {
-			ensureCapacity(position + 5);
-		}
-
-		// update local variable until serialization succeeds
-		int newPosition = position;
-
-		// write the length, variable-length encoded
-		int len = value.length();
-
-		while (len >= HIGH_BIT) {
-			data[newPosition++] = (byte) (len | HIGH_BIT);
-			len >>>= 7;
-		}
-		data[newPosition++] = (byte) len;
-
-		// write the char data, variable-length encoded
-		final char[] valueData = value.getCharArray();
-		int remainingCapacity = data.length - newPosition;
-
-		len = value.length();
-		for (int i = 0; i < len; i++) {
-			// up to three bytes storing length
-			if (remainingCapacity < 3) {
-				ensureCapacity(remainingCapacity + 3);
-				remainingCapacity = data.length - newPosition;
+		if (newPosition > data.length) {
+			if (isBounded) {
+				return false;
+			} else {
+				ensureCapacity(newPosition);
 			}
-
-			int c = valueData[i];
-
-			while (c >= HIGH_BIT) {
-				data[newPosition++] = (byte) (c | HIGH_BIT);
-				remainingCapacity--;
-				c >>>= 7;
-			}
-			data[newPosition++] = (byte) c;
-			remainingCapacity--;
 		}
 
-		length++;
+		data[position] = value.getValue();
 		position = newPosition;
 
 		return true;
 	}
 
 	@Override
-	public boolean addAll(ValueArray<StringValue> other) {
-		StringValueArray source = (StringValueArray) other;
+	public boolean addAll(ValueArray<ByteValue> other) {
+		ByteValueArray source = (ByteValueArray) other;
 
 		int sourceSize = source.position;
 		int newPosition = position + sourceSize;
@@ -493,27 +378,23 @@ implements ValueArray<StringValue> {
 		}
 
 		System.arraycopy(source.data, 0, data, position, sourceSize);
-		length += source.length;
-  	    position = newPosition;
+		position = newPosition;
 
 		return true;
 	}
 
 	@Override
 	public void clear() {
-		length = 0;
 		position = 0;
 	}
 
 	@Override
 	public void mark() {
-		markLength = length;
-		markPosition = position;
+		mark = position;
 	}
 
 	@Override
 	public void reset() {
-		length = markLength;
-		position = markPosition;
+		position = mark;
 	}
 }
