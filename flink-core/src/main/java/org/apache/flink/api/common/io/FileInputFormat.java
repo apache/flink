@@ -501,8 +501,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 		
 
-		final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits +
-					(totalLength % minNumSplits == 0 ? 0 : 1));
+		final long maxSplitSize = totalLength / minNumSplits + (totalLength % minNumSplits == 0 ? 0 : 1);
 
 		// now that we have the files, generate the splits
 		int splitNum = 0;
