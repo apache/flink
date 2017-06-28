@@ -69,6 +69,7 @@ class TableSqlFunction(
     */
   def getPojoFieldMapping = functionImpl.fieldIndexes
 
+  override def isDeterministic: Boolean = udtf.isDeterministic
 }
 
 object TableSqlFunction {
