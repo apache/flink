@@ -100,10 +100,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       rexBuilder,
       input.getRowType.getFieldList.map(_.getType))
    
-    val offset = if(sort.offset != null) sort.offset.accept(materializer) else null
-    val fetch = if(sort.fetch != null) sort.fetch.accept(materializer) else null
+    //val offset = if(sort.offset != null) sort.offset.accept(materializer) else null
+    //val fetch = if(sort.fetch != null) sort.fetch.accept(materializer) else null
    
-    LogicalSort.create(input, sort.collation, offset, fetch)  
+    LogicalSort.create(input, sort.collation, sort.offset, sort.fetch)  
   }
 
   override def visit(`match`: LogicalMatch): RelNode =

@@ -19,13 +19,11 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.rel.RelFieldCollation
-import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._
 import scala.collection.JavaConverters._
 import org.apache.flink.api.common.operators.Order
-
+import org.apache.calcite.rel.{RelWriter, RelCollation, RelFieldCollation}
 
 /**
  * Trait represents a collection of sort methods to manipulate the parameters
@@ -33,23 +31,20 @@ import org.apache.flink.api.common.operators.Order
 
 trait CommonSort {
   
-  private[flink] def offsetToString(offset: RexNode): String = {
+  private def offsetToString(offset: RexNode): String = {
     val offsetToString = s"$offset"
     offsetToString
   }
   
-  
-  private[flink] def sortFieldsToString(
+  private def sortFieldsToString(
       collationSort: RelCollation, 
       rowRelDataType: RelDataType): String = {
     val fieldCollations = collationSort.getFieldCollations.asScala  
-    .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
+      .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
 
-    val sortFieldsToString = fieldCollations
-      .map(col => s"${
-        rowRelDataType.getFieldNames.get(col._1)} ${col._2.getShortName}" ).mkString(", ")
-    
-    sortFieldsToString
+    fieldCollations
+      .map(col => s"${rowRelDataType.getFieldNames.get(col._1)} ${col._2.getShortName}" )
+      .mkString(", ")
   }
   
   private[flink] def directionToOrder(direction: Direction) = {
@@ -60,32 +55,61 @@ trait CommonSort {
     }
   }
   
-  private[flink] def fetchToString(fetch: RexNode, offset: RexNode): String = {
+  private def fetchToString(fetch: RexNode, offset: RexNode): String = {
     val limitEnd = getFetchLimitEnd(fetch, offset)
-    val fetchToString = if (limitEnd == Long.MaxValue) {
+    
+    if (limitEnd == Long.MaxValue) {
       "unlimited"
     } else {
       s"$limitEnd"
     }
-    fetchToString
   }
   
   private[flink] def getFetchLimitEnd (fetch: RexNode, offset: RexNode): Long = {
-    val limitEnd: Long = if (fetch != null) {
+    if (fetch != null) {
       RexLiteral.intValue(fetch) + getFetchLimitStart(offset)
     } else {
       Long.MaxValue
     }
-    limitEnd
   }
   
   private[flink] def getFetchLimitStart (offset: RexNode): Long = {
-     val limitStart: Long = if (offset != null) {
+    if (offset != null) {
       RexLiteral.intValue(offset)
-     } else {
-       0L
-     }
-     limitStart
+    } else {
+      0L
+    }
+  }
+  
+  private[flink] def sortToString(
+    rowRelDataType: RelDataType,
+    sortCollation: RelCollation,
+    sortOffset: RexNode,
+    sortFetch: RexNode): String = {
+      s"Sort(by: ($$sortFieldsToString(sortCollation, rowRelDataType))," +
+        (if (sortOffset != null) {
+          " offset: $offsetToString(sortOffset)," 
+        } else {
+          ""  
+        }) +
+        (if (sortFetch != null) {
+          " fetch: $fetchToString(sortFetch, sortOffset))"
+        } else {
+          ""  
+        })
+  }
+  
+  private[flink] def sortExplainTerms(
+      pw: RelWriter,
+      rowRelDataType: RelDataType,
+      sortCollation: RelCollation,
+      sortOffset: RexNode,
+      sortFetch: RexNode) : RelWriter = {
+    
+    pw
+      .item("orderBy", sortFieldsToString(sortCollation, rowRelDataType))
+      .itemIf("offset", offsetToString(sortOffset), sortOffset != null)
+      .itemIf("fetch", fetchToString(sortFetch, sortOffset), sortFetch != null)
   }
   
 }

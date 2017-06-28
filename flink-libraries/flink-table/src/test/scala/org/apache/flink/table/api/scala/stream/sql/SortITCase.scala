@@ -89,8 +89,7 @@ class SortITCase extends StreamingWithStateTestBase {
       
     tEnv.registerTable("T1", t1)
 
-    val  sqlQuery = "SELECT b FROM T1 " +
-      "ORDER BY rowtime, b ASC ";
+    val  sqlQuery = "SELECT b FROM T1 ORDER BY rowtime, b ASC "
       
       
     val result = tEnv.sql(sqlQuery).toDataStream[Row]

@@ -57,6 +57,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.nodes.CommonSort
+import org.apache.calcite.rel.core.Sort
 
 /**
   * Flink RelNode which matches along with Sort Rule.
@@ -72,37 +73,42 @@ class DataStreamSort(
     sortOffset: RexNode,
     sortFetch: RexNode,
     description: String)
-  extends SingleRel(cluster, traitSet, inputNode)
+  extends Sort(cluster, traitSet, inputNode, sortCollation, sortOffset, sortFetch)
   with CommonSort
   with DataStreamRel {
 
   override def deriveRowType(): RelDataType = schema.logicalType
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+  override def copy(
+    traitSet: RelTraitSet, 
+    input: RelNode,
+    newCollation: RelCollation,
+    offset: RexNode, 
+    fetch: RexNode): Sort = {
+    
     new DataStreamSort(
       cluster,
       traitSet,
-      inputs.get(0),
+      input,
       inputSchema,
       schema,
-      sortCollation,
-      sortOffset,
-      sortFetch,
+      newCollation,
+      offset,
+      fetch,
       description)
   }
 
   override def toString: String = {
-    s"Sort(by: ($$sortFieldsToString(sortCollation, schema.logicalType))," +
-      " offset: $offsetToString(sortOffset)," +
-      " fetch: $fetchToString(sortFetch, sortOffset))"
+    sortToString(schema.logicalType, sortCollation, sortOffset, sortFetch)
   }
   
   override def explainTerms(pw: RelWriter) : RelWriter = {
-    
-    super.explainTerms(pw)
-      .item("orderBy", sortFieldsToString(sortCollation, schema.logicalType))
-      .item("offset", offsetToString(sortOffset))
-      .item("fetch", fetchToString(sortFetch, sortOffset))
+    sortExplainTerms(
+      super.explainTerms(pw),
+      schema.logicalType, 
+      sortCollation, 
+      sortOffset, 
+      sortFetch)
   }
 
   override def translateToPlan(
@@ -173,7 +179,7 @@ class DataStreamSort(
         .asInstanceOf[DataStream[CRow]]
     } else {
       //if the order is done only on proctime we only need to forward the elements
-      inputDS.keyBy(new NullByteKeySelector[CRow])
+      inputDS
         .map(new IdentityCRowMap())
         .setParallelism(1).setMaxParallelism(1)
         .returns(returnTypeInfo)

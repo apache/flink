@@ -46,23 +46,16 @@ class DataStreamSortRule
       "DataStreamSortRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-
-    val result = super.matches(call)
-    
     //need to identify time between others order fields. Time needs to be first sort element
     // we can safely convert the object if the match rule succeeded 
-    if(result) {
-      val calcSort: FlinkLogicalSort = call.rel(0).asInstanceOf[FlinkLogicalSort]
-      checkTimeOrder(calcSort)
-    }
-    
-    result
+    val calcSort: FlinkLogicalSort = call.rel(0).asInstanceOf[FlinkLogicalSort]
+    checkTimeOrder(calcSort)
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val calcSort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
+    val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
-    val convInput: RelNode = RelOptRule.convert(calcSort.getInput(0), FlinkConventions.DATASTREAM)
+    val convInput: RelNode = RelOptRule.convert(sort.getInput(0), FlinkConventions.DATASTREAM)
     
     val inputRowType = convInput.asInstanceOf[RelSubset].getOriginal.getRowType
 
@@ -72,11 +65,10 @@ class DataStreamSortRule
       convInput,
       new RowSchema(inputRowType),
       new RowSchema(rel.getRowType),
-      calcSort.collation,
-      calcSort.offset,
-      calcSort.fetch,
+      sort.collation,
+      sort.offset,
+      sort.fetch,
       description)
-    
   }
   
    
@@ -84,11 +76,11 @@ class DataStreamSortRule
    * Function is used to check at verification time if the SQL syntax is supported
    */
   
-  def checkTimeOrder(calcSort: FlinkLogicalSort) = {
+  def checkTimeOrder(sort: FlinkLogicalSort): Boolean = {
     
-    val rowType = calcSort.getRowType
-    val sortCollation = calcSort.collation 
-     //need to identify time between others order fields. Time needs to be first sort element
+    val rowType = sort.getRowType
+    val sortCollation = sort.collation 
+    //need to identify time between others order fields. Time needs to be first sort element
     val timeType = SortUtil.getTimeType(sortCollation, rowType)
     //time ordering needs to be ascending
     if (SortUtil.getTimeDirection(sortCollation) != Direction.ASCENDING) {
@@ -96,14 +88,10 @@ class DataStreamSortRule
     }
     //enable to extend for other types of aggregates that will not be implemented in a window
     timeType match {
-        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
-        case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
-        case _ =>
-          throw new TableException("SQL/Table needs to have sort on time as first sort element")    
-
+        case _ if FlinkTypeFactory.isTimeIndicatorType(timeType) => true
+        case _ => false //enable optimizer to look for a different plan
     }
   }
-
 }
 
 object DataStreamSortRule {

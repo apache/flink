@@ -52,11 +52,11 @@ class TimeSortProcessFunctionTest{
       INT_TYPE_INFO,
       STRING_TYPE_INFO,
       LONG_TYPE_INFO),
-      Array("a","b","c","d","e"))
+      Array("a", "b", "c", "d", "e"))
     
     val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
      LONG_TYPE_INFO), Array("count"))
-    val indexes = Array(1,2)
+    val indexes = Array(1, 2)
       
     val fieldComps = Array[TypeComparator[AnyRef]](
       LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
@@ -104,6 +104,13 @@ class TimeSortProcessFunctionTest{
     //move the timestamp to ensure the execution
     testHarness.setProcessingTime(1005)
     
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 1L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2007))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 2L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2007))
+    
+    testHarness.setProcessingTime(1008)
+    
     val result = testHarness.getOutput
     
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -111,6 +118,7 @@ class TimeSortProcessFunctionTest{
     // all elements at the same proc timestamp have the same value
     // elements should be sorted ascending on field 1 and descending on field 2
     // (10,0) (11,1) (12,2) (12,1) (12,0)
+    // (1,0) (2,0)
     
      expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong),true), 4))
@@ -122,6 +130,11 @@ class TimeSortProcessFunctionTest{
       Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
     expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong),true), 4))
+    
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 1L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 2L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
       
     TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
         expectedOutput, result, new RowResultSortComparator(6))
@@ -140,11 +153,11 @@ class TimeSortProcessFunctionTest{
       INT_TYPE_INFO,
       STRING_TYPE_INFO,
       LONG_TYPE_INFO),
-      Array("a","b","c","d","e"))
+      Array("a", "b", "c", "d", "e"))
     
     val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
      LONG_TYPE_INFO), Array("count"))
-    val indexes = Array(1,2)
+    val indexes = Array(1, 2)
       
     val fieldComps = Array[TypeComparator[AnyRef]](
       LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],

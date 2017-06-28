@@ -132,19 +132,17 @@ class DataSetSort(
 
   private val fieldCollations = collations.getFieldCollations.asScala
     .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
-
     
   override def toString: String = {
-    s"Sort(by: ($$sortFieldsToString(collations, getRowType))," +
-      " offset: $offsetToString(offset)," +
-      " fetch: $fetchToString(fetch, offset))"
+    sortToString(getRowType, collations, offset, fetch)
   }
     
-    
   override def explainTerms(pw: RelWriter) : RelWriter = {
-    super.explainTerms(pw)
-      .item("orderBy", sortFieldsToString(collations, getRowType))
-      .item("offset", offsetToString(offset))
-      .item("fetch", fetchToString(fetch, offset))
+     sortExplainTerms(
+      super.explainTerms(pw),
+      getRowType, 
+      collations, 
+      offset, 
+      fetch)
   }
 }

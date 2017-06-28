@@ -81,8 +81,7 @@ class RowTimeSortProcessFunction(
     lastTriggeringTsState = getRuntimeContext.getState(lastTriggeringTsDescriptor)
     
     if (outputC == null) {
-      val arity:Integer = inputRowType.getArity
-      outputC = new CRow(Row.of(arity), true)
+      outputC = new CRow()
     }
   }
 
@@ -126,7 +125,7 @@ class RowTimeSortProcessFunction(
 
     if (null != inputs) {
       
-      Collections.sort(inputs,rowComparator)
+      Collections.sort(inputs, rowComparator)
       
       //we need to build the output and emit the events in order
       var dataListIndex = 0

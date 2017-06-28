@@ -39,9 +39,11 @@ class SortTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode("DataStreamSort",
           streamTableNode(0),
-          term("orderBy", "proctime ASC", "c ASC"),
-          term("offset", "null"), 
-          term("fetch","unlimited")),
+          term("sort0", "$3"),
+          term("sort1", "$2"),
+          term("dir0", "ASC"),
+          term("dir1", "ASC"),
+          term("orderBy", "proctime ASC", "c ASC")),
         term("select", "a", "TIME_MATERIALIZATION(proctime) AS proctime", "c"))
 
     streamUtil.verifySql(sqlQuery, expected)
@@ -58,9 +60,11 @@ class SortTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode("DataStreamSort",
           streamTableNode(0),
-          term("orderBy", "rowtime ASC, c ASC"),
-          term("offset","null"),
-          term("fetch","unlimited")),
+          term("sort0", "$4"),
+          term("sort1", "$2"),
+          term("dir0", "ASC"),
+          term("dir1", "ASC"),
+          term("orderBy", "rowtime ASC, c ASC")),
         term("select", "a", "TIME_MATERIALIZATION(rowtime) AS rowtime", "c"))
        
     streamUtil.verifySql(sqlQuery, expected)

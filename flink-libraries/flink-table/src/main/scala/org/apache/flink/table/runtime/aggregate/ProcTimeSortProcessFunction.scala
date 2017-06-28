@@ -53,7 +53,7 @@ class ProcTimeSortProcessFunction(
 
   Preconditions.checkNotNull(rowComparator)
 
-  private var stateEventsBuffer: ListState[Row] = _
+  private var bufferedEvents: ListState[Row] = _
   private val sortArray: ArrayList[Row] = new ArrayList[Row]
   
   private var outputC: CRow = _
@@ -61,11 +61,10 @@ class ProcTimeSortProcessFunction(
   override def open(config: Configuration) {
     val sortDescriptor = new ListStateDescriptor[Row]("sortState",
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
-    stateEventsBuffer = getRuntimeContext.getListState(sortDescriptor)
+    bufferedEvents = getRuntimeContext.getListState(sortDescriptor)
     
     if (outputC == null) {
-      val arity:Integer = inputRowType.getArity
-      outputC = new CRow(Row.of(arity), true)
+      outputC = new CRow()
     }
     
   }
@@ -80,7 +79,7 @@ class ProcTimeSortProcessFunction(
     val currentTime = ctx.timerService.currentProcessingTime
     //buffer the event incoming event
   
-    stateEventsBuffer.add(input)
+    bufferedEvents.add(input)
     
     //deduplication of multiple registered timers is done automatically
     ctx.timerService.registerProcessingTimeTimer(currentTime + 1)  
@@ -92,28 +91,25 @@ class ProcTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     
-    val iter =  stateEventsBuffer.get.iterator()
+    val iter =  bufferedEvents.get.iterator()
     
     sortArray.clear()
     while(iter.hasNext()) {
       sortArray.add(iter.next())
     }
     
-    //if we do not rely on java collections to do the sort we could implement 
-    //an insertion sort as we get the elements  from the state
     Collections.sort(sortArray, rowComparator)
     
     //we need to build the output and emit the events in order
     var iElemenets = 0
     while (iElemenets < sortArray.size) {
-      // do we need to recreate the object no to mess references in previous results?
       outputC.row = sortArray.get(iElemenets)   
       out.collect(outputC)
       iElemenets += 1
     }
     
     //we need to  clear the events accumulated in the last millisecond
-    stateEventsBuffer.clear()
+    bufferedEvents.clear()
     
   }
   
