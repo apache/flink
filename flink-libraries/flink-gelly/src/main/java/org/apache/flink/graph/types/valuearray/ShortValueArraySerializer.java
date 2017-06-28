@@ -7,13 +7,14 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.apache.flink.graph.types.valuearray;
@@ -26,9 +27,9 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 
 /**
- * Specialized serializer for {@code LongValueArray}.
+ * Specialized serializer for {@code ShortValueArray}.
  */
-public final class LongValueArraySerializer extends TypeSerializerSingleton<LongValueArray> {
+public final class ShortValueArraySerializer extends TypeSerializerSingleton<ShortValueArray> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -38,17 +39,17 @@ public final class LongValueArraySerializer extends TypeSerializerSingleton<Long
 	}
 
 	@Override
-	public LongValueArray createInstance() {
-		return new LongValueArray();
+	public ShortValueArray createInstance() {
+		return new ShortValueArray();
 	}
 
 	@Override
-	public LongValueArray copy(LongValueArray from) {
-		return copy(from, new LongValueArray());
+	public ShortValueArray copy(ShortValueArray from) {
+		return copy(from, new ShortValueArray());
 	}
 
 	@Override
-	public LongValueArray copy(LongValueArray from, LongValueArray reuse) {
+	public ShortValueArray copy(ShortValueArray from, ShortValueArray reuse) {
 		reuse.setValue(from);
 		return reuse;
 	}
@@ -59,29 +60,29 @@ public final class LongValueArraySerializer extends TypeSerializerSingleton<Long
 	}
 
 	@Override
-	public void serialize(LongValueArray record, DataOutputView target) throws IOException {
+	public void serialize(ShortValueArray record, DataOutputView target) throws IOException {
 		record.write(target);
 	}
 
 	@Override
-	public LongValueArray deserialize(DataInputView source) throws IOException {
-		return deserialize(new LongValueArray(), source);
+	public ShortValueArray deserialize(DataInputView source) throws IOException {
+		return deserialize(new ShortValueArray(), source);
 	}
 
 	@Override
-	public LongValueArray deserialize(LongValueArray reuse, DataInputView source) throws IOException {
+	public ShortValueArray deserialize(ShortValueArray reuse, DataInputView source) throws IOException {
 		reuse.read(source);
 		return reuse;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		LongValueArray.copyInternal(source, target);
+		ShortValueArray.copyInternal(source, target);
 	}
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof LongValueArraySerializer;
+		return obj instanceof ShortValueArraySerializer;
 	}
 
 	@Override

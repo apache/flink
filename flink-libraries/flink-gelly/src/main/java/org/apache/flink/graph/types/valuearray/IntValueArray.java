@@ -243,7 +243,7 @@ implements ValueArray<IntValue> {
 
 	@Override
 	public int hashCode() {
-		int hash = 1;
+		int hash = 0;
 
 		for (int i = 0; i < position; i++) {
 			hash = 31 * hash + data[i];

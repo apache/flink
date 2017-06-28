@@ -25,9 +25,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+import org.apache.flink.types.ByteValue;
+import org.apache.flink.types.CharValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
@@ -44,6 +49,7 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 
 	private static final long serialVersionUID = 1L;
 
+	public static final ValueArrayTypeInfo<ByteValue> BYTE_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.BYTE_VALUE_TYPE_INFO);
 	public static final ValueArrayTypeInfo<IntValue> INT_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.INT_VALUE_TYPE_INFO);
 	public static final ValueArrayTypeInfo<LongValue> LONG_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.LONG_VALUE_TYPE_INFO);
 	public static final ValueArrayTypeInfo<NullValue> NULL_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.NULL_VALUE_TYPE_INFO);
@@ -96,12 +102,22 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 	public TypeSerializer<ValueArray<T>> createSerializer(ExecutionConfig executionConfig) {
 		Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		if (IntValue.class.isAssignableFrom(type)) {
+		if (ByteValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new ByteValueArraySerializer();
+		} else if (CharValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new CharValueArraySerializer();
+		} else if (DoubleValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new DoubleValueArraySerializer();
+		} else if (FloatValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new FloatValueArraySerializer();
+		} else if (IntValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new IntValueArraySerializer();
 		} else if (LongValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new LongValueArraySerializer();
 		} else if (NullValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new NullValueArraySerializer();
+		} else if (ShortValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new ShortValueArraySerializer();
 		} else if (StringValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new StringValueArraySerializer();
 		} else {
@@ -114,12 +130,22 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 	public TypeComparator<ValueArray<T>> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		if (IntValue.class.isAssignableFrom(type)) {
+		if (ByteValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new ByteValueArrayComparator(sortOrderAscending);
+		} else if (CharValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new CharValueArrayComparator(sortOrderAscending);
+		} else if (DoubleValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new DoubleValueArrayComparator(sortOrderAscending);
+		} else if (FloatValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new FloatValueArrayComparator(sortOrderAscending);
+		} else if (IntValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new IntValueArrayComparator(sortOrderAscending);
 		} else if (LongValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new LongValueArrayComparator(sortOrderAscending);
 		} else if (NullValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new NullValueArrayComparator(sortOrderAscending);
+		} else if (ShortValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new ShortValueArrayComparator(sortOrderAscending);
 		} else if (StringValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new StringValueArrayComparator(sortOrderAscending);
 		} else {
