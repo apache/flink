@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageService;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -201,6 +200,12 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 		try {
 			stateStorage.closeAndCleanupAllData();
+		} catch (Throwable t) {
+			exception = t;
+		}
+
+		try {
+			client.delete().deletingChildrenIfNeeded().forPath("/");
 		} catch (Throwable t) {
 			exception = t;
 		}
