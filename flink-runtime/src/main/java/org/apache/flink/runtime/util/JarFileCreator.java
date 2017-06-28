@@ -19,8 +19,9 @@
 
 package org.apache.flink.runtime.util;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

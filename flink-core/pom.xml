@@ -47,6 +47,11 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-asm</artifactId>
+		</dependency>
+
 		<!-- standard utilities -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -85,13 +90,6 @@ under the License.
 		<dependency>
 			<groupId>org.xerial.snappy</groupId>
 			<artifactId>snappy-java</artifactId>
-		</dependency>
-
-		<!-- ASM is needed for type extraction -->
-		<dependency>
-			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm-all</artifactId>
-			<version>${asm.version}</version>
 		</dependency>
 
 		<!-- ================== test dependencies ================== -->
