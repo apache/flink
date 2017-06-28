@@ -29,10 +29,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageService;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -102,6 +105,8 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	/** Store for arbitrary blobs */
 	private final BlobStoreService blobStoreService;
 
+	private RetrievableStateStorageService<SubmittedJobGraph> stateStorage;
+
 	public ZooKeeperHaServices(
 			CuratorFramework client,
 			Executor executor,
@@ -113,6 +118,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 		this.runningJobsRegistry = new ZooKeeperRunningJobsRegistry(client, configuration);
 
 		this.blobStoreService = checkNotNull(blobStoreService);
+		this.stateStorage = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -146,7 +152,10 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
-		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executor);
+		if (null == stateStorage) {
+			stateStorage = ZooKeeperUtils.createFileSystemStateStorage(configuration, "submittedJobGraph");
+		}
+		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executor, stateStorage);
 	}
 
 	@Override
@@ -186,6 +195,12 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 		try {
 			blobStoreService.closeAndCleanupAllData();
+		} catch (Throwable t) {
+			exception = t;
+		}
+
+		try {
+			stateStorage.closeAndCleanupAllData();
 		} catch (Throwable t) {
 			exception = t;
 		}

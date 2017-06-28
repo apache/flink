@@ -21,22 +21,28 @@ package org.apache.flink.runtime.zookeeper.filesystem;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.blob.FileSystemBlobStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageService;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link RetrievableStateStorageHelper} implementation which stores the state in the given filesystem path.
  *
  * @param <T> The type of the data that can be stored by this storage helper.
  */
-public class FileSystemStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
+public class FileSystemStateStorageHelper<T extends Serializable> implements RetrievableStateStorageService<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FileSystemStateStorageHelper.class);
 
 	private final Path rootPath;
 
@@ -76,5 +82,19 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 
 	private Path getNewFilePath() {
 		return new Path(rootPath, FileUtils.getRandomFilename(prefix));
+	}
+
+	@Override
+	public void closeAndCleanupAllData() {
+		try {
+			fs.delete(rootPath, true);
+		} catch (Exception e) {
+			LOG.error("Failed to clean up state storage directory.", e);
+		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		// nothing to do for the FileSystemStateStorageHelper
 	}
 }
