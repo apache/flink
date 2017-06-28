@@ -40,6 +40,14 @@ abstract class UserDefinedFunction extends Serializable {
   @throws(classOf[Exception])
   def close(): Unit = {}
 
+  /**
+    * @return true iff a call to this function is guaranteed to always return
+    *         the same result given the same parameters; true is assumed by default
+    *         if user's function is not pure functional, like random(), date(), now()...
+    *         isDeterministic must return false
+    */
+  def isDeterministic: Boolean = true
+
   final def functionIdentifier: String = {
     val md5  =  DigestUtils.md5Hex(serialize(this))
     getClass.getCanonicalName.replace('.', '$').concat("$").concat(md5)

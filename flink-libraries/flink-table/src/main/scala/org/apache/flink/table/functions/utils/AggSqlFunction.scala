@@ -57,6 +57,8 @@ class AggSqlFunction(
   ) {
 
   def getFunction: AggregateFunction[_, _] = aggregateFunction
+
+  override def isDeterministic: Boolean = aggregateFunction.isDeterministic
 }
 
 object AggSqlFunction {

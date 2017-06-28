@@ -20,9 +20,10 @@ package org.apache.flink.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class ExpressionReductionTest extends TableTestBase {
 
@@ -458,4 +459,51 @@ class ExpressionReductionTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
+  // todo this NPE is caused by Calcite, it shall pass when [CALCITE-1860] is fixed
+  @Ignore
+  def testReduceDeterministicUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    // if isDeterministic = true, will cause a Calcite NPE, which will be fixed in [CALCITE-1860]
+    val result = table
+      .select('a, 'b, 'c, DeterministicNullFunc() as 'd)
+      .where("d.isNull")
+      .select('a, 'b, 'c)
+
+    val expected: String = streamTableNode(0)
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testReduceNonDeterministicUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val result = table
+      .select('a, 'b, 'c, NonDeterministicNullFunc() as 'd)
+      .where("d.isNull")
+      .select('a, 'b, 'c)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"IS NULL(${NonDeterministicNullFunc.functionIdentifier}())")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+}
+
+object NonDeterministicNullFunc extends ScalarFunction {
+  def eval(): String = null
+  override def isDeterministic = false
+}
+
+object DeterministicNullFunc extends ScalarFunction {
+  def eval(): String = null
+  override def isDeterministic = true
 }
