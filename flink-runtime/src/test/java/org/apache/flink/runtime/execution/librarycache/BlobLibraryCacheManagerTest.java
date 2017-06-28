@@ -43,6 +43,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -226,81 +228,6 @@ public class BlobLibraryCacheManagerTest {
 		}
 	}
 
-	/**
-	 * Checks how many of the files given by blob keys are accessible.
-	 *
-	 * @param jobId
-	 * 		ID of a job
-	 * @param keys
-	 * 		blob keys to check
-	 * @param blobService
-	 * 		BLOB store to use
-	 * @param doThrow
-	 * 		whether exceptions should be ignored (<tt>false</tt>), or thrown (<tt>true</tt>)
-	 *
-	 * @return number of files we were able to retrieve via {@link BlobService#getFile}
-	 */
-	private static int checkFilesExist(
-			JobID jobId, Collection<BlobKey> keys, BlobService blobService, boolean doThrow)
-			throws IOException {
-
-		int numFiles = 0;
-
-		for (BlobKey key : keys) {
-			final File blobFile;
-			if (blobService instanceof BlobServer) {
-				BlobServer server = (BlobServer) blobService;
-				blobFile = server.getStorageLocation(jobId, key);
-			} else {
-				BlobCache cache = (BlobCache) blobService;
-				blobFile = cache.getStorageLocation(jobId, key);
-			}
-			if (blobFile.exists()) {
-				++numFiles;
-			} else if (doThrow) {
-				throw new IOException("File " + blobFile + " does not exist.");
-			}
-		}
-
-		return numFiles;
-	}
-
-	/**
-	 * Checks how many of the files given by blob keys are accessible.
-	 *
-	 * @param expectedCount
-	 * 		number of expected files in the blob service for the given job
-	 * @param jobId
-	 * 		ID of a job
-	 * @param blobService
-	 * 		BLOB store to use
-	 *
-	 * @return number of files we were able to retrieve via {@link BlobService#getFile}
-	 */
-	private static void checkFileCountForJob(
-			int expectedCount, JobID jobId, BlobService blobService)
-			throws IOException {
-
-		final File jobDir;
-		if (blobService instanceof BlobServer) {
-			BlobServer server = (BlobServer) blobService;
-			jobDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
-		} else {
-			BlobCache cache = (BlobCache) blobService;
-			jobDir = cache.getStorageLocation(jobId, new BlobKey()).getParentFile();
-		}
-		File[] blobsForJob = jobDir.listFiles();
-		if (blobsForJob == null) {
-			if (expectedCount != 0) {
-				throw new IOException("File " + jobDir + " does not exist.");
-			}
-		} else {
-			assertEquals("Too many/few files in job dir: " +
-					Arrays.asList(blobsForJob).toString(), expectedCount,
-				blobsForJob.length);
-		}
-	}
-
 	@Test
 	public void testRegisterAndDownload() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
@@ -348,8 +275,7 @@ public class BlobLibraryCacheManagerTest {
 
 				// library is still cached (but not associated with job any more)
 				checkFileCountForJob(2, jobId, server);
-				// TODO: fix check when deferred cleanup is implemented
-				checkFileCountForJob(0, jobId, cache);
+				checkFileCountForJob(1, jobId, cache);
 			}
 
 			// see BlobUtils for the directory layout

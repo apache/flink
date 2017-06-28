@@ -36,6 +36,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -82,8 +83,16 @@ public final class BlobCache extends TimerTask implements BlobService {
 	/** The global lock to synchronize operations */
 	private final Object lockObject = new Object();
 
+	private static class RefCount {
+		public int references = 0;
+		public long keepUntil = Long.MAX_VALUE;
+	}
+
 	/** Map to store the number of references to a specific job */
-	private final Map<JobID, Integer> jobRefCounters = new HashMap<>();
+	private final Map<JobID, RefCount> jobRefCounters = new HashMap<>();
+
+	/** Time interval (ms) to run the cleanup task; also used as the default TTL. */
+	private final long cleanupInterval;
 
 	private final Timer cleanupTimer;
 
@@ -127,7 +136,7 @@ public final class BlobCache extends TimerTask implements BlobService {
 		// Initializing the clean up task
 		this.cleanupTimer = new Timer(true);
 
-		long cleanupInterval = blobClientConfig.getLong(
+		cleanupInterval = blobClientConfig.getLong(
 			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
 			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
 		this.cleanupTimer.schedule(this, cleanupInterval, cleanupInterval);
@@ -139,36 +148,28 @@ public final class BlobCache extends TimerTask implements BlobService {
 	@Override
 	public void registerJob(JobID jobId) {
 		synchronized (lockObject) {
-			Integer references = jobRefCounters.get(jobId);
-			int newReferences = references == null ? 1 : references + 1;
-			jobRefCounters.put(jobId, newReferences);
+			RefCount ref = jobRefCounters.get(jobId);
+			if (ref == null) {
+				ref = new RefCount();
+				jobRefCounters.put(jobId, ref);
+			}
+			++ref.references;
 		}
 	}
 
 	@Override
 	public void releaseJob(JobID jobId) {
 		synchronized (lockObject) {
-			Integer references = jobRefCounters.get(jobId);
+			RefCount ref = jobRefCounters.get(jobId);
 
-			if (references == null) {
+			if (ref == null) {
 				LOG.warn("improper use of releaseJob() without a matching number of registerJob() calls");
 				return;
 			}
 
-			int newReferences = references - 1;
-			if (newReferences == 0) {
-				jobRefCounters.remove(jobId);
-
-				// TODO: put job directory into staged cleanup
-				final File localFile =
-					new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
-				try {
-					FileUtils.deleteDirectory(localFile);
-				} catch (IOException e) {
-					LOG.warn("Failed to locally delete job directory {}", localFile.getAbsolutePath());
-				}
-			} else {
-				jobRefCounters.put(jobId, newReferences);
+			--ref.references;
+			if (ref.references == 0) {
+				ref.keepUntil = System.currentTimeMillis() + cleanupInterval;
 			}
 		}
 	}
@@ -407,7 +408,28 @@ public final class BlobCache extends TimerTask implements BlobService {
 	 */
 	@Override
 	public void run() {
-		// TODO: implement staged cleanup
+		synchronized (lockObject) {
+			Iterator<Map.Entry<JobID, RefCount>> entryIter = jobRefCounters.entrySet().iterator();
+
+			while (entryIter.hasNext()) {
+				Map.Entry<JobID, RefCount> entry = entryIter.next();
+				RefCount ref = entry.getValue();
+
+				if (ref.references <= 0 && System.currentTimeMillis() >= ref.keepUntil) {
+					JobID jobId = entry.getKey();
+
+					final File localFile =
+						new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+					try {
+						FileUtils.deleteDirectory(localFile);
+						// let's only remove this directory from cleanup if the cleanup was successful
+						entryIter.remove();
+					} catch (Throwable t) {
+						LOG.warn("Failed to locally delete job directory {}", localFile.getAbsolutePath());
+					}
+				}
+			}
+		}
 	}
 
 	@Override
