@@ -534,8 +534,8 @@ case class LogicalRelNode(
 case class WindowAggregate(
     groupingExpressions: Seq[Expression],
     window: LogicalWindow,
-    propertyExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[NamedExpression],
+    propertyExpressions: Seq[Alias],
+    aggregateExpressions: Seq[Alias],
     child: LogicalNode)
   extends UnaryNode {
 
@@ -647,17 +647,23 @@ case class WindowAggregate(
     }
 
     // validate property
-    if (propertyExpressions.nonEmpty) {
-      resolvedWindowAggregate.window match {
-        case TumblingGroupWindow(_, _, size) if isRowCountLiteral(size) =>
-          failValidation("Window start and Window end cannot be selected " +
-                           "for a row-count Tumbling window.")
+    propertyExpressions.foreach {
+      _.child match {
+        case WindowEnd(_) | WindowStart(_) =>
+          resolvedWindowAggregate.window match {
+            case TumblingGroupWindow(_, _, size) if isRowCountLiteral(size) =>
+              failValidation(
+                "Window start and Window end cannot be selected " +
+                  "for a row-count Tumbling window.")
 
-        case SlidingGroupWindow(_, _, size, _) if isRowCountLiteral(size) =>
-          failValidation("Window start and Window end cannot be selected " +
-                           "for a row-count Sliding window.")
+            case SlidingGroupWindow(_, _, size, _) if isRowCountLiteral(size) =>
+              failValidation(
+                "Window start and Window end cannot be selected " +
+                  "for a row-count Sliding window.")
 
-        case _ => // ok
+            case _ => // ok
+          }
+        case _ => //ok
       }
     }
 

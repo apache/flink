@@ -77,6 +77,53 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
+  def testRowbaseAndTimeBase(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+
+    val windowedTable = table
+      .window(Tumble over 5.rows on 'proctime as 'w1)
+      .groupBy('w1, 'string)
+      .select('w1.proctime as 'proctime, 'string, 'int.count)
+      .window(Slide over 20.milli every 10.milli on 'proctime as 'w2)
+      .groupBy('w2)
+      .select('string.count)
+
+    val expected = unaryNode(
+      "DataStreamGroupWindowAggregate",
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "string", "int", "proctime")
+          ),
+          term("groupBy", "string"),
+          term(
+            "window",
+            TumblingGroupWindow(
+              WindowReference("w1"),
+              'proctime,
+              5.rows)),
+          term("select", "string", "COUNT(int) AS TMP_1", "proctime('w1) AS TMP_0")
+        ),
+        term("select", "string", "TMP_0 AS proctime")
+      ),
+      term(
+        "window",
+        SlidingGroupWindow(
+          WindowReference("w2"),
+          'proctime,
+          20.milli,
+          10.milli)),
+      term("select", "COUNT(string) AS TMP_2")
+    )
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
   def testProcessingTimeTumblingGroupWindowOverTime(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)

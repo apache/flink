@@ -77,9 +77,11 @@ abstract class TableTestUtil {
 
   def addFunction(name: String, function: ScalarFunction): Unit
 
-  def verifySql(query: String, expected: String): Unit
+  // add debug parameter for easily debugging
+  def verifySql(query: String, expected: String, debug: Boolean = false): Unit
 
-  def verifyTable(resultTable: Table, expected: String): Unit
+  // add debug parameter for easily debugging
+  def verifyTable(resultTable: Table, expected: String, debug: Boolean = false): Unit
 
   // the print methods are for debugging purposes only
   def printTable(resultTable: Table): Unit
@@ -177,14 +179,18 @@ case class BatchTableTestUtil() extends TableTestUtil {
     tableEnv.registerFunction(name, function)
   }
 
-  def verifySql(query: String, expected: String): Unit = {
-    verifyTable(tableEnv.sqlQuery(query), expected)
+  def verifySql(query: String, expected: String, debug: Boolean = false): Unit = {
+    verifyTable(tableEnv.sql(query), expected, debug)
   }
 
-  def verifyTable(resultTable: Table, expected: String): Unit = {
+  def verifyTable(resultTable: Table, expected: String, debug: Boolean = false): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode)
     val actual = RelOptUtil.toString(optimized)
+    if (debug) {
+      println("EXPECTED:\n" + expected.split("\n").map(_.trim).mkString("\n"))
+      println("ACTUAL:\n" + actual.split("\n").map(_.trim).mkString("\n"))
+    }
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actual.split("\n").map(_.trim).mkString("\n"))
@@ -255,14 +261,18 @@ case class StreamTableTestUtil() extends TableTestUtil {
     tableEnv.registerFunction(name, function)
   }
 
-  def verifySql(query: String, expected: String): Unit = {
-    verifyTable(tableEnv.sqlQuery(query), expected)
+  def verifySql(query: String, expected: String, debug: Boolean = false): Unit = {
+    verifyTable(tableEnv.sql(query), expected, debug)
   }
 
-  def verifyTable(resultTable: Table, expected: String): Unit = {
+  def verifyTable(resultTable: Table, expected: String, debug: Boolean = false): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
     val actual = RelOptUtil.toString(optimized)
+    if (debug) {
+      println("EXPECTED:\n" + expected.split("\n").map(_.trim).mkString("\n"))
+      println("ACTUAL:\n" + actual.split("\n").map(_.trim).mkString("\n"))
+    }
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actual.split("\n").map(_.trim).mkString("\n"))
