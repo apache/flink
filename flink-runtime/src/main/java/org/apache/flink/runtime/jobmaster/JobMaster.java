@@ -40,7 +40,7 @@ import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -149,7 +149,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	private final HighAvailabilityServices highAvailabilityServices;
 
 	/** Blob cache manager used across jobs */
-	private final BlobLibraryCacheManager libraryCacheManager;
+	private final BlobServerLibraryManager libraryCacheManager;
 
 	/** The metrics for the JobManager itself */
 	private final MetricGroup jobManagerMetricGroup;
@@ -203,7 +203,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			HighAvailabilityServices highAvailabilityService,
 			HeartbeatServices heartbeatServices,
 			ScheduledExecutorService executor,
-			BlobLibraryCacheManager libraryCacheManager,
+		BlobServerLibraryManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,
 			@Nullable JobManagerMetricGroup jobManagerMetricGroup,
@@ -675,7 +675,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	@RpcMethod
 	public ClassloadingProps requestClassloadingProps() throws Exception {
-		return new ClassloadingProps(libraryCacheManager.getBlobServerPort(),
+		return new ClassloadingProps(libraryCacheManager.getBlobService().getPort(),
 				executionGraph.getRequiredJarFiles(),
 				executionGraph.getRequiredClasspaths());
 	}
@@ -751,7 +751,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
-				resourceId, libraryCacheManager.getBlobServerPort());
+				resourceId, libraryCacheManager.getBlobService().getPort());
 			return FlinkCompletableFuture.completed(response);
 		} else {
 			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
@@ -791,7 +791,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 						}
 					});
 
-					return new JMTMRegistrationSuccess(resourceId, libraryCacheManager.getBlobServerPort());
+					return new JMTMRegistrationSuccess(resourceId, libraryCacheManager.getBlobService().getPort());
 				}
 			}, getMainThreadExecutor());
 		}

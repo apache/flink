@@ -21,10 +21,10 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -93,7 +93,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
-			final BlobService blobService,
+			final BlobServer blobService,
 			final HeartbeatServices heartbeatServices,
 			final OnCompletionActions toNotifyOnComplete,
 			final FatalErrorHandler errorHandler) throws Exception {
@@ -116,7 +116,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
-			final BlobService blobService,
+			final BlobServer blobService,
 			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
@@ -173,7 +173,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.jobManagerMetricGroup = jobManagerMetrics;
 
 			// libraries and class loader first
-			final BlobLibraryCacheManager libraryCacheManager = jobManagerServices.libraryCacheManager;
+			final BlobServerLibraryManager libraryCacheManager = jobManagerServices.libraryCacheManager;
 			final ClassLoader userCodeLoader;
 			try {
 				userCodeLoader = libraryCacheManager.registerJob(

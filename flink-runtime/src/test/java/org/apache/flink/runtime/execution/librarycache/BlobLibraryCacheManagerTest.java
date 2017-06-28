@@ -26,7 +26,6 @@ import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Rule;
@@ -38,7 +37,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -90,7 +88,7 @@ public class BlobLibraryCacheManagerTest {
 
 			bc.close();
 
-			libraryCacheManager = new BlobLibraryCacheManager(cache);
+			libraryCacheManager = new BlobCacheLibraryManager(cache);
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 
@@ -183,7 +181,7 @@ public class BlobLibraryCacheManagerTest {
 
 			bc.close();
 
-			libraryCacheManager = new BlobLibraryCacheManager(server);
+			libraryCacheManager = new BlobServerLibraryManager(server);
 			checkFileCountForJob(2, jobId, server);
 
 			libraryCacheManager.registerJob(jobId, keys, Collections.<URL>emptyList());
@@ -254,7 +252,7 @@ public class BlobLibraryCacheManagerTest {
 			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();
 
-			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache);
+			BlobLibraryCacheManager libCache = new BlobCacheLibraryManager(cache);
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 

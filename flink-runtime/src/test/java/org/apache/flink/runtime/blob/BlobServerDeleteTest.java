@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -41,6 +42,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -284,6 +287,68 @@ public class BlobServerDeleteTest extends TestLogger {
 				directory.setWritable(true, false);
 			}
 			cleanup(server, client);
+		}
+	}
+
+	/**
+	 * Tests that {@link BlobServer} cleans up after calling {@link BlobServer#cleanupJob(JobID)}.
+	 */
+	@Test
+	public void testJobCleanup() throws IOException, InterruptedException {
+
+		JobID jobId1 = new JobID();
+		List<BlobKey> keys1 = new ArrayList<BlobKey>();
+		JobID jobId2 = new JobID();
+		List<BlobKey> keys2 = new ArrayList<BlobKey>();
+		BlobServer server = null;
+
+		final byte[] buf = new byte[128];
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
+			server = new BlobServer(config, new VoidBlobStore());
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			BlobClient bc = new BlobClient(serverAddress, config);
+
+			keys1.add(bc.put(jobId1, buf));
+			keys2.add(bc.put(jobId2, buf));
+			assertEquals(keys2.get(0), keys1.get(0));
+
+			buf[0] += 1;
+			keys1.add(bc.put(jobId1, buf));
+
+			bc.close();
+
+			assertEquals(2, checkFilesExist(jobId1, keys1, server, true));
+			checkFileCountForJob(2, jobId1, server);
+			assertEquals(1, checkFilesExist(jobId2, keys2, server, true));
+			checkFileCountForJob(1, jobId2, server);
+
+			server.cleanupJob(jobId1);
+
+			checkFileCountForJob(0, jobId1, server);
+			assertEquals(1, checkFilesExist(jobId2, keys2, server, true));
+			checkFileCountForJob(1, jobId2, server);
+
+			server.cleanupJob(jobId2);
+
+			checkFileCountForJob(0, jobId1, server);
+			checkFileCountForJob(0, jobId2, server);
+
+			// calling a second time should not fail
+			server.cleanupJob(jobId2);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (server != null) {
+				server.close();
+			}
 		}
 	}
 

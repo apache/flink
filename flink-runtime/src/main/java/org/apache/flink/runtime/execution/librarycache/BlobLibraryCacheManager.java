@@ -21,15 +21,12 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -44,23 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * All files registered via {@link #registerJob(JobID, Collection, Collection)} are reference-counted
  * and are removed by a timer-based cleanup task if their reference counter is zero.
  */
-public final class BlobLibraryCacheManager implements LibraryCacheManager {
-
-	/** The blob service to download libraries */
-	private final BlobService blobService;
-	
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates the blob library cache manager.
-	 *
-	 * @param blobService blob file retrieval service to use
-	 */
-	public BlobLibraryCacheManager(BlobService blobService) {
-		this.blobService = checkNotNull(blobService);
-	}
-
-	// --------------------------------------------------------------------------------------------
+public abstract class BlobLibraryCacheManager implements LibraryCacheManager {
 	
 	@Override
 	public ClassLoader registerJob(
@@ -77,8 +58,9 @@ public final class BlobLibraryCacheManager implements LibraryCacheManager {
 			requiredClasspaths = Collections.emptySet();
 		}
 
-		blobService.registerJob(jobId);
+		registerJobWithBlobService(jobId);
 
+		BlobService blobService = getBlobService();
 		URL[] urls = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 		int count = 0;
 		try {
@@ -105,19 +87,12 @@ public final class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 	}
 
-	@Override
-	public void unregisterJob(@Nonnull JobID jobId) {
-		checkNotNull(jobId, "The JobId must not be null.");
+	protected abstract void registerJobWithBlobService(@Nonnull JobID jobId);
 
-		blobService.releaseJob(jobId);
-	}
-
-	public int getBlobServerPort() {
-		return blobService.getPort();
-	}
+	public abstract BlobService getBlobService();
 
 	@Override
 	public void shutdown() throws IOException{
-		blobService.close();
+		getBlobService().close();
 	}
 }

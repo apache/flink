@@ -46,7 +46,7 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{AcceptFunction, ApplyFunction, BiFunction, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
-import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
+import org.apache.flink.runtime.execution.librarycache.{BlobServerLibraryManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph._
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
@@ -126,7 +126,7 @@ class JobManager(
     protected val ioExecutor: Executor,
     protected val instanceManager: InstanceManager,
     protected val scheduler: FlinkScheduler,
-    protected val libraryCacheManager: BlobLibraryCacheManager,
+    protected val libraryCacheManager: BlobServerLibraryManager,
     protected val archive: ActorRef,
     protected val restartStrategyFactory: RestartStrategyFactory,
     protected val timeout: FiniteDuration,
@@ -422,7 +422,7 @@ class JobManager(
         taskManager ! decorateMessage(
           AlreadyRegistered(
             instanceID,
-            libraryCacheManager.getBlobServerPort))
+            libraryCacheManager.getBlobService.getPort))
       } else {
         try {
           val actorGateway = new AkkaActorGateway(taskManager, leaderSessionID.orNull)
@@ -437,7 +437,7 @@ class JobManager(
           taskManagerMap.put(taskManager, instanceID)
 
           taskManager ! decorateMessage(
-            AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort))
+            AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobService.getPort))
 
           // to be notified when the taskManager is no longer reachable
           context.watch(taskManager)
@@ -1061,7 +1061,7 @@ class JobManager(
         case Some((graph, jobInfo)) =>
           sender() ! decorateMessage(
             ClassloadingProps(
-              libraryCacheManager.getBlobServerPort,
+              libraryCacheManager.getBlobService.getPort,
               graph.getRequiredJarFiles,
               graph.getRequiredClasspaths))
         case None =>
@@ -1069,7 +1069,7 @@ class JobManager(
       }
 
     case RequestBlobManagerPort =>
-      sender ! decorateMessage(libraryCacheManager.getBlobServerPort)
+      sender ! decorateMessage(libraryCacheManager.getBlobService.getPort)
 
     case RequestArchive =>
       sender ! decorateMessage(ResponseArchive(archive))
@@ -1786,6 +1786,10 @@ class JobManager(
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID from the library cache.", t)
     }
+
+    // remove all job-related BLOBs from local and HA store
+    libraryCacheManager.getBlobService.cleanupJob(jobID)
+
     jobManagerMetricGroup.foreach(_.removeJob(jobID))
 
     futureOption
@@ -2453,7 +2457,7 @@ object JobManager {
       blobStore: BlobStore) :
     (InstanceManager,
     FlinkScheduler,
-    BlobLibraryCacheManager,
+    BlobServerLibraryManager,
     RestartStrategyFactory,
     FiniteDuration, // timeout
     Int, // number of archived jobs
@@ -2488,13 +2492,13 @@ object JobManager {
     var blobServer: BlobServer = null
     var instanceManager: InstanceManager = null
     var scheduler: FlinkScheduler = null
-    var libraryCacheManager: BlobLibraryCacheManager = null
+    var libraryCacheManager: BlobServerLibraryManager = null
 
     try {
       blobServer = new BlobServer(configuration, blobStore)
       instanceManager = new InstanceManager()
       scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(futureExecutor))
-      libraryCacheManager = new BlobLibraryCacheManager(blobServer)
+      libraryCacheManager = new BlobServerLibraryManager(blobServer)
 
       instanceManager.addInstanceListener(scheduler)
     }

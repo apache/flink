@@ -63,9 +63,9 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 		BlobServer[] server = new BlobServer[2];
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
-		BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
+		BlobServerLibraryManager[] libServer = new BlobServerLibraryManager[2];
 		BlobCache cache = null;
-		BlobLibraryCacheManager libCache = null;
+		BlobCacheLibraryManager libCache = null;
 		BlobStoreService blobStoreService = null;
 
 		Configuration config = new Configuration();
@@ -84,7 +84,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config, blobStoreService);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-				libServer[i] = new BlobLibraryCacheManager(server[i]);
+				libServer[i] = new BlobServerLibraryManager(server[i]);
 			}
 
 			// Random data
@@ -103,7 +103,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// The cache
 			cache = new BlobCache(serverAddress[0], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobCacheLibraryManager(cache);
 
 			// Register uploaded libraries
 			libServer[0].registerJob(jobId, keys, Collections.<URL>emptyList());
@@ -125,7 +125,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache.shutdown();
 
 			cache = new BlobCache(serverAddress[1], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobCacheLibraryManager(cache);
 
 			// Verify key 1
 			f = cache.getFile(jobId, keys.get(0));
