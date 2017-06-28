@@ -274,6 +274,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			if (nfa.isEmpty()) {
 				nfaOperatorState.clear();
 			} else {
+				nfa.resetNFAChanged();
 				nfaOperatorState.update(nfa);
 			}
 		}

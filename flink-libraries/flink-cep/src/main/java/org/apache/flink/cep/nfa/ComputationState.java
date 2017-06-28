@@ -120,7 +120,7 @@ public class ComputationState<T> {
 		if (obj instanceof ComputationState) {
 			ComputationState other = (ComputationState) obj;
 			return Objects.equals(state, other.state) &&
-				event == other.event &&
+				Objects.equals(event, other.event) &&
 				counter == other.counter &&
 				timestamp == other.timestamp &&
 				Objects.equals(version, other.version) &&

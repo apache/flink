@@ -18,7 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterators;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
@@ -43,11 +44,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
-
 import javax.annotation.Nullable;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -156,8 +153,7 @@ public class NFA<T> implements Serializable {
 	/**
 	 * Flag indicating whether the matching status of the state machine has changed.
 	 */
-	@VisibleForTesting
-	boolean nfaChanged;
+	private boolean nfaChanged;
 
 	public NFA(
 			final TypeSerializer<T> eventSerializer,
@@ -210,6 +206,13 @@ public class NFA<T> implements Serializable {
 	 */
 	public boolean isNFAChanged() {
 		return nfaChanged;
+	}
+
+	/**
+	 * Reset {@link #nfaChanged} to {@code false}.
+	 */
+	public void resetNFAChanged() {
+		this.nfaChanged = false;
 	}
 
 	/**
