@@ -24,7 +24,6 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
@@ -139,41 +136,13 @@ public final class BlobCache extends TimerTask implements BlobService {
 		shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 	}
 
-	/**
-	 * Registers someone using files for the given job.
-	 * <p>
-	 * Note that cleanup of job-related permanent files will only happen after {@link
-	 * #releaseJob(JobID)} is called!
-	 *
-	 * @param jobId
-	 * 		ID of the job to register for
-	 * @param requiredBlobs
-	 * 		collection of BLOB keys to fetch eagerly
-	 *
-	 * @return collection of local file references of the fetched BLOBs
-	 *
-	 * @throws java.io.FileNotFoundException
-	 * 		if the BLOB does not exist;
-	 * @throws IOException
-	 * 		if any other error occurs when retrieving the file
-	 *
-	 * @see #releaseJob(JobID)
-	 */
 	@Override
-	public Collection<File> registerJob(JobID jobId, Collection<BlobKey> requiredBlobs)
-			throws IOException {
-
+	public void registerJob(JobID jobId) {
 		synchronized (lockObject) {
 			Integer references = jobRefCounters.get(jobId);
 			int newReferences = references == null ? 1 : references + 1;
 			jobRefCounters.put(jobId, newReferences);
 		}
-
-		ArrayList<File> fetched = new ArrayList<>(requiredBlobs.size());
-		for (BlobKey key : requiredBlobs) {
-			fetched.add(getFile(jobId, key));
-		}
-		return fetched;
 	}
 
 	@Override

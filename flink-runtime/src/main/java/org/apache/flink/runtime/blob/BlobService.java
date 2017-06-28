@@ -32,23 +32,17 @@ import java.util.Collection;
 public interface BlobService extends Closeable {
 
 	/**
-	 * Registers use of job-related BLOBs (only relevant for {@link BlobCache}) and
-	 * retrieves a collection of BLOBs.
+	 * Registers use of job-related BLOBs (only relevant for {@link BlobCache}).
+	 * <p>
+	 * Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within calls
+	 * to {@link #registerJob(JobID)} and {@link #releaseJob(JobID)}.
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
-	 * @param requiredBlobs
-	 * 		BLOB keys associated with the requested files
 	 *
-	 * @return paths to the requested files
-	 *
-	 * @throws java.io.FileNotFoundException
-	 * 		if any of the requested BLOBs does not exist;
-	 * @throws IOException
-	 * 		if any other error occurs when retrieving the file
+	 * @see #releaseJob(JobID)
 	 */
-	Collection<File> registerJob(JobID jobId, Collection<BlobKey> requiredBlobs)
-		throws IOException;
+	void registerJob(JobID jobId);
 
 	/**
 	 * Unregisters use of job-related BLOBs and allow them to be released (only relevant for {@link
@@ -56,6 +50,8 @@ public interface BlobService extends Closeable {
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
+	 *
+	 * @see #registerJob(JobID)
 	 */
 	void releaseJob(JobID jobId);
 

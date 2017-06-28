@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -76,14 +77,14 @@ public final class BlobLibraryCacheManager implements LibraryCacheManager {
 			requiredClasspaths = Collections.emptySet();
 		}
 
-		Collection<File> blobFiles = blobService.registerJob(jobId, requiredJarFiles);
+		blobService.registerJob(jobId);
 
-		URL[] urls = new URL[blobFiles.size() + requiredClasspaths.size()];
+		URL[] urls = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 		int count = 0;
 		try {
 			// add URLs to locally cached JAR files
-			for (File blobFile : blobFiles) {
-				urls[count] = blobFile.toURI().toURL();
+			for (BlobKey key : requiredJarFiles) {
+				urls[count] = blobService.getFile(jobId, key).toURI().toURL();
 				++count;
 			}
 

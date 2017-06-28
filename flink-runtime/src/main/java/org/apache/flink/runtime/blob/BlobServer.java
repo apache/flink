@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -348,25 +347,10 @@ public class BlobServer extends Thread implements BlobService {
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
-	 * @param requiredBlobs
-	 * 		BLOB keys associated with the requested files
-	 *
-	 * @return paths to the requested files
-	 *
-	 * @throws java.io.FileNotFoundException
-	 * 		if any of the requested BLOBs does not exist;
-	 * @throws IOException
-	 * 		if any other error occurs when retrieving the file
 	 */
 	@Override
-	public Collection<File> registerJob(JobID jobId, Collection<BlobKey> requiredBlobs)
-		throws IOException {
-
-		ArrayList<File> fetched = new ArrayList<>(requiredBlobs.size());
-		for (BlobKey key : requiredBlobs) {
-			fetched.add(getFile(jobId, key));
-		}
-		return fetched;
+	public void registerJob(JobID jobId) {
+		// nothing to do
 	}
 
 	@Override
