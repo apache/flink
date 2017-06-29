@@ -117,12 +117,72 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	// ------------------------------------------------------------------------
 	//  Constructors
 	// ------------------------------------------------------------------------
+	/**
+	 * Creates a new Flink Kinesis Consumer that uses the AWS credentials and region provided from the AWS
+	 * node with the stream initial position to LATEST.
+	 *
+	 * @param stream
+	 *           The single AWS Kinesis stream to read from.
+	 * @param deserializer
+	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
+	 */
+	public FlinkKinesisConsumer(String stream, DeserializationSchema<T> deserializer) {
+		this(stream, new KinesisDeserializationSchemaWrapper<>(deserializer));
+	}
+
+	/**
+	 * Creates a new Flink Kinesis Consumer that uses the AWS credentials and region provided from the AWS
+	 * node with the provided initial position in the stream.
+	 *
+	 * @param stream
+	 * @param deserializer
+	 * @param initialPosition
+	 */
+	public FlinkKinesisConsumer(String stream, DeserializationSchema<T> deserializer, InitialPosition initialPosition) {
+		this(stream, new KinesisDeserializationSchemaWrapper<>(deserializer), initialPosition);
+	}
+
+	/**
+	 * Creates a new Flink Kinesis Consumer that uses the AWS credentials and region provided from the AWS
+	 * node with the stream initial position to LATEST.
+	 *
+	 * @param stream
+	 *           The single AWS Kinesis stream to read from.
+	 * @param deserializer
+	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
+	 */
+	public FlinkKinesisConsumer(String stream, KinesisDeserializationSchema<T> deserializer) {
+		this(stream, deserializer, new Properties());
+	}
+
+	/**
+	 * Creates a new Flink Kinesis Consumer that uses the AWS credentials and region provided from the AWS
+	 * node with the provided initial position in the stream.
+	 *
+	 * @param stream
+	 *           The single AWS Kinesis stream to read from.
+	 * @param deserializer
+	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
+	 * @param initialPosition
+	 *           Where to start the Kinesis stream
+	 */
+	public FlinkKinesisConsumer(String stream, KinesisDeserializationSchema<T> deserializer, InitialPosition initialPosition) {
+		this(stream, deserializer, getDefaultPropsWithInitialPosition(initialPosition));
+	}
+
+	private static Properties getDefaultPropsWithInitialPosition(InitialPosition initialPosition) {
+		final Properties conf = new Properties();
+		conf.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, initialPosition.name());
+		return conf;
+	}
 
 	/**
 	 * Creates a new Flink Kinesis Consumer.
 	 *
-	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
-	 * from are configured with a {@link Properties} instance.</p>
+	 * <p>The The AWS credentials to be used, AWS region of the Kinesis streams, and initial position to
+	 * start streaming from are configured with a {@link Properties} instance.  To prevent cross-region
+	 * traffic (security and compliance issues, severe performance issues) please use the default
+	 * credentials and region settings provided by the AWS API wherever possible.</p>
 	 *
 	 * @param stream
 	 *           The single AWS Kinesis stream to read from.
@@ -138,8 +198,10 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	/**
 	 * Creates a new Flink Kinesis Consumer.
 	 *
-	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
-	 * from are configured with a {@link Properties} instance.</p>
+	 * <p>The The AWS credentials to be used, AWS region of the Kinesis streams, and initial position to
+	 * start streaming from are configured with a {@link Properties} instance.  To prevent cross-region
+	 * traffic (security and compliance issues, severe performance issues) please use the default
+	 * credentials and region settings provided by the AWS API wherever possible.</p>
 	 *
 	 * @param stream
 	 *           The single AWS Kinesis stream to read from.
@@ -155,8 +217,10 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	/**
 	 * Creates a new Flink Kinesis Consumer.
 	 *
-	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
-	 * from are configured with a {@link Properties} instance.</p>
+	 * <p>The The AWS credentials to be used, AWS region of the Kinesis streams, and initial position to
+	 * start streaming from are configured with a {@link Properties} instance.  To prevent cross-region
+	 * traffic (security and compliance issues, severe performance issues) please use the default
+	 * credentials and region settings provided by the AWS API wherever possible.</p>
 	 *
 	 * @param streams
 	 *           The AWS Kinesis streams to read from.

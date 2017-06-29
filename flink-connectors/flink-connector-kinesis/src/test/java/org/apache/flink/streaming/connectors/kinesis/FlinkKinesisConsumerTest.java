@@ -93,7 +93,7 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	public void testMissingAwsRegionInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
+		exception.expectMessage("The AWS region could not be identified automatically from the AWS API.");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
@@ -531,6 +531,20 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "unparsableLong");
 
 		KinesisConfigUtil.validateProducerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testDefaultConstructorStreamSchema() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("The AWS region could not be identified automatically from the AWS API.");
+		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema());
+	}
+
+	@Test
+	public void testDefaultConstructorStreamSchemaInitialState() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("The AWS region could not be identified automatically from the AWS API.");
+		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), ConsumerConfigConstants.InitialPosition.LATEST);
 	}
 
 	// ----------------------------------------------------------------------

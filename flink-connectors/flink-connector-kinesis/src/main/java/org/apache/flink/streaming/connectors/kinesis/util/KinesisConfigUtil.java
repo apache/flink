@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
+import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 
 import java.text.ParseException;
@@ -171,7 +172,14 @@ public class KinesisConfigUtil {
 		}
 
 		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
-			throw new IllegalArgumentException("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
+			final Region currentRegion = Regions.getCurrentRegion();
+			if (currentRegion != null) {
+				config.setProperty(AWSConfigConstants.AWS_REGION, currentRegion.getName());
+			} else {
+				throw new IllegalArgumentException("The AWS region could not be identified automatically from the AWS API.  " +
+					"The region can be set manually using property ('" + AWSConfigConstants.AWS_REGION + "'), however please " +
+					"avoid setting this property in production due to risk of cross-region network traffic.");
+			}
 		} else {
 			// specified AWS Region name must be recognizable
 			if (!AWSUtil.isValidRegion(config.getProperty(AWSConfigConstants.AWS_REGION))) {
