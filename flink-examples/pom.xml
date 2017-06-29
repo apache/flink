@@ -28,7 +28,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples_${scala.binary.version}</artifactId>
+	<artifactId>flink-examples</artifactId>
 	<name>flink-examples</name>
 	<packaging>pom</packaging>
 
