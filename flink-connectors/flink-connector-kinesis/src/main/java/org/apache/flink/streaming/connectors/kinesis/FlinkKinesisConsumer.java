@@ -152,7 +152,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
 	 */
 	public FlinkKinesisConsumer(String stream, KinesisDeserializationSchema<T> deserializer) {
-		this(stream, deserializer, new Properties());
+		this(stream, deserializer, getDefaultConfigProperties());
 	}
 
 	/**
@@ -171,9 +171,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	}
 
 	private static Properties getDefaultPropsWithInitialPosition(InitialPosition initialPosition) {
-		final Properties conf = new Properties();
+		final Properties conf = getDefaultConfigProperties();
 		conf.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, initialPosition.name());
 		return conf;
+	}
+
+	private static Properties getDefaultConfigProperties() {
+		return KinesisConfigUtil.getDefaultTestProperties() == null ?
+			new Properties() : KinesisConfigUtil.getDefaultTestProperties();
 	}
 
 	/**

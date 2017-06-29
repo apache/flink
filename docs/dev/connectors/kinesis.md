@@ -72,11 +72,79 @@ Before consuming data from Kinesis streams, make sure that all streams are creat
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-Properties consumerConfig = new Properties();
-consumerConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
+
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema(), ConsumerConfigConstants.InitialPosition.LATEST));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getEnvironment
+
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, ConsumerConfigConstants.InitialPosition.LATEST))
+{% endhighlight %}
+</div>
+</div>
+
+The above is a simple example of using the Kinesis consumer when running on an Amazon Linux node (such as in EMR or AWS Lambda).
+The AWS APIs automatically provide the authentication credentials and region when available.  For unit testing, the ability to
+set test configuration is provided using KinesisConfigUtil.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties testConfig = new Properties();
+testConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+testConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+testConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+testConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+
+KinesisConfigUtil.setDefaultTestProperties(testConfig);
+
+// Automatically uses testConfig without having to modify job flow
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema()));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val testConfig = new Properties();
+testConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
 consumerConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 consumerConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+
+KinesisConfigUtil.setDefaultTestProperties(testConfig);
+
+// Automatically uses testConfig without having to modify job flow
+val env = StreamExecutionEnvironment.getEnvironment
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema))
+{% endhighlight %}
+</div>
+</div>
+
+Configuration for the consumer can also be supplied with `java.util.Properties` for use on non-Amazon Linux hardware,
+or in the case that other stream consumer properties need to be tuned.
+
+Please note it is strongly recommended to use Kinesis streams within the same availability zone they originate in.
+Cross-region network traffic can cause severe security, compliance, and performance issues.  If you plan on crossing
+regions or using Kinesis to pull large volumes of data in and out of the AWS network, please contact AWS Support to
+review the use case you are planning on.
+
+The complete list of configuration keys can be found in `ConsumerConfigConstants`.
+The example below demonstrates consuming a single Kinesis stream setting the max records per GET on a shard. The AWS credentials can also be supplied
+using the basic method in which the AWS access key ID and secret access key are directly supplied in the configuration
+(other options are setting `ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER` to `ENV_VAR`, `SYS_PROP`, `PROFILE`, and `AUTO`).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties consumerConfig = new Properties();
+consumerConfig.put(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "10000");
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
 
@@ -87,10 +155,7 @@ DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val consumerConfig = new Properties();
-consumerConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-consumerConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-consumerConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+consumerConfig.put(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "10000");
 
 val env = StreamExecutionEnvironment.getEnvironment
 
@@ -100,11 +165,7 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
 </div>
 </div>
 
-The above is a simple example of using the consumer. Configuration for the consumer is supplied with a `java.util.Properties`
-instance, the configuration keys for which can be found in `ConsumerConfigConstants`. The example
-demonstrates consuming a single Kinesis stream in the AWS region "us-east-1". The AWS credentials are supplied using the basic method in which
-the AWS access key ID and secret access key are directly supplied in the configuration (other options are setting
-`ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER` to `ENV_VAR`, `SYS_PROP`, `PROFILE`, and `AUTO`). Also, data is being consumed
+Also, data is being consumed
 from the newest position in the Kinesis stream (the other option will be setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 

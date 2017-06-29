@@ -535,13 +535,44 @@ public class FlinkKinesisConsumerTest {
 
 	@Test
 	public void testDefaultConstructorStreamSchema() {
+		/* TODO: need to use dependency injection instead of static config */
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		KinesisConfigUtil.setDefaultTestProperties(testConfig);
+		try {
+			FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema());
+		} catch (IllegalArgumentException e) {
+			fail("Unexpected exception: " + e.getMessage());
+		} finally {
+			KinesisConfigUtil.setDefaultTestProperties(null);
+		}
+	}
+
+	@Test
+	public void testDefaultConstructorStreamSchemaInitialState() {
+		/* TODO: need to use dependency injection instead of static config */
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		KinesisConfigUtil.setDefaultTestProperties(testConfig);
+		try {
+			FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream",
+				new SimpleStringSchema(), ConsumerConfigConstants.InitialPosition.LATEST);
+		} catch (IllegalArgumentException e) {
+			fail("Unexpected exception: " + e.getMessage());
+		} finally {
+			KinesisConfigUtil.setDefaultTestProperties(null);
+		}
+	}
+
+	@Test
+	public void testDefaultConstructorErrorStreamSchema() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("The AWS region could not be identified automatically from the AWS API.");
 		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema());
 	}
 
 	@Test
-	public void testDefaultConstructorStreamSchemaInitialState() {
+	public void testDefaultConstructorErrorStreamSchemaInitialState() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("The AWS region could not be identified automatically from the AWS API.");
 		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), ConsumerConfigConstants.InitialPosition.LATEST);

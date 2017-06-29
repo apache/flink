@@ -39,6 +39,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for Flink Kinesis connector configuration.
  */
 public class KinesisConfigUtil {
+
+	/* TODO: Really should be using dependency injection such as Guice, but since we are using statics
+	 * already all over the place, adding test properties as statics too :(
+	 */
+	private static Properties defaultTestProperties;
+
+	/**
+	 * Gets the default properties used for testing, such as manually setting the AWS region and creds.
+	 *
+	 * @return
+	 */
+	public static Properties getDefaultTestProperties() {
+		return defaultTestProperties;
+	}
+
+	/**
+	 * Sets the default properties used for testing, such as manually setting the AWS region and creds.
+	 *
+	 * @param defaultTestProperties
+	 */
+	public static void setDefaultTestProperties(Properties defaultTestProperties) {
+		KinesisConfigUtil.defaultTestProperties = defaultTestProperties;
+	}
+
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
