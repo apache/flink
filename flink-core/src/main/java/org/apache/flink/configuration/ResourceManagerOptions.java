@@ -37,7 +37,7 @@ public class ResourceManagerOptions {
 		.key("local.number-resourcemanager")
 		.defaultValue(1);
 
-	public static final ConfigOption<Integer> RESOURCE_MANAGER_IPC_PORT = ConfigOptions
+	public static final ConfigOption<Integer> IPC_PORT = ConfigOptions
 		.key("resourcemanager.rpc.port")
 		.defaultValue(0);
 
@@ -48,7 +48,7 @@ public class ResourceManagerOptions {
 	public static final ConfigOption<Float> CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
 		.key("containerized.heap-cutoff-ratio")
 		.defaultValue(0.25f)
-		.withDeprecatedKeys(ConfigConstants.YARN_HEAP_CUTOFF_RATIO);
+		.withDeprecatedKeys("yarn.heap-cutoff-ratio");
 
 	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
@@ -56,7 +56,7 @@ public class ResourceManagerOptions {
 	public static final ConfigOption<Integer> CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
 		.key("containerized.heap-cutoff-min")
 		.defaultValue(600)
-		.withDeprecatedKeys(ConfigConstants.YARN_HEAP_CUTOFF_MIN);
+		.withDeprecatedKeys("yarn.heap-cutoff-min");
 
 	/**
 	 * Prefix for passing custom environment variables to Flink's master process.

@@ -225,7 +225,7 @@ abstract class FlinkMiniCluster(
       AkkaUtils.getAkkaConfig(originalConfiguration, None)
     } else {
       val port = originalConfiguration.getInteger(
-        ResourceManagerOptions.RESOURCE_MANAGER_IPC_PORT)
+        ResourceManagerOptions.IPC_PORT)
 
       val resolvedPort = if(port != 0) port + index else port
 

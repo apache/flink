@@ -183,10 +183,10 @@ class LocalFlinkMiniCluster(
     val resourceManagerName = getResourceManagerName(index)
 
     val resourceManagerPort = config.getInteger(
-      ResourceManagerOptions.RESOURCE_MANAGER_IPC_PORT)
+      ResourceManagerOptions.IPC_PORT)
 
     if(resourceManagerPort > 0) {
-      config.setInteger(ResourceManagerOptions.RESOURCE_MANAGER_IPC_PORT,
+      config.setInteger(ResourceManagerOptions.IPC_PORT,
         resourceManagerPort + index)
     }
 

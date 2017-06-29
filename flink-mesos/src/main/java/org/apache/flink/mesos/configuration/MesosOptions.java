@@ -25,7 +25,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * The set of configuration options relating to mesos settings.
  */
-public class MesosConfigOptions {
+public class MesosOptions {
 
 	/**
 	 * The initial number of Mesos tasks to allocate.
@@ -72,7 +72,7 @@ public class MesosConfigOptions {
 	 * The config parameter defining the Mesos artifact server port to use.
 	 * Setting the port to 0 will let the OS choose an available port.
 	 */
-	public static final ConfigOption<Integer> ARTIFACT_SERVER_PORT_KEY =
+	public static final ConfigOption<Integer> ARTIFACT_SERVER_PORT =
 		key("mesos.resourcemanager.artifactserver.port")
 			.defaultValue(0);
 

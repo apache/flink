@@ -24,7 +24,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.mesos.configuration.MesosConfigOptions;
+import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
@@ -265,7 +265,7 @@ public class MesosApplicationMasterRunner {
 
 			// try to start the artifact server
 			LOG.debug("Starting Artifact Server");
-			final int artifactServerPort = config.getInteger(MesosConfigOptions.ARTIFACT_SERVER_PORT_KEY);
+			final int artifactServerPort = config.getInteger(MesosOptions.ARTIFACT_SERVER_PORT);
 			final String artifactServerPrefix = UUID.randomUUID().toString();
 			artifactServer = new MesosArtifactServer(artifactServerPrefix, akkaHostname, artifactServerPort, config);
 
@@ -491,38 +491,38 @@ public class MesosApplicationMasterRunner {
 			.setHostname(hostname);
 		Protos.Credential.Builder credential = null;
 
-		if (!flinkConfig.contains(MesosConfigOptions.MASTER_URL)) {
-			throw new IllegalConfigurationException(MesosConfigOptions.MASTER_URL.key() + " must be configured.");
+		if (!flinkConfig.contains(MesosOptions.MASTER_URL)) {
+			throw new IllegalConfigurationException(MesosOptions.MASTER_URL.key() + " must be configured.");
 		}
-		String masterUrl = flinkConfig.getString(MesosConfigOptions.MASTER_URL, null);
+		String masterUrl = flinkConfig.getString(MesosOptions.MASTER_URL, null);
 
 		Duration failoverTimeout = FiniteDuration.apply(
 			flinkConfig.getInteger(
-				MesosConfigOptions.FAILOVER_TIMEOUT_SECONDS),
+				MesosOptions.FAILOVER_TIMEOUT_SECONDS),
 			TimeUnit.SECONDS);
 		frameworkInfo.setFailoverTimeout(failoverTimeout.toSeconds());
 
 		frameworkInfo.setName(flinkConfig.getString(
-			MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_NAME));
+			MesosOptions.RESOURCEMANAGER_FRAMEWORK_NAME));
 
 		frameworkInfo.setRole(flinkConfig.getString(
-			MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_ROLE));
+			MesosOptions.RESOURCEMANAGER_FRAMEWORK_ROLE));
 
 		frameworkInfo.setUser(flinkConfig.getString(
-			MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_USER));
+			MesosOptions.RESOURCEMANAGER_FRAMEWORK_USER));
 
-		if (flinkConfig.contains(MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_PRINCIPAL)) {
+		if (flinkConfig.contains(MesosOptions.RESOURCEMANAGER_FRAMEWORK_PRINCIPAL)) {
 			frameworkInfo.setPrincipal(flinkConfig.getString(
-				MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_PRINCIPAL));
+				MesosOptions.RESOURCEMANAGER_FRAMEWORK_PRINCIPAL));
 
 			credential = Protos.Credential.newBuilder();
 			credential.setPrincipal(frameworkInfo.getPrincipal());
 
 			// some environments use a side-channel to communicate the secret to Mesos,
 			// and thus don't set the 'secret' configuration setting
-			if (flinkConfig.contains(MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_SECRET)) {
+			if (flinkConfig.contains(MesosOptions.RESOURCEMANAGER_FRAMEWORK_SECRET)) {
 				credential.setSecret(flinkConfig.getString(
-					MesosConfigOptions.RESOURCEMANAGER_FRAMEWORK_SECRET));
+					MesosOptions.RESOURCEMANAGER_FRAMEWORK_SECRET));
 			}
 		}
 

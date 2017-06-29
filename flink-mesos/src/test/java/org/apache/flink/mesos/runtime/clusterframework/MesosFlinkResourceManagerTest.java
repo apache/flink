@@ -19,7 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.mesos.configuration.MesosConfigOptions;
+import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
@@ -105,8 +105,8 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 		private static final long serialVersionUID = -952579203067648838L;
 
 		{
-			setInteger(MesosConfigOptions.MAX_FAILED_TASKS, -1);
-			setInteger(MesosConfigOptions.INITIAL_TASKS, 0);
+			setInteger(MesosOptions.MAX_FAILED_TASKS, -1);
+			setInteger(MesosOptions.INITIAL_TASKS, 0);
 	}};
 
 	@BeforeClass
