@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -34,6 +35,10 @@ import java.util.Map;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests if the {@link NFA} status ({@link NFA#computationStates} or {@link NFA#eventSharedBuffer})
+ * is changed after processing events.
+ */
 public class NFAStatusChangeITCase {
 
 	@Test
