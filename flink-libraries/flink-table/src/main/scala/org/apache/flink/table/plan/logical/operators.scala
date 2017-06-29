@@ -661,9 +661,11 @@ case class WindowAggregate(
                 "Window start and Window end cannot be selected " +
                   "for a row-count Sliding window.")
 
-            case _ => // ok
+            case _ => // time interval should be pass.
           }
-        case _ => //ok
+        // RowtimeAttribute and ProctimeAttribute should be pass, and be validated
+        // in their own validateInput method.
+        case _ =>
       }
     }
 
