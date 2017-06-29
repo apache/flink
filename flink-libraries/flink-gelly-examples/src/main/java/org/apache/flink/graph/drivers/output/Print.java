@@ -18,16 +18,46 @@
 
 package org.apache.flink.graph.drivers.output;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.asm.dataset.Collect;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
+
+import java.io.PrintStream;
+import java.util.List;
+
 /**
  * Print algorithm output.
+ *
+ * @param <T> result Type
  */
-public interface Print {
+public class Print<T>
+extends OutputBase<T> {
 
-	/**
-	 * Print execution results.
-	 *
-	 * @param executionName job name
-	 * @throws Exception on error
-	 */
-	void print(String executionName) throws Exception;
+	private BooleanParameter printExecutionPlan = new BooleanParameter(this, "__print_execution_plan");
+
+	@Override
+	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
+		Collect<T> collector = new Collect<T>().run(data);
+
+		if (printExecutionPlan.getValue()) {
+			System.out.println(data.getExecutionEnvironment().getExecutionPlan());
+		}
+
+		List<T> results = collector.execute(executionName);
+
+		if (results.size() == 0) {
+			return;
+		}
+
+		if (results.get(0) instanceof PrintableResult) {
+			for (Object result : results) {
+				System.out.println(((PrintableResult) result).toPrintableString());
+			}
+		} else {
+			for (Object result : results) {
+				System.out.println(result);
+			}
+		}
+	}
 }

@@ -41,11 +41,6 @@ extends GeneratedGraph<LongValue> {
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
-	public String getName() {
-		return HypercubeGraph.class.getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() + " (" + dimensions + ")";
 	}
