@@ -30,7 +30,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.testfunctions.DummyReducer;
+import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -48,7 +48,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
 					.rebalance().setParallelism(4);
 
 			data.groupBy("a").withPartitioner(new TestPartitionerInt())
-					.reduce(new DummyReducer<Pojo2>())
+					.reduce(new SelectOneReducer<Pojo2>())
 					.output(new DiscardingOutputFormat<Pojo2>());
 
 			Plan p = env.createProgramPlan();
