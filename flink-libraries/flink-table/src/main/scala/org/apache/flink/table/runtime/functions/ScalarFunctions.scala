@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.functions
 
 import scala.annotation.varargs
 import java.math.{BigDecimal => JBigDecimal}
-import java.lang.{StringBuffer => JStringBuffer}
+import java.lang.StringBuilder
 
 /**
   * Built-in scalar runtime functions.
@@ -38,7 +38,7 @@ object ScalarFunctions {
     */
   @varargs
   def concat(args: String*): String = {
-    val sb = new JStringBuffer
+    val sb = new StringBuilder
     var i = 0
     while (i < args.length) {
       if (args(i) == null) {
@@ -57,18 +57,16 @@ object ScalarFunctions {
     * Note: CONCAT_WS() does not skip empty strings. However, it does skip any NULL values after
     * the separator argument.
     *
-    * @param args The first element of argument is the separator for the rest of the arguments.
-    */
+    **/
   @varargs
-  def concat_ws(args: String*): String = {
-    val separator = args(0)
+  def concat_ws(separator: String, args: String*): String = {
     if (null == separator) {
       return null
     }
 
-    val sb = new JStringBuffer
+    val sb = new StringBuilder
 
-    var i = 1
+    var i = 0
 
     var hasValueAppended = false
 

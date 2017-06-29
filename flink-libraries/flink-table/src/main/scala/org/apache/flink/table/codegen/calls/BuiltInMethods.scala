@@ -87,6 +87,7 @@ object BuiltInMethods {
 
   val CONCAT = Types.lookupMethod(classOf[ScalarFunctions], "concat", classOf[Array[String]])
   val CONCAT_WS =
-    Types.lookupMethod(classOf[ScalarFunctions], "concat_ws", classOf[Array[String]])
+    Types.lookupMethod(
+      classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
 
 }
