@@ -1388,7 +1388,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
-					restartStrategy.restart(this);
+					restartStrategy.restart(this, futureExecutor);
 
 					return true;
 				}

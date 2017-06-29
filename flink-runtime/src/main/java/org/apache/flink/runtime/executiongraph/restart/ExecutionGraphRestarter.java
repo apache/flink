@@ -23,9 +23,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 class ExecutionGraphRestarter {
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphRestarter.class);
+
+	/** @deprecated Using {@link #scheduleRestartWithDelay(ExecutionGraph, long, ScheduledExecutorService)} instead. */
+	@Deprecated
 	public static Callable<Object> restartWithDelay(final ExecutionGraph executionGraph, final long delayBetweenRestartAttemptsInMillis) {
 		return new Callable<Object>() {
 			@Override
@@ -41,5 +47,24 @@ class ExecutionGraphRestarter {
 				return null;
 			}
 		};
+	}
+
+	public static void scheduleRestartWithDelay(final ExecutionGraph executionGraph, final long delayBetweenRestartAttemptsInMillis,
+												final ScheduledExecutorService executorService) {
+		ScheduledFuture<Object> future = executorService.schedule(
+			new Callable<Object>() {
+				@Override
+				public Object call() throws Exception {
+					executionGraph.restart();
+					return null;
+				}
+			}, delayBetweenRestartAttemptsInMillis, TimeUnit.MILLISECONDS
+		);
+
+		try {
+			future.get();
+		} catch (Throwable throwable) {
+			LOG.warn("Uncaught exception while restarting job " + executionGraph.getJobName(), throwable);
+		}
 	}
 }

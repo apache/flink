@@ -21,6 +21,8 @@ package org.apache.flink.runtime.executiongraph.restart;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 /**
  * Restart strategy which does not restart an {@link ExecutionGraph}.
  */
@@ -33,6 +35,11 @@ public class NoRestartStrategy implements RestartStrategy {
 
 	@Override
 	public void restart(ExecutionGraph executionGraph) {
+		throw new RuntimeException("NoRestartStrategy does not support restart.");
+	}
+
+	@Override
+	public void restart(ExecutionGraph executionGraph, ScheduledExecutorService executorService) {
 		throw new RuntimeException("NoRestartStrategy does not support restart.");
 	}
 

@@ -268,6 +268,11 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			this.executionGraph = executionGraph;
 		}
 
+		@Override
+		public void restart(ExecutionGraph executionGraph, ScheduledExecutorService executorService) {
+			this.executionGraph = executionGraph;
+		}
+
 		public void setRestartable(boolean restartable) {
 			this.restartable = restartable;
 		}

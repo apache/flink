@@ -57,6 +57,7 @@ import scala.concurrent.impl.Promise;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -619,6 +620,26 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		@Override
 		public void restart(final ExecutionGraph executionGraph) {
+			Futures.future(new Callable<Object>() {
+				@Override
+				public Object call() throws Exception {
+					try {
+
+						Await.ready(doRestart.future(), timeout);
+						executionGraph.restart();
+					} catch (Exception e) {
+						exception = e;
+					}
+
+					restartDone.success(true);
+
+					return null;
+				}
+			}, TestingUtils.defaultExecutionContext());
+		}
+
+		@Override
+		public void restart(final ExecutionGraph executionGraph, ScheduledExecutorService executorService) {
 			Futures.future(new Callable<Object>() {
 				@Override
 				public Object call() throws Exception {

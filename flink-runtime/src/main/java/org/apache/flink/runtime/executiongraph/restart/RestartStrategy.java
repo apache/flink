@@ -20,6 +20,8 @@ package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 /**
  * Strategy for {@link ExecutionGraph} restarts.
  */
@@ -36,6 +38,15 @@ public interface RestartStrategy {
 	 * Restarts the given {@link ExecutionGraph}.
 	 *
 	 * @param executionGraph The ExecutionGraph to be restarted
+	 * @deprecated Use {@link #restart(ExecutionGraph, ScheduledExecutorService)} instead.
 	 */
+	@Deprecated
 	void restart(ExecutionGraph executionGraph);
+
+	/**
+	 * Schedule the restart call of {@link ExecutionGraph} with the given {@link ScheduledExecutorService}.
+	 * @param executionGraph The ExecutionGraph to be restarted
+	 * @param executorService The ScheduledExecutorService to schedule the restart call
+	 */
+	void restart(ExecutionGraph executionGraph, ScheduledExecutorService executorService);
 }

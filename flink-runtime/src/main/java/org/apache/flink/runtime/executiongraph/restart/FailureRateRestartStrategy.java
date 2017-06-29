@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
 
 import java.util.ArrayDeque;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -73,6 +74,15 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
 		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getFutureExecutor());
+	}
+
+	@Override
+	public void restart(final ExecutionGraph executionGraph, ScheduledExecutorService executorService) {
+		if (isRestartTimestampsQueueFull()) {
+			restartTimestampsDeque.remove();
+		}
+		restartTimestampsDeque.add(System.currentTimeMillis());
+		ExecutionGraphRestarter.scheduleRestartWithDelay(executionGraph, delayInterval.toMilliseconds(), executorService);
 	}
 
 	private boolean isRestartTimestampsQueueFull() {
