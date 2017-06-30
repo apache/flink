@@ -56,7 +56,7 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 
 	/** The default state backend, if configured by the user in the job */
 	@Nullable
-	private final StateBackend defaultStateBackend;
+	private final SerializedValue<StateBackend> defaultStateBackend;
 
 	/** (Factories for) hooks that are executed on the checkpoint coordinator */
 	@Nullable
@@ -80,7 +80,7 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
 			ExternalizedCheckpointSettings externalizedCheckpointSettings,
-			@Nullable StateBackend defaultStateBackend,
+			@Nullable SerializedValue<StateBackend> defaultStateBackend,
 			boolean isExactlyOnce) {
 
 		this(verticesToTrigger, verticesToAcknowledge, verticesToConfirm,
@@ -97,7 +97,7 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
 			ExternalizedCheckpointSettings externalizedCheckpointSettings,
-			@Nullable StateBackend defaultStateBackend,
+			@Nullable SerializedValue<StateBackend> defaultStateBackend,
 			@Nullable SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks,
 			boolean isExactlyOnce) {
 
@@ -155,7 +155,7 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 	}
 
 	@Nullable
-	public StateBackend getDefaultStateBackend() {
+	public SerializedValue<StateBackend> getDefaultStateBackend() {
 		return defaultStateBackend;
 	}
 
