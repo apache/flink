@@ -462,14 +462,13 @@ public final class Utils {
 
 		try (DataOutputBuffer dob = new DataOutputBuffer()) {
 			log.debug("Adding security tokens to Task Executor Container launch Context....");
-			/*
-			 * For taskmanager yarn container context, read the tokens from the jobmanager yarn container local flie.
-			 * Notify: must read the tokens from the local file, but not from UGI context.Because if UGI is login
-			 * from Keytab, there is no HDFS degegation token in UGI context.
-			 */
+
+			// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local flie.
+			// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
+			// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
 			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
-			Method readTokenStorageFileMethod = Credentials.class.getMethod("readTokenStorageFile",
-				File.class, org.apache.hadoop.conf.Configuration.class);
+			Method readTokenStorageFileMethod = Credentials.class.getMethod(
+				"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
 			Credentials cred = (Credentials) readTokenStorageFileMethod.invoke(null, new File(fileLocation),
 				new SecurityUtils.SecurityConfiguration(flinkConfig).getHadoopConfiguration());
 			cred.writeTokenStorageToStream(dob);

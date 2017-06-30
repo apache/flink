@@ -799,7 +799,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(hasLogback, hasLog4j, hasKrb5);
 
 		if (UserGroupInformation.isSecurityEnabled()) {
-			//set tokens when security is enable
+			// set HDFS delegation tokens when security is enabled
 			LOG.info("Adding delegation token to the AM container..");
 			Utils.setTokensFor(amContainer, paths, conf);
 		}
