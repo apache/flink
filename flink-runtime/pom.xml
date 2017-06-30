@@ -443,7 +443,6 @@ under the License.
 						**/runtime/memory/**,
 						**/runtime/messages/**,
 						**/runtime/minicluster/**,
-						**/runtime/net/**,
 						**/runtime/operators/**,
 						**/runtime/plugable/**,
 						**/runtime/query/**,
