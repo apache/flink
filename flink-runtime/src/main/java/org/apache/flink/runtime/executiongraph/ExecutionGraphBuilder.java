@@ -232,7 +232,7 @@ public class ExecutionGraphBuilder {
 				}
 
 				log.info("Using application-defined state backend for checkpoint/savepoint metadata: {}.",
-						applicationConfiguredBackend);
+					metadataBackend);
 			} else {
 				try {
 					metadataBackend = AbstractStateBackend
