@@ -52,7 +52,7 @@ import java.util.Random;
 @SuppressWarnings("serial")
 public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-	final private static long NUM_INPUT = 2_500_000L;
+	final private static long NUM_INPUT = 500_000L;
 	final private static int NUM_OUTPUT = 1_000;
 
 	/**
