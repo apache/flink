@@ -239,7 +239,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 						allNonZero = false;
 					}
 
-					Future<Tuple2<Integer, Long>> serializedResult = getKvStateWithRetries(
+					Future<Tuple2<Integer, Long>> result = getKvStateWithRetries(
 							client,
 							jobId,
 							queryName,
@@ -249,7 +249,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							QUERY_RETRY_DELAY,
 							false);
 
-					serializedResult.onSuccess(new OnSuccess<Tuple2<Integer, Long>>() {
+					result.onSuccess(new OnSuccess<Tuple2<Integer, Long>>() {
 						@Override
 						public void onSuccess(Tuple2<Integer, Long> result) throws Throwable {
 							counts.set(key, result.f1);
@@ -257,7 +257,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 						}
 					}, TEST_ACTOR_SYSTEM.dispatcher());
 
-					futures.add(serializedResult);
+					futures.add(result);
 				}
 
 				Future<Iterable<Tuple2<Integer, Long>>> futureSequence = Futures.sequence(
@@ -438,7 +438,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Now query
 			long expected = numElements;
 
-			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
+			executeQuery(deadline, client, jobId, "hakuna", valueState, expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -517,7 +517,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
+			executeQuery(deadline, client, jobId, "hakuna", valueState, expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -537,7 +537,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 * Retry a query for state for keys between 0 and {@link #NUM_SLOTS} until
 	 * <tt>expected</tt> equals the value of the result tuple's second field.
 	 */
-	private void executeValueQuery(
+	private void executeQuery(
 			final Deadline deadline,
 			final QueryableStateClient client,
 			final JobID jobId,
@@ -576,7 +576,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 * Retry a query for state for keys between 0 and {@link #NUM_SLOTS} until
 	 * <tt>expected</tt> equals the value of the result tuple's second field.
 	 */
-	private void executeValueQuery(
+	private void executeQuery(
 			final Deadline deadline,
 			final QueryableStateClient client,
 			final JobID jobId,
@@ -756,7 +756,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Now query
 			long expected = numElements;
 
-			executeValueQuery(deadline, client, jobId, "matata",
+			executeQuery(deadline, client, jobId, "matata",
 					queryableState.getValueSerializer(), expected);
 		} finally {
 			// Free cluster resources
@@ -927,7 +927,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Now query
 			long expected = numElements * (numElements + 1) / 2;
 
-			executeValueQuery(deadline, client, jobId, "jungle", reducingState, expected);
+			executeQuery(deadline, client, jobId, "jungle", reducingState, expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -1101,12 +1101,12 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			implements CheckpointListener {
 		private static final long serialVersionUID = -5744725196953582710L;
 
-		private final static AtomicLong LATEST_CHECKPOINT_ID = new AtomicLong();
+		private static final AtomicLong LATEST_CHECKPOINT_ID = new AtomicLong();
 		private final int numKeys;
 		private final ThreadLocalRandom random = ThreadLocalRandom.current();
 		private volatile boolean isRunning = true;
 
-		public TestKeyRangeSource(int numKeys) {
+		TestKeyRangeSource(int numKeys) {
 			this.numKeys = numKeys;
 		}
 

@@ -84,7 +84,7 @@ public class TaskKvStateRegistry {
 
 		private final KvStateID kvStateId;
 
-		public KvStateInfo(KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId) {
+		KvStateInfo(KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId) {
 			this.keyGroupRange = keyGroupRange;
 			this.registrationName = registrationName;
 			this.kvStateId = kvStateId;

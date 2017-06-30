@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -174,8 +175,13 @@ public class QueryableStateClient {
 	}
 
 	/** Gets the {@link ExecutionConfig} object. */
-	public ExecutionConfig getConfig() {
+	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
+	}
+
+	/** Sets the {@link ExecutionConfig} object. */
+	public void setExecutionConfig(ExecutionConfig config) {
+		this.executionConfig = config;
 	}
 
 	/**
@@ -233,14 +239,6 @@ public class QueryableStateClient {
 	}
 
 	/**
-	 * @deprecated Use instead one of the:
-	 * <ol>
-	 * 	<li>{@link #getKvState(JobID, String, Object, TypeHint, StateDescriptor)}</li>
-	 * 	<li>{@link #getKvState(JobID, String, Object, TypeInformation, StateDescriptor)}</li>
-	 * 	<li>{@link #getKvState(JobID, String, Object, Object, TypeInformation, TypeInformation, StateDescriptor)}</li>
-	 * 	<li>{@link #getKvState(JobID, String, Object, Object, TypeInformation, TypeInformation, TypeSerializer)}</li>
-	 * </ol>
-	 *
 	 * Returns a future holding the serialized request result.
 	 *
 	 * <p>If the server does not serve a KvState instance with the given ID,
@@ -260,7 +258,6 @@ public class QueryableStateClient {
 	 *                                  KvState instance with
 	 * @return Future holding the serialized result
 	 */
-	@Deprecated
 	@SuppressWarnings("unchecked")
 	public Future<byte[]> getKvState(
 			final JobID jobId,
@@ -390,10 +387,10 @@ public class QueryableStateClient {
 
 		// initialize the value serializer based on the execution config.
 		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
-		TypeSerializer<V> valueSerializer = stateDescriptor.getSerializer();
+		TypeSerializer<V> stateSerializer = stateDescriptor.getSerializer();
 
 		return getKvState(jobId, queryableStateName, key,
-				namespace, keyTypeInfo, namespaceTypeInfo, valueSerializer);
+				namespace, keyTypeInfo, namespaceTypeInfo, stateSerializer);
 	}
 
 	/**
@@ -413,7 +410,7 @@ public class QueryableStateClient {
 	 * @param namespace					The namespace of the state.
 	 * @param keyTypeInfo				The {@link TypeInformation} of the keys.
 	 * @param namespaceTypeInfo			The {@link TypeInformation} of the namespace.
-	 * @param valueSerializer			The {@link TypeSerializer} of the state we want to query.
+	 * @param stateSerializer			The {@link TypeSerializer} of the state we want to query.
 	 * @return Future holding the result.
 	 */
 	@PublicEvolving
@@ -424,7 +421,7 @@ public class QueryableStateClient {
 			final N namespace,
 			final TypeInformation<K> keyTypeInfo,
 			final TypeInformation<N> namespaceTypeInfo,
-			final TypeSerializer<V> valueSerializer) {
+			final TypeSerializer<V> stateSerializer) {
 
 		Preconditions.checkNotNull(queryableStateName);
 
@@ -433,7 +430,11 @@ public class QueryableStateClient {
 
 		Preconditions.checkNotNull(keyTypeInfo);
 		Preconditions.checkNotNull(namespaceTypeInfo);
-		Preconditions.checkNotNull(valueSerializer);
+		Preconditions.checkNotNull(stateSerializer);
+
+		if (stateSerializer instanceof ListSerializer) {
+			throw new IllegalArgumentException("ListState is not supported out-of-the-box yet.");
+		}
 
 		TypeSerializer<K> keySerializer = keyTypeInfo.createSerializer(executionConfig);
 		TypeSerializer<N> namespaceSerializer = namespaceTypeInfo.createSerializer(executionConfig);
@@ -455,7 +456,7 @@ public class QueryableStateClient {
 					public Future<V> apply(byte[] parameter) {
 						try {
 							return Futures.successful(
-									KvStateRequestSerializer.deserializeValue(parameter, valueSerializer));
+									KvStateRequestSerializer.deserializeValue(parameter, stateSerializer));
 						} catch (IOException e) {
 							return Futures.failed(e);
 						}
