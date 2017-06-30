@@ -92,8 +92,19 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   override def visit(minus: LogicalMinus): RelNode =
     throw new TableException("Logical minus in a stream environment is not supported yet.")
 
-  override def visit(sort: LogicalSort): RelNode =
-    throw new TableException("Logical sort in a stream environment is not supported yet.")
+  override def visit(sort: LogicalSort): RelNode = {
+
+    val input = sort.getInput.accept(this)
+    
+    val materializer = new RexTimeIndicatorMaterializer(
+      rexBuilder,
+      input.getRowType.getFieldList.map(_.getType))
+   
+    val offset = if(sort.offset != null) sort.offset.accept(materializer) else null
+    val fetch = if(sort.fetch != null) sort.fetch.accept(materializer) else null
+   
+    LogicalSort.create(input, sort.collation, offset, fetch)  
+  }
 
   override def visit(`match`: LogicalMatch): RelNode =
     throw new TableException("Logical match in a stream environment is not supported yet.")
