@@ -27,7 +27,9 @@ import com.google.common.io.Files;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,24 +38,21 @@ public class BlobUtilsTest {
 
 	private final static String CANNOT_CREATE_THIS = "cannot-create-this";
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	private File blobUtilsTestDirectory;
 
 	@Before
-	public void before() {
-		// Prepare test directory
-		blobUtilsTestDirectory = Files.createTempDir();
-
+	public void before() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
+		// Prepare test directory
+		blobUtilsTestDirectory = temporaryFolder.newFolder();
 
 		assertTrue(blobUtilsTestDirectory.setExecutable(true, false));
 		assertTrue(blobUtilsTestDirectory.setReadable(true, false));
 		assertTrue(blobUtilsTestDirectory.setWritable(false, false));
-	}
-
-	@After
-	public void after() {
-		// Cleanup test directory
-		assertTrue(blobUtilsTestDirectory.delete());
 	}
 
 	@Test(expected = IOException.class)

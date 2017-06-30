@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +34,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -200,31 +197,6 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Returns a file handle to the file identified by the given jobID and key.
-	 *
-	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
-	 *
-	 * @param jobID to which the file is associated
-	 * @param key to identify the file within the job context
-	 * @return file handle to the file
-	 */
-	File getStorageLocation(JobID jobID, String key) {
-		return BlobUtils.getStorageLocation(storageDir, jobID, key);
-	}
-
-	/**
-	 * Method which deletes all files associated with the given jobID.
-	 *
-	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
-	 *
-	 * @param jobID all files associated to this jobID will be deleted
-	 * @throws IOException
-	 */
-	void deleteJobDirectory(JobID jobID) throws IOException {
-		BlobUtils.deleteJobDirectory(storageDir, jobID);
-	}
-
-	/**
 	 * Returns a temporary file inside the BLOB server's incoming directory.
 	 *
 	 * @return a temporary file inside the BLOB server's incoming directory
@@ -361,22 +333,23 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Method which retrieves the URL of a file associated with a blob key. The blob server looks
-	 * the blob key up in its local storage. If the file exists, then the URL is returned. If the
-	 * file does not exist, then a FileNotFoundException is thrown.
+	 * Method which retrieves the local path of a file associated with a blob key. The blob server
+	 * looks the blob key up in its local storage. If the file exists, it is returned. If the
+	 * file does not exist, it is retrieved from the HA blob store (if available) or a
+	 * FileNotFoundException is thrown.
 	 *
 	 * @param requiredBlob blob key associated with the requested file
-	 * @return URL of the file
-	 * @throws IOException
+	 * @return file referring to the local storage location of the BLOB.
+	 * @throws IOException Thrown if the file retrieval failed.
 	 */
 	@Override
-	public URL getURL(BlobKey requiredBlob) throws IOException {
+	public File getFile(BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
 		if (localFile.exists()) {
-			return localFile.toURI().toURL();
+			return localFile;
 		}
 		else {
 			try {
@@ -388,7 +361,7 @@ public class BlobServer extends Thread implements BlobService {
 			}
 
 			if (localFile.exists()) {
-				return localFile.toURI().toURL();
+				return localFile;
 			}
 			else {
 				throw new FileNotFoundException("Local file " + localFile + " does not exist " +
@@ -411,11 +384,10 @@ public class BlobServer extends Thread implements BlobService {
 		readWriteLock.writeLock().lock();
 
 		try {
-			if (localFile.exists()) {
-				if (!localFile.delete()) {
-					LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
-				}
+			if (!localFile.delete() && localFile.exists()) {
+				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
 			}
+
 
 			blobStore.delete(key);
 		} finally {

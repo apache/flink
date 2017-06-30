@@ -26,9 +26,6 @@ public class BlobServerProtocol {
 	/** The buffer size in bytes for network transfers. */
 	static final int BUFFER_SIZE = 65536; // 64 K
 
-	/** The maximum key length allowed for storing BLOBs. */
-	static final int MAX_KEY_LENGTH = 64;
-
 	/** Internal code to identify a PUT operation. */
 	static final byte PUT_OPERATION = 0;
 
@@ -44,14 +41,13 @@ public class BlobServerProtocol {
 	/** Internal code to identify an erroneous operation. */
 	static final byte RETURN_ERROR = 1;
 
-	/** Internal code to identify a reference via content hash as the key */
+	/**
+	 * Internal code to identify a reference via content hash as the key.
+	 * <p>
+	 * Note: previously, there was also <tt>NAME_ADDRESSABLE</tt> (code <tt>1</tt>) and
+	 * <tt>JOB_ID_SCOPE</tt> (code <tt>2</tt>).
+	 */
 	static final byte CONTENT_ADDRESSABLE = 0;
-
-	/** Internal code to identify a reference via jobId and name as the key */
-	static final byte NAME_ADDRESSABLE = 1;
-
-	/** Internal code to identify a reference via jobId as the key */
-	static final byte JOB_ID_SCOPE = 2;
 
 	// --------------------------------------------------------------------------------------------
 

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -40,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The BLOB cache implements a local cache for content-addressable BLOBs.
  *
- * <p>When requesting BLOBs through the {@link BlobCache#getURL} methods, the
+ * <p>When requesting BLOBs through the {@link BlobCache#getFile(BlobKey)} method, the
  * BLOB cache will first attempt to serve the file from its local cache. Only if
  * the local cache does not contain the desired BLOB, the BLOB cache will try to
  * download it from a distributed file system (if available) or the BLOB
@@ -112,21 +110,22 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
-	 * Returns the URL for the BLOB with the given key. The method will first attempt to serve
+	 * Returns local copy of the file for the BLOB with the given key. The method will first attempt to serve
 	 * the BLOB from its local cache. If the BLOB is not in the cache, the method will try to download it
 	 * from this cache's BLOB server.
 	 *
 	 * @param requiredBlob The key of the desired BLOB.
-	 * @return URL referring to the local storage location of the BLOB.
+	 * @return file referring to the local storage location of the BLOB.
 	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
-	public URL getURL(final BlobKey requiredBlob) throws IOException {
+	@Override
+	public File getFile(final BlobKey requiredBlob) throws IOException {
 		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localJarFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
 		if (localJarFile.exists()) {
-			return localJarFile.toURI().toURL();
+			return localJarFile;
 		}
 
 		// first try the distributed blob store (if available)
@@ -137,83 +136,50 @@ public final class BlobCache implements BlobService {
 		}
 
 		if (localJarFile.exists()) {
-			return localJarFile.toURI().toURL();
+			return localJarFile;
 		}
 
 		// fallback: download from the BlobServer
 		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
+		LOG.info("Downloading {} from {}", requiredBlob, serverAddress);
 
 		// loop over retries
 		int attempt = 0;
 		while (true) {
-
-			if (attempt == 0) {
-				LOG.info("Downloading {} from {}", requiredBlob, serverAddress);
-			} else {
-				LOG.info("Downloading {} from {} (retry {})", requiredBlob, serverAddress, attempt);
-			}
-
-			try {
-				BlobClient bc = null;
-				InputStream is = null;
-				OutputStream os = null;
-
-				try {
-					bc = new BlobClient(serverAddress, blobClientConfig);
-					is = bc.get(requiredBlob);
-					os = new FileOutputStream(localJarFile);
-
-					while (true) {
-						final int read = is.read(buf);
-						if (read < 0) {
-							break;
-						}
-						os.write(buf, 0, read);
+			try (
+				final BlobClient bc = new BlobClient(serverAddress, blobClientConfig);
+				final InputStream is = bc.get(requiredBlob);
+				final OutputStream os = new FileOutputStream(localJarFile)
+			) {
+				while (true) {
+					final int read = is.read(buf);
+					if (read < 0) {
+						break;
 					}
-
-					// we do explicitly not use a finally block, because we want the closing
-					// in the regular case to throw exceptions and cause the writing to fail.
-					// But, the closing on exception should not throw further exceptions and
-					// let us keep the root exception
-					os.close();
-					os = null;
-					is.close();
-					is = null;
-					bc.close();
-					bc = null;
-
-					// success, we finished
-					return localJarFile.toURI().toURL();
+					os.write(buf, 0, read);
 				}
-				catch (Throwable t) {
-					// we use "catch (Throwable)" to keep the root exception. Otherwise that exception
-					// it would be replaced by any exception thrown in the finally block
-					IOUtils.closeQuietly(os);
-					IOUtils.closeQuietly(is);
-					IOUtils.closeQuietly(bc);
 
-					if (t instanceof IOException) {
-						throw (IOException) t;
-					} else {
-						throw new IOException(t.getMessage(), t);
-					}
-				}
+				// success, we finished
+				return localJarFile;
 			}
-			catch (IOException e) {
+			catch (Throwable t) {
 				String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
 					" and store it under " + localJarFile.getAbsolutePath();
 				if (attempt < numFetchRetries) {
-					attempt++;
 					if (LOG.isDebugEnabled()) {
-						LOG.debug(message + " Retrying...", e);
+						LOG.debug(message + " Retrying...", t);
 					} else {
 						LOG.error(message + " Retrying...");
 					}
 				}
 				else {
-					LOG.error(message + " No retries left.", e);
-					throw new IOException(message, e);
+					LOG.error(message + " No retries left.", t);
+					throw new IOException(message, t);
 				}
+
+				// retry
+				++attempt;
+				LOG.info("Downloading {} from {} (retry {})", requiredBlob, serverAddress, attempt);
 			}
 		} // end loop over retries
 	}
@@ -222,11 +188,12 @@ public final class BlobCache implements BlobService {
 	 * Deletes the file associated with the given key from the BLOB cache.
 	 * @param key referring to the file to be deleted
 	 */
+	@Override
 	public void delete(BlobKey key) throws IOException{
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
-		if (localFile.exists() && !localFile.delete()) {
-			LOG.warn("Failed to delete locally cached BLOB " + key + " at " + localFile.getAbsolutePath());
+		if (!localFile.delete() && localFile.exists()) {
+			LOG.warn("Failed to delete locally cached BLOB {} at {}", key, localFile.getAbsolutePath());
 		}
 	}
 

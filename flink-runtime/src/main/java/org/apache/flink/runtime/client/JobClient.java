@@ -229,7 +229,7 @@ public class JobClient {
 			int pos = 0;
 			for (BlobKey blobKey : props.requiredJarFiles()) {
 				try {
-					allURLs[pos++] = blobClient.getURL(blobKey);
+					allURLs[pos++] = blobClient.getFile(blobKey).toURI().toURL();
 				} catch (Exception e) {
 					try {
 						blobClient.close();
