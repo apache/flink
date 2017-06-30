@@ -60,18 +60,19 @@ public class HadoopModule implements SecurityModule {
 				// supplement with any available tokens
 				String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
 				if (fileLocation != null) {
-					/*
-					 * Use reflection API since the API semantics are not available in Hadoop1 profile. Below APIs are
-					 * used in the context of reading the stored tokens from UGI.
-					 * Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), config.hadoopConf);
-					 * loginUser.addCredentials(cred);
-					 * Notify:If UGI use the keytab for login, do not load HDFS delegation token.
-					*/
+					// Use reflection API since the API semantics are not available in Hadoop1 profile. Below APIs are
+					// used in the context of reading the stored tokens from UGI.
+					// Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), config.hadoopConf);
+					// loginUser.addCredentials(cred);
 					try {
 						Method readTokenStorageFileMethod = Credentials.class.getMethod("readTokenStorageFile",
 							File.class, org.apache.hadoop.conf.Configuration.class);
 						Credentials cred = (Credentials) readTokenStorageFileMethod.invoke(null, new File(fileLocation),
 							securityConfig.getHadoopConfiguration());
+
+						// if UGI uses Kerberos keytabs for login, do not load HDFS delegation token since
+						// the UGI would prefer the delegation token instead, which eventually expires
+						// and does not fallback to using Kerberos tickets
 						Method getAllTokensMethod = Credentials.class.getMethod("getAllTokens");
 						Credentials credentials = new Credentials();
 						final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
@@ -83,6 +84,7 @@ public class HadoopModule implements SecurityModule {
 								credentials.addToken(id, token);
 							}
 						}
+
 						Method addCredentialsMethod = UserGroupInformation.class.getMethod("addCredentials",
 							Credentials.class);
 						addCredentialsMethod.invoke(loginUser, credentials);
