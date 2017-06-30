@@ -415,7 +415,6 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
 			}
 
-
 			blobStore.delete(key);
 		} finally {
 			readWriteLock.writeLock().unlock();
