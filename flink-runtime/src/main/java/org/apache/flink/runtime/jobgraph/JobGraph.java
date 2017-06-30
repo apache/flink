@@ -552,6 +552,7 @@ public class JobGraph implements Serializable {
 				FSDataInputStream is = null;
 				try {
 					is = fs.open(jar);
+					// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
 					final BlobKey key = bc.put(is);
 					this.userJarBlobKeys.add(key);
 				}

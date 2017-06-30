@@ -64,13 +64,8 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Put ------------------------------------------------------------------
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws IOException {
-		put(localFile, BlobUtils.getRecoveryPath(basePath, blobKey));
-	}
-
-	@Override
-	public void put(File localFile, JobID jobId, String key) throws IOException {
-		put(localFile, BlobUtils.getRecoveryPath(basePath, jobId, key));
+	public void put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+		put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
 	private void put(File fromFile, String toBlobPath) throws IOException {
@@ -83,13 +78,8 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Get ------------------------------------------------------------------
 
 	@Override
-	public void get(BlobKey blobKey, File localFile) throws IOException {
-		get(BlobUtils.getRecoveryPath(basePath, blobKey), localFile);
-	}
-
-	@Override
-	public void get(JobID jobId, String key, File localFile) throws IOException {
-		get(BlobUtils.getRecoveryPath(basePath, jobId, key), localFile);
+	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+		get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile);
 	}
 
 	private void get(String fromBlobPath, File toFile) throws IOException {
@@ -122,18 +112,13 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Delete ---------------------------------------------------------------
 
 	@Override
-	public void delete(BlobKey blobKey) {
-		delete(BlobUtils.getRecoveryPath(basePath, blobKey));
-	}
-
-	@Override
-	public void delete(JobID jobId, String key) {
-		delete(BlobUtils.getRecoveryPath(basePath, jobId, key));
+	public void delete(JobID jobId, BlobKey blobKey) {
+		delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
 	@Override
 	public void deleteAll(JobID jobId) {
-		delete(BlobUtils.getRecoveryPath(basePath, jobId));
+		delete(BlobUtils.getStorageLocationPath(basePath, jobId));
 	}
 
 	private void delete(String blobPath) {

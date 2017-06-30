@@ -31,19 +31,10 @@ public interface BlobView {
 	/**
 	 * Copies a blob to a local file.
 	 *
+	 * @param jobId     ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param blobKey   The blob ID
 	 * @param localFile The local file to copy to
 	 * @throws IOException If the copy fails
 	 */
-	void get(BlobKey blobKey, File localFile) throws IOException;
-
-	/**
-	 * Copies a blob to a local file.
-	 *
-	 * @param jobId     The JobID part of ID for the blob
-	 * @param key       The String part of ID for the blob
-	 * @param localFile The local file to copy to
-	 * @throws IOException If the copy fails
-	 */
-	void get(JobID jobId, String key, File localFile) throws IOException;
+	void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException;
 }

@@ -18,7 +18,14 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
-import java.io.File;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
@@ -32,15 +39,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobService;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.util.ExceptionUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -48,6 +46,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * a set of libraries (typically JAR files) which the job requires to run. The library cache manager
  * caches library files in order to avoid unnecessary retransmission of data. It is based on a singleton
  * programming pattern, so there exists at most one library manager at a time.
+ * <p>
+ * All files registered via {@link #registerJob(JobID, Collection, Collection)} are reference-counted
+ * and are removed by a timer-based cleanup task if their reference counter is zero.
  */
 public final class BlobLibraryCacheManager extends TimerTask implements LibraryCacheManager {
 
@@ -73,6 +74,12 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates the blob library cache manager.
+	 *
+	 * @param blobService blob file retrieval service to use
+	 * @param cleanupInterval cleanup interval in milliseconds
+	 */
 	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
 		this.blobService = checkNotNull(blobService);
 
@@ -191,11 +198,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		}
 	}
 
-	@Override
-	public File getFile(BlobKey blobKey) throws IOException {
-		return new File(blobService.getURL(blobKey).getFile());
-	}
-
 	public int getBlobServerPort() {
 		return blobService.getPort();
 	}
@@ -252,7 +254,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		// it is important that we fetch the URL before increasing the counter.
 		// in case the URL cannot be created (failed to fetch the BLOB), we have no stale counter
 		try {
-			URL url = blobService.getURL(key);
+			URL url = blobService.getFile(key).toURI().toURL();
 
 			Integer references = blobKeyReferenceCounters.get(key);
 			int newReferences = references == null ? 1 : references + 1;
