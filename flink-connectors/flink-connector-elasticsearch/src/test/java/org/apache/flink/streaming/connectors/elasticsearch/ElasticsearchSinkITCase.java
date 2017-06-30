@@ -30,7 +30,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
@@ -65,41 +64,6 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 	}
 
 	// -- Tests specific to Elasticsearch 1.x --
-
-	/**
-	 * Tests that the Elasticsearch sink works properly using an embedded node to connect to Elasticsearch.
-	 *
-	 * NOTE: This is ignored, since executing both embedded client mode and transport client mode introduces
-	 * instability for node discovery in ES 1.x. See FLINK-6867.
-	 */
-	@Ignore
-	@Test
-	public void testEmbeddedNode() throws Exception {
-		final String index = "embedded-node-test-index";
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
-
-		Map<String, String> userConfig = new HashMap<>();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", CLUSTER_NAME);
-		userConfig.put("node.local", "true");
-
-		source.addSink(new ElasticsearchSink<>(
-			userConfig,
-			new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index))
-		);
-
-		env.execute("Elasticsearch Embedded Node Test");
-
-		// verify the results
-		Client client = embeddedNodeEnv.getClient();
-		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
-
-		client.close();
-	}
 
 	/**
 	 * Tests that behaviour of the deprecated {@link IndexRequestBuilder} constructor works properly.
