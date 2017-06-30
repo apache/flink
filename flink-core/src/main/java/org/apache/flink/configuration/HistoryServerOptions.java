@@ -71,7 +71,7 @@ public class HistoryServerOptions {
 
 	/**
 	 * Enables/Disables SSL support for the HistoryServer web-frontend. Only relevant if
-	 * {@link ConfigConstants#SECURITY_SSL_ENABLED} is enabled.
+	 * {@link SecurityOptions#SSL_ENABLED} is enabled.
 	 */
 	public static final ConfigOption<Boolean> HISTORY_SERVER_WEB_SSL_ENABLED =
 		key("historyserver.web.ssl.enabled")
