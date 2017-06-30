@@ -63,7 +63,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> implements MetricGroup {
 
 	/** shared logger */
-	private static final Logger LOG = LoggerFactory.getLogger(MetricGroup.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(MetricGroup.class);
 
 	// ------------------------------------------------------------------------
 
