@@ -30,11 +30,13 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
-
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -74,6 +76,11 @@ public class BucketingSinkMigrationTest {
 	private static final String PENDING_SUFFIX = ".pending";
 	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
 	private static final String VALID_LENGTH_SUFFIX = ".valid";
+
+	@BeforeClass
+	public static void verifyOS() {
+		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
+	}
 
 	@Parameterized.Parameters(name = "Migration Savepoint / Bucket Files Prefix: {0}")
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {

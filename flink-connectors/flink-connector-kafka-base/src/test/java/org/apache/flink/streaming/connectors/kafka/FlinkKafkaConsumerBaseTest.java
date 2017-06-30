@@ -27,15 +27,17 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -45,7 +47,6 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -133,8 +134,15 @@ public class FlinkKafkaConsumerBaseTest {
 		listState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
+		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
+		when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+		when(context.getIndexOfThisSubtask()).thenReturn(0);
+		consumer.setRuntimeContext(context);
 
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -176,7 +184,10 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Serializable> listState = new TestingListState<>();
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -192,34 +203,8 @@ public class FlinkKafkaConsumerBaseTest {
 		assertFalse(listState.get().iterator().hasNext());
 	}
 
-	/**
-	 * Tests that on snapshots, states and offsets to commit to Kafka are correct.
-	 */
-	@SuppressWarnings("unchecked")
 	@Test
-	public void checkUseFetcherWhenNoCheckpoint() throws Exception {
-
-		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
-		List<KafkaTopicPartition> partitionList = new ArrayList<>(1);
-		partitionList.add(new KafkaTopicPartition("test", 0));
-		consumer.setSubscribedPartitions(partitionList);
-
-		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
-		TestingListState<Serializable> listState = new TestingListState<>();
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
-
-		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
-
-		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
-
-		// make the context signal that there is no restored state, then validate that
-		when(initializationContext.isRestored()).thenReturn(false);
-		consumer.initializeState(initializationContext);
-		consumer.run(mock(SourceFunction.SourceContext.class));
-	}
-
-	@Test
-	public void testConfigureOnCheckpointsCommitMode() {
+	public void testConfigureOnCheckpointsCommitMode() throws Exception {
 
 		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
 		consumer.setIsAutoCommitEnabled(true); // this should be ignored
@@ -235,7 +220,7 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	@Test
-	public void testConfigureAutoCommitMode() {
+	public void testConfigureAutoCommitMode() throws Exception {
 
 		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
 		consumer.setIsAutoCommitEnabled(true);
@@ -251,7 +236,7 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	@Test
-	public void testConfigureDisableOffsetCommitWithCheckpointing() {
+	public void testConfigureDisableOffsetCommitWithCheckpointing() throws Exception {
 
 		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
 		consumer.setIsAutoCommitEnabled(true); // this should be ignored
@@ -269,7 +254,7 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	@Test
-	public void testConfigureDisableOffsetCommitWithoutCheckpointing() {
+	public void testConfigureDisableOffsetCommitWithoutCheckpointing() throws Exception {
 
 		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
 		consumer.setIsAutoCommitEnabled(false);
@@ -321,8 +306,10 @@ public class FlinkKafkaConsumerBaseTest {
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
 		TestingListState<Serializable> listState = new TestingListState<>();
-
-		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(backend.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -448,8 +435,10 @@ public class FlinkKafkaConsumerBaseTest {
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
 		TestingListState<Serializable> listState = new TestingListState<>();
-
-		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(backend.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -567,7 +556,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@SuppressWarnings("unchecked")
 		public DummyFlinkKafkaConsumer() {
-			super(Arrays.asList("dummy-topic"), (KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class));
+			super(Arrays.asList("dummy-topic"), null, (KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class), 0);
 		}
 
 		@Override
@@ -583,8 +572,11 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
-			return Collections.emptyList();
+		protected AbstractPartitionDiscoverer createPartitionDiscoverer(
+				KafkaTopicsDescriptor topicsDescriptor,
+				int indexOfThisSubtask,
+				int numParallelSubtasks) {
+			return mock(AbstractPartitionDiscoverer.class);
 		}
 
 		@Override

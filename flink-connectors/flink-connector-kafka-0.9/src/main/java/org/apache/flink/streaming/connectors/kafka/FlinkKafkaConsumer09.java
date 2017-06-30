@@ -22,8 +22,11 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka09Fetcher;
+import org.apache.flink.streaming.connectors.kafka.internal.Kafka09PartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
@@ -31,19 +34,17 @@ import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.PropertiesUtil.getLong;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -150,7 +151,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer09(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(topics, deserializer);
+		super(topics, null, deserializer, getLong(props, KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED));
 
 		this.properties = checkNotNull(props, "props");
 		setDeserializer(this.properties);
@@ -202,36 +203,12 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	@Override
-	protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
-		// read the partitions that belong to the listed topics
-		final List<KafkaTopicPartition> partitions = new ArrayList<>();
+	protected AbstractPartitionDiscoverer createPartitionDiscoverer(
+			KafkaTopicsDescriptor topicsDescriptor,
+			int indexOfThisSubtask,
+			int numParallelSubtasks) {
 
-		try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(this.properties)) {
-			for (final String topic: topics) {
-				// get partitions for each topic
-				List<PartitionInfo> partitionsForTopic = consumer.partitionsFor(topic);
-				// for non existing topics, the list might be null.
-				if (partitionsForTopic != null) {
-					partitions.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
-				}
-				else {
-					LOG.info("Unable to retrieve any partitions for the requested topic: {}", topic);
-				}
-			}
-		}
-
-		if (partitions.isEmpty()) {
-			throw new RuntimeException("Unable to retrieve any partitions for the requested topics " + topics);
-		}
-
-		// we now have a list of partitions which is the same for all parallel consumer instances.
-		LOG.info("Got {} partitions from these topics: {}", partitions.size(), topics);
-
-		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(LOG, partitions);
-		}
-
-		return partitions;
+		return new Kafka09PartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
 	}
 
 	@Override
@@ -243,22 +220,6 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable).
-	 *
-	 * @param partitions A list of Kafka PartitionInfos.
-	 * @return A list of KafkaTopicPartitions
-	 */
-	private static List<KafkaTopicPartition> convertToFlinkKafkaTopicPartition(List<PartitionInfo> partitions) {
-		checkNotNull(partitions);
-
-		List<KafkaTopicPartition> ret = new ArrayList<>(partitions.size());
-		for (PartitionInfo pi : partitions) {
-			ret.add(new KafkaTopicPartition(pi.topic(), pi.partition()));
-		}
-		return ret;
-	}
 
 	/**
 	 * Makes sure that the ByteArrayDeserializer is registered in the Kafka properties.

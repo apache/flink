@@ -17,8 +17,8 @@
  */
 package org.apache.flink.runtime.net;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -40,9 +40,9 @@ public class SSLUtilsTest {
 	public void testCreateSSLClientContext() throws Exception {
 
 		Configuration clientConfig = new Configuration();
-		clientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");
+		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
 		SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
 		Assert.assertNotNull(clientContext);
@@ -55,7 +55,7 @@ public class SSLUtilsTest {
 	public void testCreateSSLClientContextWithSSLDisabled() throws Exception {
 
 		Configuration clientConfig = new Configuration();
-		clientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, false);
+		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, false);
 
 		SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
 		Assert.assertNull(clientContext);
@@ -68,9 +68,9 @@ public class SSLUtilsTest {
 	public void testCreateSSLClientContextMisconfiguration() {
 
 		Configuration clientConfig = new Configuration();
-		clientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "badpassword");
+		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "badpassword");
 
 		try {
 			SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
@@ -87,10 +87,10 @@ public class SSLUtilsTest {
 	public void testCreateSSLServerContext() throws Exception {
 
 		Configuration serverConfig = new Configuration();
-		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		Assert.assertNotNull(serverContext);
@@ -103,7 +103,7 @@ public class SSLUtilsTest {
 	public void testCreateSSLServerContextWithSSLDisabled() throws Exception {
 
 		Configuration serverConfig = new Configuration();
-		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, false);
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, false);
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		Assert.assertNull(serverContext);
@@ -116,10 +116,10 @@ public class SSLUtilsTest {
 	public void testCreateSSLServerContextMisconfiguration() {
 
 		Configuration serverConfig = new Configuration();
-		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "badpassword");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "badpassword");
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "badpassword");
+		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "badpassword");
 
 		try {
 			SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
@@ -136,11 +136,11 @@ public class SSLUtilsTest {
 	public void testCreateSSLServerContextWithMultiProtocols() {
 
 		Configuration serverConfig = new Configuration();
-		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1,TLSv1.2");
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1,TLSv1.2");
 
 		try {
 			SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
@@ -157,12 +157,12 @@ public class SSLUtilsTest {
 	public void testSetSSLVersionAndCipherSuitesForSSLServerSocket() throws Exception {
 
 		Configuration serverConfig = new Configuration();
-		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1.1");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
+		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		ServerSocket socket = null;
@@ -198,12 +198,12 @@ public class SSLUtilsTest {
 	public void testSetSSLVersionAndCipherSuitesForSSLEngine() throws Exception {
 
 		Configuration serverConfig = new Configuration();
-		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
+		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		SSLEngine engine = serverContext.createSSLEngine();
