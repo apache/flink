@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -660,6 +661,21 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
+		// because the state backend can have user-defined code, it needs to be stored as
+		// eagerly serialized value
+		final SerializedValue<StateBackend> serializedStateBackend;
+		if (streamGraph.getStateBackend() == null) {
+			serializedStateBackend = null;
+		} else {
+			try {
+				serializedStateBackend =
+					new SerializedValue<StateBackend>(streamGraph.getStateBackend());
+			}
+			catch (IOException e) {
+				throw new FlinkRuntimeException("State backend is not serializable", e);
+			}
+		}
+
 		//  --- done, put it all together ---
 
 		JobCheckpointingSettings settings = new JobCheckpointingSettings(
@@ -667,7 +683,7 @@ public class StreamingJobGraphGenerator {
 				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings,
-				streamGraph.getStateBackend(),
+				serializedStateBackend,
 				serializedHooks,
 				isExactlyOnce);
 

@@ -224,19 +224,21 @@ public class ExecutionGraphBuilder {
 			// if specified in the application, use from there, otherwise load from configuration
 			final StateBackend metadataBackend;
 
-			final StateBackend applicationConfiguredBackend = snapshotSettings.getDefaultStateBackend();
+			final SerializedValue<StateBackend> applicationConfiguredBackend = snapshotSettings.getDefaultStateBackend();
 			if (applicationConfiguredBackend != null) {
-				metadataBackend = applicationConfiguredBackend;
+				try {
+					metadataBackend = applicationConfiguredBackend.deserializeValue(classLoader);
+				} catch (IOException | ClassNotFoundException e) {
+					throw new JobExecutionException(jobId, "Could not instantiate configured state backend.", e);
+				}
 
 				log.info("Using application-defined state backend for checkpoint/savepoint metadata: {}.",
-						applicationConfiguredBackend);
-			}
-			else {
+					metadataBackend);
+			} else {
 				try {
 					metadataBackend = AbstractStateBackend
 							.loadStateBackendFromConfigOrCreateDefault(jobManagerConfig, classLoader, log);
-				}
-				catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
+				} catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
 					throw new JobExecutionException(jobId, "Could not instantiate configured state backend", e);
 				}
 			}
