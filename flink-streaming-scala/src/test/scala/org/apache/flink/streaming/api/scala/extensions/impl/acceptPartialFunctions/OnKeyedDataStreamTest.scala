@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
 import org.junit.Test
 
-class OnKeyedDataStreamTest extends AcceptPFTestBase {
+class OnKeyedStreamTest extends AcceptPFTestBase {
 
   @Test
   def testReduceWithOnTuple(): Unit = {

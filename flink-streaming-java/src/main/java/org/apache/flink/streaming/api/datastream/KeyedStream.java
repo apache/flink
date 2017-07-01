@@ -73,7 +73,7 @@ import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
- * A {@code KeyedStream} represents a {@link DataStream} on which operator state is
+ * A {@link KeyedStream} represents a {@link DataStream} on which operator state is
  * partitioned by key using a provided {@link KeySelector}. Typical operations supported by a
  * {@code DataStream} are also possible on a {@code KeyedStream}, with the exception of
  * partitioning methods such as shuffle, forward and keyBy.
