@@ -930,7 +930,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void jobLeaderLostLeadership(final JobID jobId, final UUID oldJobLeaderId) {
-			ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+				}
+			});
 		}
 
 		@Override
