@@ -219,6 +219,24 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	/**
+	 * Returns the value associated with the given config option as an integer.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @param overrideDefault The value to return if no value was mapper for any key of the option
+	 * @return the configured value associated with the given config option, or the overrideDefault
+	 */
+	@PublicEvolving
+	public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
+		Object o = getRawValueFromOption(configOption);
+		if (o == null) {
+			return overrideDefault;
+		}
+		return convertToInt(o, configOption.defaultValue());
+	}
+
+	/**
 	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
@@ -271,6 +289,24 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	@PublicEvolving
 	public long getLong(ConfigOption<Long> configOption) {
 		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToLong(o, configOption.defaultValue());
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a long integer.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @param overrideDefault The value to return if no value was mapper for any key of the option
+	 * @return the configured value associated with the given config option, or the overrideDefault
+	 */
+	@PublicEvolving
+	public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
+		Object o = getRawValueFromOption(configOption);
+		if (o == null) {
+			return overrideDefault;
+		}
 		return convertToLong(o, configOption.defaultValue());
 	}
 
@@ -331,6 +367,24 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	/**
+	 * Returns the value associated with the given config option as a boolean.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @param overrideDefault The value to return if no value was mapper for any key of the option
+	 * @return the configured value associated with the given config option, or the overrideDefault
+	 */
+	@PublicEvolving
+	public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
+		Object o = getRawValueFromOption(configOption);
+		if (o == null) {
+			return overrideDefault;
+		}
+		return convertToBoolean(o);
+	}
+
+	/**
 	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
@@ -387,6 +441,24 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	/**
+	 * Returns the value associated with the given config option as a float.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @param overrideDefault The value to return if no value was mapper for any key of the option
+	 * @return the configured value associated with the given config option, or the overrideDefault
+	 */
+	@PublicEvolving
+	public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
+		Object o = getRawValueFromOption(configOption);
+		if (o == null) {
+			return overrideDefault;
+		}
+		return convertToFloat(o, configOption.defaultValue());
+	}
+
+	/**
 	 * Adds the given key/value pair to the configuration object.
 	 * 
 	 * @param key
@@ -439,6 +511,24 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	@PublicEvolving
 	public double getDouble(ConfigOption<Double> configOption) {
 		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToDouble(o, configOption.defaultValue());
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a {@code double}.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @param overrideDefault The value to return if no value was mapper for any key of the option
+	 * @return the configured value associated with the given config option, or the overrideDefault
+	 */
+	@PublicEvolving
+	public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
+		Object o = getRawValueFromOption(configOption);
+		if (o == null) {
+			return overrideDefault;
+		}
 		return convertToDouble(o, configOption.defaultValue());
 	}
 

@@ -17,11 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-# Start a Flink cluster in batch or streaming mode
-USAGE="Usage: start-cluster.sh [batch|streaming]"
-
-STREAMING_MODE=$1
-
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
