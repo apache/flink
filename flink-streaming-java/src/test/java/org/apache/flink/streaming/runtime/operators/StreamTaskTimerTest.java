@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
@@ -49,10 +48,8 @@ public class StreamTaskTimerTest {
 				mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-
 		StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
-		streamConfig.setStreamOperator(mapOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -86,9 +83,8 @@ public class StreamTaskTimerTest {
 			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 			testHarness.setupOutputForSingletonOperatorChain();
 
-			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
-			streamConfig.setStreamOperator(mapOperator);
+			testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 			testHarness.invoke();
 			testHarness.waitForTaskRunning();

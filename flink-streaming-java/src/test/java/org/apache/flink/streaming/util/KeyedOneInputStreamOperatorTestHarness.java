@@ -80,8 +80,8 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+		operatorConfig.setStatePartitioner(0, keySelector);
+		operatorConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
 
 		setupMockTaskCreateKeyedBackend();
 	}
@@ -102,8 +102,8 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		super(operator, environment);
 
 		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+		operatorConfig.setStatePartitioner(0, keySelector);
+		operatorConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
 
 		setupMockTaskCreateKeyedBackend();
 	}

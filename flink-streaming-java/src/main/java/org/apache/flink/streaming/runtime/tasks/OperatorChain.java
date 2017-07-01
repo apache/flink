@@ -31,6 +31,7 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -90,17 +91,17 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	public OperatorChain(StreamTask<OUT, OP> containingTask) {
 
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
-		final StreamConfig configuration = containingTask.getConfiguration();
+		final StreamConfig streamConfig = containingTask.getConfiguration();
 
-		headOperator = configuration.getStreamOperator(userCodeClassloader);
+		OperatorConfig operatorConfig = streamConfig.getHeadOperatorConfig(userCodeClassloader);
+		headOperator = operatorConfig.getStreamOperator(userCodeClassloader);
 
 		// we read the chained configs, and the order of record writer registrations by output name
-		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigs(userCodeClassloader);
-		chainedConfigs.put(configuration.getVertexID(), configuration);
+		Map<Integer, OperatorConfig> chainedConfigs = streamConfig.getChainedTaskConfigs(userCodeClassloader);
 
 		// create the final output stream writers
 		// we iterate through all the out edges from this job vertex and create a stream output
-		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(userCodeClassloader);
+		List<StreamEdge> outEdgesInOrder = streamConfig.getOutEdgesInOrder(userCodeClassloader);
 		Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap = new HashMap<>(outEdgesInOrder.size());
 		this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
 
@@ -109,8 +110,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		try {
 			for (int i = 0; i < outEdgesInOrder.size(); i++) {
 				StreamEdge outEdge = outEdgesInOrder.get(i);
-
-				RecordWriterOutput<?> streamOutput = createStreamOutput(
+				RecordWriterOutput<?> streamOutput = createStreamOutput(streamConfig,
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
 						containingTask.getEnvironment(), containingTask.getName());
 
@@ -120,12 +120,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 			// we create the chain of operators and grab the collector that leads into the chain
 			List<StreamOperator<?>> allOps = new ArrayList<>(chainedConfigs.size());
-			this.chainEntryPoint = createOutputCollector(containingTask, configuration,
+			this.chainEntryPoint = createOutputCollector(containingTask, operatorConfig,
 					chainedConfigs, userCodeClassloader, streamOutputMap, allOps);
 
 			if (headOperator != null) {
 				Output output = getChainEntryPoint();
-				headOperator.setup(containingTask, configuration, output);
+				headOperator.setup(containingTask, operatorConfig, output);
 			}
 
 			// add head operator to end of chain
@@ -251,8 +251,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 	private <T> Output<StreamRecord<T>> createOutputCollector(
 			StreamTask<?, ?> containingTask,
-			StreamConfig operatorConfig,
-			Map<Integer, StreamConfig> chainedConfigs,
+			OperatorConfig operatorConfig,
+			Map<Integer, OperatorConfig> chainedConfigs,
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
 			List<StreamOperator<?>> allOperators) {
@@ -269,7 +269,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		// Create collectors for the chained outputs
 		for (StreamEdge outputEdge : operatorConfig.getChainedOutputs(userCodeClassloader)) {
 			int outputId = outputEdge.getTargetId();
-			StreamConfig chainedOpConfig = chainedConfigs.get(outputId);
+			OperatorConfig chainedOpConfig = chainedConfigs.get(outputId);
 
 			Output<StreamRecord<T>> output = createChainedOperator(
 					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators, outputEdge.getOutputTag());
@@ -322,8 +322,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 	private <IN, OUT> Output<StreamRecord<IN>> createChainedOperator(
 			StreamTask<?, ?> containingTask,
-			StreamConfig operatorConfig,
-			Map<Integer, StreamConfig> chainedConfigs,
+			OperatorConfig operatorConfig,
+			Map<Integer, OperatorConfig> chainedConfigs,
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
 			List<StreamOperator<?>> allOperators,
@@ -348,8 +348,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 	}
 
-	private <T> RecordWriterOutput<T> createStreamOutput(
-			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
+	private <T> RecordWriterOutput<T> createStreamOutput(StreamConfig streamConfig,
+			StreamEdge edge, OperatorConfig upOperatorConfig, int outputIndex,
 			Environment taskEnvironment,
 			String taskName) {
 		OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
@@ -358,11 +358,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		if (edge.getOutputTag() != null) {
 			// side output
-			outSerializer = upStreamConfig.getTypeSerializerSideOut(
+			outSerializer = upOperatorConfig.getTypeSerializerSideOut(
 					edge.getOutputTag(), taskEnvironment.getUserClassLoader());
 		} else {
 			// main output
-			outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
+			outSerializer = upOperatorConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
 		}
 
 		@SuppressWarnings("unchecked")
@@ -381,7 +381,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output =
-				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
+				new StreamRecordWriter<>(bufferWriter, outputPartitioner, streamConfig.getBufferTimeout());
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 
 		return new RecordWriterOutput<>(output, outSerializer, sideOutputTag, this);

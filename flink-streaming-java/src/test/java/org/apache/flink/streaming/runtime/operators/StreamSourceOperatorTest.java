@@ -22,11 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
@@ -291,7 +291,9 @@ public class StreamSourceOperatorTest {
 
 		cfg.setTimeCharacteristic(timeChar);
 
-		Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+
+		DummyEnvironment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
 
 		StreamStatusMaintainer streamStatusMaintainer = mock(StreamStatusMaintainer.class);
 		when(streamStatusMaintainer.getStreamStatus()).thenReturn(StreamStatus.ACTIVE);
@@ -304,6 +306,7 @@ public class StreamSourceOperatorTest {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
 		when(mockTask.getStreamStatusMaintainer()).thenReturn(streamStatusMaintainer);
+		env.setTaskConfiguration(cfg.getConfiguration());
 
 		doAnswer(new Answer<ProcessingTimeService>() {
 			@Override
@@ -315,7 +318,7 @@ public class StreamSourceOperatorTest {
 			}
 		}).when(mockTask).getProcessingTimeService();
 
-		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
+		operator.setup(mockTask, operatorConfig, (Output<StreamRecord<T>>) mock(Output.class));
 	}
 
 	// ------------------------------------------------------------------------

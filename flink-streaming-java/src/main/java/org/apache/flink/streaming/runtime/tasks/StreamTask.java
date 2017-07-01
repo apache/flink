@@ -727,7 +727,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamOperator<?> op, Collection<OperatorStateHandle> restoreStateHandles) throws Exception {
 
 		Environment env = getEnvironment();
-		String opId = createOperatorIdentifier(op, getConfiguration().getVertexID());
+		String opId = createOperatorIdentifier(op, getConfiguration().getHeadNodeID());
 
 		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
@@ -753,7 +753,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		String operatorIdentifier = createOperatorIdentifier(
 				headOperator,
-				configuration.getVertexID());
+				configuration.getHeadNodeID());
 
 		keyedStateBackend = stateBackend.createKeyedStateBackend(
 				getEnvironment(),
@@ -787,13 +787,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public CheckpointStreamFactory createCheckpointStreamFactory(StreamOperator<?> operator) throws IOException {
 		return stateBackend.createStreamFactory(
 				getEnvironment().getJobID(),
-				createOperatorIdentifier(operator, configuration.getVertexID()));
+				createOperatorIdentifier(operator, configuration.getHeadNodeID()));
 	}
 
 	public CheckpointStreamFactory createSavepointStreamFactory(StreamOperator<?> operator, String targetLocation) throws IOException {
 		return stateBackend.createSavepointStreamFactory(
 			getEnvironment().getJobID(),
-			createOperatorIdentifier(operator, configuration.getVertexID()),
+			createOperatorIdentifier(operator, configuration.getHeadNodeID()),
 			targetLocation);
 	}
 
@@ -1150,6 +1150,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					}
 				}
 			}
+
 		}
 
 		@SuppressWarnings("deprecation")

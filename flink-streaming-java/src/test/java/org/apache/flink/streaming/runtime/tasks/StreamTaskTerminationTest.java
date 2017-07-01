@@ -60,6 +60,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -74,6 +75,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 
@@ -106,8 +109,13 @@ public class StreamTaskTerminationTest extends TestLogger {
 		final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
 
 		final AbstractStateBackend blockingStateBackend = new BlockingStateBackend();
-
-		streamConfig.setStreamOperator(noOpStreamOperator);
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(noOpStreamOperator);
+		Map<Integer, OperatorConfig> chainedConfigs = new HashMap<>();
+		chainedConfigs.put(0, operatorConfig);
+		streamConfig.setChainedTaskConfigs(chainedConfigs);
+		streamConfig.setHeadNodeID(0);
 		streamConfig.setStateBackend(blockingStateBackend);
 
 		final long checkpointId = 0L;

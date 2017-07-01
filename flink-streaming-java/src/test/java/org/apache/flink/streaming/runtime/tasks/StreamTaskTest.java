@@ -75,6 +75,7 @@ import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
@@ -89,6 +90,10 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import akka.dispatch.Futures;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -109,6 +114,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -158,7 +164,11 @@ public class StreamTaskTest extends TestLogger {
 	public void testEarlyCanceling() throws Exception {
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStreamOperator(new SlowlyDeserializingOperator());
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(new SlowlyDeserializingOperator());
+		cfg.setHeadNodeID(0);
+		cfg.setChainedTaskConfigs(ImmutableMap.of(0, operatorConfig));
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = createTask(SourceStreamTask.class, cfg, new Configuration());
@@ -203,7 +213,11 @@ public class StreamTaskTest extends TestLogger {
 		taskManagerConfig.setString(CoreOptions.STATE_BACKEND, MockStateBackend.class.getName());
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStreamOperator(new StreamSource<>(new MockSourceFunction()));
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(new StreamSource<>(new MockSourceFunction()));
+		cfg.setHeadNodeID(0);
+		cfg.setChainedTaskConfigs(ImmutableMap.of(0, operatorConfig));
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = createTask(StateBackendTestSource.class, cfg, taskManagerConfig);
@@ -227,7 +241,11 @@ public class StreamTaskTest extends TestLogger {
 		taskManagerConfig.setString(CoreOptions.STATE_BACKEND, MockStateBackend.class.getName());
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStreamOperator(new StreamSource<>(new MockSourceFunction()));
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(new StreamSource<>(new MockSourceFunction()));
+		cfg.setHeadNodeID(0);
+		cfg.setChainedTaskConfigs(ImmutableMap.of(0, operatorConfig));
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = createTask(StateBackendTestSource.class, cfg, taskManagerConfig);
@@ -250,6 +268,12 @@ public class StreamTaskTest extends TestLogger {
 		syncLatch = new OneShotLatch();
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
+		operatorConfigMap.put(0, operatorConfig);
+		cfg.setChainedTaskConfigs(operatorConfigMap);
+		cfg.setHeadNodeID(0);
 		Task task = createTask(CancelLockingTask.class, cfg, new Configuration());
 
 		// start the task and wait until it runs
@@ -270,6 +294,12 @@ public class StreamTaskTest extends TestLogger {
 		syncLatch = new OneShotLatch();
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
+		operatorConfigMap.put(0, operatorConfig);
+		cfg.setChainedTaskConfigs(operatorConfigMap);
+		cfg.setHeadNodeID(0);
 		Task task = createTask(CancelFailingTask.class, cfg, new Configuration());
 
 		// start the task and wait until it runs

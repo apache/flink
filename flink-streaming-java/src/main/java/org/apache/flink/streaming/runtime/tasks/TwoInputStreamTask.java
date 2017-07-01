@@ -43,10 +43,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
-		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
+		TypeSerializer<IN1> inputDeserializer1 = configuration.getHeadOperatorConfig(userClassLoader).getTypeSerializerIn1(userClassLoader);
+		TypeSerializer<IN2> inputDeserializer2 = configuration.getHeadOperatorConfig(userClassLoader).getTypeSerializerIn2(userClassLoader);
 
-		int numberOfInputs = configuration.getNumberOfInputs();
+		int numberOfInputs = configuration.getInputsNum();
 
 		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
 		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();

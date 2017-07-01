@@ -456,7 +456,7 @@ public class StreamGraphGeneratorTest {
 		}
 
 		@Override
-		public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<Integer>> output) {}
+		public void setup(StreamTask<?, ?> containingTask, OperatorConfig config, Output<StreamRecord<Integer>> output) {}
 	}
 
 	private static class OutputTypeConfigurableOperationWithOneInput

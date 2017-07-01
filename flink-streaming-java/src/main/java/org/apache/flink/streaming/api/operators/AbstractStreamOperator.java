@@ -56,7 +56,7 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -111,7 +111,7 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The task that contains this operator (and other operators in the same chain). */
 	private transient StreamTask<?, ?> container;
 
-	protected transient StreamConfig config;
+	protected transient OperatorConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
 
@@ -176,7 +176,7 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+	public void setup(StreamTask<?, ?> containingTask, OperatorConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
 
@@ -548,7 +548,7 @@ public abstract class AbstractStreamOperator<OUT>
 		return container.getExecutionConfig();
 	}
 
-	public StreamConfig getOperatorConfig() {
+	public OperatorConfig getOperatorConfig() {
 		return config;
 	}
 

@@ -59,8 +59,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -108,15 +109,15 @@ public class StreamGraph extends StreamingPlan {
 	 * Remove all registered nodes etc.
 	 */
 	public void clear() {
-		streamNodes = new HashMap<>();
-		virtualSelectNodes = new HashMap<>();
-		virtualSideOutputNodes = new HashMap<>();
-		virtualPartitionNodes = new HashMap<>();
-		vertexIDtoBrokerID = new HashMap<>();
-		vertexIDtoLoopTimeout  = new HashMap<>();
-		iterationSourceSinkPairs = new HashSet<>();
-		sources = new HashSet<>();
-		sinks = new HashSet<>();
+		streamNodes = new LinkedHashMap<>();
+		virtualSelectNodes = new LinkedHashMap<>();
+		virtualSideOutputNodes = new LinkedHashMap<>();
+		virtualPartitionNodes = new LinkedHashMap<>();
+		vertexIDtoBrokerID = new LinkedHashMap<>();
+		vertexIDtoLoopTimeout  = new LinkedHashMap<>();
+		iterationSourceSinkPairs = new LinkedHashSet<>();
+		sources = new LinkedHashSet<>();
+		sinks = new LinkedHashSet<>();
 	}
 
 	public StreamExecutionEnvironment getEnvironment() {

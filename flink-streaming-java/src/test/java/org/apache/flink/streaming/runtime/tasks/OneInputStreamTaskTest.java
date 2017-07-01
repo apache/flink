@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -106,9 +107,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new TestOpenCloseMapFunction());
-		streamConfig.setStreamOperator(mapOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
@@ -148,9 +148,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 				BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
-		streamConfig.setStreamOperator(mapOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 		long initialTime = 0L;
@@ -261,13 +260,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 		// ------------------ setup the chain ------------------
 
 		TriggerableFailOnWatermarkTestOperator headOperator = new TriggerableFailOnWatermarkTestOperator();
-		StreamConfig headOperatorConfig = testHarness.getStreamConfig();
+		OperatorConfig headOperatorConfig = testHarness.getHeadOperatorConfig();
 
 		WatermarkGeneratingTestOperator watermarkOperator = new WatermarkGeneratingTestOperator();
-		StreamConfig watermarkOperatorConfig = new StreamConfig(new Configuration());
+		OperatorConfig watermarkOperatorConfig = new OperatorConfig(new Configuration());
 
 		TriggerableFailOnWatermarkTestOperator tailOperator = new TriggerableFailOnWatermarkTestOperator();
-		StreamConfig tailOperatorConfig = new StreamConfig(new Configuration());
+		OperatorConfig tailOperatorConfig = new OperatorConfig(new Configuration());
 
 		headOperatorConfig.setStreamOperator(headOperator);
 		headOperatorConfig.setChainStart();
@@ -304,20 +303,20 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		tailOperatorConfig.setStreamOperator(tailOperator);
 		tailOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
-		tailOperatorConfig.setBufferTimeout(0);
 		tailOperatorConfig.setChainIndex(2);
 		tailOperatorConfig.setChainEnd();
 		tailOperatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
-		tailOperatorConfig.setNumberOfOutputs(1);
-		tailOperatorConfig.setOutEdgesInOrder(outEdgesInOrder);
 		tailOperatorConfig.setNonChainedOutputs(outEdgesInOrder);
 		tailOperatorConfig.setTypeSerializerOut(StringSerializer.INSTANCE);
 
-		Map<Integer, StreamConfig> chainedConfigs = new HashMap<>(2);
+		Map<Integer, OperatorConfig> chainedConfigs = new HashMap<>(2);
 		chainedConfigs.put(1, watermarkOperatorConfig);
 		chainedConfigs.put(2, tailOperatorConfig);
-		headOperatorConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
-		headOperatorConfig.setOutEdgesInOrder(outEdgesInOrder);
+		testHarness.addChainedConfigs(chainedConfigs);
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setBufferTimeout(0);
+		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
 
 		// -----------------------------------------------------
 
@@ -409,9 +408,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
-		streamConfig.setStreamOperator(mapOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 		long initialTime = 0L;
@@ -468,9 +466,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
-		streamConfig.setStreamOperator(mapOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 		long initialTime = 0L;
@@ -547,9 +544,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		long seed = 2L;
 		int numberChainedTasks = 11;
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-
-		configureChainedTestingStreamOperator(streamConfig, numberChainedTasks, seed, recoveryTimestamp);
+		configureChainedTestingStreamOperator(testHarness, testHarness.getHeadOperatorConfig(), numberChainedTasks, seed, recoveryTimestamp);
 
 		AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
 			testHarness.jobConfig,
@@ -585,9 +580,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
-		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
-
-		configureChainedTestingStreamOperator(restoredTaskStreamConfig, numberChainedTasks, seed, recoveryTimestamp);
+		configureChainedTestingStreamOperator(restoredTaskHarness, restoredTaskHarness.getHeadOperatorConfig(), numberChainedTasks, seed, recoveryTimestamp);
 
 		TestingStreamOperator.numberRestoreCalls = 0;
 
@@ -606,7 +599,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 	//==============================================================================================
 
 	private void configureChainedTestingStreamOperator(
-		StreamConfig streamConfig,
+		OneInputStreamTaskTestHarness testHarness,
+		OperatorConfig operatorConfig,
 		int numberChainedTasks,
 		long seed,
 		long recoveryTimestamp) {
@@ -617,15 +611,15 @@ public class OneInputStreamTaskTest extends TestLogger {
 		Random random = new Random(seed);
 
 		TestingStreamOperator<Integer, Integer> previousOperator = new TestingStreamOperator<>(random.nextLong(), recoveryTimestamp);
-		streamConfig.setStreamOperator(previousOperator);
+		operatorConfig.setStreamOperator(previousOperator);
 
 		// create the chain of operators
-		Map<Integer, StreamConfig> chainedTaskConfigs = new HashMap<>(numberChainedTasks - 1);
+		Map<Integer, OperatorConfig> chainedTaskConfigs = new HashMap<>(numberChainedTasks - 1);
 		List<StreamEdge> outputEdges = new ArrayList<>(numberChainedTasks - 1);
 
 		for (int chainedIndex = 1; chainedIndex < numberChainedTasks; chainedIndex++) {
 			TestingStreamOperator<Integer, Integer> chainedOperator = new TestingStreamOperator<>(random.nextLong(), recoveryTimestamp);
-			StreamConfig chainedConfig = new StreamConfig(new Configuration());
+			OperatorConfig chainedConfig = new OperatorConfig(new Configuration());
 			chainedConfig.setStreamOperator(chainedOperator);
 			chainedTaskConfigs.put(chainedIndex, chainedConfig);
 
@@ -657,8 +651,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 			outputEdges.add(outputEdge);
 		}
 
-		streamConfig.setChainedOutputs(outputEdges);
-		streamConfig.setTransitiveChainedTaskConfigs(chainedTaskConfigs);
+		operatorConfig.setChainedOutputs(outputEdges);
+		testHarness.addChainedConfigs(chainedTaskConfigs);
 	}
 
 	private static class IdentityKeySelector<IN> implements KeySelector<IN, IN> {

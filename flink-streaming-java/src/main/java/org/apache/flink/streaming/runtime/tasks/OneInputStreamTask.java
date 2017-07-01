@@ -39,8 +39,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
 
-		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
-		int numberOfInputs = configuration.getNumberOfInputs();
+		TypeSerializer<IN> inSerializer = configuration.getHeadOperatorConfig(getUserCodeClassLoader()).getTypeSerializerIn1(getUserCodeClassLoader());
+		int numberOfInputs = configuration.getInputsNum();
 
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();

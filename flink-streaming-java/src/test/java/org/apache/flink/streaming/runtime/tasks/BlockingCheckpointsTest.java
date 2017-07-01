@@ -64,15 +64,19 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
+
+import com.google.common.collect.Maps;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -92,7 +96,14 @@ public class BlockingCheckpointsTest {
 
 		Configuration taskConfig = new Configuration();
 		StreamConfig cfg = new StreamConfig(taskConfig);
-		cfg.setStreamOperator(new TestOperator());
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(new TestOperator());
+		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
+		operatorConfigMap.put(0, operatorConfig);
+		cfg.setChainedTaskConfigs(operatorConfigMap);
+		cfg.setHeadNodeID(0);
+
 		cfg.setStateBackend(new LockingStreamStateBackend());
 
 		Task task = createTask(taskConfig);

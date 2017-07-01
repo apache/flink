@@ -156,9 +156,9 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 		}
 
 		streamConfig.setInPhysicalEdges(inPhysicalEdges);
-		streamConfig.setNumberOfInputs(numInputGates);
-		streamConfig.setTypeSerializerIn1(inputSerializer1);
-		streamConfig.setTypeSerializerIn2(inputSerializer2);
+		streamConfig.setInputsNum(numInputGates);
+		operatorConfig.setTypeSerializerIn1(inputSerializer1);
+		operatorConfig.setTypeSerializerIn2(inputSerializer2);
 	}
 
 }

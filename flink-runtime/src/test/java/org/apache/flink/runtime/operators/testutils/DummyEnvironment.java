@@ -53,6 +53,7 @@ public class DummyEnvironment implements Environment {
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
+	private Configuration taskConfig = new Configuration();
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, numSubTasks, subTaskIndex, numSubTasks, 0);
@@ -88,7 +89,11 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public Configuration getTaskConfiguration() {
-		return new Configuration();
+		return taskConfig;
+	}
+
+	public void setTaskConfiguration(Configuration configuration) {
+		this.taskConfig = configuration;
 	}
 
 	@Override

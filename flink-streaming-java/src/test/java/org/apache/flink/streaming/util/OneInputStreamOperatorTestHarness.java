@@ -46,7 +46,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			TypeSerializer<IN> typeSerializerIn) throws Exception {
 		this(operator, 1, 1, 0);
 
-		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
+		operatorConfig.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -55,7 +55,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		Environment environment) throws Exception {
 		this(operator, environment);
 
-		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
+		operatorConfig.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {

@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -61,9 +60,8 @@ public class SourceExternalCheckpointTriggerTest {
 
 		// set up the source function
 		ExternalCheckpointsSource source = new ExternalCheckpointsSource(numElements, checkpointEvery);
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<Long, ?> sourceOperator = new StreamSource<>(source);
-		streamConfig.setStreamOperator(sourceOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(sourceOperator);
 
 		// this starts the source thread
 		testHarness.invoke();

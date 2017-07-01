@@ -32,12 +32,15 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
+
+import com.google.common.collect.Maps;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -48,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -90,7 +94,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setup[class org.apache.flink.streaming.runtime.tasks.StreamTask, class " +
-			"org.apache.flink.streaming.api.graph.StreamConfig, interface " +
+			"org.apache.flink.streaming.api.graph.OperatorConfig, interface " +
 			"org.apache.flink.streaming.api.operators.Output], " +
 			"snapshotLegacyOperatorState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions], " +
 			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions]]";
@@ -131,7 +135,14 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		MockSourceFunction srcFun = new MockSourceFunction();
 
-		cfg.setStreamOperator(new LifecycleTrackingStreamSource(srcFun, true));
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(new LifecycleTrackingStreamSource(srcFun, true));
+		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
+		operatorConfigMap.put(0, operatorConfig);
+		cfg.setChainedTaskConfigs(operatorConfigMap);
+		cfg.setHeadNodeID(0);
+
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = StreamTaskTest.createTask(SourceStreamTask.class, cfg, taskManagerConfig);
@@ -153,7 +164,13 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		Configuration taskManagerConfig = new Configuration();
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		MockSourceFunction srcFun = new MockSourceFunction();
-		cfg.setStreamOperator(new LifecycleTrackingStreamSource(srcFun, false));
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
+		operatorConfig.setStreamOperator(new LifecycleTrackingStreamSource(srcFun, false));
+		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
+		operatorConfigMap.put(0, operatorConfig);
+		cfg.setChainedTaskConfigs(operatorConfigMap);
+		cfg.setHeadNodeID(0);
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = StreamTaskTest.createTask(SourceStreamTask.class, cfg, taskManagerConfig);
@@ -232,7 +249,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		}
 
 		@Override
-		public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+		public void setup(StreamTask<?, ?> containingTask, OperatorConfig config, Output<StreamRecord<OUT>> output) {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::setup");
 			super.setup(containingTask, config, output);
 			if (simulateCheckpointing) {

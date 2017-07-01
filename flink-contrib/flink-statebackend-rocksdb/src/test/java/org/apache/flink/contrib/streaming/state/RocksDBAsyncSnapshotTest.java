@@ -136,7 +136,7 @@ public class RocksDBAsyncSnapshotTest {
 
 		streamConfig.setStateBackend(backend);
 
-		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+		testHarness.getHeadOperatorConfig().setStreamOperator(new AsyncCheckpointOperator());
 
 		final OneShotLatch delayCheckpointLatch = new OneShotLatch();
 		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
@@ -240,7 +240,7 @@ public class RocksDBAsyncSnapshotTest {
 
 		streamConfig.setStateBackend(backend);
 
-		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+		testHarness.getHeadOperatorConfig().setStreamOperator(new AsyncCheckpointOperator());
 
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 				testHarness.jobConfig,

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
@@ -88,9 +87,8 @@ public class StreamTaskCancellationBarrierTest {
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<>(new IdentityMap());
-		streamConfig.setStreamOperator(mapOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(mapOperator);
 
 		StreamMockEnvironment environment = spy(testHarness.createEnvironment());
 
@@ -132,9 +130,8 @@ public class StreamTaskCancellationBarrierTest {
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		CoStreamMap<String, String, String> op = new CoStreamMap<>(new UnionCoMap());
-		streamConfig.setStreamOperator(op);
+		testHarness.getHeadOperatorConfig().setStreamOperator(op);
 
 		StreamMockEnvironment environment = spy(testHarness.createEnvironment());
 

@@ -65,9 +65,12 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
+
+import com.google.common.collect.Maps;
 
 import org.junit.Test;
 
@@ -137,20 +140,26 @@ public class InterruptSensitiveRestoreTest {
 		Configuration taskConfig = new Configuration();
 		StreamConfig cfg = new StreamConfig(taskConfig);
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		operatorConfig.setNodeID(0);
 		switch (mode) {
 			case OPERATOR_MANAGED:
 			case OPERATOR_RAW:
 			case KEYED_MANAGED:
 			case KEYED_RAW:
-				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
-				cfg.setStreamOperator(new StreamSource<>(new TestSource()));
+				operatorConfig.setStateKeySerializer(IntSerializer.INSTANCE);
+				operatorConfig.setStreamOperator(new StreamSource<>(new TestSource()));
 				break;
 			case LEGACY:
-				cfg.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
+				operatorConfig.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
 				break;
 			default:
 				throw new IllegalArgumentException();
 		}
+		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
+		operatorConfigMap.put(0, operatorConfig);
+		cfg.setChainedTaskConfigs(operatorConfigMap);
+		cfg.setHeadNodeID(0);
 
 		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 

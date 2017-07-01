@@ -29,6 +29,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -42,8 +43,10 @@ import org.junit.Assert;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -73,6 +76,7 @@ public class StreamTaskTestHarness<OUT> {
 	protected ExecutionConfig executionConfig;
 	public Configuration jobConfig;
 	public Configuration taskConfig;
+	public OperatorConfig operatorConfig;
 	protected StreamConfig streamConfig;
 
 	private AbstractInvokable task;
@@ -90,6 +94,8 @@ public class StreamTaskTestHarness<OUT> {
 	protected int numInputGates;
 	protected int numInputChannelsPerGate;
 
+	private final Map<Integer, OperatorConfig> chainedConfigs = new HashMap<>();
+
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
@@ -100,9 +106,14 @@ public class StreamTaskTestHarness<OUT> {
 
 		this.jobConfig = new Configuration();
 		this.taskConfig = new Configuration();
+		this.operatorConfig = new OperatorConfig(new Configuration());
+		this.operatorConfig.setNodeID(0);
 		this.executionConfig = new ExecutionConfig();
 
 		streamConfig = new StreamConfig(taskConfig);
+		operatorConfig.setChainStart();
+		streamConfig.setBufferTimeout(0);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
@@ -135,13 +146,11 @@ public class StreamTaskTestHarness<OUT> {
 	 * please manually configure the stream config.
 	 */
 	public void setupOutputForSingletonOperatorChain() {
-		streamConfig.setChainStart();
 		streamConfig.setBufferTimeout(0);
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
-		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
-		streamConfig.setNumberOfOutputs(1);
-		streamConfig.setTypeSerializerOut(outputSerializer);
-		streamConfig.setVertexID(0);
+		operatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
+		operatorConfig.setTypeSerializerOut(outputSerializer);
+		operatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 
 		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
 			private static final long serialVersionUID = 1L;
@@ -154,7 +163,8 @@ public class StreamTaskTestHarness<OUT> {
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
 
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
-		streamConfig.setNonChainedOutputs(outEdgesInOrder);
+		operatorConfig.setNonChainedOutputs(outEdgesInOrder);
+		operatorConfig.setTypeSerializerOut(outputSerializer);
 	}
 
 	public StreamMockEnvironment createEnvironment() {
@@ -185,6 +195,14 @@ public class StreamTaskTestHarness<OUT> {
 
 		initializeInputs();
 		initializeOutput();
+
+		int headNodeId = operatorConfig.getNodeID();
+		if (headNodeId < 0) {
+			headNodeId = 0;
+		}
+		chainedConfigs.put(headNodeId, operatorConfig);
+		streamConfig.setChainedTaskConfigs(chainedConfigs);
+		streamConfig.setHeadNodeID(headNodeId);
 
 		taskThread = new TaskThread(task);
 		taskThread.start();
@@ -257,6 +275,10 @@ public class StreamTaskTestHarness<OUT> {
 		}
 	}
 
+	public void addChainedConfigs(Map<Integer, OperatorConfig> chainedConfigs) {
+		this.chainedConfigs.putAll(chainedConfigs);
+	}
+
 	/**
 	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getRawElementsFromOutput(java.util.Queue)}}
@@ -268,6 +290,10 @@ public class StreamTaskTestHarness<OUT> {
 
 	public StreamConfig getStreamConfig() {
 		return streamConfig;
+	}
+
+	public OperatorConfig getHeadOperatorConfig() {
+		return operatorConfig;
 	}
 
 	public ExecutionConfig getExecutionConfig() {

@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.graph.OperatorConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
@@ -384,11 +385,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		testHarness.taskConfig = chainedVertex.getConfiguration();
 
-		final StreamConfig streamConfig = testHarness.getStreamConfig();
 		final StreamConfig operatorChainStreamConfig = new StreamConfig(chainedVertex.getConfiguration());
 		final AsyncWaitOperator<Integer, Integer> headOperator =
-				operatorChainStreamConfig.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
-		streamConfig.setStreamOperator(headOperator);
+				operatorChainStreamConfig.getHeadOperatorConfig(AsyncWaitOperatorTest.class.getClassLoader())
+						.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
+		testHarness.getHeadOperatorConfig().setStreamOperator(headOperator);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -499,8 +500,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			3,
 			AsyncDataStream.OutputMode.ORDERED);
 
-		final StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setStreamOperator(operator);
+		final OperatorConfig operatorConfig = testHarness.getHeadOperatorConfig();
+		operatorConfig.setStreamOperator(operator);
 
 		final AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
 				testHarness.jobConfig,
@@ -552,7 +553,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			6,
 			AsyncDataStream.OutputMode.ORDERED);
 
-		restoredTaskHarness.getStreamConfig().setStreamOperator(restoredOperator);
+		restoredTaskHarness.getHeadOperatorConfig().setStreamOperator(restoredOperator);
 
 		restoredTaskHarness.invoke();
 		restoredTaskHarness.waitForTaskRunning();
@@ -727,8 +728,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		OperatorConfig operatorConfig = mock(OperatorConfig.class);
+		doReturn(IntSerializer.INSTANCE).when(operatorConfig).getTypeSerializerIn1(any(ClassLoader.class));
 
 		final OneShotLatch closingLatch = new OneShotLatch();
 		final OneShotLatch outputLatch = new OneShotLatch();
@@ -759,7 +760,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		operator.setup(
 			containingTask,
-			streamConfig,
+			operatorConfig,
 			output);
 
 		operator.open();
@@ -840,8 +841,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		OperatorConfig operatorConfig = mock(OperatorConfig.class);
+		doReturn(IntSerializer.INSTANCE).when(operatorConfig).getTypeSerializerIn1(any(ClassLoader.class));
 
 		Output<StreamRecord<Integer>> output = mock(Output.class);
 
@@ -860,7 +861,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		operator.setup(
 			containingTask,
-			streamConfig,
+			operatorConfig,
 			output);
 
 		operator.open();

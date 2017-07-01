@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
@@ -60,9 +59,8 @@ public class SourceStreamTaskTest {
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
-		streamConfig.setStreamOperator(sourceOperator);
+		testHarness.getHeadOperatorConfig().setStreamOperator(sourceOperator);
 
 		testHarness.invoke();
 		testHarness.waitForTaskCompletion();
@@ -103,9 +101,8 @@ public class SourceStreamTaskTest {
 			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
 			testHarness.setupOutputForSingletonOperatorChain();
 
-			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(numElements, sourceCheckpointDelay, sourceReadDelay));
-			streamConfig.setStreamOperator(sourceOperator);
+			testHarness.getHeadOperatorConfig().setStreamOperator(sourceOperator);
 
 			// prepare the
 

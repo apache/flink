@@ -182,4 +182,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return streamConfig.getBufferTimeout();
 	}
 
+	public StreamConfig getStreamConfig() {
+		return streamConfig;
+	}
+
 }
