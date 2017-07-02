@@ -89,7 +89,7 @@ Transformations are documented in [DataStream transformations](../dev/datastream
 ## Parallel Dataflows
 
 Programs in Flink are inherently parallel and distributed. During execution, a *stream* has one or more **stream partitions**,
-and each *operator* has one or **operator subtasks**. The operator subtasks are independent of one another, and execute in different threads
+and each *operator* has one or more **operator subtasks**. The operator subtasks are independent of one another, and execute in different threads
 and possibly on different machines or containers.
 
 The number of operator subtasks is the **parallelism** of that particular operator. The parallelism of a stream
