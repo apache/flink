@@ -27,7 +27,7 @@ import org.apache.flink.annotation.PublicEvolving
   * @tparam OUT type of the output element
   */
 @PublicEvolving
-trait AsyncCollector[OUT] {
+trait ResultFuture[OUT] {
 
   /**
     * Complete the async collector with a set of result elements.

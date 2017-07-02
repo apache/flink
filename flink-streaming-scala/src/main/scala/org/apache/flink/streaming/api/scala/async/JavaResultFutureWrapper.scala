@@ -19,25 +19,25 @@
 package org.apache.flink.streaming.api.scala.async
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.streaming.api.functions.async.collector.{AsyncCollector => JavaAsyncCollector}
+import org.apache.flink.streaming.api.functions.async.collector.{ResultFuture => JavaResultFuture}
 
 import scala.collection.JavaConverters._
 
 /**
-  * Internal wrapper class to map a Flink's Java API [[JavaAsyncCollector]] to a Scala
-  * [[AsyncCollector]].
+  * Internal wrapper class to map a Flink's Java API [[JavaResultFuture]] to a Scala
+  * [[ResultFuture]].
   *
-  * @param javaAsyncCollector to forward the calls to
+  * @param javaResultFuture to forward the calls to
   * @tparam OUT type of the output elements
   */
 @Internal
-class JavaAsyncCollectorWrapper[OUT](val javaAsyncCollector: JavaAsyncCollector[OUT])
-  extends AsyncCollector[OUT] {
+class JavaResultFutureWrapper[OUT](val javaResultFuture: JavaResultFuture[OUT])
+  extends ResultFuture[OUT] {
   override def collect(result: Iterable[OUT]): Unit = {
-    javaAsyncCollector.collect(result.asJavaCollection)
+    javaResultFuture.collect(result.asJavaCollection)
   }
 
   override def collect(throwable: Throwable): Unit = {
-    javaAsyncCollector.collect(throwable)
+    javaResultFuture.collect(throwable)
   }
 }

@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.collector.ResultFuture;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.MathUtils;
 import org.junit.*;
@@ -232,7 +232,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 			@Override
 			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
-									final AsyncCollector<Integer> collector) throws Exception {
+									final ResultFuture<Integer> collector) throws Exception {
 				executorService.submit(new Runnable() {
 					@Override
 					public void run() {
