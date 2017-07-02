@@ -153,9 +153,8 @@ public class Quantifier {
 		private final int to;
 
 		private Times(int from, int to) {
-			Preconditions.checkArgument(from >= 0, "The from should be a non-negative number greater than or equal to 0.");
+			Preconditions.checkArgument(from > 0, "The from should be a positive number greater than 0.");
 			Preconditions.checkArgument(to >= from, "The to should be a number greater than or equal to from: " + from + ".");
-			Preconditions.checkArgument(from != to || from != 0, "The from and to should not be both equal to 0.");
 			this.from = from;
 			this.to = to;
 		}
