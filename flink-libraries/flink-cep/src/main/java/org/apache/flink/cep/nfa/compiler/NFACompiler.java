@@ -207,7 +207,7 @@ public class NFACompiler {
 				previousPattern = previousPattern.getPrevious();
 
 				if (previousPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
-					final IterativeCondition<T> notCondition = (IterativeCondition<T>) previousPattern.getCondition();
+					final IterativeCondition<T> notCondition = getTakeCondition(previousPattern);
 					notConditions.add(Tuple2.of(notCondition, previousPattern.getName()));
 				}
 			}
@@ -238,7 +238,7 @@ public class NFACompiler {
 					//skip notFollow patterns, they are converted into edge conditions
 				} else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_NEXT) {
 					final State<T> notNext = createState(currentPattern.getName(), State.StateType.Normal);
-					final IterativeCondition<T> notCondition = (IterativeCondition<T>) currentPattern.getCondition();
+					final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
 					final State<T> stopState = createStopState(notCondition, currentPattern.getName());
 
 					if (lastSink.isFinal()) {
@@ -286,9 +286,11 @@ public class NFACompiler {
 			if (quantifier.hasProperty(Quantifier.QuantifierProperty.LOOPING)) {
 
 				// if loop has started then all notPatterns previous to the optional states are no longer valid
+				setCurrentGroupPatternFirstOfLoop(false);
 				final State<T> sink = copyWithoutTransitiveNots(sinkState);
 				final State<T> looping = createLooping(sink);
 
+				setCurrentGroupPatternFirstOfLoop(true);
 				if (!quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
 					lastSink = createInitMandatoryStateOfOneOrMore(looping);
 				} else {
@@ -394,7 +396,7 @@ public class NFACompiler {
 		private void addStopStateToLooping(final State<T> loopingState) {
 			if (followingPattern != null &&
 					followingPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
-				final IterativeCondition<T> notCondition = (IterativeCondition<T>) followingPattern.getCondition();
+				final IterativeCondition<T> notCondition = getTakeCondition(followingPattern);
 				final State<T> stopState = createStopState(notCondition, followingPattern.getName());
 				loopingState.addProceed(stopState, notCondition);
 			}
@@ -411,7 +413,7 @@ public class NFACompiler {
 		private State<T> createTimesState(final State<T> sinkState, Times times) {
 			State<T> lastSink = sinkState;
 			setCurrentGroupPatternFirstOfLoop(false);
-			final IterativeCondition<T> takeCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> takeCondition = getTakeCondition(currentPattern);
 			final IterativeCondition<T> innerIgnoreCondition = getInnerIgnoreCondition(currentPattern);
 			for (int i = times.getFrom(); i < times.getTo(); i++) {
 				lastSink = createSingletonState(lastSink, sinkState, takeCondition, innerIgnoreCondition, true);
@@ -444,8 +446,8 @@ public class NFACompiler {
 		}
 
 		/**
-		 * Checks if the current group pattern is the head of the TIMES quantifier or not a
-		 * TIMES quantifier pattern.
+		 * Checks if the current group pattern is the head of the TIMES/LOOPING quantifier or not a
+		 * TIMES/LOOPING quantifier pattern.
 		 */
 		private boolean isCurrentGroupPatternFirstOfLoop() {
 			if (firstOfLoopMap.containsKey(currentGroupPattern)) {
@@ -492,7 +494,7 @@ public class NFACompiler {
 			return createSingletonState(
 				sinkState,
 				sinkState,
-				(IterativeCondition<T>) currentPattern.getCondition(),
+				getTakeCondition(currentPattern),
 				getIgnoreCondition(currentPattern),
 				isPatternOptional(currentPattern));
 		}
@@ -518,7 +520,7 @@ public class NFACompiler {
 				return createGroupPatternState((GroupPattern) currentPattern, sinkState, proceedState, isOptional);
 			}
 
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+			final IterativeCondition<T> trueFunction = getTrueFunction();
 
 			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal);
 			// if event is accepted then all notPatterns previous to the optional states are no longer valid
@@ -561,28 +563,25 @@ public class NFACompiler {
 			final State<T> sinkState,
 			final State<T> proceedState,
 			final boolean isOptional) {
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+			final IterativeCondition<T> trueFunction = getTrueFunction();
 
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
 			GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
-			try {
-				State<T> lastSink = sinkState;
-				currentGroupPattern = groupPattern;
-				currentPattern = groupPattern.getRawPattern();
-				lastSink = createMiddleStates(lastSink);
-				lastSink = convertPattern(lastSink);
-				if (isOptional) {
-					// for the first state of a group pattern, its PROCEED edge should point to
-					// the following state of that group pattern
-					lastSink.addProceed(proceedState, trueFunction);
-				}
-				return lastSink;
-			} finally {
-				currentPattern = oldCurrentPattern;
-				followingPattern = oldFollowingPattern;
-				currentGroupPattern = oldGroupPattern;
+			State<T> lastSink = sinkState;
+			currentGroupPattern = groupPattern;
+			currentPattern = groupPattern.getRawPattern();
+			lastSink = createMiddleStates(lastSink);
+			lastSink = convertPattern(lastSink);
+			if (isOptional) {
+				// for the first state of a group pattern, its PROCEED edge should point to
+				// the following state of that group pattern
+				lastSink.addProceed(proceedState, trueFunction);
 			}
+			currentPattern = oldCurrentPattern;
+			followingPattern = oldFollowingPattern;
+			currentGroupPattern = oldGroupPattern;
+			return lastSink;
 		}
 
 		/**
@@ -595,26 +594,23 @@ public class NFACompiler {
 		private State<T> createLoopingGroupPatternState(
 			final GroupPattern<T, ?> groupPattern,
 			final State<T> sinkState) {
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+			final IterativeCondition<T> trueFunction = getTrueFunction();
 
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
 			GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
-			try {
-				final State<T> dummyState = createState(currentPattern.getName(), State.StateType.Normal);
-				State<T> lastSink = dummyState;
-				currentGroupPattern = groupPattern;
-				currentPattern = groupPattern.getRawPattern();
-				lastSink = createMiddleStates(lastSink);
-				lastSink = convertPattern(lastSink);
-				lastSink.addProceed(sinkState, trueFunction);
-				dummyState.addProceed(lastSink, trueFunction);
-				return lastSink;
-			} finally {
-				currentPattern = oldCurrentPattern;
-				followingPattern = oldFollowingPattern;
-				currentGroupPattern = oldGroupPattern;
-			}
+			final State<T> dummyState = createState(currentPattern.getName(), State.StateType.Normal);
+			State<T> lastSink = dummyState;
+			currentGroupPattern = groupPattern;
+			currentPattern = groupPattern.getRawPattern();
+			lastSink = createMiddleStates(lastSink);
+			lastSink = convertPattern(lastSink);
+			lastSink.addProceed(sinkState, trueFunction);
+			dummyState.addProceed(lastSink, trueFunction);
+			currentPattern = oldCurrentPattern;
+			followingPattern = oldFollowingPattern;
+			currentGroupPattern = oldGroupPattern;
+			return lastSink;
 		}
 
 		/**
@@ -636,10 +632,10 @@ public class NFACompiler {
 				getInnerIgnoreCondition(currentPattern),
 				untilCondition);
 			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				(IterativeCondition<T>) currentPattern.getCondition(),
+				getTakeCondition(currentPattern),
 				untilCondition);
 
-			final IterativeCondition<T> proceedCondition = BooleanConditions.trueFunction();
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
 			loopingState.addProceed(sinkState, proceedCondition);
 			loopingState.addTake(takeCondition);
@@ -667,7 +663,7 @@ public class NFACompiler {
 		@SuppressWarnings("unchecked")
 		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
 			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				(IterativeCondition<T>) currentPattern.getCondition(),
+				getTakeCondition(currentPattern),
 				(IterativeCondition<T>) currentPattern.getUntilCondition()
 			);
 
@@ -686,7 +682,7 @@ public class NFACompiler {
 		@SuppressWarnings("unchecked")
 		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
 			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				(IterativeCondition<T>) currentPattern.getCondition(),
+				getTakeCondition(currentPattern),
 				(IterativeCondition<T>) currentPattern.getUntilCondition()
 			);
 
@@ -717,8 +713,8 @@ public class NFACompiler {
 
 		/**
 		 * @return The {@link IterativeCondition condition} for the {@code IGNORE} edge
-		 * that corresponds to the specified {@link Pattern}. It is applicable only for inner states of a complex
-		 * state like looping or times.
+		 * that corresponds to the specified {@link Pattern} and extended with stop(until) condition
+		 * if necessary. It is applicable only for inner states of a complex state like looping or times.
 		 */
 		@SuppressWarnings("unchecked")
 		private IterativeCondition<T> getInnerIgnoreCondition(Pattern<T, ?> pattern) {
@@ -728,27 +724,39 @@ public class NFACompiler {
 				// inner consume strategy of the group pattern
 				consumingStrategy = currentGroupPattern.getQuantifier().getInnerConsumingStrategy();
 			}
+
+			IterativeCondition<T> innerIgnoreCondition = null;
 			switch (consumingStrategy) {
 				case STRICT:
-					return null;
+					innerIgnoreCondition = null;
+					break;
 				case SKIP_TILL_NEXT:
-					return new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
+					innerIgnoreCondition = new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
+					break;
 				case SKIP_TILL_ANY:
-					return BooleanConditions.trueFunction();
+					innerIgnoreCondition = BooleanConditions.trueFunction();
+					break;
 			}
-			return null;
+
+			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
+				innerIgnoreCondition = extendWithUntilCondition(
+					innerIgnoreCondition,
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+			}
+			return innerIgnoreCondition;
 		}
 
 		/**
 		 * @return The {@link IterativeCondition condition} for the {@code IGNORE} edge
-		 * that corresponds to the specified {@link Pattern}. For more on strategy see {@link Quantifier}
+		 * that corresponds to the specified {@link Pattern} and extended with
+		 * stop(until) condition if necessary. For more on strategy see {@link Quantifier}
 		 */
 		@SuppressWarnings("unchecked")
 		private IterativeCondition<T> getIgnoreCondition(Pattern<T, ?> pattern) {
 			Quantifier.ConsumingStrategy consumingStrategy = pattern.getQuantifier().getConsumingStrategy();
 			if (headOfGroup(pattern)) {
 				// for the head pattern of a group pattern, we should consider the inner consume strategy
-				// of the group pattern if the group pattern is not the head of the TIMES quantifier;
+				// of the group pattern if the group pattern is not the head of the TIMES/LOOPING quantifier;
 				// otherwise, we should consider the consume strategy of the group pattern
 				if (isCurrentGroupPatternFirstOfLoop()) {
 					consumingStrategy = currentGroupPattern.getQuantifier().getConsumingStrategy();
@@ -756,15 +764,56 @@ public class NFACompiler {
 					consumingStrategy = currentGroupPattern.getQuantifier().getInnerConsumingStrategy();
 				}
 			}
+
+			IterativeCondition<T> ignoreCondition = null;
 			switch (consumingStrategy) {
 				case STRICT:
-					return null;
+					ignoreCondition = null;
+					break;
 				case SKIP_TILL_NEXT:
-					return new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
+					ignoreCondition = new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
+					break;
 				case SKIP_TILL_ANY:
-					return BooleanConditions.trueFunction();
+					ignoreCondition = BooleanConditions.trueFunction();
+					break;
 			}
-			return null;
+
+			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
+				ignoreCondition = extendWithUntilCondition(
+					ignoreCondition,
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+			}
+			return ignoreCondition;
+		}
+
+		/**
+		 * @return the {@link IterativeCondition condition} for the {@code TAKE} edge
+		 * that corresponds to the specified {@link Pattern} and extended with
+		 * stop(until) condition if necessary.
+		 */
+		@SuppressWarnings("unchecked")
+		private IterativeCondition<T> getTakeCondition(Pattern<T, ?> pattern) {
+			IterativeCondition<T> takeCondition = (IterativeCondition<T>) pattern.getCondition();
+			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
+				takeCondition = extendWithUntilCondition(
+					takeCondition,
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+			}
+			return takeCondition;
+		}
+
+		/**
+		 * @return An true function extended with stop(until) condition if necessary.
+		 */
+		@SuppressWarnings("unchecked")
+		private IterativeCondition<T> getTrueFunction() {
+			IterativeCondition<T> trueCondition = BooleanConditions.trueFunction();
+			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
+				trueCondition = extendWithUntilCondition(
+					trueCondition,
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+			}
+			return trueCondition;
 		}
 	}
 

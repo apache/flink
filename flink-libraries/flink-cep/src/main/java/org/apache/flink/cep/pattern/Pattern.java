@@ -366,9 +366,8 @@ public class Pattern<T, F extends T> {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
 		this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
-		if (from <= 0) {
+		if (from == 0) {
 			this.quantifier.optional();
-			from = 1;
 		}
 		this.times = Times.of(from, to);
 		return this;
@@ -443,7 +442,7 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Appends a new pattern to the existing one. The new pattern enforces non-strict
+	 * Appends a new group pattern to the existing one. The new pattern enforces non-strict
 	 * temporal contiguity. This means that a matching event of this pattern and the
 	 * preceding matching event might be interleaved with other events which are ignored.
 	 *
@@ -455,7 +454,7 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Appends a new pattern to the existing one. The new pattern enforces non-strict
+	 * Appends a new group pattern to the existing one. The new pattern enforces non-strict
 	 * temporal contiguity. This means that a matching event of this pattern and the
 	 * preceding matching event might be interleaved with other events which are ignored.
 	 *
@@ -467,7 +466,7 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Appends a new pattern to the existing one. The new pattern enforces strict
+	 * Appends a new group pattern to the existing one. The new pattern enforces strict
 	 * temporal contiguity. This means that the whole pattern sequence matches only
 	 * if an event which matches this pattern directly follows the preceding matching
 	 * event. Thus, there cannot be any events in between two matching events.

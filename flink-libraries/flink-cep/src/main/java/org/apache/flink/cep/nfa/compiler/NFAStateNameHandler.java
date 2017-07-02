@@ -58,6 +58,9 @@ public class NFAStateNameHandler {
 		usedNames.add(name);
 	}
 
+	/**
+	 * Clear the names added during checking name uniqueness.
+	 */
 	public void clear() {
 		usedNames.clear();
 	}
