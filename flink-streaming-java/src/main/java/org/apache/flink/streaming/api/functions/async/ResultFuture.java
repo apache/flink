@@ -16,21 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.async.collector;
+package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Collection;
 
 /**
- * {@link AsyncCollector} collects data / error in user codes while processing async i/o.
+ * {@link ResultFuture} collects data / error in user codes while processing async i/o.
  *
  * @param <OUT> Output type
  */
 @PublicEvolving
-public interface AsyncCollector<OUT> {
+public interface ResultFuture<OUT> {
 	/**
-	 * Set result.
+	 * Completes the result future with a collection of result objects.
 	 *
 	 * <p>Note that it should be called for exactly one time in the user code.
 	 * Calling this function for multiple times will cause data lose.
@@ -39,12 +39,12 @@ public interface AsyncCollector<OUT> {
 	 *
 	 * @param result A list of results.
 	 */
-	void collect(Collection<OUT> result);
+	void complete(Collection<OUT> result);
 
 	/**
-	 * Set error.
+	 * Completes the result future exceptionally with an exception.
 	 *
 	 * @param error A Throwable object.
 	 */
-	void collect(Throwable error);
+	void completeExceptionally(Throwable error);
 }

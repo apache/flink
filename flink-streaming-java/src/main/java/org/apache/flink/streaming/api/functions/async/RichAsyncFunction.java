@@ -43,7 +43,6 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
@@ -85,7 +84,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 	}
 
 	@Override
-	public abstract void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
+	public abstract void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception;
 
 	// -----------------------------------------------------------------------------------------
 	// Wrapper classes

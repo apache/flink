@@ -29,8 +29,8 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -178,7 +178,7 @@ public class AsyncIOExample {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<String> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<String> resultFuture) throws Exception {
 			this.executorService.submit(new Runnable() {
 				@Override
 				public void run() {
@@ -188,13 +188,13 @@ public class AsyncIOExample {
 						Thread.sleep(sleep);
 
 						if (random.nextFloat() < failRatio) {
-							collector.collect(new Exception("wahahahaha..."));
+							resultFuture.completeExceptionally(new Exception("wahahahaha..."));
 						} else {
-							collector.collect(
+							resultFuture.complete(
 								Collections.singletonList("key-" + (input % 10)));
 						}
 					} catch (InterruptedException e) {
-						collector.collect(new ArrayList<String>(0));
+						resultFuture.complete(new ArrayList<String>(0));
 					}
 				}
 			});

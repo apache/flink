@@ -44,8 +44,8 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
@@ -166,11 +166,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<Integer> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
 			executorService.submit(new Runnable() {
 				@Override
 				public void run() {
-					collector.collect(Collections.singletonList(input * 2));
+					resultFuture.complete(Collections.singletonList(input * 2));
 				}
 			});
 		}
@@ -178,7 +178,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 	/**
 	 * A special {@link AsyncFunction} without issuing
-	 * {@link AsyncCollector#collect} until the latch counts to zero.
+	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * This function is used in the testStateSnapshotAndRestore, ensuring
 	 * that {@link StreamElementQueueEntry} can stay
 	 * in the {@link StreamElementQueue} to be
@@ -194,7 +194,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<Integer> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
 			this.executorService.submit(new Runnable() {
 				@Override
 				public void run() {
@@ -205,7 +205,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 						// do nothing
 					}
 
-					collector.collect(Collections.singletonList(input));
+					resultFuture.complete(Collections.singletonList(input));
 				}
 			});
 		}
@@ -854,8 +854,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				private static final long serialVersionUID = -3718276118074877073L;
 
 				@Override
-				public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
-					collector.collect(Collections.singletonList(input));
+				public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+					resultFuture.complete(Collections.singletonList(input));
 				}
 			},
 			timeout,
@@ -949,8 +949,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		private static final long serialVersionUID = 6326568632967110990L;
 
 		@Override
-		public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
-			collector.collect(new Exception("Test exception"));
+		public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+			resultFuture.completeExceptionally(new Exception("Test exception"));
 		}
 	}
 
@@ -1012,7 +1012,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		private static final long serialVersionUID = -3060481953330480694L;
 
 		@Override
-		public void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception {
+		public void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception {
 			// no op
 		}
 	}

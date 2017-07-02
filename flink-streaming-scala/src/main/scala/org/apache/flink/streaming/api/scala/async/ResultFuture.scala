@@ -18,26 +18,33 @@
 
 package org.apache.flink.streaming.api.scala.async
 
-import org.apache.flink.annotation.Internal
-import org.apache.flink.streaming.api.functions.async.collector.{AsyncCollector => JavaAsyncCollector}
-
-import scala.collection.JavaConverters._
+import org.apache.flink.annotation.PublicEvolving
 
 /**
-  * Internal wrapper class to map a Flink's Java API [[JavaAsyncCollector]] to a Scala
-  * [[AsyncCollector]].
+  * The result future collects data/errors from the user code while processing
+  * asynchronous I/O operations.
   *
-  * @param javaAsyncCollector to forward the calls to
-  * @tparam OUT type of the output elements
+  * @tparam OUT type of the output element
   */
-@Internal
-class JavaAsyncCollectorWrapper[OUT](val javaAsyncCollector: JavaAsyncCollector[OUT])
-  extends AsyncCollector[OUT] {
-  override def collect(result: Iterable[OUT]): Unit = {
-    javaAsyncCollector.collect(result.asJavaCollection)
-  }
+@PublicEvolving
+trait ResultFuture[OUT] {
 
-  override def collect(throwable: Throwable): Unit = {
-    javaAsyncCollector.collect(throwable)
-  }
+  /**
+    * Complete the ResultFuture with a set of result elements.
+    *
+    * Note that it should be called for exactly one time in the user code.
+    * Calling this function for multiple times will cause data lose.
+    *
+    * Put all results in a [[Iterable]] and then issue ResultFuture.complete(Iterable).
+    *
+    * @param result to complete the async collector with
+    */
+  def complete(result: Iterable[OUT])
+
+  /**
+    * Complete this ResultFuture with an error.
+    *
+    * @param throwable to complete the async collector with
+    */
+  def completeExceptionally(throwable: Throwable)
 }
