@@ -33,7 +33,7 @@ import java.util.Map;
 public class FileSpout extends AbstractLineSpout {
 	private static final long serialVersionUID = -6996907090003590436L;
 
-	public final static String INPUT_FILE_PATH = "input.path";
+	public static final String INPUT_FILE_PATH = "input.path";
 
 	protected String path = null;
 	protected BufferedReader reader;
@@ -50,8 +50,8 @@ public class FileSpout extends AbstractLineSpout {
 		super.open(conf, context, collector);
 
 		Object configuredPath = conf.get(INPUT_FILE_PATH);
-		if(configuredPath != null) {
-			this.path = (String)configuredPath;
+		if (configuredPath != null) {
+			this.path = (String) configuredPath;
 		}
 
 		try {

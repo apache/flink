@@ -267,13 +267,15 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
 
 		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
-				processFunction,
-				ProcessFunction.class,
-				false,
-				true,
-				getType(),
-				Utils.getCallLocationName(),
-				true);
+			processFunction,
+			ProcessFunction.class,
+			0,
+			1,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType(),
+			Utils.getCallLocationName(),
+			true);
 
 		return process(processFunction, outType);
 	}

@@ -54,7 +54,7 @@ public class RocksDBReducingStateTest {
 	@Test
 	public void testAddAndGet() throws Exception {
 
-		final ReducingStateDescriptor<Long> stateDescr = 
+		final ReducingStateDescriptor<Long> stateDescr =
 				new ReducingStateDescriptor<>("my-state", new AddingFunction(), Long.class);
 		stateDescr.initializeSerializerUnlessSet(new ExecutionConfig());
 
@@ -62,9 +62,9 @@ public class RocksDBReducingStateTest {
 		backend.setDbStoragePath(tmp.newFolder().getAbsolutePath());
 
 		final RocksDBKeyedStateBackend<String> keyedBackend = createKeyedBackend(backend);
-		
+
 		try {
-			InternalReducingState<VoidNamespace, Long> state = 
+			InternalReducingState<VoidNamespace, Long> state =
 					keyedBackend.createReducingState(VoidNamespaceSerializer.INSTANCE, stateDescr);
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 
@@ -126,7 +126,7 @@ public class RocksDBReducingStateTest {
 		final RocksDBKeyedStateBackend<String> keyedBackend = createKeyedBackend(backend);
 
 		try {
-			final InternalReducingState<TimeWindow, Long> state = 
+			final InternalReducingState<TimeWindow, Long> state =
 					keyedBackend.createReducingState(new TimeWindow.Serializer(), stateDescr);
 
 			// populate the different namespaces

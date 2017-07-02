@@ -30,21 +30,21 @@ import static org.apache.flink.util.Preconditions.checkState;
  * assumes that there is only a single contender for leadership
  * (e.g., a single JobManager or ResourceManager process) and that this process is
  * reachable under a constant address.
- * 
+ *
  * <p>As soon as this service is started, it immediately notifies the leader listener
  * of the leader contender with the pre-configured address.
  */
 public class StandaloneLeaderRetrievalService implements LeaderRetrievalService {
 
 	private final Object startStopLock = new Object();
-	
-	/** The fix address of the leader */
+
+	/** The fix address of the leader. */
 	private final String leaderAddress;
 
-	/** The fix leader ID (leader lock fencing token) */
+	/** The fix leader ID (leader lock fencing token). */
 	private final UUID leaderId;
 
-	/** Flag whether this service is started */
+	/** Flag whether this service is started. */
 	private boolean started;
 
 	/**

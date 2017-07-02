@@ -23,6 +23,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -36,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.AbstractAsyncSnapshotIOCallable;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +95,26 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	 */
 	private final boolean asynchronousSnapshots;
 
+	/**
+	 * Map of state names to their corresponding restored state meta info.
+	 *
+	 * <p>TODO this map can be removed when eager-state registration is in place.
+	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
+	 */
+	private final Map<String, RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> restoredStateMetaInfos;
+
+	/**
+	 * Cache of already accessed states.
+	 *
+	 * <p>In contrast to {@link #registeredStates} and {@link #restoredStateMetaInfos} which may be repopulated
+	 * with restored state, this map is always empty at the beginning.
+	 *
+	 * <p>TODO this map should be moved to a base class once we have proper hierarchy for the operator state backends.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6849">FLINK-6849</a>
+	 */
+	private final HashMap<String, PartitionableListState<?>> accessedStatesByName;
+
 	public DefaultOperatorStateBackend(
 		ClassLoader userClassLoader,
 		ExecutionConfig executionConfig,
@@ -103,6 +126,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		this.javaSerializer = new JavaSerializer<>();
 		this.registeredStates = new HashMap<>();
 		this.asynchronousSnapshots = asynchronousSnapshots;
+		this.accessedStatesByName = new HashMap<>();
+		this.restoredStateMetaInfos = new HashMap<>();
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -314,6 +339,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 							" not be loaded. This is a temporary restriction that will be fixed in future versions.");
 					}
 
+					restoredStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
+
 					PartitionableListState<?> listState = registeredStates.get(restoredMetaInfo.getName());
 
 					if (null == listState) {
@@ -359,7 +386,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		/**
 		 * Meta information of the state, including state name, assignment mode, and serializer
 		 */
-		private final RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo;
+		private RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo;
 
 		/**
 		 * The internal list the holds the elements of the state
@@ -389,12 +416,12 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			this(toCopy.stateMetaInfo, toCopy.internalListCopySerializer.copy(toCopy.internalList));
 		}
 
-		public RegisteredOperatorBackendStateMetaInfo<S> getStateMetaInfo() {
-			return stateMetaInfo;
+		public void setStateMetaInfo(RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo) {
+			this.stateMetaInfo = stateMetaInfo;
 		}
 
-		public List<S> getInternalList() {
-			return internalList;
+		public RegisteredOperatorBackendStateMetaInfo<S> getStateMetaInfo() {
+			return stateMetaInfo;
 		}
 
 		public PartitionableListState<S> deepCopy() {
@@ -441,19 +468,32 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	}
 
 	private <S> ListState<S> getListState(
-		ListStateDescriptor<S> stateDescriptor,
-		OperatorStateHandle.Mode mode) throws IOException {
+			ListStateDescriptor<S> stateDescriptor,
+			OperatorStateHandle.Mode mode) throws IOException, StateMigrationException {
+
 		Preconditions.checkNotNull(stateDescriptor);
+		String name = Preconditions.checkNotNull(stateDescriptor.getName());
+
+		@SuppressWarnings("unchecked")
+		PartitionableListState<S> previous = (PartitionableListState<S>) accessedStatesByName.get(name);
+		if (previous != null) {
+			checkStateNameAndMode(previous.getStateMetaInfo(), name, mode);
+			return previous;
+		}
+
+		// end up here if its the first time access after execution for the
+		// provided state name; check compatibility of restored state, if any
+		// TODO with eager registration in place, these checks should be moved to restore()
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		String name = Preconditions.checkNotNull(stateDescriptor.getName());
 		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
 
 		@SuppressWarnings("unchecked")
 		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
 
 		if (null == partitionableListState) {
+			// no restored state for the state name; simply create new state holder
+
 			partitionableListState = new PartitionableListState<>(
 				new RegisteredOperatorBackendStateMetaInfo<>(
 					name,
@@ -462,21 +502,38 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			registeredStates.put(name, partitionableListState);
 		} else {
-			// TODO with eager registration in place, these checks should be moved to restore()
+			// has restored state; check compatibility of new state access
 
-			Preconditions.checkState(
-				partitionableListState.getStateMetaInfo().getName().equals(name),
-				"Incompatible state names. " +
-					"Was [" + partitionableListState.getStateMetaInfo().getName() + "], " +
-					"registered with [" + name + "].");
+			checkStateNameAndMode(partitionableListState.getStateMetaInfo(), name, mode);
 
-			Preconditions.checkState(
-				partitionableListState.getStateMetaInfo().getAssignmentMode().equals(mode),
-				"Incompatible state assignment modes. " +
-					"Was [" + partitionableListState.getStateMetaInfo().getAssignmentMode() + "], " +
-					"registered with [" + mode + "].");
+			@SuppressWarnings("unchecked")
+			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> restoredMetaInfo =
+				(RegisteredOperatorBackendStateMetaInfo.Snapshot<S>) restoredStateMetaInfos.get(name);
+
+			// check compatibility to determine if state migration is required
+			CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+					restoredMetaInfo.getPartitionStateSerializer(),
+					UnloadableDummyTypeSerializer.class,
+					restoredMetaInfo.getPartitionStateSerializerConfigSnapshot(),
+					partitionStateSerializer);
+
+			if (!stateCompatibility.isRequiresMigration()) {
+				// new serializer is compatible; use it to replace the old serializer
+				partitionableListState.setStateMetaInfo(
+					new RegisteredOperatorBackendStateMetaInfo<>(name, partitionStateSerializer, mode));
+			} else {
+				// TODO state migration currently isn't possible.
+
+				// NOTE: for heap backends, it is actually fine to proceed here without failing the restore,
+				// since the state has already been deserialized to objects and we can just continue with
+				// the new serializer; we're deliberately failing here for now to have equal functionality with
+				// the RocksDB backend to avoid confusion for users.
+
+				throw new StateMigrationException("State migration isn't supported, yet.");
+			}
 		}
 
+		accessedStatesByName.put(name, partitionableListState);
 		return partitionableListState;
 	}
 
@@ -496,5 +553,23 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				}
 			}
 		}
+	}
+
+	private static void checkStateNameAndMode(
+			RegisteredOperatorBackendStateMetaInfo previousMetaInfo,
+			String expectedName,
+			OperatorStateHandle.Mode expectedMode) {
+
+		Preconditions.checkState(
+			previousMetaInfo.getName().equals(expectedName),
+			"Incompatible state names. " +
+				"Was [" + previousMetaInfo.getName() + "], " +
+				"registered with [" + expectedName + "].");
+
+		Preconditions.checkState(
+			previousMetaInfo.getAssignmentMode().equals(expectedMode),
+			"Incompatible state assignment modes. " +
+				"Was [" + previousMetaInfo.getAssignmentMode() + "], " +
+				"registered with [" + expectedMode + "].");
 	}
 }

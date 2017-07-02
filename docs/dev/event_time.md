@@ -146,7 +146,7 @@ to use timestamp assignment and watermark generation in the Flink DataStream API
 *Note: Flink implements many techniques from the Dataflow Model. For a good introduction to event time and watermarks, have a look at the articles below.*
 
   - [Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) by Tyler Akidau
-  - The [Dataflow Model paper](https://static.googleusercontent.com/media/research.google.com/en/pubs/archive/43864.pdf)
+  - The [Dataflow Model paper](https://research.google.com/pubs/archive/43864.pdf)
 
 
 A stream processor that supports *event time* needs a way to measure the progress of event time.

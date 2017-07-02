@@ -72,7 +72,7 @@ SingleOutputStreamOperator<Integer> mainDataStream = input
 
       @Override
       public void processElement(
-          Integer input,
+          Integer value,
           Context ctx,
           Collector<Integer> out) throws Exception {
         // emit data to regular output

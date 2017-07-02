@@ -17,11 +17,6 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.storm.generated.StormTopology;
-import org.apache.storm.topology.TopologyBuilder;
-import org.apache.storm.tuple.Fields;
-
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
 import org.apache.flink.storm.util.NullTerminatingSpout;
@@ -33,28 +28,33 @@ import org.apache.flink.storm.wordcount.operators.BoltTokenizer;
 import org.apache.flink.storm.wordcount.operators.BoltTokenizerByName;
 import org.apache.flink.storm.wordcount.operators.WordCountFileSpout;
 import org.apache.flink.storm.wordcount.operators.WordCountInMemorySpout;
+import org.apache.flink.storm.wordcount.util.WordCountData;
+
+import org.apache.storm.generated.StormTopology;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The program is constructed as a regular {@link StormTopology}.
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * <p>
- * Usage:
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage:
  * <code>WordCount[Local|LocalByName|RemoteByClient|RemoteBySubmitter] &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>how to construct a regular Storm topology as Flink program</li>
  * </ul>
  */
 public class WordCountTopology {
-	public final static String spoutId = "source";
-	public final static String tokenierzerId = "tokenizer";
-	public final static String counterId = "counter";
-	public final static String sinkId = "sink";
-	private final static OutputFormatter formatter = new TupleOutputFormatter();
+	private static final String spoutId = "source";
+	private static final String tokenierzerId = "tokenizer";
+	private static final String counterId = "counter";
+	private static final String sinkId = "sink";
+	private static final OutputFormatter formatter = new TupleOutputFormatter();
 
 	public static TopologyBuilder buildTopology() {
 		return buildTopology(true);

@@ -115,7 +115,7 @@ of elements that are added to the state. The interface is the same as for `ListS
 added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
 
 * `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and
-retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or 
+retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
 views for mappings, keys and values can be retrieved using `entries()`, `keys()` and `values()` respectively.
 
@@ -152,6 +152,8 @@ is available in a `RichFunction` has these methods for accessing state:
 
 This is an example `FlatMapFunction` that shows how all of the parts fit together:
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight java %}
 public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
@@ -201,6 +203,66 @@ env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2
 
 // the printed output will be (1,4) and (1,5)
 {% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class CountWindowAverage extends RichFlatMapFunction[(Long, Long), (Long, Long)] {
+
+  private var sum: ValueState[(Long, Long)] = _
+
+  override def flatMap(input: (Long, Long), out: Collector[(Long, Long)]): Unit = {
+
+    // access the state value
+    val tmpCurrentSum = sum.value
+
+    // If it hasn't been used before, it will be null
+    val currentSum = if (tmpCurrentSum != null) {
+      tmpCurrentSum
+    } else {
+      (0L, 0L)
+    }
+
+    // update the count
+    val newSum = (currentSum._1 + 1, currentSum._2 + input._2)
+
+    // update the state
+    sum.update(newSum)
+
+    // if the count reaches 2, emit the average and clear the state
+    if (newSum._1 >= 2) {
+      out.collect((input._1, newSum._2 / newSum._1))
+      sum.clear()
+    }
+  }
+
+  override def open(parameters: Configuration): Unit = {
+    sum = getRuntimeContext.getState(
+      new ValueStateDescriptor[(Long, Long)]("average", createTypeInformation[(Long, Long)])
+    )
+  }
+}
+
+
+object ExampleCountWindowAverage extends App {
+  val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+  env.fromCollection(List(
+    (1L, 3L),
+    (1L, 5L),
+    (1L, 7L),
+    (1L, 4L),
+    (1L, 2L)
+  )).keyBy(_._1)
+    .flatMap(new CountWindowAverage())
+    .print()
+  // the printed output will be (1,4) and (1,5)
+
+  env.execute("ExampleManagedState")
+}
+{% endhighlight %}
+</div>
+</div>
 
 This example implements a poor man's counting window. We key the tuples by the first field
 (in the example all have the same key `1`). The function stores the count and a running sum in
@@ -268,6 +330,8 @@ Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction
 to buffer elements before sending them to the outside world. It demonstrates
 the basic even-split redistribution list state:
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight java %}
 public class BufferingSink
         implements SinkFunction<Tuple2<String, Integer>>,
@@ -311,7 +375,7 @@ public class BufferingSink
                 "buffered-elements",
                 TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}),
                 Tuple2.of(0L, 0L));
-                
+
         checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 
         if (context.isRestored()) {
@@ -328,6 +392,59 @@ public class BufferingSink
     }
 }
 {% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class BufferingSink(threshold: Int = 0)
+  extends SinkFunction[(String, Int)]
+    with CheckpointedFunction
+    with CheckpointedRestoring[List[(String, Int)]] {
+
+  @transient
+  private var checkpointedState: ListState[(String, Int)] = null
+
+  private val bufferedElements = ListBuffer[(String, Int)]()
+
+  override def invoke(value: (String, Int)): Unit = {
+    bufferedElements += value
+    if (bufferedElements.size == threshold) {
+      for (element <- bufferedElements) {
+        // send it to the sink
+      }
+      bufferedElements.clear()
+    }
+  }
+
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    checkpointedState.clear()
+    for (element <- bufferedElements) {
+      checkpointedState.add(element)
+    }
+  }
+
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    val descriptor = new ListStateDescriptor[(String, Int)](
+      "buffered-elements",
+      TypeInformation.of(new TypeHint[(String, Int)]() {})
+    )
+
+    checkpointedState = context.getOperatorStateStore.getListState(descriptor)
+
+    if(context.isRestored) {
+      for(element <- checkpointedState.get()) {
+        bufferedElements += element
+      }
+    }
+  }
+
+  override def restoreState(state: List[(String, Int)]): Unit = {
+    bufferedElements ++= state
+  }
+}
+{% endhighlight %}
+</div>
+</div>
 
 The `initializeState` method takes as argument a `FunctionInitializationContext`. This is used to initialize
 the non-keyed state "containers". These are a container of type `ListState` where the non-keyed state objects
@@ -337,16 +454,32 @@ Note how the state is initialized, similar to keyed state,
 with a `StateDescriptor` that contains the state name and information
 about the type of the value that the state holds:
 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight java %}
 ListStateDescriptor<Tuple2<String, Integer>> descriptor =
     new ListStateDescriptor<>(
         "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}),
-        Tuple2.of(0L, 0L));
+        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}));
 
 checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 {% endhighlight %}
 
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+val descriptor = new ListStateDescriptor[(String, Long)](
+    "buffered-elements",
+    TypeInformation.of(new TypeHint[(String, Long)]() {})
+)
+
+checkpointedState = context.getOperatorStateStore.getListState(descriptor)
+
+{% endhighlight %}
+</div>
+</div>
 The naming convention of the state access methods contain its redistribution
 pattern followed by its state structure. For example, to use list state with the
 union redistribution scheme on restore, access the state by using `getUnionListState(descriptor)`.
@@ -385,6 +518,8 @@ Stateful sources require a bit more care as opposed to other operators.
 In order to make the updates to the state and output collection atomic (required for exactly-once semantics
 on failure/recovery), the user is required to get a lock from the source's context.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight java %}
 public static class CounterSource
         extends RichParallelSourceFunction<Long>
@@ -426,6 +561,209 @@ public static class CounterSource
     }
 }
 {% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class CounterSource
+       extends RichParallelSourceFunction[Long]
+       with ListCheckpointed[Long] {
+
+  @volatile
+  private var isRunning = true
+
+  private var offset = 0L
+
+  override def run(ctx: SourceFunction.SourceContext[Long]): Unit = {
+    val lock = ctx.getCheckpointLock
+
+    while (isRunning) {
+      // output and state update are atomic
+      lock.synchronized({
+        ctx.collect(offset)
+
+        offset += 1
+      })
+    }
+  }
+
+  override def cancel(): Unit = isRunning = false
+
+  override def restoreState(state: util.List[Long]): Unit =
+    for (s <- state) {
+      offset = s
+    }
+
+  override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] =
+    Collections.singletonList(offset)
+
+}
+{% endhighlight %}
+</div>
+</div>
 
 Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.runtime.state.CheckpointListener` interface.
 
+## Custom Serialization for Managed State
+
+This section is targeted as a guideline for users who require the use of custom serialization for their state, covering how
+to provide a custom serializer and how to handle upgrades to the serializer for compatibility. If you're simply using
+Flink's own serializers, this section is irrelevant and can be skipped.
+
+### Using custom serializers
+
+As demonstrated in the above examples, when registering a managed operator or keyed state, a `StateDescriptor` is required
+to specify the state's name, as well as information about the type of the state. The type information is used by Flink's
+[type serialization framework](../types_serialization.html) to create appropriate serializers for the state.
+
+It is also possible to completely bypass this and let Flink use your own custom serializer to serialize managed states,
+simply by directly instantiating the `StateDescriptor` with your own `TypeSerializer` implementation:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class CustomTypeSerializer extends TypeSerializer<Tuple2<String, Integer>> {...};
+
+ListStateDescriptor<Tuple2<String, Integer>> descriptor =
+    new ListStateDescriptor<>(
+        "state-name",
+        new CustomTypeSerializer());
+
+checkpointedState = getRuntimeContext().getListState(descriptor);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class CustomTypeSerializer extends TypeSerializer[(String, Integer)] {...}
+
+val descriptor = new ListStateDescriptor[(String, Integer)](
+    "state-name",
+    new CustomTypeSerializer)
+)
+
+checkpointedState = getRuntimeContext.getListState(descriptor);
+{% endhighlight %}
+</div>
+</div>
+
+Note that Flink writes state serializers along with the state as metadata. In certain cases on restore (see following
+subsections), the written serializer needs to be deserialized and used. Therefore, it is recommended to avoid using
+anonymous classes as your state serializers. Anonymous classes do not have a guarantee on the generated classname,
+varying across compilers and depends on the order that they are instantiated within the enclosing class, which can 
+easily cause the previously written serializer to be unreadable (since the original class can no longer be found in the
+classpath).
+
+### Handling serializer upgrades and compatibility
+
+Flink allows changing the serializers used to read and write managed state, so that users are not locked in to any
+specific serialization. When state is restored, the new serializer registered for the state (i.e., the serializer
+that comes with the `StateDescriptor` used to access the state in the restored job) will be checked for compatibility,
+and is replaced as the new serializer for the state.
+
+A compatible serializer would mean that the serializer is capable of reading previous serialized bytes of the state,
+and the written binary format of the state also remains identical. The means to check the new serializer's compatibility
+is provided through the following two methods of the `TypeSerializer` interface:
+
+{% highlight java %}
+public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
+public abstract CompatibilityResult ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
+{% endhighlight %}
+
+Briefly speaking, every time a checkpoint is performed, the `snapshotConfiguration` method is called to create a
+point-in-time view of the state serializer's configuration. The returned configuration snapshot is stored along with the
+checkpoint as the state's metadata. When the checkpoint is used to restore a job, that serializer configuration snapshot
+will be provided to the _new_ serializer of the same state via the counterpart method, `ensureCompatibility`, to verify
+compatibility of the new serializer. This method serves as a check for whether or not the new serializer is compatible,
+as well as a hook to possibly reconfigure the new serializer in the case that it is incompatible.
+
+Note that Flink's own serializers are implemented such that they are at least compatible with themselves, i.e. when the
+same serializer is used for the state in the restored job, the serializer's will reconfigure themselves to be compatible
+with their previous configuration.
+
+The following subsections illustrate guidelines to implement these two methods when using custom serializers.
+
+#### Implementing the `snapshotConfiguration` method
+
+The serializer's configuration snapshot should capture enough information such that on restore, the information
+carried over to the new serializer for the state is sufficient for it to determine whether or not it is compatible.
+This could typically contain information about the serializer's parameters or binary format of the serialized data;
+generally, anything that allows the new serializer to decide whether or not it can be used to read previous serialized
+bytes, and that it writes in the same binary format.
+
+How the serializer's configuration snapshot is written to and read from checkpoints is fully customizable. The below
+is the base class for all serializer configuration snapshot implementations, the `TypeSerializerConfigSnapshot`.
+
+{% highlight java %}
+public abstract TypeSerializerConfigSnapshot extends VersionedIOReadableWritable {
+  public abstract int getVersion();
+  public void read(DataInputView in) {...}
+  public void write(DataOutputView out) {...}
+}
+{% endhighlight %}
+
+The `read` and `write` methods define how the configuration is read from and written to the checkpoint. The base
+implementations contain logic to read and write the version of the configuration snapshot, so it should be extended and
+not completely overridden.
+
+The version of the configuration snapshot is determined through the `getVersion` method. Versioning for the serializer
+configuration snapshot is the means to maintain compatible configurations, as information included in the configuration
+may change over time. By default, configuration snapshots are only compatible with the current version (as returned by
+`getVersion`). To indicate that the configuration is compatible with other versions, override the `getCompatibleVersions`
+method to return more version values. When reading from the checkpoint, you can use the `getReadVersion` method to
+determine the version of the written configuration and adapt the read logic to the specific version.
+
+<span class="label label-danger">Attention</span> The version of the serializer's configuration snapshot is **not**
+related to upgrading the serializer. The exact same serializer can have different implementations of its
+configuration snapshot, for example when more information is added to the configuration to allow more comprehensive
+compatibility checks in the future.
+
+One limitation of implementing a `TypeSerializerConfigSnapshot` is that an empty constructor must be present. The empty
+constructor is required when reading the configuration snapshot from checkpoints.
+
+#### Implementing the `ensureCompatibility` method
+
+The `ensureCompatibility` method should contain logic that performs checks against the information about the previous
+serializer carried over via the provided `TypeSerializerConfigSnapshot`, basically doing one of the following:
+
+  * Check whether the serializer is compatible, while possibly reconfiguring itself (if required) so that it may be
+    compatible. Afterwards, acknowledge with Flink that the serializer is compatible.
+
+  * Acknowledge that the serializer is incompatible and that state migration is required before Flink can proceed with
+    using the new serializer.
+
+The above cases can be translated to code by returning one of the following from the `ensureCompatibility` method:
+
+  * **`CompatibilityResult.compatible()`**: This acknowledges that the new serializer is compatible, or has been reconfigured to
+    be compatible, and Flink can proceed with the job with the serializer as is.
+
+  * **`CompatibilityResult.requiresMigration()`**: This acknowledges that the serializer is incompatible, or cannot be
+    reconfigured to be compatible, and requires a state migration before the new serializer can be used. State migration
+    is performed by using the previous serializer to read the restored state bytes to objects, and then serialized again
+    using the new serializer.
+
+  * **`CompatibilityResult.requiresMigration(TypeDeserializer deserializer)`**: This acknowledgement has equivalent semantics
+    to `CompatibilityResult.requiresMigration()`, but in the case that the previous serializer cannot be found or loaded
+    to read the restored state bytes for the migration, a provided `TypeDeserializer` can be used as a fallback resort.
+
+<span class="label label-danger">Attention</span> Currently, as of Flink 1.3, if the result of the compatibility check
+acknowledges that state migration needs to be performed, the job simply fails to restore from the checkpoint as state
+migration is currently not available. The ability to migrate state will be introduced in future releases.
+
+### Managing `TypeSerializer` and `TypeSerializerConfigSnapshot` classes in user code
+
+Since `TypeSerializer`s and `TypeSerializerConfigSnapshot`s are written as part of checkpoints along with the state
+values, the availability of the classes within the classpath may affect restore behaviour.
+
+`TypeSerializer`s are directly written into checkpoints using Java Object Serialization. In the case that the new
+serializer acknowledges that it is incompatible and requires state migration, it will be required to be present to be
+able to read the restored state bytes. Therefore, if the original serializer class no longer exists or has been modified
+(resulting in a different `serialVersionUID`) as a result of a serializer upgrade for the state, the restore would
+not be able to proceed. The alternative to this requirement is to provide a fallback `TypeDeserializer` when
+acknowledging that state migration is required, using `CompatibilityResult.requiresMigration(TypeDeserializer deserializer)`.
+
+The class of `TypeSerializerConfigSnapshot`s in the restored checkpoint must exist in the classpath, as they are
+fundamental components to compatibility checks on upgraded serializers and would not be able to be restored if the class
+is not present. Since configuration snapshots are written to checkpoints using custom serialization, the implementation
+of the class is free to be changed, as long as compatibility of the configuration change is handled using the versioning
+mechanisms in `TypeSerializerConfigSnapshot`.

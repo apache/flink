@@ -21,9 +21,8 @@ package org.apache.flink.test.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.FileUtils;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
@@ -112,7 +111,11 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
 	public String createTempFile(String fileName, String contents) throws IOException {
 		File f = createAndRegisterTempFile(fileName);
-		Files.write(contents, f, Charsets.UTF_8);
+		if (!f.getParentFile().exists()) {
+			f.getParentFile().mkdirs();
+		}
+		f.createNewFile();
+		FileUtils.writeFileUtf8(f, contents);
 		return f.toURI().toString();
 	}
 

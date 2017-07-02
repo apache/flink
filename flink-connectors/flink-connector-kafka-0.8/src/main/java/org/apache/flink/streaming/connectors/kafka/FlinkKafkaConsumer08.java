@@ -22,38 +22,26 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.Kafka08Fetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.Kafka08PartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
-import kafka.cluster.Broker;
-import kafka.common.ErrorMapping;
-import kafka.javaapi.PartitionMetadata;
-import kafka.javaapi.TopicMetadata;
-import kafka.javaapi.TopicMetadataRequest;
-import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.Node;
 
-import java.net.InetAddress;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.nio.channels.ClosedChannelException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.PropertiesUtil.getInt;
+import static org.apache.flink.util.PropertiesUtil.getLong;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -172,9 +160,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer08(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(topics, deserializer);
+		super(
+				topics,
+				null,
+				deserializer,
+				getLong(props, KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED));
 
-		checkNotNull(topics, "topics");
 		this.kafkaProperties = checkNotNull(props, "props");
 
 		// validate the zookeeper properties
@@ -212,22 +203,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	@Override
-	protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
-		// Connect to a broker to get the partitions for all topics
-		List<KafkaTopicPartition> partitionInfos =
-			KafkaTopicPartition.dropLeaderData(getPartitionsForTopic(topics, kafkaProperties));
+	protected AbstractPartitionDiscoverer createPartitionDiscoverer(
+			KafkaTopicsDescriptor topicsDescriptor,
+			int indexOfThisSubtask,
+			int numParallelSubtasks) {
 
-		if (partitionInfos.size() == 0) {
-			throw new RuntimeException(
-				"Unable to retrieve any partitions for the requested topics " + topics +
-					". Please check previous log entries");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(LOG, partitionInfos);
-		}
-
-		return partitionInfos;
+		return new Kafka08PartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, kafkaProperties);
 	}
 
 	@Override
@@ -237,104 +218,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Kafka / ZooKeeper communication utilities
+	//  Kafka / ZooKeeper configuration utilities
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Send request to Kafka to get partitions for topic.
-	 *
-	 * @param topics The name of the topics.
-	 * @param properties The properties for the Kafka Consumer that is used to query the partitions for the topic.
-	 */
-	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(List<String> topics, Properties properties) {
-		String seedBrokersConfString = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-		final int numRetries = getInt(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
-
-		checkNotNull(seedBrokersConfString, "Configuration property %s not set", ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-		String[] seedBrokers = seedBrokersConfString.split(",");
-		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
-
-		final String clientId = "flink-kafka-consumer-partition-lookup";
-		final int soTimeout = getInt(properties, "socket.timeout.ms", 30000);
-		final int bufferSize = getInt(properties, "socket.receive.buffer.bytes", 65536);
-
-		Random rnd = new Random();
-		retryLoop: for (int retry = 0; retry < numRetries; retry++) {
-			// we pick a seed broker randomly to avoid overloading the first broker with all the requests when the
-			// parallel source instances start. Still, we try all available brokers.
-			int index = rnd.nextInt(seedBrokers.length);
-			brokersLoop: for (int arrIdx = 0; arrIdx < seedBrokers.length; arrIdx++) {
-				String seedBroker = seedBrokers[index];
-				LOG.info("Trying to get topic metadata from broker {} in try {}/{}", seedBroker, retry, numRetries);
-				if (++index == seedBrokers.length) {
-					index = 0;
-				}
-
-				URL brokerUrl = NetUtils.getCorrectHostnamePort(seedBroker);
-				SimpleConsumer consumer = null;
-				try {
-					consumer = new SimpleConsumer(brokerUrl.getHost(), brokerUrl.getPort(), soTimeout, bufferSize, clientId);
-
-					TopicMetadataRequest req = new TopicMetadataRequest(topics);
-					kafka.javaapi.TopicMetadataResponse resp = consumer.send(req);
-
-					List<TopicMetadata> metaData = resp.topicsMetadata();
-
-					// clear in case we have an incomplete list from previous tries
-					partitions.clear();
-					for (TopicMetadata item : metaData) {
-						if (item.errorCode() != ErrorMapping.NoError()) {
-							// warn and try more brokers
-							LOG.warn("Error while getting metadata from broker " + seedBroker + " to find partitions " +
-									"for " + topics.toString() + ". Error: " + ErrorMapping.exceptionFor(item.errorCode()).getMessage());
-							continue brokersLoop;
-						}
-						if (!topics.contains(item.topic())) {
-							LOG.warn("Received metadata from topic " + item.topic() + " even though it was not requested. Skipping ...");
-							continue brokersLoop;
-						}
-						for (PartitionMetadata part : item.partitionsMetadata()) {
-							Node leader = brokerToNode(part.leader());
-							KafkaTopicPartition ktp = new KafkaTopicPartition(item.topic(), part.partitionId());
-							KafkaTopicPartitionLeader pInfo = new KafkaTopicPartitionLeader(ktp, leader);
-							partitions.add(pInfo);
-						}
-					}
-					break retryLoop; // leave the loop through the brokers
-				}
-				catch (Exception e) {
-					//validates seed brokers in case of a ClosedChannelException
-					validateSeedBrokers(seedBrokers, e);
-					LOG.warn("Error communicating with broker {} to find partitions for {}. {} Message: {}",
-							seedBroker, topics, e.getClass().getName(), e.getMessage());
-					LOG.debug("Detailed trace", e);
-					// we sleep a bit. Retrying immediately doesn't make sense in cases where Kafka is reorganizing the leader metadata
-					try {
-						Thread.sleep(500);
-					} catch (InterruptedException e1) {
-						// sleep shorter.
-					}
-				} finally {
-					if (consumer != null) {
-						consumer.close();
-					}
-				}
-			} // brokers loop
-		} // retries loop
-		return partitions;
-	}
-
-	/**
-	 * Turn a broker instance into a node instance.
-	 * @param broker broker instance
-	 * @return Node representing the given broker
-	 */
-	private static Node brokerToNode(Broker broker) {
-		return new Node(broker.id(), broker.host(), broker.port());
-	}
-
-	/**
 	 * Validate the ZK configuration, checking for required parameters.
+	 *
 	 * @param props Properties to check
 	 */
 	protected static void validateZooKeeperConfig(Properties props) {
@@ -360,36 +249,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 		catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Property 'zookeeper.connection.timeout.ms' is not a valid integer");
-		}
-	}
-
-	/**
-	 * Validate that at least one seed broker is valid in case of a
-	 * ClosedChannelException.
-	 *
-	 * @param seedBrokers
-	 *            array containing the seed brokers e.g. ["host1:port1",
-	 *            "host2:port2"]
-	 * @param exception
-	 *            instance
-	 */
-	private static void validateSeedBrokers(String[] seedBrokers, Exception exception) {
-		if (!(exception instanceof ClosedChannelException)) {
-			return;
-		}
-		int unknownHosts = 0;
-		for (String broker : seedBrokers) {
-			URL brokerUrl = NetUtils.getCorrectHostnamePort(broker.trim());
-			try {
-				InetAddress.getByName(brokerUrl.getHost());
-			} catch (UnknownHostException e) {
-				unknownHosts++;
-			}
-		}
-		// throw meaningful exception if all the provided hosts are invalid
-		if (unknownHosts == seedBrokers.length) {
-			throw new IllegalArgumentException("All the servers provided in: '"
-					+ ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + "' config are invalid. (unknown hosts)");
 		}
 	}
 

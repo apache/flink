@@ -22,11 +22,11 @@ package org.apache.flink.runtime.leaderretrieval;
  * This interface has to be implemented by a service which retrieves the current leader and notifies
  * a listener about it.
  *
- * Prior to using this service it has to be started by calling the start method. The start method
+ * <p>Prior to using this service it has to be started by calling the start method. The start method
  * also takes the {@link LeaderRetrievalListener} as an argument. The service can only be started
  * once.
  *
- * The service should be stopped by calling the stop method.
+ * <p>The service should be stopped by calling the stop method.
  */
 public interface LeaderRetrievalService {
 

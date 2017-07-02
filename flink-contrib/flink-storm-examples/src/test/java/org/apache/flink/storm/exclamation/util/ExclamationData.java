@@ -18,6 +18,9 @@
 
 package org.apache.flink.storm.exclamation.util;
 
+/**
+ * Expected output of Exclamation programs.
+ */
 public class ExclamationData {
 
 	public static final String TEXT_WITH_EXCLAMATIONS =

@@ -24,12 +24,15 @@ import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerialize
 import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.typeutils.runtime.{DataInputViewStream, DataOutputViewStream}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
-import org.apache.flink.util.InstantiationUtil
+import org.apache.flink.util.{InstantiationUtil, Preconditions}
+
+import scala.collection.mutable.ListBuffer
 
 /**
  * Serializer for [[Enumeration]] values.
  */
 @Internal
+@SerialVersionUID(-2403076635594572920L)
 class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[E#Value] {
 
   type T = E#Value
@@ -77,8 +80,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   // --------------------------------------------------------------------------------------------
 
   override def snapshotConfiguration(): EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[E] = {
-    new EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[E](
-      enum.getClass.asInstanceOf[Class[E]])
+    new EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[E](enum)
   }
 
   override def ensureCompatibility(
@@ -88,13 +90,21 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
       case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
         val enumClass = enum.getClass.asInstanceOf[Class[E]]
         if (enumClass.equals(enumSerializerConfigSnapshot.getEnumClass)) {
-          val currentEnumConstants = enumSerializerConfigSnapshot.getEnumClass.getEnumConstants
+          val previousEnumConstants: List[(String, Int)] =
+            enumSerializerConfigSnapshot.getEnumConstants
 
-          for ( i <- 0 to currentEnumConstants.length) {
-            // compatible only if new enum constants are only appended,
-            // and original constants must be in the exact same order
+          for ((previousEnumConstant, idx) <- previousEnumConstants) {
+            val enumValue = try {
+              enum(idx)
+            } catch {
+              case _: NoSuchElementException =>
+                // couldn't find an enum value for the given index
+                return CompatibilityResult.requiresMigration()
+            }
 
-            if (currentEnumConstants(i) != enumSerializerConfigSnapshot.getEnumConstants(i)) {
+            if (!previousEnumConstant.equals(enumValue.toString)) {
+              // compatible only if new enum constants are only appended,
+              // and original constants must be in the exact same order
               return CompatibilityResult.requiresMigration()
             }
           }
@@ -111,13 +121,17 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 
 object EnumValueSerializer {
 
-  class ScalaEnumSerializerConfigSnapshot[E <: Enumeration](private var enumClass: Class[E])
+  class ScalaEnumSerializerConfigSnapshot[E <: Enumeration]
       extends TypeSerializerConfigSnapshot {
 
-    var enumConstants: Array[E] = enumClass.getEnumConstants
+    var enumClass: Class[E] = _
+    var enumConstants: List[(String, Int)] = _
 
-    /** This empty nullary constructor is required for deserializing the configuration. */
-    def this() = this(null)
+    def this(enum: E) = {
+      this()
+      this.enumClass = Preconditions.checkNotNull(enum).getClass.asInstanceOf[Class[E]]
+      this.enumConstants = enum.values.toList.map(x => (x.toString, x.id))
+    }
 
     override def write(out: DataOutputView): Unit = {
       super.write(out)
@@ -125,8 +139,13 @@ object EnumValueSerializer {
       try {
         val outViewWrapper = new DataOutputViewStream(out)
         try {
-          InstantiationUtil.serializeObject(outViewWrapper, enumClass)
-          InstantiationUtil.serializeObject(outViewWrapper, enumConstants)
+          out.writeUTF(enumClass.getName)
+
+          out.writeInt(enumConstants.length)
+          for ((name, idx) <- enumConstants) {
+            out.writeUTF(name)
+            out.writeInt(idx)
+          }
         } finally if (outViewWrapper != null) outViewWrapper.close()
       }
     }
@@ -136,18 +155,37 @@ object EnumValueSerializer {
 
       try {
         val inViewWrapper = new DataInputViewStream(in)
-        try
-          try {
+        try {
+          if (getReadVersion == 1) {
             enumClass = InstantiationUtil.deserializeObject(
               inViewWrapper, getUserCodeClassLoader)
 
-            enumConstants = InstantiationUtil.deserializeObject(
-              inViewWrapper, getUserCodeClassLoader)
-          } catch {
-            case e: ClassNotFoundException =>
-              throw new IOException("The requested enum class cannot be found in classpath.", e)
+            // read null from input stream
+            InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader)
+            enumConstants = List()
+          } else if (getReadVersion == ScalaEnumSerializerConfigSnapshot.VERSION) {
+            enumClass = Class.forName(
+              in.readUTF(), true, getUserCodeClassLoader).asInstanceOf[Class[E]]
+
+            val length = in.readInt()
+            val listBuffer = ListBuffer[(String, Int)]()
+
+            for (_ <- 0 until length) {
+              val name = in.readUTF()
+              val idx = in.readInt()
+              listBuffer += ((name, idx))
+            }
+
+            enumConstants = listBuffer.toList
+          } else {
+            throw new IOException(
+              s"Cannot deserialize ${getClass.getSimpleName} with version $getReadVersion.")
           }
-          finally if (inViewWrapper != null) inViewWrapper.close()
+        } catch {
+          case e: ClassNotFoundException =>
+            throw new IOException("The requested enum class cannot be found in classpath.", e)
+        }
+        finally if (inViewWrapper != null) inViewWrapper.close()
       }
     }
 
@@ -155,7 +193,7 @@ object EnumValueSerializer {
 
     def getEnumClass: Class[E] = enumClass
 
-    def getEnumConstants: Array[E] = enumConstants
+    def getEnumConstants: List[(String, Int)] = enumConstants
 
     override def equals(obj: scala.Any): Boolean = {
       if (obj == this) {
@@ -168,17 +206,20 @@ object EnumValueSerializer {
 
       obj.isInstanceOf[ScalaEnumSerializerConfigSnapshot[E]] &&
         enumClass.equals(obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumClass) &&
-        enumConstants.sameElements(
+        enumConstants.equals(
           obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumConstants)
     }
 
     override def hashCode(): Int = {
-      enumClass.hashCode() * 31 + enumConstants.toSeq.hashCode()
+      enumClass.hashCode() * 31 + enumConstants.hashCode()
+    }
+
+    override def getCompatibleVersions: Array[Int] = {
+      Array(ScalaEnumSerializerConfigSnapshot.VERSION, 1)
     }
   }
 
   object ScalaEnumSerializerConfigSnapshot {
-    val VERSION = 1
+    val VERSION = 2
   }
-
 }

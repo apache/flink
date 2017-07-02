@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 import org.apache.flink.api.java.tuple.Tuple;
@@ -50,7 +51,7 @@ abstract class AbstractStormCollector<OUT> {
 	 * Instantiates a new {@link AbstractStormCollector} that emits Flink tuples via {@link #doEmit(Object)}. If the
 	 * number of attributes is negative, any output type is supported (ie, raw type). If the number of attributes is
 	 * between 0 and 25, the output type is {@link Tuple0} to {@link Tuple25}, respectively.
-	 * 
+	 *
 	 * @param numberOfAttributes
 	 *            The number of attributes of the emitted tuples per output stream.
 	 * @param taskId
@@ -107,7 +108,7 @@ abstract class AbstractStormCollector<OUT> {
 	/**
 	 * Transforms a Storm tuple into a Flink tuple of type {@code OUT} and emits this tuple via {@link #doEmit(Object)}
 	 * to the specified output stream.
-	 * 
+	 *
 	 * @param The
 	 *            The output stream id.
 	 * @param tuple
@@ -160,7 +161,7 @@ abstract class AbstractStormCollector<OUT> {
 
 	/**
 	 * Emits a Flink tuple.
-	 * 
+	 *
 	 * @param flinkTuple
 	 * 		The tuple to be emitted.
 	 * @return the IDs of the tasks this tuple was sent to

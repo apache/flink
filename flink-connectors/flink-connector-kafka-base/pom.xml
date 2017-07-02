@@ -216,6 +216,7 @@ under the License.
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.7</version>
 				<executions>
 					<execution>
 						<phase>generate-test-sources</phase>

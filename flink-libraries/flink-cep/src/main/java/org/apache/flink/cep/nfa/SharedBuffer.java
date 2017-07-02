@@ -11,7 +11,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WIVHOUV WARRANVIES OR CONDIVIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -34,8 +34,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.ByteArrayInputStream;
@@ -191,20 +189,26 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 *
 	 * @param pruningTimestamp The time which is used for pruning. All elements whose timestamp is
 	 *                         lower than the pruning timestamp will be removed.
+	 * @return {@code true} if pruning happened
 	 */
-	public void prune(long pruningTimestamp) {
+	public boolean prune(long pruningTimestamp) {
 		Iterator<Map.Entry<K, SharedBufferPage<K, V>>> iter = pages.entrySet().iterator();
+		boolean pruned = false;
 
 		while (iter.hasNext()) {
 			SharedBufferPage<K, V> page = iter.next().getValue();
 
-			page.prune(pruningTimestamp);
+			if (page.prune(pruningTimestamp)) {
+				pruned = true;
+			}
 
 			if (page.isEmpty()) {
 				// delete page if it is empty
 				iter.remove();
 			}
 		}
+
+		return pruned;
 	}
 
 	/**
@@ -217,14 +221,14 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param version Version of the previous relation which shall be extracted
 	 * @return Collection of previous relations starting with the given value
 	 */
-	public Collection<ListMultimap<K, V>> extractPatterns(
+	public List<Map<K, List<V>>> extractPatterns(
 			final K key,
 			final V value,
 			final long timestamp,
 			final int counter,
 			final DeweyNumber version) {
 
-		Collection<ListMultimap<K, V>> result = new ArrayList<>();
+		List<Map<K, List<V>>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
 		Stack<ExtractionState<K, V>> extractionStates = new Stack<>();
@@ -244,12 +248,18 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				// termination criterion
 				if (currentEntry == null) {
-					final ListMultimap<K, V> completePath = ArrayListMultimap.create();
+					final Map<K, List<V>> completePath = new HashMap<>();
 
 					while (!currentPath.isEmpty()) {
 						final SharedBufferEntry<K, V> currentPathEntry = currentPath.pop();
 
-						completePath.put(currentPathEntry.getKey(), currentPathEntry.getValueTime().getValue());
+						K k = currentPathEntry.getKey();
+						List<V> values = completePath.get(k);
+						if (values == null) {
+							values = new ArrayList<>();
+							completePath.put(k, values);
+						}
+						values.add(currentPathEntry.getValueTime().getValue());
 					}
 
 					result.add(completePath);
@@ -484,20 +494,25 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		 * Removes all entries from the map whose timestamp is smaller than the pruning timestamp.
 		 *
 		 * @param pruningTimestamp Timestamp for the pruning
+		 * @return {@code true} if pruning happened
 		 */
-		public void prune(long pruningTimestamp) {
+		public boolean prune(long pruningTimestamp) {
 			Iterator<Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>>> iterator = entries.entrySet().iterator();
 			boolean continuePruning = true;
+			boolean pruned = false;
 
 			while (iterator.hasNext() && continuePruning) {
 				SharedBufferEntry<K, V> entry = iterator.next().getValue();
 
 				if (entry.getValueTime().getTimestamp() <= pruningTimestamp) {
 					iterator.remove();
+					pruned = true;
 				} else {
 					continuePruning = false;
 				}
 			}
+
+			return pruned;
 		}
 
 		public boolean isEmpty() {
@@ -777,12 +792,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		ExtractionState(
 				final SharedBufferEntry<K, V> entry,
-				final DeweyNumber version) {
-			this(entry, version, null);
-		}
-
-		ExtractionState(
-				final SharedBufferEntry<K, V> entry,
 				final DeweyNumber version,
 				final Stack<SharedBufferEntry<K, V>> path) {
 			this.entry = entry;
@@ -942,7 +951,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 					ValueTimeWrapper<V> valueTimeWrapper = sharedBuffer.getValueTime();
 
-					valueSerializer.serialize(valueTimeWrapper.value, target);
+					valueSerializer.serialize(valueTimeWrapper.getValue(), target);
 					target.writeLong(valueTimeWrapper.getTimestamp());
 					target.writeInt(valueTimeWrapper.getCounter());
 
@@ -1165,7 +1174,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				}
 			}
 
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 

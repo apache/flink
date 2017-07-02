@@ -20,7 +20,9 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.internals.Kafka08PartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
@@ -42,6 +44,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -283,6 +286,17 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		AdminUtils.createTopic(creator, topic, numberOfPartitions, replicationFactor, topicConfig);
 		creator.close();
 
+		List<String> topicList = Collections.singletonList(topic);
+
+		// create a partition discoverer, to make sure that partitions for the test topic are created
+		Kafka08PartitionDiscoverer partitionDiscoverer =
+			new Kafka08PartitionDiscoverer(new KafkaTopicsDescriptor(topicList, null), 0, 1, standardProps);
+		try {
+			partitionDiscoverer.open();
+		} catch (Exception e) {
+			throw new RuntimeException("Exception while opening partition discoverer.", e);
+		}
+
 		// validate that the topic has been created
 		final long deadline = System.nanoTime() + 30_000_000_000L;
 		do {
@@ -292,7 +306,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			catch (InterruptedException e) {
 				// restore interrupted state
 			}
-			List<KafkaTopicPartitionLeader> partitions = FlinkKafkaConsumer08.getPartitionsForTopic(Collections.singletonList(topic), standardProps);
+			List<KafkaTopicPartitionLeader> partitions = partitionDiscoverer.getPartitionLeadersForTopics(Collections.singletonList(topic));
 			if (partitions != null && partitions.size() > 0) {
 				return;
 			}

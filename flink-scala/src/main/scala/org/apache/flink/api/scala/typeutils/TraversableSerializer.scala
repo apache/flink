@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io.ObjectInputStream
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 import scala.collection.generic.CanBuildFrom
@@ -29,6 +29,7 @@ import scala.collection.generic.CanBuildFrom
  * Serializer for Scala Collections.
  */
 @Internal
+@SerialVersionUID(7522917416391312410L)
 abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     var elementSerializer: TypeSerializer[E])
   extends TypeSerializer[T] with Cloneable {
@@ -151,12 +152,30 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     obj.isInstanceOf[TraversableSerializer[_, _]]
   }
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
-    throw new UnsupportedOperationException()
+  override def snapshotConfiguration(): TraversableSerializerConfigSnapshot[E] = {
+    new TraversableSerializerConfigSnapshot[E](elementSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
-    throw new UnsupportedOperationException()
+
+    configSnapshot match {
+      case traversableSerializerConfigSnapshot
+          : TraversableSerializerConfigSnapshot[E] =>
+
+        val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
+          elementSerializer)
+
+        if (elemCompatRes.isRequiresMigration) {
+          CompatibilityResult.requiresMigration()
+        } else {
+          CompatibilityResult.compatible()
+        }
+
+      case _ => CompatibilityResult.requiresMigration()
+    }
   }
 }

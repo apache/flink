@@ -17,10 +17,11 @@
 
 package org.apache.flink.storm.wordcount.operators;
 
+import org.apache.flink.storm.util.FiniteInMemorySpout;
+import org.apache.flink.storm.wordcount.util.WordCountData;
+
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.util.FiniteInMemorySpout;
 
 /**
  * Implements a Spout that reads data from {@link WordCountData#WORDS}.

@@ -1116,6 +1116,52 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       math.Pi.toString)
   }
 
+  @Test
+  def testRandAndRandInteger(): Unit = {
+    val random1 = new java.util.Random(1)
+    testAllApis(
+      rand(1),
+      "rand(1)",
+      "RAND(1)",
+      random1.nextDouble().toString)
+
+    val random2 = new java.util.Random(3)
+    testAllApis(
+      rand('f7),
+      "rand(f7)",
+      "RAND(f7)",
+      random2.nextDouble().toString)
+
+    val random3 = new java.util.Random(1)
+    testAllApis(
+      randInteger(1, 10),
+      "randInteger(1, 10)",
+      "RAND_INTEGER(1, 10)",
+      random3.nextInt(10).toString)
+
+    val random4 = new java.util.Random(3)
+    testAllApis(
+      randInteger('f7, 'f4.cast(Types.INT)),
+      "randInteger(f7, f4.cast(INT))",
+      "RAND_INTEGER(f7, CAST(f4 AS INT))",
+      random4.nextInt(44).toString)
+  }
+
+  @Test
+  def testE(): Unit = {
+    testAllApis(
+      e(),
+      "E()",
+      "E()",
+      math.E.toString)
+
+    testAllApis(
+      e(),
+      "e()",
+      "e()",
+      math.E.toString)
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

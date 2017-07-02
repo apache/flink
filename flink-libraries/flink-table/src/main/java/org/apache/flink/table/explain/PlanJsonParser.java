@@ -18,20 +18,25 @@
 
 package org.apache.flink.table.explain;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+/**
+ * Utility for converting an execution plan from JSON to a human-readable string.
+ */
 public class PlanJsonParser {
 
 	public static String getSqlExecutionPlan(String t, Boolean extended) throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
 
-		//not every node is same, ignore the unknown field
+		// not every node is same, ignore the unknown field
 		objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
 		PlanTree tree = objectMapper.readValue(t, PlanTree.class);
@@ -43,7 +48,7 @@ public class PlanJsonParser {
 		for (int index = 0; index < tree.getNodes().size(); index++) {
 			Node tempNode = tree.getNodes().get(index);
 
-			//input with operation such as join or union is coordinate, keep the same indent 
+			// input with operation such as join or union is coordinate, keep the same indent
 			if ((tempNode.getPact().equals("Data Source")) && (map.containsKey(tempNode.getPact()))) {
 				tabCount = map.get(tempNode.getPact());
 			}
@@ -57,15 +62,15 @@ public class PlanJsonParser {
 			printTab(tabCount + 1, pw);
 			String content = tempNode.getContents();
 
-			//drop the hashcode of object instance
+			// drop the hashcode of object instance
 			int dele = tempNode.getContents().indexOf("@");
 			if (dele > -1) {
 				content = tempNode.getContents().substring(0, dele);
 			}
 
-			//replace with certain content if node is dataSource to pass
-			//unit tests, because java and scala use different api to
-			//get input element
+			// replace with certain content if node is dataSource to pass
+			// unit tests, because java and scala use different api to
+			// get input element
 			if (tempNode.getPact().equals("Data Source")) {
 				content = "collect elements with CollectionInputFormat";
 			}
@@ -74,35 +79,35 @@ public class PlanJsonParser {
 			List<Predecessors> predecessors = tempNode.getPredecessors();
 			if (predecessors != null) {
 				printTab(tabCount + 1, pw);
-				pw.print("ship_strategy : " + predecessors.get(0).getShip_strategy() + "\n");
+				pw.print("ship_strategy : " + predecessors.get(0).getShipStrategy() + "\n");
 
-				String mode = predecessors.get(0).getExchange_mode();
+				String mode = predecessors.get(0).getExchangeMode();
 				if (mode != null) {
 					printTab(tabCount + 1, pw);
 					pw.print("exchange_mode : " + mode + "\n");
 				}
 			}
 
-			if (tempNode.getDriver_strategy() != null) {
+			if (tempNode.getDriverStrategy() != null) {
 				printTab(tabCount + 1, pw);
-				pw.print("driver_strategy : " + tempNode.getDriver_strategy() + "\n");
+				pw.print("driver_strategy : " + tempNode.getDriverStrategy() + "\n");
 			}
 
-			if (tempNode.getGlobal_properties() != null) {
+			if (tempNode.getGlobalProperties() != null) {
 				printTab(tabCount + 1, pw);
-				pw.print(tempNode.getGlobal_properties().get(0).getName() + " : "
-					+ tempNode.getGlobal_properties().get(0).getValue() + "\n");
+				pw.print(tempNode.getGlobalProperties().get(0).getName() + " : "
+					+ tempNode.getGlobalProperties().get(0).getValue() + "\n");
 			}
 
 			if (extended) {
-				List<Global_properties> globalProperties = tempNode.getGlobal_properties();
+				List<GlobalProperties> globalProperties = tempNode.getGlobalProperties();
 				for (int i = 1; i < globalProperties.size(); i++) {
 					printTab(tabCount + 1, pw);
 					pw.print(globalProperties.get(i).getName() + " : "
 					+ globalProperties.get(i).getValue() + "\n");
 				}
 
-				List<LocalProperty> localProperties = tempNode.getLocal_properties();
+				List<LocalProperty> localProperties = tempNode.getLocalProperties();
 				for (int i = 0; i < localProperties.size(); i++) {
 					printTab(tabCount + 1, pw);
 					pw.print(localProperties.get(i).getName() + " : "
@@ -123,11 +128,11 @@ public class PlanJsonParser {
 					+ costs.get(i).getValue() + "\n");
 				}
 
-				List<Compiler_hints> compilerHintses = tempNode.getCompiler_hints();
-				for (int i = 0; i < compilerHintses.size(); i++) {
+				List<CompilerHints> compilerHints = tempNode.getCompilerHints();
+				for (int i = 0; i < compilerHints.size(); i++) {
 					printTab(tabCount + 1, pw);
-					pw.print(compilerHintses.get(i).getName() + " : "
-					+ compilerHintses.get(i).getValue() + "\n");
+					pw.print(compilerHints.get(i).getName() + " : "
+					+ compilerHints.get(i).getValue() + "\n");
 				}
 			}
 			tabCount++;
@@ -138,8 +143,9 @@ public class PlanJsonParser {
 	}
 
 	private static void printTab(int tabCount, PrintWriter pw) {
-		for (int i = 0; i < tabCount; i++)
+		for (int i = 0; i < tabCount; i++) {
 			pw.print("\t");
+		}
 	}
 }
 

@@ -19,8 +19,8 @@
 package org.apache.flink.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.drivers.AdamicAdar;
@@ -46,11 +46,11 @@ import org.apache.flink.graph.drivers.input.RMatGraph;
 import org.apache.flink.graph.drivers.input.SingletonEdgeGraph;
 import org.apache.flink.graph.drivers.input.StarGraph;
 import org.apache.flink.graph.drivers.output.Hash;
+import org.apache.flink.graph.drivers.output.Output;
 import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.StrBuilder;
 
 import java.util.ArrayList;
@@ -102,6 +102,11 @@ public class Runner {
 		.addClass(JaccardIndex.class)
 		.addClass(PageRank.class)
 		.addClass(TriangleListing.class);
+
+	private static ParameterizedFactory<Output> outputFactory = new ParameterizedFactory<Output>()
+		.addClass(org.apache.flink.graph.drivers.output.CSV.class)
+		.addClass(Hash.class)
+		.addClass(Print.class);
 
 	/**
 	 * List available algorithms. This is displayed to the user when no valid
@@ -174,16 +179,12 @@ public class Runner {
 			.appendNewLine()
 			.appendln("Available outputs:");
 
-		if (algorithm instanceof org.apache.flink.graph.drivers.output.CSV) {
-			strBuilder.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
-		}
-
-		if (algorithm instanceof Hash) {
-			strBuilder.appendln("  --output hash");
-		}
-
-		if (algorithm instanceof Print) {
-			strBuilder.appendln("  --output print");
+		for (Output output : outputFactory) {
+			strBuilder
+				.append("  --output ")
+				.append(output.getName())
+				.append(" ")
+				.appendln(output.getUsage());
 		}
 
 		return strBuilder
@@ -211,8 +212,11 @@ public class Runner {
 			config.enableObjectReuse();
 		}
 
-		// Usage
+		// ----------------------------------------------------------------------------------------
+		// Usage and configuration
+		// ----------------------------------------------------------------------------------------
 
+		// algorithm and usage
 		if (!parameters.has(ALGORITHM)) {
 			throw new ProgramParametrizationException(getAlgorithmsListing());
 		}
@@ -224,12 +228,19 @@ public class Runner {
 			throw new ProgramParametrizationException("Unknown algorithm name: " + algorithmName);
 		}
 
+		// input and usage
 		if (!parameters.has(INPUT)) {
 			if (!parameters.has(OUTPUT)) {
 				// if neither input nor output is given then print algorithm usage
 				throw new ProgramParametrizationException(getAlgorithmUsage(algorithmName));
 			}
 			throw new ProgramParametrizationException("No input given");
+		}
+
+		try {
+			algorithm.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
 		}
 
 		String inputName = parameters.get(INPUT);
@@ -239,72 +250,52 @@ public class Runner {
 			throw new ProgramParametrizationException("Unknown input type: " + inputName);
 		}
 
-		// Input
-
 		try {
 			input.configure(parameters);
 		} catch (RuntimeException ex) {
 			throw new ProgramParametrizationException(ex.getMessage());
 		}
 
-		Graph graph = input.create(env);
-
-		// Algorithm
-
-		algorithm.configure(parameters);
-		algorithm.plan(graph);
-
-		// Output
+		// output and usage
 		if (!parameters.has(OUTPUT)) {
 			throw new ProgramParametrizationException("No output given");
 		}
 
 		String outputName = parameters.get(OUTPUT);
-		String executionNamePrefix = input.getIdentity() + " -> " + algorithmName + " -> ";
+		Output output = outputFactory.get(outputName);
+
+		if (output == null) {
+			throw new ProgramParametrizationException("Unknown output type: " + outputName);
+		}
+
+		try {
+			output.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Execute
+		// ----------------------------------------------------------------------------------------
+
+		// Create input
+		Graph graph = input.create(env);
+
+		// Run algorithm
+		DataSet results = algorithm.plan(graph);
+
+		// Output
+		String executionName = input.getIdentity() + " ⇨ " + algorithmName + " ⇨ " + output.getName();
 
 		System.out.println();
 
-		switch (outputName.toLowerCase()) {
-			case "csv":
-				if (algorithm instanceof org.apache.flink.graph.drivers.output.CSV) {
-					String filename = parameters.getRequired("output_filename");
-
-					String lineDelimiter = StringEscapeUtils.unescapeJava(
-						parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-					String fieldDelimiter = StringEscapeUtils.unescapeJava(
-						parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-					org.apache.flink.graph.drivers.output.CSV c = (org.apache.flink.graph.drivers.output.CSV) algorithm;
-					c.writeCSV(filename, lineDelimiter, fieldDelimiter);
-
-					env.execute(executionNamePrefix + "CSV");
-				} else {
-					throw new ProgramParametrizationException("Algorithm does not support output type 'CSV'");
-				}
-				break;
-
-			case "hash":
-				if (algorithm instanceof Hash) {
-					Hash h = (Hash) algorithm;
-					h.hash(executionNamePrefix + "Hash");
-				} else {
-					throw new ProgramParametrizationException("Algorithm does not support output type 'hash'");
-				}
-				break;
-
-			case "print":
-				if (algorithm instanceof Print) {
-					Print h = (Print) algorithm;
-					h.print(executionNamePrefix + "Print");
-				} else {
-					throw new ProgramParametrizationException("Algorithm does not support output type 'print'");
-				}
-				break;
-
-			default:
-				throw new ProgramParametrizationException("Unknown output type: " + outputName);
+		if (results == null) {
+			env.execute(executionName);
+		} else {
+			output.write(executionName, System.out, results);
 		}
+
+		algorithm.printAnalytics(System.out);
 	}
 
 	/**
@@ -336,7 +327,7 @@ public class Runner {
 		 */
 		public T get(String name) {
 			for (T instance : this) {
-				if (name.equals(instance.getName())) {
+				if (name.equalsIgnoreCase(instance.getName())) {
 					return instance;
 				}
 			}

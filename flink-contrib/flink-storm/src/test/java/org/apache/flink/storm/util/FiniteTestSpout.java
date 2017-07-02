@@ -26,6 +26,9 @@ import org.apache.storm.tuple.Values;
 
 import java.util.Map;
 
+/**
+ * Tests for the Finite.
+ */
 public class FiniteTestSpout implements IRichSpout {
 	private static final long serialVersionUID = 7992419478267824279L;
 

@@ -20,11 +20,13 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.validate._
+
+import scala.collection.JavaConversions._
 
 case class Abs(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = child.resultType
@@ -283,5 +285,73 @@ case class Pi() extends LeafExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.PI)
+  }
+}
+
+case class E() extends LeafExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override def toString: String = s"e()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.E)
+  }
+}
+
+case class Rand(seed: Expression) extends Expression with InputTypeSpec {
+
+  def this() = this(null)
+
+  override private[flink] def children: Seq[Expression] = if (seed != null) {
+    seed :: Nil
+  } else {
+    Nil
+  }
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.DOUBLE_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = if (seed != null) {
+    INT_TYPE_INFO :: Nil
+  } else {
+    Nil
+  }
+
+  override def toString: String = if (seed != null) {
+    s"rand($seed)"
+  } else {
+    s"rand()"
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.RAND, children.map(_.toRexNode))
+  }
+}
+
+case class RandInteger(seed: Expression, bound: Expression) extends Expression with InputTypeSpec {
+
+  def this(bound: Expression) = this(null, bound)
+
+  override private[flink] def children: Seq[Expression] = if (seed != null) {
+    seed :: bound :: Nil
+  } else {
+    bound :: Nil
+  }
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.INT_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = if (seed != null) {
+    INT_TYPE_INFO :: INT_TYPE_INFO :: Nil
+  } else {
+    INT_TYPE_INFO :: Nil
+  }
+
+  override def toString: String = if (seed != null) {
+    s"randInteger($seed, $bound)"
+  } else {
+    s"randInteger($bound)"
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.RAND_INTEGER, children.map(_.toRexNode))
   }
 }

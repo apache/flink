@@ -75,6 +75,10 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     Option(jPattern.getCondition)
   }
 
+  def getUntilCondition: Option[IterativeCondition[F]] = {
+    Option(jPattern.getUntilCondition)
+  }
+
   /**
     * Adds a condition that has to be satisfied by an event
     * in order to be considered a match. If another condition has already been
@@ -199,6 +203,51 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
+    * Applies a stop condition for a looping state. It allows cleaning the underlying state.
+    *
+    * @param untilCondition a condition an event has to satisfy to stop collecting events into
+    *                       looping state
+    * @return The same pattern with applied untilCondition
+    */
+  def until(untilCondition: IterativeCondition[F]): Pattern[T, F] = {
+    jPattern.until(untilCondition)
+    this
+  }
+
+  /**
+    * Applies a stop condition for a looping state. It allows cleaning the underlying state.
+    *
+    * @param untilCondition a condition an event has to satisfy to stop collecting events into
+    *                       looping state
+    * @return The same pattern with applied untilCondition
+    */
+  def until(untilCondition: (F, Context[F]) => Boolean): Pattern[T, F] = {
+    val condFun = new IterativeCondition[F] {
+      val cleanCond = cep.scala.cleanClosure(untilCondition)
+
+      override def filter(value: F, ctx: JContext[F]): Boolean =
+        cleanCond(value, new JContextWrapper(ctx))
+    }
+    until(condFun)
+  }
+
+  /**
+    * Applies a stop condition for a looping state. It allows cleaning the underlying state.
+    *
+    * @param untilCondition a condition an event has to satisfy to stop collecting events into
+    *                       looping state
+    * @return The same pattern with applied untilCondition
+    */
+  def until(untilCondition: F => Boolean): Pattern[T, F] = {
+    val condFun = new IterativeCondition[F] {
+      val cleanCond = cep.scala.cleanClosure(untilCondition)
+
+      override def filter(value: F, ctx: JContext[F]): Boolean = cleanCond(value)
+    }
+    until(condFun)
+  }
+
+  /**
     * Defines the maximum time interval in which a matching pattern has to be completed in
     * order to be considered valid. This interval corresponds to the maximum time gap between first
     * and the last event.
@@ -312,6 +361,19 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def times(times: Int): Pattern[T, F] = {
     jPattern.times(times)
+    this
+  }
+
+  /**
+    * Specifies that the pattern can occur between from and to times.
+    *
+    * @param from number of times matching event must appear at least
+    * @param to   number of times matching event must appear at most
+    * @return The same pattern with the number of times range applied
+    * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+    */
+  def times(from: Int, to: Int): Pattern[T, F] = {
+    jPattern.times(from, to)
     this
   }
 

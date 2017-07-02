@@ -76,6 +76,7 @@ under the License.
 		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
+		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 	</modules>
 
@@ -84,26 +85,30 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<!-- Internal property to reduce build times on TravisCi -->
 		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<hadoop.version>2.3.0</hadoop.version>
+		<hadoop.version>2.4.1</hadoop.version>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
 		<flink.forkCount>1C</flink.forkCount>
+		<!-- Allow overriding the fork behaviour for the expensive tests in flink-tests
+			 to avoid process kills due to container limits on TravisCI -->
+		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
-		<scala.macros.version>2.0.1</scala.macros.version>
+		<scala.macros.version>2.1.0</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
-		<scala.version>2.10.4</scala.version>
-		<scala.binary.version>2.10</scala.binary.version>
+		<scala.version>2.11.11</scala.version>
+		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.4</jackson.version>
 		<metrics.version>3.1.0</metrics.version>
+		<prometheus.version>0.0.21</prometheus.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
@@ -441,6 +446,22 @@ under the License.
 				<version>4.0.27.Final</version>
 			</dependency>
 
+			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
+			 version is used by the shaded hadoop jars and the flink-yarn-test project because of MNG-5899.
+
+			 See FLINK-6836 for more details -->
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpcore</artifactId>
+				<version>4.4.6</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.3</version>
+			</dependency>
+
 			<dependency>
 				<groupId>tv.cntt</groupId>
 				<artifactId>netty-router</artifactId>
@@ -476,28 +497,20 @@ under the License.
 
 	<profiles>
 		
-		<!-- Profile to switch to Scala Version 2.11 -->
+		<!-- Profile to switch to Scala Version 2.10 -->
 		<profile>
-			<id>scala-2.11</id>
+			<id>scala-2.10</id>
 			<activation>
 				<property>
-					<name>scala-2.11</name>
+					<name>scala-2.10</name>
 				</property>
 			</activation>
 			<properties>
-				<scala.version>2.11.7</scala.version>
-				<scala.binary.version>2.11</scala.binary.version>
+				<scala.version>2.10.6</scala.version>
+				<scala.binary.version>2.10</scala.binary.version>
 			</properties>
 		</profile>
 
-		<!-- Profile to deactivate the YARN tests -->
-		<profile>
-			<id>include-yarn-tests</id>
-			<modules>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-		
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
@@ -643,7 +656,7 @@ under the License.
 								<compilerPlugin>
 									<groupId>com.typesafe.genjavadoc</groupId>
 									<artifactId>genjavadoc-plugin_${scala.version}</artifactId>
-									<version>0.8</version>
+									<version>0.10</version>
 								</compilerPlugin>
 							</compilerPlugins>
 						</configuration>
@@ -651,6 +664,7 @@ under the License.
 					<plugin>
 						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>1.7</version>
 						<executions>
 							<execution>
 								<phase>generate-sources</phase>
@@ -724,6 +738,9 @@ under the License.
 		
 		<profile>
 			<id>release</id>
+			<properties>
+				<java.version>1.7</java.version>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -756,7 +773,31 @@ under the License.
 											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
 											<version>(,3.3)</version>
 										</requireMavenVersion>
+										<requireJavaVersion>
+											<version>1.8.0</version>
+										</requireJavaVersion>
 									</rules>
+
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+								<configuration>
+									<additionalparam>-Xdoclint:none</additionalparam>
+									<detectOfflineLinks>false</detectOfflineLinks>
 								</configuration>
 							</execution>
 						</executions>
@@ -955,8 +996,6 @@ under the License.
 						<exclude>**/src/test/resources/*-snapshot</exclude>
 						<exclude>**/src/test/resources/*-savepoint</exclude>
 
-						<!-- TweetInputFormat Test Data-->
-						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
 						<exclude>flink-connectors/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
@@ -981,6 +1020,8 @@ under the License.
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
+						<!-- manually installed version on travis -->
+						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 					</excludes>
@@ -1033,7 +1074,7 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx1536m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseSerialGC</argLine>
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseSerialGC</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->

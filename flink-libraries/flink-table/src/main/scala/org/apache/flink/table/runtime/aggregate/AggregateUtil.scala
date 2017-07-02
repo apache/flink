@@ -129,17 +129,10 @@ object AggregateUtil {
           queryConfig)
       }
     } else {
-      if (isPartitioned) {
-        new ProcTimeUnboundedPartitionedOver(
-          genFunction,
-          aggregationStateType,
-          queryConfig)
-      } else {
-        new ProcTimeUnboundedNonPartitionedOver(
-          genFunction,
-          aggregationStateType,
-          queryConfig)
-      }
+      new ProcTimeUnboundedOver(
+        genFunction,
+        aggregationStateType,
+        queryConfig)
     }
   }
 
@@ -1205,7 +1198,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSumWithRetractAggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException("Sum aggregate does no support type:" + sqlType)
+                throw new TableException(s"Sum aggregate does no support type: '${sqlType}'")
             }
           } else {
             aggregates(index) = sqlTypeName match {
@@ -1224,7 +1217,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSumAggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException("Sum aggregate does no support type:" + sqlType)
+                throw new TableException(s"Sum aggregate does no support type: '${sqlType}'")
             }
           }
 
@@ -1246,7 +1239,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSum0WithRetractAggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException("Sum0 aggregate does no support type:" + sqlType)
+                throw new TableException(s"Sum0 aggregate does no support type: '${sqlType}'")
             }
           } else {
             aggregates(index) = sqlTypeName match {
@@ -1265,7 +1258,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSum0AggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException("Sum0 aggregate does no support type:" + sqlType)
+                throw new TableException(s"Sum0 aggregate does no support type: '${sqlType}'")
             }
           }
 
@@ -1286,7 +1279,7 @@ object AggregateUtil {
             case DECIMAL =>
               new DecimalAvgAggFunction
             case sqlType: SqlTypeName =>
-              throw new TableException("Avg aggregate does no support type:" + sqlType)
+              throw new TableException(s"Avg aggregate does no support type: '${sqlType}'")
           }
 
         case sqlMinMaxFunction: SqlMinMaxAggFunction =>
@@ -1312,8 +1305,8 @@ object AggregateUtil {
                 case VARCHAR | CHAR =>
                   new StringMinWithRetractAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException("Min with retract aggregate does no support type:" +
-                                             sqlType)
+                  throw new TableException(
+                    s"Min with retract aggregate does no support type: '${sqlType}'")
               }
             } else {
               sqlTypeName match {
@@ -1336,7 +1329,7 @@ object AggregateUtil {
                 case VARCHAR | CHAR =>
                   new StringMinAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException("Min aggregate does no support type:" + sqlType)
+                  throw new TableException(s"Min aggregate does no support type: '${sqlType}'")
               }
             }
           } else {
@@ -1361,8 +1354,8 @@ object AggregateUtil {
                 case VARCHAR | CHAR =>
                   new StringMaxWithRetractAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException("Max with retract aggregate does no support type:" +
-                                             sqlType)
+                  throw new TableException(
+                    s"Max with retract aggregate does no support type: '${sqlType}'")
               }
             } else {
               sqlTypeName match {
@@ -1385,7 +1378,7 @@ object AggregateUtil {
                 case VARCHAR | CHAR =>
                   new StringMaxAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException("Max aggregate does no support type:" + sqlType)
+                  throw new TableException(s"Max aggregate does no support type: '${sqlType}'")
               }
             }
           }
@@ -1397,7 +1390,7 @@ object AggregateUtil {
           aggregates(index) = udagg.getFunction
 
         case unSupported: SqlAggFunction =>
-          throw new TableException("unsupported Function: " + unSupported.getName)
+          throw new TableException(s"unsupported Function: '${unSupported.getName}'")
       }
     }
 
@@ -1487,7 +1480,7 @@ object AggregateUtil {
           relDataType.head.getIndex
         } else {
           throw TableException(
-            s"Encountered more than one time attribute with the same name: $relDataType")
+            s"Encountered more than one time attribute with the same name: '${relDataType}'")
         }
       case e => throw TableException(
         "The time attribute of window in batch environment should be " +
@@ -1501,13 +1494,7 @@ object AggregateUtil {
     case _ => throw new IllegalArgumentException()
   }
 
-  private[flink] def determineLargestTumblingSize(size: Long, slide: Long): Long = {
-    if (slide > size) {
-      gcd(slide, size)
-    } else {
-      gcd(size, slide)
-    }
-  }
+  private[flink] def determineLargestTumblingSize(size: Long, slide: Long) = gcd(size, slide)
 
   private def gcd(a: Long, b: Long): Long = {
     if (b == 0) a else gcd(b, a % b)

@@ -484,35 +484,35 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		// creating this serializer just for generating config snapshots of the field serializers
 		PojoSerializer<TestUserClass> ser = (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
 
-		LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> mockOriginalFieldToSerializerConfigSnapshot =
+		LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> mockOriginalFieldToSerializerConfigSnapshot =
 			new LinkedHashMap<>(mockOriginalFieldOrder.length);
 		mockOriginalFieldToSerializerConfigSnapshot.put(
-			mockOriginalFieldOrder[0],
+			mockOriginalFieldOrder[0].getName(),
 			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 				ser.getFieldSerializers()[3],
 				ser.getFieldSerializers()[3].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
-			mockOriginalFieldOrder[1],
+			mockOriginalFieldOrder[1].getName(),
 			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 				ser.getFieldSerializers()[2],
 				ser.getFieldSerializers()[2].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
-			mockOriginalFieldOrder[2],
+			mockOriginalFieldOrder[2].getName(),
 			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 				ser.getFieldSerializers()[5],
 				ser.getFieldSerializers()[5].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
-			mockOriginalFieldOrder[3],
+			mockOriginalFieldOrder[3].getName(),
 			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 				ser.getFieldSerializers()[0],
 				ser.getFieldSerializers()[0].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
-			mockOriginalFieldOrder[4],
+			mockOriginalFieldOrder[4].getName(),
 			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 				ser.getFieldSerializers()[1],
 				ser.getFieldSerializers()[1].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
-			mockOriginalFieldOrder[5],
+			mockOriginalFieldOrder[5].getName(),
 			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 				ser.getFieldSerializers()[4],
 				ser.getFieldSerializers()[4].snapshotConfiguration()));
@@ -579,9 +579,9 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			PojoSerializer.PojoSerializerConfigSnapshot<?> original,
 			PojoSerializer.PojoSerializerConfigSnapshot<?> deserializedConfig) {
 
-		LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalFieldSerializersAndConfs =
+		LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalFieldSerializersAndConfs =
 				original.getFieldToSerializerConfigSnapshot();
-		for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+		for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 				: deserializedConfig.getFieldToSerializerConfigSnapshot().entrySet()) {
 
 			Assert.assertEquals(null, entry.getValue().f0);

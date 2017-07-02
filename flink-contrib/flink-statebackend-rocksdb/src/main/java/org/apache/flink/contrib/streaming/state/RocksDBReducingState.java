@@ -46,10 +46,10 @@ public class RocksDBReducingState<K, N, V>
 	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, V>
 	implements InternalReducingState<N, V> {
 
-	/** Serializer for the values */
+	/** Serializer for the values. */
 	private final TypeSerializer<V> valueSerializer;
 
-	/** User-specified reduce function */
+	/** User-specified reduce function. */
 	private final ReduceFunction<V> reduceFunction;
 
 	/**
@@ -88,7 +88,7 @@ public class RocksDBReducingState<K, N, V>
 				return null;
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-		} catch (IOException|RocksDBException e) {
+		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while retrieving data from RocksDB", e);
 		}
 	}
@@ -157,7 +157,7 @@ public class RocksDBReducingState<K, N, V>
 
 			// if something came out of merging the sources, merge it or write it to the target
 			if (current != null) {
-				// create the target full-binary-key 
+				// create the target full-binary-key
 				writeKeyWithGroupAndNamespace(
 						keyGroup, key, target,
 						keySerializationStream, keySerializationDataOutputView);

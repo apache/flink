@@ -20,23 +20,12 @@ package org.apache.flink.test.state.operator.restore.keyed;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
-public class KeyedComplexChainTest extends AbstractOperatorRestoreTestBase {
+public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
 
-	@Override
-	public void createMigrationJob(StreamExecutionEnvironment env) {
-		/**
-		 * Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2)
-		 */
-		SingleOutputStreamOperator<Tuple2<Integer, Integer>> source = KeyedJob.createIntegerTupleSource(env, ExecutionMode.MIGRATE);
-
-		SingleOutputStreamOperator<Integer> window = KeyedJob.createWindowFunction(ExecutionMode.MIGRATE, source);
-
-		SingleOutputStreamOperator<Integer> first = KeyedJob.createFirstStatefulMap(ExecutionMode.MIGRATE, window);
-
-		SingleOutputStreamOperator<Integer> second = KeyedJob.createSecondStatefulMap(ExecutionMode.MIGRATE, first);
+	public KeyedComplexChainTest(String savepointPath) {
+		super(savepointPath);
 	}
 
 	@Override
@@ -52,10 +41,5 @@ public class KeyedComplexChainTest extends AbstractOperatorRestoreTestBase {
 
 		SingleOutputStreamOperator<Integer> first = KeyedJob.createFirstStatefulMap(ExecutionMode.RESTORE, second);
 		first.startNewChain();
-	}
-
-	@Override
-	protected final String getMigrationSavepointName() {
-		return "complexKeyed";
 	}
 }

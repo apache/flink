@@ -43,11 +43,11 @@ import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -871,12 +871,16 @@ class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
-    val input1AccessExprs = for (i <- 0 until input1.getArity if input1Mapping.contains(i))
-      yield generateInputAccess(input1, input1Term, i, input1Mapping)
+    val input1AccessExprs = input1Mapping.map { idx =>
+      generateInputAccess(input1, input1Term, idx)
+    }
 
     val input2AccessExprs = input2 match {
-      case Some(ti) => for (i <- 0 until ti.getArity if input2Mapping.contains(i))
-        yield generateInputAccess(ti, input2Term, i, input2Mapping)
+      case Some(ti) =>
+        input2Mapping.map { idx =>
+          generateInputAccess(ti, input2Term, idx)
+        }.toSeq
+
       case None => Seq() // add nothing
     }
 
@@ -887,15 +891,18 @@ class CodeGenerator(
     * Generates an expression from the left input and the right table function.
     */
   def generateCorrelateAccessExprs: (Seq[GeneratedExpression], Seq[GeneratedExpression]) = {
-    val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, input1Term, i, input1Mapping)
+    val input1AccessExprs = input1Mapping.map { idx =>
+      generateInputAccess(input1, input1Term, idx)
+    }
 
     val input2AccessExprs = input2 match {
-      case Some(ti) => for (i <- 0 until ti.getArity if input2Mapping.contains(i))
+      case Some(ti) =>
         // use generateFieldAccess instead of generateInputAccess to avoid the generated table
         // function's field access code is put on the top of function body rather than
         // the while loop
-        yield generateFieldAccess(ti, input2Term, i, input2Mapping)
+        input2Mapping.map { idx =>
+          generateFieldAccess(ti, input2Term, idx)
+        }.toSeq
       case None => throw new CodeGenException("Type information of input2 must not be null.")
     }
     (input1AccessExprs, input2AccessExprs)
@@ -937,18 +944,23 @@ class CodeGenerator(
     : GeneratedExpression = {
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
-      throw new CodeGenException("Arity of result type does not match number of expressions.")
+      throw new CodeGenException(
+        s"Arity[${returnType.getArity}] of result type[$returnType] does not match " +
+        s"number[${fieldExprs.length}] of expressions[$fieldExprs].")
     }
     if (resultFieldNames.length != fieldExprs.length) {
-      throw new CodeGenException("Arity of result field names does not match number of " +
-        "expressions.")
+      throw new CodeGenException(
+        s"Arity[${resultFieldNames.length}] of result field names[$resultFieldNames] does not " +
+        s"match number[${fieldExprs.length}] of expressions[$fieldExprs].")
     }
     // type check
     returnType match {
       case pt: PojoTypeInfo[_] =>
         fieldExprs.zipWithIndex foreach {
           case (fieldExpr, i) if fieldExpr.resultType != pt.getTypeAt(resultFieldNames(i)) =>
-            throw new CodeGenException("Incompatible types of expression and result type.")
+            throw new CodeGenException(
+              s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
+              s"[${fieldExpr.resultType}], result type is [${pt.getTypeAt(resultFieldNames(i))}]")
 
           case _ => // ok
         }
@@ -956,12 +968,16 @@ class CodeGenerator(
       case ct: CompositeType[_] =>
         fieldExprs.zipWithIndex foreach {
           case (fieldExpr, i) if fieldExpr.resultType != ct.getTypeAt(i) =>
-            throw new CodeGenException("Incompatible types of expression and result type.")
+            throw new CodeGenException(
+              s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
+              s"[${fieldExpr.resultType}], result type is [${ct.getTypeAt(i)}]")
           case _ => // ok
         }
 
       case at: AtomicType[_] if at != fieldExprs.head.resultType =>
-        throw new CodeGenException("Incompatible types of expression and result type.")
+        throw new CodeGenException(
+          s"Incompatible types of expression and result type. Expression[${fieldExprs.head}] " +
+          s"type is [${fieldExprs.head.resultType}], result type is [$at]")
 
       case _ => // ok
     }
@@ -1150,11 +1166,9 @@ class CodeGenerator(
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
     // if inputRef index is within size of input1 we work with input1, input2 otherwise
     val input = if (inputRef.getIndex < input1.getArity) {
-      (input1, input1Term, input1Mapping)
+      (input1, input1Term)
     } else {
-      (input2.getOrElse(throw new CodeGenException("Invalid input access.")),
-        input2Term,
-        input2Mapping)
+      (input2.getOrElse(throw new CodeGenException("Invalid input access.")), input2Term)
     }
 
     val index = if (input._2 == input1Term) {
@@ -1163,7 +1177,7 @@ class CodeGenerator(
       inputRef.getIndex - input1.getArity
     }
 
-    generateInputAccess(input._1, input._2, index, input._3)
+    generateInputAccess(input._1, input._2, index)
   }
 
   override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
@@ -1172,8 +1186,7 @@ class CodeGenerator(
     val fieldAccessExpr = generateFieldAccess(
       refExpr.resultType,
       refExpr.resultTerm,
-      index,
-      input1Mapping)
+      index)
 
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1581,8 +1594,7 @@ class CodeGenerator(
   private def generateInputAccess(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
-      index: Int,
-      fieldMapping: Array[Int])
+      index: Int)
     : GeneratedExpression = {
     // if input has been used before, we can reuse the code that
     // has already been generated
@@ -1594,9 +1606,9 @@ class CodeGenerator(
       // generate input access and unboxing if necessary
       case None =>
         val expr = if (nullableInput) {
-          generateNullableInputFieldAccess(inputType, inputTerm, index, fieldMapping)
+          generateNullableInputFieldAccess(inputType, inputTerm, index)
         } else {
-          generateFieldAccess(inputType, inputTerm, index, fieldMapping)
+          generateFieldAccess(inputType, inputTerm, index)
         }
 
         reusableInputUnboxingExprs((inputTerm, index)) = expr
@@ -1609,27 +1621,19 @@ class CodeGenerator(
   private def generateNullableInputFieldAccess(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
-      index: Int,
-      fieldMapping: Array[Int])
+      index: Int)
     : GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
 
     val fieldType = inputType match {
-      case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-          fieldMapping(index)
-        }
-        else {
-          index
-        }
-        ct.getTypeAt(fieldIndex)
+      case ct: CompositeType[_] => ct.getTypeAt(index)
       case at: AtomicType[_] => at
       case _ => throw new CodeGenException("Unsupported type for input field access.")
     }
     val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
-    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index, fieldMapping)
+    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index)
 
     val inputCheckCode =
       s"""
@@ -1652,19 +1656,12 @@ class CodeGenerator(
   private def generateFieldAccess(
       inputType: TypeInformation[_],
       inputTerm: String,
-      index: Int,
-      fieldMapping: Array[Int])
+      index: Int)
     : GeneratedExpression = {
     inputType match {
       case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-          fieldMapping(index)
-        }
-        else {
-          index
-        }
-        val accessor = fieldAccessorFor(ct, fieldIndex)
-        val fieldType: TypeInformation[Any] = ct.getTypeAt(fieldIndex)
+        val accessor = fieldAccessorFor(ct, index)
+        val fieldType: TypeInformation[Any] = ct.getTypeAt(index)
         val fieldTypeTerm = boxedTypeTermForTypeInfo(fieldType)
 
         accessor match {
@@ -1729,7 +1726,7 @@ class CodeGenerator(
         |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = true;
         |""".stripMargin
-      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
+      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType, literal = true)
     } else {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
@@ -1754,7 +1751,7 @@ class CodeGenerator(
         |""".stripMargin
     }
 
-    GeneratedExpression(resultTerm, nullTerm, resultCode, literalType)
+    GeneratedExpression(resultTerm, nullTerm, resultCode, literalType, literal = true)
   }
 
   private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {
@@ -1959,6 +1956,48 @@ class CodeGenerator(
           |""".stripMargin
       reusableMemberStatements.add(fieldDecimal)
       fieldTerm
+  }
+
+  /**
+    * Adds a reusable [[java.util.Random]] to the member area of the generated [[Function]].
+    *
+    * The seed parameter must be a literal/constant expression.
+    *
+    * @return member variable term
+    */
+  def addReusableRandom(seedExpr: Option[GeneratedExpression]): String = {
+    val fieldTerm = newName("random")
+
+    val field =
+      s"""
+         |transient java.util.Random $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit = seedExpr match {
+      case Some(s) if nullCheck =>
+        s"""
+         |${s.code}
+         |if(!${s.nullTerm}) {
+         |  $fieldTerm = new java.util.Random(${s.resultTerm});
+         |}
+         |else {
+         |  $fieldTerm = new java.util.Random();
+         |}
+         |""".stripMargin
+      case Some(s) =>
+        s"""
+         |${s.code}
+         |$fieldTerm = new java.util.Random(${s.resultTerm});
+         |""".stripMargin
+      case _ =>
+        s"""
+         |$fieldTerm = new java.util.Random();
+         |""".stripMargin
+    }
+
+    reusableInitStatements.add(fieldInit)
+    fieldTerm
   }
 
   /**

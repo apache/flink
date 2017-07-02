@@ -23,9 +23,11 @@ import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,13 +36,17 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractionUtils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.Method;
+
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
@@ -261,6 +267,18 @@ public class LambdaExtractionTest {
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 	}
 
+	@Test
+	public void testPartitionerLambda() {
+		Partitioner<Tuple2<Integer, String>> partitioner = (key, numPartitions) -> key.f1.length() % numPartitions;
+		final TypeInformation<?> ti = TypeExtractor.getPartitionerTypes(partitioner);
+
+		Assert.assertTrue(ti.isTupleType());
+		Assert.assertEquals(2, ti.getArity());
+		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(0), BasicTypeInfo.INT_TYPE_INFO);
+		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+
+	}
+
 	private static class MyType {
 		private int key;
 
@@ -307,6 +325,52 @@ public class LambdaExtractionTest {
 		MapFunction<String, Integer> f = Integer::new;
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+	}
+
+	public interface InterfaceWithDefaultMethod {
+		void samMethod();
+
+		default void defaultMethod() {
+
+		}
+	}
+
+	@Test
+	public void testSamMethodExtractionInterfaceWithDefaultMethod() {
+		final Method sam = TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithDefaultMethod.class);
+		assertNotNull(sam);
+		assertEquals("samMethod", sam.getName());
+	}
+
+	public interface InterfaceWithMultipleMethods {
+		void firstMethod();
+
+		void secondMethod();
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getSingleAbstractMethodMultipleMethods() throws Exception {
+		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
+	}
+
+	public interface InterfaceWithoutAbstractMethod {
+		default void defaultMethod() {
+
+		};
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getSingleAbstractMethodNoAbstractMethods() throws Exception {
+		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
+	}
+
+	public abstract class AbstractClassWithSingleAbstractMethod {
+		public abstract void defaultMethod();
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getSingleAbstractMethodNotAnInterface() throws Exception {
+		TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
 	}
 
 }

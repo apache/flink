@@ -28,11 +28,12 @@ import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.Quantifier.Times;
+import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.Preconditions;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
@@ -44,10 +45,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
@@ -56,8 +55,6 @@ import java.util.Set;
 public class NFACompiler {
 
 	protected static final String ENDING_STATE_NAME = "$endState$";
-
-	protected static final String STATE_NAME_DELIM = ":";
 
 	/**
 	 * Compiles the given pattern into a {@link NFA}.
@@ -75,11 +72,6 @@ public class NFACompiler {
 		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, timeoutHandling);
 
 		return factory.createNFA();
-	}
-
-	public static String getOriginalStateNameFromInternal(String internalName) {
-		Preconditions.checkNotNull(internalName);
-		return internalName.split(STATE_NAME_DELIM)[0];
 	}
 
 	/**
@@ -115,7 +107,7 @@ public class NFACompiler {
 	 */
 	static class NFAFactoryCompiler<T> {
 
-		private final Set<String> usedNames = new HashSet<>();
+		private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
 		private final Map<String, State<T>> stopStates = new HashMap<>();
 		private final List<State<T>> states = new ArrayList<>();
 
@@ -207,7 +199,8 @@ public class NFACompiler {
 				if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
 					//skip notFollow patterns, they are converted into edge conditions
 				} else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_NEXT) {
-					checkPatternNameUniqueness(currentPattern.getName());
+					stateNameHandler.checkNameUniqueness(currentPattern.getName());
+
 					final State<T> notNext = createState(currentPattern.getName(), State.StateType.Normal);
 					final IterativeCondition<T> notCondition = (IterativeCondition<T>) currentPattern.getCondition();
 					final State<T> stopState = createStopState(notCondition, currentPattern.getName());
@@ -221,7 +214,7 @@ public class NFACompiler {
 					notNext.addProceed(stopState, notCondition);
 					lastSink = notNext;
 				} else {
-					checkPatternNameUniqueness(currentPattern.getName());
+					stateNameHandler.checkNameUniqueness(currentPattern.getName());
 					lastSink = convertPattern(lastSink);
 				}
 
@@ -246,7 +239,7 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createStartState(State<T> sinkState) {
-			checkPatternNameUniqueness(currentPattern.getName());
+			stateNameHandler.checkNameUniqueness(currentPattern.getName());
 			final State<T> beginningState = convertPattern(sinkState);
 			beginningState.makeStart();
 			return beginningState;
@@ -284,34 +277,10 @@ public class NFACompiler {
 		 * @return the created state
 		 */
 		private State<T> createState(String name, State.StateType stateType) {
-			String stateName = getUniqueInternalStateName(name);
-			usedNames.add(stateName);
+			String stateName = stateNameHandler.getUniqueInternalName(name);
 			State<T> state = new State<>(stateName, stateType);
 			states.add(state);
 			return state;
-		}
-
-		/**
-		 * Used to give a unique name to states created
-		 * during the translation process.
-		 *
-		 * @param baseName The base of the name.
-		 */
-		private String getUniqueInternalStateName(String baseName) {
-			int counter = 0;
-			String candidate = baseName;
-			while (usedNames.contains(candidate)) {
-				candidate = baseName + STATE_NAME_DELIM + counter++;
-			}
-			return candidate;
-		}
-
-		private void checkPatternNameUniqueness(String patternName) {
-			if (usedNames.contains(patternName)) {
-				throw new MalformedPatternException(
-						"Duplicate pattern name: " + patternName + ". " +
-								"Pattern names must be unique.");
-			}
 		}
 
 		private State<T> createStopState(final IterativeCondition<T> notCondition, final String name) {
@@ -405,33 +374,23 @@ public class NFACompiler {
 		 * @param times     number of times the state should be copied
 		 * @return the first state of the "complex" state, next state should point to it
 		 */
-		private State<T> createTimesState(final State<T> sinkState, int times) {
-			State<T> lastSink = copyWithoutTransitiveNots(sinkState);
-			for (int i = 0; i < times - 1; i++) {
-				lastSink = createSingletonState(lastSink, getInnerIgnoreCondition(currentPattern), false);
+		private State<T> createTimesState(final State<T> sinkState, Times times) {
+			State<T> lastSink = sinkState;
+			final IterativeCondition<T> innerIgnoreCondition = getInnerIgnoreCondition(currentPattern);
+			for (int i = times.getFrom(); i < times.getTo(); i++) {
+				lastSink = createSingletonState(lastSink, sinkState, innerIgnoreCondition, true);
 				addStopStateToLooping(lastSink);
 			}
-
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
-
+			for (int i = 0; i < times.getFrom() - 1; i++) {
+				lastSink = createSingletonState(lastSink, null, innerIgnoreCondition, false);
+				addStopStateToLooping(lastSink);
+			}
 			// we created the intermediate states in the loop, now we create the start of the loop.
-			if (!currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-				return createSingletonState(lastSink, ignoreCondition, false);
-			}
-
-			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal);
-			singletonState.addTake(lastSink, currentCondition);
-			singletonState.addProceed(sinkState, BooleanConditions.<T>trueFunction());
-
-			if (ignoreCondition != null) {
-				State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
-				ignoreState.addTake(lastSink, currentCondition);
-				ignoreState.addIgnore(ignoreCondition);
-				singletonState.addIgnore(ignoreState, ignoreCondition);
-				addStopStates(ignoreState);
-			}
-			return singletonState;
+			return createSingletonState(
+				lastSink,
+				sinkState,
+				getIgnoreCondition(currentPattern),
+				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
 		}
 
 		/**
@@ -446,6 +405,7 @@ public class NFACompiler {
 		private State<T> createSingletonState(final State<T> sinkState) {
 			return createSingletonState(
 				sinkState,
+				sinkState,
 				getIgnoreCondition(currentPattern),
 				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
 		}
@@ -457,10 +417,15 @@ public class NFACompiler {
 		 *
 		 * @param ignoreCondition condition that should be applied to IGNORE transition
 		 * @param sinkState state that the state being converted should point to
+		 * @param proceedState state that the state being converted should proceed to
+		 * @param isOptional whether the state being converted is optional
 		 * @return the created state
 		 */
 		@SuppressWarnings("unchecked")
-		private State<T> createSingletonState(final State<T> sinkState, final IterativeCondition<T> ignoreCondition, final boolean isOptional) {
+		private State<T> createSingletonState(final State<T> sinkState,
+			final State<T> proceedState,
+			final IterativeCondition<T> ignoreCondition,
+			final boolean isOptional) {
 			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
 			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
 
@@ -471,7 +436,7 @@ public class NFACompiler {
 
 			if (isOptional) {
 				// if no element accepted the previous nots are still valid.
-				singletonState.addProceed(sinkState, trueFunction);
+				singletonState.addProceed(proceedState, trueFunction);
 			}
 
 			if (ignoreCondition != null) {
@@ -499,19 +464,25 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createLooping(final State<T> sinkState) {
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> ignoreCondition = getInnerIgnoreCondition(currentPattern);
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+			final IterativeCondition<T> untilCondition = (IterativeCondition<T>) currentPattern.getUntilCondition();
 
+			final IterativeCondition<T> ignoreCondition = extendWithUntilCondition(
+				getInnerIgnoreCondition(currentPattern),
+				untilCondition);
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				(IterativeCondition<T>) currentPattern.getCondition(),
+				untilCondition);
+
+			final IterativeCondition<T> proceedCondition = BooleanConditions.trueFunction();
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
-			loopingState.addProceed(sinkState, trueFunction);
-			loopingState.addTake(currentCondition);
+			loopingState.addProceed(sinkState, proceedCondition);
+			loopingState.addTake(takeCondition);
 
 			addStopStateToLooping(loopingState);
 
 			if (ignoreCondition != null) {
 				final State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
-				ignoreState.addTake(loopingState, currentCondition);
+				ignoreState.addTake(loopingState, takeCondition);
 				ignoreState.addIgnore(ignoreCondition);
 				loopingState.addIgnore(ignoreState, ignoreCondition);
 
@@ -529,10 +500,13 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				(IterativeCondition<T>) currentPattern.getCondition(),
+				(IterativeCondition<T>) currentPattern.getUntilCondition()
+			);
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
-			firstState.addTake(sinkState, currentCondition);
+			firstState.addTake(sinkState, takeCondition);
 
 			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
 			if (ignoreCondition != null) {
@@ -550,22 +524,45 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
-			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				(IterativeCondition<T>) currentPattern.getCondition(),
+				(IterativeCondition<T>) currentPattern.getUntilCondition()
+			);
 
 			final State<T> firstState = createState(currentPattern.getName(), State.StateType.Normal);
 			firstState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
-			firstState.addTake(loopingState, currentCondition);
+			firstState.addTake(loopingState, takeCondition);
 
 			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
 			if (ignoreFunction != null) {
 				final State<T> firstStateWithoutProceed = createState(currentPattern.getName(), State.StateType.Normal);
 				firstState.addIgnore(firstStateWithoutProceed, ignoreFunction);
 				firstStateWithoutProceed.addIgnore(ignoreFunction);
-				firstStateWithoutProceed.addTake(loopingState, currentCondition);
+				firstStateWithoutProceed.addTake(loopingState, takeCondition);
 
 				addStopStates(firstStateWithoutProceed);
 			}
 			return firstState;
+		}
+
+		/**
+		 * This method extends the given condition with stop(until) condition if necessary.
+		 * The until condition needs to be applied only if both of the given conditions are not null.
+		 *
+		 * @param condition the condition to extend
+		 * @param untilCondition the until condition to join with the given condition
+		 * @return condition with AND applied or the original condition
+		 */
+		private IterativeCondition<T> extendWithUntilCondition(
+				IterativeCondition<T> condition,
+				IterativeCondition<T> untilCondition) {
+			if (untilCondition != null && condition != null) {
+				return new AndCondition<>(new NotCondition<>(untilCondition), condition);
+			} else if (untilCondition != null) {
+				return new NotCondition<>(untilCondition);
+			}
+
+			return condition;
 		}
 
 		/**

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -168,10 +169,39 @@ public class SavepointV2 implements Savepoint {
 				expandedToLegacyIds = true;
 			}
 
+			if (jobVertex == null) {
+				throw new IllegalStateException(
+					"Could not find task for state with ID " + taskState.getJobVertexID() + ". " +
+					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
+					"changed through removal of a stateful operator or modification of a chain containing a stateful " +
+					"operator.");
+			}
+
 			List<OperatorID> operatorIDs = jobVertex.getOperatorIDs();
 
+			Preconditions.checkArgument(
+				jobVertex.getParallelism() == taskState.getParallelism(),
+				"Detected change in parallelism during migration for task " + jobVertex.getJobVertexId() +"." +
+					"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
+					"to the parallelism of stateful operators.");
+
+			Preconditions.checkArgument(
+				operatorIDs.size() == taskState.getChainLength(),
+				"Detected change in chain length during migration for task " + jobVertex.getJobVertexId() +". " +
+					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
+					"changed by modification of a chain containing a stateful operator.");
+
 			for (int subtaskIndex = 0; subtaskIndex < jobVertex.getParallelism(); subtaskIndex++) {
-				SubtaskState subtaskState = taskState.getState(subtaskIndex);
+				SubtaskState subtaskState;
+				try {
+					subtaskState = taskState.getState(subtaskIndex);
+				} catch (Exception e) {
+					throw new IllegalStateException(
+						"Could not find subtask with index " + subtaskIndex + " for task " + jobVertex.getJobVertexId() + ". " +
+						"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
+						"to the parallelism of stateful operators.",
+						e);
+				}
 
 				if (subtaskState == null) {
 					continue;
@@ -188,8 +218,8 @@ public class SavepointV2 implements Savepoint {
 				for (int chainIndex = 0; chainIndex < taskState.getChainLength(); chainIndex++) {
 
 					// task consists of multiple operators so we have to break the state apart
-					for (int o = 0; o < operatorIDs.size(); o++) {
-						OperatorID operatorID = operatorIDs.get(o);
+					for (int operatorIndex = 0; operatorIndex < operatorIDs.size(); operatorIndex++) {
+						OperatorID operatorID = operatorIDs.get(operatorIndex);
 						OperatorState operatorState = operatorStates.get(operatorID);
 
 						if (operatorState == null) {
@@ -204,15 +234,15 @@ public class SavepointV2 implements Savepoint {
 						KeyedStateHandle rawKeyedState = null;
 
 						// only the head operator retains the keyed state
-						if (o == operatorIDs.size() - 1) {
+						if (operatorIndex == operatorIDs.size() - 1) {
 							managedKeyedState = subtaskState.getManagedKeyedState();
 							rawKeyedState = subtaskState.getRawKeyedState();
 						}
 
 						OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-							nonPartitionedState != null ? nonPartitionedState.get(o) : null,
-							partitioneableState != null ? partitioneableState.get(o) : null,
-							rawOperatorState != null ? rawOperatorState.get(o) : null,
+							nonPartitionedState != null ? nonPartitionedState.get(operatorIndex) : null,
+							partitioneableState != null ? partitioneableState.get(operatorIndex) : null,
+							rawOperatorState != null ? rawOperatorState.get(operatorIndex) : null,
 							managedKeyedState,
 							rawKeyedState);
 

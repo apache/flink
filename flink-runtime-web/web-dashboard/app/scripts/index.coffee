@@ -128,13 +128,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.watermarks.html"
 
-  .state "single-job.plan.taskmanagers",
-    url: "/taskmanagers"
-    views:
-      'node-details':
-        templateUrl: "partials/jobs/job.plan.node-list.taskmanagers.html"
-        controller: 'JobPlanTaskManagersController'
-
   .state "single-job.plan.accumulators",
     url: "/accumulators"
     views:

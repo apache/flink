@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -47,10 +48,10 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
 	implements InternalFoldingState<N, T, ACC> {
 
-	/** Serializer for the values */
+	/** Serializer for the values. */
 	private final TypeSerializer<ACC> valueSerializer;
 
-	/** User-specified fold function */
+	/** User-specified fold function. */
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
@@ -90,7 +91,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 				return null;
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
-		} catch (IOException|RocksDBException e) {
+		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while retrieving data from RocksDB", e);
 		}
 	}

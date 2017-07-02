@@ -1,7 +1,7 @@
 ---
 title: "Table API"
 layout: redirect
-redirect: /dev/table_api.html
+redirect: /dev/table/index.html
 permalink: /apis/table.html
 ---
 <!--

@@ -41,11 +41,6 @@ extends GeneratedGraph<LongValue> {
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
-	public String getName() {
-		return SingletonEdgeGraph.class.getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() + " (" + vertexPairCount + ")";
 	}

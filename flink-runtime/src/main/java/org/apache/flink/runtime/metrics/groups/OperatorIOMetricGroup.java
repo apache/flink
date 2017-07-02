@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
@@ -64,7 +65,7 @@ public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup>
 	public void reuseInputMetricsForTask() {
 		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
 		taskIO.reuseRecordsInputCounter(this.numRecordsIn);
-		
+
 	}
 
 	/**

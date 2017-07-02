@@ -17,6 +17,7 @@
 
 package org.apache.flink.storm.wrappers;
 
+import clojure.lang.Atom;
 import org.apache.storm.generated.StormTopology;
 import org.apache.storm.hooks.ITaskHook;
 import org.apache.storm.metric.api.CombinedMetric;
@@ -27,7 +28,6 @@ import org.apache.storm.metric.api.ReducedMetric;
 import org.apache.storm.state.ISubscribedState;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.tuple.Fields;
-import clojure.lang.Atom;
 
 import java.util.Collection;
 import java.util.List;

@@ -191,7 +191,7 @@ public class InitOutputPathTest {
 		@Override
 		public void go() throws Exception {
 			fs.initOutPathLocalFS(path.getParent(), WriteMode.OVERWRITE, true);
-			try (FSDataOutputStream out = fs.create(path, true)) {
+			try (FSDataOutputStream out = fs.create(path, WriteMode.OVERWRITE)) {
 				out.write(11);
 			}
 		}

@@ -79,7 +79,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
- *     <li>{@link #registerJobManager(UUID, UUID, String, JobID, ResourceID)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #registerJobManager(UUID, UUID, ResourceID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
@@ -418,31 +418,38 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 							slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
 						}
 
-						WorkerType newWorker = workerStarted(taskExecutorResourceId);
-						WorkerRegistration<WorkerType> registration =
-							new WorkerRegistration<>(taskExecutorGateway, newWorker);
+						final WorkerType newWorker = workerStarted(taskExecutorResourceId);
 
-						taskExecutors.put(taskExecutorResourceId, registration);
+						if(newWorker == null) {
+							log.warn("Discard registration from TaskExecutor {} at ({}) because the framework did " +
+									"not recognize it", taskExecutorResourceId, taskExecutorAddress);
+							return new RegistrationResponse.Decline("unrecognized TaskExecutor");
+						} else {
+							WorkerRegistration<WorkerType> registration =
+								new WorkerRegistration<>(taskExecutorGateway, newWorker);
 
-						slotManager.registerTaskManager(registration, slotReport);
+							taskExecutors.put(taskExecutorResourceId, registration);
 
-						taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
-							@Override
-							public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-								// the ResourceManager will always send heartbeat requests to the
-								// TaskManager
-							}
+							slotManager.registerTaskManager(registration, slotReport);
 
-							@Override
-							public void requestHeartbeat(ResourceID resourceID, Void payload) {
-								taskExecutorGateway.heartbeatFromResourceManager(resourceID);
-							}
-						});
+							taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
+								@Override
+								public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+									// the ResourceManager will always send heartbeat requests to the
+									// TaskManager
+								}
 
-						return new TaskExecutorRegistrationSuccess(
-							registration.getInstanceID(),
-							resourceId,
-							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
+								@Override
+								public void requestHeartbeat(ResourceID resourceID, Void payload) {
+									taskExecutorGateway.heartbeatFromResourceManager(resourceID);
+								}
+							});
+
+							return new TaskExecutorRegistrationSuccess(
+								registration.getInstanceID(),
+								resourceId,
+								resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
+						}
 					}
 				}
 			}, getMainThreadExecutor());
@@ -602,8 +609,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
-		log.info("shut down cluster because application is in {}, diagnostics {}", finalStatus, optionalDiagnostics);
-		shutDownApplication(finalStatus, optionalDiagnostics);
+		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, optionalDiagnostics);
+
+		try {
+			shutDownApplication(finalStatus, optionalDiagnostics);
+		} catch (ResourceManagerException e) {
+			log.warn("Could not properly shutdown the application.", e);
+		}
 	}
 
 	@RpcMethod
@@ -783,7 +795,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 *
 	 * @param t The exception describing the fatal error
 	 */
-	void onFatalError(Throwable t) {
+	protected void onFatalError(Throwable t) {
 		log.error("Fatal error occurred.", t);
 		fatalErrorHandler.onFatalError(t);
 	}
@@ -873,8 +885,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 *
 	 * @param finalStatus The application status to report.
 	 * @param optionalDiagnostics An optional diagnostics message.
+	 * @throws ResourceManagerException if the application could not be shut down.
 	 */
-	protected abstract void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics);
+	protected abstract void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) throws ResourceManagerException;
 
 	/**
 	 * Allocates a resource using the resource profile.
@@ -917,7 +930,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void jobLeaderLostLeadership(final JobID jobId, final UUID oldJobLeaderId) {
-			ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+				}
+			});
 		}
 
 		@Override

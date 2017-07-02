@@ -29,6 +29,7 @@ import scala.util.{Failure, Success, Try}
  * Serializer for [[scala.util.Try]].
  */
 @Internal
+@SerialVersionUID(-3052182891252564491L)
 class TrySerializer[A](
     private val elemSerializer: TypeSerializer[A],
     private val executionConfig: ExecutionConfig)
@@ -103,51 +104,59 @@ class TrySerializer[A](
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
-    new TrySerializer.TrySerializerConfigSnapshot[A](elemSerializer, throwableSerializer)
+  override def snapshotConfiguration(): ScalaTrySerializerConfigSnapshot[A] = {
+    new ScalaTrySerializerConfigSnapshot[A](elemSerializer, throwableSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Try[A]] = {
 
     configSnapshot match {
-      case trySerializerConfigSnapshot: TrySerializer.TrySerializerConfigSnapshot[A] =>
-        val previousSerializersAndConfigs =
-          trySerializerConfigSnapshot.getNestedSerializersAndConfigs
-
-        val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-          previousSerializersAndConfigs.get(0).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousSerializersAndConfigs.get(0).f1,
-          elemSerializer)
-
-        val throwableCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-          previousSerializersAndConfigs.get(1).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousSerializersAndConfigs.get(1).f1,
-          throwableSerializer)
-
-        if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
-          CompatibilityResult.requiresMigration()
-        } else {
-          CompatibilityResult.compatible()
-        }
-
+      case trySerializerConfigSnapshot
+          : ScalaTrySerializerConfigSnapshot[A] =>
+        ensureCompatibility(trySerializerConfigSnapshot)
+      case legacyTrySerializerConfigSnapshot
+          : TrySerializer.TrySerializerConfigSnapshot[A] =>
+        ensureCompatibility(legacyTrySerializerConfigSnapshot)
       case _ => CompatibilityResult.requiresMigration()
+    }
+  }
+
+  private def ensureCompatibility(
+      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot)
+        : CompatibilityResult[Try[A]] = {
+
+    val previousSerializersAndConfigs =
+      compositeConfigSnapshot.getNestedSerializersAndConfigs
+
+    val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+      previousSerializersAndConfigs.get(0).f0,
+      classOf[UnloadableDummyTypeSerializer[_]],
+      previousSerializersAndConfigs.get(0).f1,
+      elemSerializer)
+
+    val throwableCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+      previousSerializersAndConfigs.get(1).f0,
+      classOf[UnloadableDummyTypeSerializer[_]],
+      previousSerializersAndConfigs.get(1).f1,
+      throwableSerializer)
+
+    if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
+      CompatibilityResult.requiresMigration()
+    } else {
+      CompatibilityResult.compatible()
     }
   }
 }
 
 object TrySerializer {
 
-  class TrySerializerConfigSnapshot[A](
-      private var elemSerializer: TypeSerializer[A],
-      private var throwableSerializer: TypeSerializer[Throwable])
-    extends CompositeTypeSerializerConfigSnapshot(
-      elemSerializer, throwableSerializer) {
-
-    /** This empty nullary constructor is required for deserializing the configuration. */
-    def this() = this(null, null)
+  /**
+    * We need to keep this to be compatible with snapshots taken in Flink 1.3.0.
+    * Once Flink 1.3.x is no longer supported, this can be removed.
+    */
+  class TrySerializerConfigSnapshot[A]()
+      extends CompositeTypeSerializerConfigSnapshot() {
 
     override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
   }

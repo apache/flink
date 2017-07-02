@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.pattern;
 
+import org.apache.flink.util.Preconditions;
+
 import java.util.EnumSet;
 import java.util.Objects;
 
@@ -143,4 +145,35 @@ public class Quantifier {
 		NOT_NEXT
 	}
 
+	/**
+	 * Describe the times this {@link Pattern} can occur.
+	 */
+	public static class Times {
+		private final int from;
+		private final int to;
+
+		private Times(int from, int to) {
+			Preconditions.checkArgument(from >= 0, "The from should be a non-negative number greater than or equal to 0.");
+			Preconditions.checkArgument(to >= from, "The to should be a number greater than or equal to from: " + from + ".");
+			Preconditions.checkArgument(from != to || from != 0, "The from and to should not be both equal to 0.");
+			this.from = from;
+			this.to = to;
+		}
+
+		public int getFrom() {
+			return from;
+		}
+
+		public int getTo() {
+			return to;
+		}
+
+		public static Times of(int from, int to) {
+			return new Times(from, to);
+		}
+
+		public static Times of(int times) {
+			return new Times(times, times);
+		}
+	}
 }

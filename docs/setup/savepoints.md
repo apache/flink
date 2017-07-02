@@ -27,11 +27,14 @@ under the License.
 
 ## Overview
 
-Savepoints are externally stored checkpoints that you can use to stop-and-resume or update your Flink programs. They use Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) to create a snapshot of the state of your streaming program and write the checkpoint meta data out to an external file system.
+Savepoints are externally stored self-contained checkpoints that you can use to stop-and-resume or update your Flink programs. They use Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) to create a (non-incremental) snapshot of the state of your streaming program and write the checkpoint data and meta data out to an external file system.
 
-This page covers all steps involved in triggering, restoring, and disposing savepoints. In order to allow upgrades between programs and Flink versions, it is important to check out the section about [assigning IDs to your operators](#assigning-operator-ids).
-
+This page covers all steps involved in triggering, restoring, and disposing savepoints.
 For more details on how Flink handles state and failures in general, check out the [State in Streaming Programs]({{ site.baseurl }}/dev/stream/state.html) page.
+
+<div class="alert alert-warning">
+<strong>Attention:</strong> In order to allow upgrades between programs and Flink versions, it is important to check out the following section about <a href="#assigning-operator-ids">assigning IDs to your operators</a>.
+</div>
 
 ## Assigning Operator IDs
 
@@ -73,17 +76,29 @@ With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the we
 
 ### Triggering Savepoints
 
-When triggering a savepoint, a single savepoint file will be created that contains the checkpoint *meta data*. The actual checkpoint state will be kept around in the configured checkpoint directory. For example with a `FsStateBackend` or `RocksDBStateBackend`:
+When triggering a savepoint, a new savepoint directory beneath the target directory is created. In there, the data as well as the meta data will be stored. For example with a `FsStateBackend` or `RocksDBStateBackend`:
 
 ```sh
-# Savepoint file contains the checkpoint meta data
-/savepoints/savepoint-123123
+# Savepoint target directory
+/savepoints/
 
-# Checkpoint directory contains the actual state
-/checkpoints/:jobid/chk-:id/...
+# Savepoint directory
+/savepoints/savepoint-:shortjobid-:savepointid/
+
+# Savepoint file contains the checkpoint meta data
+/savepoints/savepoint-:shortjobid-:savepointid/_metadata
+
+# Savepoint state
+/savepoints/savepoint-:shortjobid-:savepointid/...
 ```
 
-The savepoint file is usually much smaller than the actual checkpointed state. Note that if you use the `MemoryStateBackend`, the savepoint file will be self-contained and contain all the state.
+<div class="alert alert-info">
+  <strong>Note:</strong>
+Although it looks as if the savepoints may be moved, it is currently not possible due to absolute paths in the <code>_metadata</code> file.
+Please follow <a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a> for progress on lifting this restriction.
+</div>
+
+Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. Since it is self-contained, you may move the file and restore from any location.
 
 #### Trigger a Savepoint
 
@@ -111,7 +126,7 @@ If you don't specify a target directory, you need to have [configured a default 
 $ bin/flink run -s :savepointPath [:runArgs]
 ```
 
-This submits a job and specifies the savepoint path. The execution will resume from the respective savepoint state. The savepoint file holds the meta data of a checkpoint and points to the actual checkpoint files. This is why the savepoint file is usually much smaller than the actual checkpoint state.
+This submits a job and specifies a savepoint to resume from. You may give a path to either the savepoint's directory or the `_metadata` file.
 
 #### Allowing Non-Restored State
 
@@ -129,11 +144,11 @@ $ bin/flink savepoint -d :savepointPath
 
 This disposes the savepoint stored in `:savepointPath`.
 
-Note that since savepoints always go to a file system it is possible to also manually delete the savepoint via a regular file system operation. Keep in mind though that the savepoint only stores meta data that points to the actual checkpoint data. Therefore, if you manually want to delete a savepoint, you would have to include the checkpoint files as well. Since there is currently no straight forward way to figure out how a savepoint maps to a checkpoint, it is recommended to use the savepoint tool for this as described above.
+Note that it is possible to also manually delete a savepoint via regular file system operations without affecting other savepoints or checkpoints (recall that each savepoint is self-contained). Up to Flink 1.2, this was a more tedious task which was performed with the savepoint command above.
 
 ### Configuration
 
-You can configure a default savepoint target directory via the `state.savepoints.dir` key. When triggering savepoints, this directory will be used to store the savepoint meta data. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
+You can configure a default savepoint target directory via the `state.savepoints.dir` key. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
 ```sh
 # Default savepoint target directory
@@ -149,10 +164,6 @@ If you neither configure a default nor specify a custom target directory, trigge
 As a rule of thumb, yes. Strictly speaking, it is sufficient to only assign IDs via the `uid` method to the stateful operators in your job. The savepoint only contains state for these operators and stateless operator are not part of the savepoint.
 
 In practice, it is recommended to assign it to all operators, because some of Flink's built-in operators like the Window operator are also stateful and it is not obvious which built-in operators are actually stateful and which are not. If you are absolutely certain that an operator is stateless, you can skip the `uid` method.
-
-### Why is the savepoint file so small?
-
-The savepoint file only contains the meta data of the checkpoint and has pointers to the checkpoint state, which is usually much larger. In case of using the `MemoryStateBackend`, the checkpoint will include all state, but is constrained by the backend to small state.
 
 ### What happens if I add a new operator that requires state to my job?
 
@@ -184,4 +195,4 @@ If you did not assign IDs, the auto generated IDs of the stateful operators will
 
 If the savepoint was triggered with Flink >= 1.2.0 and using no deprecated state API like `Checkpointed`, you can simply restore the program from a savepoint and specify a new parallelism.
 
-If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html).
+If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink >= 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html).

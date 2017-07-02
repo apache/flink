@@ -18,11 +18,14 @@
 package org.apache.flink.storm.wordcount.operators;
 
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 
+/**
+ * Input tuples for WordCount programs.
+ */
 @SuppressWarnings("unchecked")
 public class WordCountDataTuple {
-	public static Tuple1<String>[] TUPLES;
+	public static final Tuple1<String>[] TUPLES;
 
 	static {
 		TUPLES = new Tuple1[WordCountData.WORDS.length];

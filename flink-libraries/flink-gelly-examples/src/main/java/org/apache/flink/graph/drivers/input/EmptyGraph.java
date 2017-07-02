@@ -36,11 +36,6 @@ extends GeneratedGraph<LongValue> {
 		.setMinimumValue(MINIMUM_VERTEX_COUNT);
 
 	@Override
-	public String getName() {
-		return EmptyGraph.class.getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() + " (" + vertexCount + ")";
 	}

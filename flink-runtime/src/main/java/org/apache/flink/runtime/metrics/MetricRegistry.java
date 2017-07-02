@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.metrics;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Kill;
-import akka.pattern.Patterns;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -38,11 +34,13 @@ import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Kill;
+import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +50,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
@@ -154,7 +156,7 @@ public class MetricRegistry {
 
 	/**
 	 * Initializes the MetricQueryService.
-	 * 
+	 *
 	 * @param actorSystem ActorSystem to create the MetricQueryService on
 	 * @param resourceID resource ID used to disambiguate the actor name
      */
@@ -250,7 +252,7 @@ public class MetricRegistry {
 			}
 		}
 	}
-	
+
 	private void shutdownExecutor() {
 		if (executor != null) {
 			executor.shutdown();
@@ -361,7 +363,7 @@ public class MetricRegistry {
 	 * This task is explicitly a static class, so that it does not hold any references to the enclosing
 	 * MetricsRegistry instance.
 	 *
-	 * This is a subtle difference, but very important: With this static class, the enclosing class instance
+	 * <p>This is a subtle difference, but very important: With this static class, the enclosing class instance
 	 * may become garbage-collectible, whereas with an anonymous inner class, the timer thread
 	 * (which is a GC root) will hold a reference via the timer task and its enclosing instance pointer.
 	 * Making the MetricsRegistry garbage collectible makes the java.util.Timer garbage collectible,

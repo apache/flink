@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.catalog
 
-import java.lang.reflect.Modifier
 import java.net.URL
 
 import org.apache.commons.configuration.{ConfigurationException, ConversionException, PropertiesConfiguration}
+import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.annotation.TableType
 import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException}
-import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.util.InstantiationUtil
 import org.reflections.Reflections
 import org.slf4j.{Logger, LoggerFactory}
@@ -83,6 +83,13 @@ object ExternalTableSourceUtil {
     registeredConverters
   }
 
+  @VisibleForTesting
+  private[flink] def injectTableSourceConverter(
+    tableType: String,
+    converterClazz: Class[_ <: TableSourceConverter[_]]) = {
+    tableTypeToTableSourceConvertersClazz.addBinding(tableType, converterClazz)
+  }
+
   /**
     * Converts an [[ExternalCatalogTable]] instance to a [[TableSourceTable]] instance
     *
@@ -119,7 +126,10 @@ object ExternalTableSourceUtil {
           } else {
             FlinkStatistic.UNKNOWN
           }
-          new TableSourceTable(convertedTableSource, flinkStatistic)
+          convertedTableSource match {
+            case s : StreamTableSource[_] => new StreamTableSourceTable(s, flinkStatistic)
+            case _ => new TableSourceTable(convertedTableSource, flinkStatistic)
+          }
         }
       case None =>
         LOG.error(s"Cannot find any TableSourceConverter binded to table type [$tableType]. " +

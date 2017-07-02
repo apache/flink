@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -36,6 +37,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.migration.MigrationNamespaceSerializerProxy;
 import org.apache.flink.migration.MigrationUtil;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.migration.runtime.state.memory.MigrationRestoreSnapshot;
@@ -64,6 +66,7 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +100,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final HashMap<String, StateTable<K, ?, ?>> stateTables = new HashMap<>();
 
 	/**
+	 * Map of state names to their corresponding restored state meta info.
+	 *
+	 * <p>
+	 * TODO this map can be removed when eager-state registration is in place.
+	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
+	 */
+	private final Map<String, RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredKvStateMetaInfos;
+
+	/**
 	 * Determines whether or not we run snapshots asynchronously. This impacts the choice of the underlying
 	 * {@link StateTable} implementation.
 	 */
@@ -114,6 +126,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.asynchronousSnapshots = asynchronousSnapshots;
 		LOG.info("Initializing heap keyed state backend with stream factory.");
+
+		this.restoredKvStateMetaInfos = new HashMap<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -121,7 +135,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	// ------------------------------------------------------------------------
 
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
+			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) throws StateMigrationException {
 
 		return tryRegisterStateTable(
 				stateDesc.getName(), stateDesc.getType(),
@@ -132,7 +146,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			String stateName,
 			StateDescriptor.Type stateType,
 			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<V> valueSerializer) {
+			TypeSerializer<V> valueSerializer) throws StateMigrationException {
 
 		final RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo =
 				new RegisteredKeyedBackendStateMetaInfo<>(stateType, stateName, namespaceSerializer, valueSerializer);
@@ -162,7 +176,36 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						"registered with [" + newMetaInfo.getStateType() + "].");
 			}
 
-			stateTable.setMetaInfo(newMetaInfo);
+			@SuppressWarnings("unchecked")
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V> restoredMetaInfo =
+				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V>) restoredKvStateMetaInfos.get(stateName);
+
+			// check compatibility results to determine if state migration is required
+			CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+					restoredMetaInfo.getNamespaceSerializer(),
+					MigrationNamespaceSerializerProxy.class,
+					restoredMetaInfo.getNamespaceSerializerConfigSnapshot(),
+					newMetaInfo.getNamespaceSerializer());
+
+			CompatibilityResult<V> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+					restoredMetaInfo.getStateSerializer(),
+					UnloadableDummyTypeSerializer.class,
+					restoredMetaInfo.getStateSerializerConfigSnapshot(),
+					newMetaInfo.getStateSerializer());
+
+			if (!namespaceCompatibility.isRequiresMigration() && !stateCompatibility.isRequiresMigration()) {
+				// new serializers are compatible; use them to replace the old serializers
+				stateTable.setMetaInfo(newMetaInfo);
+			} else {
+				// TODO state migration currently isn't possible.
+
+				// NOTE: for heap backends, it is actually fine to proceed here without failing the restore,
+				// since the state has already been deserialized to objects and we can just continue with
+				// the new serializer; we're deliberately failing here for now to have equal functionality with
+				// the RocksDB backend to avoid confusion for users.
+
+				throw new StateMigrationException("State migration isn't supported, yet.");
+			}
 		}
 
 		return stateTable;
@@ -399,7 +442,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						.isRequiresMigration()) {
 
 						// TODO replace with state migration; note that key hash codes need to remain the same after migration
-						throw new IllegalStateException("The new key serializer is not compatible to read previous keys. " +
+						throw new StateMigrationException("The new key serializer is not compatible to read previous keys. " +
 							"Aborting now since state migration is currently not available");
 					}
 
@@ -425,6 +468,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							" have changed and could not be loaded. This is a temporary restriction that will be fixed" +
 							" in future versions.");
 					}
+
+					restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
 					StateTable<K, ?, ?> stateTable = stateTables.get(restoredMetaInfo.getName());
 
@@ -527,6 +572,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				MigrationRestoreSnapshot<K, ?, ?> stateSnapshot = (MigrationRestoreSnapshot<K, ?, ?>) genericSnapshot;
 				final StateTable rawResultMap =
 						stateSnapshot.deserialize(stateName, this);
+
+				// mimic a restored kv state meta info
+				restoredKvStateMetaInfos.put(stateName, rawResultMap.getMetaInfo().snapshot());
+
 				// add named state to the backend
 				stateTables.put(stateName, rawResultMap);
 			} else {

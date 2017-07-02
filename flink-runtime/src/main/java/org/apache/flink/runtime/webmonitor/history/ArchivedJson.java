@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
@@ -22,15 +23,15 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
- * 
- * These are created by {@link JsonArchivist}s, and used by the {@link MemoryArchivist} to create a directory structure
+ *
+ * <p>These are created by {@link JsonArchivist}s, and used by the {@link MemoryArchivist} to create a directory structure
  * resembling the REST API.
  */
 public class ArchivedJson {
 
 	private final String path;
 	private final String json;
-	
+
 	public ArchivedJson(String path, String json) {
 		this.path = Preconditions.checkNotNull(path);
 		this.json = Preconditions.checkNotNull(json);
@@ -56,6 +57,6 @@ public class ArchivedJson {
 
 	@Override
 	public String toString() {
-		return path +":" + json;
+		return path + ":" + json;
 	}
 }

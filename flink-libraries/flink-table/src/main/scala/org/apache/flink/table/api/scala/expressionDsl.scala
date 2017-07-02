@@ -456,7 +456,7 @@ trait ImplicitExpressionOperations {
     *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
     *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
     */
-  def over(alias: Expression) = {
+  def over(alias: Expression): Expression = {
     expr match {
       case _: Aggregation => UnresolvedOverCall(
         expr.asInstanceOf[Aggregation],
@@ -920,6 +920,65 @@ object pi {
     */
   def apply(): Expression = {
     Pi()
+  }
+}
+
+/**
+  * Returns a value that is closer than any other value to e.
+  */
+object e {
+
+  /**
+    * Returns a value that is closer than any other value to e.
+    */
+  def apply(): Expression = {
+    E()
+  }
+}
+
+/**
+  * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
+  */
+object rand {
+
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
+    */
+  def apply(): Expression = {
+    new Rand()
+  }
+
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
+    * initial seed. Two rand() functions will return identical sequences of numbers if they
+    * have same initial seed.
+    */
+  def apply(seed: Expression): Expression = {
+    Rand(seed)
+  }
+}
+
+/**
+  * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified
+  * value (exclusive).
+  */
+object randInteger {
+
+  /**
+    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified
+    * value (exclusive).
+    */
+  def apply(bound: Expression): Expression = {
+   new RandInteger(bound)
+  }
+
+  /**
+    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+    * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
+    * of numbers if they have same initial seed and same bound.
+    */
+  def apply(seed: Expression, bound: Expression): Expression = {
+    RandInteger(seed, bound)
   }
 }
 

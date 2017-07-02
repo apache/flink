@@ -66,7 +66,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
-import static org.apache.flink.configuration.ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY;
+import static org.apache.flink.configuration.HighAvailabilityOptions.HA_ZOOKEEPER_NAMESPACE;
 
 /**
  * Class handling the command line interface to the YARN session.
@@ -597,9 +597,9 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			String zkNamespace = cmd.hasOption(zookeeperNamespace.getOpt()) ?
 									cmd.getOptionValue(zookeeperNamespace.getOpt())
 									: yarnDescriptor.getFlinkConfiguration()
-									.getString(HA_ZOOKEEPER_NAMESPACE_KEY, cmd.getOptionValue(applicationId.getOpt()));
+									.getString(HA_ZOOKEEPER_NAMESPACE, cmd.getOptionValue(applicationId.getOpt()));
 			LOG.info("Going to use the ZK namespace: {}", zkNamespace);
-			yarnDescriptor.getFlinkConfiguration().setString(HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+			yarnDescriptor.getFlinkConfiguration().setString(HA_ZOOKEEPER_NAMESPACE, zkNamespace);
 
 			try {
 				yarnCluster = yarnDescriptor.retrieve(cmd.getOptionValue(applicationId.getOpt()));

@@ -49,6 +49,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.util.NetUtils
 
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.FiniteDuration
@@ -203,16 +204,19 @@ class LocalFlinkMiniCluster(
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
     val config = originalConfiguration.clone()
 
-    val rpcPort = config.getInteger(
-      ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+    val rpcPortRange = config.getString(TaskManagerOptions.RPC_PORT)
+
+    val rpcPortIterator = NetUtils.getPortRangeFromString(rpcPortRange)
 
     val dataPort = config.getInteger(
       ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
 
-    if (rpcPort > 0) {
-      config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort + index)
+    if (rpcPortIterator.hasNext) {
+      val rpcPort = rpcPortIterator.next()
+      if (rpcPort > 0) {
+        config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort + index)
+      }
     }
     if (dataPort > 0) {
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)

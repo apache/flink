@@ -27,7 +27,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
 
 /**
  * This test validates that the RocksDB JNI library loading works properly
@@ -60,7 +60,7 @@ public class RocksDbMultiClassLoaderTest {
 
 		final String tempDir = tmp.newFolder().getAbsolutePath();
 
- 		final Method meth1 = clazz1.getDeclaredMethod("ensureRocksDBIsLoaded", String.class);
+		final Method meth1 = clazz1.getDeclaredMethod("ensureRocksDBIsLoaded", String.class);
 		final Method meth2 = clazz2.getDeclaredMethod("ensureRocksDBIsLoaded", String.class);
 		meth1.setAccessible(true);
 		meth2.setAccessible(true);

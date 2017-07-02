@@ -226,30 +226,69 @@ object ProjectionTranslator {
       overWindows: Array[OverWindow],
       tEnv: TableEnvironment): Seq[Expression] = {
 
-    def resolveOverWindow(unresolvedCall: UnresolvedOverCall): Expression = {
+    exprs.map(e => replaceOverCall(e, overWindows, tEnv))
+  }
 
-      val overWindow = overWindows.find(_.alias.equals(unresolvedCall.alias))
-      if (overWindow.isDefined) {
-        OverCall(
-          unresolvedCall.agg,
-          overWindow.get.partitionBy,
-          overWindow.get.orderBy,
-          overWindow.get.preceding,
-          overWindow.get.following)
-      } else {
-        unresolvedCall
-      }
-    }
+  /**
+    * Find and replace UnresolvedOverCall with OverCall
+    *
+    * @param expr    the expression to check
+    * @return an expression with correct resolved OverCall
+    */
+  private def replaceOverCall(
+    expr: Expression,
+    overWindows: Array[OverWindow],
+    tableEnv: TableEnvironment): Expression = {
 
-    val projectList = new ListBuffer[Expression]
-    exprs.foreach {
-      case Alias(u: UnresolvedOverCall, name, _) =>
-        projectList += Alias(resolveOverWindow(u), name)
+    expr match {
       case u: UnresolvedOverCall =>
-        projectList += resolveOverWindow(u)
-      case e: Expression => projectList += e
+        val overWindow = overWindows.find(_.alias.equals(u.alias))
+        if (overWindow.isDefined) {
+          OverCall(
+            u.agg,
+            overWindow.get.partitionBy,
+            overWindow.get.orderBy,
+            overWindow.get.preceding,
+            overWindow.get.following)
+        } else {
+          u
+        }
+
+      case u: UnaryExpression =>
+        val c = replaceOverCall(u.child, overWindows, tableEnv)
+        u.makeCopy(Array(c))
+
+      case b: BinaryExpression =>
+        val l = replaceOverCall(b.left, overWindows, tableEnv)
+        val r = replaceOverCall(b.right, overWindows, tableEnv)
+        b.makeCopy(Array(l, r))
+
+      // Functions calls
+      case c @ Call(name, args: Seq[Expression]) =>
+        val newArgs =
+          args.map(
+            (exp: Expression) =>
+              replaceOverCall(exp, overWindows, tableEnv))
+        c.makeCopy(Array(name, newArgs))
+
+      // Scala functions
+      case sfc @ ScalarFunctionCall(clazz, args: Seq[Expression]) =>
+        val newArgs: Seq[Expression] =
+          args.map(
+            (exp: Expression) =>
+              replaceOverCall(exp, overWindows, tableEnv))
+        sfc.makeCopy(Array(clazz, newArgs))
+
+      // Array constructor
+      case c @ ArrayConstructor(args) =>
+        val newArgs =
+          c.elements
+            .map((exp: Expression) => replaceOverCall(exp, overWindows, tableEnv))
+        c.makeCopy(Array(newArgs))
+
+      // Other expressions
+      case e: Expression => e
     }
-    projectList
   }
 
 

@@ -17,46 +17,45 @@
 
 package org.apache.flink.contrib.streaming;
 
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.Iterator;
-import java.net.ServerSocket;
-import java.io.IOException;
-import java.io.EOFException;
-import java.util.NoSuchElementException;
-
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 
+import java.io.EOFException;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 /**
  * An iterator that returns the data from a socket stream.
- * 
+ *
  * <p>The iterator's constructor opens a server socket. In the first call to {@link #next()}
  * or {@link #hasNext()}, the iterator waits for a socket to connect, and starts receiving,
  * deserializing, and returning the data from that socket.
- * 
+ *
  * @param <T> The type of elements returned from the iterator.
  */
 class SocketStreamIterator<T> implements Iterator<T> {
 
-	/** Server socket to listen at */
+	/** Server socket to listen at. */
 	private final ServerSocket socket;
 
-	/** Serializer to deserialize stream */
+	/** Serializer to deserialize stream. */
 	private final TypeSerializer<T> serializer;
 
-	/** Set by the same thread that reads it */
+	/** Set by the same thread that reads it. */
 	private DataInputViewStreamWrapper inStream;
 
-	/** Next element, handover from hasNext() to next() */
+	/** Next element, handover from hasNext() to next(). */
 	private T next;
 
-	/** The socket for the specific stream */
+	/** The socket for the specific stream. */
 	private Socket connectedSocket;
 
-	/** Async error, for example by the executor of the program that produces the stream */
+	/** Async error, for example by the executor of the program that produces the stream. */
 	private volatile Throwable error;
-
 
 	SocketStreamIterator(TypeSerializer<T> serializer) throws IOException {
 		this.serializer = serializer;
@@ -79,18 +78,18 @@ class SocketStreamIterator<T> implements Iterator<T> {
 	public int getPort() {
 		return socket.getLocalPort();
 	}
-	
+
 	public InetAddress getBindAddress() {
 		return socket.getInetAddress();
 	}
-	
+
 	public void close() {
 		if (connectedSocket != null) {
 			try {
 				connectedSocket.close();
 			} catch (Throwable ignored) {}
 		}
-		
+
 		try {
 			socket.close();
 		} catch (Throwable ignored) {}
@@ -114,7 +113,7 @@ class SocketStreamIterator<T> implements Iterator<T> {
 				throw new RuntimeException("Failed to receive next element: " + e.getMessage(), e);
 			}
 		}
-		
+
 		return next != null;
 	}
 
@@ -145,18 +144,18 @@ class SocketStreamIterator<T> implements Iterator<T> {
 				connectedSocket = socket.accept();
 				inStream = new DataInputViewStreamWrapper(connectedSocket.getInputStream());
 			}
-			
+
 			return serializer.deserialize(inStream);
 		}
 		catch (EOFException e) {
 			try {
 				connectedSocket.close();
 			} catch (Throwable ignored) {}
-			
+
 			try {
 				socket.close();
 			} catch (Throwable ignored) {}
-			
+
 			return null;
 		}
 		catch (Exception e) {
@@ -173,7 +172,7 @@ class SocketStreamIterator<T> implements Iterator<T> {
 	// ------------------------------------------------------------------------
 	//  errors
 	// ------------------------------------------------------------------------
-	
+
 	public void notifyOfError(Throwable error) {
 		if (error != null && this.error == null) {
 			this.error = error;

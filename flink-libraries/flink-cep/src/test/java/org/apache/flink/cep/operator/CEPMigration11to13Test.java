@@ -232,7 +232,7 @@ public class CEPMigration11to13Test {
 		NullByteKeySelector keySelector = new NullByteKeySelector();
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
+				new KeyedOneInputStreamOperatorTestHarness<Byte, Event, Map<String, List<Event>>>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
@@ -284,7 +284,7 @@ public class CEPMigration11to13Test {
 			OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
 			harness.close();
 
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
+			harness = new KeyedOneInputStreamOperatorTestHarness<Byte, Event, Map<String, List<Event>>>(
 				new KeyedCEPPatternOperator<>(
 					Event.createTypeSerializer(),
 					false,

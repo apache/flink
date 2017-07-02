@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.BDDMockito;
@@ -37,15 +38,19 @@ import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.util.List;
+
 import scala.Option;
 import scala.tools.nsc.Settings;
 import scala.tools.nsc.settings.MutableSettings;
 
-import java.util.List;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Integration tests for {@link FlinkILoop}.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PlanExecutor.class)
 public class FlinkILoopTest extends TestLogger {
@@ -68,18 +73,18 @@ public class FlinkILoopTest extends TestLogger {
 		)).willAnswer(new Answer<PlanExecutor>() {
 			@Override
 			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
-				testPlanExecutor.setHost((String)invocation.getArguments()[0]);
-				testPlanExecutor.setPort((Integer)invocation.getArguments()[1]);
-				testPlanExecutor.setConfiguration((Configuration)invocation.getArguments()[2]);
-				testPlanExecutor.setJars((List<String>)invocation.getArguments()[3]);
-				testPlanExecutor.setGlobalClasspaths((List<String>)invocation.getArguments()[4]);
+				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
+				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
+				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);
+				testPlanExecutor.setJars((List<String>) invocation.getArguments()[3]);
+				testPlanExecutor.setGlobalClasspaths((List<String>) invocation.getArguments()[4]);
 
 				return testPlanExecutor;
 			}
 		});
 
 		Settings settings = new Settings();
-		((MutableSettings.BooleanSetting)settings.usejavacp()).value_$eq(true);
+		((MutableSettings.BooleanSetting) settings.usejavacp()).value_$eq(true);
 
 		flinkILoop.settings_$eq(settings);
 		flinkILoop.createInterpreter();

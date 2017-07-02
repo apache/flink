@@ -23,6 +23,9 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 
 import java.util.Collection;
 
+/**
+ * Utility functions for migration.
+ */
 public class MigrationUtil {
 
 	@SuppressWarnings("deprecation")

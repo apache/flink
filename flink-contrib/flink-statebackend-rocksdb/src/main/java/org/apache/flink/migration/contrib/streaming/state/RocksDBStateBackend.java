@@ -68,6 +68,12 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		}
 	}
 
+	/**
+	 * This class exists to provide a good error message if a user attempts to restore from a semi async snapshot.
+	 *
+	 * <p>see FLINK-5468
+	 */
+	@Deprecated
 	public static class FinalSemiAsyncSnapshot {
 
 		static {
@@ -75,7 +81,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		}
 
 		private static void throwExceptionOnLoadingThisClass() {
-			throw new RuntimeException("Attempt to requiresMigration RocksDB state created with semi async snapshot mode failed. "
+			throw new RuntimeException("Attempt to migrate RocksDB state created with semi async snapshot mode failed. "
 					+ "Unfortunately, this is not supported. Please create a new savepoint for the job using fully "
 					+ "async mode in Flink 1.1 and run migration again with the new savepoint.");
 		}

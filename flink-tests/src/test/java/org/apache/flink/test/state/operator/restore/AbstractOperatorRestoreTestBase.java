@@ -65,11 +65,11 @@ import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Abstract class to verify that it is possible to migrate a 1.2 savepoint to 1.3 and that the topology can be modified
- * from that point on.
+ * Abstract class to verify that it is possible to migrate a savepoint across upgraded Flink versions and that the
+ * topology can be modified from that point on.
  * 
  * The verification is done in 2 Steps:
- * Step 1: Migrate the job to 1.3 by submitting the same job used for the 1.2 savepoint, and create a new savepoint.
+ * Step 1: Migrate the job to the newer version by submitting the same job used for the old version savepoint, and create a new savepoint.
  * Step 2: Modify the job topology, and restore from the savepoint created in step 1.
  */
 public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
@@ -160,9 +160,9 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
 	@Test
 	public void testMigrationAndRestore() throws Throwable {
-		// submit 1.2 job and create a migrated 1.3 savepoint
+		// submit job with old version savepoint and create a migrated savepoint in the new version
 		String savepointPath = migrateJob();
-		// restore from migrated 1.3 savepoint
+		// restore from migrated new version savepoint
 		restoreJob(savepointPath);
 	}
 
@@ -194,8 +194,20 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 		// Trigger savepoint
 		File targetDirectory = tmpFolder.newFolder();
 		msg = new JobManagerMessages.CancelJobWithSavepoint(jobToMigrate.getJobID(), targetDirectory.getAbsolutePath());
-		Future<Object> future = jobManager.ask(msg, timeout);
-		result = Await.result(future, timeout);
+
+		// FLINK-6918: Retry cancel with savepoint message in case that StreamTasks were not running
+		// TODO: The retry logic should be removed once the StreamTask lifecycle has been fixed (see FLINK-4714)
+		boolean retry = true;
+		for (int i = 0; retry && i < 10; i++) {
+			Future<Object> future = jobManager.ask(msg, timeout);
+			result = Await.result(future, timeout);
+
+			if (result instanceof JobManagerMessages.CancellationFailure) {
+				Thread.sleep(50L);
+			} else {
+				retry = false;
+			}
+		}
 
 		if (result instanceof JobManagerMessages.CancellationFailure) {
 			JobManagerMessages.CancellationFailure failure = (JobManagerMessages.CancellationFailure) result;
@@ -256,14 +268,14 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	}
 
 	/**
-	 * Recreates the job used to create the 1.2 savepoint.
+	 * Recreates the job used to create the new version savepoint.
 	 *
 	 * @param env StreamExecutionEnvironment to use
 	 */
 	protected abstract void createMigrationJob(StreamExecutionEnvironment env);
 
 	/**
-	 * Creates a modified version of the job used to create the 1.2 savepoint.
+	 * Creates a modified version of the job used to create the new version savepoint.
 	 *
 	 * @param env StreamExecutionEnvironment to use
 	 */

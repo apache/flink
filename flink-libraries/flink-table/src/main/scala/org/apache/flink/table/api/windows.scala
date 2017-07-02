@@ -68,11 +68,11 @@ case class UnboundedRange() extends Expression {
 /**
   * A partially defined over window.
   */
-class OverWindowWithOrderBy(
+class OverWindowWithPreceding(
     private val partitionBy: Seq[Expression],
-    private val orderBy: Expression) {
+    private val orderBy: Expression,
+    private val preceding: Expression) {
 
-  private[flink] var preceding: Expression = _
   private[flink] var following: Expression = _
 
   /**
@@ -103,33 +103,12 @@ class OverWindowWithOrderBy(
   }
 
   /**
-    * Set the preceding offset (based on time or row-count intervals) for over window.
-    *
-    * @param preceding preceding offset relative to the current row.
-    * @return this over window
-    */
-  def preceding(preceding: String): OverWindowWithOrderBy = {
-    this.preceding(ExpressionParser.parseExpression(preceding))
-  }
-
-  /**
-    * Set the preceding offset (based on time or row-count intervals) for over window.
-    *
-    * @param preceding preceding offset relative to the current row.
-    * @return this over window
-    */
-  def preceding(preceding: Expression): OverWindowWithOrderBy = {
-    this.preceding = preceding
-    this
-  }
-
-  /**
     * Set the following offset (based on time or row-count intervals) for over window.
     *
     * @param following following offset that relative to the current row.
     * @return this over window
     */
-  def following(following: String): OverWindowWithOrderBy = {
+  def following(following: String): OverWindowWithPreceding = {
     this.following(ExpressionParser.parseExpression(following))
   }
 
@@ -139,7 +118,7 @@ class OverWindowWithOrderBy(
     * @param following following offset that relative to the current row.
     * @return this over window
     */
-  def following(following: Expression): OverWindowWithOrderBy = {
+  def following(following: Expression): OverWindowWithPreceding = {
     this.following = following
     this
   }

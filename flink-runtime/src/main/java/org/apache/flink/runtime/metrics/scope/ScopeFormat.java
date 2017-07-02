@@ -52,7 +52,7 @@ public abstract class ScopeFormat {
 	/**
 	 * If the scope format starts with this character, then the parent components scope
 	 * format will be used as a prefix.
-	 * 
+	 *
 	 * <p>For example, if the TaskManager's job format is {@code "*.<job_name>"}, and the
 	 * TaskManager format is {@code "<host>"}, then the job's metrics
 	 * will have {@code "<host>.<job_name>"} as their scope.
@@ -90,16 +90,16 @@ public abstract class ScopeFormat {
 	// ----- Operator ----
 
 	public static final String SCOPE_OPERATOR_NAME = asVariable("operator_name");
-	
+
 
 	// ------------------------------------------------------------------------
 	//  Scope Format Base
 	// ------------------------------------------------------------------------
 
-	/** The scope format */
+	/** The scope format. */
 	private final String format;
 
-	/** The format, split into components */
+	/** The format, split into components. */
 	private final String[] template;
 
 	private final int[] templatePos;
@@ -125,7 +125,7 @@ public abstract class ScopeFormat {
 
 			String[] parentTemplate = parent.template;
 			int parentLen = parentTemplate.length;
-			
+
 			this.template = new String[parentLen + rawComponents.length - 1];
 			System.arraycopy(parentTemplate, 0, this.template, 0, parentLen);
 			System.arraycopy(rawComponents, 1, this.template, parentLen, rawComponents.length - 1);
@@ -137,14 +137,14 @@ public abstract class ScopeFormat {
 
 		// --- compute the replacement matrix ---
 		// a bit of clumsy Java collections code ;-)
-		
+
 		HashMap<String, Integer> varToValuePos = arrayToMap(variables);
 		List<Integer> templatePos = new ArrayList<>();
 		List<Integer> valuePos = new ArrayList<>();
 
 		for (int i = 0; i < template.length; i++) {
 			final String component = template[i];
-			
+
 			// check if that is a variable
 			if (component != null && component.length() >= 3 &&
 					component.charAt(0) == '<' && component.charAt(component.length() - 1) == '>') {
@@ -188,7 +188,7 @@ public abstract class ScopeFormat {
 	public String toString() {
 		return "ScopeFormat '" + format + '\'';
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -233,7 +233,7 @@ public abstract class ScopeFormat {
 		}
 		return sb.toString();
 	}
-	
+
 	protected static String valueOrNull(Object value) {
 		return (value == null || (value instanceof String && ((String) value).isEmpty())) ?
 				"null" : value.toString();

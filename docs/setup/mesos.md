@@ -184,7 +184,7 @@ This also allows to specify general Flink configuration parameters.
 For example:
 
     bin/mesos-appmaster.sh \
-        -Dmesos.master=master.foobar.org:5050
+        -Dmesos.master=master.foobar.org:5050 \
         -Djobmanager.heap.mb=1024 \
         -Djobmanager.rpc.port=6123 \
         -Djobmanager.web.port=8081 \

@@ -62,7 +62,7 @@ class StateCleaningCountTriggerHarnessTest {
 
     assertEquals(0, testHarness.numStateEntries)
 
-    // 3001 + 2000 >= 3001 register cleanup timer with 6001, and remove timer 3001
+    // 3001 + 2000 >= 3001 register cleanup timer with 6001
     assertEquals(
       TriggerResult.CONTINUE,
       testHarness.processElement(new StreamRecord(1), GlobalWindow.get))
@@ -70,7 +70,7 @@ class StateCleaningCountTriggerHarnessTest {
     // try to trigger onProcessingTime method via 4002, but there is non timer is triggered
     assertEquals(0, testHarness.advanceProcessingTime(4002).size())
 
-    // 4002 + 2000 >= 6001 register cleanup timer via 7002, and remove timer 6001
+    // 4002 + 2000 >= 6001 register cleanup timer via 7002
     assertEquals(
       TriggerResult.CONTINUE,
       testHarness.processElement(new StreamRecord(1), GlobalWindow.get))
@@ -80,8 +80,8 @@ class StateCleaningCountTriggerHarnessTest {
       TriggerResult.CONTINUE,
       testHarness.processElement(new StreamRecord(1), GlobalWindow.get))
 
-    // have one timer 7002
-    assertEquals(1, testHarness.numProcessingTimeTimers)
+    // have two timers 6001 and 7002
+    assertEquals(2, testHarness.numProcessingTimeTimers)
     assertEquals(0, testHarness.numEventTimeTimers)
     assertEquals(2, testHarness.numStateEntries)
     assertEquals(2, testHarness.numStateEntries(GlobalWindow.get))
@@ -115,9 +115,14 @@ class StateCleaningCountTriggerHarnessTest {
     assertEquals(1, testHarness.numStateEntries(GlobalWindow.get))
 
     // try to trigger onProcessingTime method via 7002, and all states are cleared
+    val timesIt = testHarness.advanceProcessingTime(7002).iterator()
+    assertEquals(
+      TriggerResult.CONTINUE,
+      timesIt.next().f1)
+
     assertEquals(
       TriggerResult.FIRE_AND_PURGE,
-      testHarness.advanceProcessingTime(7002).iterator().next().f1)
+      timesIt.next().f1)
 
     assertEquals(0, testHarness.numStateEntries)
   }

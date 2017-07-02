@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference}
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
@@ -849,7 +849,7 @@ class Table(
   def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw TableException("Over-windows for batch tables are currently not supported..")
+      throw TableException("Over-windows for batch tables are currently not supported.")
     }
 
     if (overWindows.size != 1) {
@@ -1003,6 +1003,11 @@ class OverWindowedTable(
       fields,
       table.logicalPlan,
       table.tableEnv)
+
+    if(fields.exists(_.isInstanceOf[WindowProperty])){
+      throw ValidationException(
+        "Window start and end properties are not available for Over windows.")
+    }
 
     val expandedOverFields = resolveOverWindows(expandedFields, overWindows, table.tableEnv)
 

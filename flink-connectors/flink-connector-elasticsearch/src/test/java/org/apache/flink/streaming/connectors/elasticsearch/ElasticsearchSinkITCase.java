@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
@@ -34,6 +33,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,37 +66,6 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 	// -- Tests specific to Elasticsearch 1.x --
 
 	/**
-	 * Tests that the Elasticsearch sink works properly using an embedded node to connect to Elasticsearch.
-	 */
-	@Test
-	public void testEmbeddedNode() throws Exception {
-		final String index = "embedded-node-test-index";
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
-
-		Map<String, String> userConfig = new HashMap<>();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", CLUSTER_NAME);
-		userConfig.put("node.local", "true");
-
-		source.addSink(new ElasticsearchSink<>(
-			userConfig,
-			new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index))
-		);
-
-		env.execute("Elasticsearch Embedded Node Test");
-
-		// verify the results
-		Client client = embeddedNodeEnv.getClient();
-		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
-
-		client.close();
-	}
-
-	/**
 	 * Tests that behaviour of the deprecated {@link IndexRequestBuilder} constructor works properly.
 	 */
 	@Test
@@ -113,7 +82,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 		userConfig.put("cluster.name", CLUSTER_NAME);
 		userConfig.put("node.local", "true");
 
-		List<TransportAddress> transports = Lists.newArrayList();
+		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new LocalTransportAddress("1"));
 
 		source.addSink(new ElasticsearchSink<>(
@@ -146,7 +115,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 		// LocalTransportAddress to connect to a local embedded node
 		userConfig.put("node.local", "true");
 
-		List<TransportAddress> transports = Lists.newArrayList();
+		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new LocalTransportAddress("1"));
 
 		return new ElasticsearchSink<>(

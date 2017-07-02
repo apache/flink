@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.scala
 
-import org.apache.flink.table.api.{OverWindowWithOrderBy, SessionWithGap, SlideWithSize, TumbleWithSize}
+import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
 import org.apache.flink.table.expressions.Expression
 
 /**
@@ -121,6 +121,21 @@ case class PartitionedOver(partitionBy: Array[Expression]) {
     * For batch tables, refer to a timestamp or long attribute.
     */
   def orderBy(orderBy: Expression): OverWindowWithOrderBy = {
-    new OverWindowWithOrderBy(partitionBy, orderBy)
+    OverWindowWithOrderBy(partitionBy, orderBy)
   }
+}
+
+case class OverWindowWithOrderBy(partitionBy: Seq[Expression], orderBy: Expression) {
+
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window.
+    *
+    * @param preceding preceding offset relative to the current row.
+    * @return this over window
+    */
+  def preceding(preceding: Expression): OverWindowWithPreceding = {
+    new OverWindowWithPreceding(partitionBy, orderBy, preceding)
+  }
+
 }

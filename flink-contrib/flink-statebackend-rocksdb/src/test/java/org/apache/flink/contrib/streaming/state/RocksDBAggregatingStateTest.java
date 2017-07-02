@@ -36,8 +36,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import static java.util.Arrays.asList;
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the {@link InternalAggregatingState} implementation on top of RocksDB.

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.util.Preconditions;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
@@ -46,13 +47,13 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 	private final Object lock = new Object();
 
-	/** Connection to the used ZooKeeper quorum */
+	/** Connection to the used ZooKeeper quorum. */
 	private final CuratorFramework client;
 
-	/** Curator recipe to watch changes of a specific ZooKeeper node */
+	/** Curator recipe to watch changes of a specific ZooKeeper node. */
 	private final NodeCache cache;
 
-	/** Listener which will be notified about leader changes */
+	/** Listener which will be notified about leader changes. */
 	private volatile LeaderRetrievalListener leaderListener;
 
 	private String lastLeaderAddress;

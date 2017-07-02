@@ -603,11 +603,11 @@ public class TaskManagerServices {
 	}
 
 	/**
-	 * Validates that all the directories denoted by the strings do actually exist, are proper
+	 * Validates that all the directories denoted by the strings do actually exist or can be created, are proper
 	 * directories (not files), and are writable.
 	 *
 	 * @param tmpDirs The array of directory paths to check.
-	 * @throws IOException Thrown if any of the directories does not exist or is not writable
+	 * @throws IOException Thrown if any of the directories does not exist and cannot be created or is not writable
 	 *                     or is a file, rather than a directory.
 	 */
 	private static void checkTempDirs(String[] tmpDirs) throws IOException {
@@ -615,7 +615,9 @@ public class TaskManagerServices {
 			if (dir != null && !dir.equals("")) {
 				File file = new File(dir);
 				if (!file.exists()) {
-					throw new IOException("Temporary file directory " + file.getAbsolutePath() + " does not exist.");
+					if (!file.mkdirs()) {
+						throw new IOException("Temporary file directory " + file.getAbsolutePath() + " does not exist and could not be created.");
+					}
 				}
 				if (!file.isDirectory()) {
 					throw new IOException("Temporary file directory " + file.getAbsolutePath() + " is not a directory.");

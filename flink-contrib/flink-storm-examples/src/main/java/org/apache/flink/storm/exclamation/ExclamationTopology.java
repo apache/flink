@@ -17,8 +17,6 @@
 
 package org.apache.flink.storm.exclamation;
 
-import org.apache.storm.topology.TopologyBuilder;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
@@ -26,18 +24,21 @@ import org.apache.flink.storm.util.FiniteFileSpout;
 import org.apache.flink.storm.util.FiniteInMemorySpout;
 import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.SimpleOutputFormatter;
+import org.apache.flink.storm.wordcount.util.WordCountData;
+
+import org.apache.storm.topology.TopologyBuilder;
 
 /**
  * Implements the "Exclamation" program that attaches two exclamation marks to every line of a text files in a streaming
  * fashion. The program is constructed as a regular {@link org.apache.storm.generated.StormTopology}.
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * <p>
- * Usage: <code>Exclamation[Local|RemoteByClient|RemoteBySubmitter] &lt;text path&gt;
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>Exclamation[Local|RemoteByClient|RemoteBySubmitter] &lt;text path&gt;
  * &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>construct a regular Storm topology as Flink program</li>
  * <li>make use of the FiniteSpout interface</li>
@@ -45,11 +46,11 @@ import org.apache.flink.storm.util.SimpleOutputFormatter;
  */
 public class ExclamationTopology {
 
-	public final static String spoutId = "source";
-	public final static String firstBoltId = "exclamation1";
-	public final static String secondBoltId = "exclamation2";
-	public final static String sinkId = "sink";
-	private final static OutputFormatter formatter = new SimpleOutputFormatter();
+	private static final String spoutId = "source";
+	private static final String firstBoltId = "exclamation1";
+	private static final String secondBoltId = "exclamation2";
+	private static final String sinkId = "sink";
+	private static final OutputFormatter formatter = new SimpleOutputFormatter();
 
 	public static TopologyBuilder buildTopology() {
 		final TopologyBuilder builder = new TopologyBuilder();

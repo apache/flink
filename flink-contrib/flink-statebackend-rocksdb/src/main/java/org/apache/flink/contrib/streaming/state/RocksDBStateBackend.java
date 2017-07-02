@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
@@ -69,10 +70,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
 
-	/** The number of (re)tries for loading the RocksDB JNI library */
+	/** The number of (re)tries for loading the RocksDB JNI library. */
 	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
-	
+
 	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
@@ -93,23 +94,23 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	/** Base paths for RocksDB directory, as configured. May be null. */
 	private Path[] configuredDbBasePaths;
 
-	/** Base paths for RocksDB directory, as initialized */
+	/** Base paths for RocksDB directory, as initialized. */
 	private File[] initializedDbBasePaths;
 
 	private int nextDirectory;
 
 	// RocksDB options
 
-	/** The pre-configured option settings */
+	/** The pre-configured option settings. */
 	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
 
-	/** The options factory to create the RocksDB options in the cluster */
+	/** The options factory to create the RocksDB options in the cluster. */
 	private OptionsFactory optionsFactory;
 
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized = false;
 
-	/** True if incremental checkpointing is enabled */
+	/** True if incremental checkpointing is enabled. */
 	private boolean enableIncrementalCheckpointing;
 
 
@@ -183,10 +184,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * Creates a new {@code RocksDBStateBackend} that uses the given state backend to store its
 	 * checkpoint data streams. Typically, one would supply a filesystem or database state backend
 	 * here where the snapshots from RocksDB would be stored.
-	 * 
+	 *
 	 * <p>The snapshots of the RocksDB state will be stored using the given backend's
-	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}. 
-	 * 
+	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}.
+	 *
 	 * @param checkpointStreamBackend The backend to store the
 	 */
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {

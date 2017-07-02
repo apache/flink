@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -25,7 +26,7 @@ import org.apache.flink.streaming.api.datastream.SplitStream;
  * a "clean" stream from a Spout/Bolt that declared multiple output streams (after the streams got separated using
  * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector) .split(...)} and
  * {@link SplitStream#select(String...) .select(...)}).
- * 
+ *
  * @param <T>
  */
 public class SplitStreamMapper<T> implements MapFunction<SplitStreamType<T>, T> {

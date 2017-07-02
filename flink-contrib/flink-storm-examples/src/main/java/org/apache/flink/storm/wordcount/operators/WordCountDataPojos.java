@@ -17,12 +17,15 @@
 
 package org.apache.flink.storm.wordcount.operators;
 
+import org.apache.flink.storm.wordcount.util.WordCountData;
+
 import java.io.Serializable;
 
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
-
+/**
+ * Input POJOs for WordCount programs.
+ */
 public class WordCountDataPojos {
-	public static Sentence[] SENTENCES;
+	public static final Sentence[] SENTENCES;
 
 	static {
 		SENTENCES = new Sentence[WordCountData.WORDS.length];
@@ -31,6 +34,9 @@ public class WordCountDataPojos {
 		}
 	}
 
+	/**
+	 * Simple POJO containing a string.
+	 */
 	public static class Sentence implements Serializable {
 		private static final long serialVersionUID = -7336372859203407522L;
 

@@ -108,7 +108,7 @@ public class TextInputFormatTest {
 			}
 			File parentDir = new File("tmp");
 
-			TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI().toString()));
+			TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI()));
 			inputFormat.setNestedFileEnumeration(true);
 			inputFormat.setNumLineSamples(10);
 

@@ -21,6 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.api.{Table, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
@@ -104,6 +105,58 @@ class OverWindowTest extends TableTestBase {
       .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
       .select('c, weightedAvg('b, 'a) over 'w)
     streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
+  }
+
+  @Test
+  def testAccessesWindowProperties(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Window start and end properties are not available for Over windows.")
+
+    table
+    .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
+    .select('c, 'a.count over 'w, 'w.start, 'w.end)
+  }
+
+  @Test
+  def testScalarFunctionsOnOverWindow() = {
+    val weightedAvg = new WeightedAvgWithRetract
+    val plusOne = Func1
+
+    val result = table
+      .window(Over partitionBy 'b orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
+      .select(
+        plusOne('a.sum over 'w as 'wsum) as 'd,
+        ('a.count over 'w).exp(),
+        (weightedAvg('c, 'a) over 'w) + 1,
+        "AVG:".toExpr + (weightedAvg('c, 'a) over 'w),
+        array(weightedAvg('c, 'a) over 'w, 'a.count over 'w))
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamOverAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "b", "c", "proctime")
+          ),
+          term("partitionBy", "b"),
+          term("orderBy", "proctime"),
+          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
+          term("select", "a", "b", "c", "proctime",
+               "SUM(a) AS w0$o0",
+               "COUNT(a) AS w0$o1",
+               "WeightedAvgWithRetract(c, a) AS w0$o2")
+        ),
+        term("select",
+             s"${plusOne.functionIdentifier}(w0$$o0) AS d",
+             "EXP(CAST(w0$o1)) AS _c1",
+             "+(w0$o2, 1) AS _c2",
+             "||('AVG:', CAST(w0$o2)) AS _c3",
+             "ARRAY(w0$o2, w0$o1) AS _c4")
+      )
+    streamUtil.verifyTable(result, expected)
   }
 
   @Test

@@ -17,25 +17,26 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.storm.topology.IRichBolt;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.wordcount.operators.BoltTokenizer;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 import org.apache.flink.storm.wrappers.BoltWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.storm.topology.IRichBolt;
+
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The tokenizer step is performed by a {@link IRichBolt Bolt}.
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * <p>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>use a Bolt within a Flink Streaming program.</li>
  * </ul>

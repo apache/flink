@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.table.OverWindowITCase.RowTimeSourceFunction
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamingWithStateTestBase}
@@ -69,7 +70,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'mycount, 'wAvg)
 
     val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
@@ -110,6 +111,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
+    val plusOne = new JavaFunc0
 
     val windowedTable = table
       .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE following
@@ -117,37 +119,42 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select(
         'a, 'b, 'c,
         'b.sum over 'w,
+        "SUM:".toExpr + ('b.sum over 'w),
         countFun('b) over 'w,
+        (countFun('b) over 'w) + 1,
+        plusOne(countFun('b) over 'w),
+        array('b.avg over 'w, 'b.max over 'w),
         'b.avg over 'w,
         'b.max over 'w,
         'b.min over 'w,
+        ('b.min over 'w).abs(),
         weightAvgFun('b, 'a) over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,1,Hello,6,3,2,3,1,2",
-      "1,2,Hello,6,3,2,3,1,2",
-      "1,3,Hello world,6,3,2,3,1,2",
-      "1,1,Hi,7,4,1,3,1,1",
-      "2,1,Hello,1,1,1,1,1,1",
-      "2,2,Hello world,6,3,2,3,1,2",
-      "2,3,Hello world,6,3,2,3,1,2",
-      "1,4,Hello world,11,5,2,4,1,2",
-      "1,5,Hello world,29,8,3,7,1,3",
-      "1,6,Hello world,29,8,3,7,1,3",
-      "1,7,Hello world,29,8,3,7,1,3",
-      "2,4,Hello world,15,5,3,5,1,3",
-      "2,5,Hello world,15,5,3,5,1,3"
+      "1,1,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2",
+      "1,2,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2",
+      "1,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2",
+      "1,1,Hi,7,SUM:7,4,5,5,[1, 3],1,3,1,1,1",
+      "2,1,Hello,1,SUM:1,1,2,2,[1, 1],1,1,1,1,1",
+      "2,2,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2",
+      "2,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2",
+      "1,4,Hello world,11,SUM:11,5,6,6,[2, 4],2,4,1,1,2",
+      "1,5,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3",
+      "1,6,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3",
+      "1,7,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3",
+      "2,4,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3",
+      "2,5,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3"
     )
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRangeOver(): Unit = {
+  def testProcTimeBoundedPartitionedRowsOver(): Unit = {
 
     val data = List(
       (1, 1L, 0, "Hallo", 1L),
@@ -179,7 +186,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
       .select('a, 'c.sum over 'w, 'c.min over 'w)
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -242,7 +249,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
@@ -305,7 +312,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, 'b, 'a.count over 'w, 'a.sum over 'w)
 
     val result = windowedTable.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink)
+    result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(

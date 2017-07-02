@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.split;
 
-import java.util.Map;
+package org.apache.flink.storm.split;
 
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -27,6 +26,11 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 
+import java.util.Map;
+
+/**
+ * A bolt for splitting an input stream containing numbers based on whether they are even or odd.
+ */
 public class SplitBolt extends BaseRichBolt {
 	private static final long serialVersionUID = -6627606934204267173L;
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.scala.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -29,13 +28,14 @@ import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Product;
 
 /**
@@ -124,8 +124,8 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 	/**
 	 * Configures the format to either allow null values (writing an empty field),
 	 * or to throw an exception when encountering a null field.
-	 * <p>
-	 * by default, null values are allowed.
+	 *
+	 * <p>By default, null values are allowed.
 	 *
 	 * @param allowNulls Flag to indicate whether the output format should accept null values.
 	 */
@@ -147,8 +147,8 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 	 * Configures whether the output format should quote string values. String values are fields
 	 * of type {@link String} and {@link org.apache.flink.types.StringValue}, as well as
 	 * all subclasses of the latter.
-	 * <p>
-	 * By default, strings are not quoted.
+	 *
+	 * <p>By default, strings are not quoted.
 	 *
 	 * @param quoteStrings Flag indicating whether string fields should be quoted.
 	 */
@@ -217,7 +217,6 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 	}
 
 	/**
-	 *
 	 * The purpose of this method is solely to check whether the data type to be processed
 	 * is in fact a tuple type.
 	 */

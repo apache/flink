@@ -25,10 +25,10 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.StringAppendOperator;
 
 /**
- * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}. 
+ * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
  * The various pre-defined choices are configurations that have been empirically
  * determined to be beneficial for performance under different settings.
- * 
+ *
  * <p>Some of these settings are based on experiments by the Flink community, some follow
  * guides from the RocksDB project.
  */
@@ -37,12 +37,12 @@ public enum PredefinedOptions {
 	/**
 	 * Default options for all settings, except that writes are not forced to the
 	 * disk.
-	 * 
+	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
 	 */
 	DEFAULT {
-		
+
 		@Override
 		public DBOptions createDBOptions() {
 			return new DBOptions()
@@ -60,11 +60,11 @@ public enum PredefinedOptions {
 
 	/**
 	 * Pre-defined options for regular spinning hard disks.
-	 * 
+	 *
 	 * <p>This constant configures RocksDB with some options that lead empirically
 	 * to better performance when the machines executing the system use
 	 * regular spinning hard disks.
-	 * 
+	 *
 	 * <p>The following options are set:
 	 * <ul>
 	 *     <li>setCompactionStyle(CompactionStyle.LEVEL)</li>
@@ -74,7 +74,7 @@ public enum PredefinedOptions {
 	 *     <li>setDisableDataSync(true)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
 	 * </ul>
-	 * 
+	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
 	 */
@@ -121,7 +121,7 @@ public enum PredefinedOptions {
 	 *     <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)</li>
 	 *     <li>BlockBasedTableConfigsetBlockSize(128 KBytes)</li>
 	 * </ul>
-	 * 
+	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
 	 */
@@ -161,13 +161,13 @@ public enum PredefinedOptions {
 					);
 		}
 	},
-	
+
 	/**
 	 * Pre-defined options for Flash SSDs.
 	 *
 	 * <p>This constant configures RocksDB with some options that lead empirically
 	 * to better performance when the machines executing the system use SSDs.
-	 * 
+	 *
 	 * <p>The following options are set:
 	 * <ul>
 	 *     <li>setIncreaseParallelism(4)</li>
@@ -175,7 +175,7 @@ public enum PredefinedOptions {
 	 *     <li>setDisableDataSync(true)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
 	 * </ul>
-	 * 
+	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
 	 */
@@ -196,13 +196,13 @@ public enum PredefinedOptions {
 					.setMergeOperator(new StringAppendOperator());
 		}
 	};
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates the {@link DBOptions}for this pre-defined setting.
-	 * 
-	 * @return The pre-defined options object. 
+	 *
+	 * @return The pre-defined options object.
 	 */
 	public abstract DBOptions createDBOptions();
 

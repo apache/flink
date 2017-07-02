@@ -23,6 +23,7 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
@@ -222,6 +223,9 @@ object FunctionCatalog {
     "sign" -> classOf[Sign],
     "round" -> classOf[Round],
     "pi" -> classOf[Pi],
+    "e" -> classOf[E],
+    "rand" -> classOf[Rand],
+    "randInteger" -> classOf[RandInteger],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -387,6 +391,10 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SIGN,
     SqlStdOperatorTable.ROUND,
     SqlStdOperatorTable.PI,
+    SqlStdOperatorTable.RAND,
+    SqlStdOperatorTable.RAND_INTEGER,
+    ScalarSqlFunctions.E,
+
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,
     SqlStdOperatorTable.TUMBLE_START,

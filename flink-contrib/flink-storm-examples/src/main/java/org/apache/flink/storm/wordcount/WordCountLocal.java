@@ -17,35 +17,35 @@
 
 package org.apache.flink.storm.wordcount;
 
+import org.apache.flink.storm.api.FlinkLocalCluster;
+import org.apache.flink.storm.api.FlinkTopology;
+import org.apache.flink.storm.wordcount.util.WordCountData;
+
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.generated.StormTopology;
 import org.apache.storm.topology.TopologyBuilder;
 
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.api.FlinkLocalCluster;
-import org.apache.flink.storm.api.FlinkTopology;
-
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The program is constructed as a regular {@link StormTopology} and submitted to Flink for execution in the
  * same way as to a Storm {@link LocalCluster}.
- * <p>
- * This example shows how to run program directly within Java, thus it cannot be used to submit a {@link StormTopology}
+ *
+ * <p>This example shows how to run program directly within Java, thus it cannot be used to submit a {@link StormTopology}
  * via Flink command line clients (ie, bin/flink).
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * <p>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>run a regular Storm program locally on Flink</li>
  * </ul>
  */
 public class WordCountLocal {
-	public final static String topologyId = "Storm WordCount";
+	private static final String topologyId = "Storm WordCount";
 
 	// *************************************************************************
 	// PROGRAM

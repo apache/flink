@@ -21,7 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.junit.Test;
 
 /**
- * This test checks that the RocksDB native code loader still responds to resetting the
+ * This test checks that the RocksDB native code loader still responds to resetting the init flag.
  */
 public class RocksDBInitResetTest {
 

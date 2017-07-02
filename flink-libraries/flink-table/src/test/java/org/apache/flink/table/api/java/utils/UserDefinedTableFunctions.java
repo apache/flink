@@ -15,12 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.api.java.utils;
 
 import org.apache.flink.table.functions.TableFunction;
 
+/**
+ * Test functions.
+ */
 public class UserDefinedTableFunctions {
 
+	/**
+	 * Emit inputs as long.
+	 */
 	public static class JavaTableFunc0 extends TableFunction<Long> {
 		public void eval(Integer a, Long b, Long c) {
 			collect(a.longValue());

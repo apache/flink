@@ -197,28 +197,21 @@ angular.module('flinkApp')
 # --------------------------------------
 
 .controller 'JobPlanSubtasksController', ($scope, JobsService) ->
+  $scope.aggregate = false
+
   getSubtasks = ->
-    JobsService.getSubtasks($scope.nodeid).then (data) ->
-      $scope.subtasks = data
+    if $scope.aggregate
+      JobsService.getTaskManagers($scope.nodeid).then (data) ->
+        $scope.taskmanagers = data
+    else
+      JobsService.getSubtasks($scope.nodeid).then (data) ->
+        $scope.subtasks = data
 
   if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
     getSubtasks()
 
   $scope.$on 'reload', (event) ->
     getSubtasks() if $scope.nodeid
-
-# --------------------------------------
-
-.controller 'JobPlanTaskManagersController', ($scope, JobsService) ->
-  getTaskManagers = ->
-    JobsService.getTaskManagers($scope.nodeid).then (data) ->
-      $scope.taskmanagers = data
-
-  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
-    getTaskManagers()
-
-  $scope.$on 'reload', (event) ->
-    getTaskManagers() if $scope.nodeid
 
 # --------------------------------------
 

@@ -25,10 +25,15 @@ import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -77,7 +82,7 @@ public class CoGroupedStreams<T1, T2> {
 	private final DataStream<T2> input2;
 
 	/**
-	 * Creates new CoGroped data streams, which are the first step towards building a streaming
+	 * Creates new CoGrouped data streams, which are the first step towards building a streaming
 	 * co-group.
 	 *
 	 * @param input1 The first data stream.
@@ -230,15 +235,12 @@ public class CoGroupedStreams<T1, T2> {
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
 
-			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
-					function,
-					CoGroupFunction.class,
-					true,
-					true,
-					input1.getType(),
-					input2.getType(),
-					"CoGroup",
-					false);
+			TypeInformation<T> resultType = TypeExtractor.getCoGroupReturnTypes(
+				function,
+				input1.getType(),
+				input2.getType(),
+				"CoGroup",
+				false);
 
 			return apply(function, resultType);
 		}
@@ -443,8 +445,7 @@ public class CoGroupedStreams<T1, T2> {
 		private final TypeSerializer<T1> oneSerializer;
 		private final TypeSerializer<T2> twoSerializer;
 
-		public UnionSerializer(TypeSerializer<T1> oneSerializer,
-				TypeSerializer<T2> twoSerializer) {
+		public UnionSerializer(TypeSerializer<T1> oneSerializer, TypeSerializer<T2> twoSerializer) {
 			this.oneSerializer = oneSerializer;
 			this.twoSerializer = twoSerializer;
 		}
@@ -553,12 +554,58 @@ public class CoGroupedStreams<T1, T2> {
 
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
+			return new UnionSerializerConfigSnapshot<>(oneSerializer, twoSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
+			if (configSnapshot instanceof UnionSerializerConfigSnapshot) {
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
+					((UnionSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+
+				CompatibilityResult<T1> oneSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousSerializersAndConfigs.get(0).f0,
+					UnloadableDummyTypeSerializer.class,
+					previousSerializersAndConfigs.get(0).f1,
+					oneSerializer);
+
+				CompatibilityResult<T2> twoSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousSerializersAndConfigs.get(1).f0,
+					UnloadableDummyTypeSerializer.class,
+					previousSerializersAndConfigs.get(1).f1,
+					twoSerializer);
+
+				if (!oneSerializerCompatResult.isRequiresMigration() && !twoSerializerCompatResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else if (oneSerializerCompatResult.getConvertDeserializer() != null && twoSerializerCompatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new UnionSerializer<>(
+							new TypeDeserializerAdapter<>(oneSerializerCompatResult.getConvertDeserializer()),
+							new TypeDeserializerAdapter<>(twoSerializerCompatResult.getConvertDeserializer())));
+				}
+			}
+
+			return CompatibilityResult.requiresMigration();
+		}
+	}
+
+	/**
+	 * The {@link TypeSerializerConfigSnapshot} for the {@link UnionSerializer}.
+	 */
+	public static class UnionSerializerConfigSnapshot<T1, T2> extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public UnionSerializerConfigSnapshot() {}
+
+		public UnionSerializerConfigSnapshot(TypeSerializer<T1> oneSerializer, TypeSerializer<T2> twoSerializer) {
+			super(oneSerializer, twoSerializer);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
 		}
 	}
 

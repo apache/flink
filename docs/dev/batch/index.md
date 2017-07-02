@@ -890,14 +890,12 @@ DataSet<Long> numbers = env.generateSequence(1, 10000000);
 // Read data from a relational database using the JDBC input format
 DataSet<Tuple2<String, Integer> dbData =
     env.createInput(
-      // create and configure input format
       JDBCInputFormat.buildJDBCInputFormat()
                      .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
                      .setDBUrl("jdbc:derby:memory:persons")
                      .setQuery("select name, age from persons")
-                     .finish(),
-      // specify type information for DataSet
-      new TupleTypeInfo(Tuple2.class, STRING_TYPE_INFO, INT_TYPE_INFO)
+                     .setRowTypeInfo(new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
+                     .finish()
     );
 
 // Note: Flink's program compiler needs to infer the data types of the data items which are returned

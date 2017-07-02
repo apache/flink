@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -27,6 +28,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,14 +58,14 @@ public class MetricDumpSerialization {
 
 	/**
 	 * This class encapsulates all serialized metrics and a count for each metric type.
-	 * 
-	 * The counts are stored separately from the metrics since the final count for any given type can only be
+	 *
+	 * <p>The counts are stored separately from the metrics since the final count for any given type can only be
 	 * determined after all metrics of that type were serialized. Storing them together in a single byte[] would
 	 * require an additional copy of all serialized metrics, as you would first have to serialize the metrics into a
 	 * temporary buffer to calculate the counts, write the counts to the final output and copy all metrics from the
 	 * temporary buffer.
-	 * 
-	 * Note that while one could implement the serialization in such a way so that at least 1 byte (a validity flag)
+	 *
+	 * <p>Note that while one could implement the serialization in such a way so that at least 1 byte (a validity flag)
 	 * is written for each metric, this would require more bandwidth due to the sheer number of metrics.
 	 */
 	public static class MetricSerializationResult implements Serializable {
@@ -75,12 +77,12 @@ public class MetricDumpSerialization {
 		public final int numGauges;
 		public final int numMeters;
 		public final int numHistograms;
-		
+
 		public MetricSerializationResult(byte[] serializedMetrics, int numCounters, int numGauges, int numMeters, int numHistograms) {
 			Preconditions.checkNotNull(serializedMetrics);
 			Preconditions.checkArgument(numCounters >= 0);
 			Preconditions.checkArgument(numGauges >= 0);
-			Preconditions.checkArgument(numMeters >= 0); 
+			Preconditions.checkArgument(numMeters >= 0);
 			Preconditions.checkArgument(numHistograms >= 0);
 			this.serializedMetrics = serializedMetrics;
 			this.numCounters = numCounters;
@@ -94,18 +96,21 @@ public class MetricDumpSerialization {
 	// Serialization
 	//-------------------------------------------------------------------------
 
+	/**
+	 * Serializes a set of metrics into a {@link MetricSerializationResult}.
+	 */
 	public static class MetricDumpSerializer {
 
 		private DataOutputSerializer buffer = new DataOutputSerializer(1024 * 32);
 
 		/**
 		 * Serializes the given metrics and returns the resulting byte array.
-		 * 
-		 * Should a {@link Metric} accessed in this method throw an exception it will be omitted from the returned
+		 *
+		 * <p>Should a {@link Metric} accessed in this method throw an exception it will be omitted from the returned
 		 * {@link MetricSerializationResult}.
-		 * 
-		 * If the serialization of any primitive or String fails then the returned {@link MetricSerializationResult}
-		 * is partially corrupted. Such a result can be deserialized safely by 
+		 *
+		 * <p>If the serialization of any primitive or String fails then the returned {@link MetricSerializationResult}
+		 * is partially corrupted. Such a result can be deserialized safely by
 		 * {@link MetricDumpDeserializer#deserialize(MetricSerializationResult)}; however only metrics that were
 		 * fully serialized before the failure will be returned.
 		 *
@@ -263,6 +268,9 @@ public class MetricDumpSerialization {
 	// Deserialization
 	//-------------------------------------------------------------------------
 
+	/**
+	 * Deserializer for reading a list of {@link MetricDump MetricDumps} from a {@link MetricSerializationResult}.
+	 */
 	public static class MetricDumpDeserializer {
 		/**
 		 * De-serializes metrics from the given byte array and returns them as a list of {@link MetricDump}.
@@ -310,7 +318,6 @@ public class MetricDumpSerialization {
 			return metrics;
 		}
 	}
-
 
 	private static MetricDump.CounterDump deserializeCounter(DataInputView dis) throws IOException {
 		QueryScopeInfo scope = deserializeMetricInfo(dis);
