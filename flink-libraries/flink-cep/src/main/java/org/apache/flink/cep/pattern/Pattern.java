@@ -366,8 +366,9 @@ public class Pattern<T, F extends T> {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
 		this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
-		if (from == 0) {
+		if (from <= 0) {
 			this.quantifier.optional();
+			from = 1;
 		}
 		this.times = Times.of(from, to);
 		return this;
