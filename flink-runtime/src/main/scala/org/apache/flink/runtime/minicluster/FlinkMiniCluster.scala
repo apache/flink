@@ -310,7 +310,7 @@ abstract class FlinkMiniCluster(
           "The FlinkMiniCluster has not been started yet.")
       }
     } else {
-      JobClient.startJobClientActorSystem(originalConfiguration)
+      JobClient.startJobClientActorSystem(originalConfiguration, hostname)
     }
   }
 
