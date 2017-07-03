@@ -29,7 +29,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -81,11 +80,21 @@ public class JobManagerCleanupITCase {
 	}
 
 	/**
+	 * Specifies which test case to run in {@link #testBlobServerCleanup(TestCase)}.
+	 */
+	private enum TestCase {
+		JOB_FINISHES_SUCESSFULLY,
+		JOB_IS_CANCELLED,
+		JOB_FAILS,
+		JOB_SUBMISSION_FAILS
+	}
+
+	/**
 	 * Test cleanup for a job that finishes ordinarily.
 	 */
 	@Test
 	public void testBlobServerCleanupFinishedJob() throws IOException {
-		testBlobServerCleanup(ExecutionState.FINISHED);
+		testBlobServerCleanup(TestCase.JOB_FINISHES_SUCESSFULLY);
 	}
 
 	/**
@@ -93,7 +102,7 @@ public class JobManagerCleanupITCase {
 	 */
 	@Test
 	public void testBlobServerCleanupCancelledJob() throws IOException {
-		testBlobServerCleanup(ExecutionState.CANCELED);
+		testBlobServerCleanup(TestCase.JOB_IS_CANCELLED);
 	}
 
 	/**
@@ -102,10 +111,19 @@ public class JobManagerCleanupITCase {
 	 */
 	@Test
 	public void testBlobServerCleanupFailedJob() throws IOException {
-		testBlobServerCleanup(ExecutionState.FAILED);
+		testBlobServerCleanup(TestCase.JOB_FAILS);
 	}
 
-	private void testBlobServerCleanup(final ExecutionState finalState) throws IOException {
+	/**
+	 * Test cleanup for a job that fails job submission (emulated by an additional BLOB not being
+	 * present).
+	 */
+	@Test
+	public void testBlobServerCleanupFailedSubmission() throws IOException {
+		testBlobServerCleanup(TestCase.JOB_SUBMISSION_FAILS);
+	}
+
+	private void testBlobServerCleanup(final TestCase testCase) throws IOException {
 		final int num_tasks = 2;
 		final File blobBaseDir = tmpFolder.newFolder();
 
@@ -145,7 +163,7 @@ public class JobManagerCleanupITCase {
 						// Create a task
 
 						JobVertex source = new JobVertex("Source");
-						if (finalState == ExecutionState.FAILED || finalState == ExecutionState.CANCELED) {
+						if (testCase == TestCase.JOB_FAILS || testCase == TestCase.JOB_IS_CANCELLED) {
 							source.setInvokableClass(FailingBlockingInvokable.class);
 						} else {
 							source.setInvokableClass(NoOpInvokable.class);
@@ -162,7 +180,8 @@ public class JobManagerCleanupITCase {
 
 						// upload a blob
 						BlobKey key1;
-						bc = new BlobClient(new InetSocketAddress("localhost", blobPort), config);
+						bc = new BlobClient(new InetSocketAddress("localhost", blobPort),
+							config);
 						try {
 							key1 = bc.put(jid, new byte[10]);
 						} finally {
@@ -170,35 +189,43 @@ public class JobManagerCleanupITCase {
 						}
 						jobGraph.addBlob(key1);
 
+						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
+							// add an invalid key so that the submission fails
+							jobGraph.addBlob(new BlobKey());
+						}
+
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
 							new JobManagerMessages.SubmitJob(
 								jobGraph,
 								ListeningBehaviour.EXECUTION_RESULT),
 							testActorGateway);
-						expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
-
-
-						if (finalState == ExecutionState.FAILED) {
-							// fail a task so that the job is going to be recovered (we actually do not
-							// need the blocking part of the invokable and can start throwing right away)
-							FailingBlockingInvokable.unblock();
-
-							// job will get restarted, BlobCache may re-download the BLOB if already deleted
-							// then the tasks will fail again and the restart strategy will finalise the job
-
-							expectMsgClass(JobManagerMessages.JobResultFailure.class);
-						} else if (finalState == ExecutionState.CANCELED) {
-							jobManagerGateway.tell(
-								new JobManagerMessages.CancelJob(jid),
-								testActorGateway);
-							expectMsgClass(JobManagerMessages.CancellationResponse.class);
-
-							// job will be cancelled and everything should be cleaned up
-
+						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							expectMsgClass(JobManagerMessages.JobResultFailure.class);
 						} else {
-							expectMsgClass(JobManagerMessages.JobResultSuccess.class);
+							expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+
+							if (testCase == TestCase.JOB_FAILS) {
+								// fail a task so that the job is going to be recovered (we actually do not
+								// need the blocking part of the invokable and can start throwing right away)
+								FailingBlockingInvokable.unblock();
+
+								// job will get restarted, BlobCache may re-download the BLOB if already deleted
+								// then the tasks will fail again and the restart strategy will finalise the job
+
+								expectMsgClass(JobManagerMessages.JobResultFailure.class);
+							} else if (testCase == TestCase.JOB_IS_CANCELLED) {
+								jobManagerGateway.tell(
+									new JobManagerMessages.CancelJob(jid),
+									testActorGateway);
+								expectMsgClass(JobManagerMessages.CancellationResponse.class);
+
+								// job will be cancelled and everything should be cleaned up
+
+								expectMsgClass(JobManagerMessages.JobResultFailure.class);
+							} else {
+								expectMsgClass(JobManagerMessages.JobResultSuccess.class);
+							}
 						}
 
 						// both BlobServer and BlobCache should eventually delete all files

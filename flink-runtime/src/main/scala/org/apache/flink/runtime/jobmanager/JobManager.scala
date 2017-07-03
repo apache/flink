@@ -1338,7 +1338,7 @@ class JobManager(
         case t: Throwable =>
           log.error(s"Failed to submit job $jobId ($jobName)", t)
 
-          libraryCacheManager.unregisterJob(jobId)
+          libraryCacheManager.getBlobService.cleanupJob(jobId)
           currentJobs.remove(jobId)
 
           if (executionGraph != null) {
