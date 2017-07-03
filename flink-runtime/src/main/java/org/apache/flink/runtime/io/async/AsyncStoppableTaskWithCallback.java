@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.async;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @param <V> return type of the callable function
@@ -36,13 +37,21 @@ public class AsyncStoppableTaskWithCallback<V> extends FutureTask<V> {
 
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
-		stoppableCallbackCallable.stop();
-		return super.cancel(mayInterruptIfRunning);
+		final boolean cancel = super.cancel(mayInterruptIfRunning);
+		if (cancel) {
+			stoppableCallbackCallable.stop();
+			// this is where we report done() for the cancel case, after calling stop().
+			stoppableCallbackCallable.done(true);
+		}
+		return cancel;
 	}
 
 	@Override
 	protected void done() {
-		stoppableCallbackCallable.done(isCancelled());
+		// we suppress forwarding if we have not been canceled, because the cancel case will call to this method separately.
+		if (!isCancelled()) {
+			stoppableCallbackCallable.done(false);
+		}
 	}
 
 	public static <V> AsyncStoppableTaskWithCallback<V> from(StoppableCallbackCallable<V> callable) {
