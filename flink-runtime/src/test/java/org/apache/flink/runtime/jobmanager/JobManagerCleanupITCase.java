@@ -47,6 +47,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -205,12 +206,12 @@ public class JobManagerCleanupITCase {
 						File[] blobDirs = blobBaseDir.listFiles(new FilenameFilter() {
 							@Override
 							public boolean accept(File dir, String name) {
-								return dir.getName().startsWith("blobStore-");
+								return name.startsWith("blobStore-");
 							}
 						});
 						assertNotNull(blobDirs);
 						for (File blobDir : blobDirs) {
-							waitForEmptyBlobDir(blobDir);
+							waitForEmptyBlobDir(blobDir, remaining());
 						}
 
 					} catch (Exception e) {
@@ -242,20 +243,27 @@ public class JobManagerCleanupITCase {
 	 * @param blobDir
 	 * 		directory of a {@link org.apache.flink.runtime.blob.BlobServer} or {@link
 	 * 		org.apache.flink.runtime.blob.BlobCache}
+	 * @param remaining
+	 * 		remaining time for this test
 	 *
 	 * @see org.apache.flink.runtime.blob.BlobUtils
 	 */
-	private static void waitForEmptyBlobDir(File blobDir) {
-		while (true) {
+	private static void waitForEmptyBlobDir(File blobDir, FiniteDuration remaining)
+		throws InterruptedException {
+		long deadline = System.currentTimeMillis() + remaining.toMillis();
+		do {
 			String[] blobDirContents = blobDir.list(new FilenameFilter() {
 				@Override
 				public boolean accept(File dir, String name) {
-					return dir.getName().startsWith("job_");
+					return name.startsWith("job_");
 				}
 			});
 			if (blobDirContents == null || blobDirContents.length == 0) {
-				break;
+				return;
 			}
-		}
+			Thread.sleep(100);
+		} while (System.currentTimeMillis() < deadline);
+
+		fail("Timeout while waiting for " + blobDir.getAbsolutePath() + " to become empty.");
 	}
 }
