@@ -169,36 +169,19 @@ class ScalaShellITCase extends TestLogger {
   def testSubmissionOfExternalLibraryBatch: Unit = {
     val input =
       """
-         import org.apache.flink.ml.math._
-         val denseVectors = benv.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
-         denseVectors.print()
+         import org.apache.flink.api.scala.jar.TestingData
+         val source = benv.fromCollection(TestingData.elements)
+         source.print()
       """.stripMargin
 
-    // find jar file that contains the ml code
-    var externalJar = ""
-    val folder = findLibraryFolder(
-      "../flink-libraries/flink-ml/target/",
-      "../../flink-libraries/flink-ml/target/")
-
-    val listOfFiles = folder.listFiles()
-
-    for (i <- listOfFiles.indices) {
-      val filename: String = listOfFiles(i).getName
-      if (!filename.contains("test") && !filename.contains("original") && filename.contains(
-        ".jar")) {
-        externalJar = listOfFiles(i).getAbsolutePath
-      }
-    }
-
-    assert(externalJar != "")
-
-    val output: String = processInShell(input, Option(externalJar))
+    val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("error"))
     Assert.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("\nDenseVector(1.0, 2.0, 3.0)"))
+
+    Assert.assertTrue(output.contains("\nHELLO 42"))
   }
 
   /** Submit external library */
@@ -206,37 +189,19 @@ class ScalaShellITCase extends TestLogger {
   def testSubmissionOfExternalLibraryStream: Unit = {
     val input =
       """
-        import org.apache.flink.ml.math._
-        val denseVectors = senv.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
-        denseVectors.print()
+        import org.apache.flink.api.scala.jar.TestingData
+        val source = senv.fromCollection(TestingData.elements)
+        source.print()
         senv.execute
       """.stripMargin
 
-    // find jar file that contains the ml code
-    var externalJar = ""
-    val folder = findLibraryFolder(
-      "../flink-libraries/flink-ml/target/",
-      "../../flink-libraries/flink-ml/target/")
-
-    val listOfFiles = folder.listFiles()
-
-    for (i <- listOfFiles.indices) {
-      val filename: String = listOfFiles(i).getName
-      if (!filename.contains("test") && !filename.contains("original") && filename.contains(
-        ".jar")) {
-        externalJar = listOfFiles(i).getAbsolutePath
-      }
-    }
-
-    assert(externalJar != "")
-
-    val output: String = processInShell(input, Option(externalJar))
+    val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("error"))
     Assert.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("\nDenseVector(1.0, 2.0, 3.0)"))
+    Assert.assertTrue(output.contains("\nHELLO 42"))
   }
 
 
@@ -412,15 +377,5 @@ object ScalaShellITCase {
         out.toString + stdout
       case _ => throw new IllegalStateException("The cluster has not been started.")
     }
-  }
-
-  def findLibraryFolder(paths: String*): File = {
-    for (path <- paths) {
-      val folder = new File(path)
-      if (folder.exists()) {
-        return folder
-      }
-    }
-    throw new RuntimeException("Library folder not found in any of the supplied paths!")
   }
 }
