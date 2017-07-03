@@ -521,7 +521,7 @@ public class BlobServer extends Thread implements BlobService {
 		try {
 			// delete locally
 			try {
-				FileUtils.deleteDirectory(storageDir);
+				FileUtils.deleteDirectory(jobDir);
 			} catch (IOException e) {
 				LOG.warn("Failed to locally delete BLOB storage directory at " +
 					jobDir.getAbsolutePath(), e);
