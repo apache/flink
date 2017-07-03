@@ -36,7 +36,6 @@ import java.util.Collection;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * A few tests for the deferred ref-counting based cleanup inside the {@link BlobCache}.
@@ -125,10 +124,6 @@ public class BlobCacheCleanupTest {
 			checkFileCountForJob(0, jobId, cache);
 			// server should be unaffected
 			checkFileCountForJob(2, jobId, server);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (cache != null) {
@@ -238,10 +233,6 @@ public class BlobCacheCleanupTest {
 			checkFileCountForJob(0, jobId, cache);
 			// server should be unaffected
 			checkFileCountForJob(2, jobId, server);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (cache != null) {

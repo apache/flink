@@ -124,10 +124,6 @@ public class BlobLibraryCacheManagerTest {
 			// server should be unaffected
 			checkFileCountForJob(2, jobId, server);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			if (libraryCacheManager != null) {
 				try {
@@ -204,10 +200,6 @@ public class BlobLibraryCacheManagerTest {
 
 			server.cleanupJob(jobId);
 			checkFileCountForJob(0, jobId, server);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (libraryCacheManager != null) {

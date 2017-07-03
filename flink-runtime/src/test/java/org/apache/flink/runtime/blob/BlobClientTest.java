@@ -208,7 +208,7 @@ public class BlobClientTest {
 	 * Tests the PUT/GET operations for content-addressable buffers.
 	 */
 	@Test
-	public void testContentAddressableBuffer() {
+	public void testContentAddressableBuffer() throws IOException {
 
 		BlobClient client = null;
 
@@ -254,10 +254,6 @@ public class BlobClientTest {
 				// expected
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			if (client != null) {
 				try {
@@ -279,7 +275,7 @@ public class BlobClientTest {
 	 * Tests the PUT/GET operations for content-addressable streams.
 	 */
 	@Test
-	public void testContentAddressableStream() {
+	public void testContentAddressableStream() throws IOException {
 
 		BlobClient client = null;
 		InputStream is = null;
@@ -312,10 +308,6 @@ public class BlobClientTest {
 			validateGet(is, testFile);
 			is = client.get(jobId, receivedKey);
 			validateGet(is, testFile);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (is != null) {

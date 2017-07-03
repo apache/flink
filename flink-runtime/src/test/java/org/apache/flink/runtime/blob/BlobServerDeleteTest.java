@@ -20,7 +20,6 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -64,7 +63,7 @@ public class BlobServerDeleteTest extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
-	public void testDeleteSingleByBlobKey() {
+	public void testDeleteSingleByBlobKey() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 		BlobStore blobStore = new VoidBlobStore();
@@ -132,10 +131,6 @@ public class BlobServerDeleteTest extends TestLogger {
 				// expected
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			cleanup(server, client);
 		}
@@ -154,16 +149,16 @@ public class BlobServerDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteAlreadyDeletedNoJob() {
+	public void testDeleteAlreadyDeletedNoJob() throws IOException {
 		testDeleteAlreadyDeleted(null);
 	}
 
 	@Test
-	public void testDeleteAlreadyDeletedForJob() {
+	public void testDeleteAlreadyDeletedForJob() throws IOException {
 		testDeleteAlreadyDeleted(new JobID());
 	}
 
-	private void testDeleteAlreadyDeleted(final JobID jobId) {
+	private void testDeleteAlreadyDeleted(final JobID jobId) throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 		BlobStore blobStore = new VoidBlobStore();
@@ -202,10 +197,6 @@ public class BlobServerDeleteTest extends TestLogger {
 				server.delete(jobId, key);
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			cleanup(server, client);
 		}
@@ -220,16 +211,16 @@ public class BlobServerDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteFailsNoJob() {
+	public void testDeleteFailsNoJob() throws IOException {
 		testDeleteFails(null);
 	}
 
 	@Test
-	public void testDeleteFailsForJob() {
+	public void testDeleteFailsForJob() throws IOException {
 		testDeleteFails(new JobID());
 	}
 
-	private void testDeleteFails(final JobID jobId) {
+	private void testDeleteFails(final JobID jobId) throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		BlobServer server = null;
@@ -276,9 +267,6 @@ public class BlobServerDeleteTest extends TestLogger {
 			} else {
 				server.getFile(jobId, key);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			if (blobFile != null && directory != null) {
 				//noinspection ResultOfMethodCallIgnored
@@ -340,10 +328,6 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			// calling a second time should not fail
 			server.cleanupJob(jobId2);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (server != null) {
