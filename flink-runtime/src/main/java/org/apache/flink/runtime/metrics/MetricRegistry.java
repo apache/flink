@@ -285,19 +285,27 @@ public class MetricRegistry {
 			if (isShutdown()) {
 				LOG.warn("Cannot register metric, because the MetricRegistry has already been shut down.");
 			} else {
-				try {
-					if (reporters != null) {
-						for (int i = 0; i < reporters.size(); i++) {
-							MetricReporter reporter = reporters.get(i);
+				if (reporters != null) {
+					for (int i = 0; i < reporters.size(); i++) {
+						MetricReporter reporter = reporters.get(i);
+						try {
 							if (reporter != null) {
 								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
 								reporter.notifyOfAddedMetric(metric, metricName, front);
 							}
+						} catch (Exception e) {
+							LOG.warn("Error while registering metric.", e);
 						}
 					}
+				}
+				try {
 					if (queryService != null) {
 						MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
 					}
+				} catch (Exception e) {
+					LOG.warn("Error while registering metric.", e);
+				}
+				try {
 					if (metric instanceof View) {
 						if (viewUpdater == null) {
 							viewUpdater = new ViewUpdater(executor);
@@ -305,7 +313,7 @@ public class MetricRegistry {
 						viewUpdater.notifyOfAddedView((View) metric);
 					}
 				} catch (Exception e) {
-					LOG.error("Error while registering metric.", e);
+					LOG.warn("Error while registering metric.", e);
 				}
 			}
 		}
@@ -323,26 +331,34 @@ public class MetricRegistry {
 			if (isShutdown()) {
 				LOG.warn("Cannot unregister metric, because the MetricRegistry has already been shut down.");
 			} else {
-				try {
-					if (reporters != null) {
-						for (int i = 0; i < reporters.size(); i++) {
-							MetricReporter reporter = reporters.get(i);
+				if (reporters != null) {
+					for (int i = 0; i < reporters.size(); i++) {
+						try {
+						MetricReporter reporter = reporters.get(i);
 							if (reporter != null) {
 								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
 								reporter.notifyOfRemovedMetric(metric, metricName, front);
 							}
+						} catch (Exception e) {
+							LOG.warn("Error while registering metric.", e);
 						}
 					}
+				}
+				try {
 					if (queryService != null) {
 						MetricQueryService.notifyOfRemovedMetric(queryService, metric);
 					}
+				} catch (Exception e) {
+					LOG.warn("Error while registering metric.", e);
+				}
+				try {
 					if (metric instanceof View) {
 						if (viewUpdater != null) {
 							viewUpdater.notifyOfRemovedView((View) metric);
 						}
 					}
 				} catch (Exception e) {
-					LOG.error("Error while registering metric.", e);
+					LOG.warn("Error while registering metric.", e);
 				}
 			}
 		}

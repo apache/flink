@@ -28,9 +28,11 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
@@ -402,6 +404,68 @@ public class MetricRegistryTest extends TestLogger {
 			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
 			assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
 			numCorrectDelimitersForUnregister++;
+		}
+	}
+
+	/**
+	 * Reporter that exposes the name and metric instance of the last metric that was added or removed.
+	 */
+	protected static class TestReporter9 extends TestReporter {
+		static Metric addedMetric;
+		static String addedMetricName;
+
+		static Metric removedMetric;
+		static String removedMetricName;
+
+		@Override
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+			addedMetric = metric;
+			addedMetricName = metricName;
+		}
+
+		@Override
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+			removedMetric = metric;
+			removedMetricName = metricName;
+		}
+	}
+
+	@Test
+	public void testExceptionIsolation() throws Exception {
+
+		Configuration config = new Configuration();
+		config.setString(MetricOptions.REPORTERS_LIST, "test1,test2");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, FailingReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter9.class.getName());
+
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+
+		Counter metric = new SimpleCounter();
+		registry.register(metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
+
+		assertEquals(metric, TestReporter9.addedMetric);
+		assertEquals("counter", TestReporter9.addedMetricName);
+
+		registry.unregister(metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
+
+		assertEquals(metric, TestReporter9.removedMetric);
+		assertEquals("counter", TestReporter9.removedMetricName);
+
+		registry.shutdown();
+	}
+
+	/**
+	 * Reporter that throws an exception when it is notified of an added or removed metric.
+	 */
+	protected static class FailingReporter extends TestReporter {
+		@Override
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+			throw new RuntimeException();
+		}
+
+		@Override
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+			throw new RuntimeException();
 		}
 	}
 }

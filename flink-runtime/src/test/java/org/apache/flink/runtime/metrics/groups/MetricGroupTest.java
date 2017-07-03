@@ -164,8 +164,8 @@ public class MetricGroupTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	
-	private static class DummyAbstractMetricGroup extends AbstractMetricGroup {
+
+	public static class DummyAbstractMetricGroup extends AbstractMetricGroup {
 
 		public DummyAbstractMetricGroup(MetricRegistry registry) {
 			super(registry, new String[0], null);
