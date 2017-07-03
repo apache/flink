@@ -45,7 +45,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -54,8 +53,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -757,36 +754,9 @@ public class CliFrontend {
 						"Usage: bin/flink savepoint -d <savepoint-path>");
 			}
 
-			String jarFile = options.getJarFilePath();
-
 			ActorGateway jobManager = getJobManagerGateway(options);
 
-			List<BlobKey> blobKeys = null;
-			if (jarFile != null) {
-				logAndSysout("Disposing savepoint '" + savepointPath + "' with JAR " + jarFile + ".");
-
-				List<File> libs = null;
-				try {
-					libs = PackagedProgram.extractContainedLibraries(new File(jarFile).toURI().toURL());
-					if (!libs.isEmpty()) {
-						List<Path> libPaths = new ArrayList<>(libs.size());
-						for (File f : libs) {
-							libPaths.add(new Path(f.toURI()));
-						}
-
-						logAndSysout("Uploading JAR files.");
-						LOG.debug("JAR files: " + libPaths);
-						blobKeys = BlobClient.uploadJarFiles(jobManager, clientTimeout, config, libPaths);
-						LOG.debug("Blob keys: " + blobKeys.toString());
-					}
-				} finally {
-					if (libs != null) {
-						PackagedProgram.deleteExtractedLibraries(libs);
-					}
-				}
-			} else {
-				logAndSysout("Disposing savepoint '" + savepointPath + "'.");
-			}
+			logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 
 			Object msg = new DisposeSavepoint(savepointPath);
 			Future<Object> response = jobManager.ask(msg, clientTimeout);
