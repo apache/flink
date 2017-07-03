@@ -116,13 +116,13 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition) {
+	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition, long timeout) {
 		List<ConsumerRecord<K, V>> result = new ArrayList<>();
 		KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties);
 		consumer.subscribe(new TopicPartition(topic, partition));
 
 		while (true) {
-			Map<String, ConsumerRecords<K, V>> topics = consumer.poll(1000);
+			Map<String, ConsumerRecords<K, V>> topics = consumer.poll(timeout);
 			if (topics == null || !topics.containsKey(topic)) {
 				break;
 			}

@@ -108,7 +108,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition) {
+	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition, long timeout) {
 		List<ConsumerRecord<K, V>> result = new ArrayList<>();
 		KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties);
 		consumer.assign(Arrays.asList(new TopicPartition(topic, partition)));
@@ -116,7 +116,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		while (true) {
 			boolean processedAtLeastOneRecord = false;
 
-			Iterator<ConsumerRecord<K, V>> iterator = consumer.poll(1000).iterator();
+			Iterator<ConsumerRecord<K, V>> iterator = consumer.poll(timeout).iterator();
 			while (iterator.hasNext()) {
 				ConsumerRecord<K, V> record = iterator.next();
 				result.add(record);

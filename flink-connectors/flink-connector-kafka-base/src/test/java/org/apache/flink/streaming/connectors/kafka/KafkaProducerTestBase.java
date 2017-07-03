@@ -53,6 +53,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -279,23 +280,49 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		kafkaServer.restartBroker(leaderId);
 
 		// assert that before failure we successfully snapshot/flushed all expected elements
-		assertAtLeastOnceForTopic(properties, topic, partition, ImmutableSet.copyOf(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot)));
+		assertAtLeastOnceForTopic(
+				properties,
+				topic,
+				partition,
+				ImmutableSet.copyOf(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot)),
+				30000L);
 
 		deleteTestTopic(topic);
 	}
 
-	private void assertAtLeastOnceForTopic(Properties properties, String topic, int partition, Set<Integer> expectedElements) throws Exception {
-		properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
-		properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+	/**
+	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
+	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
+	 */
+	private void assertAtLeastOnceForTopic(
+			Properties properties,
+			String topic,
+			int partition,
+			Set<Integer> expectedElements,
+			long timeoutMillis) throws Exception {
 
-		Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition);
+		long startMillis = System.currentTimeMillis();
+		Set<Integer> actualElements = new HashSet<>();
 
-		ImmutableSet.Builder<Integer> actualElements = ImmutableSet.builder();
-		for (ConsumerRecord<Integer, Integer> record : records) {
-			actualElements.add(record.value());
+		// until we timeout...
+		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
+			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+
+			// query kafka for new records ...
+			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
+
+			for (ConsumerRecord<Integer, Integer> record : records) {
+				actualElements.add(record.value());
+			}
+
+			// succeed if we got all expectedElements
+			if (actualElements.containsAll(expectedElements)) {
+				return;
+			}
 		}
 
-		assertEquals(expectedElements, actualElements.build());
+		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
 	}
 
 	private List<Integer> getIntegersSequence(int size) {
