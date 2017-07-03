@@ -191,7 +191,7 @@ object FlinkRuleSets {
     DataStreamUnionRule.INSTANCE,
     DataStreamValuesRule.INSTANCE,
     DataStreamCorrelateRule.INSTANCE,
-    DataStreamRowStreamJoinRule.INSTANCE,
+    DataStreamWindowJoinRule.INSTANCE,
     StreamTableSourceScanRule.INSTANCE
   )
 

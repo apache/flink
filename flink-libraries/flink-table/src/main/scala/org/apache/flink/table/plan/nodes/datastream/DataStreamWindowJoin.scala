@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
@@ -27,14 +28,15 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonJoin
+import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.join.{JoinUtil, ProcTimeInnerJoin}
+import org.apache.flink.table.runtime.join.{ProcTimeWindowInnerJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
   */
-class DataStreamRowStreamJoin(
+class DataStreamWindowJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     leftNode: RelNode,
@@ -44,15 +46,19 @@ class DataStreamRowStreamJoin(
     leftSchema: RowSchema,
     rightSchema: RowSchema,
     schema: RowSchema,
+    timeType: RelDataType,
+    leftLowerBound: Long,
+    leftUpperBound: Long,
+    remainCondition: Option[RexNode],
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
-  with CommonJoin
-  with DataStreamRel {
+    with CommonJoin
+    with DataStreamRel {
 
   override def deriveRowType() = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamRowStreamJoin(
+    new DataStreamWindowJoin(
       cluster,
       traitSet,
       inputs.get(0),
@@ -62,23 +68,28 @@ class DataStreamRowStreamJoin(
       leftSchema,
       rightSchema,
       schema,
+      timeType,
+      leftLowerBound,
+      leftUpperBound,
+      remainCondition,
       ruleDescription)
   }
 
   override def toString: String = {
-
-    s"${joinTypeToString(joinType)}" +
-      s"(condition: (${joinConditionToString(schema.logicalType,
-        joinCondition, getExpressionString)}), " +
-      s"select: (${joinSelectionToString(schema.logicalType)}))"
+    joinToString(
+      schema.logicalType,
+      joinCondition,
+      joinType,
+      getExpressionString)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .item("condition", joinConditionToString(schema.logicalType,
-        joinCondition, getExpressionString))
-      .item("select", joinSelectionToString(schema.logicalType))
-      .item("joinType", joinTypeToString(joinType))
+    joinExplainTerms(
+      super.explainTerms(pw),
+      schema.logicalType,
+      joinCondition,
+      joinType,
+      getExpressionString)
   }
 
   override def translateToPlan(
@@ -87,35 +98,31 @@ class DataStreamRowStreamJoin(
 
     val config = tableEnv.getConfig
 
-    // get the equality keys and other condition
-    val joinInfo = JoinInfo.of(leftNode, rightNode, joinCondition)
-    val leftKeys = joinInfo.leftKeys.toIntArray
-    val rightKeys = joinInfo.rightKeys.toIntArray
-    val otherCondition = joinInfo.getRemaining(cluster.getRexBuilder)
-
-    // analyze time boundary and time predicate type(proctime/rowtime)
-    val (timeType, leftStreamWindowSize, rightStreamWindowSize, remainCondition) =
-      JoinUtil.analyzeTimeBoundary(
-        otherCondition,
-        leftSchema.logicalType.getFieldCount,
-        leftSchema.physicalType.getFieldCount,
-        schema.logicalType,
-        cluster.getRexBuilder,
-        config)
+    val leftIsAccRetract = DataStreamRetractionRules.isAccRetract(left)
+    val rightIsAccRetract = DataStreamRetractionRules.isAccRetract(right)
+    if (leftIsAccRetract || rightIsAccRetract) {
+      throw new TableException(
+        "Retraction on stream window join is not supported yet.")
+    }
 
     val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
     val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
+    // get the equality keys and other condition
+    val joinInfo = JoinInfo.of(leftNode, rightNode, joinCondition)
+    val leftKeys = joinInfo.leftKeys.toIntArray
+    val rightKeys = joinInfo.rightKeys.toIntArray
+
     // generate join function
     val joinFunction =
-      JoinUtil.generateJoinFunction(
-        config,
-        joinType,
-        leftSchema.physicalTypeInfo,
-        rightSchema.physicalTypeInfo,
-        schema,
-        remainCondition,
-        ruleDescription)
+    WindowJoinUtil.generateJoinFunction(
+      config,
+      joinType,
+      leftSchema.physicalTypeInfo,
+      rightSchema.physicalTypeInfo,
+      schema,
+      remainCondition,
+      ruleDescription)
 
     joinType match {
       case JoinRelType.INNER =>
@@ -123,8 +130,6 @@ class DataStreamRowStreamJoin(
           case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
             // Proctime JoinCoProcessFunction
             createProcTimeInnerJoinFunction(
-              leftStreamWindowSize,
-              rightStreamWindowSize,
               leftDataStream,
               rightDataStream,
               joinFunction.name,
@@ -150,8 +155,6 @@ class DataStreamRowStreamJoin(
   }
 
   def createProcTimeInnerJoinFunction(
-      leftStreamWindowSize: Long,
-      rightStreamWindowSize: Long,
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       joinFunctionName: String,
@@ -161,9 +164,9 @@ class DataStreamRowStreamJoin(
 
     val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
 
-    val procInnerJoinFunc = new ProcTimeInnerJoin(
-      leftStreamWindowSize,
-      rightStreamWindowSize,
+    val procInnerJoinFunc = new ProcTimeWindowInnerJoin(
+      leftLowerBound,
+      leftUpperBound,
       leftSchema.physicalTypeInfo,
       rightSchema.physicalTypeInfo,
       joinFunctionName,

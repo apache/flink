@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes
 
+import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.RexNode
@@ -30,9 +31,9 @@ trait CommonJoin {
   }
 
   private[flink] def joinConditionToString(
-    inputType: RelDataType,
-    joinCondition: RexNode,
-    expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+      inputType: RelDataType,
+      joinCondition: RexNode,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
 
     val inFields = inputType.getFieldNames.asScala.toList
     expression(joinCondition, inFields, None)
@@ -47,5 +48,26 @@ trait CommonJoin {
     }
   }
 
+  private[flink] def joinToString(
+      inputType: RelDataType,
+      joinCondition: RexNode,
+      joinType: JoinRelType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
 
+    s"${joinTypeToString(joinType)}" +
+      s"(where: (${joinConditionToString(inputType, joinCondition, expression)}), " +
+      s"join: (${joinSelectionToString(inputType)}))"
+  }
+
+  private[flink] def joinExplainTerms(
+      pw: RelWriter,
+      inputType: RelDataType,
+      joinCondition: RexNode,
+      joinType: JoinRelType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): RelWriter = {
+
+    pw.item("where", joinConditionToString(inputType, joinCondition, expression))
+      .item("join", joinSelectionToString(inputType))
+      .item("joinType", joinTypeToString(joinType))
+  }
 }

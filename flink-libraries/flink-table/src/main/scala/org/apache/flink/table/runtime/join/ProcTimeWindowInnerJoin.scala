@@ -37,17 +37,19 @@ import org.slf4j.LoggerFactory
 /**
   * A CoProcessFunction to support stream join stream, currently just support inner-join
   *
-  * @param leftStreamWindowSize    the left stream window size
-  * @param rightStreamWindowSize    the right stream window size
+  * @param leftLowerBound
+  *        the left stream lower bound, and -leftLowerBound is the right stream upper bound
+  * @param leftUpperBound
+  *        the left stream upper bound, and -leftUpperBound is the right stream lower bound
   * @param element1Type  the input type of left stream
   * @param element2Type  the input type of right stream
   * @param genJoinFuncName    the function code of other non-equi condition
   * @param genJoinFuncCode    the function name of other non-equi condition
   *
   */
-class ProcTimeInnerJoin(
-    private val leftStreamWindowSize: Long,
-    private val rightStreamWindowSize: Long,
+class ProcTimeWindowInnerJoin(
+    private val leftLowerBound: Long,
+    private val leftUpperBound: Long,
     private val element1Type: TypeInformation[Row],
     private val element2Type: TypeInformation[Row],
     private val genJoinFuncName: String,
@@ -73,7 +75,11 @@ class ProcTimeInnerJoin(
   /** state to record last timer of right stream, 0 means no timer **/
   private var timerState2: ValueState[Long] = _
 
+  private val leftStreamWinSize: Long = if (leftLowerBound < 0) -leftLowerBound else 0
+  private val rightStreamWinSize: Long = if (leftUpperBound > 0) leftUpperBound else 0
+
   val LOG = LoggerFactory.getLogger(this.getClass)
+
   override def open(config: Configuration) {
     LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
       s"Code:\n$genJoinFuncCode")
@@ -111,7 +117,7 @@ class ProcTimeInnerJoin(
   }
 
   /**
-    * Process leftstream records
+    * Process left stream records
     *
     * @param valueC The input value.
     * @param ctx   The ctx to register timer or get current time
@@ -127,17 +133,18 @@ class ProcTimeInnerJoin(
       valueC,
       ctx,
       out,
-      leftStreamWindowSize,
+      leftStreamWinSize,
       timerState1,
       row1MapState,
       row2MapState,
-      rightStreamWindowSize,
+      -leftUpperBound,     // right stream lower
+      -leftLowerBound,     // right stream upper
       true
     )
   }
 
   /**
-    * Process rightstream records
+    * Process right stream records
     *
     * @param valueC The input value.
     * @param ctx   The ctx to register timer or get current time
@@ -153,11 +160,12 @@ class ProcTimeInnerJoin(
       valueC,
       ctx,
       out,
-      rightStreamWindowSize,
+      rightStreamWinSize,
       timerState2,
       row2MapState,
       row1MapState,
-      leftStreamWindowSize,
+      leftLowerBound,    // left stream upper
+      leftUpperBound,    // left stream upper
       false
     )
   }
@@ -178,7 +186,7 @@ class ProcTimeInnerJoin(
     if (timerState1.value == timestamp) {
       expireOutTimeRow(
         timestamp,
-        leftStreamWindowSize,
+        leftStreamWinSize,
         row1MapState,
         timerState1,
         ctx
@@ -188,7 +196,7 @@ class ProcTimeInnerJoin(
     if (timerState2.value == timestamp) {
       expireOutTimeRow(
         timestamp,
-        rightStreamWindowSize,
+        rightStreamWinSize,
         row2MapState,
         timerState2,
         ctx
@@ -209,7 +217,8 @@ class ProcTimeInnerJoin(
       timerState: ValueState[Long],
       rowMapState: MapState[Long, JList[Row]],
       oppoRowMapState: MapState[Long, JList[Row]],
-      oppoWinSize: Long,
+      oppoLowerBound: Long,
+      oppoUpperBound: Long,
       isLeft: Boolean): Unit = {
 
     cRowWrapper.out = out
@@ -218,13 +227,13 @@ class ProcTimeInnerJoin(
     val value = valueC.row
 
     val curProcessTime = ctx.timerService.currentProcessingTime
-    val oppoExpiredTime =
-      if (oppoWinSize == 0) Long.MinValue else curProcessTime - oppoWinSize
+    val oppoLowerTime = curProcessTime + oppoLowerBound
+    val oppoUpperTime = curProcessTime + oppoUpperBound
 
     // only when windowsize != 0, we need to store the element
     if (winSize != 0) {
       // register a timer to expire the element
-      if (timerState.value == 0 && winSize != -1) {
+      if (timerState.value == 0) {
         ctx.timerService.registerProcessingTimeTimer(curProcessTime + winSize + 1)
         timerState.update(curProcessTime + winSize + 1)
       }
@@ -238,13 +247,13 @@ class ProcTimeInnerJoin(
 
     }
 
-    // loop the the other stream elments
+    // loop the the other stream elements
     val oppositeKeyIter = oppoRowMapState.keys().iterator()
     while (oppositeKeyIter.hasNext) {
       val eleTime = oppositeKeyIter.next()
-      if (eleTime < oppoExpiredTime) {
+      if (eleTime < oppoLowerTime) {
         listToRemove.add(eleTime)
-      } else {
+      } else if (eleTime <= oppoUpperTime){
         val oppoRowList = oppoRowMapState.get(eleTime)
         var i = 0
         while (i < oppoRowList.size) {
@@ -284,15 +293,15 @@ class ProcTimeInnerJoin(
     val keyIter = rowMapState.keys().iterator()
     var nextTimer: Long = 0
     // loop the timestamps to find out expired records, when meet one record
-    // after the expried timestamp, break the loop. If the keys is ordered, thus
+    // after the expired timestamp, break the loop. If the keys is ordered, thus
     // can reduce loop num, if the keys is unordered, also can expire at least one
     // element every time the timer trigger
     while (keyIter.hasNext && nextTimer == 0) {
-      val curTime = keyIter.next
-      if (curTime < expiredTime) {
-        listToRemove.add(curTime)
+      val recordTime = keyIter.next
+      if (recordTime < expiredTime) {
+        listToRemove.add(recordTime)
       } else {
-        nextTimer = curTime
+        nextTimer = recordTime
       }
     }
 
@@ -310,7 +319,8 @@ class ProcTimeInnerJoin(
       ctx.timerService.registerProcessingTimeTimer(nextTimer + winSize + 1)
       timerState.update(nextTimer + winSize + 1)
     } else {
-      timerState.update(0)
+      timerState.clear()
+      rowMapState.clear()
     }
   }
 }
