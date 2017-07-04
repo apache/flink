@@ -25,14 +25,13 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
-import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An RPC Service implementation for testing. This RPC service acts as a replacement for
- * teh regular RPC service for cases where tests need to return prepared mock gateways instead of
+ * the regular RPC service for cases where tests need to return prepared mock gateways instead of
  * proper RPC gateways.
  * 
  * <p>The TestingRpcService can be used for example in the following fashion,
@@ -58,14 +57,14 @@ public class TestingRpcService extends AkkaRpcService {
 	/**
 	 * Creates a new {@code TestingRpcService}. 
 	 */
-	public TestingRpcService() throws UnknownHostException {
+	public TestingRpcService() {
 		this(new Configuration());
 	}
 
 	/**
 	 * Creates a new {@code TestingRpcService}, using the given configuration. 
 	 */
-	public TestingRpcService(Configuration configuration) throws UnknownHostException {
+	public TestingRpcService(Configuration configuration) {
 		super(AkkaUtils.createLocalActorSystem(configuration), Time.seconds(10));
 
 		this.registeredConnections = new ConcurrentHashMap<>();
