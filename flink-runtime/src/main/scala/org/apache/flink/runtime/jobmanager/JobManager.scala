@@ -273,6 +273,7 @@ class JobManager(
 
     instanceManager.shutdown()
     scheduler.shutdown()
+    libraryCacheManager.shutdown()
 
     try {
       blobServer.close()
@@ -1254,15 +1255,20 @@ class JobManager(
         // Important: We need to make sure that the library registration is the first action,
         // because this makes sure that the uploaded jar files are removed in case of
         // unsuccessful
-        var userCodeLoader: ClassLoader = null;
         try {
-          userCodeLoader = libraryCacheManager.getClassLoader(
+          libraryCacheManager.registerJob(
             jobGraph.getJobID, jobGraph.getUserJarBlobKeys, jobGraph.getClasspaths)
         }
         catch {
           case t: Throwable =>
             throw new JobSubmissionException(jobId,
               "Cannot set up the user code libraries: " + t.getMessage, t)
+        }
+
+        val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+        if (userCodeLoader == null) {
+          throw new JobSubmissionException(jobId,
+            "The user code class loader could not be initialized.")
         }
 
         if (jobGraph.getNumberOfVertices == 0) {
@@ -1339,6 +1345,7 @@ class JobManager(
         case t: Throwable =>
           log.error(s"Failed to submit job $jobId ($jobName)", t)
 
+          libraryCacheManager.unregisterJob(jobId)
           blobServer.cleanupJob(jobId)
           currentJobs.remove(jobId)
 
@@ -1782,6 +1789,7 @@ class JobManager(
     }
 
     // remove all job-related BLOBs from local and HA store
+    libraryCacheManager.unregisterJob(jobID)
     blobServer.cleanupJob(jobID)
 
     jobManagerMetricGroup.foreach(_.removeJob(jobID))
@@ -2504,6 +2512,9 @@ object JobManager {
         }
         if (instanceManager != null) {
           instanceManager.shutdown()
+        }
+        if (libraryCacheManager != null) {
+          libraryCacheManager.shutdown()
         }
         if (blobServer != null) {
           blobServer.close()

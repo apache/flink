@@ -107,7 +107,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -767,8 +766,7 @@ public class StreamTaskTest extends TestLogger {
 
 		BlobCache blobCache = mock(BlobCache.class);
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(StreamTaskTest.class.getClassLoader());
+		when(libCache.getClassLoader(any(JobID.class))).thenReturn(StreamTaskTest.class.getClassLoader());
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
@@ -104,7 +105,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			cache = new BlobCache(serverAddress[0], config, blobStoreService);
 
 			// Register uploaded libraries
-			libServer[0].getClassLoader(jobId, keys, Collections.<URL>emptyList());
+			ExecutionAttemptID executionId = new ExecutionAttemptID();
+			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
 			File f = cache.getFile(jobId, keys.get(0));
@@ -162,6 +164,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 		}
 		finally {
+			for (BlobLibraryCacheManager s : libServer) {
+				if (s != null) {
+					s.shutdown();
+				}
+			}
 			for (BlobServer s : server) {
 				if (s != null) {
 					s.close();

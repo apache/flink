@@ -58,7 +58,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.net.URL;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 
@@ -149,8 +148,7 @@ public class TaskAsyncCallTest {
 	private static Task createTask() throws Exception {
 		BlobCache blobCache = mock(BlobCache.class);
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(ClassLoader.getSystemClassLoader());
+		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 		
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);

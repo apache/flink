@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +46,7 @@ import java.util.List;
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -54,6 +57,368 @@ public class BlobLibraryCacheManagerTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	/**
+	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
+	 * BlobLibraryCacheManager#unregisterJob(JobID)}.
+	 */
+	@Test
+	public void testLibraryCacheManagerJobCleanup() throws IOException, InterruptedException {
+
+		JobID jobId1 = new JobID();
+		JobID jobId2 = new JobID();
+		List<BlobKey> keys1 = new ArrayList<>();
+		List<BlobKey> keys2 = new ArrayList<>();
+		BlobServer server = null;
+		BlobCache cache = null;
+		BlobLibraryCacheManager libCache = null;
+
+		final byte[] buf = new byte[128];
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+
+			server = new BlobServer(config, new VoidBlobStore());
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			BlobClient bc = new BlobClient(serverAddress, config);
+			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+
+			keys1.add(bc.put(jobId1, buf));
+			buf[0] += 1;
+			keys1.add(bc.put(jobId1, buf));
+			keys2.add(bc.put(jobId2, buf));
+
+			bc.close();
+
+			libCache = new BlobLibraryCacheManager(cache);
+			cache.registerJob(jobId1);
+			cache.registerJob(jobId2);
+
+			assertEquals(0, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
+			checkFileCountForJob(2, jobId1, server);
+			checkFileCountForJob(0, jobId1, cache);
+			checkFileCountForJob(1, jobId2, server);
+			checkFileCountForJob(0, jobId2, cache);
+
+			libCache.registerJob(jobId1, keys1, Collections.<URL>emptyList());
+			ClassLoader classLoader1 = libCache.getClassLoader(jobId1);
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
+			assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+			checkFileCountForJob(2, jobId1, server);
+			checkFileCountForJob(2, jobId1, cache);
+			assertEquals(0, checkFilesExist(jobId2, keys2, cache, false));
+			checkFileCountForJob(1, jobId2, server);
+			checkFileCountForJob(0, jobId2, cache);
+
+			libCache.registerJob(jobId2, keys2, Collections.<URL>emptyList());
+			ClassLoader classLoader2 = libCache.getClassLoader(jobId2);
+			assertNotEquals(classLoader1, classLoader2);
+
+			try {
+				libCache.registerJob(jobId2, keys1, Collections.<URL>emptyList());
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
+
+			try {
+				libCache.registerJob(
+					jobId2, keys2,
+					Collections.singletonList(new URL("file:///tmp/does-not-exist")));
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
+
+			assertEquals(2, libCache.getNumberOfManagedJobs());
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId2));
+			assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+			checkFileCountForJob(2, jobId1, server);
+			checkFileCountForJob(2, jobId1, cache);
+			assertEquals(1, checkFilesExist(jobId2, keys2, cache, true));
+			checkFileCountForJob(1, jobId2, server);
+			checkFileCountForJob(1, jobId2, cache);
+
+			libCache.unregisterJob(jobId1);
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId2));
+			assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+			checkFileCountForJob(2, jobId1, server);
+			checkFileCountForJob(2, jobId1, cache);
+			assertEquals(1, checkFilesExist(jobId2, keys2, cache, true));
+			checkFileCountForJob(1, jobId2, server);
+			checkFileCountForJob(1, jobId2, cache);
+
+			libCache.unregisterJob(jobId2);
+
+			assertEquals(0, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
+			assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+			checkFileCountForJob(2, jobId1, server);
+			checkFileCountForJob(2, jobId1, cache);
+			assertEquals(1, checkFilesExist(jobId2, keys2, cache, true));
+			checkFileCountForJob(1, jobId2, server);
+			checkFileCountForJob(1, jobId2, cache);
+
+			// only BlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
+		}
+		finally {
+			if (libCache != null) {
+				libCache.shutdown();
+			}
+
+			// should have been closed by the libraryCacheManager, but just in case
+			if (cache != null) {
+				cache.close();
+			}
+
+			if (server != null) {
+				server.close();
+			}
+		}
+	}
+
+	/**
+	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
+	 * BlobLibraryCacheManager#unregisterTask(JobID, ExecutionAttemptID)}.
+	 */
+	@Test
+	public void testLibraryCacheManagerTaskCleanup() throws IOException, InterruptedException {
+
+		JobID jobId = new JobID();
+		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
+		ExecutionAttemptID attempt2 = new ExecutionAttemptID();
+		List<BlobKey> keys = new ArrayList<>();
+		BlobServer server = null;
+		BlobCache cache = null;
+		BlobLibraryCacheManager libCache = null;
+
+		final byte[] buf = new byte[128];
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+
+			server = new BlobServer(config, new VoidBlobStore());
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			BlobClient bc = new BlobClient(serverAddress, config);
+			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+
+			keys.add(bc.put(jobId, buf));
+			buf[0] += 1;
+			keys.add(bc.put(jobId, buf));
+
+			bc.close();
+
+			libCache = new BlobLibraryCacheManager(cache);
+			cache.registerJob(jobId);
+
+			assertEquals(0, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(0, jobId, cache);
+
+			libCache.registerTask(jobId, attempt1, keys, Collections.<URL>emptyList());
+			ClassLoader classLoader1 = libCache.getClassLoader(jobId);
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			libCache.registerTask(jobId, attempt2, keys, Collections.<URL>emptyList());
+			ClassLoader classLoader2 = libCache.getClassLoader(jobId);
+			assertEquals(classLoader1, classLoader2);
+
+			try {
+				libCache.registerTask(
+					jobId, new ExecutionAttemptID(), Collections.<BlobKey>emptyList(),
+					Collections.<URL>emptyList());
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
+
+			try {
+				libCache.registerTask(
+					jobId, new ExecutionAttemptID(), keys,
+					Collections.singletonList(new URL("file:///tmp/does-not-exist")));
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(2, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			libCache.unregisterTask(jobId, attempt1);
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			libCache.unregisterTask(jobId, attempt2);
+
+			assertEquals(0, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			// only BlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
+		}
+		finally {
+			if (libCache != null) {
+				libCache.shutdown();
+			}
+
+			// should have been closed by the libraryCacheManager, but just in case
+			if (cache != null) {
+				cache.close();
+			}
+
+			if (server != null) {
+				server.close();
+			}
+		}
+	}
+
+	/**
+	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
+	 * BlobLibraryCacheManager#unregisterTask(JobID, ExecutionAttemptID)}.
+	 */
+	@Test
+	public void testLibraryCacheManagerMixedJobTaskCleanup() throws IOException, InterruptedException {
+
+		JobID jobId = new JobID();
+		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
+		List<BlobKey> keys = new ArrayList<>();
+		BlobServer server = null;
+		BlobCache cache = null;
+		BlobLibraryCacheManager libCache = null;
+
+		final byte[] buf = new byte[128];
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+
+			server = new BlobServer(config, new VoidBlobStore());
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			BlobClient bc = new BlobClient(serverAddress, config);
+			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+
+			keys.add(bc.put(jobId, buf));
+			buf[0] += 1;
+			keys.add(bc.put(jobId, buf));
+
+			bc.close();
+
+			libCache = new BlobLibraryCacheManager(cache);
+			cache.registerJob(jobId);
+
+			assertEquals(0, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(0, jobId, cache);
+
+			libCache.registerJob(jobId, keys, Collections.<URL>emptyList());
+			ClassLoader classLoader1 = libCache.getClassLoader(jobId);
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			libCache.registerTask(jobId, attempt1, keys, Collections.<URL>emptyList());
+			ClassLoader classLoader2 = libCache.getClassLoader(jobId);
+			assertEquals(classLoader1, classLoader2);
+
+			try {
+				libCache.registerTask(
+					jobId, new ExecutionAttemptID(), Collections.<BlobKey>emptyList(),
+					Collections.<URL>emptyList());
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
+
+			try {
+				libCache.registerTask(
+					jobId, new ExecutionAttemptID(), keys,
+					Collections.singletonList(new URL("file:///tmp/does-not-exist")));
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(2, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			libCache.unregisterJob(jobId);
+
+			assertEquals(1, libCache.getNumberOfManagedJobs());
+			assertEquals(1, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			libCache.unregisterTask(jobId, attempt1);
+
+			assertEquals(0, libCache.getNumberOfManagedJobs());
+			assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
+			checkFileCountForJob(2, jobId, server);
+			checkFileCountForJob(2, jobId, cache);
+
+			// only BlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
+		}
+		finally {
+			if (libCache != null) {
+				libCache.shutdown();
+			}
+
+			// should have been closed by the libraryCacheManager, but just in case
+			if (cache != null) {
+				cache.close();
+			}
+
+			if (server != null) {
+				server.close();
+			}
+		}
+	}
+
 	@Test
 	public void testRegisterAndDownload() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
@@ -61,6 +426,7 @@ public class BlobLibraryCacheManagerTest {
 		JobID jobId = new JobID();
 		BlobServer server = null;
 		BlobCache cache = null;
+		BlobLibraryCacheManager libCache = null;
 		File cacheDir = null;
 		try {
 			// create the blob transfer services
@@ -80,24 +446,72 @@ public class BlobLibraryCacheManagerTest {
 			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();
 
-			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobLibraryCacheManager(cache);
+			assertEquals(0, libCache.getNumberOfManagedJobs());
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
+
+			// first try to access a non-existing entry
+			assertEquals(0, libCache.getNumberOfReferenceHolders(new JobID()));
+			try {
+				libCache.getClassLoader(new JobID());
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's what we want
+			}
 
 			// register some BLOBs as libraries
 			{
 				Collection<BlobKey> keys = Collections.singleton(dataKey1);
 
 				cache.registerJob(jobId);
-				assertNotNull(libCache.getClassLoader(jobId, keys, Collections.<URL>emptyList()));
+				ExecutionAttemptID executionId = new ExecutionAttemptID();
+				libCache.registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
+				ClassLoader classLoader1 = libCache.getClassLoader(jobId);
+				assertEquals(1, libCache.getNumberOfManagedJobs());
+				assertEquals(1, libCache.getNumberOfReferenceHolders(jobId));
+				assertEquals(1, checkFilesExist(jobId, keys, cache, true));
+				checkFileCountForJob(2, jobId, server);
+				checkFileCountForJob(1, jobId, cache);
+				assertNotNull(libCache.getClassLoader(jobId));
+
+				libCache.registerJob(jobId, keys, Collections.<URL>emptyList());
+				ClassLoader classLoader2 = libCache.getClassLoader(jobId);
+				assertEquals(classLoader1, classLoader2);
+				assertEquals(1, libCache.getNumberOfManagedJobs());
+				assertEquals(2, libCache.getNumberOfReferenceHolders(jobId));
+				assertEquals(1, checkFilesExist(jobId, keys, cache, true));
+				checkFileCountForJob(2, jobId, server);
+				checkFileCountForJob(1, jobId, cache);
+				assertNotNull(libCache.getClassLoader(jobId));
+
+				// un-register the job
+				libCache.unregisterJob(jobId);
+				// still one task
+				assertEquals(1, libCache.getNumberOfManagedJobs());
+				assertEquals(1, libCache.getNumberOfReferenceHolders(jobId));
 				assertEquals(1, checkFilesExist(jobId, keys, cache, true));
 				checkFileCountForJob(2, jobId, server);
 				checkFileCountForJob(1, jobId, cache);
 
-				// un-register them again
-				cache.releaseJob(jobId);
+				// unregister the task registration
+				libCache.unregisterTask(jobId, executionId);
+				assertEquals(0, libCache.getNumberOfManagedJobs());
+				assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+				// changing the libCache registration does not influence the BLOB stores...
+				checkFileCountForJob(2, jobId, server);
+				checkFileCountForJob(1, jobId, cache);
 
 				// Don't fail if called again
+				libCache.unregisterJob(jobId);
+				assertEquals(0, libCache.getNumberOfManagedJobs());
+				assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+
+				libCache.unregisterTask(jobId, executionId);
+				assertEquals(0, libCache.getNumberOfManagedJobs());
+				assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
+
 				cache.releaseJob(jobId);
 
 				// library is still cached (but not associated with job any more)
@@ -116,8 +530,8 @@ public class BlobLibraryCacheManagerTest {
 			// since we cannot download this library any more, this call should fail
 			try {
 				cache.registerJob(jobId);
-				libCache.getClassLoader(jobId, Collections.singleton(dataKey2),
-						Collections.<URL>emptyList());
+				libCache.registerTask(jobId, new ExecutionAttemptID(), Collections.singleton(dataKey2),
+					Collections.<URL>emptyList());
 				fail("This should fail with an IOException");
 			}
 			catch (IOException e) {
@@ -132,6 +546,9 @@ public class BlobLibraryCacheManagerTest {
 			}
 			if (cache != null) {
 				cache.close();
+			}
+			if (libCache != null) {
+				libCache.shutdown();
 			}
 			if (server != null) {
 				server.close();

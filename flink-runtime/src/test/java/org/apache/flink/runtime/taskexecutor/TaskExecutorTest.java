@@ -94,7 +94,6 @@ import org.slf4j.Logger;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -668,8 +667,7 @@ public class TaskExecutorTest extends TestLogger {
 				Collections.<InputGateDeploymentDescriptor>emptyList());
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libraryCacheManager.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(ClassLoader.getSystemClassLoader());
+		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
@@ -1149,8 +1147,7 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libraryCacheManager.getClassLoader(eq(jobId), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
+		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,

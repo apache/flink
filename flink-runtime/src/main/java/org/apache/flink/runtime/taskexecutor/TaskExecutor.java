@@ -966,6 +966,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		Preconditions.checkNotNull(jobManagerConnection);
 		JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
 		jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
+		jobManagerConnection.getLibraryCacheManager().shutdown();
 		jobManagerConnection.getBlobCache().close();
 	}
 

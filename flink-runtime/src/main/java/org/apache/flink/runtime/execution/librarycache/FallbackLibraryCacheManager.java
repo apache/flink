@@ -28,12 +28,35 @@ import java.net.URL;
 import java.util.Collection;
 
 public class FallbackLibraryCacheManager implements LibraryCacheManager {
-	
+
 	private static Logger LOG = LoggerFactory.getLogger(FallbackLibraryCacheManager.class);
 
 	@Override
-	public ClassLoader getClassLoader(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) {
-		LOG.warn("FallbackLibraryCacheManager cannot download files associated with blob keys.");
+	public ClassLoader getClassLoader(JobID id) {
 		return getClass().getClassLoader();
 	}
+
+	@Override
+	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) {
+		LOG.warn("FallbackLibraryCacheManager cannot download files associated with blob keys.");
+	}
+
+	@Override
+	public void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
+		Collection<URL> requiredClasspaths) {
+		LOG.warn("FallbackLibraryCacheManager cannot download files associated with blob keys.");
+	}
+
+	@Override
+	public void unregisterJob(JobID id) {
+		LOG.warn("FallbackLibraryCacheManager does not book keeping of job IDs.");
+	}
+
+	@Override
+	public void unregisterTask(JobID id, ExecutionAttemptID execution) {
+		LOG.warn("FallbackLibraryCacheManager does not book keeping of job IDs.");
+	}
+
+	@Override
+	public void shutdown() {}
 }

@@ -832,6 +832,7 @@ public class Task implements Runnable, TaskActions {
 				}
 
 				// remove all of the tasks library resources
+				libraryCache.unregisterTask(jobId, executionId);
 				blobCache.releaseJob(jobId);
 
 				// remove all files in the distributed cache
@@ -866,12 +867,15 @@ public class Task implements Runnable, TaskActions {
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		ClassLoader userCodeClassLoader =
-			libraryCache.getClassLoader(jobId, requiredJarFiles, requiredClasspaths);
+		libraryCache.registerTask(jobId, executionId, requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Getting user code class loader for task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);
 
+		ClassLoader userCodeClassLoader = libraryCache.getClassLoader(jobId);
+		if (userCodeClassLoader == null) {
+			throw new Exception("No user code classloader available.");
+		}
 		return userCodeClassLoader;
 	}
 

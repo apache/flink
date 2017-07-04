@@ -82,6 +82,7 @@ public class JobManagerServices {
 			firstException = t;
 		}
 
+		libraryCacheManager.shutdown();
 		try {
 			blobServer.close();
 		}

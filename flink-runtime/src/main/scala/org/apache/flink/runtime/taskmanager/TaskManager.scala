@@ -1046,6 +1046,9 @@ class TaskManager(
     instanceID = null
 
     // shut down BLOB and library cache
+    libraryCacheManager foreach {
+      manager => manager.shutdown()
+    }
     libraryCacheManager = None
 
     blobCache foreach {

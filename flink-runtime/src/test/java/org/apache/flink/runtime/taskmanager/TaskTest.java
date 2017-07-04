@@ -70,7 +70,6 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -266,8 +265,7 @@ public class TaskTest extends TestLogger {
 			BlobCache blobCache = mock(BlobCache.class);
 			// mock a working library cache
 			LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-			//noinspection unchecked
-			when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
+			when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 			
 			// mock a network manager that rejects registration
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
@@ -624,8 +622,7 @@ public class TaskTest extends TestLogger {
 
 		BlobCache blobCache = mock(BlobCache.class);
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
+		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 
 		PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
 
@@ -891,16 +888,14 @@ public class TaskTest extends TestLogger {
 	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config) throws IOException {
 		BlobCache blobCache = mock(BlobCache.class);
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
+		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, blobCache,libCache, config, new ExecutionConfig());
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config, ExecutionConfig execConfig) throws IOException {
 		BlobCache blobCache = mock(BlobCache.class);
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		//noinspection unchecked
-		when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
+		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, blobCache,libCache, config, execConfig);
 	}
 
