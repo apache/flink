@@ -21,6 +21,7 @@ package org.apache.flink.api.java;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -104,7 +105,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 			return executor.getOptimizerPlanAsJSON(p);
 		}
 		else {
-			PlanExecutor tempExecutor = PlanExecutor.createLocalExecutor(configuration);
+			PlanExecutor tempExecutor = new ExecutorFactory<>(PlanExecutor.class).createLocalExecutor(configuration);
 			return tempExecutor.getOptimizerPlanAsJSON(p);
 		}
 	}
@@ -120,7 +121,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		}
 		
 		// create a new local executor
-		executor = PlanExecutor.createLocalExecutor(configuration);
+		executor = new ExecutorFactory<>(PlanExecutor.class).createLocalExecutor(configuration);
 		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		
 		// if we have a session, start the mini cluster eagerly to have it available across sessions

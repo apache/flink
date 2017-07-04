@@ -108,9 +108,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	static void setAsContext(ContextEnvironmentFactory factory) {
 		initializeContextEnvironment(factory);
+		StreamContextEnvironment.setAsContext(new StreamContextEnvironmentFactory(factory));
 	}
 
 	static void unsetContext() {
 		resetContextEnvironment();
+		StreamContextEnvironment.unsetContext();
 	}
 }

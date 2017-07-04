@@ -38,6 +38,12 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	Plan plan;
 
+	StreamPlanEnvironment streamPlanEnvironment;
+
+	public PreviewPlanEnvironment() {
+		this.streamPlanEnvironment = new StreamPlanEnvironment(this);
+	}
+
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		this.plan = createProgramPlan(jobName);
@@ -68,10 +74,12 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 			}
 		};
 		initializeContextEnvironment(factory);
+		streamPlanEnvironment.setAsContext();
 	}
 
 	public void unsetAsContext() {
 		resetContextEnvironment();
+		streamPlanEnvironment.unsetAsContext();
 	}
 
 	public void setPreview(String preview) {

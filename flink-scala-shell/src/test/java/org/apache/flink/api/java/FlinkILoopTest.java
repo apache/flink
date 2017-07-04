@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -35,7 +36,6 @@ import org.mockito.BDDMockito;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -52,7 +52,7 @@ import static org.junit.Assert.assertTrue;
  * Integration tests for {@link FlinkILoop}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(PlanExecutor.class)
+@PrepareForTest(ExecutorFactory.class)
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
@@ -63,16 +63,16 @@ public class FlinkILoopTest extends TestLogger {
 
 		final TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
 
-		PowerMockito.mockStatic(PlanExecutor.class);
-		BDDMockito.given(PlanExecutor.createRemoteExecutor(
+		ExecutorFactory<TestPlanExecutor> executorFactory = BDDMockito.mock(ExecutorFactory.class);
+		BDDMockito.given(executorFactory.createRemoteExecutor(
 			Matchers.anyString(),
 			Matchers.anyInt(),
 			Matchers.any(Configuration.class),
 			Matchers.any(java.util.List.class),
 			Matchers.any(java.util.List.class)
-		)).willAnswer(new Answer<PlanExecutor>() {
+		)).willAnswer(new Answer<TestPlanExecutor>() {
 			@Override
-			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
+			public TestPlanExecutor answer(InvocationOnMock invocation) throws Throwable {
 				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
 				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
 				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);
@@ -118,13 +118,23 @@ public class FlinkILoopTest extends TestLogger {
 		assertEquals(configuration, forwardedConfiguration);
 	}
 
-	static class TestPlanExecutor extends PlanExecutor {
+	static class TestPlanExecutor implements PlanExecutor {
 
 		private String host;
 		private int port;
 		private Configuration configuration;
 		private List<String> jars;
 		private List<String> globalClasspaths;
+
+		@Override
+		public void setPrintStatusDuringExecution(boolean printStatus) {
+
+		}
+
+		@Override
+		public boolean isPrintingStatusDuringExecution() {
+			return false;
+		}
 
 		@Override
 		public void start() throws Exception {

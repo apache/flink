@@ -37,8 +37,11 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	private FlinkPlan optimizerPlan;
 
+	private StreamPlanEnvironment streamPlanEnvironment;
+
 	public OptimizerPlanEnvironment(Optimizer compiler) {
 		this.compiler = compiler;
+		streamPlanEnvironment = new StreamPlanEnvironment(this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -118,10 +121,12 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			}
 		};
 		initializeContextEnvironment(factory);
+		streamPlanEnvironment.setAsContext();
 	}
 
 	private void unsetAsContext() {
 		resetContextEnvironment();
+		streamPlanEnvironment.unsetAsContext();
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,14 +18,11 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
@@ -50,6 +47,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	/** The configuration to use for the local cluster. */
 	private final Configuration conf;
+
+	private StreamGraphExecutor streamGraphExecutor;
 
 	/**
 	 * Creates a new local stream environment that uses the default configuration.
@@ -86,30 +85,15 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		// transform the streaming program into a JobGraph
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
+		transformations.clear();
+		StreamGraphExecutor executor = getStreamExecutor();
+		return executor.executeStreamGraph(streamGraph);
+	}
 
-		JobGraph jobGraph = streamGraph.getJobGraph();
-
-		Configuration configuration = new Configuration();
-		configuration.addAll(jobGraph.getJobConfiguration());
-
-		configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
-
-		// add (and override) the settings with what the user defined
-		configuration.addAll(this.conf);
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Running job on local embedded Flink mini cluster");
+	private StreamGraphExecutor getStreamExecutor() {
+		if (streamGraphExecutor == null) {
+			streamGraphExecutor = new ExecutorFactory<>(StreamGraphExecutor.class).createLocalExecutor(conf);
 		}
-
-		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true);
-		try {
-			exec.start();
-			return exec.submitJobAndWait(jobGraph, getConfig().isSysoutLoggingEnabled());
-		}
-		finally {
-			transformations.clear();
-			exec.stop();
-		}
+		return streamGraphExecutor;
 	}
 }

@@ -35,7 +35,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -43,9 +42,6 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -1586,19 +1582,7 @@ public abstract class StreamExecutionEnvironment {
 		if (contextEnvironmentFactory != null) {
 			return contextEnvironmentFactory.createExecutionEnvironment();
 		}
-
-		// because the streaming project depends on "flink-clients" (and not the other way around)
-		// we currently need to intercept the data set environment and create a dependent stream env.
-		// this should be fixed once we rework the project dependencies
-
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		if (env instanceof ContextEnvironment) {
-			return new StreamContextEnvironment((ContextEnvironment) env);
-		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
-			return new StreamPlanEnvironment(env);
-		} else {
-			return createLocalEnvironment();
-		}
+		return createLocalEnvironment();
 	}
 
 	/**

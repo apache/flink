@@ -37,9 +37,13 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+import org.apache.flink.streaming.api.environment.StreamGraphExecutor;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+
+import java.io.IOException;
 
 /**
- * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
+ * The RemoteExecutor is a {@link org.apache.flink.api.common.Executor} that takes the program or streamGraph
  * and ships it to a remote Flink cluster for execution.
  *
  * <p>The RemoteExecutor is pointed at the JobManager and gets the program and (if necessary) the
@@ -48,7 +52,7 @@ import java.util.List;
  * <p>The RemoteExecutor is used in the {@link org.apache.flink.api.java.RemoteEnvironment} to
  * remotely execute program parts.</p>
  */
-public class RemoteExecutor extends PlanExecutor {
+public class RemoteExecutor implements PlanExecutor, StreamGraphExecutor {
 
 	private final Object lock = new Object();
 
@@ -61,6 +65,9 @@ public class RemoteExecutor extends PlanExecutor {
 	private ClusterClient client;
 
 	private int defaultParallelism = 1;
+
+	/** If true, all execution progress updates are not only logged, but also printed to System.out */
+	private boolean printUpdatesToSysout = true;
 
 	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
@@ -106,8 +113,14 @@ public class RemoteExecutor extends PlanExecutor {
 			List<URL> jarFiles, List<URL> globalClasspaths) {
 		this.clientConfiguration = clientConfiguration;
 		this.jarFiles = jarFiles;
+		for (URL jarFileUrl : jarFiles) {
+			try {
+				JobWithJars.checkJarFile(jarFileUrl);
+			} catch (IOException e) {
+				throw new RuntimeException("Problem with jar file " + jarFileUrl, e);
+			}
+		}
 		this.globalClasspaths = globalClasspaths;
-
 		clientConfiguration.setString(JobManagerOptions.ADDRESS, inet.getHostName());
 		clientConfiguration.setInteger(JobManagerOptions.PORT, inet.getPort());
 	}
@@ -144,6 +157,16 @@ public class RemoteExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 
 	@Override
+	public void setPrintStatusDuringExecution(boolean printStatus) {
+		printUpdatesToSysout = printStatus;
+	}
+
+	@Override
+	public boolean isPrintingStatusDuringExecution() {
+		return printUpdatesToSysout;
+	}
+
+	@Override
 	public void start() throws Exception {
 		synchronized (lock) {
 			if (client == null) {
@@ -174,7 +197,6 @@ public class RemoteExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 	//  Executing programs
 	// ------------------------------------------------------------------------
-
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		if (plan == null) {
@@ -183,6 +205,39 @@ public class RemoteExecutor extends PlanExecutor {
 
 		JobWithJars p = new JobWithJars(plan, this.jarFiles, this.globalClasspaths);
 		return executePlanWithJars(p);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Executing streamGraph
+	// ------------------------------------------------------------------------
+	@Override
+	public JobExecutionResult executeStreamGraph(StreamGraph streamGraph) throws Exception {
+		ClassLoader userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
+				getClass().getClassLoader());
+
+		synchronized (this.lock) {
+			// check if we start a session dedicated for this execution
+			final boolean shutDownAtEnd;
+
+			if (client == null) {
+				shutDownAtEnd = true;
+				// start the executor for us
+				start();
+			}
+			else {
+				// we use the existing session
+				shutDownAtEnd = false;
+			}
+
+			try {
+				return client.run(streamGraph, jarFiles, globalClasspaths, userCodeClassLoader).getJobExecutionResult();
+			}
+			finally {
+				if (shutDownAtEnd) {
+					stop();
+				}
+			}
+		}
 	}
 
 	public JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {

@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.environment;
+package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.DetachedEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -66,5 +65,13 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointRestoreSettings())
 				.getJobExecutionResult();
 		}
+	}
+
+	static void setAsContext(StreamContextEnvironmentFactory factory) {
+		initializeContextEnvironment(factory);
+	}
+
+	static void unsetContext() {
+		resetContextEnvironment();
 	}
 }

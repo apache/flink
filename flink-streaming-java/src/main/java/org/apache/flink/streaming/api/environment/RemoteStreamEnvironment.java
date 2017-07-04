@@ -18,22 +18,17 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -63,6 +58,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	/** The classpaths that need to be attached to each job. */
 	private final List<URL> globalClasspaths;
+
+	/** The remote executor that runs the streamGraph. */
+	private StreamGraphExecutor remoteExecutor;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -153,11 +151,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			try {
 				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 				this.jarFiles.add(jarFileUrl);
-				JobWithJars.checkJarFile(jarFileUrl);
 			} catch (MalformedURLException e) {
 				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
-			} catch (IOException e) {
-				throw new RuntimeException("Problem with jar file " + jarFile, e);
 			}
 		}
 		if (globalClasspaths == null) {
@@ -169,68 +164,33 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
+	public JobExecutionResult execute(String jobName) throws Exception {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		transformations.clear();
-		return executeRemotely(streamGraph, jarFiles);
+		StreamGraphExecutor executor = getStreamExecutor();
+		return executor.executeStreamGraph(streamGraph);
 	}
 
-	/**
-	 * Executes the remote job.
-	 *
-	 * @param streamGraph
-	 *            Stream Graph to execute
-	 * @param jarFiles
-	 * 			  List of jar file URLs to ship to the cluster
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Running remotely at {}:{}", host, port);
+	private StreamGraphExecutor getStreamExecutor() {
+		if (remoteExecutor == null) {
+			remoteExecutor = new ExecutorFactory<>(StreamGraphExecutor.class).createRemoteExecutor(host, port, clientConfiguration, jarFiles, globalClasspaths);
 		}
-
-		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
-			getClass().getClassLoader());
-
-		Configuration configuration = new Configuration();
-		configuration.addAll(this.clientConfiguration);
-
-		configuration.setString(JobManagerOptions.ADDRESS, host);
-		configuration.setInteger(JobManagerOptions.PORT, port);
-
-		ClusterClient client;
-		try {
-			client = new StandaloneClusterClient(configuration);
-			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
-		}
-		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
-		}
-
-		try {
-			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
-		}
-		catch (ProgramInvocationException e) {
-			throw e;
-		}
-		catch (Exception e) {
-			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
-			throw new ProgramInvocationException("The program execution failed" + term, e);
-		}
-		finally {
-			try {
-				client.shutdown();
-			} catch (Exception e) {
-				LOG.warn("Could not properly shut down the cluster client.", e);
-			}
-		}
+		return remoteExecutor;
 	}
 
 	@Override
 	public String toString() {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = "
 				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
+	}
+
+	/**
+	 * add a jarFile to jarFiles.
+	 * @param jarFile
+	 */
+	public void addJarFile(URL jarFile) {
+		this.jarFiles.add(jarFile);
 	}
 
 	/**

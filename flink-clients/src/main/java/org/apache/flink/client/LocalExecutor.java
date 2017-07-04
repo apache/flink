@@ -37,19 +37,22 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.streaming.api.environment.StreamGraphExecutor;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import java.util.List;
 
 /**
- * A PlanExecutor that runs Flink programs on a local embedded Flink runtime instance.
+ * A LocalExecutor that runs Flink programs or streamGraphs on a local embedded Flink runtime instance.
  *
- * <p>By simply calling the {@link #executePlan(org.apache.flink.api.common.Plan)} method,
+ * <p>By simply calling the {@link #executePlan(org.apache.flink.api.common.Plan)} method or
+ * the {@link #executeStreamGraph(StreamGraph)} method,
  * this executor still start up and shut down again immediately after the program finished.</p>
  *
- * <p>To use this executor to execute many dataflow programs that constitute one job together,
+ * <p>To use this executor to execute streamGraphs or many dataflow programs that constitute one job together,
  * then this executor needs to be explicitly started, to keep running across several executions.</p>
  */
-public class LocalExecutor extends PlanExecutor {
+public class LocalExecutor implements PlanExecutor, StreamGraphExecutor {
 
 	private static final boolean DEFAULT_OVERWRITE = false;
 
@@ -69,6 +72,9 @@ public class LocalExecutor extends PlanExecutor {
 
 	/** Config flag whether to overwrite existing files by default. */
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
+
+	/** If true, all execution progress updates are not only logged, but also printed to System.out */
+	private boolean printUpdatesToSysout = true;
 
 	// ------------------------------------------------------------------------
 
@@ -101,6 +107,16 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void setPrintStatusDuringExecution(boolean printStatus) {
+		printUpdatesToSysout= printStatus;
+	}
+
+	@Override
+	public boolean isPrintingStatusDuringExecution() {
+		return printUpdatesToSysout;
+	}
 
 	@Override
 	public void start() throws Exception {
@@ -138,6 +154,31 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	/**
+	 * Executes the given streamGraph on a local runtime and waits for the job to finish.
+	 *
+	 * <p>If the executor has not been started before, this starts the executor and shuts it down
+	 * after the job finished. If the job runs in session mode, the executor is kept alive until
+	 * no more references to the executor exist.</p>
+	 *
+	 * @param  streamGraph The streamGraph to execute.
+	 * @return The net runtime of the streamGraph, in milliseconds.
+	 *
+	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
+	 *                   caused an exception.
+	 */
+	@Override
+	public JobExecutionResult executeStreamGraph(StreamGraph streamGraph) throws Exception {
+		if (streamGraph == null) {
+			throw new IllegalArgumentException("The streamGraph may not be null.");
+		}
+
+		JobGraph jobGraph = streamGraph.getJobGraph();
+		this.configuration.addAll(jobGraph.getJobConfiguration());
+
+		return executeJobGraph(jobGraph, jobGraph.getMaximumParallelism());
+	}
+
+	/**
 	 * Executes the given program on a local runtime and waits for the job to finish.
 	 *
 	 * <p>If the executor has not been started before, this starts the executor and shuts it down
@@ -156,6 +197,15 @@ public class LocalExecutor extends PlanExecutor {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
 
+		Optimizer pc = new Optimizer(new DataStatistics(), configuration);
+		OptimizedPlan op = pc.compile(plan);
+		JobGraphGenerator jgg = new JobGraphGenerator(configuration);
+		JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
+
+		return executeJobGraph(jobGraph, plan.getMaximumParallelism());
+	}
+
+	public JobExecutionResult executeJobGraph(JobGraph jobGraph, int maxParallelism) throws Exception {
 		synchronized (this.lock) {
 
 			// check if we start a session dedicated for this execution
@@ -166,9 +216,8 @@ public class LocalExecutor extends PlanExecutor {
 
 				// configure the number of local slots equal to the parallelism of the local plan
 				if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
-					int maxParallelism = plan.getMaximumParallelism();
 					if (maxParallelism > 0) {
-						this.taskManagerNumSlots = maxParallelism;
+						setTaskManagerNumSlots(maxParallelism);
 					}
 				}
 
@@ -181,14 +230,6 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				Configuration configuration = this.flink.configuration();
-
-				Optimizer pc = new Optimizer(new DataStatistics(), configuration);
-				OptimizedPlan op = pc.compile(plan);
-
-				JobGraphGenerator jgg = new JobGraphGenerator(configuration);
-				JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
-
 				boolean sysoutPrint = isPrintingStatusDuringExecution();
 				return flink.submitJobAndWait(jobGraph, sysoutPrint);
 			}
