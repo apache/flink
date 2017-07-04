@@ -21,6 +21,7 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -99,9 +100,17 @@ public class MiniClusterJobDispatcher {
 			Configuration config,
 			RpcService rpcService,
 			HighAvailabilityServices haServices,
+			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
-		this(config, haServices, heartbeatServices, metricRegistry, 1, new RpcService[] { rpcService });
+		this(
+			config,
+			haServices,
+			blobServer,
+			heartbeatServices,
+			metricRegistry,
+			1,
+			new RpcService[] { rpcService });
 	}
 
 	/**
@@ -119,6 +128,7 @@ public class MiniClusterJobDispatcher {
 	public MiniClusterJobDispatcher(
 			Configuration config,
 			HighAvailabilityServices haServices,
+			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			int numJobManagers,
@@ -135,7 +145,7 @@ public class MiniClusterJobDispatcher {
 		this.numJobManagers = numJobManagers;
 
 		LOG.info("Creating JobMaster services");
-		this.jobManagerServices = JobManagerServices.fromConfiguration(config, haServices);
+		this.jobManagerServices = JobManagerServices.fromConfiguration(config, blobServer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -285,6 +295,8 @@ public class MiniClusterJobDispatcher {
 		// to remove the data after job finished
 		try {
 			haServices.getRunningJobsRegistry().clearJob(jobID);
+
+			// TODO: Remove job data from BlobServer
 		}
 		catch (Throwable t) {
 			LOG.warn("Could not clear job {} at the status registry of the high-availability services", jobID, t);
