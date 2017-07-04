@@ -22,14 +22,13 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
 
 import scala.concurrent.duration.Duration;
 
 import java.util.ArrayDeque;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -68,21 +67,12 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final ExecutionGraph executionGraph) {
+	public void restart(final ExecutionGraph executionGraph, ScheduledExecutor scheduledExecutor) {
 		if (isRestartTimestampsQueueFull()) {
 			restartTimestampsDeque.remove();
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
-		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getFutureExecutor());
-	}
-
-	@Override
-	public void restart(final ExecutionGraph executionGraph, ScheduledExecutorService executorService) {
-		if (isRestartTimestampsQueueFull()) {
-			restartTimestampsDeque.remove();
-		}
-		restartTimestampsDeque.add(System.currentTimeMillis());
-		ExecutionGraphRestarter.scheduleRestartWithDelay(executionGraph, delayInterval.toMilliseconds(), executorService);
+		ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds(), scheduledExecutor);
 	}
 
 	private boolean isRestartTimestampsQueueFull() {

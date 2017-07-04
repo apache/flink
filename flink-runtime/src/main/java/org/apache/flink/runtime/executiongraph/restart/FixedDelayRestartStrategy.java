@@ -21,12 +21,10 @@ package org.apache.flink.runtime.executiongraph.restart;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
-
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} a fixed number of times
@@ -59,15 +57,9 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final ExecutionGraph executionGraph) {
+	public void restart(ExecutionGraph executionGraph, ScheduledExecutor scheduledExecutor) {
 		currentRestartAttempt++;
-		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayBetweenRestartAttempts), executionGraph.getFutureExecutor());
-	}
-
-	@Override
-	public void restart(ExecutionGraph executionGraph, ScheduledExecutorService executorService) {
-		currentRestartAttempt++;
-		ExecutionGraphRestarter.scheduleRestartWithDelay(executionGraph, delayBetweenRestartAttempts, executorService);
+		ExecutionGraphRestarter.restartWithDelay(executionGraph, delayBetweenRestartAttempts, scheduledExecutor);
 	}
 
 	/**

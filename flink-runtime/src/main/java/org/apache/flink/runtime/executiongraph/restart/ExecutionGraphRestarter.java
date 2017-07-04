@@ -18,53 +18,27 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 class ExecutionGraphRestarter {
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphRestarter.class);
-
-	/** @deprecated Using {@link #scheduleRestartWithDelay(ExecutionGraph, long, ScheduledExecutorService)} instead. */
-	@Deprecated
-	public static Callable<Object> restartWithDelay(final ExecutionGraph executionGraph, final long delayBetweenRestartAttemptsInMillis) {
-		return new Callable<Object>() {
-			@Override
-			public Object call() throws Exception {
-				try {
-					LOG.info("Delaying retry of job execution for {} ms ...", delayBetweenRestartAttemptsInMillis);
-					// do the delay
-					Thread.sleep(delayBetweenRestartAttemptsInMillis);
-				} catch(InterruptedException e) {
-					// should only happen on shutdown
-				}
-				executionGraph.restart();
-				return null;
-			}
-		};
-	}
-
-	public static void scheduleRestartWithDelay(final ExecutionGraph executionGraph, final long delayBetweenRestartAttemptsInMillis,
-												final ScheduledExecutorService executorService) {
-		ScheduledFuture<Object> future = executorService.schedule(
+	public static void restartWithDelay(final ExecutionGraph executionGraph, final long delay,
+										final ScheduledExecutor scheduledExecutor) {
+		LOG.info("Delaying retry of job execution for {} ms ...", delay);
+		scheduledExecutor.schedule(
 			new Callable<Object>() {
 				@Override
 				public Object call() throws Exception {
 					executionGraph.restart();
 					return null;
 				}
-			}, delayBetweenRestartAttemptsInMillis, TimeUnit.MILLISECONDS
+			}, delay, TimeUnit.MILLISECONDS
 		);
-
-		try {
-			future.get();
-		} catch (Throwable throwable) {
-			LOG.warn("Uncaught exception while restarting job " + executionGraph.getJobName(), throwable);
-		}
 	}
 }
