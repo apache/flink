@@ -178,6 +178,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 		configuration.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
 
+		BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore());
 		return Props.create(
 			TestingJobManager.class,
 			configuration,
@@ -185,7 +186,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			new InstanceManager(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
-			new BlobLibraryCacheManager(new BlobServer(configuration, new VoidBlobStore())),
+			blobServer,
+			new BlobLibraryCacheManager(blobServer),
 			ActorRef.noSender(),
 			new NoRestartStrategy.NoRestartStrategyFactory(),
 			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
