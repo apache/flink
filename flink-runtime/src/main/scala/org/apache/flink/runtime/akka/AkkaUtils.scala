@@ -567,6 +567,12 @@ object AkkaUtils {
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 
+  def getTimeoutAsTime(config: Configuration): Time = {
+    val duration = Duration(config.getString(AkkaOptions.ASK_TIMEOUT))
+
+    Time.milliseconds(duration.toMillis)
+  }
+
   def getDefaultTimeout: Time = {
     val duration = Duration(AkkaOptions.ASK_TIMEOUT.defaultValue())
 
