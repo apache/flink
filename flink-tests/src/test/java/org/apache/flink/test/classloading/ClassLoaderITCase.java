@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -42,9 +43,13 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,8 +66,11 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test job classloader.
@@ -87,7 +95,11 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
+	@ClassRule
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	private static TestingCluster testCluster;
 
@@ -95,8 +107,6 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		FOLDER.create();
-
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
@@ -121,133 +131,150 @@ public class ClassLoaderITCase extends TestLogger {
 			testCluster.shutdown();
 		}
 
-		FOLDER.delete();
-
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
 	}
 
 	@Test
-	public void testJobsWithCustomClassLoader() throws IOException, ProgramInvocationException {
-		try {
-			int port = testCluster.getLeaderRPCPort();
+	public void testCustomSplitJobWithCustomClassLoaderJar() throws IOException, ProgramInvocationException {
 
-			PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
-			TestEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.singleton(new Path(INPUT_SPLITS_PROG_JAR_FILE)),
-				Collections.<URL>emptyList());
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(INPUT_SPLITS_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-			inputSplitTestProg.invokeInteractiveModeForExecution();
+		inputSplitTestProg.invokeInteractiveModeForExecution();
+	}
 
-			PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
+	@Test
+	public void testStreamingCustomSplitJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
 
-			TestStreamEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.singleton(new Path(STREAMING_INPUT_SPLITS_PROG_JAR_FILE)),
-				Collections.<URL>emptyList());
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(STREAMING_INPUT_SPLITS_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-			streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+		streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+	}
 
-			URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
-			PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
+	@Test
+	public void testCustomSplitJobWithCustomClassLoaderPath() throws IOException, ProgramInvocationException {
+		URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
+		PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
-			TestEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.<Path>emptyList(),
-				Collections.singleton(classpath));
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.<Path>emptyList(),
+			Collections.singleton(classpath));
 
-			inputSplitTestProg2.invokeInteractiveModeForExecution();
+		inputSplitTestProg2.invokeInteractiveModeForExecution();
+	}
 
-			// regular streaming job
-			PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
+	@Test
+	public void testStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		// regular streaming job
+		PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
 
-			TestStreamEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.singleton(new Path(STREAMING_PROG_JAR_FILE)),
-				Collections.<URL>emptyList());
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(STREAMING_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-			streamingProg.invokeInteractiveModeForExecution();
+		streamingProg.invokeInteractiveModeForExecution();
+	}
 
-			// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
-			// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
-			try {
-				PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
+	@Test
+	public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
+		// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
+		PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
 
-				TestStreamEnvironment.setAsContext(
-					testCluster,
-					parallelism,
-					Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
-					Collections.<URL>emptyList());
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-				streamingCheckpointedProg.invokeInteractiveModeForExecution();
-			} catch (Exception e) {
-				// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
-				assertEquals("Program should terminate with a 'SuccessException'",
-						"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException",
-						e.getCause().getCause().getClass().getCanonicalName());
-			}
+		// Program should terminate with a 'SuccessException':
+		// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
+		expectedException.expectCause(
+			Matchers.<Throwable>hasProperty("cause",
+				hasProperty("class",
+					hasProperty("canonicalName", equalTo(
+						"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException")))));
 
-			PackagedProgram kMeansProg = new PackagedProgram(
-					new File(KMEANS_JAR_PATH),
-					new String[] {
-						KMeansData.DATAPOINTS,
-						KMeansData.INITIAL_CENTERS,
-						"25"
-					});
+		streamingCheckpointedProg.invokeInteractiveModeForExecution();
+	}
 
-			TestEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.singleton(new Path(KMEANS_JAR_PATH)),
-				Collections.<URL>emptyList());
+	@Test
+	public void testKMeansJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		PackagedProgram kMeansProg = new PackagedProgram(
+			new File(KMEANS_JAR_PATH),
+			new String[] {
+				KMeansData.DATAPOINTS,
+				KMeansData.INITIAL_CENTERS,
+				"25"
+			});
 
-			kMeansProg.invokeInteractiveModeForExecution();
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(KMEANS_JAR_PATH)),
+			Collections.<URL>emptyList());
 
-			// test FLINK-3633
-			final PackagedProgram userCodeTypeProg = new PackagedProgram(
-					new File(USERCODETYPE_JAR_PATH),
-					new String[] { USERCODETYPE_JAR_PATH,
-							"localhost",
-							String.valueOf(port),
-					});
+		kMeansProg.invokeInteractiveModeForExecution();
+	}
 
-			TestEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.singleton(new Path(USERCODETYPE_JAR_PATH)),
-				Collections.<URL>emptyList());
+	@Test
+	public void testUserCodeTypeJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		int port = testCluster.getLeaderRPCPort();
 
-			userCodeTypeProg.invokeInteractiveModeForExecution();
+		// test FLINK-3633
+		final PackagedProgram userCodeTypeProg = new PackagedProgram(
+			new File(USERCODETYPE_JAR_PATH),
+			new String[] { USERCODETYPE_JAR_PATH,
+				"localhost",
+				String.valueOf(port),
+			});
 
-			File checkpointDir = FOLDER.newFolder();
-			File outputDir = FOLDER.newFolder();
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(USERCODETYPE_JAR_PATH)),
+			Collections.<URL>emptyList());
 
-			final PackagedProgram program = new PackagedProgram(
-					new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
-					new String[] {
-							checkpointDir.toURI().toString(),
-							outputDir.toURI().toString()
-					});
+		userCodeTypeProg.invokeInteractiveModeForExecution();
+	}
 
-			TestStreamEnvironment.setAsContext(
-				testCluster,
-				parallelism,
-				Collections.singleton(new Path(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH)),
-				Collections.<URL>emptyList());
+	@Test
+	public void testCheckpointingCustomKvStateJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		File checkpointDir = FOLDER.newFolder();
+		File outputDir = FOLDER.newFolder();
 
-			program.invokeInteractiveModeForExecution();
+		final PackagedProgram program = new PackagedProgram(
+			new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
+			new String[] {
+				checkpointDir.toURI().toString(),
+				outputDir.toURI().toString()
+			});
 
-		} catch (Exception e) {
-			if (!(e.getCause().getCause() instanceof SuccessException)) {
-				throw e;
-			}
-		}
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH)),
+			Collections.<URL>emptyList());
+
+		expectedException.expectCause(
+			Matchers.<Throwable>hasProperty("cause", isA(SuccessException.class)));
+
+		program.invokeInteractiveModeForExecution();
 	}
 
 	/**
@@ -283,7 +310,10 @@ public class ClassLoaderITCase extends TestLogger {
 				try {
 					program.invokeInteractiveModeForExecution();
 				} catch (ProgramInvocationException ignored) {
-					ignored.printStackTrace();
+					if (ignored.getCause() == null ||
+						!(ignored.getCause() instanceof JobCancellationException)) {
+						ignored.printStackTrace();
+					}
 				}
 			}
 		});
@@ -356,5 +386,10 @@ public class ClassLoaderITCase extends TestLogger {
 		} else {
 			throw new IllegalStateException("Unexpected response to DisposeSavepoint");
 		}
+
+		// Cancel job, wait for success
+		Future<?> cancelFuture = jm.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft());
+		Object response = Await.result(cancelFuture, deadline.timeLeft());
+		assertTrue("Unexpected response: " + response, response instanceof JobManagerMessages.CancellationSuccess);
 	}
 }
