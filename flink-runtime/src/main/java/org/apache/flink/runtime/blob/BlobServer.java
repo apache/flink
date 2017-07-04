@@ -30,7 +30,6 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -376,7 +375,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * 		Thrown if the file retrieval failed.
 	 */
 	@Override
-	public File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public File getFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
 	}
@@ -452,7 +451,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * @throws IOException
 	 */
 	@Override
-	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}
@@ -490,7 +489,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
 	 */
-	public void cleanupJob(@Nonnull JobID jobId) {
+	public void cleanupJob(JobID jobId) {
 		checkNotNull(jobId);
 
 		final File jobDir =

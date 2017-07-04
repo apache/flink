@@ -23,7 +23,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.util.ExceptionUtils;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
@@ -47,7 +46,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	
 	@Override
 	public ClassLoader getClassLoader(
-			@Nonnull JobID jobId,
+			JobID jobId,
 			@Nullable Collection<BlobKey> requiredJarFiles,
 			@Nullable Collection<URL> requiredClasspaths) throws IOException {
 

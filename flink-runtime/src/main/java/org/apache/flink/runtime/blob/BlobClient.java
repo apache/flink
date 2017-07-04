@@ -36,7 +36,6 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -172,7 +171,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		if an I/O error occurs during the download
 	 */
-	public InputStream get(@Nonnull JobID jobId, BlobKey blobKey) throws IOException {
+	public InputStream get(JobID jobId, BlobKey blobKey) throws IOException {
 		checkNotNull(jobId);
 		return getInternal(jobId, blobKey);
 	}
@@ -345,7 +344,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	public BlobKey put(@Nonnull JobID jobId, InputStream inputStream) throws IOException {
+	public BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		return putInputStream(jobId, inputStream);
 	}
@@ -375,7 +374,7 @@ public final class BlobClient implements Closeable {
 		checkNotNull(value);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("PUT BLOB buffer ({} bytes) to {}.", len, socket.getLocalSocketAddress());
+			LOG.debug("PUT BLOB buffer (" + len + " bytes) to " + socket.getLocalSocketAddress() + ".");
 		}
 
 		try {
@@ -562,7 +561,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}

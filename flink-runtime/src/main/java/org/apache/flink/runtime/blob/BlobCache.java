@@ -227,7 +227,7 @@ public class BlobCache extends TimerTask implements BlobService {
 	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
 	@Override
-	public File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public File getFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
 	}
@@ -337,7 +337,7 @@ public class BlobCache extends TimerTask implements BlobService {
 	 * @throws IOException
 	 */
 	@Override
-	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}
@@ -386,7 +386,7 @@ public class BlobCache extends TimerTask implements BlobService {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void deleteGlobal(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void deleteGlobal(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteGlobalInternal(jobId, key);
 	}
@@ -442,7 +442,7 @@ public class BlobCache extends TimerTask implements BlobService {
 						// let's only remove this directory from cleanup if the cleanup was successful
 						entryIter.remove();
 					} catch (Throwable t) {
-						LOG.warn("Failed to locally delete job directory {}", localFile.getAbsolutePath());
+						LOG.warn("Failed to locally delete job directory " + localFile.getAbsolutePath(), t);
 					}
 				}
 			}
