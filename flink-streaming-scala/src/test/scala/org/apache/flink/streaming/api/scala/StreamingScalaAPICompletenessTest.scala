@@ -48,8 +48,8 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType2",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.addGeneralWindowCombine",
 
-      "org.apache.flink.streaming.api.datastream.WindowedDataStream.getType",
-      "org.apache.flink.streaming.api.datastream.WindowedDataStream.getExecutionConfig",
+      "org.apache.flink.streaming.api.datastream.WindowedStream.getType",
+      "org.apache.flink.streaming.api.datastream.WindowedStream.getExecutionConfig",
 
       "org.apache.flink.streaming.api.datastream.WindowedStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.WindowedStream.getInputType",
