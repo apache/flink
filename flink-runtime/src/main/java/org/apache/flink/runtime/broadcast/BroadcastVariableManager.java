@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The BroadcastVariableManager is used to manage the materialization of broadcast variables. References to materialized
  * broadcast variables are cached and shared between parallel subtasks. A reference count is maintained to track whether
- * a the materialization may be cleaned up.
+ * the materialization may be cleaned up.
  */
 public class BroadcastVariableManager {
 
@@ -39,7 +39,7 @@ public class BroadcastVariableManager {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Materializes the broadcast variable for the given name, scoped to the given task and it's iteration superstep. An
+	 * Materializes the broadcast variable for the given name, scoped to the given task and its iteration superstep. An
 	 * existing materialization created by another parallel subtask may be returned, if it hasn't expired yet.
 	 */
 	public <T> BroadcastVariableMaterialization<T, ?> materializeBroadcastVariable(String name, int superstep, BatchTask<?, ?> holder,
