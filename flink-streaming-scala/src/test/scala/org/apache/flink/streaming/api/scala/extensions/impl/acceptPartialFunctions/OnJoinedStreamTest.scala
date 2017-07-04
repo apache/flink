@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTime
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.junit.Test
 
-class OnJoinedDataStreamTest extends AcceptPFTestBase {
+class OnJoinedStreamTest extends AcceptPFTestBase {
 
   @Test
   def testProjectingOnTuple(): Unit = {
