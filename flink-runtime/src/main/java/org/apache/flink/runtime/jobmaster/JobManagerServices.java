@@ -23,13 +23,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import scala.concurrent.duration.FiniteDuration;
 
@@ -103,15 +103,16 @@ public class JobManagerServices {
 
 	public static JobManagerServices fromConfiguration(
 			Configuration config,
-			HighAvailabilityServices haServices) throws Exception {
+			BlobService blobService) throws Exception {
 
-		final BlobServer blobServer = new BlobServer(config, haServices.createBlobStore());
+		Preconditions.checkNotNull(config);
+		Preconditions.checkNotNull(blobService);
 
 		final long cleanupInterval = config.getLong(
 			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
 			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
 
-		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval);
+		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobService, cleanupInterval);
 
 		final FiniteDuration timeout;
 		try {
