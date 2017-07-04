@@ -21,13 +21,8 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 /**
- * A heartbeat manager has to be able to do the following things:
- *
- * <ul>
- *     <li>Monitor {@link HeartbeatTarget} and report heartbeat timeouts for this target</li>
- *     <li>Stop monitoring a {@link HeartbeatTarget}</li>
- * </ul>
- *
+ * A heartbeat manager has to be able to start/stop monitoring a {@link HeartbeatTarget}, and report heartbeat timeouts
+ * for this target.
  *
  * @param <I> Type of the incoming payload
  * @param <O> Type of the outgoing payload

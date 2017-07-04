@@ -24,9 +24,11 @@ import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 
 import javax.annotation.concurrent.ThreadSafe;
+
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -47,27 +49,27 @@ import java.util.concurrent.atomic.AtomicReference;
 @ThreadSafe
 public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
-	/** Heartbeat timeout interval in milli seconds */
+	/** Heartbeat timeout interval in milli seconds. */
 	private final long heartbeatTimeoutIntervalMs;
 
-	/** Resource ID which is used to mark one own's heartbeat signals */
+	/** Resource ID which is used to mark one own's heartbeat signals. */
 	private final ResourceID ownResourceID;
 
-	/** Heartbeat listener with which the heartbeat manager has been associated */
+	/** Heartbeat listener with which the heartbeat manager has been associated. */
 	private final HeartbeatListener<I, O> heartbeatListener;
 
-	/** Executor service used to run heartbeat timeout notifications */
+	/** Executor service used to run heartbeat timeout notifications. */
 	private final ScheduledExecutor scheduledExecutor;
 
 	protected final Logger log;
 
-	/** Map containing the heartbeat monitors associated with the respective resource ID */
+	/** Map containing the heartbeat monitors associated with the respective resource ID. */
 	private final ConcurrentHashMap<ResourceID, HeartbeatManagerImpl.HeartbeatMonitor<O>> heartbeatTargets;
 
-	/** Execution context used to run future callbacks */
+	/** Execution context used to run future callbacks. */
 	private final Executor executor;
 
-	/** Running state of the heartbeat manager */
+	/** Running state of the heartbeat manager. */
 	protected volatile boolean stopped;
 
 	public HeartbeatManagerImpl(
@@ -240,18 +242,18 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	 */
 	static class HeartbeatMonitor<O> implements Runnable {
 
-		/** Resource ID of the monitored heartbeat target */
+		/** Resource ID of the monitored heartbeat target. */
 		private final ResourceID resourceID;
 
-		/** Associated heartbeat target */
+		/** Associated heartbeat target. */
 		private final HeartbeatTarget<O> heartbeatTarget;
 
 		private final ScheduledExecutor scheduledExecutor;
 
-		/** Listener which is notified about heartbeat timeouts */
+		/** Listener which is notified about heartbeat timeouts. */
 		private final HeartbeatListener<?, ?> heartbeatListener;
 
-		/** Maximum heartbeat timeout interval */
+		/** Maximum heartbeat timeout interval. */
 		private final long heartbeatTimeoutIntervalMs;
 
 		private volatile ScheduledFuture<?> futureTimeout;

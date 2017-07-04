@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +47,14 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-
+/**
+ * Tests for the {@link HeartbeatManager}.
+ */
 public class HeartbeatManagerTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(HeartbeatManagerTest.class);
 
@@ -217,7 +220,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatListener2,
 			new DirectExecutorService(),
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
-			LOG);;
+			LOG);
 
 		heartbeatManager.monitorTarget(resourceID2, heartbeatManager2);
 		heartbeatManager2.monitorTarget(resourceID, heartbeatManager);
@@ -239,7 +242,7 @@ public class HeartbeatManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that after unmonitoring a target, there won't be a timeout triggered
+	 * Tests that after unmonitoring a target, there won't be a timeout triggered.
 	 */
 	@Test
 	public void testTargetUnmonitoring() throws InterruptedException, ExecutionException {
@@ -264,7 +267,6 @@ public class HeartbeatManagerTest extends TestLogger {
 		heartbeatManager.unmonitorTarget(targetID);
 
 		Future<ResourceID> timeout = heartbeatListener.getTimeoutFuture();
-
 
 		try {
 			timeout.get(2 * heartbeatTimeout, TimeUnit.MILLISECONDS);
