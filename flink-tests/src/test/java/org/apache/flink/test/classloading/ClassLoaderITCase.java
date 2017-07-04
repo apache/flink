@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -61,8 +62,8 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test job classloader.
@@ -128,9 +129,8 @@ public class ClassLoaderITCase extends TestLogger {
 	}
 
 	@Test
-	public void testJobsWithCustomClassLoader() throws IOException, ProgramInvocationException {
+	public void testCustomSplitJobWithCustomClassLoaderJar() throws IOException, ProgramInvocationException {
 		try {
-			int port = testCluster.getLeaderRPCPort();
 
 			PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
@@ -142,6 +142,20 @@ public class ClassLoaderITCase extends TestLogger {
 
 			inputSplitTestProg.invokeInteractiveModeForExecution();
 
+		} catch (Exception e) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
+				throw e;
+			}
+		}
+	}
+
+	@Test
+	public void testStreamingCustomSplitJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		try {
+
 			PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
 
 			TestStreamEnvironment.setAsContext(
@@ -151,6 +165,20 @@ public class ClassLoaderITCase extends TestLogger {
 				Collections.<URL>emptyList());
 
 			streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+
+		} catch (Exception e) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
+				throw e;
+			}
+		}
+	}
+
+	@Test
+	public void testCustomSplitJobWithCustomClassLoaderPath() throws IOException, ProgramInvocationException {
+		try {
 
 			URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
 			PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
@@ -163,6 +191,20 @@ public class ClassLoaderITCase extends TestLogger {
 
 			inputSplitTestProg2.invokeInteractiveModeForExecution();
 
+		} catch (Exception e) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
+				throw e;
+			}
+		}
+	}
+
+	@Test
+	public void testStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		try {
+
 			// regular streaming job
 			PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
 
@@ -174,24 +216,47 @@ public class ClassLoaderITCase extends TestLogger {
 
 			streamingProg.invokeInteractiveModeForExecution();
 
+		} catch (Exception e) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
+				throw e;
+			}
+		}
+	}
+
+	@Test
+	public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		try {
+
 			// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
 			// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
-			try {
-				PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
+			PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
 
-				TestStreamEnvironment.setAsContext(
-					testCluster,
-					parallelism,
-					Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
-					Collections.<URL>emptyList());
+			TestStreamEnvironment.setAsContext(
+				testCluster,
+				parallelism,
+				Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
+				Collections.<URL>emptyList());
 
-				streamingCheckpointedProg.invokeInteractiveModeForExecution();
-			} catch (Exception e) {
-				// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
-				assertEquals("Program should terminate with a 'SuccessException'",
-						"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException",
-						e.getCause().getCause().getClass().getCanonicalName());
+			streamingCheckpointedProg.invokeInteractiveModeForExecution();
+
+		} catch (Exception e) {
+			// Program should terminate with a 'SuccessException':
+			// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause().getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"))) {
+
+				throw e;
 			}
+		}
+	}
+
+	@Test
+	public void testKMeansJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		try {
 
 			PackagedProgram kMeansProg = new PackagedProgram(
 					new File(KMEANS_JAR_PATH),
@@ -209,12 +274,27 @@ public class ClassLoaderITCase extends TestLogger {
 
 			kMeansProg.invokeInteractiveModeForExecution();
 
+		} catch (Exception e) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
+				throw e;
+			}
+		}
+	}
+
+	@Test
+	public void testUserCodeTypeJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		try {
+			int port = testCluster.getLeaderRPCPort();
+
 			// test FLINK-3633
 			final PackagedProgram userCodeTypeProg = new PackagedProgram(
 					new File(USERCODETYPE_JAR_PATH),
 					new String[] { USERCODETYPE_JAR_PATH,
-							"localhost",
-							String.valueOf(port),
+						"localhost",
+						String.valueOf(port),
 					});
 
 			TestEnvironment.setAsContext(
@@ -224,6 +304,20 @@ public class ClassLoaderITCase extends TestLogger {
 				Collections.<URL>emptyList());
 
 			userCodeTypeProg.invokeInteractiveModeForExecution();
+
+		} catch (Exception e) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
+				throw e;
+			}
+		}
+	}
+
+	@Test
+	public void testCheckpointingCustomKvStateJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		try {
 
 			File checkpointDir = FOLDER.newFolder();
 			File outputDir = FOLDER.newFolder();
@@ -244,7 +338,10 @@ public class ClassLoaderITCase extends TestLogger {
 			program.invokeInteractiveModeForExecution();
 
 		} catch (Exception e) {
-			if (!(e.getCause().getCause() instanceof SuccessException)) {
+			if (!(e.getCause() != null &&
+				e.getCause().getCause() != null &&
+				e.getCause().getCause() instanceof SuccessException)) {
+
 				throw e;
 			}
 		}
@@ -283,7 +380,10 @@ public class ClassLoaderITCase extends TestLogger {
 				try {
 					program.invokeInteractiveModeForExecution();
 				} catch (ProgramInvocationException ignored) {
-					ignored.printStackTrace();
+					if (ignored.getCause() == null ||
+						!(ignored.getCause() instanceof JobCancellationException)) {
+						ignored.printStackTrace();
+					}
 				}
 			}
 		});
@@ -356,5 +456,10 @@ public class ClassLoaderITCase extends TestLogger {
 		} else {
 			throw new IllegalStateException("Unexpected response to DisposeSavepoint");
 		}
+
+		// Cancel job, wait for success
+		Future<?> cancelFuture = jm.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft());
+		Object response = Await.result(cancelFuture, deadline.timeLeft());
+		assertTrue("Unexpected response: " + response, response instanceof JobManagerMessages.CancellationSuccess);
 	}
 }
