@@ -1188,6 +1188,15 @@ public class CheckpointCoordinator {
 		return checkpointTimeout;
 	}
 
+	/**
+	 * Returns whether periodic checkpointing has been configured.
+	 *
+	 * @return <code>true</code> if periodic checkpoints have been configured.
+	 */
+	public boolean isPeriodicCheckpointingConfigured() {
+		return baseInterval != Long.MAX_VALUE;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
