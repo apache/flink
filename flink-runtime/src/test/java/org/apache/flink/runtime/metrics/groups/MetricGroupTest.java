@@ -174,7 +174,10 @@ public class MetricGroupTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
-	private static class DummyAbstractMetricGroup extends AbstractMetricGroup {
+	/**
+	 * A dummy {@link AbstractMetricGroup} to be used when a group is required as an argument but not actually used.
+	 */
+	public static class DummyAbstractMetricGroup extends AbstractMetricGroup {
 
 		public DummyAbstractMetricGroup(MetricRegistry registry) {
 			super(registry, new String[0], null);
