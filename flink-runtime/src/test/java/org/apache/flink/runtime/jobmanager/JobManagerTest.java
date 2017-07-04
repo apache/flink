@@ -939,6 +939,79 @@ public class JobManagerTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that a failed savepoint does not cancel the job and new checkpoints are triggered
+	 * after the failed cancel-with-savepoint.
+	 */
+	@Test
+	public void testCancelJobWithSavepointFailurePeriodicCheckpoints() throws Exception {
+		File savepointTarget = tmpFolder.newFolder();
+
+		// A source that declines savepoints, simulating the behaviour of a
+		// failed savepoint.
+		JobVertex sourceVertex = new JobVertex("Source");
+		sourceVertex.setInvokableClass(FailOnSavepointSourceTask.class);
+		sourceVertex.setParallelism(1);
+		JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
+
+		CheckpointCoordinatorConfiguration coordConfig = new CheckpointCoordinatorConfiguration(
+			50,
+			3600000,
+			0,
+			Integer.MAX_VALUE,
+			ExternalizedCheckpointSettings.none(),
+			true);
+
+		JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
+			Collections.singletonList(sourceVertex.getID()),
+			Collections.singletonList(sourceVertex.getID()),
+			Collections.singletonList(sourceVertex.getID()),
+			coordConfig,
+			null);
+
+		jobGraph.setSnapshotSettings(snapshottingSettings);
+
+		final TestingCluster testingCluster = new TestingCluster(
+			new Configuration(),
+			highAvailabilityServices,
+			true,
+			false);
+
+		try {
+			testingCluster.start(true);
+
+			FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
+			ActorGateway jobManager = testingCluster.getLeaderGateway(askTimeout);
+
+			testingCluster.submitJobDetached(jobGraph);
+
+			// Wait for the source to be running otherwise the savepoint
+			// barrier will not reach the task.
+			Future<Object> allTasksAlive = jobManager.ask(
+				new WaitForAllVerticesToBeRunning(jobGraph.getJobID()),
+				askTimeout);
+			Await.ready(allTasksAlive, askTimeout);
+
+			// Cancel with savepoint. The expected outcome is that cancellation
+			// fails due to a failed savepoint. After this, periodic checkpoints
+			// should resume.
+			Future<Object> cancellationFuture = jobManager.ask(
+				new CancelJobWithSavepoint(jobGraph.getJobID(), savepointTarget.getAbsolutePath()),
+				askTimeout);
+			Object cancellationResponse = Await.result(cancellationFuture, askTimeout);
+
+			if (cancellationResponse instanceof CancellationFailure) {
+				if (!FailOnSavepointSourceTask.CHECKPOINT_AFTER_SAVEPOINT_LATCH.await(30, TimeUnit.SECONDS)) {
+					fail("No checkpoint was triggered after failed savepoint within expected duration");
+				}
+			} else {
+				fail("Unexpected cancellation response from JobManager: " + cancellationResponse);
+			}
+		} finally {
+			testingCluster.shutdown();
+		}
+	}
+
+	/**
 	 * Tests that a meaningful exception is returned if no savepoint directory is
 	 * configured.
 	 */
@@ -1410,6 +1483,55 @@ public class JobManagerTest extends TestLogger {
 			// cleanup the actor system and with it all of the started actors if not already terminated
 			actorSystem.shutdown();
 			actorSystem.awaitTermination();
+		}
+	}
+
+	/**
+	 * A blocking stateful source task that declines savepoints.
+	 */
+	public static class FailOnSavepointSourceTask extends AbstractInvokable implements StatefulTask {
+
+		private static final CountDownLatch CHECKPOINT_AFTER_SAVEPOINT_LATCH = new CountDownLatch(1);
+
+		private boolean receivedSavepoint;
+
+		@Override
+		public void invoke() throws Exception {
+			new CountDownLatch(1).await();
+		}
+
+		@Override
+		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {
+		}
+
+		@Override
+		public boolean triggerCheckpoint(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions) throws Exception {
+			if (checkpointOptions.getCheckpointType() == CheckpointType.SAVEPOINT) {
+				receivedSavepoint = true;
+				return false;
+			} else if (receivedSavepoint) {
+				CHECKPOINT_AFTER_SAVEPOINT_LATCH.countDown();
+				return true;
+			}
+			return true;
+		}
+
+		@Override
+		public void triggerCheckpointOnBarrier(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			CheckpointMetrics checkpointMetrics) throws Exception {
+			throw new UnsupportedOperationException("This is meant to be used as a source");
+		}
+
+		@Override
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		}
 	}
 }
