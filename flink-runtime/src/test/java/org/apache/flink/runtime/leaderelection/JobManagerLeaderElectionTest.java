@@ -34,7 +34,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -185,7 +185,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			new InstanceManager(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
-			new BlobServerLibraryManager(new BlobServer(configuration, new VoidBlobStore())),
+			new BlobLibraryCacheManager(new BlobServer(configuration, new VoidBlobStore())),
 			ActorRef.noSender(),
 			new NoRestartStrategy.NoRestartStrategyFactory(),
 			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),

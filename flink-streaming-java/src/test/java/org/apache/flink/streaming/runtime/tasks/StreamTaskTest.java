@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -764,9 +765,10 @@ public class StreamTaskTest extends TestLogger {
 			StreamConfig taskConfig,
 			Configuration taskManagerConfig) throws Exception {
 
+		BlobCache blobCache = mock(BlobCache.class);
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		//noinspection unchecked
-		when(libCache.registerJob(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(StreamTaskTest.class.getClassLoader());
+		when(libCache.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(StreamTaskTest.class.getClassLoader());
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
@@ -813,6 +815,7 @@ public class StreamTaskTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			blobCache,
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(taskManagerConfig, new String[] {System.getProperty("java.io.tmpdir")}),

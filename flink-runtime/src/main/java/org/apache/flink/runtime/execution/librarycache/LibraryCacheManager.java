@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 
 import java.io.IOException;
@@ -29,7 +28,7 @@ import java.util.Collection;
 public interface LibraryCacheManager {
 
 	/**
-	 * Registers a job with its required jar files and classpaths and returns a user code class loader.
+	 * Retrieves the required jar files and classpaths and returns a user code class loader.
 	 * The jar files are identified by their blob keys.
 	 *
 	 * @param id job ID
@@ -38,25 +37,7 @@ public interface LibraryCacheManager {
 	 * @return ClassLoader which can load the user code
 	 *
 	 * @throws IOException if any error occurs when retrieving the required jar files
-	 *
-	 * @see #unregisterJob(JobID) counterpart of this method
 	 */
-	ClassLoader registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+	ClassLoader getClassLoader(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
 			throws IOException;
-
-	/**
-	 * Unregisters a job from the library cache manager.
-	 *
-	 * @param id job ID
-	 *
-	 * @see #registerJob(JobID, Collection, Collection) counterpart of this method
-	 */
-	void unregisterJob(JobID id);
-
-	/**
-	 * Shutdown method
-	 *
-	 * @throws IOException
-	 */
-	void shutdown() throws IOException;
 }

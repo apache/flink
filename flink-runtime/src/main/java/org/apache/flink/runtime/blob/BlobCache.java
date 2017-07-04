@@ -54,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * download it from a distributed file system (if available) or the BLOB
  * server.</p>
  */
-public final class BlobCache extends TimerTask implements BlobService {
+public class BlobCache extends TimerTask implements BlobService {
 
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(BlobCache.class);
@@ -145,7 +145,17 @@ public final class BlobCache extends TimerTask implements BlobService {
 		shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 	}
 
-	@Override
+	/**
+	 * Registers use of job-related BLOBs.
+	 * <p>
+	 * Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within calls
+	 * to {@link #registerJob(JobID)} and {@link #releaseJob(JobID)}.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 *
+	 * @see #releaseJob(JobID)
+	 */
 	public void registerJob(JobID jobId) {
 		synchronized (lockObject) {
 			RefCount ref = jobRefCounters.get(jobId);
@@ -157,7 +167,14 @@ public final class BlobCache extends TimerTask implements BlobService {
 		}
 	}
 
-	@Override
+	/**
+	 * Unregisters use of job-related BLOBs and allow them to be released.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 *
+	 * @see #registerJob(JobID)
+	 */
 	public void releaseJob(JobID jobId) {
 		synchronized (lockObject) {
 			RefCount ref = jobRefCounters.get(jobId);

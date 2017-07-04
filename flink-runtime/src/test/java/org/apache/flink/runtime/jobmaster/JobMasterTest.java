@@ -21,11 +21,12 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -60,7 +61,7 @@ import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(BlobServerLibraryManager.class)
+@PrepareForTest(BlobLibraryCacheManager.class)
 public class JobMasterTest extends TestLogger {
 
 	@Test
@@ -102,7 +103,8 @@ public class JobMasterTest extends TestLogger {
 				haServices,
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
-				mock(BlobServerLibraryManager.class),
+				mock(BlobServer.class),
+				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
 				Time.of(10, TimeUnit.SECONDS),
 				null,
@@ -194,7 +196,8 @@ public class JobMasterTest extends TestLogger {
 				haServices,
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
-				mock(BlobServerLibraryManager.class),
+				mock(BlobServer.class),
+				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
 				Time.of(10, TimeUnit.SECONDS),
 				null,

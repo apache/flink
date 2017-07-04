@@ -35,14 +35,14 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
-import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
+import org.apache.flink.runtime.blob.{BlobCache, BlobClient}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.Executors
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
-import org.apache.flink.runtime.execution.librarycache.{BlobCacheLibraryManager, FallbackLibraryCacheManager, LibraryCacheManager}
+import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInfo}
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
@@ -160,7 +160,7 @@ class TaskManager(
     * registered at the job manager */
   private val waitForRegistration = scala.collection.mutable.Set[ActorRef]()
 
-  private var blobService: Option[BlobService] = None
+  private var blobCache: Option[BlobCache] = None
   private var libraryCacheManager: Option[LibraryCacheManager] = None
 
   /* The current leading JobManager Actor associated with */
@@ -333,11 +333,11 @@ class TaskManager(
       killTaskManagerFatal(message, cause)
 
     case RequestTaskManagerLog(requestType : LogTypeRequest) =>
-      blobService match {
+      blobCache match {
         case Some(_) =>
           handleRequestTaskManagerLog(sender(), requestType, currentJobManager.get)
         case None =>
-          sender() ! akka.actor.Status.Failure(new IOException("BlobService not " +
+          sender() ! akka.actor.Status.Failure(new IOException("BlobCache not " +
             "available. Cannot upload TaskManager logs."))
       }
 
@@ -840,7 +840,7 @@ class TaskManager(
         if (file.exists()) {
           val fis = new FileInputStream(file);
           Future {
-            val client: BlobClient = blobService.get.createClient()
+            val client: BlobClient = blobCache.get.createClient()
             client.put(fis);
           }(context.dispatcher)
             .onComplete {
@@ -915,7 +915,7 @@ class TaskManager(
       "starting network stack and library cache.")
 
     // sanity check that the JobManager dependent components are not set up currently
-    if (connectionUtils.isDefined || blobService.isDefined) {
+    if (connectionUtils.isDefined || blobCache.isDefined) {
       throw new IllegalStateException("JobManager-specific components are already initialized.")
     }
 
@@ -968,9 +968,9 @@ class TaskManager(
           address,
           config.getConfiguration(),
           highAvailabilityServices.createBlobStore())
-        blobService = Option(blobcache)
+        blobCache = Option(blobcache)
         libraryCacheManager = Some(
-          new BlobCacheLibraryManager(blobcache))
+          new BlobLibraryCacheManager(blobcache))
       }
       catch {
         case e: Exception =>
@@ -1046,19 +1046,9 @@ class TaskManager(
     instanceID = null
 
     // shut down BLOB and library cache
-    libraryCacheManager foreach {
-      manager =>
-        try {
-          manager.shutdown()
-        } catch {
-          case ioe: IOException => log.error(
-            "Could not properly shutdown library cache manager.",
-            ioe)
-        }
-    }
     libraryCacheManager = None
 
-    blobService foreach {
+    blobCache foreach {
       service =>
         try {
           service.close()
@@ -1066,7 +1056,7 @@ class TaskManager(
           case ioe: IOException => log.error("Could not properly shutdown blob service.", ioe)
         }
     }
-    blobService = None
+    blobCache = None
 
     // disassociate the slot environment
     connectionUtils = None
@@ -1129,6 +1119,10 @@ class TaskManager(
       val libCache = libraryCacheManager match {
         case Some(manager) => manager
         case None => throw new IllegalStateException("There is no valid library cache manager.")
+      }
+      val blobCache = this.blobCache match {
+        case Some(manager) => manager
+        case None => throw new IllegalStateException("There is no valid BLOB cache.")
       }
 
       val slot = tdd.getTargetSlotNumber
@@ -1200,6 +1194,7 @@ class TaskManager(
         taskManagerConnection,
         inputSplitProvider,
         checkpointResponder,
+        blobCache,
         libCache,
         fileCache,
         config,

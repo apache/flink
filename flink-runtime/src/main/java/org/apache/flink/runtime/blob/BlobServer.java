@@ -339,26 +339,6 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Retrieves a collection of BLOBs.
-	 * <p>
-	 * Note that no job registration/release is required on the {@link BlobServer} since local
-	 * data is only supposed to be cleaned up in {@link #cleanupJob(JobID)} when the job enters a
-	 * final state.
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 */
-	@Override
-	public void registerJob(JobID jobId) {
-		// nothing to do
-	}
-
-	@Override
-	public void releaseJob(JobID jobId) {
-		// nothing to do
-	}
-
-	/**
 	 * Retrieves the local path of a (job-unrelated) file associated with a job and a blob key.
 	 * <p>
 	 * The blob server looks the blob key up in its local storage. If the file exists, it is

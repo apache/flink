@@ -32,7 +32,7 @@ import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.librarycache.BlobCacheLibraryManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -352,6 +352,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 		CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
+		BlobCache blobCache = jobManagerConnection.getBlobCache();
 		LibraryCacheManager libraryCache = jobManagerConnection.getLibraryCacheManager();
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();
@@ -374,6 +375,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			taskManagerActions,
 			inputSplitProvider,
 			checkpointResponder,
+			blobCache,
 			libraryCache,
 			fileCache,
 			taskManagerConfiguration,
@@ -923,12 +925,13 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		InetSocketAddress blobServerAddress = new InetSocketAddress(jobMasterGateway.getHostname(), blobPort);
 
 		final LibraryCacheManager libraryCacheManager;
+		final BlobCache blobCache;
 		try {
-			final BlobCache blobCache = new BlobCache(
+			blobCache = new BlobCache(
 				blobServerAddress,
 				taskManagerConfiguration.getConfiguration(),
 				haServices.createBlobStore());
-			libraryCacheManager = new BlobCacheLibraryManager(blobCache);
+			libraryCacheManager = new BlobLibraryCacheManager(blobCache);
 		} catch (IOException e) {
 			// Can't pass the IOException up - we need a RuntimeException anyway
 			// two levels up where this is run asynchronously. Also, we don't
@@ -953,6 +956,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			jobManagerLeaderId,
 			taskManagerActions,
 			checkpointResponder,
+			blobCache,
 			libraryCacheManager,
 			resultPartitionConsumableNotifier,
 			partitionStateChecker);
@@ -962,7 +966,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		Preconditions.checkNotNull(jobManagerConnection);
 		JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
 		jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
-		jobManagerConnection.getLibraryCacheManager().shutdown();
+		jobManagerConnection.getBlobCache().close();
 	}
 
 	// ------------------------------------------------------------------------

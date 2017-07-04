@@ -33,18 +33,20 @@ import java.util.Collections;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * For each job graph that is submitted to the system the library cache manager maintains
- * a set of libraries (typically JAR files) which the job requires to run. The library cache manager
- * caches library files in order to avoid unnecessary retransmission of data. It is based on a singleton
- * programming pattern, so there exists at most one library manager at a time.
- * <p>
- * All files registered via {@link #registerJob(JobID, Collection, Collection)} are reference-counted
- * and are removed by a timer-based cleanup task if their reference counter is zero.
+ * Provides facilities to download a set of libraries (typically JAR files) for a job from a
+ * {@link BlobService} and create a class loader with references to them.
  */
-public abstract class BlobLibraryCacheManager implements LibraryCacheManager {
+public class BlobLibraryCacheManager implements LibraryCacheManager {
+
+	/** The blob service to download libraries */
+	private final BlobService blobService;
+
+	public BlobLibraryCacheManager(BlobService blobService) {
+		this.blobService = checkNotNull(blobService);
+	}
 	
 	@Override
-	public ClassLoader registerJob(
+	public ClassLoader getClassLoader(
 			@Nonnull JobID jobId,
 			@Nullable Collection<BlobKey> requiredJarFiles,
 			@Nullable Collection<URL> requiredClasspaths) throws IOException {
@@ -58,9 +60,6 @@ public abstract class BlobLibraryCacheManager implements LibraryCacheManager {
 			requiredClasspaths = Collections.emptySet();
 		}
 
-		registerJobWithBlobService(jobId);
-
-		BlobService blobService = getBlobService();
 		URL[] urls = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 		int count = 0;
 		try {
@@ -79,20 +78,9 @@ public abstract class BlobLibraryCacheManager implements LibraryCacheManager {
 			return new FlinkUserCodeClassLoader(urls);
 		}
 		catch (Throwable t) {
-			blobService.releaseJob(jobId);
-
 			// rethrow or wrap
 			ExceptionUtils.tryRethrowIOException(t);
 			throw new IOException("Library cache could not register the user code libraries.", t);
 		}
-	}
-
-	protected abstract void registerJobWithBlobService(@Nonnull JobID jobId);
-
-	public abstract BlobService getBlobService();
-
-	@Override
-	public void shutdown() throws IOException{
-		getBlobService().close();
 	}
 }

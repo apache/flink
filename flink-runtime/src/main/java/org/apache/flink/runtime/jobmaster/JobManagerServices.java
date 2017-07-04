@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
@@ -44,7 +44,8 @@ public class JobManagerServices {
 
 	public final ScheduledExecutorService executorService;
 
-	public final BlobServerLibraryManager libraryCacheManager;
+	public final BlobServer blobServer;
+	public final BlobLibraryCacheManager libraryCacheManager;
 
 	public final RestartStrategyFactory restartStrategyFactory;
 
@@ -52,11 +53,13 @@ public class JobManagerServices {
 
 	public JobManagerServices(
 			ScheduledExecutorService executorService,
-			BlobServerLibraryManager libraryCacheManager,
+			BlobServer blobServer,
+			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout) {
 
 		this.executorService = checkNotNull(executorService);
+		this.blobServer = checkNotNull(blobServer);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
 		this.rpcAskTimeout = checkNotNull(rpcAskTimeout);
@@ -80,7 +83,7 @@ public class JobManagerServices {
 		}
 
 		try {
-			libraryCacheManager.shutdown();
+			blobServer.close();
 		}
 		catch (Throwable t) {
 			if (firstException == null) {
@@ -107,7 +110,7 @@ public class JobManagerServices {
 		Preconditions.checkNotNull(config);
 		Preconditions.checkNotNull(blobServer);
 
-		final BlobServerLibraryManager libraryCacheManager = new BlobServerLibraryManager(blobServer);
+		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobServer);
 
 		final FiniteDuration timeout;
 		try {
@@ -122,6 +125,7 @@ public class JobManagerServices {
 
 		return new JobManagerServices(
 			futureExecutor,
+			blobServer,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()));

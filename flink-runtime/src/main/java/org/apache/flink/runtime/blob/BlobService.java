@@ -24,36 +24,11 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 
 /**
  * A simple store and retrieve binary large objects (BLOBs).
  */
 public interface BlobService extends Closeable {
-
-	/**
-	 * Registers use of job-related BLOBs (only relevant for {@link BlobCache}).
-	 * <p>
-	 * Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within calls
-	 * to {@link #registerJob(JobID)} and {@link #releaseJob(JobID)}.
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 *
-	 * @see #releaseJob(JobID)
-	 */
-	void registerJob(JobID jobId);
-
-	/**
-	 * Unregisters use of job-related BLOBs and allow them to be released (only relevant for {@link
-	 * BlobCache}).
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 *
-	 * @see #registerJob(JobID)
-	 */
-	void releaseJob(JobID jobId);
 
 	/**
 	 * Returns the path to a local copy of the (job-unrelated) file associated with the provided

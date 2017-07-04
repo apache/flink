@@ -46,7 +46,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -178,6 +178,9 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 			archive = system.actorOf(JobManager.getArchiveProps(MemoryArchivist.class, 10, Option.<Path>empty()));
 
+			BlobServer blobServer = new BlobServer(
+				flinkConfiguration,
+				testingHighAvailabilityServices.createBlobStore());
 			Props jobManagerProps = Props.create(
 				TestingJobManager.class,
 				flinkConfiguration,
@@ -185,10 +188,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				instanceManager,
 				scheduler,
-				new BlobServerLibraryManager(
-					new BlobServer(
-						flinkConfiguration,
-						testingHighAvailabilityServices.createBlobStore())),
+				blobServer,
+				new BlobLibraryCacheManager(blobServer),
 				archive,
 				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
 				timeout,
@@ -351,6 +352,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 			final Collection<JobID> recoveredJobs = new ArrayList<>(2);
 
+			BlobServer blobServer = mock(BlobServer.class);
 			Props jobManagerProps = Props.create(
 				TestingFailingHAJobManager.class,
 				flinkConfiguration,
@@ -358,7 +360,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				mock(InstanceManager.class),
 				mock(Scheduler.class),
-				new BlobServerLibraryManager(mock(BlobServer.class)),
+				blobServer,
+				new BlobLibraryCacheManager(blobServer),
 				ActorRef.noSender(),
 				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
 				timeout,
@@ -395,7 +398,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			Executor ioExecutor,
 			InstanceManager instanceManager,
 			Scheduler scheduler,
-			BlobServerLibraryManager libraryCacheManager,
+			BlobServer blobServer,
+			BlobLibraryCacheManager libraryCacheManager,
 			ActorRef archive,
 			RestartStrategyFactory restartStrategyFactory,
 			FiniteDuration timeout,
@@ -411,6 +415,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				ioExecutor,
 				instanceManager,
 				scheduler,
+				blobServer,
 				libraryCacheManager,
 				archive,
 				restartStrategyFactory,

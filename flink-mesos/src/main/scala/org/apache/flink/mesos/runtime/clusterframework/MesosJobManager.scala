@@ -22,9 +22,10 @@ import java.util.concurrent.{Executor, ScheduledExecutorService}
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration}
+import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.ContaineredJobManager
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
@@ -34,7 +35,7 @@ import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 
 import scala.concurrent.duration._
 
-/** JobManager actor for execution on Mesos. .
+/** JobManager actor for execution on Mesos.
   *
   * @param flinkConfiguration Configuration object for the actor
   * @param futureExecutor Execution context which is used to execute concurrent tasks in the
@@ -55,7 +56,8 @@ class MesosJobManager(
     ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
-    libraryCacheManager: BlobServerLibraryManager,
+    blobServer: BlobServer,
+    libraryCacheManager: BlobLibraryCacheManager,
     archive: ActorRef,
     restartStrategyFactory: RestartStrategyFactory,
     timeout: FiniteDuration,
@@ -70,6 +72,7 @@ class MesosJobManager(
     ioExecutor,
     instanceManager,
     scheduler,
+    blobServer,
     libraryCacheManager,
     archive,
     restartStrategyFactory,

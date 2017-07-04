@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -173,10 +173,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.jobManagerMetricGroup = jobManagerMetrics;
 
 			// libraries and class loader first
-			final BlobServerLibraryManager libraryCacheManager = jobManagerServices.libraryCacheManager;
+			final BlobLibraryCacheManager libraryCacheManager = jobManagerServices.libraryCacheManager;
 			final ClassLoader userCodeLoader;
 			try {
-				userCodeLoader = libraryCacheManager.registerJob(
+				userCodeLoader = libraryCacheManager.getClassLoader(
 						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
 			} catch (IOException e) {
 				throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
@@ -195,6 +195,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				haServices,
 				heartbeatServices,
 				jobManagerServices.executorService,
+				jobManagerServices.blobServer,
 				jobManagerServices.libraryCacheManager,
 				jobManagerServices.restartStrategyFactory,
 				jobManagerServices.rpcAskTimeout,

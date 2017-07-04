@@ -26,11 +26,12 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration, JobManagerOptions, QueryableStateOptions, TaskManagerOptions}
 import org.apache.flink.core.fs.Path
+import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
-import org.apache.flink.runtime.execution.librarycache.BlobServerLibraryManager
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.InstanceManager
@@ -133,6 +134,7 @@ class LocalFlinkMiniCluster(
 
     val (instanceManager,
     scheduler,
+    blobServer,
     libraryCacheManager,
     restartStrategyFactory,
     timeout,
@@ -164,6 +166,7 @@ class LocalFlinkMiniCluster(
         ioExecutor,
         instanceManager,
         scheduler,
+        blobServer,
         libraryCacheManager,
         archive,
         restartStrategyFactory,
@@ -279,7 +282,8 @@ class LocalFlinkMiniCluster(
       ioExecutor: Executor,
       instanceManager: InstanceManager,
       scheduler: Scheduler,
-      libraryCacheManager: BlobServerLibraryManager,
+      blobServer: BlobServer,
+      libraryCacheManager: BlobLibraryCacheManager,
       archive: ActorRef,
       restartStrategyFactory: RestartStrategyFactory,
       timeout: FiniteDuration,
@@ -297,6 +301,7 @@ class LocalFlinkMiniCluster(
       ioExecutor,
       instanceManager,
       scheduler,
+      blobServer,
       libraryCacheManager,
       archive,
       restartStrategyFactory,

@@ -54,170 +54,6 @@ public class BlobLibraryCacheManagerTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
-	 * BlobLibraryCacheManager#unregisterJob(JobID)} when used with a {@link BlobCache}
-	 * (note that the {@link BlobServer} does not perform cleanups based on ref-counting
-	 * anymore).
-	 */
-	@Test
-	public void testLibraryCacheManagerJobCleanup() throws IOException, InterruptedException {
-
-		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<BlobKey>();
-		BlobServer server = null;
-		BlobCache cache = null;
-		BlobLibraryCacheManager libraryCacheManager = null;
-
-		final byte[] buf = new byte[128];
-
-		try {
-			Configuration config = new Configuration();
-			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
-				temporaryFolder.newFolder().getAbsolutePath());
-			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
-
-			server = new BlobServer(config, new VoidBlobStore());
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
-
-			keys.add(bc.put(jobId, buf));
-			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
-
-			libraryCacheManager = new BlobCacheLibraryManager(cache);
-			checkFileCountForJob(2, jobId, server);
-			checkFileCountForJob(0, jobId, cache);
-
-			libraryCacheManager.registerJob(jobId, keys, Collections.<URL>emptyList());
-			libraryCacheManager.registerJob(jobId, keys, Collections.<URL>emptyList());
-
-			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
-			checkFileCountForJob(2, jobId, server);
-			checkFileCountForJob(2, jobId, cache);
-
-			libraryCacheManager.unregisterJob(jobId);
-
-			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
-			checkFileCountForJob(2, jobId, server);
-			checkFileCountForJob(2, jobId, cache);
-
-			libraryCacheManager.unregisterJob(jobId);
-
-			// because we cannot guarantee that there are not thread races in the build system, we
-			// loop for a certain while until the references disappear
-			{
-				long deadline = System.currentTimeMillis() + 30_000L;
-				do {
-					Thread.sleep(100);
-				}
-				while (checkFilesExist(jobId, keys, cache, false) != 0 &&
-					System.currentTimeMillis() < deadline);
-			}
-
-			// the blob cache should no longer contain the files
-			// this fails if we exited via a timeout
-			checkFileCountForJob(0, jobId, cache);
-			// server should be unaffected
-			checkFileCountForJob(2, jobId, server);
-		}
-		finally {
-			if (libraryCacheManager != null) {
-				try {
-					libraryCacheManager.shutdown();
-				}
-				catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-			// should have been closed by the libraryCacheManager, but just in case
-			if (cache != null) {
-				cache.close();
-			}
-
-			if (server != null) {
-				server.close();
-			}
-		}
-	}
-
-	/**
-	 * Tests that the {@link BlobLibraryCacheManager} does not clean up after calling {@link
-	 * BlobLibraryCacheManager#unregisterJob(JobID)} when used with a {@link BlobServer}
-	 * (note that the {@link BlobServer} does not perform cleanups based on ref-counting
-	 * anymore).
-	 */
-	@Test
-	public void testLibraryCacheManagerJobCleanupAtServer() throws IOException, InterruptedException {
-
-		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<BlobKey>();
-		BlobServer server = null;
-		BlobLibraryCacheManager libraryCacheManager = null;
-
-		final byte[] buf = new byte[128];
-
-		try {
-			Configuration config = new Configuration();
-			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
-				temporaryFolder.newFolder().getAbsolutePath());
-			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
-
-			server = new BlobServer(config, new VoidBlobStore());
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
-
-			keys.add(bc.put(jobId, buf));
-			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
-
-			libraryCacheManager = new BlobServerLibraryManager(server);
-			checkFileCountForJob(2, jobId, server);
-
-			libraryCacheManager.registerJob(jobId, keys, Collections.<URL>emptyList());
-			libraryCacheManager.registerJob(jobId, keys, Collections.<URL>emptyList());
-
-			assertEquals(2, checkFilesExist(jobId, keys, server, true));
-			checkFileCountForJob(2, jobId, server);
-
-			libraryCacheManager.unregisterJob(jobId);
-
-			// still one job registered
-			assertEquals(2, checkFilesExist(jobId, keys, server, true));
-			checkFileCountForJob(2, jobId, server);
-
-			libraryCacheManager.unregisterJob(jobId);
-
-			// the last unregister should NOT cleanup at the BlobServer!
-			checkFileCountForJob(2, jobId, server);
-			assertEquals(2, checkFilesExist(jobId, keys, server, true));
-
-			server.cleanupJob(jobId);
-			checkFileCountForJob(0, jobId, server);
-		}
-		finally {
-			if (libraryCacheManager != null) {
-				try {
-					libraryCacheManager.shutdown();
-				}
-				catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-			// should have been closed by the libraryCacheManager, but just in case
-			if (server != null) {
-				server.close();
-			}
-		}
-	}
-
 	@Test
 	public void testRegisterAndDownload() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
@@ -244,7 +80,7 @@ public class BlobLibraryCacheManagerTest {
 			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();
 
-			BlobLibraryCacheManager libCache = new BlobCacheLibraryManager(cache);
+			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache);
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 
@@ -252,16 +88,17 @@ public class BlobLibraryCacheManagerTest {
 			{
 				Collection<BlobKey> keys = Collections.singleton(dataKey1);
 
-				assertNotNull(libCache.registerJob(jobId, keys, Collections.<URL>emptyList()));
+				cache.registerJob(jobId);
+				assertNotNull(libCache.getClassLoader(jobId, keys, Collections.<URL>emptyList()));
 				assertEquals(1, checkFilesExist(jobId, keys, cache, true));
 				checkFileCountForJob(2, jobId, server);
 				checkFileCountForJob(1, jobId, cache);
 
 				// un-register them again
-				libCache.unregisterJob(jobId);
+				cache.releaseJob(jobId);
 
 				// Don't fail if called again
-				libCache.unregisterJob(jobId);
+				cache.releaseJob(jobId);
 
 				// library is still cached (but not associated with job any more)
 				checkFileCountForJob(2, jobId, server);
@@ -278,12 +115,14 @@ public class BlobLibraryCacheManagerTest {
 
 			// since we cannot download this library any more, this call should fail
 			try {
-				libCache.registerJob(jobId, Collections.singleton(dataKey2),
+				cache.registerJob(jobId);
+				libCache.getClassLoader(jobId, Collections.singleton(dataKey2),
 						Collections.<URL>emptyList());
 				fail("This should fail with an IOException");
 			}
 			catch (IOException e) {
 				// splendid!
+				cache.releaseJob(jobId);
 			}
 		} finally {
 			if (cacheDir != null) {

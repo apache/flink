@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -668,7 +669,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		//noinspection unchecked
-		when(libraryCacheManager.registerJob(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(ClassLoader.getSystemClassLoader());
+		when(libraryCacheManager.getClassLoader(any(JobID.class), any(Collection.class), any(Collection.class))).thenReturn(ClassLoader.getSystemClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
@@ -677,6 +678,7 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
+			mock(BlobCache.class),
 			libraryCacheManager,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class));
@@ -1148,7 +1150,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		//noinspection unchecked
-		when(libraryCacheManager.registerJob(eq(jobId), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
+		when(libraryCacheManager.getClassLoader(eq(jobId), any(Collection.class), any(Collection.class))).thenReturn(getClass().getClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
@@ -1157,6 +1159,7 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
+			mock(BlobCache.class),
 			libraryCacheManager,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class));
