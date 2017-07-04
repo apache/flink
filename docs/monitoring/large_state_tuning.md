@@ -217,7 +217,21 @@ parallelism when re-scaling the program (via a savepoint).
 
 Flink's internal bookkeeping tracks parallel state in the granularity of max-parallelism-many *key groups*.
 Flink's design strives to make it efficient to have a very high value for the maximum parallelism, even if
-executing the program with a low parallelism. 
+executing the program with a low parallelism.
 
+## Compression
 
+Flink offers optional compression (default: off) for all checkpoints and savepoints. Currently, compression always uses 
+the [snappy compression algorithm (version 1.1.4)](https://github.com/xerial/snappy-java) but we are planning to support
+custom compression algorithms in the future. Compression works on the granularity of key-groups in keyed state, i.e.
+each key-group can be decompressed individually, which is important for rescaling. 
 
+Compression can be activated through the `ExecutionConfig`:
+
+{% highlight java %}
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setUseSnapshotCompression(true);
+{% endhighlight %}
+
+**Notice:** The compression option has no impact on incremental snapshots, because they are using RocksDB's internal
+format which is always using snappy compression out of the box.

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapReducingStateTest;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
@@ -37,7 +38,7 @@ import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Mockito.mock;
 
-public class StateSnapshotCompressionTest {
+public class StateSnapshotCompressionTest extends TestLogger {
 
 	@Test
 	public void testCompressionConfiguration() throws Exception {
@@ -55,7 +56,8 @@ public class StateSnapshotCompressionTest {
 			executionConfig);
 
 		try {
-			Assert.assertTrue(SnappyStreamCompressionDecorator.INSTANCE.equals(stateBackend.getKeyGroupCompressionDecorator()));
+			Assert.assertTrue(
+				SnappyStreamCompressionDecorator.INSTANCE.equals(stateBackend.getKeyGroupCompressionDecorator()));
 
 		} finally {
 			IOUtils.closeQuietly(stateBackend);
@@ -75,7 +77,8 @@ public class StateSnapshotCompressionTest {
 			executionConfig);
 
 		try {
-			Assert.assertTrue(UncompressedStreamCompressionDecorator.INSTANCE.equals(stateBackend.getKeyGroupCompressionDecorator()));
+			Assert.assertTrue(
+				UncompressedStreamCompressionDecorator.INSTANCE.equals(stateBackend.getKeyGroupCompressionDecorator()));
 
 		} finally {
 			IOUtils.closeQuietly(stateBackend);
@@ -132,7 +135,8 @@ public class StateSnapshotCompressionTest {
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 			state.update("45");
 			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4 * 1024 * 1024);
-			RunnableFuture<KeyedStateHandle> snapshot = stateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forFullCheckpoint());
+			RunnableFuture<KeyedStateHandle> snapshot =
+				stateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forFullCheckpoint());
 			snapshot.run();
 			stateHandle = snapshot.get();
 
