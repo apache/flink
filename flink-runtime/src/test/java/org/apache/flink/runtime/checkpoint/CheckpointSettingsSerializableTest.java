@@ -64,7 +64,7 @@ import static org.mockito.Mockito.when;
 public class CheckpointSettingsSerializableTest extends TestLogger {
 
 	@Test
-	public void testClassLoaderForCheckpointHooks() throws Exception {
+	public void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
 		final ClassLoader classLoader = new URLClassLoader(new URL[0], getClass().getClassLoader());
 		final Serializable outOfClassPath = CommonTestUtils.createObjectForClassNotInClassPath(classLoader);
 
