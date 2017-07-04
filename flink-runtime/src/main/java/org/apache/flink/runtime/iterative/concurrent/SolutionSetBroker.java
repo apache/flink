@@ -23,9 +23,6 @@ package org.apache.flink.runtime.iterative.concurrent;
  */
 public class SolutionSetBroker extends Broker<Object> {
 
-	/**
-	 * Singleton instance
-	 */
 	private static final SolutionSetBroker INSTANCE = new SolutionSetBroker();
 
 	/**
@@ -34,6 +31,6 @@ public class SolutionSetBroker extends Broker<Object> {
 	public static Broker<Object> instance() {
 		return INSTANCE;
 	}
-	
+
 	private SolutionSetBroker() {}
 }

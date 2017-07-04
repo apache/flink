@@ -18,18 +18,6 @@
 
 package org.apache.flink.runtime.iterative.task;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.operators.Driver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -39,6 +27,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -54,11 +46,19 @@ import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The head is responsible for coordinating an iteration and can run a
@@ -71,11 +71,11 @@ import org.apache.flink.util.MutableObjectIterator;
  * the second iteration, the input for the head is the output of the tail, transmitted through the backchannel. Once the
  * iteration is done, the head
  * will send a {@link TerminationEvent} to all it's connected tasks, signaling them to shutdown.
- * <p>
- * Assumption on the ordering of the outputs: - The first n output gates write to channels that go to the tasks of the
+ *
+ * <p>Assumption on the ordering of the outputs: - The first n output gates write to channels that go to the tasks of the
  * step function. - The next m output gates to to the tasks that consume the final solution. - The last output gate
  * connects to the synchronization task.
- * 
+ *
  * @param <X>
  *        The type of the bulk partial solution / solution set and the final output.
  * @param <Y>
@@ -131,8 +131,8 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 	}
 
 	/**
-	 * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
-	 * hands it to the iteration tail via a {@link Broker} singleton
+	 * The iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
+	 * hands it to the iteration tail via a {@link Broker} singleton.
 	 **/
 	private BlockingBackChannel initBackChannel() throws Exception {
 
@@ -154,7 +154,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 		return backChannel;
 	}
-	
+
 	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
 		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
@@ -162,7 +162,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
-	
+
 		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
 
@@ -194,27 +194,27 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			}
 		}
 	}
-	
+
 	private <BT> JoinHashMap<BT> initJoinHashMap() {
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer
 				(getUserCodeClassLoader());
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator
 				(getUserCodeClassLoader());
-	
+
 		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
-		
+
 		return new JoinHashMap<BT>(solutionTypeSerializer, solutionTypeComparator);
 	}
-	
+
 	private void readInitialSolutionSet(CompactingHashTable<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		solutionSet.open();
 		solutionSet.buildTableWithUniqueKey(solutionSetInput);
 	}
-	
+
 	private void readInitialSolutionSet(JoinHashMap<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		TypeSerializer<X> serializer = solutionTypeSerializer.getSerializer();
-		
+
 		X next;
 		while ((next = solutionSetInput.next(serializer.createInstance())) != null) {
 			solutionSet.insertOrReplace(next);
@@ -232,12 +232,12 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 	public void run() throws Exception {
 		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-		
+
 		final boolean objectSolutionSet = config.isSolutionSetUnmanaged();
 
 		CompactingHashTable<X> solutionSet = null; // if workset iteration
 		JoinHashMap<X> solutionSetObjectMap = null; // if workset iteration with unmanaged solution set
-		
+
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
 
@@ -245,7 +245,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			/* used for receiving the current iteration result from iteration tail */
 			SuperstepKickoffLatch nextStepKickoff = new SuperstepKickoffLatch();
 			SuperstepKickoffLatchBroker.instance().handIn(brokerKey, nextStepKickoff);
-			
+
 			BlockingBackChannel backChannel = initBackChannel();
 			SuperstepBarrier barrier = initSuperstepBarrier();
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
@@ -262,7 +262,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 				// setup the index for the solution set
 				@SuppressWarnings("unchecked")
 				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(inputReaders[initialSolutionSetInput], solutionTypeSerializer);
-				
+
 				// read the initial solution set
 				if (objectSolutionSet) {
 					solutionSetObjectMap = initJoinHashMap();
@@ -284,7 +284,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 				@SuppressWarnings("unchecked")
 				TypeSerializerFactory<X> solSer = (TypeSerializerFactory<X>) feedbackTypeSerializer;
 				solutionTypeSerializer = solSer;
-				
+
 				// = termination Criterion tail
 				if (waitForSolutionSetUpdate) {
 					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
@@ -352,7 +352,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 					String[] globalAggregateNames = barrier.getAggregatorNames();
 					Value[] globalAggregates = barrier.getAggregates();
 					aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
-					
+
 					nextStepKickoff.triggerNextSuperstep();
 				}
 			}
@@ -398,7 +398,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			out.collect(record);
 		}
 	}
-	
+
 	private void streamSolutionSetToFinalOutput(CompactingHashTable<X> hashTable) throws IOException {
 		final MutableObjectIterator<X> results = hashTable.getEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;
@@ -408,7 +408,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			output.collect(record);
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void streamSolutionSetToFinalOutput(JoinHashMap<X> soluionSet) throws IOException {
 		final Collector<X> output = this.finalOutputCollector;
