@@ -37,10 +37,12 @@ public class ReusingDeserializationDelegate<T> implements DeserializationDelegat
 		this.serializer = serializer;
 	}
 
+	@Override
 	public void setInstance(T instance) {
 		this.instance = instance;
 	}
 
+	@Override
 	public T getInstance() {
 		return instance;
 	}
