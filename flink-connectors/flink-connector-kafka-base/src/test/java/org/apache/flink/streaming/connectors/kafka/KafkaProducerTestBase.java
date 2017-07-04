@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -274,7 +275,8 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			env.execute("One-to-one at least once test");
 			fail("Job should fail!");
 		}
-		catch (Exception ex) {
+		catch (JobExecutionException ex) {
+			assertEquals("Broker was shutdown!", ex.getCause().getMessage());
 		}
 
 		kafkaServer.restartBroker(leaderId);

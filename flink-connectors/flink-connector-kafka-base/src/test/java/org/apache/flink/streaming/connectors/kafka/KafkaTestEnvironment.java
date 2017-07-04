@@ -83,10 +83,10 @@ public abstract class KafkaTestEnvironment {
 	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
 
 	public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
-		Properties properties,
-		String topic,
-		int partition,
-		long timeout);
+			Properties properties,
+			String topic,
+			int partition,
+			long timeout);
 
 	public abstract <T> StreamSink<T> getProducerSink(String topic,
 			KeyedSerializationSchema<T> serSchema, Properties props,
