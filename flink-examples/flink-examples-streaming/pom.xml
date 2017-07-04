@@ -58,7 +58,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.8_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka-0.9_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -499,10 +499,10 @@ under the License.
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.kafka.ReadFromKafka</mainClass>
+									<mainClass>org.apache.flink.streaming.examples.kafka.ReadFromKafka09</mainClass>
 								</transformer>
 							</transformers>
-							<finalName>Kafka</finalName>
+							<finalName>Kafka09</finalName>
 							<!-- <outputFile>Kafka.jar</outputFile> -->
 							<filters>
 								<filter>

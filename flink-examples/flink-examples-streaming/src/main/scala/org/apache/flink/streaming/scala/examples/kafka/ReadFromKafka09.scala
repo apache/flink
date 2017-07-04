@@ -21,31 +21,30 @@ package org.apache.flink.streaming.scala.examples.kafka
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 
 /**
- * Read Strings from Kafka and print them to standard out.
+ * Read Strings from Kafka v0.9 and print them to standard out.
  * Note: On a cluster, DataStream.print() will print to the TaskManager's .out file!
  *
  * Please pass the following arguments to run the example:
  * {{{
  * --topic test
  * --bootstrap.servers localhost:9092
- * --zookeeper.connect localhost:2181
  * --group.id myconsumer
  * }}}
  */
-object ReadFromKafka {
+object ReadFromKafka09 {
 
   def main(args: Array[String]): Unit = {
 
     // parse input arguments
     val params = ParameterTool.fromArgs(args)
 
-    if (params.getNumberOfParameters < 4) {
+    if (params.getNumberOfParameters < 3) {
       println("Missing parameters!\nUsage: Kafka --topic <topic> " +
-        "--bootstrap.servers <kafka brokers> --zookeeper.connect <zk quorum> --group.id <some id>")
+        "--bootstrap.servers <kafka brokers> --group.id <some id>")
       return
     }
 
@@ -57,8 +56,8 @@ object ReadFromKafka {
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
 
-    // create a Kafka streaming source consumer for Kafka 0.8.x
-    val kafkaConsumer = new FlinkKafkaConsumer08(
+    // create a Kafka streaming source consumer for Kafka 0.9.x
+    val kafkaConsumer = new FlinkKafkaConsumer09(
       params.getRequired("topic"),
       new SimpleStringSchema,
       params.getProperties)
@@ -67,7 +66,7 @@ object ReadFromKafka {
     // write kafka stream to standard out.
     messageStream.print()
 
-    env.execute("Read from Kafka example")
+    env.execute("Read from Kafka v0.9 example")
   }
 
 }

@@ -23,11 +23,11 @@ import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer09
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 
 /**
- * Generate a String every 500 ms and write it into a Kafka topic
+ * Generate a String every 500 ms and write it into a Kafka v0.9 topic
  *
  * Please pass the following arguments to run the example:
  * {{{
@@ -36,7 +36,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema
  * localhost:9092
  * }}}
  */
-object WriteIntoKafka {
+object WriteIntoKafka09 {
 
   def main(args: Array[String]): Unit = {
 
@@ -69,8 +69,8 @@ object WriteIntoKafka {
       override def cancel(): Unit = running = false
     })
 
-    // create a Kafka producer for Kafka 0.8.x
-    val kafkaProducer = new FlinkKafkaProducer08(
+    // create a Kafka producer for Kafka 0.9.x
+    val kafkaProducer = new FlinkKafkaProducer09(
       params.getRequired("topic"),
       new SimpleStringSchema,
       params.getProperties)
@@ -78,7 +78,7 @@ object WriteIntoKafka {
     // write data into Kafka
     messageStream.addSink(kafkaProducer)
 
-    env.execute("Write into Kafka example")
+    env.execute("Write into Kafka v0.9 example")
   }
 
 }
