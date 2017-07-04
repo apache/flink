@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -99,6 +100,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
+	private BlobServer blobServer;
+
+	@GuardedBy("lock")
 	private ResourceManager resourceManager;
 
 	@GuardedBy("lock")
@@ -143,6 +147,8 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 					config,
 					commonRpcService.getExecutor(),
 					HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
+				blobServer = new BlobServer(config, haServices.createBlobStore());
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 
@@ -228,6 +234,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			config,
 			commonRpcService,
 			haServices,
+			blobServer,
 			heartbeatServices,
 			this,
 			this);
