@@ -139,8 +139,9 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * Sends the heartbeat to resource manager from task manager
 	 *
 	 * @param heartbeatOrigin unique id of the task manager
+	 * @param slotReport Current slot allocation on the originating TaskManager
 	 */
-	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin);
+	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final SlotReport slotReport);
 
 	/**
 	 * Sends the heartbeat to resource manager from job manager
