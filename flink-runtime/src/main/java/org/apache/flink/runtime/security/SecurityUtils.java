@@ -146,7 +146,7 @@ public class SecurityUtils {
 		 * @param flinkConf the Flink global configuration.
          */
 		public SecurityConfiguration(Configuration flinkConf) {
-			this(flinkConf, HadoopUtils.getHadoopConfiguration());
+			this(flinkConf, HadoopUtils.getHadoopConfiguration(flinkConf));
 		}
 
 		/**

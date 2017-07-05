@@ -54,7 +54,11 @@ public final class HadoopUtils {
 	 * Merge HadoopConfiguration into JobConf. This is necessary for the HDFS configuration.
 	 */
 	public static void mergeHadoopConf(JobConf jobConf) {
-		org.apache.hadoop.conf.Configuration hadoopConf = getHadoopConfiguration();
+		// we have to load the global configuration here, because the HadoopInputFormatBase does not
+		// have access to a Flink configuration object
+		org.apache.flink.configuration.Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+
+		Configuration hadoopConf = getHadoopConfiguration(flinkConfiguration);
 		for (Map.Entry<String, String> e : hadoopConf) {
 			if (jobConf.get(e.getKey()) == null) {
 				jobConf.set(e.getKey(), e.getValue());
@@ -109,13 +113,13 @@ public final class HadoopUtils {
 	 * Returns a new Hadoop Configuration object using the path to the hadoop conf configured
 	 * in the main configuration (flink-conf.yaml).
 	 * This method is public because its being used in the HadoopDataSource.
+	 *
+	 * @param flinkConfiguration Flink configuration object
+	 * @return A Hadoop configuration instance
 	 */
-	public static org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
 
-		org.apache.flink.configuration.Configuration flinkConfiguration =
-			GlobalConfiguration.loadConfiguration();
-
-		Configuration retConf = new org.apache.hadoop.conf.Configuration();
+		Configuration retConf = new Configuration();
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
 		// the hdfs configuration

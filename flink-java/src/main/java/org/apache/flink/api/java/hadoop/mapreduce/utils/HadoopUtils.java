@@ -22,6 +22,8 @@ import java.lang.reflect.Constructor;
 import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.GlobalConfiguration;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -39,8 +41,12 @@ public final class HadoopUtils {
 	 */
 	public static void mergeHadoopConf(Configuration hadoopConfig) {
 
+		// we have to load the global configuration here, because the HadoopInputFormatBase does not
+		// have access to a Flink configuration object
+		org.apache.flink.configuration.Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+
 		Configuration hadoopConf =
-			org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration();
+			org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration(flinkConfiguration);
 
 		for (Map.Entry<String, String> e : hadoopConf) {
 			if (hadoopConfig.get(e.getKey()) == null) {
