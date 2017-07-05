@@ -35,7 +35,23 @@ public abstract class TriangleListingBase<K, VV, EV, R>
 extends GraphAlgorithmWrappingDataSet<K, VV, EV, R> {
 
 	// Optional configuration
+	protected boolean permuteResults;
+
 	protected OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
+
+	/**
+	 * By default only one result is output for each triangle, whether vertices
+	 * are sorted or unsorted. When permutation is enabled a result is instead
+	 * output for each of the six permutations of the three vertex IDs.
+	 *
+	 * @param permuteResults whether output results should be permuted
+	 * @return this
+	 */
+	public TriangleListingBase<K, VV, EV, R> setPermuteResults(boolean permuteResults) {
+		this.permuteResults = permuteResults;
+
+		return this;
+	}
 
 	/**
 	 * Normalize the triangle listing such that for each result (K0, K1, K2)
@@ -48,6 +64,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, R> {
 		this.sortTriangleVertices.set(sortTriangleVertices);
 
 		return this;
+	}
+
+	@Override
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
+			return false;
+		}
+
+		TriangleListingBase rhs = (TriangleListingBase) other;
+
+		return permuteResults == rhs.permuteResults;
 	}
 
 	@Override

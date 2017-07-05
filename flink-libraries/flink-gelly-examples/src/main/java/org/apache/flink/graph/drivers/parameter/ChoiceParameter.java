@@ -127,4 +127,9 @@ extends SimpleParameter<String> {
 		throw new ProgramParametrizationException(
 			"Selection '" + selected + "' for option '" + name + "' is not in choices '[" + StringUtils.join(choices, ", ") + "]'");
 	}
+
+	@Override
+	public String toString() {
+		return this.value;
+	}
 }

@@ -113,7 +113,11 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			.with(new ProjectTriangles<K>())
 				.name("Triangle listing");
 
-		if (sortTriangleVertices.get()) {
+		if (permuteResults) {
+			triangles = triangles
+				.flatMap(new PermuteResult<K>())
+					.name("Permute triangle vertices");
+		} else if (sortTriangleVertices.get()) {
 			triangles = triangles
 				.map(new SortTriangleVertices<K>())
 					.name("Sort triangle vertices");
@@ -246,6 +250,59 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			output.setVertexId1(triplet.f1);
 			output.setVertexId2(triplet.f2);
 			return output;
+		}
+	}
+
+	/**
+	 * Output each input and an additional result for each of the five
+	 * permutations of the three vertex IDs.
+	 *
+	 * @param <T> ID type
+	 */
+	private static class PermuteResult<T>
+	implements FlatMapFunction<Result<T>, Result<T>> {
+		@Override
+		public void flatMap(Result<T> value, Collector<Result<T>> out)
+				throws Exception {
+			T tmp;
+
+			// 0, 1, 2
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			// 1, 0, 2
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 1, 2, 0
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 0, 2, 1
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			// 2, 0, 1
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 2, 1, 0
+			out.collect(value);
 		}
 	}
 

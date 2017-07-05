@@ -31,9 +31,4 @@ import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 public abstract class InputBase<K, VV, EV>
 extends ParameterizedBase
 implements Input<K, VV, EV> {
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
 }

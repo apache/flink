@@ -24,8 +24,10 @@ import java.io.Serializable;
 
 /**
  * A {@link GraphAlgorithm} result for a single vertex.
+ *
+ * @param <K> graph ID type
  */
-public interface UnaryResult<T>
+public interface UnaryResult<K>
 extends Serializable {
 
 	/**
@@ -33,12 +35,12 @@ extends Serializable {
 	 *
 	 * @return first vertex ID
 	 */
-	T getVertexId0();
+	K getVertexId0();
 
 	/**
 	 * Set the first vertex ID.
 	 *
-	 * @param value new vertex ID
+	 * @param vertexId0 new vertex ID
 	 */
-	void setVertexId0(T value);
+	void setVertexId0(K vertexId0);
 }

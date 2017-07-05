@@ -41,7 +41,7 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + vertexCount.getValue() + ":" + vertexDegree.getValue() + ")";
+		return getName() + " (" + vertexCount.getValue() + ":" + vertexDegree.getValue() + ")";
 	}
 
 	@Override
@@ -50,7 +50,7 @@ extends GeneratedGraph<LongValue> {
 	}
 
 	@Override
-	protected Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
+	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) throws Exception {
 		return new org.apache.flink.graph.generator.EchoGraph(env, vertexCount.getValue(), vertexDegree.getValue())
 			.setParallelism(parallelism.getValue().intValue())
 			.generate();

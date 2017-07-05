@@ -35,7 +35,7 @@ import java.util.TreeMap;
  * Generate a {@link org.apache.flink.graph.generator.GridGraph}.
  */
 public class GridGraph
-extends GeneratedGraph<LongValue> {
+extends GeneratedGraph {
 
 	private static final String PREFIX = "dim";
 
@@ -71,7 +71,7 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + dimensions + ")";
+		return getName() + " (" + dimensions + ")";
 	}
 
 	@Override
@@ -91,7 +91,7 @@ extends GeneratedGraph<LongValue> {
 	}
 
 	@Override
-	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
+	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
 		org.apache.flink.graph.generator.GridGraph graph = new org.apache.flink.graph.generator.GridGraph(env);
 
 		for (Dimension dimension : dimensions) {
