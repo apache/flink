@@ -18,12 +18,18 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh ((start|start-foreground) (local|cluster) [host] [webui-port])|stop|stop-all"
+USAGE="Usage: jobmanager.sh ((start|start-foreground) (local|cluster|flip6) [host] [webui-port])|stop|stop-all [flip6]"
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
 HOST=$3 # optional when starting multiple instances
 WEBUIPORT=$4 # optional when starting multiple instances
+
+JOBMANAGER_TYPE=jobmanager
+
+if [[ "$EXECUTIONMODE" == "flip6" ]]; then
+    JOBMANAGER_TYPE=standalonesession
+fi
 
 if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
@@ -76,7 +82,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
-    exec "${FLINK_BIN_DIR}"/flink-console.sh jobmanager "${args[@]}"
+    exec "${FLINK_BIN_DIR}"/flink-console.sh $JOBMANAGER_TYPE "${args[@]}"
 else
-    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP jobmanager "${args[@]}"
+    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $JOBMANAGER_TYPE "${args[@]}"
 fi

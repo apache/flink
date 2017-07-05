@@ -50,6 +50,10 @@ case $DAEMON in
         CLASS_TO_RUN=org.apache.flink.runtime.webmonitor.history.HistoryServer
     ;;
 
+    (standalonesession)
+        CLASS_TO_RUN=org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint
+    ;;
+
     (*)
         echo "Unknown daemon '${DAEMON}'. $USAGE."
         exit 1

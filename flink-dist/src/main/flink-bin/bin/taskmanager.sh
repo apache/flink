@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink TaskManager.
-USAGE="Usage: taskmanager.sh (start|start-foreground|stop|stop-all) (flip6)"
+USAGE="Usage: taskmanager.sh (start|start-foreground|stop|stop-all) [flip6]"
 
 STARTSTOP=$1
 TYPE=taskmanager
