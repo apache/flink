@@ -316,7 +316,7 @@ data.keyingBy(
     </tr>
     <tr>
       <td><strong>reduceWith</strong></td>
-      <td><strong>reduce (KeyedDataStream, WindowedDataStream)</strong></td>
+      <td><strong>reduce (KeyedStream, WindowedDataStream)</strong></td>
       <td>
 {% highlight scala %}
 data.reduceWith {
@@ -327,7 +327,7 @@ data.reduceWith {
     </tr>
     <tr>
       <td><strong>foldWith</strong></td>
-      <td><strong>fold (KeyedDataStream, WindowedDataStream)</strong></td>
+      <td><strong>fold (KeyedStream, WindowedDataStream)</strong></td>
       <td>
 {% highlight scala %}
 data.foldWith(User(bought = 0)) {
