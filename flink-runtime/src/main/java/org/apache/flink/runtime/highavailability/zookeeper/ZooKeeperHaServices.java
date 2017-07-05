@@ -104,7 +104,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	/** Store for arbitrary blobs */
 	private final BlobStoreService blobStoreService;
 
-	private RetrievableStateStorageService<SubmittedJobGraph> stateStorage;
+	private final RetrievableStateStorageService<SubmittedJobGraph> stateStorage;
 
 	public ZooKeeperHaServices(
 			CuratorFramework client,
@@ -117,7 +117,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 		this.runningJobsRegistry = new ZooKeeperRunningJobsRegistry(client, configuration);
 
 		this.blobStoreService = checkNotNull(blobStoreService);
-		this.stateStorage = null;
+		try {
+			this.stateStorage = ZooKeeperUtils.createFileSystemStateStorage(configuration, "submittedJobGraph");
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,9 +155,6 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
-		if (null == stateStorage) {
-			stateStorage = ZooKeeperUtils.createFileSystemStateStorage(configuration, "submittedJobGraph");
-		}
 		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executor, stateStorage);
 	}
 
@@ -201,13 +202,13 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 		try {
 			stateStorage.closeAndCleanupAllData();
 		} catch (Throwable t) {
-			exception = t;
+			exception = ExceptionUtils.firstOrSuppressed(t, exception);
 		}
 
 		try {
 			client.delete().deletingChildrenIfNeeded().forPath("/");
 		} catch (Throwable t) {
-			exception = t;
+			exception = ExceptionUtils.firstOrSuppressed(t, exception);
 		}
 
 		internalClose();

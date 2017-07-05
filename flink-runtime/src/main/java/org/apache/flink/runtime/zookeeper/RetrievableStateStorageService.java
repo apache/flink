@@ -30,6 +30,7 @@ public interface RetrievableStateStorageService<T extends Serializable>
 	extends RetrievableStateStorageHelper<T>, Closeable {
 	/**
 	 * Closes and cleans up the store. This entails the deletion of all states.
+	 * @throws Exception
 	 */
-	void closeAndCleanupAllData();
+	void closeAndCleanupAllData() throws Exception;
 }

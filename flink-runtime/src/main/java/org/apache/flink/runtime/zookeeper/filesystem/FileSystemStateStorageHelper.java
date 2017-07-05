@@ -44,7 +44,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemStateStorageHelper.class);
 
-	private final Path rootPath;
+	private final Path prefixRootPath;
 
 	private final String prefix;
 
@@ -55,9 +55,10 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 	}
 
 	public FileSystemStateStorageHelper(Path rootPath, String prefix) throws IOException {
-		this.rootPath = Preconditions.checkNotNull(rootPath, "Root path");
+		Preconditions.checkNotNull(rootPath, "Root path");
 		this.prefix = Preconditions.checkNotNull(prefix, "Prefix");
-
+		this.prefixRootPath = new Path(rootPath, prefix);
+		
 		fs = FileSystem.get(rootPath.toUri());
 	}
 
@@ -81,16 +82,12 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 	}
 
 	private Path getNewFilePath() {
-		return new Path(rootPath, FileUtils.getRandomFilename(prefix));
+		return new Path(prefixRootPath, FileUtils.getRandomFilename(prefix));
 	}
 
 	@Override
-	public void closeAndCleanupAllData() {
-		try {
-			fs.delete(rootPath, true);
-		} catch (Exception e) {
-			LOG.error("Failed to clean up state storage directory.", e);
-		}
+	public void closeAndCleanupAllData() throws Exception {
+		fs.delete(prefixRootPath, true);
 	}
 
 	@Override
