@@ -37,6 +37,10 @@ import org.apache.flink.runtime.rpc.RpcService;
  */
 public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
+	public StandaloneSessionClusterEntrypoint(Configuration configuration) {
+		super(configuration);
+	}
+
 	@Override
 	protected ResourceManager<?> createResourceManager(
 			Configuration configuration,
@@ -67,8 +71,10 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 	}
 
 	public static void main(String[] args) {
-		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint();
+		Configuration configuration = loadConfiguration(parseArguments(args));
 
-		entrypoint.startCluster(args);
+		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);
+
+		entrypoint.startCluster();
 	}
 }
