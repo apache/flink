@@ -39,7 +39,7 @@ extends CopyableValueDriverBaseITCase {
 
 	private String[] parameters(int scale, String output, String... additionalParameters) {
 		String[] parameters = new String[] {
-			"--algorithm", "AdamicAdar",
+			"--algorithm", "AdamicAdar", "--mirror_results",
 			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
 			"--output", output};
 
@@ -63,6 +63,6 @@ extends CopyableValueDriverBaseITCase {
 
 		expectedCount(
 			parameters(7, "print"),
-			5694);
+			11388);
 	}
 }

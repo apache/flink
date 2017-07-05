@@ -41,7 +41,8 @@ extends OutputBase<T> {
 		Collect<T> collector = new Collect<T>().run(data);
 
 		if (printExecutionPlan.getValue()) {
-			System.out.println(data.getExecutionEnvironment().getExecutionPlan());
+			out.println();
+			out.println(data.getExecutionEnvironment().getExecutionPlan());
 		}
 
 		List<T> results = collector.execute(executionName);
@@ -50,13 +51,15 @@ extends OutputBase<T> {
 			return;
 		}
 
+		out.println();
+
 		if (results.get(0) instanceof PrintableResult) {
 			for (Object result : results) {
-				System.out.println(((PrintableResult) result).toPrintableString());
+				out.println(((PrintableResult) result).toPrintableString());
 			}
 		} else {
 			for (Object result : results) {
-				System.out.println(result);
+				out.println(result);
 			}
 		}
 	}

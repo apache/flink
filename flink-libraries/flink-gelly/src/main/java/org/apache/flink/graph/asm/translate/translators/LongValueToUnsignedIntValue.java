@@ -43,10 +43,9 @@ implements TranslateFunction<LongValue, IntValue> {
 
 		if (l < 0 || l >= MAX_VERTEX_COUNT) {
 			throw new IllegalArgumentException("Cannot cast long value " + value + " to integer.");
-		} else {
-			reuse.setValue((int) (l & (MAX_VERTEX_COUNT - 1)));
 		}
 
+		reuse.setValue((int) (l & (MAX_VERTEX_COUNT - 1)));
 		return reuse;
 	}
 }
