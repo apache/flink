@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -56,12 +57,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	}
 
 	@Override
-	protected String getAlgorithmName() {
-		return Simplify.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
 		Preconditions.checkNotNull(other);
 
 		if (!Simplify.class.isAssignableFrom(other.getClass())) {

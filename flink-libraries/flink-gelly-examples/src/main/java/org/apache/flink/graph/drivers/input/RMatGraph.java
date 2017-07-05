@@ -93,12 +93,7 @@ extends GeneratedMultiGraph<LongValue> {
 		return 1L << scale.getValue();
 	}
 
-	/**
-	 * Generate the graph as configured.
-	 *
-	 * @param env Flink execution environment
-	 * @return input graph
-	 */
+	@Override
 	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
 		int lp = littleParallelism.getValue().intValue();
 
