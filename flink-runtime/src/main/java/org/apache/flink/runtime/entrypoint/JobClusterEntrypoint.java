@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -44,6 +45,10 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 	private ResourceManager<?> resourceManager;
 
 	private JobManagerRunner jobManagerRunner;
+
+	public JobClusterEntrypoint(Configuration configuration) {
+		super(configuration);
+	}
 
 	@Override
 	protected void startClusterComponents(
@@ -60,7 +65,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
-			metricRegistry);
+			metricRegistry,
+			this);
 
 		jobManagerRunner = createJobManagerRunner(
 			configuration,
@@ -69,7 +75,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			highAvailabilityServices,
 			blobServer,
 			heartbeatServices,
-			metricRegistry);
+			metricRegistry,
+			this);
 
 		LOG.debug("Starting ResourceManager.");
 		resourceManager.start();
@@ -85,7 +92,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			BlobService blobService,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry) throws Exception {
+			MetricRegistry metricRegistry,
+			FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		JobGraph jobGraph = retrieveJobGraph(configuration);
 
@@ -99,7 +107,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			heartbeatServices,
 			metricRegistry,
 			new TerminatingOnCompleteActions(jobGraph.getJobID()),
-			this);
+			fatalErrorHandler);
 	}
 
 	@Override
@@ -149,9 +157,10 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry) throws Exception;
+		MetricRegistry metricRegistry,
+		FatalErrorHandler fatalErrorHandler) throws Exception;
 
-	protected abstract JobGraph retrieveJobGraph(Configuration configuration);
+	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
 
 	private final class TerminatingOnCompleteActions implements OnCompletionActions {
 
