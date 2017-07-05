@@ -230,32 +230,6 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
 	 * @param executor to run ZooKeeper callbacks
-	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
-	 * @throws Exception if the submitted job graph store cannot be created
-	 */
-	@Deprecated
-	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
-			CuratorFramework client,
-			Configuration configuration,
-			Executor executor) throws Exception {
-
-		checkNotNull(configuration, "Configuration");
-
-		RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
-
-		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
-
-		return new ZooKeeperSubmittedJobGraphStore(
-				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperSubmittedJobGraphStore} instance.
-	 *
-	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
-	 * @param configuration {@link Configuration} object
-	 * @param executor to run ZooKeeper callbacks
 	 * @param stateStorage {@link RetrievableStateStorageHelper} instance
 	 * @return {@link ZooKeeperSubmittedJobGraphStore<SubmittedJobGraph>} instance
 	 * @throws Exception if the submitted job graph store cannot be created
@@ -269,11 +243,7 @@ public class ZooKeeperUtils {
 		checkNotNull(configuration, "Configuration");
 
 		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH,
-				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH);
+		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		return new ZooKeeperSubmittedJobGraphStore(
 				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
