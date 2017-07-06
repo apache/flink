@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.jobgraph.JobGraph;
+
 /**
  * Default implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
  */
@@ -26,5 +28,10 @@ public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 	@Override
 	protected Class<?> getApplicationMasterClass() {
 		return YarnApplicationMasterRunner.class;
+	}
+
+	@Override
+	public YarnClusterClient deployJob(JobGraph jobGraph) {
+		throw new UnsupportedOperationException("Cannot deploy a per-job yarn cluster yet.");
 	}
 }

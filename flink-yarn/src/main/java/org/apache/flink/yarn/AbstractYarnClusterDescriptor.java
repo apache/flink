@@ -429,7 +429,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	@Override
-	public YarnClusterClient deploy() {
+	public YarnClusterClient deploySession() {
 		try {
 			if (UserGroupInformation.isSecurityEnabled()) {
 				// note: UGI::hasKerberosCredentials inaccurately reports false

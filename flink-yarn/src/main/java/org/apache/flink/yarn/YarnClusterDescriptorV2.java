@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.jobgraph.JobGraph;
+
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the new application master for a job under flip-6.
  * This implementation is now however tricky, since YarnClusterDescriptorV2 is related YarnClusterClientV2, but AbstractYarnClusterDescriptor is related
@@ -31,4 +33,8 @@ public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
 		return YarnFlinkApplicationMasterRunner.class;
 	}
 
+	@Override
+	public YarnClusterClient deployJob(JobGraph jobGraph) {
+		throw new UnsupportedOperationException("Cannot yet deploy a per-job yarn cluster.");
+	}
 }

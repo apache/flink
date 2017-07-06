@@ -69,7 +69,7 @@ public class YarnClusterDescriptorTest {
 		clusterDescriptor.setTaskManagerSlots(Integer.MAX_VALUE);
 
 		try {
-			clusterDescriptor.deploy();
+			clusterDescriptor.deploySession();
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {
@@ -98,7 +98,7 @@ public class YarnClusterDescriptorTest {
 		clusterDescriptor.setTaskManagerSlots(1);
 
 		try {
-			clusterDescriptor.deploy();
+			clusterDescriptor.deploySession();
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {

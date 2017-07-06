@@ -238,7 +238,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		// deploy
 		ClusterClient yarnCluster = null;
 		try {
-			yarnCluster = flinkYarnClient.deploy();
+			yarnCluster = flinkYarnClient.deploySession();
 		} catch (Exception e) {
 			LOG.warn("Failing test", e);
 			Assert.fail("Error while deploying YARN cluster: " + e.getMessage());
