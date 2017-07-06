@@ -224,6 +224,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 
 		try {
+			jobLeaderIdService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
 			super.shutDown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
