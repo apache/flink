@@ -62,6 +62,8 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -159,7 +161,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	/**
 	 * The class to bootstrap the application master of the Yarn cluster (runs main method).
 	 */
-	protected abstract Class<?> getApplicationMasterClass();
+	protected abstract String getYarnSessionClusterEntrypoint();
+
+	protected abstract String getYarnJobClusterEntrypoint();
 
 	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
 		return flinkConfiguration;
@@ -355,31 +359,130 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	@Override
 	public YarnClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) {
 		try {
-			if (UserGroupInformation.isSecurityEnabled()) {
-				// note: UGI::hasKerberosCredentials inaccurately reports false
-				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
-				// so we check only in ticket cache scenario.
-				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
-
-				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-				if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
-						&& useTicketCache && !loginUser.hasKerberosCredentials()) {
-					LOG.error("Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials");
-					throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
-							"does not have Kerberos credentials");
-				}
-			}
-			return deployInternal(clusterSpecification);
+			return deployInternal(
+				clusterSpecification,
+				getYarnSessionClusterEntrypoint(),
+				null);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't deploy Yarn cluster", e);
+			throw new RuntimeException("Couldn't deploy Yarn session cluster", e);
 		}
 	}
 
-	protected ClusterSpecification validateClusterResources(
+	@Override
+	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+		try {
+			return deployInternal(
+				clusterSpecification,
+				getYarnJobClusterEntrypoint(),
+				jobGraph);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not deploy Yarn job cluster.", e);
+		}
+	}
+
+	/**
+	 * This method will block until the ApplicationMaster/JobManager have been
+	 * deployed on YARN.
+	 *
+	 * @param clusterSpecification Initial cluster specification for the to be deployed Flink cluster
+	 * @param jobGraph A job graph which is deployed with the Flink cluster, null if none
+	 */
+	protected YarnClusterClient deployInternal(
 			ClusterSpecification clusterSpecification,
-			int yarnMinAllocationMB,
-			Resource maximumResourceCapability,
-			ClusterResourceDescription freeClusterResources) throws YarnDeploymentException {
+			String yarnClusterEntrypoint,
+			@Nullable JobGraph jobGraph) throws Exception {
+
+		if (UserGroupInformation.isSecurityEnabled()) {
+			// note: UGI::hasKerberosCredentials inaccurately reports false
+			// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
+			// so we check only in ticket cache scenario.
+			boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+
+			UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
+			if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
+				&& useTicketCache && !loginUser.hasKerberosCredentials()) {
+				LOG.error("Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials");
+				throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
+					"does not have Kerberos credentials");
+			}
+		}
+
+		isReadyForDeployment(clusterSpecification);
+
+		final YarnClient yarnClient = getYarnClient();
+
+		// ------------------ Check if the specified queue exists --------------------
+
+		checkYarnQueues(yarnClient);
+
+		// ------------------ Add dynamic properties to local flinkConfiguraton ------
+		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
+		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+		}
+
+		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
+
+		// Create application via yarnClient
+		final YarnClientApplication yarnApplication = yarnClient.createApplication();
+		final GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
+
+		Resource maxRes = appResponse.getMaximumResourceCapability();
+
+		final ClusterResourceDescription freeClusterMem;
+		try {
+			freeClusterMem = getCurrentFreeClusterResources(yarnClient);
+		} catch (YarnException | IOException e) {
+			failSessionDuringDeployment(yarnClient, yarnApplication);
+			throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
+		}
+
+		final int yarnMinAllocationMB = conf.getInt("yarn.scheduler.minimum-allocation-mb", 0);
+
+		final ClusterSpecification validClusterSpecification;
+		try {
+			validClusterSpecification = validateClusterResources(
+				clusterSpecification,
+				yarnMinAllocationMB,
+				maxRes,
+				freeClusterMem);
+		} catch (YarnDeploymentException yde) {
+			failSessionDuringDeployment(yarnClient, yarnApplication);
+			throw yde;
+		}
+
+		LOG.info("Cluster specification: {}", validClusterSpecification);
+
+		ApplicationReport report = startAppMaster(
+			yarnClusterEntrypoint,
+			jobGraph,
+			yarnClient,
+			yarnApplication,
+			clusterSpecification);
+
+		String host = report.getHost();
+		int port = report.getRpcPort();
+
+		// Correctly initialize the Flink config
+		flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
+		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+
+		// the Flink cluster is deployed in YARN. Represent cluster
+		return createYarnClusterClient(
+			this,
+			clusterSpecification.getNumberTaskManagers(),
+			clusterSpecification.getSlotsPerTaskManager(),
+			yarnClient,
+			report,
+			flinkConfiguration,
+			true);
+	}
+
+	protected ClusterSpecification validateClusterResources(
+		ClusterSpecification clusterSpecification,
+		int yarnMinAllocationMB,
+		Resource maximumResourceCapability,
+		ClusterResourceDescription freeClusterResources) throws YarnDeploymentException {
 
 		int taskManagerCount = clusterSpecification.getNumberTaskManagers();
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
@@ -470,82 +573,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	}
 
-	/**
-	 * This method will block until the ApplicationMaster/JobManager have been
-	 * deployed on YARN.
-	 */
-	protected YarnClusterClient deployInternal(ClusterSpecification clusterSpecification) throws Exception {
-
-		isReadyForDeployment(clusterSpecification);
-
-		final YarnClient yarnClient = getYarnClient();
-
-		// ------------------ Check if the specified queue exists --------------------
-
-		checkYarnQueues(yarnClient);
-
-		// ------------------ Add dynamic properties to local flinkConfiguraton ------
-		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
-		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
-			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
-		}
-
-		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
-
-		// Create application via yarnClient
-		final YarnClientApplication yarnApplication = yarnClient.createApplication();
-		final GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
-
-		Resource maxRes = appResponse.getMaximumResourceCapability();
-
-		final ClusterResourceDescription freeClusterMem;
-		try {
-			freeClusterMem = getCurrentFreeClusterResources(yarnClient);
-		} catch (YarnException | IOException e) {
-			failSessionDuringDeployment(yarnClient, yarnApplication);
-			throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
-		}
-
-		final int yarnMinAllocationMB = conf.getInt("yarn.scheduler.minimum-allocation-mb", 0);
-
-		final ClusterSpecification validClusterSpecification;
-		try {
-			validClusterSpecification = validateClusterResources(
-				clusterSpecification,
-				yarnMinAllocationMB,
-				maxRes,
-				freeClusterMem);
-		} catch (YarnDeploymentException yde) {
-			failSessionDuringDeployment(yarnClient, yarnApplication);
-			throw yde;
-		}
-
-		LOG.info("Cluster specification: {}", validClusterSpecification);
-
-		ApplicationReport report = startAppMaster(
-			null,
-			yarnClient,
-			yarnApplication,
-			clusterSpecification);
-
-		String host = report.getHost();
-		int port = report.getRpcPort();
-
-		// Correctly initialize the Flink config
-		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-		// the Flink cluster is deployed in YARN. Represent cluster
-		return createYarnClusterClient(
-			this,
-			clusterSpecification.getNumberTaskManagers(),
-			clusterSpecification.getSlotsPerTaskManager(),
-			yarnClient,
-			report,
-			flinkConfiguration,
-			true);
-	}
-
 	private void checkYarnQueues(YarnClient yarnClient) {
 		try {
 			List<QueueInfo> queues = yarnClient.getAllQueues();
@@ -577,6 +604,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	public ApplicationReport startAppMaster(
+			String yarnClusterEntrypoint,
 			JobGraph jobGraph,
 			YarnClient yarnClient,
 			YarnClientApplication yarnApplication,
@@ -659,6 +687,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				flinkConfiguration.getInteger(
 					ConfigConstants.YARN_APPLICATION_ATTEMPTS,
 					1));
+		}
+
+		if (jobGraph != null) {
+			// add the user code jars from the provided JobGraph
+			for (org.apache.flink.core.fs.Path path : jobGraph.getUserJars()) {
+				userJarFiles.add(new File(path.toUri()));
+			}
 		}
 
 		// local resource map for Yarn
@@ -803,6 +838,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
+			yarnClusterEntrypoint,
 			hasLogback,
 			hasLog4j,
 			hasKrb5,
@@ -1293,6 +1329,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	protected ContainerLaunchContext setupApplicationMasterContainer(
+			String yarnClusterEntrypoint,
 			boolean hasLogback,
 			boolean hasLog4j,
 			boolean hasKrb5,
@@ -1334,7 +1371,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		startCommandValues.put("logging", logging);
-		startCommandValues.put("class", getApplicationMasterClass().getName());
+		startCommandValues.put("class", yarnClusterEntrypoint);
 		startCommandValues.put("redirects",
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err");

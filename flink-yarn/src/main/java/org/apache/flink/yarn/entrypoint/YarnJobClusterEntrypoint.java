@@ -46,7 +46,7 @@ import java.io.ObjectInputStream;
 import java.util.Map;
 
 /**
- * Entry point ofr Yarn per-job clusters.
+ * Entry point for Yarn per-job clusters.
  */
 public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 

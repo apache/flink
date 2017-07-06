@@ -51,8 +51,12 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 	/**
 	 * Deploys a per-job cluster with the given job on the cluster.
 	 *
+	 * @param clusterSpecification Initial cluster specification with which the Flink cluster is launched
+	 * @param jobGraph JobGraph with which the job cluster is started
 	 * @return Cluster client to talk to the Flink cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClientType deployJobCluster(final JobGraph jobGraph) throws ClusterDeploymentException;
+	ClientType deployJobCluster(
+		final ClusterSpecification clusterSpecification,
+		final JobGraph jobGraph);
 }

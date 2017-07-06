@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -31,12 +32,17 @@ public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 	}
 
 	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return YarnApplicationMasterRunner.class;
+	protected String getYarnSessionClusterEntrypoint() {
+		return YarnApplicationMasterRunner.class.getName();
 	}
 
 	@Override
-	public YarnClusterClient deployJobCluster(JobGraph jobGraph) {
+	protected String getYarnJobClusterEntrypoint() {
+		throw new UnsupportedOperationException("The old Yarn descriptor does not support proper per-job mode.");
+	}
+
+	@Override
+	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		throw new UnsupportedOperationException("Cannot deploy a per-job yarn cluster yet.");
 	}
 }

@@ -127,6 +127,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		synchronized (lock) {
 			initializeServices(configuration);
 
+			// write host information into configuration
+			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
+			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
+
 			startClusterComponents(
 				configuration,
 				commonRpcService,
