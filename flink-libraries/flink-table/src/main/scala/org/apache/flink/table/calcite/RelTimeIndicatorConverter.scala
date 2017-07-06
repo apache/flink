@@ -165,8 +165,14 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     LogicalProject.create(input, projects, fieldNames)
   }
 
-  override def visit(join: LogicalJoin): RelNode =
-    throw new TableException("Logical join in a stream environment is not supported yet.")
+  override def visit(join: LogicalJoin): RelNode = {
+    val left = join.getLeft.accept(this)
+    val right = join.getRight.accept(this)
+
+    LogicalJoin.create(left, right, join.getCondition, join.getVariablesSet, join.getJoinType)
+
+  }
+
 
   override def visit(correlate: LogicalCorrelate): RelNode = {
     // visit children and update inputs
