@@ -881,7 +881,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// create hard links of living files in the checkpoint path
 			Checkpoint checkpoint = Checkpoint.create(stateBackend.db);
-			checkpoint.createCheckpoint(backupPath.getPath());
+
+			// compensate for the fact that Flink paths are slashed
+			String checkpointPath = backupPath.hasWindowsDrive() ?
+				backupPath.getPath().substring(1) :
+				backupPath.getPath();
+
+			checkpoint.createCheckpoint(checkpointPath);
 		}
 
 		KeyedStateHandle materializeSnapshot() throws Exception {
@@ -1376,8 +1382,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
 
+					// compensate for the fact that Flink paths are slashed
+					String restorePath = restoreInstancePath.hasWindowsDrive() ?
+						restoreInstancePath.getPath().substring(1) :
+						restoreInstancePath.getPath();
+
 					try (RocksDB restoreDb = stateBackend.openDB(
-							restoreInstancePath.getPath(),
+							restorePath,
 							columnFamilyDescriptors,
 							columnFamilyHandles)) {
 
