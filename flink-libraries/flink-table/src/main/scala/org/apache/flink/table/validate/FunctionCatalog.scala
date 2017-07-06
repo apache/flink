@@ -119,19 +119,27 @@ class FunctionCatalog {
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
           case Failure(_) =>
-            val childrenClass = Seq.fill(children.length)(classOf[Expression])
-            // try to find a constructor matching the exact number of children
-            Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
+            Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
               case Success(ctor) =>
-                Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+                Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
                   case Success(expr) => expr
-                  case Failure(exception) => throw ValidationException(exception.getMessage)
+                  case Failure(e) => throw new ValidationException(e.getMessage)
                 }
               case Failure(_) =>
-                throw ValidationException(s"Invalid number of arguments for function $funcClass")
+                val childrenClass = Seq.fill(children.length)(classOf[Expression])
+                // try to find a constructor matching the exact number of children
+                Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
+                  case Success(ctor) =>
+                    Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+                      case Success(expr) => expr
+                      case Failure(exception) => throw ValidationException(exception.getMessage)
+                    }
+                  case Failure(_) =>
+                    throw ValidationException(
+                      s"Invalid number of arguments for function $funcClass")
+                }
             }
         }
-
       case _ =>
         throw ValidationException("Unsupported function.")
     }
@@ -197,6 +205,8 @@ object FunctionCatalog {
     "upperCase" -> classOf[Upper],
     "position" -> classOf[Position],
     "overlay" -> classOf[Overlay],
+    "concat" -> classOf[Concat],
+    "concat_ws" -> classOf[ConcatWs],
 
     // math functions
     "plus" -> classOf[Plus],
