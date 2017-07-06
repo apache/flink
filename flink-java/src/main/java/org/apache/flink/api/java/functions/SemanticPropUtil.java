@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticAnnotationException;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
@@ -38,7 +38,6 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsSecond;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 import java.lang.annotation.Annotation;
@@ -410,7 +409,6 @@ public final class SemanticPropUtil {
 		parseReadFields(result, readFieldsFirst, inType1, 0);
 		parseReadFields(result, readFieldsSecond, inType2, 1);
 	}
-
 
 	private static void parseForwardedFields(SemanticProperties sp, String[] forwardedStr,
 			TypeInformation<?> inType, TypeInformation<?> outType, int input, boolean skipIncompatibleTypes) {

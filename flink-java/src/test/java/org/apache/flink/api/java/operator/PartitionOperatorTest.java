@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.operator;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -25,12 +26,19 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
 
 import java.io.Serializable;
 
+/**
+ * Tests for partitioning.
+ */
 public class PartitionOperatorTest {
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
     public static class CustomPojo implements Serializable, Comparable<CustomPojo> {
         private Integer number;
         private String name;
@@ -66,6 +74,9 @@ public class PartitionOperatorTest {
         }
     }
 
+	/**
+	 * Custom data type with nested type, for testing purposes.
+	 */
     public static class NestedPojo implements Serializable {
         private CustomPojo nested;
         private Long outer;
@@ -401,7 +412,5 @@ public class PartitionOperatorTest {
             }
         });
     }
-
-
 
 }

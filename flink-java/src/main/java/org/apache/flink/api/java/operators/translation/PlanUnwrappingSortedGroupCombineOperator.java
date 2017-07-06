@@ -20,10 +20,10 @@ package org.apache.flink.api.java.operators.translation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
@@ -39,12 +39,12 @@ public class PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> extends G
 	{
 		super(new TupleUnwrappingGroupReducer<IN, OUT, K1, K2>(udf),
 				new UnaryOperatorInformation<Tuple3<K1, K2, IN>, OUT>(typeInfoWithKey, outType),
-				groupingKey.computeLogicalKeyPositions(), 
+				groupingKey.computeLogicalKeyPositions(),
 				name);
 
 	}
 
-	public static final class TupleUnwrappingGroupReducer<IN, OUT, K1, K2> extends WrappingFunction<GroupCombineFunction<IN, OUT>>
+	private static final class TupleUnwrappingGroupReducer<IN, OUT, K1, K2> extends WrappingFunction<GroupCombineFunction<IN, OUT>>
 			implements GroupCombineFunction<Tuple3<K1, K2, IN>, OUT>
 	{
 
@@ -56,7 +56,6 @@ public class PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> extends G
 			super(wrapped);
 			this.iter = new Tuple3UnwrappingIterator<IN, K1, K2>();
 		}
-
 
 		@Override
 		public void combine(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {

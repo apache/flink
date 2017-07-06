@@ -20,12 +20,16 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.ShortValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.ShortValueSummaryAggregator}.
+ */
 public class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest {
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	protected NumericColumnSummary<Short> summarize(Integer... values) {
 

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -33,13 +34,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingGroupCombineOperator;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedGroupCombineOperator;
-import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 /**
  * This operator behaves like the GroupReduceOperator with Combine but only runs the Combine part which reduces all data
- * locally in their partitions. The combine part can return an arbitrary data type. This is useful to pre-combine values 
+ * locally in their partitions. The combine part can return an arbitrary data type. This is useful to pre-combine values
  * into an intermediate representation before applying a proper reduce operation.
  *
  * @param <IN> The type of the data set consumed by the operator.
@@ -186,7 +186,6 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 

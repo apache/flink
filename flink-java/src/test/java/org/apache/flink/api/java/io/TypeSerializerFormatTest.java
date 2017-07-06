@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.runner.RunWith;
@@ -38,6 +39,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 
+/**
+ * Tests for type serialization format.
+ */
 @RunWith(Parameterized.class)
 public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
 

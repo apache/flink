@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.java.tuple;
 
+import com.google.common.io.Files;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
-
-import com.google.common.io.Files;
 
 /**
  * Source code generator for tuple classes and classes which depend on the arity of tuples.
@@ -96,13 +96,13 @@ class TupleGenerator {
 
 	private static void insertCodeIntoFile(String code, File file) throws IOException {
 		String fileContent = Files.toString(file, StandardCharsets.UTF_8);
-		
+
 		try (Scanner s = new Scanner(fileContent)) {
 			StringBuilder sb = new StringBuilder();
 			String line;
-	
+
 			boolean indicatorFound = false;
-	
+
 			// add file beginning
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				sb.append(line).append("\n");
@@ -111,19 +111,19 @@ class TupleGenerator {
 					break;
 				}
 			}
-	
+
 			if(!indicatorFound) {
 				System.out.println("No indicator found in '" + file + "'. Will skip code generation.");
 				s.close();
 				return;
 			}
-	
+
 			// add generator signature
 			sb.append("\t// GENERATED FROM ").append(TupleGenerator.class.getName()).append(".\n");
-	
+
 			// add tuple dependent code
 			sb.append(code).append("\n");
-	
+
 			// skip generated code
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				if (line.contains(END_INDICATOR)) {
@@ -131,7 +131,7 @@ class TupleGenerator {
 					break;
 				}
 			}
-	
+
 			// add file ending
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				sb.append(line).append("\n");
@@ -468,8 +468,7 @@ class TupleGenerator {
 			sb.append(GEN_TYPE_PREFIX + i);
 		}
 	}
-	
-	
+
 	private static String HEADER =
 			"/*\n"
 			+ " * Licensed to the Apache Software Foundation (ASF) under one\n"

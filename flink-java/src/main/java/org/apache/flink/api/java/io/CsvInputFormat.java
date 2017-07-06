@@ -21,13 +21,17 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.Preconditions;
-
-import java.io.IOException;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
+import java.io.IOException;
+
+/**
+ * InputFormat thar reads csv files.
+ * @param <OUT>
+ */
 @Internal
 public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 
@@ -38,7 +42,7 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	public static final String DEFAULT_FIELD_DELIMITER = ",";
 
 	protected transient Object[] parsedValues;
-	
+
 	protected CsvInputFormat(Path filePath) {
 		super(filePath);
 	}
@@ -154,5 +158,5 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	public String toString() {
 		return "CSV Input (" + StringUtils.showControlCharacters(String.valueOf(getFieldDelimiter())) + ") " + getFilePath();
 	}
-	
+
 }

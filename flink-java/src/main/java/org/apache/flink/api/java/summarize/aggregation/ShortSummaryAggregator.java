@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Aggregator that can handle Short types
+ * Aggregator that can handle Short types.
  */
 @Internal
 public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
@@ -29,14 +29,14 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Like Math.min() except for shorts
+	 * Like Math.min() except for shorts.
 	 */
 	public static Short min(Short a, Short b) {
 		return a <= b ? a : b;
 	}
 
 	/**
-	 * Like Math.max() except for shorts
+	 * Like Math.max() except for shorts.
 	 */
 	public static Short max(Short a, Short b) {
 		return a >= b ? a : b;
@@ -44,6 +44,9 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
+	/**
+	 * Aggregator for min operation.
+	 */
 	public static class MinShortAggregator implements Aggregator<Short,Short> {
 
 		private short min = Short.MAX_VALUE;
@@ -64,6 +67,9 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 		}
 	}
 
+	/**
+	 * Aggregator for max operation.
+	 */
 	public static class MaxShortAggregator implements Aggregator<Short,Short> {
 
 		private short max = Short.MIN_VALUE;
@@ -84,6 +90,9 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 		}
 	}
 
+	/**
+	 * Aggregator for sum operation.
+	 */
 	public static class SumShortAggregator implements Aggregator<Short,Short> {
 
 		private short sum = 0;

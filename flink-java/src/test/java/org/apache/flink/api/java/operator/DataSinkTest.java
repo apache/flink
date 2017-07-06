@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.operator;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -25,6 +26,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,6 +35,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#writeAsText(String)}.
+ */
 public class DataSinkTest {
 
 	// TUPLE DATA

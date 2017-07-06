@@ -25,6 +25,7 @@ import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyProgressable;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.configuration.Configuration;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
@@ -162,31 +163,31 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			}
 		}
 	}
-	
+
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 
 		try {
 			JobContext jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
 			OutputCommitter outputCommitter = this.jobConf.getOutputCommitter();
-			
+
 			// finalize HDFS output format
 			outputCommitter.commitJob(jobContext);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		out.writeUTF(mapredOutputFormat.getClass().getName());
 		jobConf.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		super.read(in);

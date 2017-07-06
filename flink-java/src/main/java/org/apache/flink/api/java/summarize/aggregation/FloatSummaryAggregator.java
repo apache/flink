@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
 
 /**
- * Aggregator that can handle Float types
+ * Aggregator that can handle Float types.
  */
 @Internal
 public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
@@ -32,6 +32,9 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
+	/**
+	 * Aggregator for min operation.
+	 */
 	public static class MinFloatAggregator implements Aggregator<Float,Float> {
 
 		private float min = Float.MAX_VALUE;
@@ -52,6 +55,9 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 		}
 	}
 
+	/**
+	 * Aggregator for max operation.
+	 */
 	public static class MaxFloatAggregator implements Aggregator<Float,Float> {
 
 		private float max = Float.MIN_VALUE;
@@ -72,6 +78,9 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 		}
 	}
 
+	/**
+	 * Aggregator for sum operation.
+	 */
 	public static class SumFloatAggregator implements Aggregator<Float,Float> {
 
 		private CompensatedSum sum = ZERO;

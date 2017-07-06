@@ -20,8 +20,12 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.IntValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.IntegerValueSummaryAggregator}.
+ */
 public class IntegerValueSummaryAggregatorTest extends IntegerSummaryAggregatorTest {
 
 	@Override

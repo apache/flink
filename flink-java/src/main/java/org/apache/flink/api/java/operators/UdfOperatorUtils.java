@@ -28,6 +28,7 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.sca.CodeAnalyzerException;
 import org.apache.flink.api.java.sca.UdfAnalyzer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

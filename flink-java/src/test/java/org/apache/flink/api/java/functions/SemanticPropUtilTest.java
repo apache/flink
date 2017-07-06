@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
@@ -32,12 +31,16 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for semantic properties utils.
+ */
 public class SemanticPropUtilTest {
-	
+
 	private final TypeInformation<?> threeIntTupleType = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
@@ -405,7 +408,7 @@ public class SemanticPropUtilTest {
 		assertTrue(sp.getForwardingTargetFields(0, 0).contains(0));
 		assertTrue(sp.getForwardingTargetFields(0, 1).contains(2));
 	}
-	
+
 	@Test
 	public void testForwardedMixedOneString() {
 		String[] forwardedFields = {"f2;f3;f0->f4;f4->f0"};
@@ -766,7 +769,7 @@ public class SemanticPropUtilTest {
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Non-Forwarded Fields Annotation
 	// --------------------------------------------------------------------------------------------
@@ -947,8 +950,7 @@ public class SemanticPropUtilTest {
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, null, nonForwardedFields, null, threeIntTupleType, threeIntTupleType);
 	}
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Read Fields Annotation
 	// --------------------------------------------------------------------------------------------
@@ -964,7 +966,7 @@ public class SemanticPropUtilTest {
 		assertTrue(fs.contains(2));
 		assertTrue(fs.contains(1));
 	}
-	
+
 	@Test
 	public void testReadFieldsOneString() {
 		String[] readFields = { "f1;f2" };
@@ -1144,11 +1146,11 @@ public class SemanticPropUtilTest {
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, null, null, readFields, threeIntTupleType, threeIntTupleType);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Two Inputs
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Test
 	public void testForwardedDual() {
 		String[] forwardedFieldsFirst = { "f1->f2; f2->f3" };
@@ -1215,7 +1217,6 @@ public class SemanticPropUtilTest {
 		assertTrue(dsp.getForwardingTargetFields(1, 2).size() == 0);
 		assertTrue(dsp.getForwardingTargetFields(1, 3).contains(5));
 	}
-
 
 	@Test
 	public void testNonForwardedDual() {
@@ -1438,6 +1439,9 @@ public class SemanticPropUtilTest {
 	// Pojo Type Classes
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class TestPojo {
 
 		public int int1;
@@ -1446,6 +1450,9 @@ public class SemanticPropUtilTest {
 		public String string1;
 	}
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class TestPojo2 {
 
 		public int myInt1;
@@ -1454,6 +1461,9 @@ public class SemanticPropUtilTest {
 		public String myString1;
 	}
 
+	/**
+	 * Sample test pojo with nested type.
+	 */
 	public static class NestedTestPojo{
 
 		public int int1;

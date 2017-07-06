@@ -19,9 +19,13 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link LongSummaryAggregator}.
+ */
 public class LongSummaryAggregatorTest {
 
 	@Test
@@ -83,7 +87,7 @@ public class LongSummaryAggregatorTest {
 	}
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	protected NumericColumnSummary<Long> summarize(Long... values) {
 		return new AggregateCombineHarness<Long,NumericColumnSummary<Long>,LongSummaryAggregator>() {

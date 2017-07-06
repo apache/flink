@@ -20,14 +20,18 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.FloatValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.FloatValueSummaryAggregator}.
+ */
 public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {
 
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating
 	 * and combining a bunch of different ways.
 	 */
 	@Override

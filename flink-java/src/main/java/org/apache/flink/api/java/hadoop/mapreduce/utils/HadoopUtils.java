@@ -18,22 +18,23 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce.utils;
 
-import java.lang.reflect.Constructor;
-import java.util.Map;
-
 import org.apache.flink.annotation.Internal;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 
+import java.lang.reflect.Constructor;
+import java.util.Map;
+
 /**
  * Utility class to work with next generation of Apache Hadoop MapReduce classes.
  */
 @Internal
 public final class HadoopUtils {
-	
+
 	/**
 	 * Merge HadoopConfiguration into Configuration. This is necessary for the HDFS configuration.
 	 */
@@ -48,7 +49,7 @@ public final class HadoopUtils {
 			}
 		}
 	}
-	
+
 	public static JobContext instantiateJobContext(Configuration configuration, JobID jobId) throws Exception {
 		try {
 			Class<?> clazz;
@@ -62,13 +63,13 @@ public final class HadoopUtils {
 			}
 			Constructor<?> constructor = clazz.getConstructor(Configuration.class, JobID.class);
 			JobContext context = (JobContext) constructor.newInstance(configuration, jobId);
-			
+
 			return context;
 		} catch(Exception e) {
 			throw new Exception("Could not create instance of JobContext.");
 		}
 	}
-	
+
 	public static TaskAttemptContext instantiateTaskAttemptContext(Configuration configuration,  TaskAttemptID taskAttemptID) throws Exception {
 		try {
 			Class<?> clazz;
@@ -82,7 +83,7 @@ public final class HadoopUtils {
 			}
 			Constructor<?> constructor = clazz.getConstructor(Configuration.class, TaskAttemptID.class);
 			TaskAttemptContext context = (TaskAttemptContext) constructor.newInstance(configuration, taskAttemptID);
-			
+
 			return context;
 		} catch(Exception e) {
 			throw new Exception("Could not create instance of TaskAttemptContext.");

@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.sca;
 
 import org.apache.flink.annotation.Internal;
+
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.Frame;
@@ -40,6 +41,7 @@ public class ModifiedASMFrame extends Frame {
 	public ModifiedASMFrame(int nLocals, int nStack) {
 		super(nLocals, nStack);
 	}
+
 	public ModifiedASMFrame(Frame src) {
 		super(src);
 	}

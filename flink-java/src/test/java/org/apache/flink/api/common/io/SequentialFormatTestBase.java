@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -45,7 +46,7 @@ import java.util.List;
  */
 public abstract class SequentialFormatTestBase<T> extends TestLogger {
 
-	public class InputSplitSorter implements Comparator<FileInputSplit> {
+	private class InputSplitSorter implements Comparator<FileInputSplit> {
 		@Override
 		public int compare(FileInputSplit o1, FileInputSplit o2) {
 			int pathOrder = o1.getPath().getName().compareTo(o2.getPath().getName());
@@ -74,7 +75,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	}
 
 	/**
-	 * Count how many bytes would be written if all records were directly serialized
+	 * Count how many bytes would be written if all records were directly serialized.
 	 */
 	@Before
 	public void calcRawDataSize() throws IOException {
@@ -83,7 +84,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 			ByteCounter byteCounter = new ByteCounter();
 
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
-				writeRecord(this.getRecord(recordIndex), 
+				writeRecord(this.getRecord(recordIndex),
 					new DataOutputViewStreamWrapper(byteCounter));
 			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
@@ -91,7 +92,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	}
 
 	/**
-	 * Checks if the expected input splits were created
+	 * Checks if the expected input splits were created.
 	 */
 	@Test
 	public void checkInputSplits() throws IOException {
@@ -124,7 +125,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	}
 
 	/**
-	 * Tests if the expected sequence and amount of data can be read
+	 * Tests if the expected sequence and amount of data can be read.
 	 */
 	@Test
 	public void checkRead() throws Exception {
@@ -242,7 +243,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	abstract protected int getInfoSize();
 
 	/**
-	 * Returns the record to write at the given position
+	 * Returns the record to write at the given position.
 	 */
 	abstract protected T getRecord(int index);
 
@@ -251,7 +252,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	abstract protected void writeRecord(T record, DataOutputView outputView) throws IOException;
 
 	/**
-	 * Checks if both records are equal
+	 * Checks if both records are equal.
 	 */
 	abstract protected void checkEquals(T expected, T actual);
 
@@ -278,14 +279,14 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 
 	/**
 	 * Counts the bytes that would be written.
-	 * 
+	 *
 	 */
 	private static final class ByteCounter extends OutputStream {
 		int length = 0;
 
 		/**
 		 * Returns the length.
-		 * 
+		 *
 		 * @return the length
 		 */
 		public int getLength() {

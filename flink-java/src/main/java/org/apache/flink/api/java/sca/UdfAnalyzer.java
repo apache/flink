@@ -29,13 +29,14 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.common.operators.Keys;
-import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.sca.TaggedValue.Input;
+
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
@@ -58,7 +59,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
  * constants are tagged such that a tracking of atomic input fields through the
  * entire UDF (until the function returns or calls collect()) is possible.
  *
- * The implementation is as conservative as possible meaning that for cases
+ * <p>The implementation is as conservative as possible meaning that for cases
  * or bytecode instructions that haven't been considered the analyzer
  * will fallback to the ASM library (which removes TaggedValues).
  */
@@ -271,7 +272,7 @@ public class UdfAnalyzer {
 		if (state == STATE_END_OF_ANALYZING) {
 			throw new IllegalStateException("Analyzing is already done.");
 		}
-		
+
 		boolean discardReturnValues = false;
 
 		if (isIterableInput) {

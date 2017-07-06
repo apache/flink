@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.runner.RunWith;
@@ -32,6 +33,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 
+/**
+ * Tests for serialized formats.
+ */
 @RunWith(Parameterized.class)
 public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 
@@ -58,7 +62,6 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 		return inputFormat;
 	}
 
-	
 	@Override
 	protected BinaryOutputFormat<Record> createOutputFormat(String path, Configuration configuration)
 			throws IOException

@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.functions;
-
-import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -31,25 +28,28 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.junit.Test;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This is a minimal test to verify that semantic annotations are evaluated against
  * the type information properly translated correctly to the common data flow API.
- *
  */
 @SuppressWarnings("serial")
 public class SemanticPropertiesTranslationTest {
-	
+
 	@Test
 	public void testUnaryFunctionWildcardForwardedAnnotation() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -74,7 +74,7 @@ public class SemanticPropertiesTranslationTest {
 		assertTrue(fw2.contains(1));
 		assertTrue(fw3.contains(2));
 	}
-	
+
 	@Test
 	public void testUnaryFunctionInPlaceForwardedAnnotation() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -525,25 +525,25 @@ public class SemanticPropertiesTranslationTest {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static class NoAnnotationMapper<T> implements MapFunction<T, T> {
+	private static class NoAnnotationMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
 			return value;
 		}
 	}
-	
+
 	@ForwardedFields("*")
-	public static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
 			return value;
 		}
 	}
-	
+
 	@ForwardedFields("0;2")
-	public static class IndividualForwardedMapper<X, Y, Z> implements MapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
+	private static class IndividualForwardedMapper<X, Y, Z> implements MapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
 
 		@Override
 		public Tuple3<X, Y, Z> map(Tuple3<X, Y, Z> value) {
@@ -552,7 +552,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 
 	@ForwardedFields("0->2;1->0;2->1")
-	public static class ShufflingMapper<X> implements MapFunction<Tuple3<X, X, X>, Tuple3<X, X, X>> {
+	private static class ShufflingMapper<X> implements MapFunction<Tuple3<X, X, X>, Tuple3<X, X, X>> {
 
 		@Override
 		public Tuple3<X, X, X> map(Tuple3<X, X, X> value) {
@@ -561,7 +561,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 
 	@FunctionAnnotation.NonForwardedFields({"1"})
-	public static class AllForwardedExceptMapper<T> implements MapFunction<T, T> {
+	private static class AllForwardedExceptMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -570,7 +570,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 
 	@FunctionAnnotation.ReadFields({"0;2"})
-	public static class ReadSetMapper<T> implements MapFunction<T, T> {
+	private static class ReadSetMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -578,7 +578,7 @@ public class SemanticPropertiesTranslationTest {
 		}
 	}
 
-	public static class NoAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+	private static class NoAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
 
 		@Override
 		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
@@ -587,7 +587,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 
 	@ForwardedFieldsFirst("0->2")
-	public static class ForwardedFirstAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+	private static class ForwardedFirstAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
 
 		@Override
 		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
@@ -596,7 +596,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 
 	@ForwardedFieldsSecond("1->2")
-	public static class ForwardedSecondAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+	private static class ForwardedSecondAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
 
 		@Override
 		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
@@ -606,7 +606,7 @@ public class SemanticPropertiesTranslationTest {
 
 	@ForwardedFieldsFirst("1 -> 0")
 	@ForwardedFieldsSecond("1 -> 1")
-	public static class ForwardedBothAnnotationJoin<A, B, C, D> implements JoinFunction<Tuple2<A, B>, Tuple2<C, D>, Tuple2<B, D>> {
+	private static class ForwardedBothAnnotationJoin<A, B, C, D> implements JoinFunction<Tuple2<A, B>, Tuple2<C, D>, Tuple2<B, D>> {
 
 		@Override
 		public Tuple2<B, D> join(Tuple2<A, B> first, Tuple2<C, D> second) {
@@ -616,7 +616,7 @@ public class SemanticPropertiesTranslationTest {
 
 	@FunctionAnnotation.NonForwardedFieldsFirst("0;2")
 	@FunctionAnnotation.NonForwardedFieldsSecond("0;1")
-	public static class AllForwardedExceptJoin<X> implements JoinFunction<Tuple3<X,X,X>, Tuple3<X,X,X>, Tuple3<X,X,X>> {
+	private static class AllForwardedExceptJoin<X> implements JoinFunction<Tuple3<X,X,X>, Tuple3<X,X,X>, Tuple3<X,X,X>> {
 
 		@Override
 		public Tuple3<X, X, X> join(Tuple3<X, X, X> first, Tuple3<X, X, X> second) throws Exception {
@@ -626,7 +626,7 @@ public class SemanticPropertiesTranslationTest {
 
 	@FunctionAnnotation.ReadFieldsFirst("1")
 	@FunctionAnnotation.ReadFieldsSecond("0")
-	public static class ReadSetJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+	private static class ReadSetJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
 
 		@Override
 		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {

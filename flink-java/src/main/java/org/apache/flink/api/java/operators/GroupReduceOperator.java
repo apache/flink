@@ -24,7 +24,8 @@ import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.operators.translation.CombineToGroupCombineWrapper;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -32,15 +33,15 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
-import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.java.operators.translation.CombineToGroupCombineWrapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedReduceGroupOperator;
 import org.apache.flink.api.java.operators.translation.RichCombineToGroupCombineWrapper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.DataSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ import java.lang.reflect.Type;
 /**
  * This operator represents the application of a "reduceGroup" function on a data set, and the
  * result data set produced by the function.
- * 
+ *
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
@@ -62,14 +63,14 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	private GroupReduceFunction<IN, OUT> function;
 
 	private final Grouping<IN> grouper;
-	
+
 	private final String defaultName;
 
 	private boolean combinable;
 
 	/**
 	 * Constructor for a non-grouped reduce (all reduce).
-	 * 
+	 *
 	 * @param input The input data set to the groupReduce function.
 	 * @param function The user-defined GroupReduce function.
 	 */
@@ -82,10 +83,10 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 		this.combinable = checkCombinability();
 	}
-	
+
 	/**
 	 * Constructor for a grouped reduce.
-	 * 
+	 *
 	 * @param input The grouped input to be processed group-wise by the groupReduce function.
 	 * @param function The user-defined GroupReduce function.
 	 */
@@ -149,14 +150,12 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		}
 		return false;
 	}
-	
-	
+
 	@Override
 	protected GroupReduceFunction<IN, OUT> getFunction() {
 		return function;
 	}
 
-	
 	// --------------------------------------------------------------------------------------------
 	//  Properties
 	// --------------------------------------------------------------------------------------------
@@ -164,7 +163,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	public boolean isCombinable() {
 		return combinable;
 	}
-	
+
 	public GroupReduceOperator<IN, OUT> setCombinable(boolean combinable) {
 
 		if(combinable) {
@@ -205,7 +204,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	// --------------------------------------------------------------------------------------------
 	//  Translation
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	@SuppressWarnings("unchecked")
 	protected GroupReduceOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
@@ -225,16 +224,16 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
 					new GroupReduceOperatorBase<>(function, operatorInfo, new int[0], name);
-			
+
 			po.setCombinable(combinable);
 			po.setInput(input);
 			// the parallelism for a non grouped reduce can only be 1
 			po.setParallelism(1);
 			return po;
 		}
-	
+
 		if (grouper.getKeys() instanceof SelectorFunctionKeys) {
-		
+
 			@SuppressWarnings("unchecked")
 			SelectorFunctionKeys<IN, ?> selectorKeys = (SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 
@@ -271,29 +270,28 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			po.setInput(input);
 			po.setParallelism(getParallelism());
 			po.setCustomPartitioner(grouper.getCustomPartitioner());
-			
+
 			// set group order
 			if (grouper instanceof SortedGrouping) {
 				SortedGrouping<IN> sortedGrouper = (SortedGrouping<IN>) grouper;
 
 				int[] sortKeyPositions = sortedGrouper.getGroupSortKeyPositions();
 				Order[] sortOrders = sortedGrouper.getGroupSortOrders();
-				
+
 				Ordering o = new Ordering();
 				for(int i=0; i < sortKeyPositions.length; i++) {
 					o.appendOrdering(sortKeyPositions[i], null, sortOrders[i]);
 				}
 				po.setGroupOrder(o);
 			}
-			
+
 			return po;
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
 	}
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")

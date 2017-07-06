@@ -37,6 +37,9 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CsvOutputFormat}.
+ */
 public class CsvOutputFormatTest {
 
 	private String path = null;
@@ -80,7 +83,7 @@ public class CsvOutputFormatTest {
 			} catch (RuntimeException e) {
 				// expected
 			}
-			
+
 		}
 		finally {
 			csvOutputFormat.close();

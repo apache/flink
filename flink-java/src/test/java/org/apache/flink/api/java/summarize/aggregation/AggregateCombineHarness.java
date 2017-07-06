@@ -27,7 +27,7 @@ import java.util.List;
  * This harness uses multiple aggregators and variously aggregates and combines against
  * a list of values while calling a compareResults() method.
  *
- * This method breaks the rule of "testing only one thing" by aggregating and combining
+ * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
  * a bunch of different ways but can help uncover various kinds of bugs that can show
  * up in aggregators.
  *
@@ -40,7 +40,7 @@ public abstract class AggregateCombineHarness<T,R,A extends Aggregator<T,R>> {
 	/**
 	 * Compare results from different runs of aggregate/combine to make sure they are the same.
 	 *
-	 * Subclasses should cause an Assertion failure or throw an Exception if the results aren't
+	 * <p>Subclasses should cause an Assertion failure or throw an Exception if the results aren't
 	 * equal or at least close enough.
 	 */
 	protected abstract void compareResults(R result1, R result2);

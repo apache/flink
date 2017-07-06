@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -51,7 +52,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class shared between the Java and Scala API of Flink
+ * Base class shared between the Java and Scala API of Flink.
  */
 @Internal
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
@@ -123,7 +124,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
-				
+
 		try {
 			final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(jobContext);
 			return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
@@ -238,7 +239,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
 
-	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths, 
+	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths,
 											ArrayList<FileStatus> files) throws IOException {
 
 		long latestModTime = 0L;

@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.hadoop.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.core.io.InputSplit;
+
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 
@@ -53,7 +55,7 @@ public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit
 	 * This method only exists because there is no UserGroupInformation.getCredentials() method
 	 * in Hadoop 1.x
 	 *
-	 * Note that this method returns "null" in Hadoop 1.x environments.
+	 * <p>Note that this method returns "null" in Hadoop 1.x environments.
 	 *
 	 * @param ugi The user information
 	 * @return new credentials object from the user information. MAY RETURN NULL!

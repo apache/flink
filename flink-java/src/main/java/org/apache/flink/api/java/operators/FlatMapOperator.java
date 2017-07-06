@@ -29,26 +29,26 @@ import org.apache.flink.api.java.DataSet;
 /**
  * This operator represents the application of a "flatMap" function on a data set, and the
  * result data set produced by the function.
- * 
+ *
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
 @Public
 public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, FlatMapOperator<IN, OUT>> {
-	
+
 	protected final FlatMapFunction<IN, OUT> function;
-	
+
 	protected final String defaultName;
-	
+
 	public FlatMapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
-		
+
 		this.function = function;
 		this.defaultName = defaultName;
 
 		UdfOperatorUtils.analyzeSingleInputUdf(this, FlatMapFunction.class, defaultName, function, null);
 	}
-	
+
 	@Override
 	protected FlatMapFunction<IN, OUT> getFunction() {
 		return function;
@@ -70,7 +70,7 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 			// if no parallelism has been specified, use parallelism of input operator to enable chaining
 			po.setParallelism(input.getParallelism());
 		}
-		
+
 		return po;
 	}
 }

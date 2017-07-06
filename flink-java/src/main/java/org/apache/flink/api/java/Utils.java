@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.commons.lang3.StringUtils;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
@@ -30,6 +28,8 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.configuration.Configuration;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -43,7 +43,7 @@ import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAna
  */
 @Internal
 public final class Utils {
-	
+
 	public static final Random RNG = new Random();
 
 	public static String getCallLocationName() {
@@ -63,12 +63,12 @@ public final class Utils {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Utility sink function that counts elements and writes the count into an accumulator,
 	 * from which it can be retrieved by the client. This sink is used by the
 	 * {@link DataSet#count()} function.
-	 * 
+	 *
 	 * @param <T> Type of elements to count.
 	 */
 	@SkipCodeAnalysis
@@ -115,7 +115,7 @@ public final class Utils {
 
 		private final String id;
 		private final TypeSerializer<T> serializer;
-		
+
 		private SerializedListAccumulator<T> accumulator;
 
 		public CollectHelper(String id, TypeSerializer<T> serializer) {
@@ -143,6 +143,9 @@ public final class Utils {
 		}
 	}
 
+	/**
+	 * Accumulator of {@link ChecksumHashCode}.
+	 */
 	public static class ChecksumHashCode implements SimpleAccumulator<ChecksumHashCode> {
 
 		private static final long serialVersionUID = 1L;
@@ -213,6 +216,10 @@ public final class Utils {
 		}
 	}
 
+	/**
+	 * {@link RichOutputFormat} for {@link ChecksumHashCode}.
+	 * @param <T>
+	 */
 	@SkipCodeAnalysis
 	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
 
@@ -247,7 +254,6 @@ public final class Utils {
 			getRuntimeContext().addAccumulator(id, update);
 		}
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 
@@ -286,7 +292,7 @@ public final class Utils {
 			if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
 				continue;
 			}
-			ret += StringUtils.repeat(' ', indent) + field.getName() + ":" + field.getType().getName() + 
+			ret += StringUtils.repeat(' ', indent) + field.getName() + ":" + field.getType().getName() +
 				(field.getType().isEnum() ? " (is enum)" : "") + "\n";
 			if (!field.getType().isPrimitive()) {
 				ret += getGenericTypeTree(field.getType(), indent + 4);

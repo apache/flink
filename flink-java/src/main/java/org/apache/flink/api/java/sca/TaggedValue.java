@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.sca;
 
 import org.apache.flink.annotation.Internal;
+
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.analysis.BasicValue;
 
@@ -34,6 +35,9 @@ import java.util.Map.Entry;
 @Internal
 public class TaggedValue extends BasicValue {
 
+	/**
+	 * Possible tags.
+	 */
 	public static enum Tag {
 		REGULAR, // regular object with no special meaning
 		THIS, // a special container which is the instance of the UDF
@@ -46,6 +50,9 @@ public class TaggedValue extends BasicValue {
 		NULL // null
 	}
 
+	/**
+	 * Inputs types.
+	 */
 	public static enum Input {
 		INPUT_1(0), INPUT_2(1);
 

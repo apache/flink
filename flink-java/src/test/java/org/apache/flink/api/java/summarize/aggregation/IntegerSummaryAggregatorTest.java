@@ -19,9 +19,13 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link IntegerSummaryAggregator}.
+ */
 public class IntegerSummaryAggregatorTest {
 
 	@Test
@@ -85,7 +89,7 @@ public class IntegerSummaryAggregatorTest {
 	}
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	protected NumericColumnSummary<Integer> summarize(Integer... values) {
 

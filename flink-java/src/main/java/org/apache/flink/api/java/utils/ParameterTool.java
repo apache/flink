@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.utils;
 
-import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.cli.Option;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.File;
@@ -39,7 +41,7 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * This class provides simple utility methods for reading and parsing program arguments from different sources
+ * This class provides simple utility methods for reading and parsing program arguments from different sources.
  */
 @Public
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
@@ -48,14 +50,13 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	protected static final String NO_VALUE_KEY = "__NO_VALUE_KEY";
 	protected static final String DEFAULT_UNDEFINED = "<undefined>";
 
-
 	// ------------------ Constructors ------------------------
 
 	/**
 	 * Returns {@link ParameterTool} for the given arguments. The arguments are keys followed by values.
 	 * Keys have to start with '-' or '--'
-	 * <p>
-	 * <strong>Example arguments:</strong>
+	 *
+	 * <p><strong>Example arguments:</strong>
 	 * --key1 value1 --key2 value2 -key3 value3
 	 *
 	 * @param args Input array arguments
@@ -142,7 +143,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	/**
-	 * Returns {@link ParameterTool} for the given {@link Properties} file
+	 * Returns {@link ParameterTool} for the given {@link Properties} file.
 	 *
 	 * @param path Path to the properties file
 	 * @return A {@link ParameterTool}
@@ -163,7 +164,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	/**
-	 * Returns {@link ParameterTool} for the given map
+	 * Returns {@link ParameterTool} for the given map.
 	 *
 	 * @param map A map of arguments. Both Key and Value have to be Strings
 	 * @return A {@link ParameterTool}
@@ -185,7 +186,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	/**
-	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}
+	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}.
 	 *
 	 * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
 	 * @return A {@link ParameterTool}
@@ -245,7 +246,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		}
 		return value;
 	}
-
 
 	/**
 	 * Returns the String value for the given key.
@@ -470,7 +470,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	// ------------------------- Export to different targets -------------------------
 
 	/**
-	 * Returns a {@link Configuration} object from this {@link ParameterTool}
+	 * Returns a {@link Configuration} object from this {@link ParameterTool}.
 	 *
 	 * @return A {@link Configuration}
 	 */
@@ -483,7 +483,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	/**
-	 * Returns a {@link Properties} object from this {@link ParameterTool}
+	 * Returns a {@link Properties} object from this {@link ParameterTool}.
 	 *
 	 * @return A {@link Properties}
 	 */
@@ -493,12 +493,11 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return props;
 	}
 
-
 	/**
 	 * Create a properties file with all the known parameters (call after the last get*() call).
 	 * Set the default value, if available.
 	 *
-	 * Use this method to create a properties file skeleton.
+	 * <p>Use this method to create a properties file skeleton.
 	 *
 	 * @param pathToFile Location of the default properties file.
 	 */
@@ -535,12 +534,10 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return new ParameterTool(this.data);
 	}
 
-
-
 	// ------------------------- Interaction with other ParameterUtils -------------------------
 
 	/**
-	 * Merges two {@link ParameterTool}
+	 * Merges two {@link ParameterTool}.
 	 *
 	 * @param other Other {@link ParameterTool} object
 	 * @return The Merged {@link ParameterTool}

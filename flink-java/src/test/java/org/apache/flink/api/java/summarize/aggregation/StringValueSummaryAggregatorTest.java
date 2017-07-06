@@ -20,14 +20,18 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.StringValueSummaryAggregator}.
+ */
 public class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTest {
 
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating and combining
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
 	 * a bunch of different ways.
 	 */
 	@Override

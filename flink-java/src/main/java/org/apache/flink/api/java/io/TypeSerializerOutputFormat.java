@@ -36,7 +36,7 @@ import java.io.IOException;
 public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> implements InputTypeConfigurable {
 
 	private static final long serialVersionUID = -6653022644629315158L;
-	
+
 	private TypeSerializer<T> serializer;
 
 	@Override
@@ -45,7 +45,7 @@ public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> impleme
 			throw new RuntimeException("TypeSerializerOutputFormat requires a type serializer to " +
 					"be defined.");
 		}
-		
+
 		serializer.serialize(record, dataOutput);
 	}
 

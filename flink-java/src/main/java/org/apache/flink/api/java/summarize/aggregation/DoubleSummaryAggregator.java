@@ -18,18 +18,21 @@
 
 package org.apache.flink.api.java.summarize.aggregation;
 
-import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
-
 import org.apache.flink.annotation.Internal;
 
+import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
+
 /**
- * Aggregator that can handle Double types
+ * Aggregator that can handle Double types.
  */
 @Internal
 public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
+	/**
+	 * Aggregator for min operation.
+	 */
 	public static class MinDoubleAggregator implements Aggregator<Double,Double> {
 
 		private double min = Double.MAX_VALUE;
@@ -50,6 +53,9 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 		}
 	}
 
+	/**
+	 * Aggregator for max operation.
+	 */
 	public static class MaxDoubleAggregator implements Aggregator<Double,Double> {
 
 		private double max = Double.MIN_VALUE;
@@ -70,6 +76,9 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 		}
 	}
 
+	/**
+	 * Aggregator for sum operation.
+	 */
 	public static class SumDoubleAggregator implements Aggregator<Double,Double> {
 
 		private CompensatedSum sum = ZERO;

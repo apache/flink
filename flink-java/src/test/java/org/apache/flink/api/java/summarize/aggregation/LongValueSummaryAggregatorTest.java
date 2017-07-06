@@ -20,12 +20,16 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.LongValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.LongValueSummaryAggregator}.
+ */
 public class LongValueSummaryAggregatorTest extends LongSummaryAggregatorTest {
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	@Override
 	protected NumericColumnSummary<Long> summarize(Long... values) {
