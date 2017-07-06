@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.security;
 
-import org.apache.hadoop.security.authentication.util.KerberosUtil;
 import org.junit.Test;
 
 import javax.security.auth.login.AppConfigurationEntry;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**

@@ -27,19 +27,19 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Concrete implementation of the {@link FSDataInputStream} for the Hadoop's input streams.
+ * Concrete implementation of the {@link FSDataInputStream} for Hadoop's input streams.
  * This supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
  */
 public final class HadoopDataInputStream extends FSDataInputStream {
 
 	/**
 	 * Minimum amount of bytes to skip forward before we issue a seek instead of discarding read.
-	 * <p>
-	 * The current value is just a magic number. In the long run, this value could become configurable, but for now it
+	 *
+	 * <p>The current value is just a magic number. In the long run, this value could become configurable, but for now it
 	 * is a conservative, relatively small value that should bring safe improvements for small skips (e.g. in reading
 	 * meta data), that would hurt the most with frequent seeks.
-	 * <p>
-	 * The optimal value depends on the DFS implementation and configuration plus the underlying filesystem.
+	 *
+	 * <p>The optimal value depends on the DFS implementation and configuration plus the underlying filesystem.
 	 * For now, this number is chosen "big enough" to provide improvements for smaller seeks, and "small enough" to
 	 * avoid disadvantages over real seeks. While the minimum should be the page size, a true optimum per system would
 	 * be the amounts of bytes the can be consumed sequentially within the seektime. Unfortunately, seektime is not
@@ -47,18 +47,17 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	 */
 	public static final int MIN_SKIP_BYTES = 1024 * 1024;
 
-	/** The internal stream */
+	/** The internal stream. */
 	private final org.apache.hadoop.fs.FSDataInputStream fsDataInputStream;
 
 	/**
-	 * Creates a new data input stream from the given Hadoop input stream
+	 * Creates a new data input stream from the given Hadoop input stream.
 	 *
 	 * @param fsDataInputStream The Hadoop input stream
 	 */
 	public HadoopDataInputStream(org.apache.hadoop.fs.FSDataInputStream fsDataInputStream) {
 		this.fsDataInputStream = checkNotNull(fsDataInputStream);
 	}
-
 
 	@Override
 	public void seek(long seekPos) throws IOException {
@@ -116,8 +115,8 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	/**
 	 * Positions the stream to the given location. In contrast to {@link #seek(long)}, this method will
 	 * always issue a "seek" command to the dfs and may not replace it by {@link #skip(long)} for small seeks.
-	 * <p>
-	 * Notice that the underlying DFS implementation can still decide to do skip instead of seek.
+	 *
+	 * <p>Notice that the underlying DFS implementation can still decide to do skip instead of seek.
 	 *
 	 * @param seekPos the position to seek to.
 	 * @throws IOException

@@ -51,6 +51,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			case 2:
 				return new KeyedBackendStateMetaInfoWriterV1V2<>(stateMetaInfo);
 
+			case 3:
 			// current version
 			case KeyedBackendSerializationProxy.VERSION:
 				return new KeyedBackendStateMetaInfoWriterV3<>(stateMetaInfo);
@@ -130,6 +131,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 				return new KeyedBackendStateMetaInfoReaderV1V2<>(userCodeClassLoader);
 
 			// current version
+			case 3:
 			case KeyedBackendSerializationProxy.VERSION:
 				return new KeyedBackendStateMetaInfoReaderV3<>(userCodeClassLoader);
 

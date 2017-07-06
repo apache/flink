@@ -64,6 +64,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * The BLOB client can communicate with the BLOB server and either upload (PUT), download (GET),
@@ -593,9 +594,7 @@ public final class BlobClient implements Closeable {
 	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void delete(BlobKey key) throws IOException {
-		if (key == null) {
-			throw new IllegalArgumentException("BLOB key must not be null");
-		}
+		checkArgument(key != null, "BLOB key must not be null.");
 
 		deleteInternal(null, null, key);
 	}
@@ -611,12 +610,9 @@ public final class BlobClient implements Closeable {
 	 *         thrown if an I/O error occurs while transferring the request to the BLOB server
 	 */
 	public void delete(JobID jobId, String key) throws IOException {
-		if (jobId == null) {
-			throw new IllegalArgumentException("JobID must not be null");
-		}
-		if (key == null) {
-			throw new IllegalArgumentException("Key must not be null");
-		}
+		checkArgument(jobId != null, "Job id must not be null.");
+		checkArgument(key != null, "BLOB name must not be null.");
+		
 		if (key.length() > MAX_KEY_LENGTH) {
 			throw new IllegalArgumentException("Keys must not be longer than " + MAX_KEY_LENGTH);
 		}
@@ -633,9 +629,7 @@ public final class BlobClient implements Closeable {
 	 *         thrown if an I/O error occurs while transferring the request to the BLOB server
 	 */
 	public void deleteAll(JobID jobId) throws IOException {
-		if (jobId == null) {
-			throw new IllegalArgumentException("Argument jobID must not be null");
-		}
+		checkArgument(jobId != null, "Job id must not be null.");
 
 		deleteInternal(jobId, null, null);
 	}

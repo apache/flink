@@ -319,11 +319,24 @@ public class NetUtils {
 			int dashIdx = range.indexOf('-');
 			if (dashIdx == -1) {
 				// only one port in range:
+				final int port = Integer.valueOf(range);
+				if (port < 0 || port > 65535) {
+					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
+						"and 65535, but was " + port + ".");
+				}
 				rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
 			} else {
 				// evaluate range
 				final int start = Integer.valueOf(range.substring(0, dashIdx));
+				if (start < 0 || start > 65535) {
+					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
+						"and 65535, but was " + start + ".");
+				}
 				final int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
+				if (end < 0 || end > 65535) {
+					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
+						"and 65535, but was " + end + ".");
+				}
 				rangeIterator = new Iterator<Integer>() {
 					int i = start;
 					@Override

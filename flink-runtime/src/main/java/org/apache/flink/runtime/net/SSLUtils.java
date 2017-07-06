@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.net;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -31,6 +31,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.TrustManagerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.ServerSocket;
@@ -38,13 +39,13 @@ import java.security.KeyStore;
 import java.util.Arrays;
 
 /**
- * Common utilities to manage SSL transport settings
+ * Common utilities to manage SSL transport settings.
  */
 public class SSLUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
 
 	/**
-	 * Retrieves the global ssl flag from configuration
+	 * Retrieves the global ssl flag from configuration.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -54,12 +55,11 @@ public class SSLUtils {
 
 		Preconditions.checkNotNull(sslConfig);
 
-		return sslConfig.getBoolean( ConfigConstants.SECURITY_SSL_ENABLED,
-			ConfigConstants.DEFAULT_SECURITY_SSL_ENABLED);
+		return sslConfig.getBoolean(SecurityOptions.SSL_ENABLED);
 	}
 
 	/**
-	 * Sets SSl version and cipher suites for SSLServerSocket
+	 * Sets SSl version and cipher suites for SSLServerSocket.
 	 * @param socket
 	 *        Socket to be handled
 	 * @param config
@@ -67,13 +67,9 @@ public class SSLUtils {
 	 */
 	public static void setSSLVerAndCipherSuites(ServerSocket socket, Configuration config) {
 		if (socket instanceof SSLServerSocket) {
-			final String[] protocols = config.getString(
-					ConfigConstants.SECURITY_SSL_PROTOCOL,
-					ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(",");
+			final String[] protocols = config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
 
-			final String[] cipherSuites = config.getString(
-					ConfigConstants.SECURITY_SSL_ALGORITHMS,
-					ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(",");
+			final String[] cipherSuites = config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Configuring TLS version and cipher suites on SSL socket {} / {}",
@@ -86,23 +82,19 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Sets SSL version and cipher suites for SSLEngine
+	 * Sets SSL version and cipher suites for SSLEngine.
 	 * @param engine
 	 *        SSLEngine to be handled
 	 * @param config
 	 *        The application configuration
 	 */
 	public static void setSSLVerAndCipherSuites(SSLEngine engine, Configuration config) {
-		engine.setEnabledProtocols(config.getString(
-			ConfigConstants.SECURITY_SSL_PROTOCOL,
-			ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(","));
-		engine.setEnabledCipherSuites(config.getString(
-			ConfigConstants.SECURITY_SSL_ALGORITHMS,
-			ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
+		engine.setEnabledProtocols(config.getString(SecurityOptions.SSL_PROTOCOL).split(","));
+		engine.setEnabledCipherSuites(config.getString(SecurityOptions.SSL_ALGORITHMS).split(","));
 	}
 
 	/**
-	 * Sets SSL options to verify peer's hostname in the certificate
+	 * Sets SSL options to verify peer's hostname in the certificate.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -114,15 +106,14 @@ public class SSLUtils {
 		Preconditions.checkNotNull(sslConfig);
 		Preconditions.checkNotNull(sslParams);
 
-		boolean verifyHostname = sslConfig.getBoolean(ConfigConstants.SECURITY_SSL_VERIFY_HOSTNAME,
-			ConfigConstants.DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME);
+		boolean verifyHostname = sslConfig.getBoolean(SecurityOptions.SSL_VERIFY_HOSTNAME);
 		if (verifyHostname) {
 			sslParams.setEndpointIdentificationAlgorithm("HTTPS");
 		}
 	}
 
 	/**
-	 * Creates the SSL Context for the client if SSL is configured
+	 * Creates the SSL Context for the client if SSL is configured.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -139,18 +130,12 @@ public class SSLUtils {
 		if (getSSLEnabled(sslConfig)) {
 			LOG.debug("Creating client SSL context from configuration");
 
-			String trustStoreFilePath = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_TRUSTSTORE,
-				null);
-			String trustStorePassword = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD,
-				null);
-			String sslProtocolVersion = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_PROTOCOL,
-				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
+			String trustStoreFilePath = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE);
+			String trustStorePassword = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
+			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
 
-			Preconditions.checkNotNull(trustStoreFilePath, ConfigConstants.SECURITY_SSL_TRUSTSTORE + " was not configured.");
-			Preconditions.checkNotNull(trustStorePassword, ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD + " was not configured.");
+			Preconditions.checkNotNull(trustStoreFilePath, SecurityOptions.SSL_TRUSTSTORE.key() + " was not configured.");
+			Preconditions.checkNotNull(trustStorePassword, SecurityOptions.SSL_TRUSTSTORE_PASSWORD.key() + " was not configured.");
 
 			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
 
@@ -176,7 +161,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Creates the SSL Context for the server if SSL is configured
+	 * Creates the SSL Context for the server if SSL is configured.
 	 *
 	 * @param sslConfig
 	 *        The application configuration
@@ -193,25 +178,17 @@ public class SSLUtils {
 		if (getSSLEnabled(sslConfig)) {
 			LOG.debug("Creating server SSL context from configuration");
 
-			String keystoreFilePath = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_KEYSTORE,
-				null);
+			String keystoreFilePath = sslConfig.getString(SecurityOptions.SSL_KEYSTORE);
 
-			String keystorePassword = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD,
-				null);
+			String keystorePassword = sslConfig.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD);
 
-			String certPassword = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_KEY_PASSWORD,
-				null);
+			String certPassword = sslConfig.getString(SecurityOptions.SSL_KEY_PASSWORD);
 
-			String sslProtocolVersion = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_PROTOCOL,
-				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
+			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
 
-			Preconditions.checkNotNull(keystoreFilePath, ConfigConstants.SECURITY_SSL_KEYSTORE + " was not configured.");
-			Preconditions.checkNotNull(keystorePassword, ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD + " was not configured.");
-			Preconditions.checkNotNull(certPassword, ConfigConstants.SECURITY_SSL_KEY_PASSWORD + " was not configured.");
+			Preconditions.checkNotNull(keystoreFilePath, SecurityOptions.SSL_KEYSTORE.key() + " was not configured.");
+			Preconditions.checkNotNull(keystorePassword, SecurityOptions.SSL_KEYSTORE_PASSWORD.key() + " was not configured.");
+			Preconditions.checkNotNull(certPassword, SecurityOptions.SSL_KEY_PASSWORD.key() + " was not configured.");
 
 			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 			FileInputStream keyStoreFile = null;

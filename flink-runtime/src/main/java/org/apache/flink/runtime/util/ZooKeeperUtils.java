@@ -25,10 +25,10 @@ import org.apache.curator.framework.api.ACLProvider;
 import org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
@@ -40,7 +40,6 @@ import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
-import org.apache.flink.util.ConfigurationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
@@ -87,8 +86,7 @@ public class ZooKeeperUtils {
 
 		String namespace = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
-		boolean disableSaslClient = configuration.getBoolean(ConfigConstants.ZOOKEEPER_SASL_DISABLE,
-				ConfigConstants.DEFAULT_ZOOKEEPER_SASL_DISABLE);
+		boolean disableSaslClient = configuration.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 
 		ACLProvider aclProvider;
 
@@ -96,7 +94,7 @@ public class ZooKeeperUtils {
 
 		if(disableSaslClient && aclMode == ZkClientACLMode.CREATOR) {
 			String errorMessage = "Cannot set ACL role to " + aclMode +"  since SASL authentication is " +
-					"disabled through the " + ConfigConstants.ZOOKEEPER_SASL_DISABLE + " property";
+					"disabled through the " + SecurityOptions.ZOOKEEPER_SASL_DISABLE.key() + " property";
 			LOG.warn(errorMessage);
 			throw new IllegalConfigurationException(errorMessage);
 		}
@@ -185,11 +183,8 @@ public class ZooKeeperUtils {
 		final Configuration configuration,
 		final String pathSuffix)
 	{
-		String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-			configuration,
-			ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
-			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH,
-			ConfigConstants.ZOOKEEPER_LEADER_PATH) + pathSuffix;
+		String leaderPath = configuration.getString(
+			HighAvailabilityOptions.HA_ZOOKEEPER_LEADER_PATH) + pathSuffix;
 
 		return new ZooKeeperLeaderRetrievalService(client, leaderPath);
 	}
@@ -221,16 +216,10 @@ public class ZooKeeperUtils {
 		final Configuration configuration,
 		final String pathSuffix)
 	{
-		final String latchPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-			configuration,
-			ConfigConstants.HA_ZOOKEEPER_LATCH_PATH,
-			ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH,
-			ConfigConstants.ZOOKEEPER_LATCH_PATH) + pathSuffix;
-		final String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-			configuration,
-			ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
-			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH,
-			ConfigConstants.ZOOKEEPER_LEADER_PATH) + pathSuffix;
+		final String latchPath = configuration.getString(
+			HighAvailabilityOptions.HA_ZOOKEEPER_LATCH_PATH) + pathSuffix;
+		final String leaderPath = configuration.getString(
+			HighAvailabilityOptions.HA_ZOOKEEPER_LEADER_PATH) + pathSuffix;
 
 		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
 	}
@@ -254,11 +243,7 @@ public class ZooKeeperUtils {
 		RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
 
 		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH,
-				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH);
+		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		return new ZooKeeperSubmittedJobGraphStore(
 				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
@@ -284,11 +269,8 @@ public class ZooKeeperUtils {
 
 		checkNotNull(configuration, "Configuration");
 
-		String checkpointsPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_CHECKPOINTS_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH,
-				ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH);
+		String checkpointsPath = configuration.getString(
+			HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINTS_PATH);
 
 		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
 			configuration,
@@ -317,11 +299,8 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			JobID jobId) {
 
-		String checkpointIdCounterPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
-				ConfigConstants.ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
+		String checkpointIdCounterPath = configuration.getString(
+				HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
 		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
@@ -391,11 +370,11 @@ public class ZooKeeperUtils {
 		 * Return the configured {@link ZkClientACLMode}.
 		 *
 		 * @param config The config to parse
-		 * @return Configured ACL mode or {@link ConfigConstants#DEFAULT_HA_ZOOKEEPER_CLIENT_ACL} if not
+		 * @return Configured ACL mode or the default defined by {@link HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL} if not
 		 * configured.
 		 */
 		public static ZkClientACLMode fromConfig(Configuration config) {
-			String aclMode = config.getString(ConfigConstants.HA_ZOOKEEPER_CLIENT_ACL, null);
+			String aclMode = config.getString(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
 			if (aclMode == null || aclMode.equalsIgnoreCase(ZkClientACLMode.OPEN.name())) {
 				return ZkClientACLMode.OPEN;
 			} else if (aclMode.equalsIgnoreCase(ZkClientACLMode.CREATOR.name())) {

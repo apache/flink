@@ -29,10 +29,12 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
-import org.apache.flink.graph.asm.result.BinaryResult;
+import org.apache.flink.graph.asm.result.BinaryResult.MirrorResult;
+import org.apache.flink.graph.asm.result.BinaryResultBase;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.graph.utils.MurmurHash;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
@@ -172,12 +174,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	@Override
-	protected String getAlgorithmName() {
-		return JaccardIndex.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
 		Preconditions.checkNotNull(other);
 
 		if (!JaccardIndex.class.isAssignableFrom(other.getClass())) {
@@ -425,7 +422,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0; 1")
+	@ForwardedFields("0->vertexId0; 1->vertexId1")
 	private static class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
 		private boolean unboundedScores;
@@ -466,72 +463,26 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			if (unboundedScores ||
 					(count * minimumScoreDenominator >= distinctNeighbors * minimumScoreNumerator
 						&& count * maximumScoreDenominator <= distinctNeighbors * maximumScoreNumerator)) {
-				output.f0 = edge.f0;
-				output.f1 = edge.f1;
-				output.f2.setValue(count);
-				output.f3.setValue(distinctNeighbors);
+				output.setVertexId0(edge.f0);
+				output.setVertexId1(edge.f1);
+				output.setSharedNeighborCount(count);
+				output.setDistinctNeighborCount(distinctNeighbors);
 				out.collect(output);
 			}
 		}
 	}
 
 	/**
-	 * Output each input and a second result with the vertex order flipped.
-	 *
-	 * @param <T> ID type
-	 * @param <RT> result type
-	 */
-	private static class MirrorResult<T, RT extends BinaryResult<T>>
-	implements FlatMapFunction<RT, RT> {
-		@Override
-		public void flatMap(RT value, Collector<RT> out)
-				throws Exception {
-			out.collect(value);
-
-			T tmp = value.getVertexId0();
-			value.setVertexId0(value.getVertexId1());
-			value.setVertexId1(tmp);
-
-			out.collect(value);
-		}
-	}
-
-	/**
-	 * Wraps the vertex type to encapsulate results from the jaccard index algorithm.
+	 * A result for the Jaccard Index algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple4<T, T, IntValue, IntValue>
-	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
-		public static final int HASH_SEED = 0x731f73e7;
+	extends BinaryResultBase<T>
+	implements PrintableResult, Comparable<Result<T>> {
+		private IntValue sharedNeighborCount = new IntValue();
 
-		private MurmurHash hasher = new MurmurHash(HASH_SEED);
-
-		public Result() {
-			f2 = new IntValue();
-			f3 = new IntValue();
-		}
-
-		@Override
-		public T getVertexId0() {
-			return f0;
-		}
-
-		@Override
-		public void setVertexId0(T value) {
-			f0 = value;
-		}
-
-		@Override
-		public T getVertexId1() {
-			return f1;
-		}
-
-		@Override
-		public void setVertexId1(T value) {
-			f1 = value;
-		}
+		private IntValue distinctNeighborCount = new IntValue();
 
 		/**
 		 * Get the shared neighbor count.
@@ -539,7 +490,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return shared neighbor count
 		 */
 		public IntValue getSharedNeighborCount() {
-			return f2;
+			return sharedNeighborCount;
+		}
+
+		/**
+		 * Set the shared neighbor count.
+		 *
+		 * @param sharedNeighborCount the shared neighbor count
+		 */
+		public void setSharedNeighborCount(IntValue sharedNeighborCount) {
+			this.sharedNeighborCount = sharedNeighborCount;
+		}
+
+		private void setSharedNeighborCount(int sharedNeighborCount) {
+			this.sharedNeighborCount.setValue(sharedNeighborCount);
 		}
 
 		/**
@@ -548,7 +512,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return distinct neighbor count
 		 */
 		public IntValue getDistinctNeighborCount() {
-			return f3;
+			return distinctNeighborCount;
+		}
+
+		/**
+		 * Set the distinct neighbor count.
+		 *
+		 * @param distinctNeighborCount the distinct neighbor count
+		 */
+		public void setDistinctNeighborCount(IntValue distinctNeighborCount) {
+			this.distinctNeighborCount = distinctNeighborCount;
+		}
+
+		private void setDistinctNeighborCount(int distinctNeighborCount) {
+			this.distinctNeighborCount.setValue(distinctNeighborCount);
 		}
 
 		/**
@@ -562,6 +539,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return getSharedNeighborCount().getValue() / (double) getDistinctNeighborCount().getValue();
 		}
 
+		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + getVertexId1()
+				+ "," + getSharedNeighborCount()
+				+ "," + getDistinctNeighborCount()
+				+ ")";
+		}
+
+		@Override
 		public String toPrintableString() {
 			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), number of shared neighbors: " + getSharedNeighborCount()
@@ -570,24 +557,34 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		@Override
-		public int hashCode() {
-			return hasher.reset()
-				.hash(f0.hashCode())
-				.hash(f1.hashCode())
-				.hash(f2.getValue())
-				.hash(f3.getValue())
-				.hash();
-		}
-
-		@Override
 		public int compareTo(Result<T> o) {
 			// exact comparison of a/b with x/y using only integer math:
 			// a/b <?> x/y == a*y <?> b*x
 
-			long ay = getSharedNeighborCount().getValue() * (long) o.getDistinctNeighborCount().getValue();
-			long bx = getDistinctNeighborCount().getValue() * (long) o.getSharedNeighborCount().getValue();
+			long ay = sharedNeighborCount.getValue() * (long) o.distinctNeighborCount.getValue();
+			long bx = distinctNeighborCount.getValue() * (long) o.sharedNeighborCount.getValue();
 
 			return Long.compare(ay, bx);
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0x731f73e7;
+
+		private transient MurmurHash hasher;
+
+		@Override
+		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
+			return hasher.reset()
+				.hash(getVertexId0().hashCode())
+				.hash(getVertexId1().hashCode())
+				.hash(sharedNeighborCount.getValue())
+				.hash(distinctNeighborCount.getValue())
+				.hash();
 		}
 	}
 }

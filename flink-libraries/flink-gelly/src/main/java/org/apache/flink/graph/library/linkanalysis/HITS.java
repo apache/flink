@@ -37,10 +37,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.result.PrintableResult;
-import org.apache.flink.graph.asm.result.UnaryResult;
+import org.apache.flink.graph.asm.result.UnaryResultBase;
 import org.apache.flink.graph.library.linkanalysis.Functions.SumScore;
 import org.apache.flink.graph.library.linkanalysis.HITS.Result;
 import org.apache.flink.graph.utils.MurmurHash;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.util.Collector;
@@ -131,12 +132,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	@Override
-	protected String getAlgorithmName() {
-		return HITS.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
 		Preconditions.checkNotNull(other);
 
 		if (!HITS.class.isAssignableFrom(other.getClass())) {
@@ -510,41 +506,31 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0; 1; 2")
+	@ForwardedFields("0->vertexId0; 1->hubScore; 2->authorityScore")
 	private static class TranslateResult<T>
 	implements MapFunction<Tuple3<T, DoubleValue, DoubleValue>, Result<T>> {
 		private Result<T> output = new Result<>();
 
 		@Override
 		public Result<T> map(Tuple3<T, DoubleValue, DoubleValue> value) throws Exception {
-			output.f0 = value.f0;
-			output.f1 = value.f1;
-			output.f2 = value.f2;
+			output.setVertexId0(value.f0);
+			output.setHubScore(value.f1);
+			output.setAuthorityScore(value.f2);
 			return output;
 		}
 	}
 
 	/**
-	 * Wraps the {@link Tuple3} to encapsulate results from the HITS algorithm.
+	 * A result for the HITS algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple3<T, DoubleValue, DoubleValue>
-	implements PrintableResult, UnaryResult<T> {
-		public static final int HASH_SEED = 0xc7e39a63;
+	extends UnaryResultBase<T>
+	implements PrintableResult {
+		private DoubleValue hubScore;
 
-		private MurmurHash hasher = new MurmurHash(HASH_SEED);
-
-		@Override
-		public T getVertexId0() {
-			return f0;
-		}
-
-		@Override
-		public void setVertexId0(T value) {
-			f0 = value;
-		}
+		private DoubleValue authorityScore;
 
 		/**
 		 * Get the hub score. Good hubs link to good authorities.
@@ -552,7 +538,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return the hub score
 		 */
 		public DoubleValue getHubScore() {
-			return f1;
+			return hubScore;
+		}
+
+		/**
+		 * Set the hub score. Good hubs link to good authorities.
+		 *
+		 * @param hubScore the hub score
+		 */
+		public void setHubScore(DoubleValue hubScore) {
+			this.hubScore = hubScore;
 		}
 
 		/**
@@ -561,21 +556,49 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return the authority score
 		 */
 		public DoubleValue getAuthorityScore() {
-			return f2;
+			return authorityScore;
 		}
 
-		public String toPrintableString() {
-			return "Vertex ID: " + getVertexId0()
-				+ ", hub score: " + getHubScore()
-				+ ", authority score: " + getAuthorityScore();
+		/**
+		 * Set the authority score. Good authorities link to good hubs.
+		 *
+		 * @param authorityScore the authority score
+		 */
+		public void setAuthorityScore(DoubleValue authorityScore) {
+			this.authorityScore = authorityScore;
 		}
 
 		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + hubScore
+				+ "," + authorityScore
+				+ ")";
+		}
+
+		@Override
+		public String toPrintableString() {
+			return "Vertex ID: " + getVertexId0()
+				+ ", hub score: " + hubScore
+				+ ", authority score: " + authorityScore;
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0x4010af29;
+
+		private transient MurmurHash hasher;
+
+		@Override
 		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
 			return hasher.reset()
-				.hash(f0.hashCode())
-				.hash(f1.getValue())
-				.hash(f2.getValue())
+				.hash(getVertexId0().hashCode())
+				.hash(hubScore.getValue())
+				.hash(authorityScore.getValue())
 				.hash();
 		}
 	}

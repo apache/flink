@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
+
+import com.google.common.collect.Lists;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
-import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
-import org.junit.Test;
-import org.mockito.Mockito;
+import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Lists;
-
+/**
+ * Tests for {@link BlockingBackChannel}.
+ */
 public class BlockingBackChannelTest {
 
 	private static final int NUM_ITERATIONS = 3;

@@ -16,14 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.utils
+package org.apache.flink.graph.asm.result;
 
-import java.math.{BigDecimal => JBigDecimal}
+/**
+ * Base class for algorithm results for a pair of vertices.
+ *
+ * @param <K> graph ID type
+ */
+public abstract class BinaryResultBase<K>
+extends ResultBase
+implements BinaryResult<K> {
 
-class MathFunctions {}
+	private K vertexId0;
 
-object MathFunctions {
-  def power(a: Double, b: JBigDecimal): Double = {
-    Math.pow(a, b.doubleValue())
-  }
+	private K vertexId1;
+
+	@Override
+	public K getVertexId0() {
+		return vertexId0;
+	}
+
+	@Override
+	public void setVertexId0(K vertexId0) {
+		this.vertexId0 = vertexId0;
+	}
+
+	@Override
+	public K getVertexId1() {
+		return vertexId1;
+	}
+
+	@Override
+	public void setVertexId1(K vertexId1) {
+		this.vertexId1 = vertexId1;
+	}
 }

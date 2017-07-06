@@ -68,11 +68,11 @@ public class JobClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
 
-	public static ActorSystem startJobClientActorSystem(Configuration config)
+	public static ActorSystem startJobClientActorSystem(Configuration config, String hostname)
 			throws IOException {
 		LOG.info("Starting JobClient actor system");
 
-		Option<Tuple2<String, Object>> remoting = new Some<>(new Tuple2<String, Object>("", 0));
+		Option<Tuple2<String, Object>> remoting = new Some<>(new Tuple2<String, Object>(hostname, 0));
 
 		// start a remote actor system to listen on an arbitrary port
 		ActorSystem system = AkkaUtils.createActorSystem(config, remoting);

@@ -70,12 +70,7 @@ extends InputBase<K, NullValue, NullValue> {
 		return WordUtils.capitalize(getName()) + WordUtils.capitalize(type.getValue()) + " (" + inputFilename + ")";
 	}
 
-	/**
-	 * Generate the graph as configured.
-	 *
-	 * @param env execution environment
-	 * @return input graph
-	 */
+	@Override
 	public Graph<K, NullValue, NullValue> create(ExecutionEnvironment env) throws Exception {
 		GraphCsvReader reader = Graph.fromCsvReader(inputFilename.getValue(), env)
 			.ignoreCommentsEdges(commentPrefix.getValue())

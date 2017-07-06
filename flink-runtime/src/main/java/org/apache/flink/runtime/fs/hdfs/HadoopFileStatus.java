@@ -31,7 +31,7 @@ public final class HadoopFileStatus implements FileStatus {
 
 	/**
 	 * Creates a new file status from a HDFS file status.
-	 * 
+	 *
 	 * @param fileStatus
 	 *        the HDFS file status
 	 */

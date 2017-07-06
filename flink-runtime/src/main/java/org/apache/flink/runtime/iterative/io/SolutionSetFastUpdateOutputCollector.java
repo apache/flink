@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.iterative.io;
 
-import java.io.IOException;
-
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.util.Collector;
 
+import java.io.IOException;
+
 /**
  * A {@link Collector} to update the solution set of a workset iteration.
- * <p>
- * The records are written to a HashTable hash table to allow in-memory point updates.
- * <p>
- * Assumption for fast updates: the build side iterator of the hash table is already positioned for the update. This
+ *
+ * <p>The records are written to a hash table to allow in-memory point updates.
+ *
+ * <p>Assumption for fast updates: the build side iterator of the hash table is already positioned for the update. This
  * is for example the case when a solution set update happens directly after a solution set join. If this assumption
  * doesn't hold, use {@link SolutionSetUpdateOutputCollector}, which probes the hash table before updating.
  */

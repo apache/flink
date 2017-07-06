@@ -111,6 +111,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		cluster.start();
 
 		env = new TestStreamEnvironment(cluster, PARALLELISM);
+		env.getConfig().setUseSnapshotCompression(true);
 	}
 
 	@AfterClass
@@ -318,6 +319,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
+			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))

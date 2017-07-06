@@ -111,7 +111,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private final HighAvailabilityServices highAvailabilityServices;
 
 	/** The heartbeat manager with task managers. */
-	private final HeartbeatManager<Void, Void> taskManagerHeartbeatManager;
+	private final HeartbeatManager<SlotReport, Void> taskManagerHeartbeatManager;
 
 	/** The heartbeat manager with job managers. */
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
@@ -466,8 +466,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@RpcMethod
-	public void heartbeatFromTaskManager(final ResourceID resourceID) {
-		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
+	public void heartbeatFromTaskManager(final ResourceID resourceID, final SlotReport slotReport) {
+		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, slotReport);
 	}
 
 	@RpcMethod
@@ -930,7 +930,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void jobLeaderLostLeadership(final JobID jobId, final UUID oldJobLeaderId) {
-			ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+				}
+			});
 		}
 
 		@Override
@@ -951,7 +956,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 
-	private class TaskManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<SlotReport, Void> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
@@ -968,8 +973,23 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 
 		@Override
-		public void reportPayload(ResourceID resourceID, Void payload) {
-			// nothing to do since there is no payload
+		public void reportPayload(final ResourceID resourceID, final SlotReport slotReport) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.debug("Received new slot report from TaskManager {}.", resourceID);
+
+					final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
+
+					if (workerRegistration == null) {
+						log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
+					} else {
+						InstanceID instanceId = workerRegistration.getInstanceID();
+
+						slotManager.reportSlotStatus(instanceId, slotReport);
+					}
+				}
+			});
 		}
 
 		@Override

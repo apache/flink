@@ -161,8 +161,10 @@ it to a looping one by using [Quantifiers](#quantifiers). In addition, each patt
 
 In FlinkCEP, looping patterns can be specified using these methods: `pattern.oneOrMore()`, for patterns that expect one or
 more occurrences of a given event (e.g. the `b+` mentioned previously); and `pattern.times(#ofTimes)`, for patterns that
-expect a specific number of occurrences of a given type of event, e.g. 4 `a`'s. All patterns, looping or not, can be made
-optional using the `pattern.optional()` method. For a pattern named `start`, the following are valid quantifiers:
+expect a specific number of occurrences of a given type of event, e.g. 4 `a`'s; and `pattern.times(#fromTimes, #toTimes)`,
+for patterns that expect a specific minimum number of occurrences and maximum number of occurrences of a given type of event,
+e.g. 2-4 `a`s. All patterns, looping or not, can be made optional using the `pattern.optional()` method. For a pattern
+named `start`, the following are valid quantifiers:
 
  <div class="codetabs" markdown="1">
  <div data-lang="java" markdown="1">
@@ -172,6 +174,12 @@ optional using the `pattern.optional()` method. For a pattern named `start`, the
 
  // expecting 0 or 4 occurrences
  start.times(4).optional();
+
+ // expecting 2, 3 or 4 occurrences
+ start.times(2, 4);
+
+ // expecting 0, 2, 3 or 4 occurrences
+ start.times(2, 4).optional();
 
  // expecting 1 or more occurrences
  start.oneOrMore();
@@ -188,6 +196,12 @@ optional using the `pattern.optional()` method. For a pattern named `start`, the
 
  // expecting 0 or 4 occurrences
  start.times(4).optional()
+
+ // expecting 2, 3 or 4 occurrences
+ start.times(2, 4);
+
+ // expecting 0, 2, 3 or 4 occurrences
+ start.times(2, 4).optional();
 
  // expecting 1 or more occurrences
  start.oneOrMore()
@@ -475,6 +489,18 @@ pattern.times(2);
           </td>
        </tr>
        <tr>
+          <td><strong>times(#fromTimes, #toTimes)</strong></td>
+          <td>
+              <p>Specifies that this pattern expects occurrences between <strong>#fromTimes</strong>
+              and <strong>#toTimes</strong> of a matching event.</p>
+              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
+              internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+{% highlight java %}
+pattern.times(2, 4);
+{% endhighlight %}
+          </td>
+       </tr>
+       <tr>
           <td><strong>optional()</strong></td>
           <td>
               <p>Specifies that this pattern is optional, i.e. it may not occur at all. This is applicable to all
@@ -631,6 +657,18 @@ pattern.oneOrMore()
 pattern.times(2)
 {% endhighlight %}
                  </td>
+       </tr>
+       <tr>
+         <td><strong>times(#fromTimes, #toTimes)</strong></td>
+         <td>
+             <p>Specifies that this pattern expects occurrences between <strong>#fromTimes</strong>
+             and <strong>#toTimes</strong> of a matching event.</p>
+             <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
+             internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+{% highlight scala %}
+pattern.times(2, 4);
+{% endhighlight %}
+         </td>
        </tr>
        <tr>
           <td><strong>optional()</strong></td>
@@ -805,6 +843,63 @@ next.within(Time.seconds(10))
 </div>
 </div>
 
+It is also possible to define a pattern sequence as the condition for `begin`, `followedBy`, `followedByAny` and
+`next`. The pattern sequence will be considered as the matching condition logically and a `GroupPattern` will be
+returned and it is possible to apply `oneOrMore()`, `times(#ofTimes)`, `times(#fromTimes, #toTimes)`, `optional()`,
+`consecutive()`, `allowCombinations()` to the `GroupPattern`.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+Pattern<Event, ?> start = Pattern.begin(
+    Pattern.<Event>begin("start").where(...).followedBy("start_middle").where(...)
+);
+
+// strict contiguity
+Pattern<Event, ?> strict = start.next(
+    Pattern.<Event>begin("next_start").where(...).followedBy("next_middle").where(...)
+).times(3);
+
+// relaxed contiguity
+Pattern<Event, ?> relaxed = start.followedBy(
+    Pattern.<Event>begin("followedby_start").where(...).followedBy("followedby_middle").where(...)
+).oneOrMore();
+
+// non-deterministic relaxed contiguity
+Pattern<Event, ?> nonDetermin = start.followedByAny(
+    Pattern.<Event>begin("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
+).optional();
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+val start: Pattern[Event, _] = Pattern.begin(
+    Pattern.begin[Event, _]("start").where(...).followedBy("start_middle").where(...)
+)
+
+// strict contiguity
+val strict: Pattern[Event, _] = start.next(
+    Pattern.begin[Event, _]("next_start").where(...).followedBy("next_middle").where(...)
+).times(3)
+
+// relaxed contiguity
+val relaxed: Pattern[Event, _] = start.followedBy(
+    Pattern.begin[Event, _]("followedby_start").where(...).followedBy("followedby_middle").where(...)
+).oneOrMore()
+
+// non-deterministic relaxed contiguity
+val nonDetermin: Pattern[Event, _] = start.followedByAny(
+    Pattern.begin[Event, _]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
+).optional()
+
+{% endhighlight %}
+</div>
+</div>
+
 <br />
 
 <div class="codetabs" markdown="1">
@@ -818,7 +913,7 @@ next.within(Time.seconds(10))
     </thead>
     <tbody>
         <tr>
-            <td><strong>begin()</strong></td>
+            <td><strong>begin(#name)</strong></td>
             <td>
             <p>Defines a starting pattern:</p>
 {% highlight java %}
@@ -827,7 +922,18 @@ Pattern<Event, ?> start = Pattern.<Event>begin("start");
             </td>
         </tr>
         <tr>
-            <td><strong>next()</strong></td>
+            <td><strong>begin(#pattern_sequence)</strong></td>
+            <td>
+            <p>Defines a starting pattern:</p>
+{% highlight java %}
+Pattern<Event, ?> start = Pattern.<Event>begin(
+    Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
+);
+{% endhighlight %}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>next(#name)</strong></td>
             <td>
                 <p>Appends a new pattern. A matching event has to directly succeed the previous matching event
                 (strict contiguity):</p>
@@ -837,7 +943,19 @@ Pattern<Event, ?> next = start.next("middle");
             </td>
         </tr>
         <tr>
-            <td><strong>followedBy()</strong></td>
+            <td><strong>next(#pattern_sequence)</strong></td>
+            <td>
+                <p>Appends a new pattern. A sequence of matching events have to directly succeed the previous matching event
+                (strict contiguity):</p>
+{% highlight java %}
+Pattern<Event, ?> next = start.next(
+    Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
+);
+{% endhighlight %}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>followedBy(#name)</strong></td>
             <td>
                 <p>Appends a new pattern. Other events can occur between a matching event and the previous
                 matching event (relaxed contiguity):</p>
@@ -847,7 +965,19 @@ Pattern<Event, ?> followedBy = start.followedBy("middle");
             </td>
         </tr>
         <tr>
-            <td><strong>followedByAny()</strong></td>
+            <td><strong>followedBy(#pattern_sequence)</strong></td>
+            <td>
+                 <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
+                 matching event (relaxed contiguity):</p>
+{% highlight java %}
+Pattern<Event, ?> followedBy = start.followedBy(
+    Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
+);
+{% endhighlight %}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>followedByAny(#name)</strong></td>
             <td>
                 <p>Appends a new pattern. Other events can occur between a matching event and the previous
                 matching event, and alternative matches will be presented for every alternative matching event
@@ -855,7 +985,20 @@ Pattern<Event, ?> followedBy = start.followedBy("middle");
 {% highlight java %}
 Pattern<Event, ?> followedByAny = start.followedByAny("middle");
 {% endhighlight %}
-                    </td>
+             </td>
+        </tr>
+        <tr>
+             <td><strong>followedByAny(#pattern_sequence)</strong></td>
+             <td>
+                 <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
+                 matching event, and alternative matches will be presented for every alternative sequence of matching events
+                 (non-deterministic relaxed contiguity):</p>
+{% highlight java %}
+Pattern<Event, ?> followedByAny = start.followedByAny(
+    Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
+);
+{% endhighlight %}
+             </td>
         </tr>
         <tr>
                     <td><strong>notNext()</strong></td>
@@ -911,7 +1054,7 @@ val start = Pattern.begin[Event]("start")
             </td>
         </tr>
         <tr>
-            <td><strong>next()</strong></td>
+            <td><strong>next(#name)</strong></td>
             <td>
                 <p>Appends a new pattern. A matching event has to directly succeed the previous matching event
                 (strict contiguity):</p>
@@ -921,7 +1064,19 @@ val next = start.next("middle")
             </td>
         </tr>
         <tr>
-            <td><strong>followedBy()</strong></td>
+            <td><strong>next(#pattern_sequence)</strong></td>
+            <td>
+                <p>Appends a new pattern. A sequence of matching events have to directly succeed the previous matching event
+                (strict contiguity):</p>
+{% highlight scala %}
+val next = start.next(
+    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
+)
+{% endhighlight %}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>followedBy(#name)</strong></td>
             <td>
                 <p>Appends a new pattern. Other events can occur between a matching event and the previous
                 matching event (relaxed contiguity) :</p>
@@ -931,16 +1086,41 @@ val followedBy = start.followedBy("middle")
             </td>
         </tr>
         <tr>
-                    <td><strong>followedByAny()</strong></td>
-                    <td>
-                        <p>Appends a new pattern. Other events can occur between a matching event and the previous
-                        matching event, and alternative matches will be presented for every alternative matching event
-                        (non-deterministic relaxed contiguity):</p>
+            <td><strong>followedBy(#pattern_sequence)</strong></td>
+            <td>
+                <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
+                matching event (relaxed contiguity) :</p>
 {% highlight scala %}
-val followedByAny = start.followedByAny("middle");
+val followedBy = start.followedBy(
+    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
+)
 {% endhighlight %}
-                            </td>
-                </tr>
+            </td>
+        </tr>
+        <tr>
+            <td><strong>followedByAny(#name)</strong></td>
+            <td>
+                <p>Appends a new pattern. Other events can occur between a matching event and the previous
+                matching event, and alternative matches will be presented for every alternative matching event
+                (non-deterministic relaxed contiguity):</p>
+{% highlight scala %}
+val followedByAny = start.followedByAny("middle")
+{% endhighlight %}
+            </td>
+         </tr>
+         <tr>
+             <td><strong>followedByAny(#pattern_sequence)</strong></td>
+             <td>
+                 <p>Appends a new pattern. Other events can occur between a sequence of matching events and the previous
+                 matching event, and alternative matches will be presented for every alternative sequence of matching events
+                 (non-deterministic relaxed contiguity):</p>
+{% highlight scala %}
+val followedByAny = start.followedByAny(
+    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
+)
+{% endhighlight %}
+             </td>
+         </tr>
 
                 <tr>
                                     <td><strong>notNext()</strong></td>

@@ -72,9 +72,6 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	/** The subtask's runtime context. */
 	private final RuntimeContext runtimeContext;
 
-	/** The queue of partitions that are currently not assigned to a broker connection. */
-	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitionsQueue;
-
 	/** The behavior to use in case that an offset is not valid (any more) for a partition. */
 	private final long invalidOffsetBehavior;
 
@@ -89,7 +86,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 	public Kafka08Fetcher(
 			SourceContext<T> sourceContext,
-			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
+			Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
@@ -99,7 +96,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
-				assignedPartitionsWithInitialOffsets,
+				seedPartitionsWithInitialOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),
@@ -112,12 +109,6 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		this.runtimeContext = runtimeContext;
 		this.invalidOffsetBehavior = getInvalidOffsetBehavior(kafkaProperties);
 		this.autoCommitInterval = autoCommitInterval;
-		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
-
-		// initially, all these partitions are not assigned to a specific broker connection
-		for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitionStates()) {
-			unassignedPartitionsQueue.add(partition);
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,8 +163,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			if (autoCommitInterval > 0) {
 				LOG.info("Starting periodic offset committer, with commit interval of {}ms", autoCommitInterval);
 
-				periodicCommitter = new PeriodicOffsetCommitter(zookeeperOffsetHandler,
-						subscribedPartitionStates(), errorHandler, autoCommitInterval);
+				periodicCommitter = new PeriodicOffsetCommitter(
+						zookeeperOffsetHandler,
+						subscribedPartitionStates(),
+						errorHandler,
+						autoCommitInterval);
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
@@ -343,7 +337,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public TopicAndPartition createKafkaPartitionHandle(KafkaTopicPartition partition) {
+	protected TopicAndPartition createKafkaPartitionHandle(KafkaTopicPartition partition) {
 		return new TopicAndPartition(partition.getTopic(), partition.getPartition());
 	}
 
@@ -369,8 +363,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		}
 
 		// Set committed offsets in topic partition state
-		KafkaTopicPartitionState<TopicAndPartition>[] partitions = subscribedPartitionStates();
-		for (KafkaTopicPartitionState<TopicAndPartition> partition : partitions) {
+		for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitionStates()) {
 			Long offset = offsets.get(partition.getKafkaTopicPartition());
 			if (offset != null) {
 				partition.setCommittedOffset(offset);

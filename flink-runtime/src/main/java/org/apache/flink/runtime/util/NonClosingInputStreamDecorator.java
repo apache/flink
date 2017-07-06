@@ -18,62 +18,23 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.InputStream;
 
 /**
  * Decorator for input streams that ignores calls to {@link InputStream#close()}.
  */
-public class NonClosingStreamDecorator extends InputStream {
+@Internal
+public class NonClosingInputStreamDecorator extends ForwardingInputStream {
 
-	private final InputStream delegate;
-
-	public NonClosingStreamDecorator(InputStream delegate) {
-		this.delegate = delegate;
-	}
-
-	@Override
-	public int read() throws IOException {
-		return delegate.read();
-	}
-
-	@Override
-	public int read(byte[] b) throws IOException {
-		return delegate.read(b);
-	}
-
-	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
-		return delegate.read(b, off, len);
-	}
-
-	@Override
-	public long skip(long n) throws IOException {
-		return delegate.skip(n);
-	}
-
-	@Override
-	public int available() throws IOException {
-		return super.available();
+	public NonClosingInputStreamDecorator(InputStream delegate) {
+		super(delegate);
 	}
 
 	@Override
 	public void close() throws IOException {
 		// ignore
-	}
-
-	@Override
-	public void mark(int readlimit) {
-		super.mark(readlimit);
-	}
-
-	@Override
-	public void reset() throws IOException {
-		super.reset();
-	}
-
-	@Override
-	public boolean markSupported() {
-		return super.markSupported();
 	}
 }

@@ -251,7 +251,7 @@ public class ExecutionGraphSuspendTest {
 
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
-		assertEquals(exception, eg.getFailureCause());
+		assertEquals(exception, eg.getFailureCause().getException());
 	}
 
 	// ------------------------------------------------------------------------

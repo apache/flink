@@ -195,6 +195,16 @@ public class PatternTest extends TestLogger {
 		assertEquals(previous2.getName(), "start");
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testPatternTimesNegativeTimes() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).times(-1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testPatternTimesNegativeFrom() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+	}
+
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
 

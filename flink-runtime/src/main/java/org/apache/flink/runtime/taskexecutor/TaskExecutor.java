@@ -99,6 +99,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -140,7 +141,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
 	/** The heartbeat manager for resource manager in the task manager */
-	private final HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
+	private final HeartbeatManager<Void, SlotReport> resourceManagerHeartbeatManager;
 
 	/** The fatal error handler to use in case of a fatal error */
 	private final FatalErrorHandler fatalErrorHandler;
@@ -215,10 +216,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			log);
 
 		this.resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
-				getResourceID(),
-				new ResourceManagerHeartbeatListener(),
-				rpcService.getScheduledExecutor(),
-				log);
+			getResourceID(),
+			new ResourceManagerHeartbeatListener(),
+			rpcService.getScheduledExecutor(),
+			log);
 	}
 
 	// ------------------------------------------------------------------------
@@ -703,15 +704,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private void establishResourceManagerConnection(ResourceID resourceManagerResourceId) {
 		// monitor the resource manager as heartbeat target
-		resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget<Void>() {
+		resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget<SlotReport>() {
 			@Override
-			public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+			public void receiveHeartbeat(ResourceID resourceID, SlotReport slotReport) {
 				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
-				resourceManagerGateway.heartbeatFromTaskManager(resourceID);
+				resourceManagerGateway.heartbeatFromTaskManager(resourceID, slotReport);
 			}
 
 			@Override
-			public void requestHeartbeat(ResourceID resourceID, Void payload) {
+			public void requestHeartbeat(ResourceID resourceID, SlotReport slotReport) {
 				// the TaskManager won't send heartbeat requests to the ResourceManager
 			}
 		});
@@ -1137,6 +1138,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		return resourceManagerConnection;
 	}
 
+	@VisibleForTesting
+	HeartbeatManager<Void, SlotReport> getResourceManagerHeartbeatManager() {
+		return resourceManagerHeartbeatManager;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utility classes
 	// ------------------------------------------------------------------------
@@ -1321,7 +1327,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
-	private class ResourceManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+	private class ResourceManagerHeartbeatListener implements HeartbeatListener<Void, SlotReport> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceId) {
@@ -1343,8 +1349,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public Future<SlotReport> retrievePayload() {
+			return callAsync(
+				new Callable<SlotReport>() {
+					@Override
+					public SlotReport call() throws Exception {
+						return taskSlotTable.createSlotReport(getResourceID());
+					}
+				}, taskManagerConfiguration.getTimeout());
 		}
 	}
 }

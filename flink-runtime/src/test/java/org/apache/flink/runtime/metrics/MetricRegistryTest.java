@@ -170,16 +170,19 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
 
 		new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config)).shutdown();
+
+		Assert.assertEquals("hello", TestReporter2.mc.getString("arg1", null));
+		Assert.assertEquals("world", TestReporter2.mc.getString("arg2", null));
 	}
 
 	/**
-	 * Reporter that verifies whether configured arguments were properly passed.
+	 * Reporter that exposes the {@link MetricConfig} it was given.
 	 */
 	protected static class TestReporter2 extends TestReporter {
+		static MetricConfig mc;
 		@Override
 		public void open(MetricConfig config) {
-			Assert.assertEquals("hello", config.getString("arg1", null));
-			Assert.assertEquals("world", config.getString("arg2", null));
+			mc = config;
 		}
 	}
 
@@ -246,57 +249,67 @@ public class MetricRegistryTest extends TestLogger {
 
 		TaskManagerMetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 		root.counter("rootCounter");
+
+		assertTrue(TestReporter6.addedMetric instanceof Counter);
+		assertEquals("rootCounter", TestReporter6.addedMetricName);
+
+		assertTrue(TestReporter7.addedMetric instanceof Counter);
+		assertEquals("rootCounter", TestReporter7.addedMetricName);
+
 		root.close();
 
-		assertTrue(TestReporter6.addCalled);
-		assertTrue(TestReporter6.removeCalled);
-		assertTrue(TestReporter7.addCalled);
-		assertTrue(TestReporter7.removeCalled);
+		assertTrue(TestReporter6.removedMetric instanceof Counter);
+		assertEquals("rootCounter", TestReporter6.removedMetricName);
+
+		assertTrue(TestReporter7.removedMetric instanceof Counter);
+		assertEquals("rootCounter", TestReporter7.removedMetricName);
 
 		registry.shutdown();
 	}
 
 	/**
-	 * Reporter that exposes whether it was notified of added or removed metrics.
+	 * Reporter that exposes the name and metric instance of the last metric that was added or removed.
 	 */
 	protected static class TestReporter6 extends TestReporter {
-		public static boolean addCalled = false;
-		public static boolean removeCalled = false;
+		static Metric addedMetric;
+		static String addedMetricName;
+
+		static Metric removedMetric;
+		static String removedMetricName;
 
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			addCalled = true;
-			assertTrue(metric instanceof Counter);
-			assertEquals("rootCounter", metricName);
+			addedMetric = metric;
+			addedMetricName = metricName;
 		}
 
 		@Override
 		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-			removeCalled = true;
-			Assert.assertTrue(metric instanceof Counter);
-			Assert.assertEquals("rootCounter", metricName);
+			removedMetric = metric;
+			removedMetricName = metricName;
 		}
 	}
 
 	/**
-	 * Reporter that exposes whether it was notified of added or removed metrics.
+	 * Reporter that exposes the name and metric instance of the last metric that was added or removed.
 	 */
 	protected static class TestReporter7 extends TestReporter {
-		public static boolean addCalled = false;
-		public static boolean removeCalled = false;
+		static Metric addedMetric;
+		static String addedMetricName;
+
+		static Metric removedMetric;
+		static String removedMetricName;
 
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			addCalled = true;
-			assertTrue(metric instanceof Counter);
-			assertEquals("rootCounter", metricName);
+			addedMetric = metric;
+			addedMetricName = metricName;
 		}
 
 		@Override
 		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-			removeCalled = true;
-			Assert.assertTrue(metric instanceof Counter);
-			Assert.assertEquals("rootCounter", metricName);
+			removedMetric = metric;
+			removedMetricName = metricName;
 		}
 	}
 

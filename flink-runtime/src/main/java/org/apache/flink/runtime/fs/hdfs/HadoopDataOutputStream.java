@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import java.io.IOException;
-
 import org.apache.flink.core.fs.FSDataOutputStream;
 
+import java.io.IOException;
+
+/**
+ * Concrete implementation of the {@link FSDataOutputStream} for Hadoop's input streams.
+ * This supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
+ */
 public class HadoopDataOutputStream extends FSDataOutputStream {
 
 	private final org.apache.hadoop.fs.FSDataOutputStream fdos;

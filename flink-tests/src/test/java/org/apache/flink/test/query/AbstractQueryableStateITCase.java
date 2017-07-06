@@ -365,7 +365,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							.mapTo(ClassTag$.MODULE$.<JobFound>apply(JobFound.class)),
 					deadline.timeLeft());
 
-			String failureCause = jobFound.executionGraph().getFailureCauseAsString();
+			String failureCause = jobFound.executionGraph().getFailureCause().getExceptionAsString();
 
 			assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));
 			int causedByIndex = failureCause.indexOf("Caused by: ");

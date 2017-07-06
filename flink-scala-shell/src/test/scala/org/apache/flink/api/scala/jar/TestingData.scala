@@ -15,17 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.api.scala.jar
 
-package org.apache.flink.optimizer.testfunctions;
-
-import org.apache.flink.api.common.functions.RichReduceFunction;
-
-public class DummyReducer<T> extends RichReduceFunction<T> {
-
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public T reduce(T a, T b) {
-		return a;
-	}
+/**
+ * Testing data for [[org.apache.flink.api.scala.ScalaShellITCase]]. This will be put into a
+ * separate jar file to test loading of external libraries.
+ */
+object TestingData {
+  val elements = Seq("HELLO 42", "CIAO", "BLA", "BLU")
 }
