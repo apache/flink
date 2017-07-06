@@ -36,6 +36,7 @@ import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 /**

@@ -191,7 +191,7 @@ class JoinHarnessTest extends HarnessTestBase{
     assert(testHarness.numKeyedStateEntries() == 4)
     assert(testHarness.numProcessingTimeTimers() == 2)
 
-    // Do not store b elemets
+    // Do not store b elements
     // not meet a.proctime <= b.proctime - 5
     testHarness.processElement2(new StreamRecord(
       CRow(Row.of(1: JInt, "bbb3"), true), 3))

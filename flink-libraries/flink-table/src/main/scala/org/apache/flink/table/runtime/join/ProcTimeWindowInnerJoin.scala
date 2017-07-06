@@ -92,6 +92,7 @@ class ProcTimeWindowInnerJoin(
 
     listToRemove = new util.ArrayList[Long]()
     cRowWrapper = new CRowWrappingCollector()
+    cRowWrapper.setChange(true)
 
     // initialize row state
     val rowListTypeInfo1: TypeInformation[JList[Row]] = new ListTypeInfo[Row](element1Type)
@@ -222,7 +223,6 @@ class ProcTimeWindowInnerJoin(
       isLeft: Boolean): Unit = {
 
     cRowWrapper.out = out
-    cRowWrapper.setChange(valueC.change)
 
     val value = valueC.row
 
@@ -247,22 +247,25 @@ class ProcTimeWindowInnerJoin(
 
     }
 
-    // loop the the other stream elements
+    // loop the other stream elements
     val oppositeKeyIter = oppoRowMapState.keys().iterator()
     while (oppositeKeyIter.hasNext) {
       val eleTime = oppositeKeyIter.next()
       if (eleTime < oppoLowerTime) {
         listToRemove.add(eleTime)
-      } else if (eleTime <= oppoUpperTime){
+      } else if (eleTime <= oppoUpperTime) {
         val oppoRowList = oppoRowMapState.get(eleTime)
         var i = 0
-        while (i < oppoRowList.size) {
-          if (isLeft) {
+        if (isLeft) {
+          while (i < oppoRowList.size) {
             joinFunction.join(value, oppoRowList.get(i), cRowWrapper)
-          } else {
-            joinFunction.join(oppoRowList.get(i), value, cRowWrapper)
+            i += 1
           }
-          i += 1
+        } else {
+          while (i < oppoRowList.size) {
+            joinFunction.join(oppoRowList.get(i), value, cRowWrapper)
+            i += 1
+          }
         }
       }
     }
@@ -277,10 +280,8 @@ class ProcTimeWindowInnerJoin(
   }
 
   /**
-    * expire records which before curTime - windowSize,
-    * and register a timer if still exist records.
-    * Ensure that one key only has one timer, so register another
-    * timer until last timer trigger.
+    * Removes records which are outside the join window from the state.
+    * Registers a new timer if the state still holds records after the clean-up.
     */
   private def expireOutTimeRow(
       curTime: Long,
@@ -292,10 +293,9 @@ class ProcTimeWindowInnerJoin(
     val expiredTime = curTime - winSize
     val keyIter = rowMapState.keys().iterator()
     var nextTimer: Long = 0
-    // loop the timestamps to find out expired records, when meet one record
-    // after the expired timestamp, break the loop. If the keys is ordered, thus
-    // can reduce loop num, if the keys is unordered, also can expire at least one
-    // element every time the timer trigger
+    // Search for expired timestamps.
+    // If we find a non-expired timestamp, remember the timestamp and leave the loop.
+    // This way we find all expired timestamps if they are sorted without doing a full pass.
     while (keyIter.hasNext && nextTimer == 0) {
       val recordTime = keyIter.next
       if (recordTime < expiredTime) {
@@ -305,6 +305,7 @@ class ProcTimeWindowInnerJoin(
       }
     }
 
+    // Remove expired records from state
     var i = listToRemove.size - 1
     while (i >= 0) {
       rowMapState.remove(listToRemove.get(i))
@@ -312,9 +313,8 @@ class ProcTimeWindowInnerJoin(
     }
     listToRemove.clear()
 
-    // if exist records which later than the expire time,
-    // register a timer for it, otherwise update the timerState to 0
-    // to let processElement register timer when element come
+    // If the state has non-expired timestamps, register a new timer.
+    // Otherwise clean the complete state for this input.
     if (nextTimer != 0) {
       ctx.timerService.registerProcessingTimeTimer(nextTimer + winSize + 1)
       timerState.update(nextTimer + winSize + 1)

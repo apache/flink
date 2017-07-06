@@ -90,17 +90,17 @@ class JoinITCase extends StreamingWithStateTestBase {
       "and t2.proctime + interval '5' second " +
       "and t1.b > t2.b and t1.b + t2.b < 14"
 
-    val data1 = new mutable.MutableList[(Int, Long, String)]
-    data1.+=((1, 1L, "Hi1"))
-    data1.+=((1, 2L, "Hi2"))
-    data1.+=((1, 5L, "Hi3"))
-    data1.+=((2, 7L, "Hi5"))
-    data1.+=((1, 9L, "Hi6"))
-    data1.+=((1, 8L, "Hi8"))
+    val data1 = new mutable.MutableList[(String, Long, String)]
+    data1.+=(("1", 1L, "Hi1"))
+    data1.+=(("1", 2L, "Hi2"))
+    data1.+=(("1", 5L, "Hi3"))
+    data1.+=(("2", 7L, "Hi5"))
+    data1.+=(("1", 9L, "Hi6"))
+    data1.+=(("1", 8L, "Hi8"))
 
-    val data2 = new mutable.MutableList[(Int, Long, String)]
-    data2.+=((1, 5L, "HiHi"))
-    data2.+=((2, 2L, "HeHe"))
+    val data2 = new mutable.MutableList[(String, Long, String)]
+    data2.+=(("1", 5L, "HiHi"))
+    data2.+=(("2", 2L, "HeHe"))
 
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)

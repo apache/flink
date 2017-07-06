@@ -20,9 +20,7 @@ package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamWindowJoin
@@ -32,43 +30,22 @@ import org.apache.flink.table.runtime.join.WindowJoinUtil
 
 class DataStreamWindowJoinRule
   extends ConverterRule(
-      classOf[FlinkLogicalJoin],
-      FlinkConventions.LOGICAL,
-      FlinkConventions.DATASTREAM,
-      "DataStreamJoinRule") {
-
-  /** Time indicator type **/
-  private var timeType: RelDataType = _
-
-  /** left input lower boudary **/
-  private var leftLowerBoundary: Long = _
-
-  /** left input upper boudary **/
-  private var leftUpperBoundary: Long = _
-
-  /** remain join condition exclude equal condition and time condition **/
-  private var remainCondition: Option[RexNode] = _
+    classOf[FlinkLogicalJoin],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
+    "DataStreamJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
-
     val joinInfo = join.analyzeCondition
 
     try {
-      val leftRowSchema = new RowSchema(join.getLeft.getRowType)
-
-      val result =
-        WindowJoinUtil.analyzeTimeBoundary(
-          joinInfo.getRemaining(join.getCluster.getRexBuilder),
-          leftRowSchema.logicalType.getFieldCount,
-          leftRowSchema.physicalType.getFieldCount,
-          join.getRowType,
-          join.getCluster.getRexBuilder,
-          TableConfig.DEFAULT)
-      timeType = result._1
-      leftLowerBoundary = result._2
-      leftUpperBoundary = result._3
-      remainCondition = result._4
+      WindowJoinUtil.analyzeTimeBoundary(
+        joinInfo.getRemaining(join.getCluster.getRexBuilder),
+        join.getLeft.getRowType.getFieldCount,
+        new RowSchema(join.getRowType),
+        join.getCluster.getRexBuilder,
+        TableConfig.DEFAULT)
       true
     } catch {
       case _: TableException =>
@@ -82,6 +59,17 @@ class DataStreamWindowJoinRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
     val convLeft: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASTREAM)
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), FlinkConventions.DATASTREAM)
+    val joinInfo = join.analyzeCondition
+    val leftRowSchema = new RowSchema(convLeft.getRowType)
+    val rightRowSchema = new RowSchema(convRight.getRowType)
+
+    val (isRowTime, leftLowerBoundary, leftUpperBoundary, remainCondition) =
+      WindowJoinUtil.analyzeTimeBoundary(
+        joinInfo.getRemaining(join.getCluster.getRexBuilder),
+        leftRowSchema.logicalArity,
+        new RowSchema(join.getRowType),
+        join.getCluster.getRexBuilder,
+        TableConfig.DEFAULT)
 
     new DataStreamWindowJoin(
       rel.getCluster,
@@ -90,10 +78,10 @@ class DataStreamWindowJoinRule
       convRight,
       join.getCondition,
       join.getJoinType,
-      new RowSchema(convLeft.getRowType),
-      new RowSchema(convRight.getRowType),
+      leftRowSchema,
+      rightRowSchema,
       new RowSchema(rel.getRowType),
-      timeType,
+      isRowTime,
       leftLowerBoundary,
       leftUpperBoundary,
       remainCondition,

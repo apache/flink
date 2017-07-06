@@ -30,11 +30,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
-import org.apache.flink.table.functions.TimeMaterializationSqlFunction
 import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * An util class to help analyze and build join code .
@@ -45,32 +44,35 @@ object WindowJoinUtil {
     * Analyze time-condtion to get time boundary for each stream and get the time type
     * and return remain condition.
     *
-    * @param  condition   join condition
+    * @param  condition           join condition
     * @param  leftLogicalFieldCnt left stream logical field num
-    * @param  leftPhysicalFieldCnt left stream physical field num
-    * @param  inputType   left and right connect stream type
-    * @param  rexBuilder   util to build rexNode
-    * @param  config      table environment config
-    * @return  timetype, left lower boundary, right lower boundary, remain condition
+    * @param  inputSchema         join rowtype schema
+    * @param  rexBuilder          util to build rexNode
+    * @param  config              table environment config
+    * @return isRowTime, left lower boundary, right lower boundary, remain condition
     */
   private[flink] def analyzeTimeBoundary(
       condition: RexNode,
       leftLogicalFieldCnt: Int,
-      leftPhysicalFieldCnt: Int,
-      inputType: RelDataType,
+      inputSchema: RowSchema,
       rexBuilder: RexBuilder,
-      config: TableConfig): (RelDataType, Long, Long, Option[RexNode]) = {
+      config: TableConfig): (Boolean, Long, Long, Option[RexNode]) = {
 
     // Converts the condition to conjunctive normal form (CNF)
     val cnfCondition = RexUtil.toCnf(rexBuilder, condition)
 
     // split the condition into time indicator condition and other condition
-    val (timeTerms, remainTerms) =
-      splitJoinCondition(
-        cnfCondition,
-        leftLogicalFieldCnt,
-        inputType
-      )
+    val (timeTerms, remainTerms) = cnfCondition match {
+      case c: RexCall if cnfCondition.getKind == SqlKind.AND =>
+        c.getOperands.asScala
+          .map(analyzeCondtionTermType(_, leftLogicalFieldCnt, inputSchema.logicalType))
+          .reduceLeft((l, r) => {
+            (l._1 ++ r._1, l._2 ++ r._2)
+          })
+      case _ =>
+        throw new TableException("A time-based stream join requires exactly " +
+          "two join predicates that bound the time in both directions.")
+    }
 
     if (timeTerms.size != 2) {
       throw new TableException("A time-based stream join requires exactly " +
@@ -79,7 +81,7 @@ object WindowJoinUtil {
 
     // extract time offset from the time indicator conditon
     val streamTimeOffsets =
-      timeTerms.map(x => extractTimeOffsetFromCondition(x._3, x._2, rexBuilder, config))
+    timeTerms.map(x => extractTimeOffsetFromCondition(x._3, x._2, rexBuilder, config))
 
     val (leftLowerBound, leftUpperBound) =
       streamTimeOffsets match {
@@ -92,49 +94,35 @@ object WindowJoinUtil {
 
     // compose the remain condition list into one condition
     val remainCondition =
-      remainTerms match {
-        case Seq() => None
-        case _ =>
-          // turn the logical field index to physical field index
-          def transInputRef(expr: RexNode): RexNode = {
-            expr match {
-              case c: RexCall =>
-                val newOps = c.operands.map(transInputRef(_))
-                rexBuilder.makeCall(c.getType, c.getOperator, newOps)
-              case i: RexInputRef if i.getIndex >= leftLogicalFieldCnt =>
-                rexBuilder.makeInputRef(
-                  i.getType,
-                  i.getIndex - leftLogicalFieldCnt + leftPhysicalFieldCnt)
-              case _ => expr
-            }
-          }
+    remainTerms match {
+      case Seq() => None
+      case _ =>
+        // Converts logical field references to physical ones.
+        Some(remainTerms.map(inputSchema.mapRexNode).reduceLeft((l, r) => {
+          RelOptUtil.andJoinFilters(rexBuilder, l, r)
+        }))
+    }
 
-          Some(remainTerms.map(transInputRef(_)).reduceLeft( (l, r) => {
-            RelOptUtil.andJoinFilters(rexBuilder, l, r)
-          }))
-      }
-
-    (timeTerms.get(0)._1, leftLowerBound, leftUpperBound, remainCondition)
+    val isRowTime: Boolean = timeTerms(0)._1 match {
+      case x if FlinkTypeFactory.isProctimeIndicatorType(x) => false
+      case _ => true
+    }
+    (isRowTime, leftLowerBound, leftUpperBound, remainCondition)
   }
 
   /**
-   * Split the join conditions into time condition and non-time condition
-   *
-   * @return (Seq(timeTerms), Seq(remainTerms)),
-   */
-  private def splitJoinCondition(
-      cnfCondition: RexNode,
+    * Split the join conditions into time condition and non-time condition
+    *
+    * @return (Seq(timeTerms), Seq(remainTerms)),
+    */
+  private def analyzeCondtionTermType(
+      conditionTerm: RexNode,
       leftFieldCount: Int,
       inputType: RelDataType): (Seq[(RelDataType, Boolean, RexNode)], Seq[RexNode]) = {
 
-    cnfCondition match {
-      case c: RexCall if c.getKind == SqlKind.AND =>
-        val timeIndicators =
-          c.operands.map(splitJoinCondition(_, leftFieldCount, inputType))
-        timeIndicators.reduceLeft { (l, r) =>
-          (l._1 ++ r._1, l._2 ++ r._2)
-        }
-      case c: RexCall =>
+    conditionTerm match {
+      case c: RexCall if Seq(SqlKind.GREATER_THAN, SqlKind.GREATER_THAN_OR_EQUAL,
+        SqlKind.LESS_THAN, SqlKind.LESS_THAN_OR_EQUAL).contains(c.getKind) =>
         val timeIndicators = extractTimeIndicatorAccesses(c, leftFieldCount, inputType)
         timeIndicators match {
           case Seq() =>
@@ -165,10 +153,10 @@ object WindowJoinUtil {
   }
 
   /**
-   * analysis if condition term has time indicator
+    * Extracts all time indicator attributes that are accessed in an expression.
     *
-   * @return seq(timeType, is left input time indicator)
-   */
+    * @return seq(timeType, is left input time indicator)
+    */
   def extractTimeIndicatorAccesses(
       expression: RexNode,
       leftFieldCount: Int,
@@ -187,13 +175,16 @@ object WindowJoinUtil {
           case _ => Seq()
         }
       case c: RexCall =>
-        c.operands.map(extractTimeIndicatorAccesses(_, leftFieldCount, inputType)).reduce(_++_)
+        c.operands.asScala
+          .map(extractTimeIndicatorAccesses(_, leftFieldCount, inputType))
+          .reduce(_ ++ _)
       case _ => Seq()
     }
   }
 
   /**
-    * Extract time offset and determain it's the lower bound of left stream or the upper bound
+    * Computes the absolute bound on the left operand of a comparison expression and
+    * whether the bound is an upper or lower bound.
     *
     * @return window boundary, is left lower bound
     */
@@ -209,13 +200,13 @@ object WindowJoinUtil {
       timeTerm.getKind match {
         // e.g a.proctime > b.proctime - 5 sec, then it's the lower bound of a and the value is -5
         // e.g b.proctime > a.proctime - 5 sec, then it's not the lower bound of a but upper bound
-        case kind @ (SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL) =>
+        case kind@(SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL) =>
           isLeftExprBelongLeftTable
         // e.g a.proctime < b.proctime + 5 sec, the the upper bound of a is 5
-        case kind @ (SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
+        case kind@(SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
           !isLeftExprBelongLeftTable
         case _ =>
-          throw new TableException("Unsupport time-condition.")
+          throw new TableException("Unsupported time-condition.")
       }
 
     val (leftLiteral, rightLiteral) =
@@ -239,9 +230,10 @@ object WindowJoinUtil {
   }
 
   /**
-    * Calcute the time boundary. Replace the rowtime/proctime with zero literal.
+    * Calculates the time boundary by replacing the time attribute by a zero literal
+    * and reducing the expression.
     * For example:
-    * b.proctime - interval '1' second - interval '2' second will be translate to
+    * b.proctime - interval '1' second - interval '2' second will be translated to
     * 0 - 1000 - 2000
     */
   private def reduceTimeExpression(
@@ -255,12 +247,9 @@ object WindowJoinUtil {
       */
     def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
-        case c: RexCall if c.getOperator == TimeMaterializationSqlFunction =>
-          // replace with timestamp
-          rexBuilder.makeZeroLiteral(expr.getType)
         case c: RexCall =>
           // replace in call operands
-          val newOps = c.operands.map(replaceTimeFieldWithLiteral(_))
+          val newOps = c.operands.asScala.map(replaceTimeFieldWithLiteral(_)).asJava
           rexBuilder.makeCall(c.getType, c.getOperator, newOps)
         case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) =>
           // replace with timestamp
@@ -281,9 +270,7 @@ object WindowJoinUtil {
     val reduceList = new util.ArrayList[RexNode]()
     exprReducer.reduce(rexBuilder, originList, reduceList)
 
-    val literals = reduceList.map(f => f match {
-      case call: RexCall =>
-        call.getOperands.get(0).asInstanceOf[RexLiteral].getValue2.asInstanceOf[Long]
+    val literals = reduceList.asScala.map(f => f match {
       case literal: RexLiteral =>
         literal.getValue2.asInstanceOf[Long]
       case _ =>
@@ -291,19 +278,20 @@ object WindowJoinUtil {
           "Time condition may only consist of time attributes, literals, and arithmetic operators.")
     })
 
-    (literals.get(0), literals.get(1))
+    (literals(0), literals(1))
   }
 
 
   /**
     * Generate other non-equi condition function
-    * @param  config   table env config
-    * @param  joinType  join type to determain whether input can be null
-    * @param  leftType  left stream type
-    * @param  rightType  right stream type
-    * @param  returnType   return type
-    * @param  otherCondition   non-equi condition
-    * @param  ruleDescription  rule description
+    *
+    * @param  config          table env config
+    * @param  joinType        join type to determain whether input can be null
+    * @param  leftType        left stream type
+    * @param  rightType       right stream type
+    * @param  returnType      return type
+    * @param  otherCondition  non-equi condition
+    * @param  ruleDescription rule description
     */
   private[flink] def generateJoinFunction(
       config: TableConfig,
@@ -317,9 +305,9 @@ object WindowJoinUtil {
     // whether input can be null
     val nullCheck = joinType match {
       case JoinRelType.INNER => false
-      case JoinRelType.LEFT  => true
+      case JoinRelType.LEFT => true
       case JoinRelType.RIGHT => true
-      case JoinRelType.FULL  => true
+      case JoinRelType.FULL => true
     }
 
     // generate other non-equi function code
@@ -331,7 +319,7 @@ object WindowJoinUtil {
 
     val conversion = generator.generateConverterResultExpression(
       returnType.physicalTypeInfo,
-      returnType.physicalType.getFieldNames)
+      returnType.physicalType.getFieldNames.asScala)
 
     // if other condition is none, then output the result directly
     val body = otherCondition match {

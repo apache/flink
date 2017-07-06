@@ -19,19 +19,17 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonJoin
-import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.join.{ProcTimeWindowInnerJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.updateutils.UpdateCheckUtils
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -46,7 +44,7 @@ class DataStreamWindowJoin(
     leftSchema: RowSchema,
     rightSchema: RowSchema,
     schema: RowSchema,
-    timeType: RelDataType,
+    isRowTime: Boolean,
     leftLowerBound: Long,
     leftUpperBound: Long,
     remainCondition: Option[RexNode],
@@ -68,7 +66,7 @@ class DataStreamWindowJoin(
       leftSchema,
       rightSchema,
       schema,
-      timeType,
+      isRowTime,
       leftLowerBound,
       leftUpperBound,
       remainCondition,
@@ -98,11 +96,11 @@ class DataStreamWindowJoin(
 
     val config = tableEnv.getConfig
 
-    val leftIsAccRetract = DataStreamRetractionRules.isAccRetract(left)
-    val rightIsAccRetract = DataStreamRetractionRules.isAccRetract(right)
-    if (leftIsAccRetract || rightIsAccRetract) {
+    val isLeftAppendOnly = UpdateCheckUtils.isAppendOnly(left)
+    val isRightAppendOnly = UpdateCheckUtils.isAppendOnly(right)
+    if (!isLeftAppendOnly || !isRightAppendOnly) {
       throw new TableException(
-        "Retraction on stream window join is not supported yet.")
+        "Windowed stream join does not support updates.")
     }
 
     val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
@@ -126,8 +124,8 @@ class DataStreamWindowJoin(
 
     joinType match {
       case JoinRelType.INNER =>
-        timeType match {
-          case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
+        isRowTime match {
+          case false =>
             // Proctime JoinCoProcessFunction
             createProcTimeInnerJoinFunction(
               leftDataStream,
@@ -137,7 +135,7 @@ class DataStreamWindowJoin(
               leftKeys,
               rightKeys
             )
-          case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
+          case true =>
             // RowTime JoinCoProcessFunction
             throw new TableException(
               "RowTime inner join between stream and stream is not supported yet.")
