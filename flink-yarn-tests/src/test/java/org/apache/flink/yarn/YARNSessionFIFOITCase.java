@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -225,9 +226,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		AbstractYarnClusterDescriptor flinkYarnClient = new YarnClusterDescriptor();
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
-		flinkYarnClient.setTaskManagerCount(1);
-		flinkYarnClient.setJobManagerMemory(768);
-		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
@@ -235,10 +233,17 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
+		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(768)
+			.setTaskManagerMemoryMB(1024)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(1)
+			.createClusterSpecification();
+
 		// deploy
 		ClusterClient yarnCluster = null;
 		try {
-			yarnCluster = flinkYarnClient.deploySessionCluster();
+			yarnCluster = flinkYarnClient.deploySessionCluster(clusterSpecification);
 		} catch (Exception e) {
 			LOG.warn("Failing test", e);
 			Assert.fail("Error while deploying YARN cluster: " + e.getMessage());

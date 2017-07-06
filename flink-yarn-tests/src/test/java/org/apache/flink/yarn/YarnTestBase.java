@@ -136,6 +136,8 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	protected static File tempConfPathForSecureRun = null;
 
+	protected static org.apache.flink.configuration.Configuration flinkConfiguration = new org.apache.flink.configuration.Configuration();
+
 	static {
 		YARN_CONFIGURATION = new YarnConfiguration();
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
@@ -631,6 +633,7 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static class Runner extends Thread {
 		private final String[] args;
 		private final int expectedReturnValue;
+
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
 		private Throwable runnerError;
@@ -647,7 +650,10 @@ public abstract class YarnTestBase extends TestLogger {
 				int returnValue;
 				switch (type) {
 					case YARN_SESSION:
-						yCli = new FlinkYarnSessionCli("", "", false);
+						yCli = new FlinkYarnSessionCli(
+							"",
+							"",
+							false);
 						returnValue = yCli.run(args);
 						break;
 					case CLI_FRONTEND:

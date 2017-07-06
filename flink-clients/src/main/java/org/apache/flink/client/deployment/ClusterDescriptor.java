@@ -42,10 +42,11 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 
 	/**
 	 * Triggers deployment of a cluster.
+	 * @param clusterSpecification Cluster specification defining the cluster to deploy
 	 * @return Client for the cluster
 	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */
-	ClientType deploySessionCluster() throws UnsupportedOperationException;
+	ClientType deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException;
 
 	/**
 	 * Deploys a per-job cluster with the given job on the cluster.

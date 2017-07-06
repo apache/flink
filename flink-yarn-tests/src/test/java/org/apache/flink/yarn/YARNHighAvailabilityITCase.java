@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
@@ -107,9 +108,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor();
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
-		flinkYarnClient.setTaskManagerCount(1);
-		flinkYarnClient.setJobManagerMemory(768);
-		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
@@ -136,8 +134,15 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 		HighAvailabilityServices highAvailabilityServices = null;
 
+		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(768)
+			.setTaskManagerMemoryMB(1024)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(1)
+			.createClusterSpecification();
+
 		try {
-			yarnCluster = flinkYarnClient.deploySessionCluster();
+			yarnCluster = flinkYarnClient.deploySessionCluster(clusterSpecification);
 
 			final ClusterClient finalYarnCluster = yarnCluster;
 

@@ -19,6 +19,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -83,6 +84,8 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 			List<URL> userJarFiles) throws UnsupportedOperationException {
 
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
-		return descriptor.deploySessionCluster();
+		ClusterSpecification clusterSpecification = ClusterSpecification.fromConfiguration(config);
+
+		return descriptor.deploySessionCluster(clusterSpecification);
 	}
 }

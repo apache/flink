@@ -90,7 +90,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -126,16 +125,27 @@ public class CliFrontend {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static final List<CustomCommandLine> customCommandLine = new LinkedList<>();
+	private static final List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(3);
 
 	static {
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
-		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
-		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnCLI", "y", "yarn");
-		customCommandLine.add(new DefaultCLI());
+		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
+		final String flinkYarnCLI = "org.apache.flink.yarn.cli.FlinkYarnCLI";
+		try {
+			customCommandLines.add(loadCustomCommandLine(flinkYarnSessionCLI, "y", "yarn"));
+		} catch (Exception e) {
+			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
+		}
+
+		try {
+			customCommandLines.add(loadCustomCommandLine(flinkYarnCLI, "y", "yarn"));
+		} catch (Exception e) {
+			LOG.warn("Could not load CLI class {}.", flinkYarnCLI, e);
+		}
+		customCommandLines.add(new DefaultCLI());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1172,7 +1182,7 @@ public class CliFrontend {
 	 * @return custom command-line which is active (may only be one at a time)
 	 */
 	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
-		for (CustomCommandLine cli : customCommandLine) {
+		for (CustomCommandLine cli : customCommandLines) {
 			if (cli.isActive(commandLine, config)) {
 				return cli;
 			}
@@ -1184,8 +1194,8 @@ public class CliFrontend {
 	 * Retrieves the loaded custom command-lines.
 	 * @return An unmodifiyable list of loaded custom command-lines.
 	 */
-	public static List<CustomCommandLine> getCustomCommandLineList() {
-		return Collections.unmodifiableList(customCommandLine);
+	public static List<CustomCommandLine<?>> getCustomCommandLineList() {
+		return Collections.unmodifiableList(customCommandLines);
 	}
 
 	/**
@@ -1193,29 +1203,21 @@ public class CliFrontend {
 	 * @param className The fully-qualified class name to load.
 	 * @param params The constructor parameters
 	 */
-	private static void loadCustomCommandLine(String className, Object... params) {
+	private static CustomCommandLine<?> loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
 
-		try {
-			Class<? extends CustomCommandLine> customCliClass =
-				Class.forName(className).asSubclass(CustomCommandLine.class);
+		Class<? extends CustomCommandLine> customCliClass =
+			Class.forName(className).asSubclass(CustomCommandLine.class);
 
-			// construct class types from the parameters
-			Class<?>[] types = new Class<?>[params.length];
-			for (int i = 0; i < params.length; i++) {
-				Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
-				types[i] = params[i].getClass();
-			}
-
-			Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
-			final CustomCommandLine cli = constructor.newInstance(params);
-
-			customCommandLine.add(cli);
-
-		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException
-			| InvocationTargetException e) {
-			LOG.warn("Unable to locate custom CLI class {}. " +
-				"Flink is not compiled with support for this class.", className, e);
+		// construct class types from the parameters
+		Class<?>[] types = new Class<?>[params.length];
+		for (int i = 0; i < params.length; i++) {
+			Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
+			types[i] = params[i].getClass();
 		}
+
+		Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
+
+		return constructor.newInstance(params);
 	}
 
 }

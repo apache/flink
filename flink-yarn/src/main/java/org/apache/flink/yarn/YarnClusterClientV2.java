@@ -26,10 +26,7 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +76,7 @@ public class YarnClusterClientV2 extends ClusterClient {
 
 	@Override
 	public int getMaxSlots() {
-        // Now need not set max slot
+        // No need not set max slot
 		return 0;
 	}
 
@@ -90,25 +87,7 @@ public class YarnClusterClientV2 extends ClusterClient {
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		try {
-			// Create application via yarnClient
-			final YarnClientApplication yarnApplication = yarnClient.createApplication();
-			ApplicationReport report = this.clusterDescriptor.startAppMaster(jobGraph, yarnClient, yarnApplication);
-			if (report.getYarnApplicationState().equals(YarnApplicationState.RUNNING)) {
-				appId = report.getApplicationId();
-				trackingURL = report.getTrackingUrl();
-				logAndSysout("Please refer to " + getWebInterfaceURL()
-						+ " for the running status of job " +  jobGraph.getJobID().toString());
-				//TODO: not support attach mode now
-				return new JobSubmissionResult(jobGraph.getJobID());
-			}
-			else {
-				throw new ProgramInvocationException("Fail to submit the job.");
-			}
-		}
-		catch (Exception e) {
-			throw new ProgramInvocationException("Fail to submit the job", e.getCause());
-		}
+		throw new UnsupportedOperationException("Not yet implemented.");
 	}
 
 	@Override

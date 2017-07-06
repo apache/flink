@@ -144,12 +144,6 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
 		}
 
-		// JobManager Memory
-		if (cmd.hasOption(jmMemory.getOpt())) {
-			int jmMemory = Integer.valueOf(cmd.getOptionValue(this.jmMemory.getOpt()));
-			yarnClusterDescriptor.setJobManagerMemory(jmMemory);
-		}
-
 		String[] dynamicProperties = null;
 		if (cmd.hasOption(this.dynamicProperties.getOpt())) {
 			dynamicProperties = cmd.getOptionValues(this.dynamicProperties.getOpt());
@@ -232,7 +226,9 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		yarnClusterDescriptor.setFlinkConfiguration(config);
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
-		return new YarnClusterClientV2(yarnClusterDescriptor, config);
+		return new YarnClusterClientV2(
+			yarnClusterDescriptor,
+			config);
 	}
 
 	private void logAndSysout(String message) {

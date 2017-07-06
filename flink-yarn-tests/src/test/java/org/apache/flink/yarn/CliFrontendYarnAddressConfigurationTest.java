@@ -31,6 +31,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.cli.CommandLine;
@@ -66,7 +67,7 @@ import static org.junit.Assert.assertEquals;
  * Tests that verify that the CLI client picks up the correct address for the JobManager
  * from configuration and configs.
  */
-public class CliFrontendYarnAddressConfigurationTest {
+public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -378,6 +379,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 				@Override
 				protected YarnClusterClient createYarnClusterClient(
 						AbstractYarnClusterDescriptor descriptor,
+						int numberTaskManagers,
+						int slotsPerTaskManager,
 						YarnClient yarnClient,
 						ApplicationReport report,
 						Configuration flinkConfiguration,

@@ -18,10 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.hadoop.fs.Path;
@@ -40,7 +42,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link YarnClusterDescriptor}.
  */
-public class YarnClusterDescriptorTest {
+public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -65,11 +67,15 @@ public class YarnClusterDescriptorTest {
 		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
 		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
-		// configure slots too high
-		clusterDescriptor.setTaskManagerSlots(Integer.MAX_VALUE);
+		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(-1)
+			.setTaskManagerMemoryMB(-1)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(Integer.MAX_VALUE)
+			.createClusterSpecification();
 
 		try {
-			clusterDescriptor.deploySessionCluster();
+			clusterDescriptor.deploySessionCluster(clusterSpecification);
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {
@@ -95,10 +101,15 @@ public class YarnClusterDescriptorTest {
 		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
 		// configure slots
-		clusterDescriptor.setTaskManagerSlots(1);
+		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(-1)
+			.setTaskManagerMemoryMB(-1)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(1)
+			.createClusterSpecification();
 
 		try {
-			clusterDescriptor.deploySessionCluster();
+			clusterDescriptor.deploySessionCluster(clusterSpecification);
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {
@@ -132,6 +143,7 @@ public class YarnClusterDescriptorTest {
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
+		final int jobManagerMemory = 1024;
 
 		// no logging, with/out krb5
 		assertEquals(
@@ -140,7 +152,11 @@ public class YarnClusterDescriptorTest {
 				" " + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, false, false)
+				.setupApplicationMasterContainer(
+					false,
+					false,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -149,7 +165,11 @@ public class YarnClusterDescriptorTest {
 				" " + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, false, true)
+				.setupApplicationMasterContainer(
+					false,
+					false,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback only, with/out krb5
@@ -159,7 +179,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, false, false)
+				.setupApplicationMasterContainer(
+					true,
+					false,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -168,7 +192,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, false, true)
+				.setupApplicationMasterContainer(
+					true,
+					false,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// log4j, with/out krb5
@@ -178,7 +206,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, true, false)
+				.setupApplicationMasterContainer(
+					false,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -187,7 +219,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, true, true)
+				.setupApplicationMasterContainer(
+					false,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5
@@ -197,7 +233,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, false)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -206,7 +246,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
@@ -217,7 +261,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, false)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -226,7 +274,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
@@ -237,7 +289,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, false)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -246,7 +302,11 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// now try some configurations with different yarn.container-start-command-template
@@ -259,7 +319,11 @@ public class YarnClusterDescriptorTest {
 				" 3 " + logfile + " " + logback + " " + log4j +
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
@@ -271,7 +335,11 @@ public class YarnClusterDescriptorTest {
 				" " + jvmmem +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 	}
 }
