@@ -31,6 +31,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.types.Row
 
@@ -55,6 +56,7 @@ class DataSetJoin(
     joinHint: JoinHint,
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
+  with CommonJoin
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
@@ -76,14 +78,20 @@ class DataSetJoin(
   }
 
   override def toString: String = {
-    s"$joinTypeToString(where: ($joinConditionToString), join: ($joinSelectionToString))"
+    joinToString(
+      joinRowType,
+      joinCondition,
+      joinType,
+      getExpressionString)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .item("where", joinConditionToString)
-      .item("join", joinSelectionToString)
-      .item("joinType", joinTypeToString)
+    joinExplainTerms(
+      super.explainTerms(pw),
+      joinRowType,
+      joinCondition,
+      joinType,
+      getExpressionString)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -116,7 +124,8 @@ class DataSetJoin(
         "Joins should have at least one equality condition.\n" +
           s"\tLeft: ${left.toString},\n" +
           s"\tRight: ${right.toString},\n" +
-          s"\tCondition: ($joinConditionToString)"
+          s"\tCondition: (${joinConditionToString(joinRowType,
+            joinCondition, getExpressionString)})"
       )
     }
     else {
@@ -138,7 +147,8 @@ class DataSetJoin(
             "Equality join predicate on incompatible types.\n" +
               s"\tLeft: ${left.toString},\n" +
               s"\tRight: ${right.toString},\n" +
-              s"\tCondition: ($joinConditionToString)"
+              s"\tCondition: (${joinConditionToString(joinRowType,
+                joinCondition, getExpressionString)})"
           )
         }
       })
@@ -197,7 +207,9 @@ class DataSetJoin(
       genFunction.code,
       genFunction.returnType)
 
-    val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
+    val joinOpName =
+      s"where: (${joinConditionToString(joinRowType, joinCondition, getExpressionString)}), " +
+        s"join: (${joinSelectionToString(joinRowType)})"
 
     joinOperator
       .where(leftKeys.toArray: _*)
@@ -205,22 +217,4 @@ class DataSetJoin(
       .`with`(joinFun)
       .name(joinOpName)
   }
-
-  private def joinSelectionToString: String = {
-    getRowType.getFieldNames.asScala.toList.mkString(", ")
-  }
-
-  private def joinConditionToString: String = {
-
-    val inFields = joinRowType.getFieldNames.asScala.toList
-    getExpressionString(joinCondition, inFields, None)
-  }
-
-  private def joinTypeToString = joinType match {
-    case JoinRelType.INNER => "InnerJoin"
-    case JoinRelType.LEFT=> "LeftOuterJoin"
-    case JoinRelType.RIGHT => "RightOuterJoin"
-    case JoinRelType.FULL => "FullOuterJoin"
-  }
-
 }
