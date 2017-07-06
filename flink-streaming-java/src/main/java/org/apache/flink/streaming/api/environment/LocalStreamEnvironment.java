@@ -85,7 +85,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		// transform the streaming program into a JobGraph
 		StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
+		streamGraph.getProperties().setJobName(jobName);
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 

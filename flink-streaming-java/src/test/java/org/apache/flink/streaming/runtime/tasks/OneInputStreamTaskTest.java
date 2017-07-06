@@ -273,9 +273,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		headOperatorConfig.setChainStart();
 		headOperatorConfig.setChainIndex(0);
 		headOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
-			new StreamNode(null, 0, null, null, null, null, null),
-			new StreamNode(null, 1, null, null, null, null, null),
-			0,
+			new StreamNode(0, null, null, null, null, null),
+			new StreamNode(1, null, null, null, null, null),
+			StreamEdge.InputOrder.FIRST,
 			Collections.<String>emptyList(),
 			null,
 			null
@@ -285,9 +285,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		watermarkOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
 		watermarkOperatorConfig.setChainIndex(1);
 		watermarkOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
-			new StreamNode(null, 1, null, null, null, null, null),
-			new StreamNode(null, 2, null, null, null, null, null),
-			0,
+			new StreamNode(1, null, null, null, null, null),
+			new StreamNode(2, null, null, null, null, null),
+			StreamEdge.InputOrder.FIRST,
 			Collections.<String>emptyList(),
 			null,
 			null
@@ -295,9 +295,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		outEdgesInOrder.add(new StreamEdge(
-			new StreamNode(null, 2, null, null, null, null, null),
-			new StreamNode(null, 3, null, null, null, null, null),
-			0,
+			new StreamNode(2, null, null, null, null, null),
+			new StreamNode(3, null, null, null, null, null),
+			StreamEdge.InputOrder.FIRST,
 			Collections.<String>emptyList(),
 			new BroadcastPartitioner<Object>(),
 			null));
@@ -631,7 +631,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 			StreamEdge outputEdge = new StreamEdge(
 				new StreamNode(
-					null,
 					chainedIndex - 1,
 					null,
 					null,
@@ -640,7 +639,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null
 				),
 				new StreamNode(
-					null,
 					chainedIndex,
 					null,
 					null,
@@ -648,7 +646,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null,
 					null
 				),
-				0,
+				StreamEdge.InputOrder.FIRST,
 				Collections.<String>emptyList(),
 				null,
 				null

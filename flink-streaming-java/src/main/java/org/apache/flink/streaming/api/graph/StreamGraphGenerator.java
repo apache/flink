@@ -19,11 +19,19 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StoppableStreamSource;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -36,6 +44,14 @@ import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
+import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.util.OutputTag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -87,6 +104,14 @@ public class StreamGraphGenerator {
 
 	private final StreamExecutionEnvironment env;
 
+	private final ExecutionConfig executionConfig;
+
+	private Map<Integer, Tuple2<Integer, List<String>>> virtualSelectNodes;
+
+	private Map<Integer, Tuple2<Integer, StreamPartitioner<?>>> virtualPartitionNodes;
+
+	private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
+
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
 	public static int getNewIterationNodeId() {
@@ -103,11 +128,14 @@ public class StreamGraphGenerator {
 	 * Private constructor. The generator should only be invoked using {@link #generate}.
 	 */
 	private StreamGraphGenerator(StreamExecutionEnvironment env) {
-		this.streamGraph = new StreamGraph(env);
-		this.streamGraph.setChaining(env.isChainingEnabled());
-		this.streamGraph.setStateBackend(env.getStateBackend());
+		StreamGraphProperties properties = StreamGraphProperties.buildProperties(env);
+		this.streamGraph = new StreamGraph(properties);
 		this.env = env;
+		this.executionConfig = env.getConfig();
 		this.alreadyTransformed = new HashMap<>();
+		virtualSelectNodes = new LinkedHashMap<>();
+		virtualPartitionNodes = new LinkedHashMap<>();
+		virtualSideOutputNodes = new LinkedHashMap<>();
 	}
 
 	/**
@@ -194,20 +222,23 @@ public class StreamGraphGenerator {
 			alreadyTransformed.put(transform, transformedIds);
 		}
 
-		if (transform.getBufferTimeout() > 0) {
-			streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
+		StreamNode streamNode = streamGraph.getStreamNode(transform.getId());
+		if (streamNode != null) {
+			if (transform.getBufferTimeout() > 0) {
+				streamNode.setBufferTimeout(transform.getBufferTimeout());
+			} else {
+				streamNode.setBufferTimeout(env.getBufferTimeout());
+			}
+			if (transform.getUid() != null) {
+				streamNode.setTransformationUID(transform.getUid());
+			}
+			if (transform.getUserProvidedNodeHash() != null) {
+				streamNode.setUserHash(transform.getUserProvidedNodeHash());
+			}
+			if (transform.getMinResources() != null && transform.getPreferredResources() != null) {
+				streamNode.setResources(transform.getMinResources(), transform.getPreferredResources());
+			}
 		}
-		if (transform.getUid() != null) {
-			streamGraph.setTransformationUID(transform.getId(), transform.getUid());
-		}
-		if (transform.getUserProvidedNodeHash() != null) {
-			streamGraph.setTransformationUserHash(transform.getId(), transform.getUserProvidedNodeHash());
-		}
-
-		if (transform.getMinResources() != null && transform.getPreferredResources() != null) {
-			streamGraph.setResources(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
-		}
-
 		return transformedIds;
 	}
 
@@ -241,7 +272,7 @@ public class StreamGraphGenerator {
 		Collection<Integer> transformedIds = transform(input);
 		for (Integer transformedId: transformedIds) {
 			int virtualId = StreamTransformation.getNewNodeId();
-			streamGraph.addVirtualPartitionNode(transformedId, virtualId, partition.getPartitioner());
+			addVirtualPartitionNode(transformedId, virtualId, partition.getPartitioner());
 			resultIds.add(virtualId);
 		}
 
@@ -264,7 +295,7 @@ public class StreamGraphGenerator {
 		}
 
 		for (int inputId : resultIds) {
-			streamGraph.addOutputSelector(inputId, split.getOutputSelector());
+			getStreamNodeByVirtualID(inputId).addOutputSelector(split.getOutputSelector());
 		}
 
 		return resultIds;
@@ -290,7 +321,7 @@ public class StreamGraphGenerator {
 
 		for (int inputId : resultIds) {
 			int virtualId = StreamTransformation.getNewNodeId();
-			streamGraph.addVirtualSelectNode(inputId, virtualId, select.getSelectedNames());
+			addVirtualSelectNode(inputId, virtualId, select.getSelectedNames());
 			virtualResultIds.add(virtualId);
 		}
 		return virtualResultIds;
@@ -317,7 +348,7 @@ public class StreamGraphGenerator {
 
 		for (int inputId : resultIds) {
 			int virtualId = StreamTransformation.getNewNodeId();
-			streamGraph.addVirtualSideOutputNode(inputId, virtualId, sideOutput.getOutputTag());
+			addVirtualSideOutputNode(inputId, virtualId, sideOutput.getOutputTag());
 			virtualResultIds.add(virtualId);
 		}
 		return virtualResultIds;
@@ -352,22 +383,26 @@ public class StreamGraphGenerator {
 		}
 
 		// create the fake iteration source/sink pair
-		Tuple2<StreamNode, StreamNode> itSourceAndSink = streamGraph.createIterationSourceAndSink(
-			iterate.getId(),
-			getNewIterationNodeId(),
-			getNewIterationNodeId(),
-			iterate.getWaitTime(),
-			iterate.getParallelism(),
-			iterate.getMaxParallelism(),
-			iterate.getMinResources(),
-			iterate.getPreferredResources());
+		StreamNode itSource = new StreamNode(getNewIterationNodeId(),
+				null,
+				null,
+				"IterationSource-" + iterate.getId(),
+				new ArrayList<OutputSelector<?>>(),
+				StreamIterationHead.class);
+		setInOutTypeInfo(itSource, null, null, iterate.getOutputType());
+		setParallelism(itSource, iterate);
+		itSource.setResources(iterate.getMinResources(), iterate.getPreferredResources());
 
-		StreamNode itSource = itSourceAndSink.f0;
-		StreamNode itSink = itSourceAndSink.f1;
+		StreamNode itSink = new StreamNode(getNewIterationNodeId(),
+				null,
+				null,
+				"IterationSink-" + iterate.getId(),
+				new ArrayList<OutputSelector<?>>(),
+				StreamIterationTail.class);
+		setInOutTypeInfo(itSink, iterate.getOutputType(), null, null);
+		setParallelism(itSink, iterate);
 
-		// We set the proper serializers for the sink/source
-		streamGraph.setSerializers(itSource.getId(), null, null, iterate.getOutputType().createSerializer(env.getConfig()));
-		streamGraph.setSerializers(itSink.getId(), iterate.getOutputType().createSerializer(env.getConfig()), null, null);
+		streamGraph.addIterationSourceAndSink(itSource, itSink, iterate.getId(), iterate.getWaitTime());
 
 		// also add the feedback source ID to the result IDs, so that downstream operators will
 		// add both as input
@@ -384,10 +419,7 @@ public class StreamGraphGenerator {
 			Collection<Integer> feedbackIds = transform(feedbackEdge);
 			allFeedbackIds.addAll(feedbackIds);
 			for (Integer feedbackId: feedbackIds) {
-				streamGraph.addEdge(feedbackId,
-						itSink.getId(),
-						0
-				);
+				connectNodes(feedbackId, itSink.getId(), StreamEdge.InputOrder.FIRST);
 			}
 		}
 
@@ -417,22 +449,26 @@ public class StreamGraphGenerator {
 		// edges, since they need to be wired to the second input of the co-operation.
 
 		// create the fake iteration source/sink pair
-		Tuple2<StreamNode, StreamNode> itSourceAndSink = streamGraph.createIterationSourceAndSink(
-				coIterate.getId(),
-				getNewIterationNodeId(),
-				getNewIterationNodeId(),
-				coIterate.getWaitTime(),
-				coIterate.getParallelism(),
-				coIterate.getMaxParallelism(),
-				coIterate.getMinResources(),
-				coIterate.getPreferredResources());
+		StreamNode itSource = new StreamNode(getNewIterationNodeId(),
+				null,
+				null,
+				"IterationSource-" + coIterate.getId(),
+				new ArrayList<OutputSelector<?>>(),
+				StreamIterationHead.class);
+		setInOutTypeInfo(itSource, null, null, coIterate.getOutputType());
+		setParallelism(itSource, coIterate);
+		itSource.setResources(coIterate.getMinResources(), coIterate.getPreferredResources());
 
-		StreamNode itSource = itSourceAndSink.f0;
-		StreamNode itSink = itSourceAndSink.f1;
+		StreamNode itSink = new StreamNode(getNewIterationNodeId(),
+				null,
+				null,
+				"IterationSink-" + coIterate.getId(),
+				new ArrayList<OutputSelector<?>>(),
+				StreamIterationTail.class);
+		setInOutTypeInfo(itSink, coIterate.getOutputType(), null, null);
+		setParallelism(itSink, coIterate);
 
-		// We set the proper serializers for the sink/source
-		streamGraph.setSerializers(itSource.getId(), null, null, coIterate.getOutputType().createSerializer(env.getConfig()));
-		streamGraph.setSerializers(itSink.getId(), coIterate.getOutputType().createSerializer(env.getConfig()), null, null);
+		streamGraph.addIterationSourceAndSink(itSource, itSink, coIterate.getId(), coIterate.getWaitTime());
 
 		Collection<Integer> resultIds = Collections.singleton(itSource.getId());
 
@@ -447,10 +483,7 @@ public class StreamGraphGenerator {
 			Collection<Integer> feedbackIds = transform(feedbackEdge);
 			allFeedbackIds.addAll(feedbackIds);
 			for (Integer feedbackId: feedbackIds) {
-				streamGraph.addEdge(feedbackId,
-						itSink.getId(),
-						0
-				);
+				connectNodes(feedbackId, itSink.getId(), StreamEdge.InputOrder.FIRST);
 			}
 		}
 
@@ -467,18 +500,28 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformSource(SourceTransformation<T> source) {
 		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), new ArrayList<Integer>());
-		streamGraph.addSource(source.getId(),
+
+		Class<? extends SourceStreamTask> sourceClass;
+		if (source.getOperator() instanceof StoppableStreamSource) {
+			sourceClass = StoppableSourceStreamTask.class;
+		} else {
+			sourceClass = SourceStreamTask.class;
+		}
+
+		StreamNode streamNode = new StreamNode(source.getId(),
 				slotSharingGroup,
 				source.getOperator(),
-				null,
-				source.getOutputType(),
-				"Source: " + source.getName());
+				"Source: " + source.getName(),
+				new ArrayList<OutputSelector<?>>(),
+				sourceClass);
+		setInOutTypeInfo(streamNode, null, null, source.getOutputType());
+		setParallelism(streamNode, source);
+
 		if (source.getOperator().getUserFunction() instanceof InputFormatSourceFunction) {
 			InputFormatSourceFunction<T> fs = (InputFormatSourceFunction<T>) source.getOperator().getUserFunction();
-			streamGraph.setInputFormat(source.getId(), fs.getFormat());
+			streamNode.setInputFormat(fs.getFormat());
 		}
-		streamGraph.setParallelism(source.getId(), source.getParallelism());
-		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
+		streamGraph.addSource(streamNode);
 		return Collections.singleton(source.getId());
 	}
 
@@ -491,28 +534,25 @@ public class StreamGraphGenerator {
 
 		String slotSharingGroup = determineSlotSharingGroup(sink.getSlotSharingGroup(), inputIds);
 
-		streamGraph.addSink(sink.getId(),
+		StreamNode streamNode = new StreamNode(sink.getId(),
 				slotSharingGroup,
 				sink.getOperator(),
-				sink.getInput().getOutputType(),
-				null,
-				"Sink: " + sink.getName());
-
-		streamGraph.setParallelism(sink.getId(), sink.getParallelism());
-		streamGraph.setMaxParallelism(sink.getId(), sink.getMaxParallelism());
-
-		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId,
-					sink.getId(),
-					0
-			);
-		}
+				"Sink: " + sink.getName(),
+				new ArrayList<OutputSelector<?>>(),
+				OneInputStreamTask.class);
+		setInOutTypeInfo(streamNode, sink.getInput().getOutputType(), null, null);
+		setParallelism(streamNode, sink);
 
 		if (sink.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setOneInputStateKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
+			streamNode.setStatePartitioner1(sink.getStateKeySelector());
+			streamNode.setStateKeySerializer(keySerializer);
 		}
+		streamGraph.addSink(streamNode);
 
+		for (Integer inputId: inputIds) {
+			connectNodes(inputId, sink.getId(), StreamEdge.InputOrder.FIRST);
+		}
 		return Collections.emptyList();
 	}
 
@@ -533,23 +573,24 @@ public class StreamGraphGenerator {
 
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
 
-		streamGraph.addOperator(transform.getId(),
+		StreamNode streamNode = new StreamNode(transform.getId(),
 				slotSharingGroup,
 				transform.getOperator(),
-				transform.getInputType(),
-				transform.getOutputType(),
-				transform.getName());
+				transform.getName(),
+				new ArrayList<OutputSelector<?>>(),
+				OneInputStreamTask.class);
+		setInOutTypeInfo(streamNode, transform.getInputType(), null, transform.getOutputType());
+		setParallelism(streamNode, transform);
 
 		if (transform.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
+			streamNode.setStatePartitioner1(transform.getStateKeySelector());
+			streamNode.setStateKeySerializer(keySerializer);
 		}
-
-		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
-		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
+		streamGraph.addOperator(streamNode);
 
 		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId, transform.getId(), 0);
+			connectNodes(inputId, transform.getId(), StreamEdge.InputOrder.FIRST);
 		}
 
 		return Collections.singleton(transform.getId());
@@ -577,34 +618,35 @@ public class StreamGraphGenerator {
 
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), allInputIds);
 
-		streamGraph.addCoOperator(
-				transform.getId(),
+		StreamNode streamNode = new StreamNode(transform.getId(),
 				slotSharingGroup,
 				transform.getOperator(),
-				transform.getInputType1(),
-				transform.getInputType2(),
-				transform.getOutputType(),
-				transform.getName());
+				transform.getName(),
+				new ArrayList<OutputSelector<?>>(),
+				TwoInputStreamTask.class);
+		setInOutTypeInfo(streamNode, transform.getInputType1(), transform.getInputType2(), transform.getOutputType());
+		setParallelism(streamNode, transform);
 
 		if (transform.getStateKeySelector1() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
+			streamNode.setStatePartitioner1(transform.getStateKeySelector1());
+			streamNode.setStatePartitioner2(transform.getStateKeySelector2());
+			streamNode.setStateKeySerializer(keySerializer);
 		}
 
-		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
-		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
+		streamGraph.addOperator(streamNode);
 
 		for (Integer inputId: inputIds1) {
-			streamGraph.addEdge(inputId,
+			connectNodes(inputId,
 					transform.getId(),
-					1
+					StreamEdge.InputOrder.FIRST
 			);
 		}
 
 		for (Integer inputId: inputIds2) {
-			streamGraph.addEdge(inputId,
+			connectNodes(inputId,
 					transform.getId(),
-					2
+					StreamEdge.InputOrder.SECOND
 			);
 		}
 
@@ -628,7 +670,7 @@ public class StreamGraphGenerator {
 		} else {
 			String inputGroup = null;
 			for (int id: inputIds) {
-				String inputGroupCandidate = streamGraph.getSlotSharingGroup(id);
+				String inputGroupCandidate = getStreamNodeByVirtualID(id).getSlotSharingGroup();
 				if (inputGroup == null) {
 					inputGroup = inputGroupCandidate;
 				} else if (!inputGroup.equals(inputGroupCandidate)) {
@@ -636,6 +678,172 @@ public class StreamGraphGenerator {
 				}
 			}
 			return inputGroup == null ? "default" : inputGroup;
+		}
+	}
+
+	private <IN1, IN2, OUT> void setInOutTypeInfo(StreamNode streamNode,
+			TypeInformation<IN1> inTypeInfo1,
+			TypeInformation<IN2> inTypeInfo2,
+			TypeInformation<OUT> outTypeInfo) {
+		StreamOperator<?> operatorObject = streamNode.getOperator();
+		TypeSerializer<IN1> inSerializer1 = inTypeInfo1 != null && !(inTypeInfo1 instanceof MissingTypeInfo) ? inTypeInfo1.createSerializer(executionConfig) : null;
+		TypeSerializer<IN2> inSerializer2 = inTypeInfo2 != null && !(inTypeInfo2 instanceof MissingTypeInfo) ? inTypeInfo2.createSerializer(executionConfig) : null;
+		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
+		streamNode.setSerializerIn1(inSerializer1);
+		streamNode.setSerializerIn2(inSerializer2);
+		streamNode.setSerializerOut(outSerializer);
+
+		if (operatorObject != null && operatorObject instanceof OutputTypeConfigurable && outTypeInfo != null) {
+			@SuppressWarnings("unchecked")
+			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operatorObject;
+			// sets the output type which must be know at StreamGraph creation time
+			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+		}
+		if (operatorObject != null && operatorObject instanceof InputTypeConfigurable) {
+			InputTypeConfigurable inputTypeConfigurable = (InputTypeConfigurable) operatorObject;
+			inputTypeConfigurable.setInputType(inTypeInfo1, executionConfig);
+		}
+	}
+
+	private void setParallelism(StreamNode streamNode, StreamTransformation<?> transformation) {
+		int parallelism = transformation.getParallelism();
+		if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
+			parallelism = env.getParallelism();
+		}
+		streamNode.setParallelism(parallelism);
+		streamNode.setMaxParallelism(transformation.getMaxParallelism());
+	}
+
+	/**
+	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs
+	 * with the selected names.
+	 *
+	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
+	 * to the original node, only with the selected names given here.
+	 *
+	 * @param originalId ID of the node that should be connected to.
+	 * @param virtualId ID of the virtual node.
+	 * @param selectedNames The selected names.
+	 */
+	private void addVirtualSelectNode(Integer originalId, Integer virtualId, List<String> selectedNames) {
+
+		if (virtualSelectNodes.containsKey(virtualId)) {
+			throw new IllegalStateException("Already has virtual select node with id " + virtualId);
+		}
+
+		virtualSelectNodes.put(virtualId,
+				new Tuple2<Integer, List<String>>(originalId, selectedNames));
+	}
+
+	/**
+	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs with
+	 * the selected side-output {@link OutputTag}.
+	 *
+	 * @param originalId ID of the node that should be connected to.
+	 * @param virtualId ID of the virtual node.
+	 * @param outputTag The selected side-output {@code OutputTag}.
+	 */
+	public void addVirtualSideOutputNode(Integer originalId, Integer virtualId, OutputTag outputTag) {
+
+		if (virtualSideOutputNodes.containsKey(virtualId)) {
+			throw new IllegalStateException("Already has virtual output node with id " + virtualId);
+		}
+
+		// verify that we don't already have a virtual node for the given originalId/outputTag
+		// combination with a different TypeInformation. This would indicate that someone is trying
+		// to read a side output from an operation with a different type for the same side output
+		// id.
+
+		for (Tuple2<Integer, OutputTag> tag : virtualSideOutputNodes.values()) {
+			if (!tag.f0.equals(originalId)) {
+				// different source operator
+				continue;
+			}
+
+			if (tag.f1.getId().equals(outputTag.getId()) &&
+					!tag.f1.getTypeInfo().equals(outputTag.getTypeInfo())) {
+				throw new IllegalArgumentException("Trying to add a side output for the same " +
+						"side-output id with a different type. This is not allowed. Side-output ID: " +
+						tag.f1.getId());
+			}
+		}
+
+		virtualSideOutputNodes.put(virtualId, new Tuple2<>(originalId, outputTag));
+	}
+
+	/**
+	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a certain
+	 * partitioning.
+	 *
+	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
+	 * to the original node, but with the partitioning given here.
+	 *
+	 * @param originalId ID of the node that should be connected to.
+	 * @param virtualId ID of the virtual node.
+	 * @param partitioner The partitioner
+	 */
+	public void addVirtualPartitionNode(Integer originalId, Integer virtualId, StreamPartitioner<?> partitioner) {
+
+		if (virtualPartitionNodes.containsKey(virtualId)) {
+			throw new IllegalStateException("Already has virtual partition node with id " + virtualId);
+		}
+
+		virtualPartitionNodes.put(virtualId,
+				new Tuple2<Integer, StreamPartitioner<?>>(originalId, partitioner));
+	}
+
+	public StreamNode getStreamNodeByVirtualID(Integer id) {
+		if (virtualSideOutputNodes.containsKey(id)) {
+			return getStreamNodeByVirtualID(virtualSideOutputNodes.get(id).f0);
+		} else if (virtualPartitionNodes.containsKey(id)) {
+			return getStreamNodeByVirtualID(virtualPartitionNodes.get(id).f0);
+		} else if (virtualSelectNodes.containsKey(id)) {
+			return getStreamNodeByVirtualID(virtualSelectNodes.get(id).f0);
+		} else {
+			return streamGraph.getStreamNode(id);
+		}
+	}
+
+	private void connectNodes(Integer upStreamVertexID, Integer downStreamVertexID, StreamEdge.InputOrder inputOrder) {
+		connectNodes(upStreamVertexID,
+				downStreamVertexID,
+				inputOrder,
+				null,
+				new ArrayList<String>(),
+				null);
+	}
+
+	private void connectNodes(Integer upStreamVertexID,
+			Integer downStreamVertexID,
+			StreamEdge.InputOrder inputOrder,
+			StreamPartitioner<?> partitioner,
+			List<String> outputNames,
+			OutputTag outputTag) {
+		if (virtualSideOutputNodes.containsKey(upStreamVertexID)) {
+			int virtualId = upStreamVertexID;
+			upStreamVertexID = virtualSideOutputNodes.get(virtualId).f0;
+			if (outputTag == null) {
+				outputTag = virtualSideOutputNodes.get(virtualId).f1;
+			}
+			connectNodes(upStreamVertexID, downStreamVertexID, inputOrder, partitioner, null, outputTag);
+		} else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
+			int virtualId = upStreamVertexID;
+			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
+			if (outputNames.isEmpty()) {
+				// selections that happen downstream override earlier selections
+				outputNames = virtualSelectNodes.get(virtualId).f1;
+			}
+			connectNodes(upStreamVertexID, downStreamVertexID, inputOrder, partitioner, outputNames, outputTag);
+		} else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
+			int virtualId = upStreamVertexID;
+			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
+			if (partitioner == null) {
+				partitioner = virtualPartitionNodes.get(virtualId).f1;
+			}
+
+			connectNodes(upStreamVertexID, downStreamVertexID, inputOrder, partitioner, outputNames, outputTag);
+		} else {
+			streamGraph.addEdge(upStreamVertexID, downStreamVertexID, inputOrder, partitioner, outputNames, outputTag);
 		}
 	}
 }

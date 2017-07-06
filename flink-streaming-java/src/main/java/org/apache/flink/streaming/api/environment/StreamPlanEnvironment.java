@@ -59,7 +59,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 
 		StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
+		streamGraph.getProperties().setJobName(jobName);
 
 		transformations.clear();
 

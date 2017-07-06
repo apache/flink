@@ -81,7 +81,7 @@ public class FlinkLocalCluster {
 		FlinkClient.addStormConfigToTopology(topology, conf);
 
 		StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
-		streamGraph.setJobName(topologyName);
+		streamGraph.getProperties().setJobName(topologyName);
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 

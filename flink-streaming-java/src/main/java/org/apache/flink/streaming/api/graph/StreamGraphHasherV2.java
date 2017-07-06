@@ -108,7 +108,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 			// Generate the hash code. Because multiple path exist to each
 			// node, we might not have all required inputs available to
 			// generate the hash code.
-			if (generateNodeHash(currentNode, hashFunction, hashes, streamGraph.isChainingEnabled())) {
+			if (generateNodeHash(currentNode, hashFunction, hashes, streamGraph.getProperties().isChainingEnabled())) {
 				// Add the child nodes
 				for (StreamEdge outEdge : currentNode.getOutEdges()) {
 					StreamNode child = outEdge.getTargetVertex();

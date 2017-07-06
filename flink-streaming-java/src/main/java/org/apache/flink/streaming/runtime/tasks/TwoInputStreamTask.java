@@ -54,17 +54,15 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 
 		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = inEdges.get(i).getTypeNumber();
+			StreamEdge.InputOrder inputOrder = inEdges.get(i).getInputOrder();
 			InputGate reader = getEnvironment().getInputGate(i);
-			switch (inputType) {
-				case 1:
+			switch (inputOrder) {
+				case FIRST:
 					inputList1.add(reader);
 					break;
-				case 2:
+				case SECOND:
 					inputList2.add(reader);
 					break;
-				default:
-					throw new RuntimeException("Invalid input type number: " + inputType);
 			}
 		}
 

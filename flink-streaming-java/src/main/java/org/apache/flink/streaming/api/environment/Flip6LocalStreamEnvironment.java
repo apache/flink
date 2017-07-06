@@ -84,10 +84,10 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		// transform the streaming program into a JobGraph
 		StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
+		streamGraph.getProperties().setJobName(jobName);
 
 		// TODO - temp fix to enforce restarts due to a bug in the allocation protocol
-		streamGraph.getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 5));
+		streamGraph.getProperties().getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 5));
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 		jobGraph.setAllowQueuedScheduling(true);

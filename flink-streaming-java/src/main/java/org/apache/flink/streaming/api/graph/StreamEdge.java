@@ -32,17 +32,21 @@ import java.util.List;
 @Internal
 public class StreamEdge implements Serializable {
 
+	/**
+	 * show this input is the first or second of operator's inputGates.
+	 */
+	public enum InputOrder {
+		FIRST,
+		SECOND
+	}
+
 	private static final long serialVersionUID = 1L;
 
 	private final String edgeId;
 
-	private final StreamNode sourceVertex;
+	private final  StreamNode sourceVertex;
 	private final StreamNode targetVertex;
-
-	/**
-	 * The type number of the input for co-tasks.
-	 */
-	private final int typeNumber;
+	private final InputOrder inputOrder;
 
 	/**
 	 * A list of output names that the target vertex listens to (if there is
@@ -60,16 +64,16 @@ public class StreamEdge implements Serializable {
 	 */
 	private StreamPartitioner<?> outputPartitioner;
 
-	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
+	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, InputOrder inputOrder,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
-		this.typeNumber = typeNumber;
+		this.inputOrder = inputOrder;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
 
-		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
+		this.edgeId = sourceVertex + "_" + targetVertex + "_" + inputOrder + "_" + selectedNames
 				+ "_" + outputPartitioner;
 	}
 
@@ -89,8 +93,8 @@ public class StreamEdge implements Serializable {
 		return targetVertex.getId();
 	}
 
-	public int getTypeNumber() {
-		return typeNumber;
+	public InputOrder getInputOrder() {
+		return inputOrder;
 	}
 
 	public List<String> getSelectedNames() {
@@ -130,7 +134,7 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public String toString() {
-		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
+		return "(" + sourceVertex + " -> " + targetVertex + ", inputOrder=" + inputOrder
 				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
 				+ ", outputTag=" + outputTag + ')';
 	}

@@ -127,7 +127,7 @@ public class StreamingJobGraphGenerator {
 		this.chainedPreferredResources = new HashMap<>();
 		this.physicalEdgesInOrder = new ArrayList<>();
 
-		jobGraph = new JobGraph(streamGraph.getJobName());
+		jobGraph = new JobGraph(streamGraph.getProperties().getJobName());
 	}
 
 	private JobGraph createJobGraph() {
@@ -156,13 +156,13 @@ public class StreamingJobGraphGenerator {
 		configureCheckpointing();
 
 		// add registered cache file into job configuration
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getEnvironment().getCachedFiles()) {
+		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getProperties().getCachedFiles()) {
 			DistributedCache.writeFileInfoToConfig(e.f0, e.f1, jobGraph.getJobConfiguration());
 		}
 
 		// set the ExecutionConfig last when it has been finalized
 		try {
-			jobGraph.setExecutionConfig(streamGraph.getExecutionConfig());
+			jobGraph.setExecutionConfig(streamGraph.getProperties().getExecutionConfig());
 		}
 		catch (IOException e) {
 			throw new IllegalConfigurationException("Could not serialize the ExecutionConfig." +
@@ -422,7 +422,7 @@ public class StreamingJobGraphGenerator {
 			if (edge.getOutputTag() != null) {
 				config.setTypeSerializerSideOut(
 					edge.getOutputTag(),
-					edge.getOutputTag().getTypeInfo().createSerializer(streamGraph.getExecutionConfig())
+					edge.getOutputTag().getTypeInfo().createSerializer(streamGraph.getProperties().getExecutionConfig())
 				);
 			}
 		}
@@ -430,7 +430,7 @@ public class StreamingJobGraphGenerator {
 			if (edge.getOutputTag() != null) {
 				config.setTypeSerializerSideOut(
 						edge.getOutputTag(),
-						edge.getOutputTag().getTypeInfo().createSerializer(streamGraph.getExecutionConfig())
+						edge.getOutputTag().getTypeInfo().createSerializer(streamGraph.getProperties().getExecutionConfig())
 				);
 			}
 		}
@@ -442,11 +442,11 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
-		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
+		config.setTimeCharacteristic(streamGraph.getProperties().getTimeCharacteristic());
 
-		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
+		final CheckpointConfig ceckpointCfg = streamGraph.getProperties().getCheckpointConfig();
 
-		config.setStateBackend(streamGraph.getStateBackend());
+		config.setStateBackend(streamGraph.getProperties().getStateBackend());
 		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
 		if (ceckpointCfg.isCheckpointingEnabled()) {
 			config.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
@@ -530,7 +530,7 @@ public class StreamingJobGraphGenerator {
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& streamGraph.getProperties().isChainingEnabled();
 	}
 
 	private void setSlotSharing() {
@@ -565,14 +565,14 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void configureCheckpointing() {
-		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
+		CheckpointConfig cfg = streamGraph.getProperties().getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
 		if (interval > 0) {
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
-			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
+			if (streamGraph.getProperties().getExecutionConfig().getRestartStrategy() == null) {
 				// if the user enabled checkpointing, the default number of exec retries is infinite.
-				streamGraph.getExecutionConfig().setRestartStrategy(
+				streamGraph.getProperties().getExecutionConfig().setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
 		} else {
@@ -663,12 +663,12 @@ public class StreamingJobGraphGenerator {
 		// because the state backend can have user-defined code, it needs to be stored as
 		// eagerly serialized value
 		final SerializedValue<StateBackend> serializedStateBackend;
-		if (streamGraph.getStateBackend() == null) {
+		if (streamGraph.getProperties().getStateBackend() == null) {
 			serializedStateBackend = null;
 		} else {
 			try {
 				serializedStateBackend =
-					new SerializedValue<StateBackend>(streamGraph.getStateBackend());
+					new SerializedValue<StateBackend>(streamGraph.getProperties().getStateBackend());
 			}
 			catch (IOException e) {
 				throw new FlinkRuntimeException("State backend is not serializable", e);

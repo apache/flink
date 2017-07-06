@@ -196,7 +196,7 @@ public class FlinkClient {
 		}
 
 		final StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
-		streamGraph.setJobName(name);
+		streamGraph.getProperties().setJobName(name);
 
 		final JobGraph jobGraph = streamGraph.getJobGraph();
 		jobGraph.addJar(new Path(uploadedJarUri));

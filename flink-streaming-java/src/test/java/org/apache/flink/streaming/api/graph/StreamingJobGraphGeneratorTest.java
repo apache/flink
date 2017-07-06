@@ -90,7 +90,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		// --------- the job graph ---------
 
 		StreamGraph streamGraph = env.getStreamGraph();
-		streamGraph.setJobName("test job");
+		streamGraph.getProperties().setJobName("test job");
 		JobGraph jobGraph = streamGraph.getJobGraph();
 		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 
@@ -111,8 +111,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testDisabledCheckpointing() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamGraph streamGraph = new StreamGraph(env);
-		assertFalse("Checkpointing enabled", streamGraph.getCheckpointConfig().isCheckpointingEnabled());
+		StreamGraph streamGraph = new StreamGraph(StreamGraphProperties.buildProperties(env));
+		assertFalse("Checkpointing enabled", streamGraph.getProperties().getCheckpointConfig().isCheckpointingEnabled());
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 

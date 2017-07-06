@@ -106,7 +106,7 @@ public class JSONGenerator {
 			for (StreamEdge inEdge : vertex.getInEdges()) {
 				int operator = inEdge.getSourceId();
 
-				if (streamGraph.vertexIDtoLoopTimeout.containsKey(operator)) {
+				if (streamGraph.getLoopTimeout(operator) != null) {
 					iterationHead = operator;
 				}
 			}
@@ -138,7 +138,7 @@ public class JSONGenerator {
 		toVisit.remove(vertexID);
 
 		// Ignoring head and tail to avoid redundancy
-		if (!streamGraph.vertexIDtoLoopTimeout.containsKey(vertexID)) {
+		if (streamGraph.getLoopTimeout(vertexID) == null) {
 			JSONObject obj = new JSONObject();
 			jsonArray.put(obj);
 			decorateNode(vertexID, obj);
@@ -150,7 +150,7 @@ public class JSONGenerator {
 
 				if (edgeRemapings.keySet().contains(inputID)) {
 					decorateEdge(inEdges, inEdge, inputID);
-				} else if (!streamGraph.vertexIDtoLoopTimeout.containsKey(inputID)) {
+				} else if (streamGraph.getLoopTimeout(inputID) == null) {
 					decorateEdge(iterationInEdges, inEdge, inputID);
 				}
 			}
