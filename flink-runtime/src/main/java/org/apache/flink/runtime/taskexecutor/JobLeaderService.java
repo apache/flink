@@ -191,7 +191,8 @@ public class JobLeaderService {
 		LOG.info("Add job {} for job leader monitoring.", jobId);
 
 		final LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-			jobId);
+			jobId,
+			defaultTargetAddress);
 
 		JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
 

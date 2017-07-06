@@ -63,6 +63,11 @@ public class TestingManualHighAvailabilityServices implements HighAvailabilitySe
 	}
 
 	@Override
+	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress) {
+		return getJobManagerLeaderRetriever(jobID);
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		return resourceManagerLeaderService.createLeaderElectionService();
 	}
