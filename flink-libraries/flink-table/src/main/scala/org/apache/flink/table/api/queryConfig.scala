@@ -37,6 +37,16 @@ class BatchQueryConfig private[table] extends QueryConfig
 class StreamQueryConfig private[table] extends QueryConfig {
 
   /**
+    * A configuration item, for both [[org.apache.flink.streaming.api.datastream.DataStreamSource]]
+    * and [[org.apache.flink.table.sources.StreamTableSource]], which defines the SLA for data
+    * latency.
+    *
+    * __Note__: The value of lateDataTimeOffset can not be negative, negative values can cause
+    * data loss.
+    */
+  private var lateDataTimeOffset: Long = 0L
+
+  /**
     * The minimum time until state which was not updated will be retained.
     * State might be cleared and removed if it was not updated for the defined period of time.
     */
@@ -47,6 +57,26 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * State will be cleared and removed if it was not updated for the defined period of time.
     */
   private var maxIdleStateRetentionTime: Long = Long.MinValue
+
+  /**
+    * Specifies the lateDataTimeOffset for define the data delay SLA. For example, if
+    * lateDtaTimeOffset = 5 seconds, that meant all the data which delay is no
+    * more than 5 seconds will be process correctly.
+    *
+    * __Note__: The value of lateDataTimeOffset can not be negative, negative values can cause
+    * data loss.
+    */
+  def withLateDataTimeOffset(lateDataTimeOffset: Time): StreamQueryConfig = {
+
+    if (0 > lateDataTimeOffset.toMilliseconds) {
+      throw new IllegalArgumentException(
+        s"The lateDataTimeOffset value is [${lateDataTimeOffset.toMilliseconds}], " +
+          s"lateDataTimeOffset may not be smaller than 0.")
+    }
+
+    this.lateDataTimeOffset = lateDataTimeOffset.toMilliseconds
+    this
+  }
 
   /**
     * Specifies the time interval for how long idle state, i.e., state which was not updated, will
@@ -92,6 +122,10 @@ class StreamQueryConfig private[table] extends QueryConfig {
     this
   }
 
+  def getLateDataTimeOffset: Long = {
+    lateDataTimeOffset
+  }
+
   def getMinIdleStateRetentionTime: Long = {
     minIdleStateRetentionTime
   }
@@ -99,4 +133,5 @@ class StreamQueryConfig private[table] extends QueryConfig {
   def getMaxIdleStateRetentionTime: Long = {
     maxIdleStateRetentionTime
   }
+
 }

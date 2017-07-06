@@ -27,6 +27,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.runtime.operators.AdjustWatermark
 
 /**
   * Flink RelNode which matches along with DataStreamSource.
@@ -59,8 +60,20 @@ class DataStreamScan(
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
-    val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
+    val offset = queryConfig.getLateDataTimeOffset
+
+    val ds = dataStreamTable.dataStream
+
+    // injecting an operator, which adjust watermark according queryConfig
+    val inputDataStream: DataStream[Any] = if (offset != 0) {
+      ds.transform(
+        s"AdjustWatermark(${offset})",
+        ds.getType,
+        AdjustWatermark.of[Any](offset))
+    } else {
+      ds
+    }
+
     convertToInternalRow(schema, inputDataStream, dataStreamTable, config)
   }
-
 }
