@@ -34,6 +34,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -70,9 +71,9 @@ import scala.concurrent.duration.FiniteDuration;
  * <p>It starts actor system and the actors for {@link JobManagerRunner}
  * and {@link YarnResourceManager}.
  *
- * <p>The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
- * JobMaster handles Flink job execution, while the YarnResourceManager handles container
- * allocation and failure detection.
+ * <p>The JobManagerRunner start a {@link JobMaster} JobMaster handles Flink job
+ * execution, while the YarnResourceManager handles container allocation and failure
+ * detection.
  */
 public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicationMasterRunner
 		implements OnCompletionActions, FatalErrorHandler {
