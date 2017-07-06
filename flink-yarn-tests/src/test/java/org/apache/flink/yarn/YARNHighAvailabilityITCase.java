@@ -137,7 +137,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		HighAvailabilityServices highAvailabilityServices = null;
 
 		try {
-			yarnCluster = flinkYarnClient.deploy();
+			yarnCluster = flinkYarnClient.deploySessionCluster();
 
 			final ClusterClient finalYarnCluster = yarnCluster;
 

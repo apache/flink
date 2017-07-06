@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn;
+package org.apache.flink.client.deployment;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Default implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
+ * Class which indicates a problem when deploying a Flink cluster.
  */
-public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
+public class ClusterDeploymentException extends FlinkException {
 
-	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return YarnApplicationMasterRunner.class;
+	private static final long serialVersionUID = -4327724979766139208L;
+
+	public ClusterDeploymentException(String message) {
+		super(message);
 	}
 
-	@Override
-	public YarnClusterClient deployJobCluster(JobGraph jobGraph) {
-		throw new UnsupportedOperationException("Cannot deploy a per-job yarn cluster yet.");
+	public ClusterDeploymentException(Throwable cause) {
+		super(cause);
+	}
+
+	public ClusterDeploymentException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

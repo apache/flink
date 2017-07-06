@@ -551,7 +551,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
 		try {
-			return yarnClusterDescriptor.deploy();
+			return yarnClusterDescriptor.deploySessionCluster();
 		} catch (Exception e) {
 			throw new RuntimeException("Error deploying the YARN cluster", e);
 		}
@@ -627,7 +627,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			}
 
 			try {
-				yarnCluster = yarnDescriptor.deploy();
+				yarnCluster = yarnDescriptor.deploySessionCluster();
 			} catch (Exception e) {
 				System.err.println("Error while deploying YARN cluster: " + e.getMessage());
 				e.printStackTrace(System.err);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
 import java.io.File;
@@ -57,6 +58,11 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 	@Override
 	protected Class<?> getApplicationMasterClass() {
 		return TestingApplicationMaster.class;
+	}
+
+	@Override
+	public YarnClusterClient deployJobCluster(JobGraph jobGraph) {
+		throw new UnsupportedOperationException("Cannot deploy a per-job cluster yet.");
 	}
 
 	private static class TestJarFinder implements FilenameFilter {
