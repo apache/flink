@@ -129,6 +129,11 @@ public class AkkaRpcServiceTest extends TestLogger {
 		assertEquals(AkkaUtils.getAddress(actorSystem).host().get(), akkaRpcService.getAddress());
 	}
 
+	@Test
+	public void testGetPort() {
+		assertEquals(AkkaUtils.getAddress(actorSystem).port().get(), akkaRpcService.getPort());
+	}
+
 	/**
 	 * Tests that we can wait for the termination of the rpc service
 	 *
