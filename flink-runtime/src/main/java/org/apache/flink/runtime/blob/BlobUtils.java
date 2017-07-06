@@ -395,9 +395,7 @@ public class BlobUtils {
 			try {
 				socket.close();
 			} catch (Throwable t) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Error while closing resource after BLOB transfer.", t);
-				}
+				LOG.debug("Exception while closing BLOB server connection socket.", t);
 			}
 		}
 	}
