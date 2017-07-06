@@ -18,8 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -68,7 +67,7 @@ public class MergingWindowSet<W extends Window> {
 	 */
 	private final Map<W, W> initialMapping;
 
-	private final ListState<Tuple2<W, W>> state;
+	private final ValueState<Map<W, W>> state;
 
 	/**
 	 * Our window assigner.
@@ -78,21 +77,13 @@ public class MergingWindowSet<W extends Window> {
 	/**
 	 * Restores a {@link MergingWindowSet} from the given state.
 	 */
-	public MergingWindowSet(MergingWindowAssigner<?, W> windowAssigner, ListState<Tuple2<W, W>> state) throws Exception {
+	public MergingWindowSet(
+			MergingWindowAssigner<?, W> windowAssigner,
+			ValueState<Map<W, W>> state) throws Exception {
 		this.windowAssigner = windowAssigner;
-		mapping = new HashMap<>();
-
-		Iterable<Tuple2<W, W>> windowState = state.get();
-		if (windowState != null) {
-			for (Tuple2<W, W> window: windowState) {
-				mapping.put(window.f0, window.f1);
-			}
-		}
-
+		this.mapping = (state.value() == null) ? new HashMap<>() : state.value();
 		this.state = state;
-
-		initialMapping = new HashMap<>();
-		initialMapping.putAll(mapping);
+		this.initialMapping = new HashMap<>(mapping);
 	}
 
 	/**
@@ -101,9 +92,11 @@ public class MergingWindowSet<W extends Window> {
 	 */
 	public void persist() throws Exception {
 		if (!mapping.equals(initialMapping)) {
-			state.clear();
-			for (Map.Entry<W, W> window : mapping.entrySet()) {
-				state.add(new Tuple2<>(window.getKey(), window.getValue()));
+			if (mapping.isEmpty()) {
+				state.clear();
+			}
+			else {
+				state.update(mapping);
 			}
 		}
 	}

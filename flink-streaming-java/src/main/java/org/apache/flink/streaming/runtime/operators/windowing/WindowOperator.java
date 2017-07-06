@@ -37,6 +37,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
+import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -66,9 +68,14 @@ import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
@@ -146,7 +153,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	private transient InternalMergingState<W, IN, ACC> windowMergingState;
 
 	/** The state that holds the merging window metadata (the sets that describe what is merged). */
-	private transient InternalListState<VoidNamespace, Tuple2<W, W>> mergingSetsState;
+	private transient InternalValueState<VoidNamespace, Map<W, W>> mergingSetsState;
 
 	/**
 	 * This is given to the {@code InternalWindowFunction} for emitting elements with a given
@@ -211,7 +218,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		internalTimerService =
-				getInternalTimerService("window-timers", windowSerializer, this);
+			getInternalTimerService("window-timers", windowSerializer, this);
 
 		triggerContext = new Context(null, null);
 		processContext = new WindowContext(null);
@@ -243,22 +250,69 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 //				throw new IllegalStateException(
 //						"The window uses a merging assigner, but the window state is not mergeable.");
 //			}
-
-			@SuppressWarnings("unchecked")
-			final Class<Tuple2<W, W>> typedTuple = (Class<Tuple2<W, W>>) (Class<?>) Tuple2.class;
-
-			final TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>(
-					typedTuple,
-					new TypeSerializer[] {windowSerializer, windowSerializer});
-
-			final ListStateDescriptor<Tuple2<W, W>> mergingSetsStateDescriptor =
-					new ListStateDescriptor<>("merging-window-set", tupleSerializer);
-
-			// get the state that stores the merging sets
-			mergingSetsState = (InternalListState<VoidNamespace, Tuple2<W, W>>)
-					getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, mergingSetsStateDescriptor);
-			mergingSetsState.setCurrentNamespace(VoidNamespace.INSTANCE);
+			initializeMergingWindowSet(windowSerializer);
 		}
+	}
+
+	private void initializeMergingWindowSet(TypeSerializer<W> windowSerializer) throws Exception {
+		final MapSerializer<W, W> mapSerializer = new MapSerializer<>(windowSerializer, windowSerializer);
+		final ValueStateDescriptor<Map<W, W>> mergingSetsStateDescriptor =
+			new ValueStateDescriptor<>("merging-window-map", mapSerializer);
+
+		mergingSetsState = (InternalValueState<VoidNamespace, Map<W, W>>) getOrCreateKeyedState(
+			VoidNamespaceSerializer.INSTANCE,
+			mergingSetsStateDescriptor);
+
+		mergingSetsState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+		migrateMergingWindowState();
+	}
+
+	private void migrateMergingWindowState() throws Exception {
+		InternalListState<VoidNamespace, Tuple2<W, W>> deprecatedState = getDeprecatedMergingWindowSetState(windowSerializer);
+
+		try (Stream<Object> keysStream = getKeyedStateBackend().getKeys("merging-window-set", VoidNamespace.INSTANCE)){
+			Iterator<Object> keys = keysStream.iterator();
+			while (keys.hasNext()) {
+				Object key = keys.next();
+				getKeyedStateBackend().setCurrentKey(key);
+
+				if (deprecatedState.get() == null) {
+					continue;
+				}
+
+				if (mergingSetsState.value() == null) {
+					mergingSetsState.update(new HashMap<>());
+				}
+
+				Iterator<Tuple2<W, W>> deprecatedStateIterator = deprecatedState.get().iterator();
+				checkState(mergingSetsState.value().isEmpty() || !deprecatedStateIterator.hasNext(), "Both deprecated and new states are present");
+				while (deprecatedStateIterator.hasNext()) {
+					Tuple2<W, W> tuple = deprecatedStateIterator.next();
+					mergingSetsState.value().put(tuple.f0, tuple.f1);
+				}
+
+				deprecatedState.clear();
+			}
+		}
+	}
+
+	private InternalListState<VoidNamespace, Tuple2<W, W>> getDeprecatedMergingWindowSetState(TypeSerializer<W> windowSerializer) throws Exception {
+		@SuppressWarnings("unchecked")
+		final Class<Tuple2<W, W>> typedTuple = (Class<Tuple2<W, W>>) (Class<?>) Tuple2.class;
+
+		final TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>(
+			typedTuple,
+			new TypeSerializer[] {windowSerializer, windowSerializer});
+
+		final ListStateDescriptor<Tuple2<W, W>> oldMergingSetsStateDescriptor =
+			new ListStateDescriptor<>("merging-window-set", tupleSerializer);
+
+		InternalListState<VoidNamespace, Tuple2<W, W>> oldMergingSetsState =
+			(InternalListState<VoidNamespace, Tuple2<W, W>>) getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, oldMergingSetsStateDescriptor);
+
+		oldMergingSetsState.setCurrentNamespace(VoidNamespace.INSTANCE);
+		return oldMergingSetsState;
 	}
 
 	@Override
