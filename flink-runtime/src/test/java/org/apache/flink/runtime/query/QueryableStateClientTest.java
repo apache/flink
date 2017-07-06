@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.query;
 
-import akka.actor.ActorSystem;
-import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -41,17 +39,21 @@ import org.apache.flink.runtime.state.heap.HeapValueState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.MathUtils;
+
+import akka.actor.ActorSystem;
+import akka.dispatch.Futures;
 import org.junit.AfterClass;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -63,6 +65,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link QueryableStateClient}.
+ */
 public class QueryableStateClientTest {
 
 	private static final ActorSystem testActorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
@@ -79,7 +84,7 @@ public class QueryableStateClientTest {
 	/**
 	 * All failures should lead to a retry with a forced location lookup.
 	 *
-	 * UnknownKvStateID, UnknownKvStateKeyGroupLocation, UnknownKvStateLocation,
+	 * <p>UnknownKvStateID, UnknownKvStateKeyGroupLocation, UnknownKvStateLocation,
 	 * ConnectException are checked explicitly as these indicate out-of-sync
 	 * KvStateLocation.
 	 */
@@ -255,7 +260,6 @@ public class QueryableStateClientTest {
 				new KeyGroupRange(0, 0),
 				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 
-
 		try {
 			KvStateRegistry[] registries = new KvStateRegistry[numServers];
 			KvStateID[] kvStateIds = new KvStateID[numServers];
@@ -355,7 +359,7 @@ public class QueryableStateClientTest {
 						break;
 					} catch (Throwable t) {
 						// Retry
-						if (retry == numRetries-1) {
+						if (retry == numRetries - 1) {
 							throw t;
 						} else {
 							Thread.sleep(100);
