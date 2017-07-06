@@ -982,4 +982,27 @@ object randInteger {
   }
 }
 
+/**
+  * Returns the string that results from concatenating the arguments.
+  * Returns NULL if any argument is NULL.
+  */
+object concat {
+  def apply(strings: Expression*): Expression = {
+    new Concat(strings)
+  }
+}
+
+/**
+  * Returns the string that results from concatenating the arguments and separator.
+  * Returns NULL If the separator is NULL.
+  *
+  * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
+  * values after the separator argument.
+  **/
+object concat_ws {
+  def apply(separator: Expression, strings: Expression*): Expression = {
+    new ConcatWs(separator, strings)
+  }
+}
+
 // scalastyle:on object.name

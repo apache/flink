@@ -107,6 +107,18 @@ class FunctionCatalog {
         val function = aggregateFunction.getFunction
         AggFunctionCall(function, children)
 
+      // concat_ws
+      case concat_ws if classOf[ConcatWs].isAssignableFrom(concat_ws) =>
+        Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
+          case Success(ctor) =>
+            Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
+              case Success(expr) => expr
+              case Failure(e) => throw new ValidationException(e.getMessage)
+            }
+          case _ =>
+            throw ValidationException("Never be here.")
+        }
+
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>
         // try to find a constructor accepts `Seq[Expression]`
@@ -195,6 +207,8 @@ object FunctionCatalog {
     "upperCase" -> classOf[Upper],
     "position" -> classOf[Position],
     "overlay" -> classOf[Overlay],
+    "concat" -> classOf[Concat],
+    "concat_ws" -> classOf[ConcatWs],
 
     // math functions
     "plus" -> classOf[Plus],
