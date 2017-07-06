@@ -459,15 +459,12 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 	@Override
 	public Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
 		Configuration hadoopConf = getHadoopConfiguration();
-		Class<? extends org.apache.hadoop.fs.FileSystem> clazz;
-		// We can activate this block once we drop Hadoop1 support (only hd2 has the getFileSystemClass-method)
-//		try {
-//			clazz = org.apache.hadoop.fs.FileSystem.getFileSystemClass(scheme, hadoopConf);
-//		} catch (IOException e) {
-//			LOG.info("Flink could not load the Hadoop File system implementation for scheme "+scheme);
-//			return null;
-//		}
-		clazz = hadoopConf.getClass("fs." + scheme + ".impl", null, org.apache.hadoop.fs.FileSystem.class);
+		Class<? extends org.apache.hadoop.fs.FileSystem> clazz = null;
+		try {
+			clazz = org.apache.hadoop.fs.FileSystem.getFileSystemClass(scheme, hadoopConf);
+		} catch (IOException e) {
+			LOG.info("Flink could not load the Hadoop File system implementation for scheme " + scheme);
+		}
 
 		if (clazz != null && LOG.isDebugEnabled()) {
 			LOG.debug("Flink supports {} with the Hadoop file system wrapper, impl {}", scheme, clazz);
