@@ -228,8 +228,14 @@ public class BootstrapTools {
 
 		Configuration cfg = baseConfig.clone();
 
-		cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
-		cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
+			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
+		}
+
+		if (jobManagerPort > 0) {
+			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		}
+
 		cfg.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, registrationTimeout.toString());
 		if (numSlots != -1){
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
