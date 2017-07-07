@@ -105,8 +105,6 @@ public abstract class ClusterClient {
 	/** Flag indicating whether to sysout print execution updates. */
 	private boolean printStatusDuringExecution = true;
 
-	private int defaultParallelism = -1;
-
 	/**
 	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
@@ -296,18 +294,6 @@ public abstract class ClusterClient {
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to retrieve JobManager address", e);
 		}
-	}
-
-	/**
-	 * Set the defaultParallelism for ClusterClient
-	 * @param defaultParallelism The default parallelism
-	 */
-	public void setDefaultParallelism(int defaultParallelism) {
-		this.defaultParallelism = defaultParallelism;
-	}
-
-	public int getDefaultParallelism() {
-		return this.defaultParallelism;
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -246,7 +247,6 @@ public class CliFrontend {
 			client = createClient(options, program);
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			client.setDetached(options.getDetachedMode());
-			client.setDefaultParallelism(defaultParallelism);
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
 			LOG.debug(options.getSavepointRestoreSettings().toString());
@@ -258,6 +258,8 @@ public class CliFrontend {
 					+ client.getMaxSlots() + "). "
 					+ "To use another parallelism, set it at the ./bin/flink client.");
 				userParallelism = client.getMaxSlots();
+			} else if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
+				userParallelism = defaultParallelism;
 			}
 
 			return executeProgram(program, client, userParallelism);
@@ -322,6 +324,9 @@ public class CliFrontend {
 
 		try {
 			int parallelism = options.getParallelism();
+			if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
+				parallelism = defaultParallelism;
+			}
 
 			LOG.info("Creating program plan dump");
 

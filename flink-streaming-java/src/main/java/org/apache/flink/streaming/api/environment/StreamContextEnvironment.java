@@ -43,8 +43,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		this.ctx = ctx;
 		if (ctx.getParallelism() > 0) {
 			setParallelism(ctx.getParallelism());
-		} else {
-			setParallelism(ctx.getDefaultParallelism());
 		}
 	}
 

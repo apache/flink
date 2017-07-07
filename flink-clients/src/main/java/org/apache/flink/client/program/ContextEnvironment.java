@@ -78,10 +78,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		jobID = JobID.generate();
 	}
 
-	public int getDefaultParallelism() {
-		return client.getDefaultParallelism();
-	}
-
 	@Override
 	public String toString() {
 		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
