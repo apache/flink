@@ -416,8 +416,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
 				appReport.getHost(), appReport.getRpcPort(), applicationID);
 
-			flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, appReport.getHost());
-			flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, appReport.getRpcPort());
+			flinkConfiguration.setString(JobManagerOptions.ADDRESS, appReport.getHost());
+			flinkConfiguration.setInteger(JobManagerOptions.PORT, appReport.getRpcPort());
 
 			return createYarnClusterClient(this, yarnClient, appReport, flinkConfiguration, false);
 		} catch (Exception e) {
@@ -591,8 +591,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		int port = report.getRpcPort();
 
 		// Correctly initialize the Flink config
-		flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
-		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(this, yarnClient, report, flinkConfiguration, true);
