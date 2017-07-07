@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
@@ -185,6 +186,8 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	private YarnClient yarnClient = null;
+	protected org.apache.flink.configuration.Configuration flinkConfiguration;
+
 	@Before
 	public void checkClusterEmpty() throws IOException, YarnException {
 		if (yarnClient == null) {
@@ -202,6 +205,8 @@ public abstract class YarnTestBase extends TestLogger {
 						"App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState());
 			}
 		}
+
+		flinkConfiguration = new org.apache.flink.configuration.Configuration();
 	}
 
 	/**
@@ -498,7 +503,12 @@ public abstract class YarnTestBase extends TestLogger {
 
 		final int startTimeoutSeconds = 60;
 
-		Runner runner = new Runner(args, type, 0);
+		Runner runner = new Runner(
+			args,
+			flinkConfiguration,
+			CliFrontend.getConfigurationDirectoryFromEnv(),
+			type,
+			0);
 		runner.setName("Frontend (CLI/YARN Client) runner thread (startWithArgs()).");
 		runner.start();
 
@@ -551,7 +561,12 @@ public abstract class YarnTestBase extends TestLogger {
 		final int startTimeoutSeconds = 180;
 		final long deadline = System.currentTimeMillis() + (startTimeoutSeconds * 1000);
 
-		Runner runner = new Runner(args, type, expectedReturnValue);
+		Runner runner = new Runner(
+			args,
+			flinkConfiguration,
+			CliFrontend.getConfigurationDirectoryFromEnv(),
+			type,
+			expectedReturnValue);
 		runner.start();
 
 		boolean expectedStringSeen = false;
@@ -632,14 +647,24 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	protected static class Runner extends Thread {
 		private final String[] args;
+		private final org.apache.flink.configuration.Configuration configuration;
+		private final String configurationDirectory;
 		private final int expectedReturnValue;
 
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
 		private Throwable runnerError;
 
-		public Runner(String[] args, RunTypes type, int expectedReturnValue) {
+		public Runner(
+				String[] args,
+				org.apache.flink.configuration.Configuration configuration,
+				String configurationDirectory,
+				RunTypes type,
+				int expectedReturnValue) {
+
 			this.args = args;
+			this.configuration = Preconditions.checkNotNull(configuration);
+			this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 			this.type = type;
 			this.expectedReturnValue = expectedReturnValue;
 		}
@@ -654,7 +679,7 @@ public abstract class YarnTestBase extends TestLogger {
 							"",
 							"",
 							false);
-						returnValue = yCli.run(args);
+						returnValue = yCli.run(args, configuration, configurationDirectory);
 						break;
 					case CLI_FRONTEND:
 						TestingCLI cli;

@@ -48,24 +48,21 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private File flinkJar;
-	private File flinkConf;
 
 	@Before
 	public void beforeTest() throws IOException {
 		temporaryFolder.create();
 		flinkJar = temporaryFolder.newFile("flink.jar");
-		flinkConf = temporaryFolder.newFile("flink-conf.yaml");
 	}
 
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() {
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			new Configuration(),
+			temporaryFolder.getRoot().getAbsolutePath());
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
-		clusterDescriptor.setFlinkConfiguration(new Configuration());
-		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(-1)
@@ -88,17 +85,15 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Test
 	public void testConfigOverwrite() {
-
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
-
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(ConfigConstants.YARN_VCORES, Integer.MAX_VALUE);
 
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			configuration,
+			temporaryFolder.getRoot().getAbsolutePath());
+
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
-		clusterDescriptor.setFlinkConfiguration(configuration);
-		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
@@ -122,9 +117,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Test
 	public void testSetupApplicationMasterContainer() {
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
-		final Configuration cfg = new Configuration();
-		clusterDescriptor.setFlinkConfiguration(cfg);
+		Configuration cfg = new Configuration();
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			cfg,
+			temporaryFolder.getRoot().getAbsolutePath());
 
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xmx424m";
@@ -254,6 +250,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
@@ -282,6 +279,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
@@ -310,7 +308,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				.getCommands().get(0));
 
 		// now try some configurations with different yarn.container-start-command-template
-
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 		assertEquals(
@@ -328,6 +326,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		assertEquals(
 			java +
 				" " + logfile + " " + logback + " " + log4j +

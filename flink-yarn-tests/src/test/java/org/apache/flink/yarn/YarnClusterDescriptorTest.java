@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
@@ -39,7 +40,7 @@ import java.util.Set;
 /**
  * Tests for the YarnClusterDescriptor.
  */
-public class YarnClusterDescriptorTest {
+public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -49,12 +50,8 @@ public class YarnClusterDescriptorTest {
 	 */
 	@Test
 	public void testExplicitLibShipping() throws Exception {
-		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor();
+		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(new Configuration(), temporaryFolder.getRoot().getAbsolutePath());
 		descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
-
-		descriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		descriptor.setConfigurationFilePath(new Path(temporaryFolder.getRoot().getPath()));
-		descriptor.setFlinkConfiguration(new Configuration());
 
 		File libFile = temporaryFolder.newFile("libFile.jar");
 		File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
@@ -86,11 +83,7 @@ public class YarnClusterDescriptorTest {
 	 */
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
-		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor();
-
-		descriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		descriptor.setConfigurationFilePath(new Path(temporaryFolder.getRoot().getPath()));
-		descriptor.setFlinkConfiguration(new Configuration());
+		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(new Configuration(), temporaryFolder.getRoot().getAbsolutePath());
 
 		File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 		File libFile = new File(libFolder, "libFile.jar");

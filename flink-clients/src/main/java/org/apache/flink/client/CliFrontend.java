@@ -152,6 +152,8 @@ public class CliFrontend {
 
 	private final Configuration config;
 
+	private final String configurationDirectory;
+
 	private final FiniteDuration clientTimeout;
 
 	private final int defaultParallelism;
@@ -165,6 +167,7 @@ public class CliFrontend {
 	}
 
 	public CliFrontend(String configDir) throws Exception {
+		configurationDirectory = Preconditions.checkNotNull(configDir);
 
 		// configure the config directory
 		File configDirectory = new File(configDir);
@@ -906,7 +909,7 @@ public class CliFrontend {
 	protected ClusterClient retrieveClient(CommandLineOptions options) {
 		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
 		try {
-			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
+			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
 			return client;
 		} catch (Exception e) {
@@ -943,7 +946,7 @@ public class CliFrontend {
 
 		ClusterClient client;
 		try {
-			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
+			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
@@ -952,6 +955,7 @@ public class CliFrontend {
 					applicationName,
 					options.getCommandLine(),
 					config,
+					configurationDirectory,
 					program.getAllLibraries());
 				logAndSysout("Cluster started: " + client.getClusterIdentifier());
 			} catch (UnsupportedOperationException e2) {

@@ -362,14 +362,20 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 			@Override
 			// override cluster descriptor to replace the YarnClient
-			protected AbstractYarnClusterDescriptor getClusterDescriptor() {
-				return new TestingYarnClusterDescriptor();
+			protected AbstractYarnClusterDescriptor getClusterDescriptor(
+					Configuration configuration,
+					String configurationDirecotry) {
+				return new TestingYarnClusterDescriptor(configuration, configurationDirecotry);
 			}
 
 			/**
 			 * Replace the YarnClient for this test.
 			 */
 			private class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
+
+				public TestingYarnClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
+					super(flinkConfiguration, configurationDirectory);
+				}
 
 				@Override
 				protected YarnClient getYarnClient() {

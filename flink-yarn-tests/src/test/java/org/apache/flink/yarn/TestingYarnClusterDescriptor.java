@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -33,7 +34,8 @@ import java.util.List;
  */
 public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
-	public TestingYarnClusterDescriptor() {
+	public TestingYarnClusterDescriptor(Configuration configuration, String configurationDirectory) {
+		super(configuration, configurationDirectory);
 		List<File> filesToShip = new ArrayList<>();
 
 		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));
