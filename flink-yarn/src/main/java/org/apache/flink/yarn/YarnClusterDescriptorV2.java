@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
@@ -27,6 +28,10 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
  * However, in order to use the code in AbstractYarnClusterDescriptor for setting environments and so on, we make YarnClusterDescriptorV2 as now.
  */
 public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
+
+	public YarnClusterDescriptorV2(Configuration flinkConfiguration, String configurationDirectory) {
+		super(flinkConfiguration, configurationDirectory);
+	}
 
 	@Override
 	protected Class<?> getApplicationMasterClass() {

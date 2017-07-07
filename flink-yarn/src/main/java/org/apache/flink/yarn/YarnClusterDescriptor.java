@@ -18,12 +18,17 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
  * Default implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
  */
 public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
+
+	public YarnClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
+		super(flinkConfiguration, configurationDirectory);
+	}
 
 	@Override
 	protected Class<?> getApplicationMasterClass() {

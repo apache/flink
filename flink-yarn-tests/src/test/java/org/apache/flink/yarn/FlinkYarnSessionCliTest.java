@@ -24,7 +24,6 @@ import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
@@ -43,7 +42,6 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -57,8 +55,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	@Test
 	public void testDynamicProperties() throws Exception {
 
-		Map<String, String> map = new HashMap<String, String>(System.getenv());
-		TestBaseUtils.setEnv(map);
 		FlinkYarnSessionCli cli = new FlinkYarnSessionCli(
 			"",
 			"",
@@ -71,7 +67,11 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15",
 				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar"});
 
-		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
+		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			null,
+			cmd);
 
 		Assert.assertNotNull(flinkYarnDescriptor);
 
@@ -84,10 +84,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	@Test
 	public void testNotEnoughTaskSlots() throws Exception {
-
-		File confFile = tmp.newFile("flink-conf.yaml");
 		File jarFile = tmp.newFile("test.jar");
-		new CliFrontend(tmp.getRoot().getAbsolutePath());
 
 		String[] params =
 			new String[] {"-yn", "2", "-ys", "3", "-p", "7", jarFile.getAbsolutePath()};
@@ -108,7 +105,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		File confFile = tmp.newFile("flink-conf.yaml");
 		File jarFile = tmp.newFile("test.jar");
-		new CliFrontend(tmp.getRoot().getAbsolutePath());
+		CliFrontend cliFrontend = new CliFrontend(tmp.getRoot().getAbsolutePath());
+
+		final Configuration config = cliFrontend.getConfiguration();
 
 		String[] params =
 			new String[] {"-yn", "2", "-ys", "3", jarFile.getAbsolutePath()};
@@ -117,14 +116,22 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
 
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor("", runOptions.getCommandLine());
-		final ClusterSpecification clusterSpecification = yarnCLI.createClusterSpecification(new Configuration(), runOptions.getCommandLine());
+		final Configuration configuration = new Configuration();
+
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor(
+			configuration,
+			tmp.getRoot().getAbsolutePath(),
+			"",
+			runOptions.getCommandLine());
+
+		final ClusterSpecification clusterSpecification = yarnCLI.createClusterSpecification(
+			configuration,
+			runOptions.getCommandLine());
 
 		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
 		Assert.assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
 		Assert.assertEquals(2, clusterSpecification.getNumberTaskManagers());
 
-		Configuration config = new Configuration();
 		CliFrontend.setJobManagerAddressInConfig(config, new InetSocketAddress("localhost", 9000));
 		ClusterClient client = new TestingYarnClusterClient(
 			descriptor,
@@ -139,7 +146,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		File confFile = tmp.newFile("flink-conf.yaml");
 		File jarFile = tmp.newFile("test.jar");
-		new CliFrontend(tmp.getRoot().getAbsolutePath());
+		CliFrontend cliFrontend = new CliFrontend(tmp.getRoot().getAbsolutePath());
+		final Configuration configuration = cliFrontend.getConfiguration();
 
 		String zkNamespaceCliInput = "flink_test_namespace";
 
@@ -149,7 +157,11 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		RunOptions runOptions = CliFrontendParser.parseRunCommand(params);
 
 		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor("", runOptions.getCommandLine());
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor(
+			configuration,
+			tmp.getRoot().getAbsolutePath(),
+			"",
+			runOptions.getCommandLine());
 
 		Assert.assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
 	}
@@ -161,6 +173,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		}
 
 		private static class JarAgnosticClusterDescriptor extends YarnClusterDescriptor {
+			public JarAgnosticClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
+				super(flinkConfiguration, configurationDirectory);
+			}
+
 			@Override
 			public void setLocalJarPath(Path localJarPath) {
 				// add nothing
@@ -168,8 +184,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		}
 
 		@Override
-		protected AbstractYarnClusterDescriptor getClusterDescriptor() {
-			return new JarAgnosticClusterDescriptor();
+		protected AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory) {
+			return new JarAgnosticClusterDescriptor(configuration, configurationDirectory);
 		}
 	}
 

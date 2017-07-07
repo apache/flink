@@ -257,6 +257,7 @@ object FlinkShell {
       "Flink Scala Shell",
       options.getCommandLine,
       config,
+      frontend.getConfigurationDirectory,
       Collections.emptyList())
 
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
@@ -277,7 +278,10 @@ object FlinkShell {
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val cluster = customCLI.retrieveCluster(options.getCommandLine, config)
+    val cluster = customCLI.retrieveCluster(
+      options.getCommandLine,
+      config,
+      frontend.getConfigurationDirectory)
 
     if (cluster == null) {
       throw new RuntimeException("Yarn Cluster could not be retrieved.")

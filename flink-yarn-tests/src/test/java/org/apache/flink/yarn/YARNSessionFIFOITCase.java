@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -224,14 +225,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		final int waitTime = 15;
 		LOG.info("Starting testJavaAPI()");
 
-		AbstractYarnClusterDescriptor flinkYarnClient = new YarnClusterDescriptor();
+		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		Configuration configuration = GlobalConfiguration.loadConfiguration();
+		AbstractYarnClusterDescriptor flinkYarnClient = new YarnClusterDescriptor(configuration, confDirPath);
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		flinkYarnClient.setConfigurationDirectory(confDirPath);
-		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
-		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(768)
