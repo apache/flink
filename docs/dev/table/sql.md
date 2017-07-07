@@ -284,12 +284,14 @@ FROM Orders
     <tr>
       <td>
         <strong>Distinct</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span> <br>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
 {% highlight sql %}
 SELECT DISTINCT users FROM Orders
 {% endhighlight %}
+       <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
