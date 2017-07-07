@@ -228,6 +228,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	//----------------------------------------------------------------------------------------------
 
 	public void start() throws Exception {
+		log.info("Start JobManagerRunner.");
 		try {
 			leaderElectionService.start(this);
 		}

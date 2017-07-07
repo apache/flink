@@ -41,6 +41,7 @@ public class StandaloneDispatcher extends Dispatcher {
 	public StandaloneDispatcher(
 			RpcService rpcService,
 			String endpointId,
+			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
@@ -49,6 +50,7 @@ public class StandaloneDispatcher extends Dispatcher {
 		super(
 			rpcService,
 			endpointId,
+			configuration,
 			highAvailabilityServices,
 			blobServer,
 			heartbeatServices,

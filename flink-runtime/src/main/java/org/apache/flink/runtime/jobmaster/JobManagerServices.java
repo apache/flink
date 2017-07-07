@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import scala.concurrent.duration.FiniteDuration;
 
@@ -103,6 +104,9 @@ public class JobManagerServices {
 	public static JobManagerServices fromConfiguration(
 			Configuration config,
 			BlobService blobService) throws Exception {
+
+		Preconditions.checkNotNull(config);
+		Preconditions.checkNotNull(blobService);
 
 		final long cleanupInterval = config.getLong(
 			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,

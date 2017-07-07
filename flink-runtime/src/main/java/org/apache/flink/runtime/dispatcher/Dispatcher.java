@@ -58,6 +58,8 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
+	private final Configuration configuration;
+
 	private final SubmittedJobGraphStore submittedJobGraphStore;
 	private final RunningJobsRegistry runningJobsRegistry;
 
@@ -73,6 +75,7 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 	protected Dispatcher(
 			RpcService rpcService,
 			String endpointId,
+			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
@@ -80,6 +83,7 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 		super(rpcService, endpointId);
 
+		this.configuration = Preconditions.checkNotNull(configuration);
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
 		this.blobServer = Preconditions.checkNotNull(blobServer);
 		this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices);
@@ -153,10 +157,11 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 			final JobManagerRunner jobManagerRunner;
 
 			try {
+				log.info("Create JobManager runner.");
 				jobManagerRunner = createJobManagerRunner(
 					ResourceID.generate(),
 					jobGraph,
-					null,
+					configuration,
 					getRpcService(),
 					highAvailabilityServices,
 					blobServer,
