@@ -25,8 +25,8 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
@@ -196,8 +196,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		Configuration configuration = new Configuration();
 		configuration.addAll(this.clientConfiguration);
 
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
-		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+		configuration.setString(JobManagerOptions.ADDRESS, host);
+		configuration.setInteger(JobManagerOptions.PORT, port);
 
 		ClusterClient client;
 		try {

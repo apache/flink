@@ -246,10 +246,9 @@ public class MesosApplicationMasterRunner {
 				taskManagerParameters.cpus());
 
 			// JM endpoint, which should be explicitly configured based on acquired net resources
-			final int listeningPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+			final int listeningPort = config.getInteger(JobManagerOptions.PORT);
 			checkState(listeningPort >= 0 && listeningPort <= 65536, "Config parameter \"" +
-				ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + "\" is invalid, it must be between 0 and 65536");
+				JobManagerOptions.PORT.key() + "\" is invalid, it must be between 0 and 65536");
 
 			// ----------------- (2) start the actor system -------------------
 

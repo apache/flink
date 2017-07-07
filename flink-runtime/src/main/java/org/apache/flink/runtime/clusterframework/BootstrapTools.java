@@ -185,8 +185,8 @@ public class BootstrapTools {
 
 		// this ensures correct values are present in the web frontend
 		final Address address = AkkaUtils.getAddress(actorSystem);
-		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host().get());
-		config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port().get().toString());
+		config.setString(JobManagerOptions.ADDRESS, address.host().get());
+		config.setInteger(JobManagerOptions.PORT, Integer.parseInt(address.port().get().toString()));
 
 		if (config.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
@@ -228,8 +228,8 @@ public class BootstrapTools {
 
 		Configuration cfg = baseConfig.clone();
 
-		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHostname);
-		cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
+		cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
+		cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
 		cfg.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, registrationTimeout.toString());
 		if (numSlots != -1){
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);

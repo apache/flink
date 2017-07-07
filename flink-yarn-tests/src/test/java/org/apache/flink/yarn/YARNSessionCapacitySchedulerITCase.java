@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
@@ -202,9 +203,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
 			Assert.assertEquals("unable to find hostname in " + jsonConfig, hostname,
-				parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY));
+				parsedConfig.get(JobManagerOptions.ADDRESS.key()));
 			Assert.assertEquals("unable to find port in " + jsonConfig, port,
-				parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
+				parsedConfig.get(JobManagerOptions.PORT.key()));
 
 			// test logfile access
 			String logs = TestBaseUtils.getFromHTTP(url + "jobmanager/log");

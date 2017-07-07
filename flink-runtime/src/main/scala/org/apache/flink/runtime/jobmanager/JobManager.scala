@@ -152,7 +152,7 @@ class JobManager(
 
   protected val jobManagerMetricGroup : Option[JobManagerMetricGroup] = metricsRegistry match {
     case Some(registry) =>
-      val host = flinkConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+      val host = flinkConfiguration.getString(JobManagerOptions.ADDRESS)
       Option(new JobManagerMetricGroup(
         registry, NetUtils.unresolvedHostToNormalizedString(host)))
     case None =>
@@ -1960,7 +1960,7 @@ object JobManager {
     // if it is not in there, the actor system will bind to the loopback interface's
     // address and will not be reachable from anyone remote
     if (externalHostName == null) {
-      val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
+      val message = "Config parameter '" + JobManagerOptions.ADDRESS.key() +
         "' is missing (hostname/address to bind JobManager to)."
       LOG.error(message)
       System.exit(STARTUP_FAILURE_RETURN_CODE)
@@ -1974,7 +1974,7 @@ object JobManager {
         System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
       else {
-        val message = s"Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
+        val message = s"Config parameter '" + JobManagerOptions.ADDRESS.key() +
           "' does not specify a valid port."
         LOG.error(message)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
@@ -2185,8 +2185,8 @@ object JobManager {
 
     val address = AkkaUtils.getAddress(jobManagerSystem)
 
-    configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
-    configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
+    configuration.setString(JobManagerOptions.ADDRESS, address.host.get)
+    configuration.setInteger(JobManagerOptions.PORT, address.port.get)
 
     jobManagerSystem
   }
@@ -2403,17 +2403,17 @@ object JobManager {
     }
 
     if (cliOptions.getHost() != null) {
-      configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, cliOptions.getHost())
+      configuration.setString(JobManagerOptions.ADDRESS, cliOptions.getHost())
     }
 
-    val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+    val host = configuration.getString(JobManagerOptions.ADDRESS)
 
     val portRange =
       // high availability mode
       if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
         LOG.info("Starting JobManager with high-availability")
 
-        configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
+        configuration.setInteger(JobManagerOptions.PORT, 0)
 
         // The port range of allowed job manager ports or 0 for random
         configuration.getValue(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE)
@@ -2422,12 +2422,10 @@ object JobManager {
         LOG.info("Starting JobManager without high-availability")
 
         // In standalone mode, we don't allow port ranges
-        val listeningPort = configuration.getInteger(
-          ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+        val listeningPort = configuration.getInteger(JobManagerOptions.PORT)
 
         if (listeningPort <= 0 || listeningPort >= 65536) {
-          val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+          val message = "Config parameter '" + JobManagerOptions.PORT.key() +
             "' is invalid, it must be greater than 0 and less than 65536."
           LOG.error(message)
           System.exit(STARTUP_FAILURE_RETURN_CODE)

@@ -19,9 +19,9 @@ package org.apache.flink.storm.api;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
 
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
@@ -91,12 +91,11 @@ public class FlinkSubmitter {
 		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
 		if (!stormConf.containsKey(Config.NIMBUS_HOST)) {
 			stormConf.put(Config.NIMBUS_HOST,
-					flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost"));
+					flinkConfig.getString(JobManagerOptions.ADDRESS, "localhost"));
 		}
 		if (!stormConf.containsKey(Config.NIMBUS_THRIFT_PORT)) {
 			stormConf.put(Config.NIMBUS_THRIFT_PORT,
-					new Integer(flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-							6123)));
+					new Integer(flinkConfig.getInteger(JobManagerOptions.PORT)));
 		}
 
 		final String serConf = JSONValue.toJSONString(stormConf);
