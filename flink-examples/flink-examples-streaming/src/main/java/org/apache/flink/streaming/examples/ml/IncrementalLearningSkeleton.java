@@ -181,7 +181,7 @@ public class IncrementalLearningSkeleton {
 	 * Creates newData using the model produced in batch-processing and the
 	 * up-to-date partial model.
 	 * <p>
-	 * By defaults emits the Integer 0 for every newData and the Integer 1
+	 * By default emits the Integer 0 for every newData and the Integer 1
 	 * for every model update.
 	 * </p>
 	 */

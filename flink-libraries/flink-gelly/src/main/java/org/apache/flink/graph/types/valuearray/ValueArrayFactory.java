@@ -18,10 +18,15 @@
 
 package org.apache.flink.graph.types.valuearray;
 
+import org.apache.flink.types.ByteValue;
+import org.apache.flink.types.CharValue;
 import org.apache.flink.types.CopyableValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
@@ -43,12 +48,22 @@ public class ValueArrayFactory {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> ValueArray<T> createValueArray(Class<? extends Value> cls) {
-		if (IntValue.class.isAssignableFrom(cls)) {
+		if (ByteValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new ByteValueArray();
+		} else if (CharValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new CharValueArray();
+		} else if (DoubleValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new DoubleValueArray();
+		} else if (FloatValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new FloatValueArray();
+		} else if (IntValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new IntValueArray();
 		} else if (LongValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new LongValueArray();
 		} else if (NullValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new NullValueArray();
+		} else if (ShortValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new ShortValueArray();
 		} else if (StringValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new StringValueArray();
 		} else {
@@ -66,12 +81,22 @@ public class ValueArrayFactory {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> ValueArray<T> createValueArray(Class<? extends Value> cls, int bytes) {
-		if (IntValue.class.isAssignableFrom(cls)) {
+		if (ByteValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new ByteValueArray(bytes);
+		} else if (CharValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new CharValueArray(bytes);
+		} else if (DoubleValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new DoubleValueArray(bytes);
+		} else if (FloatValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new FloatValueArray(bytes);
+		} else if (IntValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new IntValueArray(bytes);
 		} else if (LongValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new LongValueArray(bytes);
 		} else if (NullValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new NullValueArray(bytes);
+		} else if (ShortValue.class.isAssignableFrom(cls)) {
+			return (ValueArray<T>) new ShortValueArray(bytes);
 		} else if (StringValue.class.isAssignableFrom(cls)) {
 			return (ValueArray<T>) new StringValueArray(bytes);
 		} else {

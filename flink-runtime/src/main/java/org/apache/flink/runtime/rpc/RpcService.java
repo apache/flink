@@ -43,6 +43,14 @@ public interface RpcService {
 	String getAddress();
 
 	/**
+	 * Return the port under which the rpc service is reachable. If the rpc service cannot be
+	 * contacted remotely, then it will return -1.
+	 *
+	 * @return Port of the rpc service or -1 if local rpc service
+	 */
+	int getPort();
+
+	/**
 	 * Connect to a remote rpc server under the provided address. Returns a rpc gateway which can
 	 * be used to communicate with the rpc server. If the connection failed, then the returned
 	 * future is failed with a {@link RpcConnectionException}.

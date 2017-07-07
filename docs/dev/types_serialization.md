@@ -111,7 +111,7 @@ conditions are fulfilled:
 
 * The class is public and standalone (no non-static inner class)
 * The class has a public no-argument constructor
-* All fields in the class (and all superclasses) are either public (and non-final)
+* All non-static, non-transient fields in the class (and all superclasses) are either public (and non-final)
   or have a public getter- and a setter- method that follows the Java beans
   naming conventions for getters and setters.
 

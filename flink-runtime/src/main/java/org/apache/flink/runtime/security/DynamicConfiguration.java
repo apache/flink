@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.security;
 
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,7 +33,7 @@ import java.util.Map;
 /**
  * A dynamic JAAS configuration.
  *
- * Makes it possible to define Application Configuration Entries (ACEs) at runtime, building upon
+ * <p>Makes it possible to define Application Configuration Entries (ACEs) at runtime, building upon
  * an (optional) underlying configuration.   Entries from the underlying configuration take
  * precedence over dynamic entries.
  */
@@ -41,7 +43,7 @@ public class DynamicConfiguration extends Configuration {
 
 	private final Configuration delegate;
 
-	private final Map<String,AppConfigurationEntry[]> dynamicEntries = new HashMap<>();
+	private final Map<String, AppConfigurationEntry[]> dynamicEntries = new HashMap<>();
 
 	/**
 	 * Create a dynamic configuration.
@@ -57,7 +59,7 @@ public class DynamicConfiguration extends Configuration {
 	public void addAppConfigurationEntry(String name, AppConfigurationEntry... entry) {
 		final AppConfigurationEntry[] existing = dynamicEntries.get(name);
 		final AppConfigurationEntry[] updated;
-		if(existing == null) {
+		if (existing == null) {
 			updated = Arrays.copyOf(entry, entry.length);
 		}
 		else {
@@ -70,8 +72,6 @@ public class DynamicConfiguration extends Configuration {
 	 * Retrieve the AppConfigurationEntries for the specified <i>name</i>
 	 * from this Configuration.
 	 *
-	 * <p>
-	 *
 	 * @param name the name used to index the Configuration.
 	 *
 	 * @return an array of AppConfigurationEntries for the specified <i>name</i>
@@ -81,12 +81,12 @@ public class DynamicConfiguration extends Configuration {
 	@Override
 	public AppConfigurationEntry[] getAppConfigurationEntry(String name) {
 		AppConfigurationEntry[] entry = null;
-		if(delegate != null) {
+		if (delegate != null) {
 			entry = delegate.getAppConfigurationEntry(name);
 		}
 		final AppConfigurationEntry[] existing = dynamicEntries.get(name);
-		if(existing != null) {
-			if(entry != null) {
+		if (existing != null) {
+			if (entry != null) {
 				entry = merge(entry, existing);
 			}
 			else {
@@ -104,7 +104,7 @@ public class DynamicConfiguration extends Configuration {
 
 	@Override
 	public void refresh() {
-		if(delegate != null) {
+		if (delegate != null) {
 			delegate.refresh();
 		}
 	}

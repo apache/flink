@@ -40,7 +40,7 @@ Currently, Flink provides the `CsvTableSource` to read CSV files and a few table
 A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. See section on [defining a custom TableSource](#define-a-tablesource) for details.
 
 | **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
-| `CsvTableSouce` | `flink-table` | Y | Y | A simple source for CSV files.
+| `CsvTableSource` | `flink-table` | Y | Y | A simple source for CSV files.
 | `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
 | `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for Avro data.
 | `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -44,7 +45,9 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
@@ -66,6 +69,11 @@ public class HDFSTest {
 	private MiniDFSCluster hdfsCluster;
 	private org.apache.hadoop.fs.Path hdPath;
 	protected org.apache.hadoop.fs.FileSystem hdfs;
+
+	@BeforeClass
+	public static void verifyOS() {
+		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
+	}
 
 	@Before
 	public void createHDFS() {
@@ -199,7 +207,7 @@ public class HDFSTest {
 		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		for (Path file: Arrays.asList(singleFile, directoryFile)) {
-			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, true);
+			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, FileSystem.WriteMode.OVERWRITE);
 			outputStream.write(data);
 			outputStream.close();
 		}

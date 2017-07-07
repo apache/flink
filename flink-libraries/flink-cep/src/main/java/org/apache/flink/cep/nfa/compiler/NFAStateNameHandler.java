@@ -55,6 +55,14 @@ public class NFAStateNameHandler {
 		if (usedNames.contains(name)) {
 			throw new MalformedPatternException("Duplicate pattern name: " + name + ". Names must be unique.");
 		}
+		usedNames.add(name);
+	}
+
+	/**
+	 * Clear the names added during checking name uniqueness.
+	 */
+	public void clear() {
+		usedNames.clear();
 	}
 
 	/**

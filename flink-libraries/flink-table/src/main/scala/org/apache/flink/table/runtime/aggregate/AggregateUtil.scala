@@ -129,17 +129,10 @@ object AggregateUtil {
           queryConfig)
       }
     } else {
-      if (isPartitioned) {
-        new ProcTimeUnboundedPartitionedOver(
-          genFunction,
-          aggregationStateType,
-          queryConfig)
-      } else {
-        new ProcTimeUnboundedNonPartitionedOver(
-          genFunction,
-          aggregationStateType,
-          queryConfig)
-      }
+      new ProcTimeUnboundedOver(
+        genFunction,
+        aggregationStateType,
+        queryConfig)
     }
   }
 

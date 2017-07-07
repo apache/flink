@@ -40,11 +40,6 @@ extends GeneratedGraph<LongValue> {
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
-	public String getName() {
-		return CycleGraph.class.getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() + " (" + vertexCount + ")";
 	}

@@ -129,7 +129,7 @@ public class DistCp {
 				FSDataOutputStream outputStream = null;
 				FSDataInputStream inputStream = null;
 				try {
-					outputStream = targetFs.create(outPath, true);
+					outputStream = targetFs.create(outPath, FileSystem.WriteMode.OVERWRITE);
 					inputStream = task.getPath().getFileSystem().open(task.getPath());
 					int bytes = IOUtils.copy(inputStream, outputStream);
 					bytesCounter.add(bytes);

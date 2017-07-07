@@ -87,6 +87,7 @@ public class AkkaRpcService implements RpcService {
 	private final long maximumFramesize;
 
 	private final String address;
+	private final int port;
 
 	private final ScheduledExecutor internalScheduledExecutor;
 
@@ -111,12 +112,23 @@ public class AkkaRpcService implements RpcService {
 			address = "";
 		}
 
+		if (actorSystemAddress.port().isDefined()) {
+			port = (Integer) actorSystemAddress.port().get();
+		} else {
+			port = -1;
+		}
+
 		internalScheduledExecutor = new InternalScheduledExecutorImpl(actorSystem);
 	}
 
 	@Override
 	public String getAddress() {
 		return address;
+	}
+
+	@Override
+	public int getPort() {
+		return port;
 	}
 
 	// this method does not mutate state and is thus thread-safe

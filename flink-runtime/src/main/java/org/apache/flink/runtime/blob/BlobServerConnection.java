@@ -509,21 +509,7 @@ class BlobServerConnection extends Thread {
 
 			if (type == CONTENT_ADDRESSABLE) {
 				BlobKey key = BlobKey.readFromInputStream(inputStream);
-				File blobFile = blobServer.getStorageLocation(key);
-
-				writeLock.lock();
-
-				try {
-					// we should make the local and remote file deletion atomic, otherwise we might risk not
-					// removing the remote file in case of a concurrent put operation
-					if (blobFile.exists() && !blobFile.delete()) {
-						throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
-					}
-
-					blobStore.delete(key);
-				} finally {
-					writeLock.unlock();
-				}
+				blobServer.delete(key);
 			}
 			else if (type == NAME_ADDRESSABLE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -540,7 +526,7 @@ class BlobServerConnection extends Thread {
 					// we should make the local and remote file deletion atomic, otherwise we might risk not
 					// removing the remote file in case of a concurrent put operation
 					if (blobFile.exists() && !blobFile.delete()) {
-						throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
+						LOG.warn("Cannot delete local BLOB file " + blobFile.getAbsolutePath());
 					}
 
 					blobStore.delete(jobID, key);

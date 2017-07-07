@@ -15,14 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.net;
 
-import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.UnknownHostException;
+package org.apache.flink.runtime.net;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -30,6 +24,13 @@ import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.UnknownHostException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -48,7 +49,7 @@ public class ConnectionUtilsTest {
 			// the "blocker" server socket simply does not accept connections
 			// this address is consequently "unreachable"
 			InetSocketAddress unreachable = new InetSocketAddress("localhost", blocker.getLocalPort());
-			
+
 			final long start = System.nanoTime();
 			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 

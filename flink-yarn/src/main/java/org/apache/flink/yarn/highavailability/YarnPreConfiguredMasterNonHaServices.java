@@ -176,4 +176,14 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 			exit();
 		}
 	}
+
+	@Override
+	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress) {
+		enter();
+		try {
+			return new StandaloneLeaderRetrievalService(defaultJobManagerAddress, DEFAULT_LEADER_ID);
+		} finally {
+			exit();
+		}
+	}
 }

@@ -62,7 +62,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 		for (int attempt = 0; attempt < 10; attempt++) {
 			Path filePath = getNewFilePath();
 
-			try (FSDataOutputStream outStream = fs.create(filePath, false)) {
+			try (FSDataOutputStream outStream = fs.create(filePath, FileSystem.WriteMode.NO_OVERWRITE)) {
 				InstantiationUtil.serializeObject(outStream, state);
 				return new RetrievableStreamStateHandle<T>(filePath, outStream.getPos());
 			}

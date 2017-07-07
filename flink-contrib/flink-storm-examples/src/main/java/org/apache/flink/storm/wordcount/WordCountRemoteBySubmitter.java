@@ -17,10 +17,10 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkClient;
 import org.apache.flink.storm.api.FlinkSubmitter;
 import org.apache.flink.storm.api.FlinkTopology;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;

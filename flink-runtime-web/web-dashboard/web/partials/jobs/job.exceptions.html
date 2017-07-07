@@ -21,6 +21,10 @@ limitations under the License.
   <div class="panel-heading clearfix">
     <div class="panel-title">Root exception</div>
   </div>
+  <div class="panel-heading clearfix">
+    <div ng-if="exceptions['timestamp'] != -1" class="panel-info thin last"><strong>Timestamp:</strong> {{ exceptions['timestamp'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+    </div>
+  </div>
   <div class="panel-body">
     <pre class="exception">{{ exceptions['root-exception'] }}</pre>
   </div>
@@ -30,7 +34,10 @@ limitations under the License.
     <div class="panel-title">{{ exception.task }}</div>
   </div>
   <div class="panel-heading clearfix">
-    <div class="panel-info thin last"><span>{{ exception.location }}</span></div>
+    <div ng-if="exception.timestamp != -1" class="panel-info thin"><strong>Timestamp:</strong> {{ exception.timestamp | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+    </div>
+    <div class="panel-info thin last"><strong>Location:</strong> {{ exception.location }}
+    </div>
   </div>
   <div class="panel-body">
     <pre class="exception">{{ exception.exception }}</pre>

@@ -72,7 +72,7 @@ extends AsmTestBase {
 		expectedResults.add(Tuple2.of(0.194942233447, 0.0));
 
 		for (Result<IntValue> result : hits.collect()) {
-			int id = result.f0.getValue();
+			int id = result.getVertexId0().getValue();
 			assertEquals(expectedResults.get(id).f0, result.getHubScore().getValue(), 0.000001);
 			assertEquals(expectedResults.get(id).f1, result.getAuthorityScore().getValue(), 0.000001);
 		}
@@ -119,7 +119,7 @@ extends AsmTestBase {
 
 		Map<Long, Result<LongValue>> results = new HashMap<>();
 		for (Result<LongValue> result :  new Collect<Result<LongValue>>().run(hits).execute()) {
-			results.put(result.f0.getValue(), result);
+			results.put(result.getVertexId0().getValue(), result);
 		}
 
 		assertEquals(902, results.size());

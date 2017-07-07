@@ -73,9 +73,9 @@ public class NetworkEnvironment {
 
 	private final int partitionRequestMaxBackoff;
 
-	/** Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel). */
+	/** Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel). */
 	private final int networkBuffersPerChannel;
-	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
 	private final int extraNetworkBuffersPerGate;
 
 	private boolean isShutdown;

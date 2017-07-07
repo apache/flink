@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
 import org.apache.flink.util.NetUtils;
 
-import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -136,7 +135,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		// Keep a set of the message IDs that we read. The size must equal the read count and
 		// the NUM_STRINGS. If numRead is bigger than the size of the set we have seen some
 		// elements twice.
-		Set<Integer> readNumbers = Sets.newHashSet();
+		Set<Integer> readNumbers = new HashSet<>();
 
 		HashSet<String> uniqMessagesRead = new HashSet<>();
 		HashSet<String> messagesInCommittedFiles = new HashSet<>();

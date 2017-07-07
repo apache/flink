@@ -83,11 +83,6 @@ extends GeneratedMultiGraph<LongValue> {
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() +
 			" (s" + scale + "e" + edgeFactor + getSimplifyShortString() + ")";
@@ -98,12 +93,7 @@ extends GeneratedMultiGraph<LongValue> {
 		return 1L << scale.getValue();
 	}
 
-	/**
-	 * Generate the graph as configured.
-	 *
-	 * @param env Flink execution environment
-	 * @return input graph
-	 */
+	@Override
 	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
 		int lp = littleParallelism.getValue().intValue();
 

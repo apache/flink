@@ -57,6 +57,14 @@ public class TaskManagerOptions {
 			key("taskmanager.exit-on-fatal-akka-error")
 			.defaultValue(false);
 
+	/**
+	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final ConfigOption<String> RPC_PORT = 
+		key("taskmanager.rpc.port")
+			.defaultValue("0");
+
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------
@@ -137,7 +145,7 @@ public class TaskManagerOptions {
 			.defaultValue(1024L << 20); // 1 GB
 
 	/**
-	 * Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel).
+	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).
 	 *
 	 * Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization
 	 */
@@ -146,7 +154,7 @@ public class TaskManagerOptions {
 			.defaultValue(2);
 
 	/**
-	 * Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate).
+	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
 	 */
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
 			key("taskmanager.network.memory.floating-buffers-per-gate")

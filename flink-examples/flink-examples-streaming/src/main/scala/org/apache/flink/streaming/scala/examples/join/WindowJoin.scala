@@ -78,10 +78,10 @@ object WindowJoin {
     joined.print().setParallelism(1)
 
     // execute program
-    env.execute("WindowJoin")
+    env.execute("Windowed Join Example")
   }
-  
-  
+
+
   def joinStreams(
       grades: DataStream[Grade],
       salaries: DataStream[Salary],

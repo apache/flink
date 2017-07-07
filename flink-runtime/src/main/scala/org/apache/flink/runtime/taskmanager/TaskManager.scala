@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, FileInputStream, IOException}
 import java.lang.management.ManagementFactory
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket}
 import java.util
 import java.util.concurrent.{Callable, TimeUnit}
 import java.util.{Collections, UUID}
@@ -70,6 +70,7 @@ import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
+import org.apache.flink.util.NetUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
@@ -1665,7 +1666,7 @@ object TaskManager {
       Executors.directExecutor(),
       AddressResolution.TRY_ADDRESS_RESOLUTION)
 
-    val (taskManagerHostname, actorSystemPort) = selectNetworkInterfaceAndPort(
+    val (taskManagerHostname, actorSystemPortRange) = selectNetworkInterfaceAndPortRange(
       configuration,
       highAvailabilityServices)
 
@@ -1673,7 +1674,7 @@ object TaskManager {
       runTaskManager(
         taskManagerHostname,
         resourceID,
-        actorSystemPort,
+        actorSystemPortRange,
         configuration,
         highAvailabilityServices,
         taskManagerClass)
@@ -1688,10 +1689,10 @@ object TaskManager {
 
   @throws(classOf[IOException])
   @throws(classOf[IllegalConfigurationException])
-  def selectNetworkInterfaceAndPort(
+  def selectNetworkInterfaceAndPortRange(
       configuration: Configuration,
       highAvailabilityServices: HighAvailabilityServices)
-    : (String, Int) = {
+    : (String, java.util.Iterator[Integer]) = {
 
     var taskManagerHostname = configuration.getString(
       ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
@@ -1713,15 +1714,20 @@ object TaskManager {
     }
 
     // if no task manager port has been configured, use 0 (system will pick any free port)
-    val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
-    if (actorSystemPort < 0 || actorSystemPort > 65535) {
-      throw new IllegalConfigurationException("Invalid value for '" +
-        ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
-        "' (port for the TaskManager actor system) : " + actorSystemPort +
-        " - Leave config parameter empty or use 0 to let the system choose a port automatically.")
+    val portRange = configuration.getString(TaskManagerOptions.RPC_PORT)
+
+    val portRangeIterator = try {
+      NetUtils.getPortRangeFromString(portRange)
+    } catch {
+      case _: NumberFormatException =>
+        throw new IllegalConfigurationException("Invalid value for '" +
+          TaskManagerOptions.RPC_PORT.key() +
+          "' (port for the TaskManager actor system) : " + portRange +
+          " - Leave config parameter empty or use 0 to let the system choose a port automatically.")
     }
 
-    (taskManagerHostname, actorSystemPort)
+    (taskManagerHostname, portRangeIterator)
+
   }
 
   /**
@@ -1872,6 +1878,65 @@ object TaskManager {
           case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
         }
         throw t
+    }
+  }
+
+  /**
+    * Starts and runs the TaskManager. with all its components trying to bind to
+    * a port in the specified range.
+    *
+    * @param taskManagerHostname The hostname/address of the interface where the actor system
+    *                         will communicate.
+    * @param resourceID The id of the resource which the task manager will run on.
+    * @param actorSystemPortRange The port at which the actor system will communicate.
+    * @param configuration The configuration for the TaskManager.
+    * @param taskManagerClass The actor class to instantiate. Allows the use of TaskManager
+    *                         subclasses for example for YARN.
+    */
+  @throws(classOf[Exception])
+  def runTaskManager(
+    taskManagerHostname: String,
+    resourceID: ResourceID,
+    actorSystemPortRange: java.util.Iterator[Integer],
+    configuration: Configuration,
+    highAvailabilityServices: HighAvailabilityServices,
+    taskManagerClass: Class[_ <: TaskManager])
+    : Unit = {
+
+    val result = AkkaUtils.retryOnBindException({
+      // Try all ports in the range until successful
+      val socket = NetUtils.createSocketFromPorts(
+        actorSystemPortRange,
+        new NetUtils.SocketFactory {
+          override def createSocket(port: Int): ServerSocket = new ServerSocket(
+            // Use the correct listening address, bound ports will only be
+            // detected later by Akka.
+            port, 0, InetAddress.getByName(NetUtils.getWildcardIPAddress))
+        })
+
+      val port =
+        if (socket == null) {
+          throw new BindException(s"Unable to allocate port for TaskManager.")
+        } else {
+          try {
+            socket.getLocalPort()
+          } finally {
+            socket.close()
+          }
+        }
+
+      runTaskManager(
+        taskManagerHostname,
+        resourceID,
+        port,
+        configuration,
+        highAvailabilityServices,
+        taskManagerClass)
+    }, { !actorSystemPortRange.hasNext }, 5000)
+
+    result match {
+      case scala.util.Failure(f) => throw f
+      case _ =>
     }
   }
 

@@ -27,7 +27,7 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
 import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
-import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration, JobManagerOptions, TaskManagerOptions}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
@@ -41,6 +41,7 @@ import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, Leader
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
+import org.apache.flink.util.NetUtils
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -250,10 +251,14 @@ abstract class FlinkMiniCluster(
   }
 
   def getTaskManagerAkkaConfig(index: Int): Config = {
-    val port = originalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-                                                ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+    val portRange = originalConfiguration.getString(TaskManagerOptions.RPC_PORT)
 
-    val resolvedPort = if(port != 0) port + index else port
+    val portRangeIterator = NetUtils.getPortRangeFromString(portRange)
+
+    val resolvedPort = if (portRangeIterator.hasNext) {
+      val port = portRangeIterator.next()
+      if (port > 0) port + index else 0
+    } else 0
 
     AkkaUtils.getAkkaConfig(originalConfiguration, Some((hostname, resolvedPort)))
   }
@@ -305,7 +310,7 @@ abstract class FlinkMiniCluster(
           "The FlinkMiniCluster has not been started yet.")
       }
     } else {
-      JobClient.startJobClientActorSystem(originalConfiguration)
+      JobClient.startJobClientActorSystem(originalConfiguration, hostname)
     }
   }
 
@@ -385,7 +390,7 @@ abstract class FlinkMiniCluster(
     : Option[WebMonitor] = {
     if(
       config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false) &&
-        config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+        config.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
 
       LOG.info("Starting JobManger web frontend")
       // start the new web frontend. we need to load this dynamically

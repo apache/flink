@@ -100,7 +100,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				LOG,
 				handover,
 				kafkaProperties,
-				subscribedPartitionStates(),
+				unassignedPartitionsQueue,
 				kafkaMetricGroup,
 				createCallBridge(),
 				getFetcherName() + " for " + taskNameWithSubtasks,
@@ -122,7 +122,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 			while (running) {
 				// this blocks until we get the next records
-				// it automatically re-throws exceptions encountered in the fetcher thread
+				// it automatically re-throws exceptions encountered in the consumer thread
 				final ConsumerRecords<byte[], byte[]> records = handover.pollNext();
 
 				// get the records for each topic partition
@@ -210,8 +210,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	@Override
 	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
-		KafkaTopicPartitionState<TopicPartition>[] partitions = subscribedPartitionStates();
-		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.length);
+		@SuppressWarnings("unchecked")
+		List<KafkaTopicPartitionState<TopicPartition>> partitions = subscribedPartitionStates();
+
+		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.size());
 
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
 			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());

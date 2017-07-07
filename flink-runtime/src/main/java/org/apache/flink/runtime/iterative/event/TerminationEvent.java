@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.event;
-
-import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.TaskEvent;
 
+import java.io.IOException;
+
 /**
- * Signals that the iteration is completely executed, participating tasks must terminate now
+ * Signals that the iteration is completely executed, participating tasks must terminate now.
  */
 public class TerminationEvent extends TaskEvent {
 
 	public static final TerminationEvent INSTANCE = new TerminationEvent();
-	
+
 	@Override
 	public void write(DataOutputView out) throws IOException {}
 

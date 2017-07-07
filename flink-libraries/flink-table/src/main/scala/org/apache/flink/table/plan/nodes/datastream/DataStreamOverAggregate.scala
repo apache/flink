@@ -242,17 +242,10 @@ class DataStreamOverAggregate(
       }
       // non-partitioned aggregation
       else {
-        if (isRowTimeType) {
-          inputDS.keyBy(new NullByteKeySelector[CRow])
-            .process(processFunction).setParallelism(1).setMaxParallelism(1)
-            .returns(returnTypeInfo)
-            .name(aggOpName)
-        } else {
-          inputDS
-            .process(processFunction).setParallelism(1).setMaxParallelism(1)
-            .returns(returnTypeInfo)
-            .name(aggOpName)
-        }
+        inputDS.keyBy(new NullByteKeySelector[CRow])
+          .process(processFunction).setParallelism(1).setMaxParallelism(1)
+          .returns(returnTypeInfo)
+          .name(aggOpName)
       }
     result
   }

@@ -17,7 +17,6 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
 import org.apache.flink.storm.util.NullTerminatingSpout;
@@ -29,6 +28,7 @@ import org.apache.flink.storm.wordcount.operators.BoltTokenizer;
 import org.apache.flink.storm.wordcount.operators.BoltTokenizerByName;
 import org.apache.flink.storm.wordcount.operators.WordCountFileSpout;
 import org.apache.flink.storm.wordcount.operators.WordCountInMemorySpout;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 
 import org.apache.storm.generated.StormTopology;
 import org.apache.storm.topology.TopologyBuilder;

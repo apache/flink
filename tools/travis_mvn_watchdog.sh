@@ -44,8 +44,10 @@ SLEEP_TIME=20
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
-# on the Travis VMs.
-MVN="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=1 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install"
+# on the Travis VMs. Set forkCountTestPackage to 1 for container-based environment (4 GiB memory)
+# and 2 for sudo-enabled environment (7.5 GiB memory).
+MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+MVN="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS clean install"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -194,6 +196,25 @@ watchdog &
 WD_PID=$!
 
 echo "STARTED watchdog (${WD_PID})."
+
+
+# Print and fold CPU, memory, and filesystem info
+FOLD_ESCAPE="\x0d\x1b"
+COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
+COLOR_OFF="\x1b\x5b\x30\x6d"
+
+echo -e "travis_fold:start:cpu_info${FOLD_ESCAPE}${COLOR_ON}CPU information${COLOR_OFF}"
+lscpu
+echo -en "travis_fold:end:cpu_info${FOLD_ESCAPE}"
+
+echo -e "travis_fold:start:mem_info${FOLD_ESCAPE}${COLOR_ON}Memory information${COLOR_OFF}"
+cat /proc/meminfo
+echo -en "travis_fold:end:mem_info${FOLD_ESCAPE}"
+
+echo -e "travis_fold:start:disk_info${FOLD_ESCAPE}${COLOR_ON}Disk information${COLOR_OFF}"
+df -hH
+echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
+
 
 # Make sure to be in project root
 cd $HERE/../
