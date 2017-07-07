@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.MultiPartitioner;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -66,6 +67,7 @@ import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.MulticastPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -364,6 +366,18 @@ public class DataStreamTest {
 		assertFalse(isKeyed(customPartition1));
 		assertFalse(isKeyed(customPartition3));
 		assertFalse(isKeyed(customPartition4));
+
+		//Testing DataStream multicasting
+		MultiPartitioner<Long> longMultiPartitioner = new MultiPartitioner<Long>() {
+			@Override
+			public int[] partition(Long record, int numPartitions) {
+				return new int[]{0, 10, 100};
+			}
+		};
+
+		DataStream<Tuple2<Long, Long>> multiPartition1 = src1.multicast(longMultiPartitioner);
+		int mid1 = createDownStreamId(multiPartition1);
+		assertTrue(isMultiPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(), mid1)));
 
 		//Testing ConnectedStreams grouping
 		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedGroup1 = connected.keyBy(0, 0);
@@ -1232,6 +1246,16 @@ public class DataStreamTest {
 		boolean result = true;
 		for (StreamEdge edge: edges) {
 			if (!(edge.getPartitioner() instanceof CustomPartitionerWrapper)) {
+				result = false;
+			}
+		}
+		return result;
+	}
+
+	private static boolean isMultiPartitioned(List<StreamEdge> edges) {
+		boolean result = true;
+		for (StreamEdge edge: edges) {
+			if (!(edge.getPartitioner() instanceof MulticastPartitionerWrapper)) {
 				result = false;
 			}
 		}
