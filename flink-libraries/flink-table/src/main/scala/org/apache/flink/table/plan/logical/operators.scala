@@ -128,13 +128,6 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
     child.construct(relBuilder)
     relBuilder.distinct()
   }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Distinct on stream tables is currently not supported.")
-    }
-    this
-  }
 }
 
 case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {

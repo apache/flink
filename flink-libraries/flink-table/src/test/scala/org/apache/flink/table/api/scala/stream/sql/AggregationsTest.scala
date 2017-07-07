@@ -21,6 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
@@ -39,4 +40,42 @@ class AggregationsTest extends TableTestBase {
 
     streamUtil.tEnv.sql(sqlQuery)
   }
+
+  @Test
+  def testDistinct(): Unit = {
+    val sql = "SELECT DISTINCT a, b, c FROM MyTable"
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupAggregate",
+        streamTableNode(0),
+        term("groupBy", "a, b, c"),
+        term("select", "a, b, c")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testDistinctAfterAggregate(): Unit = {
+    val sql = "SELECT DISTINCT a FROM MyTable GROUP BY a, b, c"
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupAggregate",
+            streamTableNode(0),
+            term("groupBy", "a, b, c"),
+            term("select", "a, b, c")
+          ),
+          term("select", "a")
+        ),
+        term("groupBy", "a"),
+        term("select", "a")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
 }
