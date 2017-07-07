@@ -33,9 +33,9 @@ public interface RestartStrategy {
 	boolean canRestart();
 
 	/**
-	 * Restarts the given {@link ExecutionGraph}.
+	 * Restarts ExecutionGraph by the given {@link RestartCallback}.
 	 *
-	 * @param executionGraph The ExecutionGraph to be restarted
+	 * @param restartCallback The ExecutionRestartCallback to restart ExecutionGraph
 	 */
-	void restart(ExecutionGraph executionGraph);
+	void restart(RestartCallback restartCallback);
 }

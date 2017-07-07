@@ -57,9 +57,9 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final ExecutionGraph executionGraph) {
+	public void restart(final RestartCallback restartCallback) {
 		currentRestartAttempt++;
-		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayBetweenRestartAttempts), executionGraph.getFutureExecutor());
+		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(restartCallback, delayBetweenRestartAttempts), restartCallback.getFutureExecutor());
 	}
 
 	/**

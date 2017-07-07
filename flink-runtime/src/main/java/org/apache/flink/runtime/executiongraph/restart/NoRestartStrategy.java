@@ -32,7 +32,7 @@ public class NoRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(ExecutionGraph executionGraph) {
+	public void restart(RestartCallback restartCallback) {
 		throw new RuntimeException("NoRestartStrategy does not support restart.");
 	}
 

@@ -67,12 +67,12 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final ExecutionGraph executionGraph) {
+	public void restart(final RestartCallback restartCallback) {
 		if (isRestartTimestampsQueueFull()) {
 			restartTimestampsDeque.remove();
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
-		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getFutureExecutor());
+		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(restartCallback, delayInterval.toMilliseconds()), restartCallback.getFutureExecutor());
 	}
 
 	private boolean isRestartTimestampsQueueFull() {

@@ -43,7 +43,7 @@ public class FixedDelayRestartStrategyTest {
 			.thenReturn(ExecutionContext$.MODULE$.fromExecutor(MoreExecutors.directExecutor()));
 
 		while(fixedDelayRestartStrategy.canRestart()) {
-			fixedDelayRestartStrategy.restart(executionGraph);
+			fixedDelayRestartStrategy.restart(new RestartCallback(executionGraph, executionGraph.getGlobalModVersion()));
 		}
 
 		Mockito.verify(executionGraph, Mockito.times(numberRestarts)).restart();
