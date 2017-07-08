@@ -55,6 +55,19 @@ under the License.
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
+			<!--
+			FLINK-7133: Excluding all org.ow2.asm from elasticsearch dependencies because
+			1. from the POV of client they are optional,
+			2. the version configured by default at the time of writing this comment (1.7.1) depends on asm 4.1
+			   and when it is shaded into elasticsearch-base artifact it conflicts with newer shaded versions of asm
+			   resulting in errors at the runtime when application is executed locally, e.g. from IDE.
+			-->
+			<exclusions>
+				<exclusion>
+					<groupId>org.ow2.asm</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- test dependencies -->
