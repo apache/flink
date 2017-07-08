@@ -36,22 +36,22 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	private static final long serialVersionUID = -3233562176034358530L;
 
-	/** Serialized job information */
+	/** Serialized job information. */
 	private final SerializedValue<JobInformation> serializedJobInformation;
 
-	/** Serialized task information */
+	/** Serialized task information. */
 	private final SerializedValue<TaskInformation> serializedTaskInformation;
 
 	/** The ID referencing the attempt to execute the task. */
 	private final ExecutionAttemptID executionId;
 
-	/** The allocation ID of the slot in which the task shall be run */
+	/** The allocation ID of the slot in which the task shall be run. */
 	private final AllocationID allocationId;
 
 	/** The task's index in the subtask group. */
 	private final int subtaskIndex;
 
-	/** Attempt number the task */
+	/** Attempt number the task. */
 	private final int attemptNumber;
 
 	/** The list of produced intermediate result partition deployment descriptors. */
@@ -60,10 +60,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The list of consumed intermediate result partitions. */
 	private final Collection<InputGateDeploymentDescriptor> inputGates;
 
-	/** Slot number to run the sub task in on the target machine */
+	/** Slot number to run the sub task in on the target machine. */
 	private final int targetSlotNumber;
 
-	/** State handles for the sub task */
+	/** State handles for the sub task. */
 	private final TaskStateHandles taskStateHandles;
 
 	public TaskDeploymentDescriptor(
@@ -130,7 +130,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	}
 
 	/**
-	 * Returns the attempt number of the subtask
+	 * Returns the attempt number of the subtask.
 	 */
 	public int getAttemptNumber() {
 		return attemptNumber;
