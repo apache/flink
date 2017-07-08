@@ -115,7 +115,7 @@ under the License.
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/examples/java/wordcount/util/WordCountData.class</includes>
+									<includes>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</includes>
 								</artifactItem>
 								<!-- For JSON utilities -->
 								<artifactItem>
@@ -256,7 +256,7 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -280,7 +280,7 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>				
+								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
