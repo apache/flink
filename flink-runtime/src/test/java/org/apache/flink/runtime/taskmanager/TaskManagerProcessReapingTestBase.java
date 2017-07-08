@@ -240,8 +240,8 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 			int taskManagerPort = Integer.parseInt(args[1]);
 
 			Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
+			cfg.setString(JobManagerOptions.ADDRESS, "localhost");
+			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 256);
 

@@ -26,7 +26,7 @@ import org.apache.flink.client.cli.CliFrontendParser
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
-import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration}
+import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.{FlinkMiniCluster, LocalFlinkMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
@@ -145,7 +145,7 @@ object FlinkShell {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = GlobalConfiguration.loadConfiguration()
-        config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
+        config.setInteger(JobManagerOptions.PORT, 0)
 
         val miniCluster = new StandaloneMiniCluster(config)
 

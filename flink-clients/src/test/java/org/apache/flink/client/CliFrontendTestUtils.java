@@ -18,8 +18,8 @@
 
 package org.apache.flink.client;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -75,8 +75,8 @@ public class CliFrontendTestUtils {
 	}
 
 	public static void checkJobManagerAddress(Configuration config, String expectedAddress, int expectedPort) {
-		String jobManagerAddress = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		int jobManagerPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+		String jobManagerAddress = config.getString(JobManagerOptions.ADDRESS);
+		int jobManagerPort = config.getInteger(JobManagerOptions.PORT, -1);
 
 		assertEquals(expectedAddress, jobManagerAddress);
 		assertEquals(expectedPort, jobManagerPort);
