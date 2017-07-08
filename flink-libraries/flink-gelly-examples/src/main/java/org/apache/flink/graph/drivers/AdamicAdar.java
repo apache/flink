@@ -20,11 +20,8 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.DoubleParameter;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.types.CopyableValue;
 
 import org.apache.commons.lang3.text.StrBuilder;
@@ -36,8 +33,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * Driver for {@link org.apache.flink.graph.library.similarity.AdamicAdar}.
  */
 public class AdamicAdar<K extends CopyableValue<K>, VV, EV>
-extends SimpleDriver<K, VV, EV, Result<K>>
-implements CSV, Print {
+extends DriverBase<K, VV, EV> {
 
 	private DoubleParameter minRatio = new DoubleParameter(this, "minimum_ratio")
 		.setDefaultValue(0.0)
@@ -49,11 +45,6 @@ implements CSV, Print {
 
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
 		.setDefaultValue(PARALLELISM_DEFAULT);
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
 
 	@Override
 	public String getShortDescription() {
@@ -72,7 +63,7 @@ implements CSV, Print {
 	}
 
 	@Override
-	protected DataSet<Result<K>> simplePlan(Graph<K, VV, EV> graph) throws Exception {
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		int lp = littleParallelism.getValue().intValue();
 
 		return graph

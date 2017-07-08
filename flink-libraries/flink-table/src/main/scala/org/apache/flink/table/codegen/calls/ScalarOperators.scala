@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.codegen.calls
 
+import java.lang.reflect.Method
+
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
@@ -24,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -934,6 +937,15 @@ object ScalarOperators {
     }
   }
 
+  def generateConcat(
+      method: Method,
+      operands: Seq[GeneratedExpression]): GeneratedExpression = {
+
+    generateCallIfArgsNotNull(false, STRING_TYPE_INFO, operands) {
+      (terms) =>s"${qualifyMethod(method)}(${terms.mkString(", ")})"
+    }
+  }
+
   def generateMapGet(
       codeGenerator: CodeGenerator,
       map: GeneratedExpression,
@@ -1052,7 +1064,7 @@ object ScalarOperators {
     case "*" => "multiply"
     case "/" => "divide"
     case "%" => "remainder"
-    case _ => throw new CodeGenException(s"Unsupported decimal arithmetic operator: '${operator}'")
+    case _ => throw new CodeGenException(s"Unsupported decimal arithmetic operator: '$operator'")
   }
 
   private def numericCasting(
@@ -1067,7 +1079,7 @@ object ScalarOperators {
       case LONG_TYPE_INFO => "longValueExact"
       case FLOAT_TYPE_INFO => "floatValue"
       case DOUBLE_TYPE_INFO => "doubleValue"
-      case _ => throw new CodeGenException(s"Unsupported decimal casting type: '${targetType}'")
+      case _ => throw new CodeGenException(s"Unsupported decimal casting type: '$targetType'")
     }
 
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)

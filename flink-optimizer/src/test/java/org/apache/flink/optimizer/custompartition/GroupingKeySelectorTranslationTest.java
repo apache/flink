@@ -34,7 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.testfunctions.DummyReducer;
+import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -53,7 +53,7 @@ public class GroupingKeySelectorTranslationTest extends CompilerTestBase {
 			
 			data.groupBy(new TestKeySelector<Tuple2<Integer,Integer>>())
 				.withPartitioner(new TestPartitionerInt())
-				.reduce(new DummyReducer<Tuple2<Integer,Integer>>())
+				.reduce(new SelectOneReducer<Tuple2<Integer,Integer>>())
 				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 			
 			Plan p = env.createProgramPlan();

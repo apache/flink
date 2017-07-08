@@ -24,7 +24,6 @@ import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.graph.drivers.parameter.Simplify;
 import org.apache.flink.graph.drivers.parameter.StringParameter;
 import org.apache.flink.types.IntValue;
@@ -41,8 +40,7 @@ import org.apache.commons.lang3.text.WordUtils;
  * @param <K> key type
  */
 public class CSV<K extends Comparable<K>>
-extends ParameterizedBase
-implements Input<K, NullValue, NullValue> {
+extends InputBase<K, NullValue, NullValue> {
 
 	private static final String INTEGER = "integer";
 
@@ -68,21 +66,11 @@ implements Input<K, NullValue, NullValue> {
 	private Simplify simplify = new Simplify(this);
 
 	@Override
-	public String getName() {
-		return CSV.class.getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return WordUtils.capitalize(getName()) + WordUtils.capitalize(type.getValue()) + " (" + inputFilename + ")";
 	}
 
-	/**
-	 * Generate the graph as configured.
-	 *
-	 * @param env execution environment
-	 * @return input graph
-	 */
+	@Override
 	public Graph<K, NullValue, NullValue> create(ExecutionEnvironment env) throws Exception {
 		GraphCsvReader reader = Graph.fromCsvReader(inputFilename.getValue(), env)
 			.ignoreCommentsEdges(commentPrefix.getValue())

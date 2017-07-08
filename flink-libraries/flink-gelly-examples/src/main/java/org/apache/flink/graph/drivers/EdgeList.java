@@ -25,17 +25,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
-import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
-import org.apache.flink.graph.asm.dataset.Collect;
-import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Hash;
-import org.apache.flink.graph.drivers.output.Print;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.graph.utils.EdgeToTuple2Map;
 import org.apache.flink.types.NullValue;
-
-import java.util.List;
 
 /**
  * Convert a {@link Graph} to the {@link DataSet} of {@link Edge}.
@@ -45,15 +36,7 @@ import java.util.List;
  * @param <EV> edge value type
  */
 public class EdgeList<K, VV, EV>
-extends ParameterizedBase
-implements Driver<K, VV, EV>, CSV, Hash, Print {
-
-	private DataSet<Edge<K, EV>> edges;
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
+extends DriverBase<K, VV, EV> {
 
 	@Override
 	public String getShortDescription() {
@@ -66,47 +49,15 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 	}
 
 	@Override
-	public void plan(Graph<K, VV, EV> graph) throws Exception {
-		edges = graph
-			.getEdges();
-	}
-
-	@Override
-	public void hash(String executionName) throws Exception {
-		Checksum checksum = new ChecksumHashCode<Edge<K, EV>>()
-			.run(edges)
-			.execute(executionName);
-
-		System.out.println(checksum);
-	}
-
-	@Override
-	public void print(String executionName) throws Exception {
-		List<Edge<K, EV>> records = new Collect<Edge<K, EV>>().run(edges).execute(executionName);
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+		DataSet<Edge<K, EV>> edges = graph.getEdges();
 
 		if (hasNullValueEdges(edges)) {
-			for (Edge<K, EV> result : records) {
-				System.out.println("(" + result.f0 + "," + result.f1 + ")");
-			}
-		} else {
-			for (Edge<K, EV> result : records) {
-				System.out.println(result);
-			}
-		}
-	}
-
-	@Override
-	public void writeCSV(String filename, String lineDelimiter, String fieldDelimiter) {
-		if (hasNullValueEdges(edges)) {
-			edges
+			return edges
 				.map(new EdgeToTuple2Map<K, EV>())
-					.name("Edge to Tuple2")
-				.writeAsCsv(filename, lineDelimiter, fieldDelimiter)
-					.name("CSV: " + filename);
+				.name("Edge to Tuple2");
 		} else {
-			edges
-				.writeAsCsv(filename, lineDelimiter, fieldDelimiter)
-					.name("CSV: " + filename);
+			return edges;
 		}
 	}
 

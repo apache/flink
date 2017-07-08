@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.Preconditions;
@@ -47,7 +48,7 @@ public class ArchivedExecutionGraphBuilder {
 	private List<ArchivedExecutionJobVertex> verticesInCreationOrder;
 	private long[] stateTimestamps;
 	private JobStatus state;
-	private String failureCause;
+	private ErrorInfo failureCause;
 	private String jsonPlan;
 	private StringifiedAccumulatorResult[] archivedUserAccumulators;
 	private ArchivedExecutionConfig archivedExecutionConfig;
@@ -85,7 +86,7 @@ public class ArchivedExecutionGraphBuilder {
 		return this;
 	}
 
-	public ArchivedExecutionGraphBuilder setFailureCause(String failureCause) {
+	public ArchivedExecutionGraphBuilder setFailureCause(ErrorInfo failureCause) {
 		this.failureCause = failureCause;
 		return this;
 	}
@@ -126,7 +127,7 @@ public class ArchivedExecutionGraphBuilder {
 			verticesInCreationOrder != null ? verticesInCreationOrder : new ArrayList<>(tasks.values()),
 			stateTimestamps != null ? stateTimestamps : new long[JobStatus.values().length],
 			state != null ? state : JobStatus.FINISHED,
-			failureCause != null ? failureCause : "(null)",
+			failureCause,
 			jsonPlan != null ? jsonPlan : "{\"jobid\":\"" + jobID + "\", \"name\":\"" + jobName + "\", \"nodes\":[]}",
 			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0],
 			serializedUserAccumulators != null ? serializedUserAccumulators : Collections.<String, SerializedValue<Object>>emptyMap(),

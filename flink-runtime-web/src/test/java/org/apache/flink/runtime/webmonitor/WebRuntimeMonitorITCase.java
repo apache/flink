@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -168,7 +167,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			String[] jobManagerAddress = new String[2];
 			for (int i = 0; i < jobManager.length; i++) {
 				Configuration jmConfig = config.clone();
-				jmConfig.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+				jmConfig.setInteger(JobManagerOptions.WEB_PORT,
 						webMonitor[i].getServerPort());
 
 				jobManager[i] = JobManager.startJobManagerActors(

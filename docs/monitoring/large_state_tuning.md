@@ -94,21 +94,11 @@ When a savepoint is manually triggered, it may be in process concurrently with a
 
 ## Tuning Network Buffers
 
-The number of network buffers is a parameter that can currently have an effect on checkpointing at large scale.
-The Flink community is working on eliminating that parameter in the next versions of Flink.
-
-The number of network buffers defines how much data a TaskManager can hold in-flight before back-pressure kicks in.
-A very high number of network buffers means that a lot of data may be in the stream network channels when a checkpoint
-is started. Because the checkpoint barriers travel with that data (see [description of how checkpointing works](../internals/stream_checkpointing.html)),
-a lot of in-flight data means that the barriers have to wait for that data to be transported/processed before arriving
-at the target operator.
-
-Having a lot of data in-flight also does not speed up the data processing as a whole. It only means that data is picked up faster
-from the data source (log, files, message queue) and buffered longer in Flink. Having fewer network buffers means that
-data is picked up from the source more immediately before it is actually being processed, which is generally desirable.
-The number of network buffers should hence not be set arbitrarily large, but to a low multiple (such as 2x) of the
-minimum number of required buffers.
-
+Before Flink 1.3, an increased number of network buffers also caused increased checkpointing times since
+keeping more in-flight data meant that checkpoint barriers got delayed. Since Flink 1.3, the
+number of network buffers used per outgoing/incoming channel is limited and thus network buffers
+may be configured without affecting checkpoint times
+(see [network buffer configuration](../setup/config.html#configuring-the-network-buffers)).
 
 ## Make state checkpointing Asynchronous where possible
 
@@ -227,7 +217,21 @@ parallelism when re-scaling the program (via a savepoint).
 
 Flink's internal bookkeeping tracks parallel state in the granularity of max-parallelism-many *key groups*.
 Flink's design strives to make it efficient to have a very high value for the maximum parallelism, even if
-executing the program with a low parallelism. 
+executing the program with a low parallelism.
 
+## Compression
 
+Flink offers optional compression (default: off) for all checkpoints and savepoints. Currently, compression always uses 
+the [snappy compression algorithm (version 1.1.4)](https://github.com/xerial/snappy-java) but we are planning to support
+custom compression algorithms in the future. Compression works on the granularity of key-groups in keyed state, i.e.
+each key-group can be decompressed individually, which is important for rescaling. 
 
+Compression can be activated through the `ExecutionConfig`:
+
+{% highlight java %}
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setUseSnapshotCompression(true);
+{% endhighlight %}
+
+**Notice:** The compression option has no impact on incremental snapshots, because they are using RocksDB's internal
+format which is always using snappy compression out of the box.

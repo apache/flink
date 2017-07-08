@@ -20,10 +20,10 @@ package org.apache.flink.storm.exclamation;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.util.FiniteFileSpout;
 import org.apache.flink.storm.util.FiniteInMemorySpout;
 import org.apache.flink.storm.util.StormConfig;
+import org.apache.flink.storm.wordcount.util.WordCountData;
 import org.apache.flink.storm.wrappers.SpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;

@@ -19,8 +19,8 @@
 package org.apache.flink.graph.scala.test.operations
 
 import java.io.{File, FileOutputStream, IOException, OutputStreamWriter}
+import java.nio.charset.StandardCharsets
 
-import com.google.common.base.Charsets
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.{FileInputSplit, Path}
@@ -195,7 +195,7 @@ MultipleProgramsTestBase(mode) {
     val tempFile = File.createTempFile("test_contents", "tmp")
     tempFile.deleteOnExit()
 
-    val wrt = new OutputStreamWriter(new FileOutputStream(tempFile), Charsets.UTF_8)
+    val wrt = new OutputStreamWriter(new FileOutputStream(tempFile), StandardCharsets.UTF_8)
     wrt.write(content)
     wrt.close()
 

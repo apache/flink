@@ -19,6 +19,7 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -47,6 +48,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
+import org.mockito.internal.util.reflection.Whitebox;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -291,6 +294,238 @@ public class CEPOperatorTest extends TestLogger {
 			assertTrue(watermark2 instanceof Watermark);
 
 			assertEquals(watermarkTimestamp2, ((Watermark) watermark2).getTimestamp());
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
+	public void testKeyedCEPOperatorNFAUpdate() throws Exception {
+		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
+			Event.createTypeSerializer(),
+			true,
+			IntSerializer.INSTANCE,
+			new SimpleNFAFactory(),
+			true);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
+
+		try {
+			harness.open();
+
+			Event startEvent = new Event(42, "c", 1.0);
+			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
+			Event endEvent = new Event(42, "b", 1.0);
+
+			harness.processElement(new StreamRecord<>(startEvent, 1L));
+
+			// simulate snapshot/restore with some elements in internal sorting queue
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			harness.close();
+
+			operator = new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				true,
+				IntSerializer.INSTANCE,
+				new SimpleNFAFactory(),
+				true);
+			harness = getCepTestHarness(operator);
+
+			harness.setup();
+			harness.initializeState(snapshot);
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
+			OperatorStateHandles snapshot2 = harness.snapshot(0L, 0L);
+			harness.close();
+
+			operator = new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				true,
+				IntSerializer.INSTANCE,
+				new SimpleNFAFactory(),
+				true);
+			harness = getCepTestHarness(operator);
+
+			harness.setup();
+			harness.initializeState(snapshot2);
+			harness.open();
+
+			harness.processElement(new StreamRecord<Event>(middleEvent, 4L));
+			harness.processElement(new StreamRecord<>(endEvent, 4L));
+
+			// get and verify the output
+
+			Queue<Object> result = harness.getOutput();
+
+			assertEquals(1, result.size());
+
+			verifyPattern(result.poll(), startEvent, middleEvent, endEvent);
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
+	public void testKeyedCEPOperatorNFAUpdateWithRocksDB() throws Exception {
+
+		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
+		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+
+		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
+			Event.createTypeSerializer(),
+			true,
+			IntSerializer.INSTANCE,
+			new SimpleNFAFactory(),
+			true);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
+
+		try {
+			harness.setStateBackend(rocksDBStateBackend);
+
+			harness.open();
+
+			Event startEvent = new Event(42, "c", 1.0);
+			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
+			Event endEvent = new Event(42, "b", 1.0);
+
+			harness.processElement(new StreamRecord<>(startEvent, 1L));
+
+			// simulate snapshot/restore with some elements in internal sorting queue
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			harness.close();
+
+			operator = new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				true,
+				IntSerializer.INSTANCE,
+				new SimpleNFAFactory(),
+				true);
+			harness = getCepTestHarness(operator);
+
+			rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+			rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+			harness.setStateBackend(rocksDBStateBackend);
+			harness.setup();
+			harness.initializeState(snapshot);
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
+			OperatorStateHandles snapshot2 = harness.snapshot(0L, 0L);
+			harness.close();
+
+			operator = new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				true,
+				IntSerializer.INSTANCE,
+				new SimpleNFAFactory(),
+				true);
+			harness = getCepTestHarness(operator);
+
+			rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+			rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+			harness.setStateBackend(rocksDBStateBackend);
+			harness.setup();
+			harness.initializeState(snapshot2);
+			harness.open();
+
+			harness.processElement(new StreamRecord<Event>(middleEvent, 4L));
+			harness.processElement(new StreamRecord<>(endEvent, 4L));
+
+			// get and verify the output
+
+			Queue<Object> result = harness.getOutput();
+
+			assertEquals(1, result.size());
+
+			verifyPattern(result.poll(), startEvent, middleEvent, endEvent);
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
+	public void testKeyedCEPOperatorNFAUpdateTimes() throws Exception {
+		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
+			Event.createTypeSerializer(),
+			true,
+			IntSerializer.INSTANCE,
+			new SimpleNFAFactory(),
+			true);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
+
+		try {
+			harness.open();
+
+			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaOperatorState");
+			final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
+			Whitebox.setInternalState(operator, "nfaOperatorState", nfaOperatorStateSpy);
+
+			Event startEvent = new Event(42, "c", 1.0);
+			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
+			Event endEvent = new Event(42, "b", 1.0);
+
+			harness.processElement(new StreamRecord<>(startEvent, 1L));
+			harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
+			harness.processElement(new StreamRecord<Event>(middleEvent, 4L));
+			harness.processElement(new StreamRecord<>(endEvent, 4L));
+
+			// verify the number of invocations NFA is updated
+			Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
+
+			// get and verify the output
+			Queue<Object> result = harness.getOutput();
+
+			assertEquals(1, result.size());
+
+			verifyPattern(result.poll(), startEvent, middleEvent, endEvent);
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
+	public void testKeyedCEPOperatorNFAUpdateTimesWithRocksDB() throws Exception {
+
+		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
+		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+
+		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
+			Event.createTypeSerializer(),
+			true,
+			IntSerializer.INSTANCE,
+			new SimpleNFAFactory(),
+			true);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
+
+		try {
+			harness.setStateBackend(rocksDBStateBackend);
+
+			harness.open();
+
+			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaOperatorState");
+			final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
+			Whitebox.setInternalState(operator, "nfaOperatorState", nfaOperatorStateSpy);
+
+			Event startEvent = new Event(42, "c", 1.0);
+			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
+			Event endEvent = new Event(42, "b", 1.0);
+
+			harness.processElement(new StreamRecord<>(startEvent, 1L));
+			harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
+			harness.processElement(new StreamRecord<Event>(middleEvent, 4L));
+			harness.processElement(new StreamRecord<>(endEvent, 4L));
+
+			// verify the number of invocations NFA is updated
+			Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
+
+			// get and verify the output
+			Queue<Object> result = harness.getOutput();
+
+			assertEquals(1, result.size());
+
+			verifyPattern(result.poll(), startEvent, middleEvent, endEvent);
 		} finally {
 			harness.close();
 		}
@@ -894,6 +1129,50 @@ public class CEPOperatorTest extends TestLogger {
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("a");
+				}
+			}).within(Time.milliseconds(10L));
+
+			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+		}
+	}
+
+	private static class SimpleNFAFactory implements NFACompiler.NFAFactory<Event> {
+
+		private static final long serialVersionUID = 1173020762472766713L;
+
+		private final boolean handleTimeout;
+
+		private SimpleNFAFactory() {
+			this(false);
+		}
+
+		private SimpleNFAFactory(boolean handleTimeout) {
+			this.handleTimeout = handleTimeout;
+		}
+
+		@Override
+		public NFA<Event> createNFA() {
+
+			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("c");
+				}
+			}).followedBy("middle").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("a");
+				}
+			}).followedBy("end").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("b");
 				}
 			}).within(Time.milliseconds(10L));
 

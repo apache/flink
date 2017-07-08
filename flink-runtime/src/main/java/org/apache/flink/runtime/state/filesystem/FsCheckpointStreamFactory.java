@@ -359,7 +359,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			for (int attempt = 0; attempt < 10; attempt++) {
 				try {
 					statePath = createStatePath();
-					outStream = fs.create(statePath, false);
+					outStream = fs.create(statePath, FileSystem.WriteMode.NO_OVERWRITE);
 					break;
 				}
 				catch (Exception e) {

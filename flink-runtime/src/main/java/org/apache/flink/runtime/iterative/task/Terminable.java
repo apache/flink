@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
 /**
- * Models the functionality that the termination of an iterative task can be requested from outside
+ * Models the functionality that the termination of an iterative task can be requested from outside.
  */
 public interface Terminable {
 

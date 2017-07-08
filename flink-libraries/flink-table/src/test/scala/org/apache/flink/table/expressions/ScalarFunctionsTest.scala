@@ -325,6 +325,22 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
   }
 
+  @Test
+  def testMultiConcat(): Unit = {
+   testSqlApi("CONCAT('xx', f33)","null")
+   testSqlApi("CONCAT('AA','BB','CC','---')","AABBCC---")
+   testSqlApi("CONCAT('x~x','b~b','c~~~~c','---')","x~xb~bc~~~~c---")
+  }
+
+  @Test
+  def testConcatWs(): Unit = {
+    testSqlApi("CONCAT_WS(f33, 'AA')", "null")
+    testSqlApi("concat_ws('~~~~','AA')", "AA")
+    testSqlApi("concat_ws('~','AA','BB')", "AA~BB")
+    testSqlApi("concat_ws('~',f33, 'AA','BB','',f33, 'CC')", "AA~BB~~CC")
+    testSqlApi("CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)", "Flink~~~~xx")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -1116,6 +1132,52 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       math.Pi.toString)
   }
 
+  @Test
+  def testRandAndRandInteger(): Unit = {
+    val random1 = new java.util.Random(1)
+    testAllApis(
+      rand(1),
+      "rand(1)",
+      "RAND(1)",
+      random1.nextDouble().toString)
+
+    val random2 = new java.util.Random(3)
+    testAllApis(
+      rand('f7),
+      "rand(f7)",
+      "RAND(f7)",
+      random2.nextDouble().toString)
+
+    val random3 = new java.util.Random(1)
+    testAllApis(
+      randInteger(1, 10),
+      "randInteger(1, 10)",
+      "RAND_INTEGER(1, 10)",
+      random3.nextInt(10).toString)
+
+    val random4 = new java.util.Random(3)
+    testAllApis(
+      randInteger('f7, 'f4.cast(Types.INT)),
+      "randInteger(f7, f4.cast(INT))",
+      "RAND_INTEGER(f7, CAST(f4 AS INT))",
+      random4.nextInt(44).toString)
+  }
+
+  @Test
+  def testE(): Unit = {
+    testAllApis(
+      e(),
+      "E()",
+      "E()",
+      math.E.toString)
+
+    testAllApis(
+      e(),
+      "e()",
+      "e()",
+      math.E.toString)
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
@@ -1523,7 +1585,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(33)
+    val testData = new Row(34)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -1557,6 +1619,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(30, 1)
     testData.setField(31, BigDecimal("-0.1231231321321321111").bigDecimal)
     testData.setField(32, -1)
+    testData.setField(33, null)
     testData
   }
 
@@ -1594,7 +1657,8 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.DOUBLE,
       Types.INT,
       Types.DECIMAL,
-      Types.INT).asInstanceOf[TypeInformation[Any]]
+      Types.INT,
+      Types.STRING).asInstanceOf[TypeInformation[Any]]
 
   }
 }

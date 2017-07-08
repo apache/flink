@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobView;
@@ -175,7 +175,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// create storage for uploads
 			this.uploadDir = getUploadDir(config);
 			// the upload directory should either 1. exist and writable or 2. can be created and writable
-			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdir() && uploadDir.canWrite())) {
+			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdirs() && uploadDir.canWrite())) {
 				throw new IOException(
 					String.format("Jar upload directory %s cannot be created or is not writable.",
 						uploadDir.getAbsolutePath()));
@@ -227,7 +227,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 		metricFetcher = new MetricFetcher(actorSystem, retriever, context);
 
-		String defaultSavepointDir = config.getString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, null);
+		String defaultSavepointDir = config.getString(CoreOptions.SAVEPOINT_DIRECTORY);
 
 		JobCancellationWithSavepointHandlers cancelWithSavepoint = new JobCancellationWithSavepointHandlers(currentGraphs, context, defaultSavepointDir);
 		RuntimeMonitorHandler triggerHandler = handler(cancelWithSavepoint.getTriggerHandler());

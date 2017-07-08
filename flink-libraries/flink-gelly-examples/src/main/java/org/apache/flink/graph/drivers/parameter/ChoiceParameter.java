@@ -51,12 +51,7 @@ extends SimpleParameter<String> {
 		super(owner, name);
 	}
 
-	/**
-	 * Set the default value and add to the list of choices.
-	 *
-	 * @param defaultValue the default value.
-	 * @return this
-	 */
+	@Override
 	public ChoiceParameter setDefaultValue(String defaultValue) {
 		super.setDefaultValue(defaultValue);
 		choices.add(defaultValue);

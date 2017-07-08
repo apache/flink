@@ -20,6 +20,12 @@
     .panel-title
       | Root exception
 
+  .panel-heading.clearfix
+    .panel-info.thin.last(ng-if="exceptions['timestamp'] != -1")
+      strong Timestamp:
+      = ' '
+      | {{ exceptions['timestamp'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+
   .panel-body
     pre.exception
       | {{ exceptions['root-exception'] }}
@@ -30,8 +36,14 @@
       | {{ exception.task }}
 
   .panel-heading.clearfix
+    .panel-info.thin(ng-if="exception.timestamp != -1")
+      strong Timestamp:
+      = ' '
+      | {{ exception.timestamp | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
     .panel-info.thin.last
-      span {{ exception.location }}
+      strong Location:
+      = ' '
+      | {{ exception.location }}
 
   .panel-body
     pre.exception

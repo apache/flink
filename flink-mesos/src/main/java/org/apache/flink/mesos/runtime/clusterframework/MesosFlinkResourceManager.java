@@ -498,7 +498,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 */
 	@Override
 	protected void releaseStartedWorker(RegisteredMesosWorkerNode worker) {
-		releaseWorker(worker.task());
+		releaseWorker(worker.getWorker());
 	}
 
 	/**

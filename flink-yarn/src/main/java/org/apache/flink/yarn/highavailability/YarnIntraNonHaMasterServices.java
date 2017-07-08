@@ -162,6 +162,17 @@ public class YarnIntraNonHaMasterServices extends AbstractYarnNonHaServices {
 		}
 	}
 
+	@Override
+	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress) {
+		enter();
+		try {
+			throw new UnsupportedOperationException("needs refactoring to accept default address");
+		}
+		finally {
+			exit();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  shutdown
 	// ------------------------------------------------------------------------

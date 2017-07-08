@@ -51,7 +51,7 @@ class NormalizationRulesTest extends TableTestBase {
       unaryNode("LogicalAggregate",
         unaryNode("LogicalAggregate",
           unaryNode("LogicalProject",
-            values("LogicalTableScan", term("table", "[MyTable]")),
+            values("LogicalTableScan", term("table", "[_DataSetTable_0]")),
             term("b", "$1"), term("a", "$0")),
           term("group", "{0, 1}")),
         term("group", "{0}"), term("EXPR$0", "COUNT($1)")
@@ -86,7 +86,7 @@ class NormalizationRulesTest extends TableTestBase {
       unaryNode("LogicalAggregate",
         unaryNode("LogicalAggregate",
           unaryNode("LogicalProject",
-            values("LogicalTableScan", term("table", "[MyTable]")),
+            values("LogicalTableScan", term("table", "[_DataStreamTable_0]")),
             term("b", "$1"), term("a", "$0")),
           term("group", "{0, 1}")),
         term("group", "{0}"), term("EXPR$0", "COUNT($1)")

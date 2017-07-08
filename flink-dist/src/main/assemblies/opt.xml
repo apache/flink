@@ -98,6 +98,13 @@
 		</file>
 
 		<file>
+			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus-${project.version}-shaded.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-prometheus-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
 			<source>../flink-metrics/flink-metrics-statsd/target/flink-metrics-statsd-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-metrics-statsd-${project.version}.jar</destName>

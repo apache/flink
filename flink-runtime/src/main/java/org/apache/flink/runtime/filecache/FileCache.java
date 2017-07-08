@@ -252,7 +252,7 @@ public class FileCache {
 					copy(content.getPath(), new Path(localPath), executable);
 				}
 			} else {
-				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, false); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					//noinspection ResultOfMethodCallIgnored
 					new File(targetPath.toString()).setExecutable(executable);

@@ -29,9 +29,8 @@ import org.apache.flink.graph.examples.data.IncrementalSSSPData;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.FileUtils;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -69,13 +68,13 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 	public void before() throws Exception {
 		resultPath = tempFolder.newFile().toURI().toString();
 		File verticesFile = tempFolder.newFile();
-		Files.write(IncrementalSSSPData.VERTICES, verticesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(verticesFile, IncrementalSSSPData.VERTICES);
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(IncrementalSSSPData.EDGES, edgesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(edgesFile, IncrementalSSSPData.EDGES);
 
 		File edgesInSSSPFile = tempFolder.newFile();
-		Files.write(IncrementalSSSPData.EDGES_IN_SSSP, edgesInSSSPFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(edgesInSSSPFile, IncrementalSSSPData.EDGES_IN_SSSP);
 
 		verticesPath = verticesFile.toURI().toString();
 		edgesPath = edgesFile.toURI().toString();

@@ -25,6 +25,54 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+## Migrating from Flink 1.2 to Flink 1.3
+
+There are a few APIs that have been changed since Flink 1.2. Most of the changes are documented in their
+specific documentations. The following is a consolidated list of API changes and links to details for migration when
+upgrading to Flink 1.3.
+
+### `TypeSerializer` interface changes
+
+This would be relevant mostly for users implementing custom `TypeSerializer`s for their state.
+
+Since Flink 1.3, two additional methods have been added that are related to serializer compatibility
+across savepoint restores. Please see
+[Handling serializer upgrades and compatibility](../stream/state.html#handling-serializer-upgrades-and-compatibility)
+for further details on how to implement these methods.
+
+### `ProcessFunction` is always a `RichFunction`
+
+In Flink 1.2, `ProcessFunction` and its rich variant `RichProcessFunction` was introduced.
+Since Flink 1.3, `RichProcessFunction` was removed and `ProcessFunction` is now always a `RichFunction` with access to
+the lifecycle methods and runtime context.
+
+### Flink CEP library API changes
+
+The CEP library in Flink 1.3 ships with a number of new features which have led to some changes in the API.
+Please visit the [CEP Migration docs](../libs/cep.html#migrating-from-an-older-flink-version) for details.
+
+### Logger dependencies removed from Flink core artifacts
+
+In Flink 1.3, to make sure that users can use their own custom logging framework, core Flink artifacts are
+now clean of specific logger dependencies.
+ 
+Example and quickstart archtypes already have loggers specified and should not be affected.
+For other custom projects, make sure to add logger dependencies. For example, in Maven's `pom.xml`, you can add:
+
+~~~xml
+<dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-log4j12</artifactId>
+    <version>1.7.7</version>
+</dependency>
+
+<dependency>
+    <groupId>log4j</groupId>
+    <artifactId>log4j</artifactId>
+    <version>1.2.17</version>
+</dependency>
+~~~
+
 ## Migrating from Flink 1.1 to Flink 1.2
 
 As mentioned in the [State documentation]({{ site.baseurl }}/dev/stream/state.html), Flink has two types of state:

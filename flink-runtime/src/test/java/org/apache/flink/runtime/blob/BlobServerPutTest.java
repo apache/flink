@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
@@ -58,6 +59,110 @@ import static org.mockito.Mockito.verify;
 public class BlobServerPutTest extends TestLogger {
 
 	private final Random rnd = new Random();
+
+
+	// --- concurrency tests for utility methods which could fail during the put operation ---
+
+	/**
+	 * Checked thread that calls {@link BlobServer#getStorageLocation(BlobKey)}
+	 */
+	public static class ContentAddressableGetStorageLocation extends CheckedThread {
+		private final BlobServer server;
+		private final BlobKey key;
+
+		public ContentAddressableGetStorageLocation(BlobServer server, BlobKey key) {
+			this.server = server;
+			this.key = key;
+		}
+
+		@Override
+		public void go() throws Exception {
+			server.getStorageLocation(key);
+		}
+	}
+
+	/**
+	 * Tests concurrent calls to {@link BlobServer#getStorageLocation(BlobKey)}.
+	 */
+	@Test
+	public void testServerContentAddressableGetStorageLocationConcurrent() throws Exception {
+		BlobServer server = new BlobServer(new Configuration(), new VoidBlobStore());
+
+		try {
+			BlobKey key = new BlobKey();
+			CheckedThread[] threads = new CheckedThread[] {
+				new ContentAddressableGetStorageLocation(server, key),
+				new ContentAddressableGetStorageLocation(server, key),
+				new ContentAddressableGetStorageLocation(server, key)
+			};
+			checkedThreadSimpleTest(threads);
+		} finally {
+			server.close();
+		}
+	}
+
+	/**
+	 * Helper method to first start all threads and then wait for their completion.
+	 *
+	 * @param threads threads to use
+	 * @throws Exception exceptions that are thrown from the threads
+	 */
+	protected void checkedThreadSimpleTest(CheckedThread[] threads)
+		throws Exception {
+
+		// start all threads
+		for (CheckedThread t: threads) {
+			t.start();
+		}
+
+		// wait for thread completion and check exceptions
+		for (CheckedThread t: threads) {
+			t.sync();
+		}
+	}
+
+	/**
+	 * Checked thread that calls {@link BlobServer#getStorageLocation(JobID, String)}
+	 */
+	public static class NameAddressableGetStorageLocation extends CheckedThread {
+		private final BlobServer server;
+		private final JobID jid;
+		private final String name;
+
+		public NameAddressableGetStorageLocation(BlobServer server, JobID jid, String name) {
+			this.server = server;
+			this.jid = jid;
+			this.name = name;
+		}
+
+		@Override
+		public void go() throws Exception {
+			server.getStorageLocation(jid, name);
+		}
+	}
+
+	/**
+	 * Tests concurrent calls to {@link BlobServer#getStorageLocation(JobID, String)}.
+	 */
+	@Test
+	public void testServerNameAddressableGetStorageLocationConcurrent() throws Exception {
+		BlobServer server = new BlobServer(new Configuration(), new VoidBlobStore());
+
+		try {
+			JobID jid = new JobID();
+			String stringKey = "my test key";
+			CheckedThread[] threads = new CheckedThread[] {
+				new NameAddressableGetStorageLocation(server, jid, stringKey),
+				new NameAddressableGetStorageLocation(server, jid, stringKey),
+				new NameAddressableGetStorageLocation(server, jid, stringKey)
+			};
+			checkedThreadSimpleTest(threads);
+		} finally {
+			server.close();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Test
 	public void testPutBufferSuccessful() throws IOException {
