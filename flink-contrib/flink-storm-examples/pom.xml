@@ -223,7 +223,7 @@ under the License.
 								<include>org/apache/flink/storm/util/AbstractLineSpout.class</include>
 								<include>org/apache/flink/storm/util/FileSpout.class</include>
 								<include>org/apache/flink/storm/util/InMemorySpout.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+								<include>org/apache/flink/storm/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -266,7 +266,7 @@ under the License.
 								<!-- Word Count -->
 								<include>org/apache/flink/storm/wordcount/BoltTokenizerWordCount.class</include>
 								<include>org/apache/flink/storm/wordcount/operators/BoltTokenizer.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+								<include>org/apache/flink/storm/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -355,8 +355,7 @@ under the License.
 										<include>org/apache/flink/storm/wordcount/WordCountTopology.class</include>
 										<include>org/apache/flink/storm/wordcount/operators/*.class</include>
 										<include>org/apache/flink/storm/util/*.class</include>
-										<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class
-										</include>
+										<include>org/apache/flink/storm/wordcount/util/WordCountData.class</include>
 									</includes>
 								</filter>
 								<filter>
