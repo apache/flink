@@ -26,7 +26,7 @@ import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.util.TestLogger
-import org.junit.{AfterClass, Assert, BeforeClass, Test}
+import org.junit.{AfterClass, Assert, BeforeClass, Ignore, Test}
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.FiniteDuration
@@ -164,7 +164,11 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertTrue(output.contains("WC(world,10)"))
   }
 
-  /** Submit external library */
+  /**
+   * Submit external library.
+   * Disabled due to FLINK-7111.
+   */
+  @Ignore
   @Test
   def testSubmissionOfExternalLibraryBatch: Unit = {
     val input =
@@ -184,7 +188,11 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertTrue(output.contains("\nHELLO 42"))
   }
 
-  /** Submit external library */
+  /**
+   * Submit external library.
+   * Disabled due to FLINK-7111.
+   */
+  @Ignore
   @Test
   def testSubmissionOfExternalLibraryStream: Unit = {
     val input =
