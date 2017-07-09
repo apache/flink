@@ -53,6 +53,7 @@ import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
 import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.graph.drivers.parameter.StringParameter;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.fasterxml.jackson.core.JsonEncoding;
@@ -61,6 +62,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.commons.lang3.text.StrBuilder;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -118,12 +120,21 @@ extends ParameterizedBase {
 		.addClass(Hash.class)
 		.addClass(Print.class);
 
-	private ParameterTool parameters;
+	private final ParameterTool parameters;
 
-	private BooleanParameter disableObjectReuse = new BooleanParameter(this, "__disable_object_reuse");
+	private final BooleanParameter disableObjectReuse = new BooleanParameter(this, "__disable_object_reuse");
 
-	private StringParameter jobDetails = new StringParameter(this, "__write_job_details")
-		.setDefaultValue("");
+	private final StringParameter jobDetailsPath = new StringParameter(this, "__job_details_path")
+		.setDefaultValue(null);
+
+	/**
+	 * Create an algorithm runner from the given arguments.
+	 *
+	 * @param args command-line arguments
+	 */
+	public Runner(String[] args) {
+		parameters = ParameterTool.fromArgs(args);
+	}
 
 	@Override
 	public String getName() {
@@ -214,17 +225,15 @@ extends ParameterizedBase {
 			.toString();
 	}
 
-	public void run(String[] args) throws Exception {
+	public void run() throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		ExecutionConfig config = env.getConfig();
 
 		// should not have any non-Flink data types
-		config.disableAutoTypeRegistration();
 		config.disableForceAvro();
 		config.disableForceKryo();
 
-		parameters = ParameterTool.fromArgs(args);
 		config.setGlobalJobParameters(parameters);
 
 		// configure local parameters and throw proper exception on error
@@ -326,40 +335,54 @@ extends ParameterizedBase {
 
 		algorithm.printAnalytics(System.out);
 
-		// ----------------------------------------------------------------------------------------
-		// Write job details
-		// ----------------------------------------------------------------------------------------
+		if (jobDetailsPath.getValue() != null) {
+			writeJobDetails(env, jobDetailsPath.getValue());
+		}
+	}
 
-		if (jobDetails.getValue().length() > 0) {
-			JobExecutionResult result = env.getLastJobExecutionResult();
+	/**
+	 * Write the following job details as a JSON encoded file: runtime environment
+	 * job ID, runtime, parameters, and accumulators.
+	 *
+	 * @param env the execution environment
+	 * @param jobDetailsPath filesystem path to write job details
+	 * @throws IOException on error writing to jobDetailsPath
+	 */
+	private static void writeJobDetails(ExecutionEnvironment env, String jobDetailsPath) throws IOException {
+		JobExecutionResult result = env.getLastJobExecutionResult();
 
-			File jsonFile = new File(jobDetails.getValue());
+		File jsonFile = new File(jobDetailsPath);
 
-			try (JsonGenerator json = new JsonFactory().createGenerator(jsonFile, JsonEncoding.UTF8)) {
-				json.writeStartObject();
+		try (JsonGenerator json = new JsonFactory().createGenerator(jsonFile, JsonEncoding.UTF8)) {
+			json.writeStartObject();
 
-				json.writeStringField("job_id", result.getJobID().toString());
-				json.writeNumberField("runtime_ms", result.getNetRuntime());
+			json.writeObjectFieldStart("Apache Flink");
+			json.writeStringField("version", EnvironmentInformation.getVersion());
+			json.writeStringField("commit ID", EnvironmentInformation.getRevisionInformation().commitId);
+			json.writeStringField("commit date", EnvironmentInformation.getRevisionInformation().commitDate);
+			json.writeEndObject();
 
-				json.writeObjectFieldStart("parameters");
-				for (Map.Entry<String, String> entry : parameters.toMap().entrySet()) {
-					json.writeStringField(entry.getKey(), entry.getValue());
-				}
-				json.writeEndObject();
+			json.writeStringField("job_id", result.getJobID().toString());
+			json.writeNumberField("runtime_ms", result.getNetRuntime());
 
-				json.writeObjectFieldStart("accumulators");
-				for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-					json.writeStringField(entry.getKey(), entry.getValue().toString());
-				}
-				json.writeEndObject();
-
-				json.writeEndObject();
+			json.writeObjectFieldStart("parameters");
+			for (Map.Entry<String, String> entry : env.getConfig().getGlobalJobParameters().toMap().entrySet()) {
+				json.writeStringField(entry.getKey(), entry.getValue());
 			}
+			json.writeEndObject();
+
+			json.writeObjectFieldStart("accumulators");
+			for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
+				json.writeStringField(entry.getKey(), entry.getValue().toString());
+			}
+			json.writeEndObject();
+
+			json.writeEndObject();
 		}
 	}
 
 	public static void main(String[] args) throws Exception {
-		new Runner().run(args);
+		new Runner(args).run();
 	}
 
 	/**
