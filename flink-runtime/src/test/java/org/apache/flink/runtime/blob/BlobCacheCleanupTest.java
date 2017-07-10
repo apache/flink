@@ -146,7 +146,7 @@ public class BlobCacheCleanupTest {
 	@Ignore("manual test due to stalling: ensures a BLOB is retained first and only deleted after the (long) timeout ")
 	public void testJobDeferredCleanup() throws IOException, InterruptedException {
 		// file should be deleted between 5 and 10s after last job release
-		long cleanupInterval = 5_000L;
+		long cleanupInterval = 5L;
 
 		JobID jobId = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
@@ -182,13 +182,13 @@ public class BlobCacheCleanupTest {
 			checkFileCountForJob(0, jobId, cache);
 
 			for (BlobKey key : keys) {
-				cache.getFile(key);
+				cache.getFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
 			for (BlobKey key : keys) {
-				cache.getFile(key);
+				cache.getFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
