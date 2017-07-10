@@ -10,7 +10,7 @@ cache:
 
 # do not cache our own artifacts
 before_cache:
-  - rm -f $HOME/.m2/repository/org/apache/flink/
+  - rm -rf $HOME/.m2/repository/org/apache/flink/
 
 install: true
 
