@@ -62,20 +62,23 @@ public class StatsDReporterTest extends TestLogger {
 
 	@Test
 	public void testNameTruncating() {
-		StatsDReporter reporter = new StatsDReporter();
-
-		MetricConfig config = new MetricConfig();
+		final MetricConfig config = new MetricConfig();
 		config.setProperty(StatsDReporter.ARG_HOST, "localhost");
 		config.setProperty(StatsDReporter.ARG_PORT, "12345");
 		config.setProperty(StatsDReporter.ARG_MAX_COMPONENT_LENGTH, "10");
-		
-		reporter.open(config);
-		
-		assertEquals("0123456789", reporter.filterCharacters("0123456789DEADBEEF"));
+
+		final StatsDReporter reporter = new StatsDReporter();
+		try {
+			reporter.open(config);
+
+			assertEquals("0123456789", reporter.filterCharacters("0123456789DEADBEEF"));
+		} finally {
+			reporter.close();
+		}
 	}
 
 	@Test
-	public void testReplaceInvalidChars() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+	public void testReplaceInvalidChars() {
 		StatsDReporter reporter = new StatsDReporter();
 
 		assertEquals("", reporter.filterCharacters(""));

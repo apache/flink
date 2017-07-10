@@ -44,7 +44,6 @@ import org.apache.flink.util.AbstractID;
 import com.codahale.metrics.ScheduledReporter;
 import org.junit.Test;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -58,23 +57,27 @@ public class ScheduledDropwizardReporterTest {
 
 	@Test
 	public void testNameTruncating() {
-		ScheduledDropwizardReporter reporter = new ScheduledDropwizardReporter() {
+		final MetricConfig config = new MetricConfig();
+		config.setProperty(ScheduledDropwizardReporter.ARG_MAX_COMPONENT_LENGTH, "10");
+
+		final ScheduledDropwizardReporter reporter = new ScheduledDropwizardReporter() {
 			@Override
 			public ScheduledReporter getReporter(MetricConfig config) {
 				return null;
 			}
 		};
 
-		MetricConfig config = new MetricConfig();
-		config.setProperty(ScheduledDropwizardReporter.ARG_MAX_COMPONENT_LENGTH, "10");
+		try {
+			reporter.open(config);
 
-		reporter.open(config);
-
-		assertEquals("0123456789", reporter.filterCharacters("0123456789DEADBEEF"));
+			assertEquals("0123456789", reporter.filterCharacters("0123456789DEADBEEF"));
+		} finally {
+			reporter.close();
+		}
 	}
 
 	@Test
-	public void testInvalidCharacterReplacement() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+	public void testInvalidCharacterReplacement() {
 		ScheduledDropwizardReporter reporter = new ScheduledDropwizardReporter() {
 			@Override
 			public ScheduledReporter getReporter(MetricConfig config) {
