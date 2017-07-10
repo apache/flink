@@ -565,7 +565,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public ParameterTool mergeWith(ParameterTool other) {
 		ParameterTool ret = new ParameterTool(this.data);
 		ret.data.putAll(other.data);
-		ret.unrequestedParameters.addAll(other.data.keySet());
+		ret.unrequestedParameters.addAll(other.unrequestedParameters);
 		return ret;
 	}
 
