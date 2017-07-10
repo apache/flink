@@ -28,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class NumberOfFullRestartsGauge implements Gauge<Long> {
 
-	public static final String METRIC_NAME = "fullRestarts";
+	public static final String METRIC_NAME = "numFullRestarts";
 
 	// ------------------------------------------------------------------------
 
