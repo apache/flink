@@ -191,7 +191,7 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 	@Test
 	public void testUnrequestedBooleanWithMissingValue() {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-boolean"});
-		Assert.assertEquals(Sets.newHashSet("byte"), parameter.getUnrequestedParameters());
+		Assert.assertEquals(Sets.newHashSet("boolean"), parameter.getUnrequestedParameters());
 
 		parameter.getBoolean("boolean");
 		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
@@ -484,9 +484,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"-string"});
 		Assert.assertEquals(Sets.newHashSet("string"), parameter.getUnrequestedParameters());
 
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
-
 		parameter.get("string");
 		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
@@ -529,14 +526,34 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 			parameter.getUnrequestedParameters());
 
 		Assert.assertTrue(parameter.getBoolean("boolean"));
-		Assert.assertEquals(1, parameter.getByte("byte"));
-		Assert.assertEquals(2, parameter.getShort("short"));
-		Assert.assertEquals(4, parameter.getInt("int"));
-		Assert.assertEquals(8, parameter.getLong("long"));
-		Assert.assertEquals(4.0, parameter.getFloat("float"), 0.00001);
-		Assert.assertEquals(8.0, parameter.getDouble("double"), 0.00001);
-		Assert.assertEquals("∞", parameter.get("string"));
+		Assert.assertEquals(Sets.newHashSet("byte", "short", "int", "long", "float", "double", "string"),
+			parameter.getUnrequestedParameters());
 
+		Assert.assertEquals(1, parameter.getByte("byte"));
+		Assert.assertEquals(Sets.newHashSet("short", "int", "long", "float", "double", "string"),
+			parameter.getUnrequestedParameters());
+
+		Assert.assertEquals(2, parameter.getShort("short"));
+		Assert.assertEquals(Sets.newHashSet("int", "long", "float", "double", "string"),
+			parameter.getUnrequestedParameters());
+
+		Assert.assertEquals(4, parameter.getInt("int"));
+		Assert.assertEquals(Sets.newHashSet("long", "float", "double", "string"),
+			parameter.getUnrequestedParameters());
+
+		Assert.assertEquals(8, parameter.getLong("long"));
+		Assert.assertEquals(Sets.newHashSet("float", "double", "string"),
+			parameter.getUnrequestedParameters());
+
+		Assert.assertEquals(4.0, parameter.getFloat("float"), 0.00001);
+		Assert.assertEquals(Sets.newHashSet("double", "string"),
+			parameter.getUnrequestedParameters());
+
+		Assert.assertEquals(8.0, parameter.getDouble("double"), 0.00001);
+		Assert.assertEquals(Sets.newHashSet("string"),
+			parameter.getUnrequestedParameters());
+
+		Assert.assertEquals("∞", parameter.get("string"));
 		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
