@@ -224,6 +224,8 @@ Depending on which file system you use, please add the following dependencies. Y
 - `S3AFileSystem`:
   - `hadoop-aws-2.7.2.jar`
   - `aws-java-sdk-1.7.4.jar`
+  - `httpcore-4.2.5.jar`
+  - `httpclient-4.2.5.jar`
 
 - `NativeS3FileSystem`:
   - `hadoop-aws-2.7.2.jar`
@@ -238,6 +240,8 @@ Depending on which file system you use, please add the following dependencies. Y
 - `S3AFileSystem`:
   - `hadoop-aws-2.6.4.jar`
   - `aws-java-sdk-1.7.4.jar`
+  - `httpcore-4.2.5.jar`
+  - `httpclient-4.2.5.jar`
 
 - `NativeS3FileSystem`:
   - `hadoop-aws-2.6.4.jar`
