@@ -44,5 +44,4 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
   def testInvalidStringComparison2(): Unit = {
     testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
   }
-
 }

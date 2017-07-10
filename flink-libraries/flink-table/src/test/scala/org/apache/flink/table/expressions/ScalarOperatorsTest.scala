@@ -18,9 +18,13 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
+import org.apache.flink.table.expressions.utils.{ExpressionTestBase, ScalarOperatorsTestBase, ShouldNotExecuteFunc}
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
@@ -211,5 +215,4 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
   }
-
 }

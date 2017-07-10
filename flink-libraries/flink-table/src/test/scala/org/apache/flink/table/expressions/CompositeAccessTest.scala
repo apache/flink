@@ -19,10 +19,10 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.CompositeAccessTestBase
+import org.apache.flink.table.expressions.utils.CompositeTypeTestBase
 import org.junit.Test
 
-class CompositeAccessTest extends CompositeAccessTestBase {
+class CompositeAccessTest extends CompositeTypeTestBase {
 
   @Test
   def testGetField(): Unit = {
@@ -120,7 +120,6 @@ class CompositeAccessTest extends CompositeAccessTestBase {
 
     testTableApi('f5.flatten(), "f5.flatten()", "13")
   }
-
 }
 
 

@@ -20,19 +20,16 @@ package org.apache.flink.table.utils
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet => JDataSet}
-import org.apache.flink.table.api.{Table, TableEnvironment}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.java.{ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Table, TableEnvironment}
+import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.rules.ExpectedException

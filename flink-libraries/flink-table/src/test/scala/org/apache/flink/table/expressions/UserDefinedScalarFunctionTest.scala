@@ -25,9 +25,9 @@ import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils._
+import org.apache.flink.table.expressions.utils.{ExpressionTestBase, _}
 import org.apache.flink.table.functions.ScalarFunction
 import org.junit.Test
 

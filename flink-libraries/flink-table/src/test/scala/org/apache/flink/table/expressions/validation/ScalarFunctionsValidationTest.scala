@@ -20,10 +20,10 @@ package org.apache.flink.table.expressions.validation
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ScalarFunctionsTestBase
+import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
-class ScalarFunctionsValidationTest extends ScalarFunctionsTestBase {
+class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // String functions
@@ -40,5 +40,4 @@ class ScalarFunctionsValidationTest extends ScalarFunctionsTestBase {
     // Must fail. Parameter of substring must be an Integer not a String.
     testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
   }
-
 }

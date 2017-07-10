@@ -49,5 +49,4 @@ class MapTypeTestBase extends ExpressionTestBase {
       new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
     ).asInstanceOf[TypeInformation[Any]]
   }
-
 }

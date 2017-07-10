@@ -26,7 +26,7 @@ import org.apache.flink.types.Row
 
 class ScalarOperatorsTestBase extends ExpressionTestBase {
 
-  def testData = {
+  def testData: Row = {
     val testData = new Row(13)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
@@ -44,7 +44,7 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData
   }
 
-  def typeInfo = {
+  def typeInfo: TypeInformation[Any] = {
     new RowTypeInfo(
       Types.BYTE,
       Types.SHORT,
@@ -65,5 +65,4 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
   override def functions: Map[String, ScalarFunction] = Map(
     "shouldNotExecuteFunc" -> ShouldNotExecuteFunc
   )
-
 }

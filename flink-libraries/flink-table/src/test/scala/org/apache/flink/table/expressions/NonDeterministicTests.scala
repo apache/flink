@@ -82,7 +82,7 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   // ----------------------------------------------------------------------------------------------
 
-  override def testData: Any = new Row(0)
+  override def testData: Row = new Row(0)
 
   override def typeInfo: TypeInformation[Any] =
     new RowTypeInfo().asInstanceOf[TypeInformation[Any]]

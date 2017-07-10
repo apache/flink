@@ -31,5 +31,4 @@ class MapTypeTest extends MapTypeTestBase {
     testSqlApi("f3[1]", "null")
     testSqlApi("f3[12]", "a")
   }
-
 }
