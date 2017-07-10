@@ -445,14 +445,14 @@ public final class BlobClient implements Closeable {
 	/**
 	 * Deletes the BLOB identified by the given BLOB key from the BLOB server.
 	 *
-	 * @param bKey
+	 * @param blobKey
 	 *        the key to identify the BLOB
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while transferring the request to
 	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
-	public void delete(BlobKey bKey) throws IOException {
-		checkArgument(bKey != null, "BLOB key must not be null.");
+	public void delete(BlobKey blobKey) throws IOException {
+		checkArgument(blobKey != null, "BLOB key must not be null.");
 
 		try {
 			final OutputStream outputStream = this.socket.getOutputStream();
@@ -463,7 +463,7 @@ public final class BlobClient implements Closeable {
 
 			// delete blob key
 			outputStream.write(CONTENT_ADDRESSABLE);
-			bKey.writeToOutputStream(outputStream);
+			blobKey.writeToOutputStream(outputStream);
 
 			int response = inputStream.read();
 			if (response < 0) {
