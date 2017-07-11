@@ -15,34 +15,46 @@ language: java
 #See https://issues.apache.org/jira/browse/FLINK-1072
 matrix:
   include:
-  # Always run test groups A and B together
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-a,include-kinesis,jdk8"
+      env:
+        - TEST="core"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-b,include-kinesis,jdk8"
+      env:
+        - TEST="libraries"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-c,include-kinesis,jdk8"
-
+      env:
+        - TEST="connectors"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8,include-kinesis"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-a,include-kinesis"
+      env:
+        - TEST="tests"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-b,include-kinesis"
-    - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-c,include-kinesis"
-
+      env:
+        - TEST="misc"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-a,include-kinesis"
+      env:
+        - TEST="core"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-b,include-kinesis"
+      env:
+        - TEST="libraries"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-c,include-kinesis"
-
+      env:
+        - TEST="connectors"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pinclude-kinesis"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-a,include-kinesis"
+      env:
+        - TEST="tests"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-b,include-kinesis"
-    - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-c,include-kinesis"
+      env:
+        - TEST="misc"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
 
 git:
   depth: 100
