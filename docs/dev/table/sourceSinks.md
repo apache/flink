@@ -173,7 +173,8 @@ CsvTableSource csvTableSource = CsvTableSource
     .lineDelimiter("$")
     .ignoreFirstLine()
     .ignoreParseErrors()
-    .commentPrefix("%");
+    .commentPrefix("%")
+    .build();
 {% endhighlight %}
 </div>
 
@@ -191,6 +192,7 @@ val csvTableSource = CsvTableSource
     .ignoreFirstLine
     .ignoreParseErrors
     .commentPrefix("%")
+    .build
 {% endhighlight %}
 </div>
 </div>
