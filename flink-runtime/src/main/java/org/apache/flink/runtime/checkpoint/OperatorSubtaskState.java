@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -30,6 +31,9 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,9 +43,15 @@ import java.util.List;
  * This class encapsulates the state for one parallel instance of an operator. The complete state of a (logical)
  * operator (e.g. a flatmap operator) consists of the union of all {@link OperatorSubtaskState}s from all
  * parallel tasks that physically execute parallelized, physical instances of the operator.
- * <p>
- * The full state of the logical operator is represented by {@link OperatorState} which consists of
+ * <p>The full state of the logical operator is represented by {@link OperatorState} which consists of
  * {@link OperatorSubtaskState}s.
+ * <p>Typically, we expect all collections in this class to be of size 0 or 1, because there up to one state handle
+ * produced per state type (e.g. managed-keyed, raw-operator, ...). In particular, this holds when taking a snapshot.
+ * The purpose of having the state handles in collections is that this class is also reused in restoring state.
+ * Under normal circumstances, the expected size of each collection is still 0 or 1, except for scale-down. In
+ * scale-down, one operator subtask can become responsible for the state of multiple previous subtasks. The collections
+ * can then store all the state handles that are relevant to build up the new subtask state.
+ * <p>There is no collection for legacy state because it is nor rescalable.
  */
 public class OperatorSubtaskState implements CompositeStateHandle {
 
@@ -56,26 +66,31 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Can be removed when we remove the APIs for non-repartitionable operator state.
 	 */
 	@Deprecated
+	@Nullable
 	private final StreamStateHandle legacyOperatorState;
 
 	/**
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
 	 */
+	@Nonnull
 	private final Collection<OperatorStateHandle> managedOperatorState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
 	 */
+	@Nonnull
 	private final Collection<OperatorStateHandle> rawOperatorState;
 
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
+	@Nonnull
 	private final Collection<KeyedStateHandle> managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
+	@Nonnull
 	private final Collection<KeyedStateHandle> rawKeyedState;
 
 	/**
@@ -85,13 +100,26 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 */
 	private final long stateSize;
 
-	public OperatorSubtaskState() {
-		this.legacyOperatorState = null;
+	@VisibleForTesting
+	public OperatorSubtaskState(StreamStateHandle legacyOperatorState) {
+
+		this.legacyOperatorState = legacyOperatorState;
 		this.managedOperatorState = Collections.emptyList();
 		this.rawOperatorState = Collections.emptyList();
 		this.managedKeyedState = Collections.emptyList();
 		this.rawKeyedState = Collections.emptyList();
-		this.stateSize = 0L;
+		try {
+			this.stateSize = getSizeNullSafe(legacyOperatorState);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to get state size.", e);
+		}
+	}
+
+	/**
+	 * Empty state.
+	 */
+	public OperatorSubtaskState() {
+		this(null);
 	}
 
 	public OperatorSubtaskState(
@@ -108,7 +136,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
 
 		try {
-			long calculateStateSize = sumAllSizes(legacyOperatorState);
+			long calculateStateSize = getSizeNullSafe(legacyOperatorState);
 			calculateStateSize += sumAllSizes(managedOperatorState);
 			calculateStateSize += sumAllSizes(rawOperatorState);
 			calculateStateSize += sumAllSizes(managedKeyedState);
@@ -119,6 +147,10 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		}
 	}
 
+	/**
+	 * For convenience because the size of the collections is typically 0 or 1. Null values are translated into empty
+	 * Collections (except for legacy state).
+	 */
 	public OperatorSubtaskState(
 		StreamStateHandle legacyOperatorState,
 		OperatorStateHandle managedOperatorState,
@@ -127,23 +159,26 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		KeyedStateHandle rawKeyedState) {
 
 		this(legacyOperatorState,
-			Collections.singletonList(managedOperatorState),
-			Collections.singletonList(rawOperatorState),
-			Collections.singletonList(managedKeyedState),
-			Collections.singletonList(rawKeyedState));
+			singletonOrEmptyOnNull(managedOperatorState),
+			singletonOrEmptyOnNull(rawOperatorState),
+			singletonOrEmptyOnNull(managedKeyedState),
+			singletonOrEmptyOnNull(rawKeyedState));
+	}
+
+	private static <T> Collection<T> singletonOrEmptyOnNull(T element) {
+		return element != null ? Collections.singletonList(element) : Collections.<T>emptyList();
 	}
 
 	private static long sumAllSizes(Collection<? extends StateObject> stateObject) throws Exception {
-
 		long size = 0L;
 		for (StateObject object : stateObject) {
-			size += sumAllSizes(object);
+			size += getSizeNullSafe(object);
 		}
 
 		return size;
 	}
 
-	private static long sumAllSizes(StateObject stateObject) throws Exception {
+	private static long getSizeNullSafe(StateObject stateObject) throws Exception {
 		return stateObject != null ? stateObject.getStateSize() : 0L;
 	}
 
@@ -154,6 +189,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Can be removed when we remove the APIs for non-repartitionable operator state.
 	 */
 	@Deprecated
+	@Nullable
 	public StreamStateHandle getLegacyOperatorState() {
 		return legacyOperatorState;
 	}
@@ -161,6 +197,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	/**
 	 * Returns a handle to the managed operator state.
 	 */
+	@Nonnull
 	public Collection<OperatorStateHandle> getManagedOperatorState() {
 		return managedOperatorState;
 	}
@@ -168,6 +205,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	/**
 	 * Returns a handle to the raw operator state.
 	 */
+	@Nonnull
 	public Collection<OperatorStateHandle> getRawOperatorState() {
 		return rawOperatorState;
 	}
@@ -175,6 +213,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	/**
 	 * Returns a handle to the managed keyed state.
 	 */
+	@Nonnull
 	public Collection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
@@ -182,6 +221,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	/**
 	 * Returns a handle to the raw keyed state.
 	 */
+	@Nonnull
 	public Collection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}

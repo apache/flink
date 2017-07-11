@@ -43,7 +43,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -127,10 +126,10 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		// make sure that the subtask state has been discarded after we could not complete it.
 		verify(operatorSubtaskState).discardState();
 		verify(operatorSubtaskState.getLegacyOperatorState()).discardState();
-		verify(operatorSubtaskState.getManagedOperatorState()).discardState();
-		verify(operatorSubtaskState.getRawOperatorState()).discardState();
-		verify(operatorSubtaskState.getManagedKeyedState()).discardState();
-		verify(operatorSubtaskState.getRawKeyedState()).discardState();
+		verify(operatorSubtaskState.getManagedOperatorState().iterator().next()).discardState();
+		verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
+		verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();
+		verify(operatorSubtaskState.getRawKeyedState().iterator().next()).discardState();
 	}
 
 	private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {

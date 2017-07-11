@@ -67,7 +67,6 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -130,6 +129,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyCollectionOf;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -533,10 +533,10 @@ public class StreamTaskTest extends TestLogger {
 		OperatorSubtaskState subtaskState = subtaskStates.getSubtaskStateMappings().iterator().next().getValue();
 
 		// check that the subtask state contains the expected state handles
-		assertEquals(managedKeyedStateHandle, subtaskState.getManagedKeyedState());
-		assertEquals(rawKeyedStateHandle, subtaskState.getRawKeyedState());
-		assertEquals(managedOperatorStateHandle, subtaskState.getManagedOperatorState());
-		assertEquals(rawOperatorStateHandle, subtaskState.getRawOperatorState());
+		assertEquals(Collections.singletonList(managedKeyedStateHandle), subtaskState.getManagedKeyedState());
+		assertEquals(Collections.singletonList(rawKeyedStateHandle), subtaskState.getRawKeyedState());
+		assertEquals(Collections.singletonList(managedOperatorStateHandle), subtaskState.getManagedOperatorState());
+		assertEquals(Collections.singletonList(rawOperatorStateHandle), subtaskState.getRawOperatorState());
 
 		// check that the state handles have not been discarded
 		verify(managedKeyedStateHandle, never()).discardState();
@@ -578,8 +578,15 @@ public class StreamTaskTest extends TestLogger {
 		Environment mockEnvironment = mock(Environment.class);
 		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
 
-		whenNew(OperatorSubtaskState.class).withAnyArguments().thenAnswer(new Answer<OperatorSubtaskState>() {
-			@Override
+		whenNew(OperatorSubtaskState.class).
+			withArguments(
+				any(StreamStateHandle.class),
+				anyCollectionOf(OperatorStateHandle.class),
+				anyCollectionOf(OperatorStateHandle.class),
+				anyCollectionOf(KeyedStateHandle.class),
+				anyCollectionOf(KeyedStateHandle.class)).
+			thenAnswer(new Answer<OperatorSubtaskState>() {
+				@Override
 			public OperatorSubtaskState answer(InvocationOnMock invocation) throws Throwable {
 				createSubtask.trigger();
 				completeSubtask.await();
@@ -829,7 +836,7 @@ public class StreamTaskTest extends TestLogger {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			new TaskStateHandles(),
+			new TaskStateSnapshot(),
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			network,

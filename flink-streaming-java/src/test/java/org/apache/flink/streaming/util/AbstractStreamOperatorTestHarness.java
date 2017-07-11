@@ -32,6 +32,7 @@ import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
@@ -338,7 +339,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorSubtaskState)}.
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
 	 * if it was not called before.
 	 *
@@ -395,19 +396,22 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 					rawOperatorState,
 					numSubtasks).get(subtaskIndex);
 
-			OperatorStateHandles massagedOperatorStateHandles = new OperatorStateHandles(
-					0,
-					operatorStateHandles.getLegacyOperatorState(),
-					localManagedKeyGroupState,
-					localRawKeyGroupState,
-					localManagedOperatorState,
-					localRawOperatorState);
+			OperatorSubtaskState massagedOperatorStateHandles = new OperatorSubtaskState(
+				operatorStateHandles.getLegacyOperatorState(),
+				nullToEmptyCollection(localManagedOperatorState),
+				nullToEmptyCollection(localRawOperatorState),
+				nullToEmptyCollection(localManagedKeyGroupState),
+				nullToEmptyCollection(localRawKeyGroupState));
 
 			operator.initializeState(massagedOperatorStateHandles);
 		} else {
 			operator.initializeState(null);
 		}
 		initializeCalled = true;
+	}
+
+	private static <T> Collection<T> nullToEmptyCollection(Collection<T> collection) {
+		return collection != null ? collection : Collections.<T>emptyList();
 	}
 
 	/**

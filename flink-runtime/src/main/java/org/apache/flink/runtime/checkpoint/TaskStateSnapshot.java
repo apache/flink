@@ -34,11 +34,12 @@ import java.util.Set;
  * register their state under their operator id. Each operator instance is a physical execution responsible for
  * processing a partition of the data that goes through a logical operator. This partitioning happens to parallelize
  * execution of logical operators, e.g. distributing a map function.
- * <p>
- * One instance of this class contains the information that one task will send to acknowledge a checkpoint request by t
+ * <p>One instance of this class contains the information that one task will send to acknowledge a checkpoint request by t
  * he checkpoint coordinator. Tasks run operator instances in parallel, so the union of all
  * {@link TaskStateSnapshot} that are collected by the checkpoint coordinator from all tasks represent the whole
  * state of a job at the time of the checkpoint.
+ * <p>This class should be called TaskState once the old class with this name that we keep for backwards
+ * compatibility goes away.
  */
 public class TaskStateSnapshot implements CompositeStateHandle {
 

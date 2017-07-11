@@ -34,7 +34,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.util.SerializableObject;
 
 import org.hamcrest.BaseMatcher;
@@ -42,11 +41,11 @@ import org.hamcrest.Description;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -119,16 +118,16 @@ public class CheckpointStateRestoreTest {
 			PendingCheckpoint pending = coord.getPendingCheckpoints().values().iterator().next();
 			final long checkpointId = pending.getCheckpointId();
 
-			TaskStateSnapshot subtaskStates = new TaskStateSnapshot();
+			final TaskStateSnapshot subtaskStates = new TaskStateSnapshot();
 
 			subtaskStates.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(statefulId),
 				new OperatorSubtaskState(
 					serializedState.get(0),
-					null,
-					null,
-					serializedKeyGroupStates,
-					null));
+					Collections.<OperatorStateHandle>emptyList(),
+					Collections.<OperatorStateHandle>emptyList(),
+					Collections.singletonList(serializedKeyGroupStates),
+					Collections.<KeyedStateHandle>emptyList()));
 
 			//SubtaskState checkpointStateHandles = new SubtaskState(serializedState, null, null, serializedKeyGroupStates, null);
 
@@ -146,33 +145,26 @@ public class CheckpointStateRestoreTest {
 
 			// verify that each stateful vertex got the state
 
-			final TaskStateHandles taskStateHandles = new TaskStateHandles(
-					serializedState,
-					Collections.<Collection<OperatorStateHandle>>singletonList(null),
-					Collections.<Collection<OperatorStateHandle>>singletonList(null),
-					Collections.singletonList(serializedKeyGroupStates),
-					null);
-
-			BaseMatcher<TaskStateHandles> matcher = new BaseMatcher<TaskStateHandles>() {
+			BaseMatcher<TaskStateSnapshot> matcher = new BaseMatcher<TaskStateSnapshot>() {
 				@Override
 				public boolean matches(Object o) {
-					if (o instanceof TaskStateHandles) {
-						return o.equals(taskStateHandles);
+					if (o instanceof TaskStateSnapshot) {
+						return Objects.equals(o, subtaskStates);
 					}
 					return false;
 				}
 
 				@Override
 				public void describeTo(Description description) {
-					description.appendValue(taskStateHandles);
+					description.appendValue(subtaskStates);
 				}
 			};
 
 			verify(statefulExec1, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statefulExec2, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statefulExec3, times(1)).setInitialState(Mockito.argThat(matcher));
-			verify(statelessExec1, times(0)).setInitialState(Mockito.<TaskStateHandles>any());
-			verify(statelessExec2, times(0)).setInitialState(Mockito.<TaskStateHandles>any());
+			verify(statelessExec1, times(0)).setInitialState(Mockito.<TaskStateSnapshot>any());
+			verify(statelessExec2, times(0)).setInitialState(Mockito.<TaskStateSnapshot>any());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -263,9 +255,9 @@ public class CheckpointStateRestoreTest {
 		Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();
 		{
 			OperatorState taskState = new OperatorState(operatorId1, 3, 3);
-			taskState.putState(0, new OperatorSubtaskState(serializedState, null, null, null, null));
-			taskState.putState(1, new OperatorSubtaskState(serializedState, null, null, null, null));
-			taskState.putState(2, new OperatorSubtaskState(serializedState, null, null, null, null));
+			taskState.putState(0, new OperatorSubtaskState(serializedState));
+			taskState.putState(1, new OperatorSubtaskState(serializedState));
+			taskState.putState(2, new OperatorSubtaskState(serializedState));
 
 			checkpointTaskStates.put(operatorId1, taskState);
 		}
@@ -292,7 +284,7 @@ public class CheckpointStateRestoreTest {
 		// There is no task for this
 		{
 			OperatorState taskState = new OperatorState(newOperatorID, 1, 1);
-			taskState.putState(0, new OperatorSubtaskState(serializedState, null, null, null, null));
+			taskState.putState(0, new OperatorSubtaskState(serializedState));
 
 			checkpointTaskStates.put(newOperatorID, taskState);
 		}

@@ -45,7 +45,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -2484,26 +2483,35 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		List<List<Collection<OperatorStateHandle>>> actualOpStatesBackend = new ArrayList<>(newJobVertex2.getParallelism());
 		List<List<Collection<OperatorStateHandle>>> actualOpStatesRaw = new ArrayList<>(newJobVertex2.getParallelism());
 		for (int i = 0; i < newJobVertex2.getParallelism(); i++) {
+
+			List<OperatorID> operatorIDs = newJobVertex2.getOperatorIDs();
+
 			KeyGroupsStateHandle originalKeyedStateBackend = generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i), false);
 			KeyGroupsStateHandle originalKeyedStateRaw = generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i), true);
 
-			TaskStateHandles taskStateHandles = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateHandles();
+			TaskStateSnapshot taskStateHandles = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
 
-			ChainedStateHandle<StreamStateHandle> operatorState = taskStateHandles.getLegacyOperatorState();
-			List<Collection<OperatorStateHandle>> opStateBackend = taskStateHandles.getManagedOperatorState();
-			List<Collection<OperatorStateHandle>> opStateRaw = taskStateHandles.getRawOperatorState();
-			Collection<KeyedStateHandle> keyedStateBackend = taskStateHandles.getManagedKeyedState();
-			Collection<KeyedStateHandle> keyGroupStateRaw = taskStateHandles.getRawKeyedState();
+			final int headOpIndex = operatorIDs.size() - 1;
+			List<Collection<OperatorStateHandle>> allParallelManagedOpStates = new ArrayList<>(operatorIDs.size());
+			List<Collection<OperatorStateHandle>> allParallelRawOpStates = new ArrayList<>(operatorIDs.size());
 
-			actualOpStatesBackend.add(opStateBackend);
-			actualOpStatesRaw.add(opStateRaw);
-			// the 'non partition state' is not null because it is recombined.
-			assertNotNull(operatorState);
-			for (int index = 0; index < operatorState.getLength(); index++) {
-				assertNull(operatorState.get(index));
+			for (int idx = 0; idx < operatorIDs.size(); ++idx) {
+				OperatorID operatorID = operatorIDs.get(idx);
+				OperatorSubtaskState opState = taskStateHandles.getSubtaskStateByOperatorID(operatorID);
+				Assert.assertNull(opState.getLegacyOperatorState());
+				Collection<OperatorStateHandle> opStateBackend = opState.getManagedOperatorState();
+				Collection<OperatorStateHandle> opStateRaw = opState.getRawOperatorState();
+				allParallelManagedOpStates.add(opStateBackend);
+				allParallelRawOpStates.add(opStateRaw);
+				if (idx == headOpIndex) {
+					Collection<KeyedStateHandle> keyedStateBackend = opState.getManagedKeyedState();
+					Collection<KeyedStateHandle> keyGroupStateRaw = opState.getRawKeyedState();
+					compareKeyedState(Collections.singletonList(originalKeyedStateBackend), keyedStateBackend);
+					compareKeyedState(Collections.singletonList(originalKeyedStateRaw), keyGroupStateRaw);
+				}
 			}
-			compareKeyedState(Collections.singletonList(originalKeyedStateBackend), keyedStateBackend);
-			compareKeyedState(Collections.singletonList(originalKeyedStateRaw), keyGroupStateRaw);
+			actualOpStatesBackend.add(allParallelManagedOpStates);
+			actualOpStatesRaw.add(allParallelRawOpStates);
 		}
 
 		comparePartitionableState(expectedOpStatesBackend, actualOpStatesBackend);
@@ -2683,24 +2691,30 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		for (int i = 0; i < newJobVertex1.getParallelism(); i++) {
 
-			TaskStateHandles taskStateHandles = newJobVertex1.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateHandles();
-			ChainedStateHandle<StreamStateHandle> actualSubNonPartitionedState = taskStateHandles.getLegacyOperatorState();
-			List<Collection<OperatorStateHandle>> actualSubManagedOperatorState = taskStateHandles.getManagedOperatorState();
-			List<Collection<OperatorStateHandle>> actualSubRawOperatorState = taskStateHandles.getRawOperatorState();
+			final List<OperatorID> operatorIds = newJobVertex1.getOperatorIDs();
 
-			assertNull(taskStateHandles.getManagedKeyedState());
-			assertNull(taskStateHandles.getRawKeyedState());
+			TaskStateSnapshot stateSnapshot = newJobVertex1.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
+
+			OperatorSubtaskState headOpState = stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIds.size() - 1));
+			assertTrue(headOpState.getManagedKeyedState().isEmpty());
+			assertTrue(headOpState.getRawKeyedState().isEmpty());
 
 			// operator5
 			{
 				int operatorIndexInChain = 2;
-				assertNull(actualSubNonPartitionedState.get(operatorIndexInChain));
-				assertNull(actualSubManagedOperatorState.get(operatorIndexInChain));
-				assertNull(actualSubRawOperatorState.get(operatorIndexInChain));
+				OperatorSubtaskState opState =
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+
+				assertNull(opState.getLegacyOperatorState());
+				assertTrue(opState.getManagedOperatorState().isEmpty());
+				assertTrue(opState.getRawOperatorState().isEmpty());
 			}
 			// operator1
 			{
 				int operatorIndexInChain = 1;
+				OperatorSubtaskState opState =
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+
 				StreamStateHandle expectSubNonPartitionedState = generateStateForVertex(id1.f0, i);
 				OperatorStateHandle expectedManagedOpState = generatePartitionableStateHandle(
 					id1.f0, i, 2, 8, false);
@@ -2709,31 +2723,43 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 				assertTrue(CommonTestUtils.isSteamContentEqual(
 					expectSubNonPartitionedState.openInputStream(),
-					actualSubNonPartitionedState.get(operatorIndexInChain).openInputStream()));
+					opState.getLegacyOperatorState().openInputStream()));
 
+				Collection<OperatorStateHandle> managedOperatorState = opState.getManagedOperatorState();
+				assertEquals(1, managedOperatorState.size());
 				assertTrue(CommonTestUtils.isSteamContentEqual(expectedManagedOpState.openInputStream(),
-					actualSubManagedOperatorState.get(operatorIndexInChain).iterator().next().openInputStream()));
+					managedOperatorState.iterator().next().openInputStream()));
 
+				Collection<OperatorStateHandle> rawOperatorState = opState.getRawOperatorState();
+				assertEquals(1, rawOperatorState.size());
 				assertTrue(CommonTestUtils.isSteamContentEqual(expectedRawOpState.openInputStream(),
-					actualSubRawOperatorState.get(operatorIndexInChain).iterator().next().openInputStream()));
+					rawOperatorState.iterator().next().openInputStream()));
 			}
 			// operator2
 			{
 				int operatorIndexInChain = 0;
+				OperatorSubtaskState opState =
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+
 				StreamStateHandle expectSubNonPartitionedState = generateStateForVertex(id2.f0, i);
 				OperatorStateHandle expectedManagedOpState = generatePartitionableStateHandle(
 					id2.f0, i, 2, 8, false);
 				OperatorStateHandle expectedRawOpState = generatePartitionableStateHandle(
 					id2.f0, i, 2, 8, true);
 
-				assertTrue(CommonTestUtils.isSteamContentEqual(expectSubNonPartitionedState.openInputStream(),
-					actualSubNonPartitionedState.get(operatorIndexInChain).openInputStream()));
+				assertTrue(CommonTestUtils.isSteamContentEqual(
+					expectSubNonPartitionedState.openInputStream(),
+					opState.getLegacyOperatorState().openInputStream()));
 
+				Collection<OperatorStateHandle> managedOperatorState = opState.getManagedOperatorState();
+				assertEquals(1, managedOperatorState.size());
 				assertTrue(CommonTestUtils.isSteamContentEqual(expectedManagedOpState.openInputStream(),
-					actualSubManagedOperatorState.get(operatorIndexInChain).iterator().next().openInputStream()));
+					managedOperatorState.iterator().next().openInputStream()));
 
+				Collection<OperatorStateHandle> rawOperatorState = opState.getRawOperatorState();
+				assertEquals(1, rawOperatorState.size());
 				assertTrue(CommonTestUtils.isSteamContentEqual(expectedRawOpState.openInputStream(),
-					actualSubRawOperatorState.get(operatorIndexInChain).iterator().next().openInputStream()));
+					rawOperatorState.iterator().next().openInputStream()));
 			}
 		}
 
@@ -2741,38 +2767,48 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		List<List<Collection<OperatorStateHandle>>> actualRawOperatorStates = new ArrayList<>(newJobVertex2.getParallelism());
 
 		for (int i = 0; i < newJobVertex2.getParallelism(); i++) {
-			TaskStateHandles taskStateHandles = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateHandles();
+
+			final List<OperatorID> operatorIds = newJobVertex2.getOperatorIDs();
+
+			TaskStateSnapshot stateSnapshot = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
 
 			// operator 3
 			{
 				int operatorIndexInChain = 1;
+				OperatorSubtaskState opState =
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+
 				List<Collection<OperatorStateHandle>> actualSubManagedOperatorState = new ArrayList<>(1);
-				actualSubManagedOperatorState.add(taskStateHandles.getManagedOperatorState().get(operatorIndexInChain));
+				actualSubManagedOperatorState.add(opState.getManagedOperatorState());
 
 				List<Collection<OperatorStateHandle>> actualSubRawOperatorState = new ArrayList<>(1);
-				actualSubRawOperatorState.add(taskStateHandles.getRawOperatorState().get(operatorIndexInChain));
+				actualSubRawOperatorState.add(opState.getRawOperatorState());
 
 				actualManagedOperatorStates.add(actualSubManagedOperatorState);
 				actualRawOperatorStates.add(actualSubRawOperatorState);
 
-				assertNull(taskStateHandles.getLegacyOperatorState().get(operatorIndexInChain));
+				assertNull(opState.getLegacyOperatorState());
 			}
 
 			// operator 6
 			{
 				int operatorIndexInChain = 0;
-				assertNull(taskStateHandles.getManagedOperatorState().get(operatorIndexInChain));
-				assertNull(taskStateHandles.getRawOperatorState().get(operatorIndexInChain));
-				assertNull(taskStateHandles.getLegacyOperatorState().get(operatorIndexInChain));
+				OperatorSubtaskState opState =
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+				assertNull(opState.getLegacyOperatorState());
+				assertTrue(opState.getManagedOperatorState().isEmpty());
+				assertTrue(opState.getRawOperatorState().isEmpty());
 
 			}
 
 			KeyGroupsStateHandle originalKeyedStateBackend = generateKeyGroupState(id3.f0, newKeyGroupPartitions2.get(i), false);
 			KeyGroupsStateHandle originalKeyedStateRaw = generateKeyGroupState(id3.f0, newKeyGroupPartitions2.get(i), true);
 
+			OperatorSubtaskState headOpState =
+				stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIds.size() - 1));
 
-			Collection<KeyedStateHandle> keyedStateBackend = taskStateHandles.getManagedKeyedState();
-			Collection<KeyedStateHandle> keyGroupStateRaw = taskStateHandles.getRawKeyedState();
+			Collection<KeyedStateHandle> keyedStateBackend = headOpState.getManagedKeyedState();
+			Collection<KeyedStateHandle> keyGroupStateRaw = headOpState.getRawKeyedState();
 
 
 			compareKeyedState(Collections.singletonList(originalKeyedStateBackend), keyedStateBackend);
@@ -3169,27 +3205,27 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 
-			TaskStateHandles taskStateHandles = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateHandles();
+			final List<OperatorID> operatorIds = executionJobVertex.getOperatorIDs();
+
+			TaskStateSnapshot stateSnapshot = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
+
+			OperatorSubtaskState operatorState = stateSnapshot.getSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID));
 
 			StreamStateHandle expectNonPartitionedState = generateStateForVertex(jobVertexID, i);
-			ChainedStateHandle<StreamStateHandle> actualNonPartitionedState = taskStateHandles.getLegacyOperatorState();
 			assertTrue(CommonTestUtils.isSteamContentEqual(
 					expectNonPartitionedState.openInputStream(),
-					actualNonPartitionedState.get(0).openInputStream()));
+				operatorState.getLegacyOperatorState().openInputStream()));
 
 			ChainedStateHandle<OperatorStateHandle> expectedOpStateBackend =
 					generateChainedPartitionableStateHandle(jobVertexID, i, 2, 8, false);
 
-			List<Collection<OperatorStateHandle>> actualPartitionableState = taskStateHandles.getManagedOperatorState();
-
 			assertTrue(CommonTestUtils.isSteamContentEqual(
 					expectedOpStateBackend.get(0).openInputStream(),
-					actualPartitionableState.get(0).iterator().next().openInputStream()));
+					operatorState.getManagedOperatorState().iterator().next().openInputStream()));
 
 			KeyGroupsStateHandle expectPartitionedKeyGroupState = generateKeyGroupState(
 					jobVertexID, keyGroupPartitions.get(i), false);
-			Collection<KeyedStateHandle> actualPartitionedKeyGroupState = taskStateHandles.getManagedKeyedState();
-			compareKeyedState(Collections.singletonList(expectPartitionedKeyGroupState), actualPartitionedKeyGroupState);
+			compareKeyedState(Collections.singletonList(expectPartitionedKeyGroupState), operatorState.getManagedKeyedState());
 		}
 	}
 

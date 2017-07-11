@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -57,7 +58,11 @@ public class TaskStateHandles implements Serializable {
 	private final List<Collection<OperatorStateHandle>> rawOperatorState;
 
 	public TaskStateHandles() {
-		this(null, null, null, null, null);
+		this(null,
+			Collections.<Collection<OperatorStateHandle>>emptyList(),
+			Collections.<Collection<OperatorStateHandle>>emptyList(),
+			Collections.<KeyedStateHandle>emptyList(),
+			Collections.<KeyedStateHandle>emptyList());
 	}
 
 	public TaskStateHandles(SubtaskState checkpointStateHandles) {
@@ -76,10 +81,10 @@ public class TaskStateHandles implements Serializable {
 			Collection<KeyedStateHandle> rawKeyedState) {
 
 		this.legacyOperatorState = legacyOperatorState;
-		this.managedKeyedState = managedKeyedState;
-		this.rawKeyedState = rawKeyedState;
-		this.managedOperatorState = managedOperatorState;
-		this.rawOperatorState = rawOperatorState;
+		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
+		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
+		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
+		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
 	}
 
 	/**

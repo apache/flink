@@ -37,7 +37,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -46,7 +45,6 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -56,7 +54,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
@@ -68,7 +65,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -159,7 +155,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** The map of user-defined accumulators of this task. */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 
-	private TaskStateHandles restoreStateHandles;
+	private TaskStateSnapshot taskStateSnapshot;
 
 	/** The currently active background materialization threads. */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
@@ -509,8 +505,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setInitialState(TaskStateHandles taskStateHandles) {
-		this.restoreStateHandles = taskStateHandles;
+	public void setInitialState(TaskStateSnapshot taskStateHandles) {
+		this.taskStateSnapshot = taskStateHandles;
 	}
 
 	@Override
@@ -659,12 +655,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void initializeState() throws Exception {
 
-		boolean restored = null != restoreStateHandles;
+		boolean restored = null != taskStateSnapshot;
 
 		if (restored) {
-			checkRestorePreconditions(operatorChain.getChainLength());
 			initializeOperators(true);
-			restoreStateHandles = null; // free for GC
+			taskStateSnapshot = null; // free for GC
 		} else {
 			initializeOperators(false);
 		}
@@ -675,33 +670,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		for (int chainIdx = 0; chainIdx < allOperators.length; ++chainIdx) {
 			StreamOperator<?> operator = allOperators[chainIdx];
 			if (null != operator) {
-				if (restored && restoreStateHandles != null) {
-					operator.initializeState(restoreStateHandles.getStateByOperatorID(operator.getOperatorID()));
-					operator.initializeState(new OperatorStateHandles(restoreStateHandles, chainIdx));
+				if (restored && taskStateSnapshot != null) {
+					operator.initializeState(taskStateSnapshot.getSubtaskStateByOperatorID(operator.getOperatorID()));
 				} else {
 					operator.initializeState(null);
 				}
 			}
-		}
-	}
-
-	private void checkRestorePreconditions(int operatorChainLength) {
-
-		ChainedStateHandle<StreamStateHandle> nonPartitionableOperatorStates =
-				restoreStateHandles.getLegacyOperatorState();
-		List<Collection<OperatorStateHandle>> operatorStates =
-				restoreStateHandles.getManagedOperatorState();
-
-		if (nonPartitionableOperatorStates != null) {
-			Preconditions.checkState(nonPartitionableOperatorStates.getLength() == operatorChainLength,
-					"Invalid Invalid number of operator states. Found :" + nonPartitionableOperatorStates.getLength()
-							+ ". Expected: " + operatorChainLength);
-		}
-
-		if (!CollectionUtil.isNullOrEmpty(operatorStates)) {
-			Preconditions.checkArgument(operatorStates.size() == operatorChainLength,
-					"Invalid number of operator states. Found :" + operatorStates.size() +
-							". Expected: " + operatorChainLength);
 		}
 	}
 
@@ -770,8 +744,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		cancelables.registerClosable(keyedStateBackend);
 
 		// restore if we have some old state
-		Collection<KeyedStateHandle> restoreKeyedStateHandles =
-			restoreStateHandles == null ? null : restoreStateHandles.getManagedKeyedState();
+		Collection<KeyedStateHandle> restoreKeyedStateHandles = null;
+
+		if (taskStateSnapshot != null) {
+			OperatorSubtaskState stateByOperatorID =
+				taskStateSnapshot.getSubtaskStateByOperatorID(headOperator.getOperatorID());
+			restoreKeyedStateHandles = stateByOperatorID != null ? stateByOperatorID.getManagedKeyedState() : null;
+		}
 
 		keyedStateBackend.restore(restoreKeyedStateHandles);
 
