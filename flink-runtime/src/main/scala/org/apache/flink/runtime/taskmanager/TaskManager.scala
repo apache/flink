@@ -839,8 +839,7 @@ class TaskManager(
         if (file.exists()) {
           val fis = new FileInputStream(file);
           Future {
-            val client: BlobClient = blobCache.get.createClient()
-            client.put(fis);
+            blobCache.get.getTransientBlobStore.put(fis)
           }(context.dispatcher)
             .onComplete {
               case scala.util.Success(value) =>
@@ -969,7 +968,8 @@ class TaskManager(
           highAvailabilityServices.createBlobStore())
         blobCache = Option(blobcache)
         libraryCacheManager = Some(
-          new BlobLibraryCacheManager(blobcache, config.getClassLoaderResolveOrder()))
+          new BlobLibraryCacheManager(
+            blobcache.getPermanentBlobStore, config.getClassLoaderResolveOrder()))
       }
       catch {
         case e: Exception =>

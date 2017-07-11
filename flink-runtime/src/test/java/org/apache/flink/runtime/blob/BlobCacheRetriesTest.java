@@ -28,13 +28,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.URL;
+import javax.annotation.Nullable;
 
-import static org.junit.Assert.*;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+
+import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for the blob cache retrying the connection to the server.
@@ -54,7 +54,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchRetries(config, new VoidBlobStore(), null);
+		testBlobFetchRetries(config, new VoidBlobStore(), null, false);
 	}
 
 	/**
@@ -67,16 +67,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchRetries(config, new VoidBlobStore(), new JobID());
-	}
-
-	/**
-	 * A test where the connection fails twice and then the get operation succeeds
-	 * (with high availability set, job-unrelated blob).
-	 */
-	@Test
-	public void testBlobNoJobFetchRetriesHa() throws IOException {
-		testBlobFetchRetriesHa(null);
+		testBlobFetchRetries(config, new VoidBlobStore(), new JobID(), false);
 	}
 
 	/**
@@ -85,10 +76,6 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 */
 	@Test
 	public void testBlobFetchRetriesHa() throws IOException {
-		testBlobFetchRetriesHa(new JobID());
-	}
-
-	private void testBlobFetchRetriesHa(final JobID jobId) throws IOException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
@@ -101,7 +88,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testBlobFetchRetries(config, blobStoreService, jobId);
+			testBlobFetchRetries(config, blobStoreService, new JobID(), true);
 		} finally {
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
@@ -118,50 +105,23 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 * 		set compared to this one)
 	 */
 	private static void testBlobFetchRetries(
-			final Configuration config, final BlobStore blobStore, final JobID jobId)
-			throws IOException {
+			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
+			boolean highAvailability) throws IOException {
+
 		final byte[] data = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
 
-		BlobServer server = null;
-		BlobCache cache = null;
-		try {
+		try (
+			BlobServer server = new TestingFailingBlobServer(config, blobStore, 2);
+			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+				config, new VoidBlobStore())) {
 
-			server = new TestingFailingBlobServer(config, blobStore, 2);
-
-			final InetSocketAddress
-				serverAddress = new InetSocketAddress("localhost", server.getPort());
+			server.start();
 
 			// upload some blob
-			BlobClient blobClient = null;
-			BlobKey key;
-			try {
-				blobClient = new BlobClient(serverAddress, config);
-
-				key = blobClient.put(jobId, data);
-			}
-			finally {
-				if (blobClient != null) {
-					blobClient.close();
-				}
-			}
-
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailability);
 
 			// trigger a download - it should fail the first two times, but retry, and succeed eventually
-			File file = jobId == null ? cache.getFile(key) : cache.getFile(jobId, key);
-			URL url = file.toURI().toURL();
-			try (InputStream is = url.openStream()) {
-				byte[] received = new byte[data.length];
-				assertEquals(data.length, is.read(received));
-				assertArrayEquals(data, received);
-			}
-		} finally {
-			if (cache != null) {
-				cache.close();
-			}
-			if (server != null) {
-				server.close();
-			}
+			verifyContents(cache, jobId, key, data, highAvailability);
 		}
 	}
 
@@ -175,7 +135,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), null);
+		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), null, false);
 	}
 
 	/**
@@ -188,28 +148,15 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), new JobID());
+		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), new JobID(), false);
 	}
 
 	/**
-	 * A test where the connection fails twice and then the get operation succeeds
-	 * (with high availability set, job-unrelated blob).
-	 */
-	@Test
-	public void testBlobNoJobFetchWithTooManyFailuresHa() throws IOException {
-		testBlobFetchWithTooManyFailuresHa(null);
-	}
-
-	/**
-	 * A test where the connection fails twice and then the get operation succeeds
+	 * A test where the connection fails too often and eventually fails the GET request
 	 * (with high availability set, job-related blob).
 	 */
 	@Test
 	public void testBlobForJobFetchWithTooManyFailuresHa() throws IOException {
-		testBlobFetchWithTooManyFailuresHa(new JobID());
-	}
-
-	private void testBlobFetchWithTooManyFailuresHa(final JobID jobId) throws IOException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
@@ -222,7 +169,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testBlobFetchWithTooManyFailures(config, blobStoreService, jobId);
+			testBlobFetchWithTooManyFailures(config, blobStoreService, new JobID(), true);
 		} finally {
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
@@ -239,54 +186,28 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 * 		set compared to this one)
 	 */
 	private static void testBlobFetchWithTooManyFailures(
-		final Configuration config, final BlobStore blobStore, final JobID jobId)
-			throws IOException {
+			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
+			boolean highAvailability) throws IOException {
+
 		final byte[] data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
 
-		BlobServer server = null;
-		BlobCache cache = null;
-		try {
+		try (
+			BlobServer server = new TestingFailingBlobServer(config, blobStore, 0, 10);
+			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+				config, new VoidBlobStore())) {
 
-			server = new TestingFailingBlobServer(config, blobStore, 10);
-
-			final InetSocketAddress
-				serverAddress = new InetSocketAddress("localhost", server.getPort());
+			server.start();
 
 			// upload some blob
-			BlobClient blobClient = null;
-			BlobKey key;
-			try {
-				blobClient = new BlobClient(serverAddress, config);
-
-				key = blobClient.put(jobId, data);
-			}
-			finally {
-				if (blobClient != null) {
-					blobClient.close();
-				}
-			}
-
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailability);
 
 			// trigger a download - it should fail eventually
 			try {
-				if (jobId == null) {
-					cache.getFile(key);
-				} else {
-					cache.getFile(jobId, key);
-				}
+				verifyContents(cache, jobId, key, data, highAvailability);
 				fail("This should fail");
 			}
 			catch (IOException e) {
 				// as we expected
-			}
-		}
-		finally {
-			if (cache != null) {
-				cache.close();
-			}
-			if (server != null) {
-				server.close();
 			}
 		}
 	}

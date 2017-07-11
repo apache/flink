@@ -25,6 +25,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -55,10 +56,14 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -137,7 +142,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 					// Setup
 
 					TestingCluster cluster = null;
-					BlobClient bc = null;
+					File tempBlob = null;
 
 					try {
 						Configuration config = new Configuration();
@@ -182,15 +187,13 @@ public class JobManagerCleanupITCase extends TestLogger {
 						int blobPort = (Integer) Await.result(future, remaining());
 
 						// upload a blob
-						BlobKey key1;
-						bc = new BlobClient(new InetSocketAddress("localhost", blobPort),
-							config);
-						try {
-							key1 = bc.put(jid, new byte[10]);
-						} finally {
-							bc.close();
-						}
-						jobGraph.addBlob(key1);
+						tempBlob = File.createTempFile("Required", ".jar");
+						List<BlobKey> keys =
+							BlobClient.uploadJarFiles(new InetSocketAddress("localhost", blobPort),
+								config, jid,
+								Collections.singletonList(new Path(tempBlob.getAbsolutePath())));
+						assertEquals(1, keys.size());
+						jobGraph.addBlob(keys.get(0));
 
 						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							// add an invalid key so that the submission fails
@@ -251,14 +254,11 @@ public class JobManagerCleanupITCase extends TestLogger {
 						e.printStackTrace();
 						fail(e.getMessage());
 					} finally {
-						if (bc != null) {
-							try {
-								bc.close();
-							} catch (IOException ignored) {
-							}
-						}
 						if (cluster != null) {
 							cluster.shutdown();
+						}
+						if (tempBlob != null) {
+							assertTrue(tempBlob.delete());
 						}
 					}
 				}

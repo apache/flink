@@ -41,7 +41,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
- * A few tests for the deferred ref-counting based cleanup inside the {@link BlobCache}.
+ * A few tests for the deferred ref-counting based cleanup inside the {@link PermanentBlobCache}.
  */
 public class BlobCacheCleanupTest extends TestLogger {
 
@@ -49,15 +49,15 @@ public class BlobCacheCleanupTest extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
-	 * Tests that {@link BlobCache} cleans up after calling {@link BlobCache#releaseJob(JobID)}.
+	 * Tests that {@link PermanentBlobCache} cleans up after calling {@link PermanentBlobCache#releaseJob(JobID)}.
 	 */
 	@Test
 	public void testJobCleanup() throws IOException, InterruptedException {
 
 		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<BlobKey>();
+		List<BlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 
 		final byte[] buf = new byte[128];
 
@@ -68,16 +68,14 @@ public class BlobCacheCleanupTest extends TestLogger {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload blobs
-			try (BlobClient bc = new BlobClient(serverAddress, config)) {
-				keys.add(bc.put(jobId, buf));
-				buf[0] += 1;
-				keys.add(bc.put(jobId, buf));
-			}
-
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			keys.add(server.putHA(jobId, buf));
+			buf[0] += 1;
+			keys.add(server.putHA(jobId, buf));
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -89,13 +87,13 @@ public class BlobCacheCleanupTest extends TestLogger {
 			checkFileCountForJob(0, jobId, cache);
 
 			for (BlobKey key : keys) {
-				cache.getFile(jobId, key);
+				cache.getHAFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
 			for (BlobKey key : keys) {
-				cache.getFile(jobId, key);
+				cache.getHAFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
@@ -159,7 +157,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 		// NOTE: use fake address - we will not connect to it here
 		InetSocketAddress serverAddress = new InetSocketAddress("localhost", 12345);
 
-		try (BlobCache cache = new BlobCache(serverAddress, config, new VoidBlobStore())) {
+		try (PermanentBlobCache cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore())) {
 
 			// register once
 			cache.registerJob(jobId);
@@ -200,7 +198,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that {@link BlobCache} cleans up after calling {@link BlobCache#releaseJob(JobID)}
+	 * Tests that {@link PermanentBlobCache} cleans up after calling {@link PermanentBlobCache#releaseJob(JobID)}
 	 * but only after preserving the file for a bit longer.
 	 */
 	@Test
@@ -212,7 +210,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 		JobID jobId = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
 		BlobServer server = null;
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 
 		final byte[] buf = new byte[128];
 
@@ -223,16 +221,14 @@ public class BlobCacheCleanupTest extends TestLogger {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload blobs
-			try (BlobClient bc = new BlobClient(serverAddress, config)) {
-				keys.add(bc.put(jobId, buf));
-				buf[0] += 1;
-				keys.add(bc.put(jobId, buf));
-			}
-
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			keys.add(server.putHA(jobId, buf));
+			buf[0] += 1;
+			keys.add(server.putHA(jobId, buf));
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -244,13 +240,13 @@ public class BlobCacheCleanupTest extends TestLogger {
 			checkFileCountForJob(0, jobId, cache);
 
 			for (BlobKey key : keys) {
-				cache.getFile(jobId, key);
+				cache.getHAFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
 			for (BlobKey key : keys) {
-				cache.getFile(jobId, key);
+				cache.getHAFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
@@ -321,10 +317,10 @@ public class BlobCacheCleanupTest extends TestLogger {
 	 * @param doThrow
 	 * 		whether exceptions should be ignored (<tt>false</tt>), or thrown (<tt>true</tt>)
 	 *
-	 * @return number of files we were able to retrieve via {@link BlobService#getFile}
+	 * @return number of files we were able to retrieve via {@link PermanentBlobService#getHAFile}
 	 */
 	public static int checkFilesExist(
-		JobID jobId, Collection<BlobKey> keys, BlobService blobService, boolean doThrow)
+		JobID jobId, Collection<BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
 		throws IOException {
 
 		int numFiles = 0;
@@ -335,7 +331,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 				BlobServer server = (BlobServer) blobService;
 				blobFile = server.getStorageLocation(jobId, key);
 			} else {
-				BlobCache cache = (BlobCache) blobService;
+				PermanentBlobCache cache = (PermanentBlobCache) blobService;
 				blobFile = cache.getStorageLocation(jobId, key);
 			}
 			if (blobFile.exists()) {
@@ -357,11 +353,9 @@ public class BlobCacheCleanupTest extends TestLogger {
 	 * 		ID of a job
 	 * @param blobService
 	 * 		BLOB store to use
-	 *
-	 * @return number of files we were able to retrieve via {@link BlobService#getFile}
 	 */
 	public static void checkFileCountForJob(
-		int expectedCount, JobID jobId, BlobService blobService)
+		int expectedCount, JobID jobId, PermanentBlobService blobService)
 		throws IOException {
 
 		final File jobDir;
@@ -369,7 +363,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 			BlobServer server = (BlobServer) blobService;
 			jobDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
 		} else {
-			BlobCache cache = (BlobCache) blobService;
+			PermanentBlobCache cache = (PermanentBlobCache) blobService;
 			jobDir = cache.getStorageLocation(jobId, new BlobKey()).getParentFile();
 		}
 		File[] blobsForJob = jobDir.listFiles();

@@ -21,10 +21,9 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.OperatingSystem;
@@ -72,7 +71,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 		List<BlobKey> keys1 = new ArrayList<>();
 		List<BlobKey> keys2 = new ArrayList<>();
 		BlobServer server = null;
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
 
 		final byte[] buf = new byte[128];
@@ -84,16 +83,14 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys1.add(bc.put(jobId1, buf));
+			keys1.add(server.putHA(jobId1, buf));
 			buf[0] += 1;
-			keys1.add(bc.put(jobId1, buf));
-			keys2.add(bc.put(jobId2, buf));
-
-			bc.close();
+			keys1.add(server.putHA(jobId1, buf));
+			keys2.add(server.putHA(jobId2, buf));
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId1);
@@ -175,7 +172,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(1, jobId2, server);
 			checkFileCountForJob(1, jobId2, cache);
 
-			// only BlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
+			// only PermanentBlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
 		}
 		finally {
 			if (libCache != null) {
@@ -205,7 +202,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 		ExecutionAttemptID attempt2 = new ExecutionAttemptID();
 		List<BlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
 
 		final byte[] buf = new byte[128];
@@ -217,15 +214,13 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(bc.put(jobId, buf));
+			keys.add(server.putHA(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
+			keys.add(server.putHA(jobId, buf));
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId);
@@ -290,7 +285,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(2, jobId, cache);
 
-			// only BlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
+			// only PermanentBlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
 		}
 		finally {
 			if (libCache != null) {
@@ -319,7 +314,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
 		List<BlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
 
 		final byte[] buf = new byte[128];
@@ -331,15 +326,13 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(bc.put(jobId, buf));
+			keys.add(server.putHA(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
+			keys.add(server.putHA(jobId, buf));
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId);
@@ -404,7 +397,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(2, jobId, cache);
 
-			// only BlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
+			// only PermanentBlobCache#releaseJob() calls clean up files (tested in BlobCacheCleanupTest etc.
 		}
 		finally {
 			if (libCache != null) {
@@ -428,7 +421,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 		JobID jobId = new JobID();
 		BlobServer server = null;
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
 		File cacheDir = null;
 		try {
@@ -439,14 +432,13 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload some meaningless data to the server
-			BlobClient uploader = new BlobClient(serverAddress, config);
-			BlobKey dataKey1 = uploader.put(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
-			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
-			uploader.close();
+			BlobKey dataKey1 = server.putHA(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
+			BlobKey dataKey2 = server.putHA(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			assertEquals(0, libCache.getNumberOfManagedJobs());

@@ -461,7 +461,7 @@ class JobManager(
           taskManagerGateway match {
             case x: ActorTaskManagerGateway =>
               handleTaskManagerTerminated(x.getActorGateway().actor(), instance.getId)
-            case _ => log.debug(s"Cannot remove resource ${resourceID}, because there is " +
+            case _ => log.debug(s"Cannot remove reosurce ${resourceID}, because there is " +
                                   s"no ActorRef registered.")
           }
 
@@ -2500,6 +2500,7 @@ object JobManager {
 
     try {
       blobServer = new BlobServer(configuration, blobStore)
+      blobServer.start()
       instanceManager = new InstanceManager()
       scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(futureExecutor))
       libraryCacheManager =

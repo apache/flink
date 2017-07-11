@@ -574,7 +574,7 @@ public class Task implements Runnable, TaskActions {
 			LOG.info("Creating FileSystem stream leak safety net for task {}", this);
 			FileSystemSafetyNet.initializeSafetyNetForThread();
 
-			blobCache.registerJob(jobId);
+			blobCache.getPermanentBlobStore().registerJob(jobId);
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
@@ -835,7 +835,7 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
-				blobCache.releaseJob(jobId);
+				blobCache.getPermanentBlobStore().releaseJob(jobId);
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
