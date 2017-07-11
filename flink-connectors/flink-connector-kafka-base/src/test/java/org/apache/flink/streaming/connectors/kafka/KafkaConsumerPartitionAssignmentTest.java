@@ -44,17 +44,17 @@ public class KafkaConsumerPartitionAssignmentTest {
 	public void testPartitionsEqualConsumers() {
 		try {
 			List<KafkaTopicPartition> inPartitions = Arrays.asList(
-					new KafkaTopicPartition("test-topic", 4),
-					new KafkaTopicPartition("test-topic", 52),
-					new KafkaTopicPartition("test-topic", 17),
-					new KafkaTopicPartition("test-topic", 1));
+				new KafkaTopicPartition("test-topic", 0),
+				new KafkaTopicPartition("test-topic", 1),
+				new KafkaTopicPartition("test-topic", 2),
+				new KafkaTopicPartition("test-topic", 3));
 
-			for (int i = 0; i < inPartitions.size(); i++) {
+			for (int subtaskIndex = 0; subtaskIndex < inPartitions.size(); subtaskIndex++) {
 				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
 				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
 					subscribedPartitionsToStartOffsets,
 					inPartitions,
-					i,
+					subtaskIndex,
 					inPartitions.size(),
 					StartupMode.GROUP_OFFSETS,
 					null);
@@ -63,6 +63,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 
 				assertEquals(1, subscribedPartitions.size());
 				assertTrue(contains(inPartitions, subscribedPartitions.get(0).getPartition()));
+				assertEquals(getExpectedSubtaskIndex(subscribedPartitions.get(0), 4), subtaskIndex);
 			}
 		}
 		catch (Exception e) {
@@ -74,7 +75,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 	@Test
 	public void testMultiplePartitionsPerConsumers() {
 		try {
-			final int[] partitionIDs = {4, 52, 17, 1, 2, 3, 89, 42, 31, 127, 14};
+			final int[] partitionIDs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
 			final List<KafkaTopicPartition> partitions = new ArrayList<>();
 			final Set<KafkaTopicPartition> allPartitions = new HashSet<>();
@@ -89,12 +90,12 @@ public class KafkaConsumerPartitionAssignmentTest {
 			final int minPartitionsPerConsumer = partitions.size() / numConsumers;
 			final int maxPartitionsPerConsumer = partitions.size() / numConsumers + 1;
 
-			for (int i = 0; i < numConsumers; i++) {
+			for (int subtaskIndex = 0; subtaskIndex < numConsumers; subtaskIndex++) {
 				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
 				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
 					subscribedPartitionsToStartOffsets,
 					partitions,
-					i,
+					subtaskIndex,
 					numConsumers,
 					StartupMode.GROUP_OFFSETS,
 					null);
@@ -103,6 +104,9 @@ public class KafkaConsumerPartitionAssignmentTest {
 
 				assertTrue(subscribedPartitions.size() >= minPartitionsPerConsumer);
 				assertTrue(subscribedPartitions.size() <= maxPartitionsPerConsumer);
+				for (KafkaTopicPartition subscribedPartition : subscribedPartitions) {
+					assertEquals(getExpectedSubtaskIndex(subscribedPartition, numConsumers), subtaskIndex);
+				}
 
 				for (KafkaTopicPartition p : subscribedPartitions) {
 					// check that the element was actually contained
@@ -133,12 +137,12 @@ public class KafkaConsumerPartitionAssignmentTest {
 
 			final int numConsumers = 2 * inPartitions.size() + 3;
 
-			for (int i = 0; i < numConsumers; i++) {
+			for (int subtaskIndex = 0; subtaskIndex < numConsumers; subtaskIndex++) {
 				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
 				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
 					subscribedPartitionsToStartOffsets,
 					inPartitions,
-					i,
+					subtaskIndex,
 					numConsumers,
 					StartupMode.GROUP_OFFSETS,
 					null);
@@ -146,6 +150,9 @@ public class KafkaConsumerPartitionAssignmentTest {
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
 
 				assertTrue(subscribedPartitions.size() <= 1);
+				for (KafkaTopicPartition subscribedPartition : subscribedPartitions) {
+					assertEquals(getExpectedSubtaskIndex(subscribedPartition, numConsumers), subtaskIndex);
+				}
 
 				for (KafkaTopicPartition p : subscribedPartitions) {
 					// check that the element was actually contained
@@ -195,7 +202,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 	@Test
 	public void testGrowingPartitionsRemainsStable() {
 		try {
-			final int[] newPartitionIDs = {4, 52, 17, 1, 2, 3, 89, 42, 31, 127, 14};
+			final int[] newPartitionIDs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 			List<KafkaTopicPartition> newPartitions = new ArrayList<>();
 
 			for (int p : newPartitionIDs) {
@@ -256,16 +263,19 @@ public class KafkaConsumerPartitionAssignmentTest {
 			for (KafkaTopicPartition p : subscribedPartitions1) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
+				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
 			}
 
 			for (KafkaTopicPartition p : subscribedPartitions2) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
+				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
 			}
 
 			for (KafkaTopicPartition p : subscribedPartitions3) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
+				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
 			}
 
 			// all partitions must have been assigned
@@ -325,14 +335,17 @@ public class KafkaConsumerPartitionAssignmentTest {
 			for (KafkaTopicPartition p : subscribedPartitions1New) {
 				// check that the element was actually contained
 				assertTrue(allNewPartitions.remove(p));
+				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
 			}
 			for (KafkaTopicPartition p : subscribedPartitions2New) {
 				// check that the element was actually contained
 				assertTrue(allNewPartitions.remove(p));
+				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
 			}
 			for (KafkaTopicPartition p : subscribedPartitions3New) {
 				// check that the element was actually contained
 				assertTrue(allNewPartitions.remove(p));
+				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
 			}
 
 			// all partitions must have been assigned
@@ -342,6 +355,61 @@ public class KafkaConsumerPartitionAssignmentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testDeterministicAssignmentWithDifferentFetchedPartitionOrdering() {
+		final int numSubtasks = 4;
+
+		try {
+			List<KafkaTopicPartition> inPartitions = Arrays.asList(
+				new KafkaTopicPartition("test-topic", 0),
+				new KafkaTopicPartition("test-topic", 1),
+				new KafkaTopicPartition("test-topic", 2),
+				new KafkaTopicPartition("test-topic", 3),
+				new KafkaTopicPartition("test-topic2", 0),
+				new KafkaTopicPartition("test-topic2", 1));
+
+			List<KafkaTopicPartition> inPartitionsOutOfOrder = Arrays.asList(
+				new KafkaTopicPartition("test-topic", 3),
+				new KafkaTopicPartition("test-topic", 1),
+				new KafkaTopicPartition("test-topic2", 1),
+				new KafkaTopicPartition("test-topic", 0),
+				new KafkaTopicPartition("test-topic2", 0),
+				new KafkaTopicPartition("test-topic", 2));
+
+			for (int subtaskIndex = 0; subtaskIndex < numSubtasks; subtaskIndex++) {
+				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
+				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsetsOutOfOrder = new HashMap<>();
+
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					subscribedPartitionsToStartOffsets,
+					inPartitions,
+					subtaskIndex,
+					inPartitions.size(),
+					StartupMode.GROUP_OFFSETS,
+					null);
+
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					subscribedPartitionsToStartOffsetsOutOfOrder,
+					inPartitionsOutOfOrder,
+					subtaskIndex,
+					inPartitions.size(),
+					StartupMode.GROUP_OFFSETS,
+					null);
+
+				// the subscribed partitions should be identical, regardless of the input partition ordering
+				assertEquals(subscribedPartitionsToStartOffsets, subscribedPartitionsToStartOffsetsOutOfOrder);
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	private static int getExpectedSubtaskIndex(KafkaTopicPartition partition, int numTasks) {
+		return Math.abs(partition.hashCode() % numTasks);
 	}
 
 	private boolean contains(List<KafkaTopicPartition> inPartitions, int partition) {

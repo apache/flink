@@ -698,10 +698,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		for (int i = 0; i < kafkaTopicPartitions.size(); i++) {
-			if (i % numParallelSubtasks == indexOfThisSubtask) {
+		for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
+			if (Math.abs(kafkaTopicPartition.hashCode() % numParallelSubtasks) == indexOfThisSubtask) {
 				if (startupMode != StartupMode.SPECIFIC_OFFSETS) {
-					subscribedPartitionsToStartOffsets.put(kafkaTopicPartitions.get(i), startupMode.getStateSentinel());
+					subscribedPartitionsToStartOffsets.put(kafkaTopicPartition, startupMode.getStateSentinel());
 				} else {
 					if (specificStartupOffsets == null) {
 						throw new IllegalArgumentException(
@@ -709,15 +709,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 								", but no specific offsets were specified");
 					}
 
-					KafkaTopicPartition partition = kafkaTopicPartitions.get(i);
-
-					Long specificOffset = specificStartupOffsets.get(partition);
+					Long specificOffset = specificStartupOffsets.get(kafkaTopicPartition);
 					if (specificOffset != null) {
 						// since the specified offsets represent the next record to read, we subtract
 						// it by one so that the initial state of the consumer will be correct
-						subscribedPartitionsToStartOffsets.put(partition, specificOffset - 1);
+						subscribedPartitionsToStartOffsets.put(kafkaTopicPartition, specificOffset - 1);
 					} else {
-						subscribedPartitionsToStartOffsets.put(partition, KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+						subscribedPartitionsToStartOffsets.put(kafkaTopicPartition, KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 					}
 				}
 			}
