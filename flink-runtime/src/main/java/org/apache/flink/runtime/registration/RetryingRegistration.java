@@ -42,11 +42,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * for example registering the TaskExecutor at the ResourceManager.
  * This {@code RetryingRegistration} implements both the initial address resolution
  * and the retries-with-backoff strategy.
- * 
+ *
  * <p>The registration gives access to a future that is completed upon successful registration.
  * The registration can be canceled, for example when the target where it tries to register
  * at looses leader status.
- * 
+ *
  * @param <Gateway> The type of the gateway to connect to.
  * @param <Success> The type of the successful registration responses.
  */
@@ -56,16 +56,16 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	//  default configuration values
 	// ------------------------------------------------------------------------
 
-	/** default value for the initial registration timeout (milliseconds) */
+	/** Default value for the initial registration timeout (milliseconds). */
 	private static final long INITIAL_REGISTRATION_TIMEOUT_MILLIS = 100;
 
-	/** default value for the maximum registration timeout, after exponential back-off (milliseconds) */
+	/** Default value for the maximum registration timeout, after exponential back-off (milliseconds). */
 	private static final long MAX_REGISTRATION_TIMEOUT_MILLIS = 30000;
 
-	/** The pause (milliseconds) made after an registration attempt caused an exception (other than timeout) */
+	/** The pause (milliseconds) made after an registration attempt caused an exception (other than timeout). */
 	private static final long ERROR_REGISTRATION_DELAY_MILLIS = 10000;
 
-	/** The pause (milliseconds) made after the registration attempt was refused */
+	/** The pause (milliseconds) made after the registration attempt was refused. */
 	private static final long REFUSED_REGISTRATION_DELAY_MILLIS = 30000;
 
 	// ------------------------------------------------------------------------
@@ -113,7 +113,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	public RetryingRegistration(
 			Logger log,
 			RpcService rpcService,
-			String targetName, 
+			String targetName,
 			Class<Gateway> targetType,
 			String targetAddress,
 			UUID leaderId,
@@ -180,7 +180,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 		try {
 			// trigger resolution of the resource manager address to a callable gateway
 			Future<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
-	
+
 			// upon success, start the registration attempts
 			Future<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(new AcceptFunction<Gateway>() {
 				@Override
@@ -223,7 +223,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 		try {
 			log.info("Registration at {} attempt {} (timeout={}ms)", targetName, attempt, timeoutMillis);
 			Future<RegistrationResponse> registrationFuture = invokeRegistration(gateway, leaderId, timeoutMillis);
-	
+
 			// if the registration was successful, let the TaskExecutor know
 			Future<Void> registrationAcceptFuture = registrationFuture.thenAcceptAsync(new AcceptFunction<RegistrationResponse>() {
 				@Override
@@ -249,7 +249,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 					}
 				}
 			}, rpcService.getExecutor());
-	
+
 			// upon failure, retry
 			registrationAcceptFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override

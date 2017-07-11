@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.registration;
 
-import akka.dispatch.Futures;
-
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.TestingGatewayBase;
@@ -29,6 +27,9 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/**
+ * Mock gateway for {@link RegistrationResponse}.
+ */
 public class TestRegistrationGateway extends TestingGatewayBase {
 
 	private final BlockingQueue<RegistrationCall> invocations;
@@ -42,7 +43,6 @@ public class TestRegistrationGateway extends TestingGatewayBase {
 
 		this.invocations = new LinkedBlockingQueue<>();
 		this.responses = responses;
-		
 	}
 
 	// ------------------------------------------------------------------------
@@ -65,6 +65,9 @@ public class TestRegistrationGateway extends TestingGatewayBase {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Invocation parameters.
+	 */
 	public static class RegistrationCall {
 		private final UUID leaderId;
 		private final long timeout;

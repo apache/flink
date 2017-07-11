@@ -444,7 +444,6 @@ under the License.
 						**/runtime/messages/**,
 						**/runtime/minicluster/**,
 						**/runtime/operators/**,
-						**/runtime/registration/**,
 						**/runtime/resourcemanager/**,
 						**/runtime/rpc/**,
 						**/runtime/state/**,

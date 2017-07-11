@@ -28,14 +28,14 @@ public abstract class RegistrationResponse implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	// ----------------------------------------------------------------------------
-	
+
 	/**
 	 * Base class for a successful registration. Concrete registration implementations
 	 * will typically extend this class to attach more information.
 	 */
 	public static class Success extends RegistrationResponse {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public String toString() {
 			return "Registration Successful";
@@ -50,12 +50,12 @@ public abstract class RegistrationResponse implements Serializable {
 	public static final class Decline extends RegistrationResponse {
 		private static final long serialVersionUID = 1L;
 
-		/** the rejection reason */
+		/** The rejection reason. */
 		private final String reason;
 
 		/**
 		 * Creates a new rejection message.
-		 * 
+		 *
 		 * @param reason The reason for the rejection.
 		 */
 		public Decline(String reason) {
