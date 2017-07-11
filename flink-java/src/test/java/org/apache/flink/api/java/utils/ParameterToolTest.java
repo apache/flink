@@ -236,7 +236,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
 
 		parameter.getByte("byte");
-		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
 	// Short
@@ -278,7 +277,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
 
 		parameter.getShort("short");
-		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
 	// Int
@@ -320,7 +318,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
 
 		parameter.getInt("int");
-		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
 	// Long
@@ -362,7 +359,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
 
 		parameter.getLong("long");
-		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
 	// Float
@@ -404,7 +400,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
 
 		parameter.getFloat("float");
-		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
 	// Double
@@ -446,7 +441,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		exception.expectMessage("For input string: \"__NO_VALUE_KEY\"");
 
 		parameter.getDouble("double");
-		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
 	}
 
 	// String
