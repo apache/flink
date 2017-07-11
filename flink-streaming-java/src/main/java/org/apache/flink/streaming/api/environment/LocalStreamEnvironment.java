@@ -48,7 +48,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	/** The configuration to use for the local cluster. */
 	private final Configuration conf;
 
-	private StreamGraphExecutor streamGraphExecutor;
+	private StreamGraphExecutor localExecutor;
 
 	/**
 	 * Creates a new local stream environment that uses the default configuration.
@@ -91,9 +91,10 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	private StreamGraphExecutor getStreamExecutor() {
-		if (streamGraphExecutor == null) {
-			streamGraphExecutor = new ExecutorFactory<>(StreamGraphExecutor.class).createLocalExecutor(conf);
+		if (localExecutor == null) {
+			localExecutor = new ExecutorFactory<>(StreamGraphExecutor.class).createLocalExecutor(conf);
+			localExecutor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
-		return streamGraphExecutor;
+		return localExecutor;
 	}
 }

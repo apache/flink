@@ -175,6 +175,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private StreamGraphExecutor getStreamExecutor() {
 		if (remoteExecutor == null) {
 			remoteExecutor = new ExecutorFactory<>(StreamGraphExecutor.class).createRemoteExecutor(host, port, clientConfiguration, jarFiles, globalClasspaths);
+			remoteExecutor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		return remoteExecutor;
 	}

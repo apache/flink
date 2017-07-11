@@ -36,6 +36,7 @@ import org.mockito.BDDMockito;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -52,7 +53,7 @@ import static org.junit.Assert.assertTrue;
  * Integration tests for {@link FlinkILoop}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ExecutorFactory.class)
+@PrepareForTest({ExecutorFactory.class, ScalaShellRemoteEnvironment.class})
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
@@ -63,16 +64,18 @@ public class FlinkILoopTest extends TestLogger {
 
 		final TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
 
-		ExecutorFactory<TestPlanExecutor> executorFactory = BDDMockito.mock(ExecutorFactory.class);
+		ExecutorFactory<PlanExecutor> executorFactory = BDDMockito.mock(ExecutorFactory.class);
+		PowerMockito.mockStatic(ExecutorFactory.class);
+		PowerMockito.whenNew(ExecutorFactory.class).withAnyArguments().thenReturn(executorFactory);
 		BDDMockito.given(executorFactory.createRemoteExecutor(
 			Matchers.anyString(),
 			Matchers.anyInt(),
 			Matchers.any(Configuration.class),
 			Matchers.any(java.util.List.class),
 			Matchers.any(java.util.List.class)
-		)).willAnswer(new Answer<TestPlanExecutor>() {
+		)).willAnswer(new Answer<PlanExecutor>() {
 			@Override
-			public TestPlanExecutor answer(InvocationOnMock invocation) throws Throwable {
+			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
 				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
 				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
 				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);

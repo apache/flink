@@ -95,6 +95,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 			}
 		};
 		initializeContextEnvironment(factory);
+		ScalaShellRemoteStreamEnvironment.disableAllContextAndOtherEnvironments();
 	}
 
 	public static void resetContextEnvironments() {
