@@ -189,6 +189,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			BlobServer blobServer = new BlobServer(
 				flinkConfiguration,
 				testingHighAvailabilityServices.createBlobStore());
+			blobServer.start();
 			Props jobManagerProps = Props.create(
 				TestingJobManager.class,
 				flinkConfiguration,

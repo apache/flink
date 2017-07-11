@@ -29,9 +29,8 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobView;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -39,7 +38,6 @@ import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.WebHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -106,14 +104,12 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 	private final Configuration config;
 
 	/** Future of the blob cache. */
-	private CompletableFuture<BlobCache> cache;
+	private CompletableFuture<TransientBlobCache> cache;
 
 	/** Indicates which log file should be displayed. */
 	private FileMode fileMode;
 
 	private final Executor executor;
-
-	private final BlobView blobView;
 
 	/** Used to control whether this handler serves the .log or .out file. */
 	public enum FileMode {
@@ -127,15 +123,12 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 		CompletableFuture<String> localJobManagerAddressPromise,
 		Time timeout,
 		FileMode fileMode,
-		Configuration config,
-		BlobView blobView) {
+		Configuration config) {
 		super(localJobManagerAddressPromise, retriever, timeout);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;
 		this.fileMode = fileMode;
-
-		this.blobView = Preconditions.checkNotNull(blobView, "blobView");
 	}
 
 	@Override
@@ -159,7 +152,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 			cache = blobPortFuture.thenApplyAsync(
 				(Integer port) -> {
 					try {
-						return new BlobCache(new InetSocketAddress(jobManagerGateway.getHostname(), port), config, blobView);
+						return new TransientBlobCache(new InetSocketAddress(jobManagerGateway.getHostname(), port), config);
 					} catch (IOException e) {
 						throw new CompletionException(new FlinkException("Could not create BlobCache.", e));
 					}
@@ -198,10 +191,8 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
-									try {
-										blobCache.deleteGlobal(lastSubmittedFile.get(taskManagerID));
-									} catch (IOException e) {
-										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.', e));
+									if (!blobCache.delete(lastSubmittedFile.get(taskManagerID))) {
+										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.'));
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);
 								}

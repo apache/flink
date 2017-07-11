@@ -45,8 +45,11 @@ public interface BlobStore extends BlobView {
 	 *
 	 * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param blobKey The blob ID
+	 *
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	void delete(JobID jobId, BlobKey blobKey);
+	boolean delete(JobID jobId, BlobKey blobKey);
 
 	/**
 	 * Tries to delete all blobs for the given job from storage.
@@ -54,6 +57,9 @@ public interface BlobStore extends BlobView {
 	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of all blobs to delete
+	 *
+	 * @return  <tt>true</tt> if the job directory is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	void deleteAll(JobID jobId);
+	boolean deleteAll(JobID jobId);
 }
