@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -92,6 +93,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
+			final BlobService blobService,
 			final HeartbeatServices heartbeatServices,
 			final OnCompletionActions toNotifyOnComplete,
 			final FatalErrorHandler errorHandler) throws Exception {
@@ -101,6 +103,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			configuration,
 			rpcService,
 			haServices,
+			blobService,
 			heartbeatServices,
 			new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)),
 			toNotifyOnComplete,
@@ -113,6 +116,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
+			final BlobService blobService,
 			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
@@ -124,7 +128,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			rpcService,
 			haServices,
 			heartbeatServices,
-			JobManagerServices.fromConfiguration(configuration, haServices),
+			JobManagerServices.fromConfiguration(configuration, blobService),
 			metricRegistry,
 			toNotifyOnComplete,
 			errorHandler);
