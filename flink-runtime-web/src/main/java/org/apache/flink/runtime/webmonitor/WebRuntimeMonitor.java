@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -148,7 +147,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 	public WebRuntimeMonitor(
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
-			BlobView blobView,
 			ActorSystem actorSystem) throws IOException, InterruptedException {
 
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
@@ -278,8 +276,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				timeout,
 				TaskManagerLogHandler.FileMode.LOG,
 				config,
-				enableSSL,
-				blobView));
+				enableSSL));
 		get(router,
 			new TaskManagerLogHandler(
 				retriever,
@@ -288,8 +285,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				timeout,
 				TaskManagerLogHandler.FileMode.STDOUT,
 				config,
-				enableSSL,
-				blobView));
+				enableSSL));
 		get(router, new TaskManagerMetricsHandler(metricFetcher));
 
 		router

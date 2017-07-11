@@ -31,7 +31,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
@@ -45,7 +44,6 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import akka.dispatch.Mapper;
@@ -120,8 +118,6 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 
 	private final Time timeTimeout;
 
-	private final BlobView blobView;
-
 	/** Used to control whether this handler serves the .log or .out file. */
 	public enum FileMode {
 		LOG,
@@ -135,15 +131,12 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		FiniteDuration timeout,
 		FileMode fileMode,
 		Configuration config,
-		boolean httpsEnabled,
-		BlobView blobView) {
+		boolean httpsEnabled) {
 		super(retriever, localJobManagerAddressPromise, timeout, httpsEnabled);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;
 		this.fileMode = fileMode;
-
-		this.blobView = Preconditions.checkNotNull(blobView, "blobView");
 
 		timeTimeout = Time.milliseconds(timeout.toMillis());
 	}
@@ -172,7 +165,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 					Option<String> hostOption = jobManager.actor().path().address().host();
 					String host = hostOption.isDefined() ? hostOption.get() : "localhost";
 					int port = (int) result;
-					return new TransientBlobCache(new InetSocketAddress(host, port), config, blobView);
+					return new TransientBlobCache(new InetSocketAddress(host, port), config);
 				}
 			}, executor);
 

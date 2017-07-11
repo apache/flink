@@ -53,7 +53,7 @@ public final class BlobCache implements BlobService {
 			final BlobView blobView) throws IOException {
 
 		this.permanentBlobStore = new PermanentBlobCache(serverAddress, blobClientConfig, blobView);
-		this.transientBlobStore = new TransientBlobCache(serverAddress, blobClientConfig, blobView);
+		this.transientBlobStore = new TransientBlobCache(serverAddress, blobClientConfig);
 	}
 
 	@Override

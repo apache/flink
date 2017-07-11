@@ -70,16 +70,13 @@ public class TransientBlobCache implements TransientBlobService {
 	 * 		address of the {@link BlobServer} to use for fetching files from
 	 * @param blobClientConfig
 	 * 		global configuration
-	 * @param blobView
-	 * 		(distributed) blob store file system to retrieve files from first
 	 *
 	 * @throws IOException
 	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
 	 */
 	public TransientBlobCache(
 			final InetSocketAddress serverAddress,
-			final Configuration blobClientConfig,
-			final BlobView blobView) throws IOException {
+			final Configuration blobClientConfig) throws IOException {
 
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
