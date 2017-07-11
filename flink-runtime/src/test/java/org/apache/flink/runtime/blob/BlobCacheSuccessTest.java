@@ -54,7 +54,7 @@ public class BlobCacheSuccessTest {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		uploadFileGetTest(config, null, false, false);
+		uploadFileGetTest(config, null, false, false, false);
 	}
 
 	/**
@@ -67,17 +67,7 @@ public class BlobCacheSuccessTest {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		uploadFileGetTest(config, new JobID(), false, false);
-	}
-
-	/**
-	 * BlobCache is configured in HA mode and the cache can download files from
-	 * the file system directly and does not need to download BLOBs from the
-	 * BlobServer. Using job-unrelated BLOBs.
-	 */
-	@Test
-	public void testBlobNoJobCacheHa() throws IOException {
-		testBlobCacheHa(null);
+		uploadFileGetTest(config, new JobID(), false, false, false);
 	}
 
 	/**
@@ -97,16 +87,7 @@ public class BlobCacheSuccessTest {
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getPath());
-		uploadFileGetTest(config, jobId, true, true);
-	}
-
-	/**
-	 * BlobCache is configured in HA mode but the cache itself cannot access the
-	 * file system and thus needs to download BLOBs from the BlobServer. Using job-unrelated BLOBs.
-	 */
-	@Test
-	public void testBlobNoJobCacheHaFallback() throws IOException {
-		testBlobCacheHaFallback(null);
+		uploadFileGetTest(config, jobId, true, true, true);
 	}
 
 	/**
@@ -125,11 +106,13 @@ public class BlobCacheSuccessTest {
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getPath());
-		uploadFileGetTest(config, jobId, false, false);
+		uploadFileGetTest(config, jobId, false, false, true);
 	}
 
-	private void uploadFileGetTest(final Configuration config, JobID jobId, boolean cacheWorksWithoutServer,
-		boolean cacheHasAccessToFs) throws IOException {
+	private void uploadFileGetTest(
+		final Configuration config, JobID jobId, boolean cacheWorksWithoutServer,
+		boolean cacheHasAccessToFs, boolean highAvailabibility) throws IOException {
+
 		// First create two BLOBs and upload them to BLOB server
 		final byte[] buf = new byte[128];
 		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
@@ -156,18 +139,18 @@ public class BlobCacheSuccessTest {
 			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
 
 			// Upload BLOBs
-			BlobClient blobClient = null;
-			try {
-
-				blobClient = new BlobClient(serverAddress, config);
-
-				blobKeys.add(blobClient.put(jobId, buf));
+			if (highAvailabibility) {
+				blobKeys.add(blobServer.putHA(jobId, buf));
 				buf[0] = 1; // Make sure the BLOB key changes
-				blobKeys.add(blobClient.put(jobId, buf));
-			} finally {
-				if (blobClient != null) {
-					blobClient.close();
-				}
+				blobKeys.add(blobServer.putHA(jobId, buf));
+			} else if (jobId == null) {
+				blobKeys.add(blobServer.put(buf));
+				buf[0] = 1; // Make sure the BLOB key changes
+				blobKeys.add(blobServer.put(buf));
+			} else {
+				blobKeys.add(blobServer.put(jobId, buf));
+				buf[0] = 1; // Make sure the BLOB key changes
+				blobKeys.add(blobServer.put(jobId, buf));
 			}
 
 			if (cacheWorksWithoutServer) {
@@ -179,7 +162,9 @@ public class BlobCacheSuccessTest {
 			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
 
 			for (BlobKey blobKey : blobKeys) {
-				if (jobId == null) {
+				if (highAvailabibility) {
+					blobCache.getPermanentBlobStore().getHAFile(jobId, blobKey);
+				} else if (jobId == null) {
 					blobCache.getTransientBlobStore().getFile(blobKey);
 				} else {
 					blobCache.getTransientBlobStore().getFile(jobId, blobKey);
@@ -195,7 +180,9 @@ public class BlobCacheSuccessTest {
 			final File[] files = new File[blobKeys.size()];
 
 			for(int i = 0; i < blobKeys.size(); i++){
-				if (jobId == null) {
+				if (highAvailabibility) {
+					files[i] = blobCache.getPermanentBlobStore().getHAFile(jobId, blobKeys.get(i));
+				} else if (jobId == null) {
 					files[i] = blobCache.getTransientBlobStore().getFile(blobKeys.get(i));
 				} else {
 					files[i] = blobCache.getTransientBlobStore().getFile(jobId, blobKeys.get(i));

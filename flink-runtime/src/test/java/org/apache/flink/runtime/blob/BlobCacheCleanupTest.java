@@ -66,14 +66,11 @@ public class BlobCacheCleanupTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(bc.put(jobId, buf));
+			keys.add(server.putHA(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
+			keys.add(server.putHA(jobId, buf));
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -163,14 +160,11 @@ public class BlobCacheCleanupTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(bc.put(jobId, buf));
+			keys.add(server.putHA(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
+			keys.add(server.putHA(jobId, buf));
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -295,8 +289,6 @@ public class BlobCacheCleanupTest {
 	 * 		ID of a job
 	 * @param blobService
 	 * 		BLOB store to use
-	 *
-	 * @return number of files we were able to retrieve via {@link PermanentBlobService#getHAFile}
 	 */
 	public static void checkFileCountForJob(
 		int expectedCount, JobID jobId, PermanentBlobService blobService)

@@ -26,10 +26,18 @@ import java.net.Socket;
 
 public class TestingFailingBlobServer extends BlobServer {
 
-	private int numFailures;
+	private final int numAccept;
+	private final int numFailures;
 
-	public TestingFailingBlobServer(Configuration config, BlobStore blobStore, int numFailures) throws IOException {
+	public TestingFailingBlobServer(Configuration config, BlobStore blobStore, int numFailures)
+			throws IOException {
+		this(config, blobStore, 1, numFailures);
+	}
+
+	public TestingFailingBlobServer(Configuration config, BlobStore blobStore, int numAccept, int numFailures)
+			throws IOException {
 		super(config, blobStore);
+		this.numAccept = numAccept;
 		this.numFailures = numFailures;
 	}
 
@@ -38,7 +46,9 @@ public class TestingFailingBlobServer extends BlobServer {
 
 		// we do properly the first operation (PUT)
 		try {
-			new BlobServerConnection(getServerSocket().accept(), this).start();
+			for (int num = 0; num < numAccept && !isShutdown(); num++) {
+				new BlobServerConnection(getServerSocket().accept(), this).start();
+			}
 		}
 		catch (Throwable t) {
 			t.printStackTrace();

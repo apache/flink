@@ -151,8 +151,8 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	/**
 	 * Registers use of job-related BLOBs.
 	 * <p>
-	 * Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within calls
-	 * to {@link #registerJob(JobID)} and {@link #releaseJob(JobID)}.
+	 * Using any other method to access BLOBs, e.g. {@link #getHAFile}, is only valid within calls
+	 * to <tt>registerJob(JobID)</tt> and {@link #releaseJob(JobID)}.
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
@@ -276,16 +276,8 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 			numFetchRetries);
 	}
 
-	public File getStorageDir() {
-		return this.storageDir;
-	}
-
 	public int getPort() {
 		return serverAddress.getPort();
-	}
-
-	private BlobClient createClient() throws IOException {
-		return new BlobClient(serverAddress, blobClientConfig);
 	}
 
 	/**
@@ -298,9 +290,12 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	 * 		identifying the file
 	 *
 	 * @return file handle to the file
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
 	@VisibleForTesting
-	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) {
+	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 

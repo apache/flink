@@ -201,9 +201,12 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param key identifying the file
 	 * @return file handle to the file
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
 	@VisibleForTesting
-	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) {
+	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 
@@ -211,8 +214,11 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * Returns a temporary file inside the BLOB server's incoming directory.
 	 *
 	 * @return a temporary file inside the BLOB server's incoming directory
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
-	File createTemporaryFilename() {
+	File createTemporaryFilename() throws IOException {
 		return new File(BlobUtils.getIncomingDirectory(storageDir),
 				String.format("temp-%08d", tempFileCounter.getAndIncrement()));
 	}

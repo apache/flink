@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
@@ -81,15 +80,12 @@ public class BlobLibraryCacheManagerTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys1.add(bc.put(jobId1, buf));
+			keys1.add(server.putHA(jobId1, buf));
 			buf[0] += 1;
-			keys1.add(bc.put(jobId1, buf));
-			keys2.add(bc.put(jobId2, buf));
-
-			bc.close();
+			keys1.add(server.putHA(jobId1, buf));
+			keys2.add(server.putHA(jobId2, buf));
 
 			libCache = new BlobLibraryCacheManager(cache);
 			cache.registerJob(jobId1);
@@ -214,14 +210,11 @@ public class BlobLibraryCacheManagerTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(bc.put(jobId, buf));
+			keys.add(server.putHA(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
+			keys.add(server.putHA(jobId, buf));
 
 			libCache = new BlobLibraryCacheManager(cache);
 			cache.registerJob(jobId);
@@ -328,14 +321,11 @@ public class BlobLibraryCacheManagerTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(bc.put(jobId, buf));
+			keys.add(server.putHA(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
+			keys.add(server.putHA(jobId, buf));
 
 			libCache = new BlobLibraryCacheManager(cache);
 			cache.registerJob(jobId);
@@ -440,10 +430,8 @@ public class BlobLibraryCacheManagerTest {
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload some meaningless data to the server
-			BlobClient uploader = new BlobClient(serverAddress, config);
-			BlobKey dataKey1 = uploader.put(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
-			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
-			uploader.close();
+			BlobKey dataKey1 = server.putHA(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
+			BlobKey dataKey2 = server.putHA(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 
 			libCache = new BlobLibraryCacheManager(cache);
 			assertEquals(0, libCache.getNumberOfManagedJobs());

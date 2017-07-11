@@ -96,10 +96,9 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			JobID jobId = new JobID();
 
 			// Upload some data (libraries)
-			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
-				keys.add(client.put(jobId, expected)); // Request 1
-				keys.add(client.put(jobId, expected, 32, 256)); // Request 2
-			}
+			keys.add(server[0].putHA(jobId, expected)); // Request 1
+			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
+			keys.add(server[0].putHA(jobId, expected2)); // Request 2
 
 			// The cache
 			cache = new PermanentBlobCache(serverAddress[0], config, blobStoreService);
@@ -139,11 +138,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Verify key 2
 			f = cache.getHAFile(jobId, keys.get(1));
-			assertEquals(256, f.length());
+			assertEquals(expected2.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
 				for (int i = 0; i < 256 && fis.available() > 0; i++) {
-					assertEquals(expected[32 + i], (byte) fis.read());
+					assertEquals(expected2[i], (byte) fis.read());
 				}
 
 				assertEquals(0, fis.available());

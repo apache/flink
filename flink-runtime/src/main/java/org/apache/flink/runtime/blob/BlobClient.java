@@ -203,7 +203,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		if an I/O error occurs during the download
 	 */
-	public InputStream get(BlobKey blobKey) throws IOException {
+	InputStream get(BlobKey blobKey) throws IOException {
 		return getInternal(null, blobKey);
 	}
 
@@ -222,7 +222,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		if an I/O error occurs during the download
 	 */
-	public InputStream get(JobID jobId, BlobKey blobKey) throws IOException {
+	InputStream get(JobID jobId, BlobKey blobKey) throws IOException {
 		checkNotNull(jobId);
 		return getInternal(jobId, blobKey);
 	}
@@ -338,31 +338,8 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	@VisibleForTesting
-	public BlobKey put(@Nullable JobID jobId, byte[] value) throws IOException {
-		return put(jobId, value, 0, value.length);
-	}
-
-	/**
-	 * Uploads data from the given byte array for the given job to the BLOB server.
-	 *
-	 * @param jobId
-	 * 		the ID of the job the BLOB belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param value
-	 * 		the buffer to upload data from
-	 * @param offset
-	 * 		the read offset within the buffer
-	 * @param len
-	 * 		the number of bytes to upload from the buffer
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
-	 */
-	@VisibleForTesting
-	public BlobKey put(@Nullable JobID jobId, byte[] value, int offset, int len) throws IOException {
-		return putBuffer(jobId, value, offset, len);
+	BlobKey put(@Nullable JobID jobId, byte[] value) throws IOException {
+		return putBuffer(jobId, value, 0, value.length);
 	}
 
 	/**
@@ -377,7 +354,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	public BlobKey put(InputStream inputStream) throws IOException {
+	BlobKey put(InputStream inputStream) throws IOException {
 		return putInputStream(null, inputStream);
 	}
 
@@ -395,7 +372,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	public BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
+	BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		return putInputStream(jobId, inputStream);
 	}
@@ -596,7 +573,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void delete(BlobKey key) throws IOException {
+	void delete(BlobKey key) throws IOException {
 		deleteInternal(null, key);
 	}
 
@@ -612,7 +589,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void delete(JobID jobId, BlobKey key) throws IOException {
+	void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}
@@ -629,7 +606,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
+	void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(key);
 
 		try {
@@ -659,9 +636,7 @@ public final class BlobClient implements Closeable {
 
 	/**
 	 * Retrieves the {@link BlobServer} address from the JobManager and uploads
-	 * the JAR files to it.
-	 * <p>
-	 * TODO: add jobId to signature after adapting the BlobLibraryCacheManager
+	 * the JAR files to the {@link PermanentBlobService} with HA as configured.
 	 *
 	 * @param jobManager
 	 * 		Server address of the {@link BlobServer}
@@ -715,7 +690,8 @@ public final class BlobClient implements Closeable {
 	}
 
 	/**
-	 * Uploads the JAR files to a {@link BlobServer} at the given address.
+	 * Uploads the JAR files to the {@link PermanentBlobService} of the {@link BlobServer} at the
+	 * given address with HA as configured.
 	 *
 	 * @param serverAddress
 	 * 		Server address of the {@link BlobServer}

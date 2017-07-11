@@ -170,8 +170,11 @@ public class BlobUtils {
 	 * 		storage directory used be the BLOB service
 	 *
 	 * @return the BLOB service's directory for incoming files
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
-	static File getIncomingDirectory(File storageDir) {
+	static File getIncomingDirectory(File storageDir) throws IOException {
 		final File incomingDir = new File(storageDir, "incoming");
 
 		mkdirTolerateExisting(incomingDir);
@@ -184,12 +187,15 @@ public class BlobUtils {
 	 *
 	 * @param dir
 	 * 		directory to create
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
-	private static void mkdirTolerateExisting(final File dir) {
+	private static void mkdirTolerateExisting(final File dir) throws IOException {
 		// note: thread-safe create should try to mkdir first and then ignore the case that the
 		//       directory already existed
 		if (!dir.mkdirs() && !dir.exists()) {
-			throw new RuntimeException(
+			throw new IOException(
 				"Cannot create directory '" + dir.getAbsolutePath() + "'.");
 		}
 	}
@@ -205,9 +211,12 @@ public class BlobUtils {
 	 * 		ID of the job for the incoming files (or <tt>null</tt> if job-unrelated)
 	 *
 	 * @return the (designated) physical storage location of the BLOB
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
 	static File getStorageLocation(
-			File storageDir, @Nullable JobID jobId, BlobKey key) {
+			File storageDir, @Nullable JobID jobId, BlobKey key) throws IOException {
 		File file = new File(getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 
 		mkdirTolerateExisting(file.getParentFile());
