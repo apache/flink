@@ -227,6 +227,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 																in),
 														serializer),
 												serializer),
+										checkpointId,
 										timestamp);
 								if (success) {
 									// in case the checkpoint was successfully committed,
@@ -255,11 +256,15 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	/**
 	 * Write the given element into the backend.
 	 *
-	 * @param value value to be written
+	 * @param values The values to be written
+	 * @param checkpointId The checkpoint ID of the checkpoint to be written
+	 * @param timestamp The wall-clock timestamp of the checkpoint
+	 *
 	 * @return true, if the sending was successful, false otherwise
+	 *
 	 * @throws Exception
 	 */
-	protected abstract boolean sendValues(Iterable<IN> value, long timestamp) throws Exception;
+	protected abstract boolean sendValues(Iterable<IN> values, long checkpointId, long timestamp) throws Exception;
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {

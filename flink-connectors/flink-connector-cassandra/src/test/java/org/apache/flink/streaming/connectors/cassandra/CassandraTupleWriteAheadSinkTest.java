@@ -113,14 +113,14 @@ public class CassandraTupleWriteAheadSinkTest {
 			cc
 		);
 
-		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness(sink);
+		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness<>(sink);
 		harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
 
 		harness.setup();
 		sink.open();
 
 		// we should leave the loop and return false since we've seen an exception
-		assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 0L));
+		assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 1L, 0L));
 
 		sink.close();
 	}
