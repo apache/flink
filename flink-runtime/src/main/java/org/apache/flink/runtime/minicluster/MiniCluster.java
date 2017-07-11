@@ -25,6 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -84,6 +85,9 @@ public class MiniCluster {
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
+
+	@GuardedBy("lock")
+	private BlobServer blobServer;
 
 	@GuardedBy("lock")
 	private HeartbeatServices heartbeatServices;
@@ -241,6 +245,8 @@ public class MiniCluster {
 					configuration,
 					commonRpcService.getExecutor());
 
+				blobServer = new BlobServer(configuration, haServices.createBlobStore());
+
 				heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
 				// bring up the ResourceManager(s)
@@ -263,6 +269,7 @@ public class MiniCluster {
 				jobDispatcher = new MiniClusterJobDispatcher(
 					configuration,
 					haServices,
+					blobServer,
 					heartbeatServices,
 					metricRegistry,
 					numJobManagers,
@@ -362,6 +369,16 @@ public class MiniCluster {
 		jobManagerRpcServices = null;
 		taskManagerRpcServices = null;
 		resourceManagerRpcServices = null;
+
+		// shut down the blob server
+		if (blobServer != null) {
+			try {
+				blobServer.close();
+			} catch (Exception e) {
+				exception = firstOrSuppressed(e, exception);
+			}
+			blobServer = null;
+		}
 
 		// shut down high-availability services
 		if (haServices != null) {

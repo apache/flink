@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -69,9 +71,9 @@ import scala.concurrent.duration.FiniteDuration;
  * <p>It starts actor system and the actors for {@link JobManagerRunner}
  * and {@link YarnResourceManager}.
  *
- * <p>The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
- * JobMaster handles Flink job execution, while the YarnResourceManager handles container
- * allocation and failure detection.
+ * <p>The JobManagerRunner start a {@link JobMaster} JobMaster handles Flink job
+ * execution, while the YarnResourceManager handles container allocation and failure
+ * detection.
  */
 public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicationMasterRunner
 		implements OnCompletionActions, FatalErrorHandler {
@@ -97,6 +99,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 	@GuardedBy("lock")
 	private RpcService commonRpcService;
+
+	@GuardedBy("lock")
+	private BlobServer blobServer;
 
 	@GuardedBy("lock")
 	private ResourceManager resourceManager;
@@ -143,6 +148,8 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 					config,
 					commonRpcService.getExecutor(),
 					HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
+				blobServer = new BlobServer(config, haServices.createBlobStore());
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 
@@ -228,6 +235,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			config,
 			commonRpcService,
 			haServices,
+			blobServer,
 			heartbeatServices,
 			this,
 			this);
