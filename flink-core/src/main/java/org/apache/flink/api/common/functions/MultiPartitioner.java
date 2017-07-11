@@ -18,14 +18,14 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Function to implement a custom multiple partitions assignment for records.
  *
  * @param <T> The type of the record to be partitioned.
  */
-@Public
+@PublicEvolving
 public interface MultiPartitioner<T> extends java.io.Serializable, Function {
 
 	/**
