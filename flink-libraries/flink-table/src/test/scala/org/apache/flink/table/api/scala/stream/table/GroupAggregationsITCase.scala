@@ -65,13 +65,13 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-      .groupBy('a, 'e).select('e).distinct()
+      .groupBy('e).select('e, 'a.count).distinct()
 
     val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList("1", "2", "3")
+    val expected = mutable.MutableList("1,5", "2,7", "3,3")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
