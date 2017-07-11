@@ -32,8 +32,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -43,6 +41,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_FOR_JOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_NO_JOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_FOR_JOB_HA;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
@@ -66,12 +65,6 @@ class BlobServerConnection extends Thread {
 	/** The BLOB server. */
 	private final BlobServer blobServer;
 
-	/** The HA blob store. */
-	private final BlobStore blobStore;
-
-	/** Write lock to synchronize file accesses */
-	private final Lock writeLock;
-
 	/** Read lock to synchronize file accesses */
 	private final Lock readLock;
 
@@ -87,11 +80,9 @@ class BlobServerConnection extends Thread {
 
 		this.clientSocket = clientSocket;
 		this.blobServer = checkNotNull(blobServer);
-		this.blobStore = blobServer.getBlobStore();
 
 		ReadWriteLock readWriteLock = blobServer.getReadWriteLock();
 
-		this.writeLock = readWriteLock.writeLock();
 		this.readLock = readWriteLock.readLock();
 	}
 
@@ -182,21 +173,29 @@ class BlobServerConnection extends Thread {
 		final File blobFile;
 		final JobID jobId;
 		final BlobKey blobKey;
+		final boolean permanentBlob;
 
 		try {
+			// read HEADER contents: job ID, key, HA mode/permanent or transient BLOB
 			final int mode = inputStream.read();
-
 			if (mode < 0) {
 				throw new EOFException("Premature end of GET request");
 			}
 
-			// Receive the job ID and key
+			// Receive the
 			if (mode == CONTENT_NO_JOB) {
 				jobId = null;
+				permanentBlob = false;
+			} else if (mode == CONTENT_FOR_JOB_HA) {
+				byte[] jidBytes = new byte[JobID.SIZE];
+				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
+				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = true;
 			} else if (mode == CONTENT_FOR_JOB) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = false;
 			} else {
 				throw new IOException("Unknown type of BLOB addressing: " + mode + '.');
 			}
@@ -207,6 +206,7 @@ class BlobServerConnection extends Thread {
 					blobKey, clientSocket.getInetAddress());
 			}
 
+			// the file's (destined) location at the BlobServer
 			blobFile = blobServer.getStorageLocation(jobId, blobKey);
 
 			// up to here, an error can give a good message
@@ -229,28 +229,7 @@ class BlobServerConnection extends Thread {
 		try {
 			// copy the file to local store if it does not exist yet
 			try {
-				if (!blobFile.exists()) {
-					// first we have to release the read lock in order to acquire the write lock
-					readLock.unlock();
-					writeLock.lock();
-
-					try {
-						if (blobFile.exists()) {
-							LOG.debug("Blob file {} has been downloaded from the (distributed) blob store by a different connection.", blobFile);
-						} else {
-							blobStore.get(jobId, blobKey, blobFile);
-						}
-					} finally {
-						writeLock.unlock();
-					}
-
-					readLock.lock();
-
-					// Check if BLOB exists
-					if (!blobFile.exists()) {
-						throw new IOException("Cannot find required BLOB at " + blobFile.getAbsolutePath());
-					}
-				}
+				blobServer.getFileInternal(jobId, blobKey, permanentBlob, blobFile);
 
 				// enforce a 2GB max for now (otherwise the protocol's length field needs to be increased)
 				if (blobFile.length() > Integer.MAX_VALUE) {
@@ -314,20 +293,27 @@ class BlobServerConnection extends Thread {
 		File incomingFile = null;
 
 		try {
+			// read HEADER contents: job ID, HA mode/permanent or transient BLOB
 			final int mode = inputStream.read();
-
 			if (mode < 0) {
 				throw new EOFException("Premature end of PUT request");
 			}
 
-			// Receive the job ID and key
 			final JobID jobId;
+			final boolean permanentBlob;
 			if (mode == CONTENT_NO_JOB) {
 				jobId = null;
+				permanentBlob = false;
+			} else if (mode == CONTENT_FOR_JOB_HA) {
+				byte[] jidBytes = new byte[JobID.SIZE];
+				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
+				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = true;
 			} else if (mode == CONTENT_FOR_JOB) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = false;
 			} else {
 				throw new IOException("Unknown type of BLOB addressing.");
 			}
@@ -340,44 +326,7 @@ class BlobServerConnection extends Thread {
 			incomingFile = blobServer.createTemporaryFilename();
 			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf);
 
-			File storageFile = blobServer.getStorageLocation(jobId, blobKey);
-
-			writeLock.lock();
-
-			try {
-				// first check whether the file already exists
-				if (!storageFile.exists()) {
-					try {
-						// only move the file if it does not yet exist
-						Files.move(incomingFile.toPath(), storageFile.toPath());
-
-						incomingFile = null;
-
-					} catch (FileAlreadyExistsException ignored) {
-						LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
-							"BlobServer use the same storage directory.");
-						// we cannot be sure at this point whether the file has already been uploaded to the blob
-						// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
-						// persist the blob. Otherwise we might not be able to recover the job.
-					}
-
-					// only the one moving the incoming file to its final destination is allowed to upload the
-					// file to the blob store
-					blobStore.put(storageFile, jobId, blobKey);
-				} else {
-					LOG.warn("File upload for an existing file with key {} for job {}. This may indicate a duplicate upload or a hash collision. Ignoring newest upload.", blobKey, jobId);
-				}
-			} catch(IOException ioe) {
-				// we failed to either create the local storage file or to upload it --> try to delete the local file
-				// while still having the write lock
-				if (!storageFile.delete() && storageFile.exists()) {
-					LOG.warn("Could not delete the storage file with key {} and job {}.", blobKey, jobId);
-				}
-
-				throw ioe;
-			} finally {
-				writeLock.unlock();
-			}
+			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey, permanentBlob);
 
 			// Return computed key to client for validation
 			outputStream.write(RETURN_OKAY);
@@ -462,13 +411,12 @@ class BlobServerConnection extends Thread {
 	private void delete(InputStream inputStream, OutputStream outputStream) throws IOException {
 
 		try {
+			// read HEADER contents: job ID, key, HA mode/permanent or transient BLOB
 			final int mode = inputStream.read();
-
 			if (mode < 0) {
 				throw new EOFException("Premature end of DELETE request");
 			}
 
-			// Receive the job ID and key
 			final JobID jobId;
 			if (mode == CONTENT_NO_JOB) {
 				jobId = null;
@@ -481,9 +429,12 @@ class BlobServerConnection extends Thread {
 			}
 			BlobKey key = BlobKey.readFromInputStream(inputStream);
 
-			blobServer.deleteInternal(jobId, key);
-
-			outputStream.write(RETURN_OKAY);
+			if (!blobServer.deleteInternal(jobId, key)) {
+				LOG.error("DELETE operation failed");
+				writeErrorToStream(outputStream, null);
+			} else {
+				outputStream.write(RETURN_OKAY);
+			}
 		}
 		catch (Throwable t) {
 			LOG.error("DELETE operation failed", t);

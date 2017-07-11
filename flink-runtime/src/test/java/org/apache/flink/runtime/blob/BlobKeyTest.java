@@ -18,20 +18,17 @@
 
 package org.apache.flink.runtime.blob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This class contains unit tests for the {@link BlobKey} class.
@@ -46,7 +43,8 @@ public final class BlobKeyTest extends TestLogger {
 	 * The second key array to be used during the unit tests.
 	 */
 	private static final byte[] KEY_ARRAY_2 = new byte[20];
-	/**
+
+	/*
 	 * Initialize the key array.
 	 */
 	static {

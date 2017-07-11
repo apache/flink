@@ -20,35 +20,35 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 
 /**
- * A blob store doing nothing.
+ * A service to retrieve permanent binary large objects (BLOBs).
+ * <p>
+ * These include per-job BLOBs that are covered by high-availability (HA) mode, e.g. a job's JAR
+ * files, parts of an off-loaded {@link org.apache.flink.runtime.deployment.TaskDeploymentDescriptor}
+ * or files in the {@link org.apache.flink.api.common.cache.DistributedCache}.
  */
-public class VoidBlobStore implements BlobStoreService {
+public interface PermanentBlobService extends Closeable {
 
-	@Override
-	public void put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
-	}
+	/**
+	 * Returns the path to a local copy of the file associated with the provided job ID and blob
+	 * key.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 * @param key
+	 * 		BLOB key associated with the requested file
+	 *
+	 * @return The path to the file.
+	 *
+	 * @throws java.io.FileNotFoundException
+	 * 		if the BLOB does not exist;
+	 * @throws IOException
+	 * 		if any other error occurs when retrieving the file
+	 */
+	File getHAFile(JobID jobId, BlobKey key) throws IOException;
 
-	@Override
-	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
-	}
-
-	@Override
-	public boolean delete(JobID jobId, BlobKey blobKey) {
-		return true;
-	}
-
-	@Override
-	public boolean deleteAll(JobID jobId) {
-		return true;
-	}
-
-	@Override
-	public void closeAndCleanupAllData() {}
-
-	@Override
-	public void close() throws IOException {}
 }

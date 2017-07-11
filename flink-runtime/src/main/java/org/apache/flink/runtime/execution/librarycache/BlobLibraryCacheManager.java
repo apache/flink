@@ -20,7 +20,7 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Provides facilities to download a set of libraries (typically JAR files) for a job from a
- * {@link BlobService} and create a class loader with references to them.
+ * {@link PermanentBlobService} and create a class loader with references to them.
  */
 public class BlobLibraryCacheManager implements LibraryCacheManager {
 
@@ -62,15 +62,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	private final Map<JobID, LibraryCacheEntry> cacheEntries = new HashMap<>();
 
 	/** The blob service to download libraries */
-	private final BlobService blobService;
+	private final PermanentBlobService blobService;
 
 	/** The resolve order to use when creating a {@link ClassLoader}. */
 	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
 
 	// --------------------------------------------------------------------------------------------
 
-	public BlobLibraryCacheManager(
-			BlobService blobService,
+	public BlobLibraryCacheManager(PermanentBlobService blobService,
 			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder) {
 		this.blobService = checkNotNull(blobService);
 		this.classLoaderResolveOrder = checkNotNull(classLoaderResolveOrder);
@@ -108,7 +107,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				try {
 					// add URLs to locally cached JAR files
 					for (BlobKey key : requiredJarFiles) {
-						urls[count] = blobService.getFile(jobId, key).toURI().toURL();
+						urls[count] = blobService.getHAFile(jobId, key).toURI().toURL();
 						++count;
 					}
 

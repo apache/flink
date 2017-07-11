@@ -21,6 +21,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -75,6 +77,13 @@ public class TaskStopTest {
 		TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
 		when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
 
+		BlobCache blobCache = mock(BlobCache.class);
+		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
+		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
+
+		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+
 		task = new Task(
 			mock(JobInformation.class),
 			new TaskInformation(
@@ -99,7 +108,7 @@ public class TaskStopTest {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
-			mock(BlobCache.class),
+			blobCache,
 			mock(LibraryCacheManager.class),
 			mock(FileCache.class),
 			tmRuntimeInfo,

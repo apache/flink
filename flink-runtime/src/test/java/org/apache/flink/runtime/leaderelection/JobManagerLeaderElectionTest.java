@@ -182,6 +182,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		configuration.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 		BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore());
+		blobServer.start();
 		return Props.create(
 			TestingJobManager.class,
 			configuration,
