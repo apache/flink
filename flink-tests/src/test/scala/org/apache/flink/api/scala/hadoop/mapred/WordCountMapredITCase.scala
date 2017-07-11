@@ -84,6 +84,7 @@ class WordCountMapredITCase extends JavaProgramTestBase {
     postSubmit()
     resultPath = getTempDirPath("result2")
     internalRun(testDeprecatedAPI = false)
+    postSubmit()
   }
 }
 
