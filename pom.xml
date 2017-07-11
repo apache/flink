@@ -258,13 +258,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
-				<version>1.7.7</version>
+				<version>1.8.2</version>
 			</dependency>
 			
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-ipc</artifactId>
-				<version>1.7.7</version>
+				<version>1.8.2</version>
 			</dependency>
 
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->

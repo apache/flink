@@ -140,7 +140,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-maven-plugin</artifactId>
-				<version>1.7.7</version>
+				<version>1.8.2</version>
 				<executions>
 					<execution>
 						<phase>generate-sources</phase>
