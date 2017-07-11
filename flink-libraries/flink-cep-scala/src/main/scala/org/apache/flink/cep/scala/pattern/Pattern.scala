@@ -353,6 +353,18 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
+    * Specifies that this pattern is greedy.
+    * This means as many events as possible will be matched to this pattern.
+    *
+    * @return The same pattern with { @link Quantifier#greedy} set to true.
+    * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+    */
+  def greedy: Pattern[T, F] = {
+    jPattern.greedy()
+    this
+  }
+
+  /**
     * Specifies exact number of times that this pattern should be matched.
     *
     * @param times number of times matching event must appear

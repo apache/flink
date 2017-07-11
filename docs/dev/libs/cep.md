@@ -163,8 +163,9 @@ In FlinkCEP, looping patterns can be specified using these methods: `pattern.one
 more occurrences of a given event (e.g. the `b+` mentioned previously); and `pattern.times(#ofTimes)`, for patterns that
 expect a specific number of occurrences of a given type of event, e.g. 4 `a`'s; and `pattern.times(#fromTimes, #toTimes)`,
 for patterns that expect a specific minimum number of occurrences and maximum number of occurrences of a given type of event,
-e.g. 2-4 `a`s. All patterns, looping or not, can be made optional using the `pattern.optional()` method. For a pattern
-named `start`, the following are valid quantifiers:
+e.g. 2-4 `a`s. Looping patterns can be made greedy using the `pattern.greedy()` method and group pattern cannot be made greedy
+currently. All patterns, looping or not, can be made optional using the `pattern.optional()` method.
+For a pattern named `start`, the following are valid quantifiers:
 
  <div class="codetabs" markdown="1">
  <div data-lang="java" markdown="1">
@@ -178,21 +179,35 @@ named `start`, the following are valid quantifiers:
  // expecting 2, 3 or 4 occurrences
  start.times(2, 4);
 
+ // expecting 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).greedy();
+
  // expecting 0, 2, 3 or 4 occurrences
  start.times(2, 4).optional();
+
+ // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).optional().greedy();
 
  // expecting 1 or more occurrences
  start.oneOrMore();
 
+ // expecting 1 or more occurrences and repeating as many as possible
+ start.oneOrMore().greedy();
+
  // expecting 0 or more occurrences
  start.oneOrMore().optional();
+
+ // expecting 0 or more occurrences and repeating as many as possible
+ start.oneOrMore().optional().greedy();
 
  // expecting 2 or more occurrences
  start.timesOrMore(2);
 
- // expecting 0, 2 or more occurrences
- start.timesOrMore(2).optional();
+ // expecting 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).greedy();
 
+ // expecting 0, 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).optional().greedy();
  {% endhighlight %}
  </div>
 
@@ -207,20 +222,38 @@ named `start`, the following are valid quantifiers:
  // expecting 2, 3 or 4 occurrences
  start.times(2, 4);
 
+ // expecting 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).greedy();
+
  // expecting 0, 2, 3 or 4 occurrences
  start.times(2, 4).optional();
+
+ // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).optional().greedy();
 
  // expecting 1 or more occurrences
  start.oneOrMore()
 
+ // expecting 1 or more occurrences and repeating as many as possible
+ start.oneOrMore().greedy();
+
  // expecting 0 or more occurrences
  start.oneOrMore().optional()
+
+ // expecting 0 or more occurrences and repeating as many as possible
+ start.oneOrMore().optional().greedy();
 
  // expecting 2 or more occurrences
  start.timesOrMore(2);
 
+ // expecting 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).greedy();
+
  // expecting 0, 2 or more occurrences
  start.timesOrMore(2).optional();
+
+ // expecting 0, 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).optional().greedy();
  {% endhighlight %}
  </div>
  </div>
@@ -536,6 +569,16 @@ pattern.oneOrMore().optional();
           </td>
        </tr>
        <tr>
+          <td><strong>greedy()</strong></td>
+          <td>
+              <p>Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
+              to quantifiers and it does not support group pattern currently.</p>
+{% highlight java %}
+pattern.oneOrMore().greedy();
+{% endhighlight %}
+          </td>
+       </tr>
+       <tr>
           <td><strong>consecutive()</strong><a name="consecutive_java"></a></td>
           <td>
               <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
@@ -714,6 +757,16 @@ pattern.times(2, 4);
                            aforementioned quantifiers.</p>
 {% highlight scala %}
 pattern.oneOrMore().optional()
+{% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>greedy()</strong></td>
+          <td>
+             <p>Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
+             to quantifiers and it does not support group pattern currently.</p>
+{% highlight scala %}
+pattern.oneOrMore().greedy()
 {% endhighlight %}
           </td>
        </tr>
