@@ -150,10 +150,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Remove blobs again
-			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
-				client.delete(jobId, keys.get(0));
-				client.delete(jobId, keys.get(1));
-			}
+			server[1].cleanupJob(jobId);
 
 			// Verify everything is clean below recoveryDir/<cluster_id>
 			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
