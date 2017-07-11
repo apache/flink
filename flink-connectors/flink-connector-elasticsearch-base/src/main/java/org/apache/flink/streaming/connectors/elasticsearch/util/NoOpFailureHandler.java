@@ -30,7 +30,7 @@ public class NoOpFailureHandler implements ActionRequestFailureHandler {
 	private static final long serialVersionUID = 737941343410827885L;
 
 	@Override
-	public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
+	public void onFailure(ActionRequest<?> action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
 		// simply fail the sink
 		throw failure;
 	}

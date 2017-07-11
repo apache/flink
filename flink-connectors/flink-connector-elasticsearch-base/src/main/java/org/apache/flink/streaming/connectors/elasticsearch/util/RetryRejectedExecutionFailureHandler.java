@@ -35,7 +35,7 @@ public class RetryRejectedExecutionFailureHandler implements ActionRequestFailur
 	private static final long serialVersionUID = -7423562912824511906L;
 
 	@Override
-	public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
+	public void onFailure(ActionRequest<?> action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
 		if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
 			indexer.add(action);
 		} else {
