@@ -56,8 +56,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * PageRank computes a per-vertex score which is the sum of PageRank scores
  * transmitted over in-edges. Each vertex's score is divided evenly among
@@ -85,9 +83,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	private int maxIterations;
 
 	private double convergenceThreshold;
-
-	// Optional configuration
-	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * PageRank with a fixed number of iterations.
@@ -131,36 +126,14 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		this.convergenceThreshold = convergenceThreshold;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public PageRank<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!PageRank.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
 		PageRank rhs = (PageRank) other;
 
-		// merge configurations
-
 		maxIterations = Math.max(maxIterations, rhs.maxIterations);
 		convergenceThreshold = Math.min(convergenceThreshold, rhs.convergenceThreshold);
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
 	}
 
 	@Override
@@ -197,7 +170,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.name("Initialize scores");
 
 		IterativeDataSet<Tuple2<K, DoubleValue>> iterative = initialScores
-			.iterate(maxIterations);
+			.iterate(maxIterations)
+			.setParallelism(parallelism);
 
 		// s, projected pagerank(s)
 		DataSet<Tuple2<K, DoubleValue>> vertexScores = iterative

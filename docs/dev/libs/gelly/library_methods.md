@@ -225,7 +225,7 @@ Directed and undirected variants are provided. The analytics take a simple graph
 containing the total number of vertices and average clustering coefficient of the graph. The graph ID type must be
 `Comparable` and `Copyable`.
 
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 
 ### Global Clustering Coefficient
 
@@ -244,7 +244,7 @@ Directed and undirected variants are provided. The analytics take a simple graph
 containing the total number of triplets and triangles in the graph. The result class provides a method to compute the
 global clustering coefficient score. The graph ID type must be `Comparable` and `Copyable`.
 
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 
 ### Local Clustering Coefficient
 
@@ -266,7 +266,7 @@ provides a method to compute the local clustering coefficient score. The graph I
 `Copyable`.
 
 * `setIncludeZeroDegreeVertices`: include results for vertices with a degree of zero
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 
 ### Triadic Census
 
@@ -286,7 +286,7 @@ Directed and undirected variants are provided. The analytics take a simple graph
 `AnalyticResult` with accessor methods for querying the count of each triad type. The graph ID type must be
 `Comparable` and `Copyable`.
 
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 
 ### Triangle Listing
 
@@ -306,7 +306,7 @@ Directed and undirected variants are provided. The algorithms take a simple grap
 `TertiaryResult` containing the three triangle vertices and, for the directed algorithm, a bitmask marking each of the
 six potential edges connecting the three vertices. The graph ID type must be `Comparable` and `Copyable`.
 
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 * `setSortTriangleVertices`: normalize the triangle listing such that for each result (K0, K1, K2) the vertex IDs are sorted K0 < K1 < K2
 
 ## Link Analysis
@@ -424,9 +424,9 @@ See the [Jaccard Index](#jaccard-index) library method for a similar algorithm.
 The algorithm takes a simple undirected graph as input and outputs a `DataSet` of `BinaryResult` containing two vertex
 IDs and the Adamic-Adar similarity score. The graph ID type must be `Copyable`.
 
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
 * `setMinimumRatio`: filter out Adamic-Adar scores less than the given ratio times the average score
 * `setMinimumScore`: filter out Adamic-Adar scores less than the given minimum
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 
 ### Jaccard Index
 
@@ -448,8 +448,8 @@ The algorithm takes a simple undirected graph as input and outputs a `DataSet` o
 the number of shared neighbors, and the number of distinct neighbors. The result class provides a method to compute the
 Jaccard Index score. The graph ID type must be `Copyable`.
 
-* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
 * `setMaximumScore`: filter out Jaccard Index scores greater than or equal to the given maximum fraction
 * `setMinimumScore`: filter out Jaccard Index scores less than the given minimum fraction
+* `setParallelism`: override the parallelism of operators processing small amounts of data
 
 {% top %}

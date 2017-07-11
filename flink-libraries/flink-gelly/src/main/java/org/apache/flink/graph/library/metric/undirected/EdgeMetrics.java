@@ -41,8 +41,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import java.io.IOException;
 import java.text.NumberFormat;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Compute the following edge metrics in an undirected graph.
  *  - number of triangle triplets
@@ -70,8 +68,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	// Optional configuration
 	private boolean reduceOnTargetId = false;
 
-	private int parallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * The degree can be counted from either the edge source or target IDs.
 	 * By default the source IDs are counted. Reducing on target IDs may
@@ -83,18 +79,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	public EdgeMetrics<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
 		this.reduceOnTargetId = reduceOnTargetId;
-
-		return this;
-	}
-
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public EdgeMetrics<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
 
 		return this;
 	}

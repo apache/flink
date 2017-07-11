@@ -84,26 +84,26 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, K, ByteValue>> filteredByID = input
 			.getEdges()
 			.map(new OrderByID<K, EV>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Order by ID")
 			.groupBy(0, 1)
 			.reduceGroup(new ReduceBitmask<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Flatten by ID");
 
 		// u, v, (deg(u), deg(v))
 		DataSet<Edge<K, Tuple3<EV, Degrees, Degrees>>> pairDegrees = input
 			.run(new EdgeDegreesPair<K, VV, EV>()
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, v, bitmask where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple3<K, K, ByteValue>> filteredByDegree = pairDegrees
 			.map(new OrderByDegree<K, EV>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Order by degree")
 			.groupBy(0, 1)
 			.reduceGroup(new ReduceBitmask<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Flatten by degree");
 
 		// u, v, w, bitmask where (u, v) and (u, w) are edges in graph

@@ -26,6 +26,7 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.translators.LongValueToStringValue;
 import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
+import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.CharValue;
 import org.apache.flink.types.LongValue;
@@ -33,6 +34,8 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.types.ShortValue;
 
 import org.apache.commons.lang3.text.WordUtils;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Base class for generated graphs.
@@ -64,6 +67,9 @@ extends InputBase<K, NullValue, NullValue> {
 		.setDefaultValue(INTEGER)
 		.addChoices(LONG, STRING)
 		.addHiddenChoices(BYTE, NATIVE_BYTE, SHORT, NATIVE_SHORT, CHAR, NATIVE_CHAR, NATIVE_INTEGER, NATIVE_LONG, NATIVE_STRING);
+
+	protected LongParameter parallelism = new LongParameter(this, "__parallelism")
+		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	/**
 	 * The vertex count is verified to be no greater than the capacity of the

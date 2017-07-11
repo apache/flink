@@ -60,8 +60,9 @@ extends DriverBase<K, VV, EV> {
 	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		return graph
 			.run(new org.apache.flink.graph.library.linkanalysis.PageRank<K, VV, EV>(
-				dampingFactor.getValue(),
-				iterationConvergence.getValue().iterations,
-				iterationConvergence.getValue().convergenceThreshold));
+					dampingFactor.getValue(),
+					iterationConvergence.getValue().iterations,
+					iterationConvergence.getValue().convergenceThreshold)
+				.setParallelism(parallelism.getValue().intValue()));
 	}
 }

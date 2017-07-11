@@ -84,18 +84,18 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		DataSet<Tuple2<K, K>> filteredByID = input
 			.getEdges()
 			.flatMap(new FilterByID<K, EV>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Filter by ID");
 
 		// u, v, (edge value, deg(u), deg(v))
 		DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = input
 			.run(new EdgeDegreePair<K, VV, EV>()
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, v where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple2<K, K>> filteredByDegree = pairDegree
 			.flatMap(new FilterByDegree<K, EV>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Filter by degree");
 
 		// u, v, w where (u, v) and (u, w) are edges in graph, v < w

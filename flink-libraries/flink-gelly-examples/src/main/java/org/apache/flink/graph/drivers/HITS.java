@@ -55,7 +55,8 @@ extends DriverBase<K, VV, EV> {
 	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		return graph
 			.run(new org.apache.flink.graph.library.linkanalysis.HITS<K, VV, EV>(
-				iterationConvergence.getValue().iterations,
-				iterationConvergence.getValue().convergenceThreshold));
+					iterationConvergence.getValue().iterations,
+					iterationConvergence.getValue().convergenceThreshold)
+				.setParallelism(parallelism.getValue().intValue()));
 	}
 }
