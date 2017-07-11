@@ -152,7 +152,7 @@ public class State<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(name, stateType, stateTransitions);
+		return Objects.hash(name, stateType, stateTransitions, greedy);
 	}
 
 	public boolean isStop() {
