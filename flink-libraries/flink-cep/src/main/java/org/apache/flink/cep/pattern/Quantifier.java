@@ -43,6 +43,8 @@ public class Quantifier {
 
 	private ConsumingStrategy innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_NEXT;
 
+	private boolean greedy = false;
+
 	private Quantifier(
 			final ConsumingStrategy consumingStrategy,
 			final QuantifierProperty first,
@@ -103,6 +105,14 @@ public class Quantifier {
 					consumingStrategy == ConsumingStrategy.NOT_FOLLOW), "NOT pattern cannot be optional");
 
 		properties.add(Quantifier.QuantifierProperty.OPTIONAL);
+	}
+
+	public void greedy() {
+		greedy = true;
+	}
+
+	public boolean isGreedy() {
+		return greedy;
 	}
 
 	@Override

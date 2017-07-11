@@ -43,10 +43,16 @@ public class State<T> implements Serializable {
 	private final String name;
 	private StateType stateType;
 	private final Collection<StateTransition<T>> stateTransitions;
+	private final boolean greedy;
 
 	public State(final String name, final StateType stateType) {
+		this(name, stateType, false);
+	}
+
+	public State(final String name, final StateType stateType, final boolean greedy) {
 		this.name = name;
 		this.stateType = stateType;
+		this.greedy = greedy;
 
 		stateTransitions = new ArrayList<>();
 	}
@@ -57,6 +63,10 @@ public class State<T> implements Serializable {
 
 	public boolean isFinal() {
 		return stateType == StateType.Final;
+	}
+
+	public boolean isGreedy() {
+		return greedy;
 	}
 
 	public boolean isStart() {
@@ -102,6 +112,16 @@ public class State<T> implements Serializable {
 		addStateTransition(StateTransitionAction.TAKE, this, condition);
 	}
 
+	public List<IterativeCondition<T>> getConditions(StateTransitionAction action) {
+		final List<IterativeCondition<T>> conditions = new ArrayList<>();
+		for (StateTransition<T> stateTransition : stateTransitions) {
+			if (stateTransition.getAction() == action) {
+				conditions.add(stateTransition.getCondition());
+			}
+		}
+		return conditions;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof State) {
@@ -110,7 +130,8 @@ public class State<T> implements Serializable {
 
 			return name.equals(other.name) &&
 				stateType == other.stateType &&
-				stateTransitions.equals(other.stateTransitions);
+				stateTransitions.equals(other.stateTransitions) &&
+				greedy == other.greedy;
 		} else {
 			return false;
 		}
@@ -120,7 +141,7 @@ public class State<T> implements Serializable {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 
-		builder.append(stateType).append(" State ").append(name).append(" [\n");
+		builder.append(stateType).append(" State ").append(name).append(" Greedy ").append(greedy).append(" [\n");
 		for (StateTransition<T> stateTransition: stateTransitions) {
 			builder.append("\t").append(stateTransition).append(",\n");
 		}

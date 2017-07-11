@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -552,6 +553,19 @@ public class NFA<T> implements Serializable {
 								startTimestamp);
 					}
 					break;
+				case PROCEED:
+					if (edge.getTargetState().isFinal() && !computationState.isStartState()) {
+						addComputationState(
+							resultingComputationStates,
+							edge.getTargetState(),
+							computationState.getPreviousState(),
+							computationState.getEvent(),
+							computationState.getCounter(),
+							computationState.getTimestamp(),
+							computationState.getVersion(),
+							computationState.getStartTimestamp());
+					}
+					break;
 			}
 		}
 
@@ -597,7 +611,9 @@ public class NFA<T> implements Serializable {
 
 	private State<T> findFinalStateAfterProceed(State<T> state, T event, ComputationState<T> computationState) {
 		final Stack<State<T>> statesToCheck = new Stack<>();
-		statesToCheck.push(state);
+		if (!state.isGreedy()) {
+			statesToCheck.push(state);
+		}
 
 		try {
 			while (!statesToCheck.isEmpty()) {
@@ -608,7 +624,9 @@ public class NFA<T> implements Serializable {
 						if (transition.getTargetState().isFinal()) {
 							return transition.getTargetState();
 						} else {
-							statesToCheck.push(transition.getTargetState());
+							if (!transition.getTargetState().isGreedy()) {
+								statesToCheck.push(transition.getTargetState());
+							}
 						}
 					}
 				}
@@ -644,7 +662,11 @@ public class NFA<T> implements Serializable {
 							case PROCEED:
 								// simply advance the computation state, but apply the current event to it
 								// PROCEED is equivalent to an epsilon transition
-								states.push(stateTransition.getTargetState());
+								if (stateTransition.getTargetState().isFinal() && stateTransition.getSourceState().isGreedy()) {
+									outgoingEdges.add(stateTransition);
+								} else {
+									states.push(stateTransition.getTargetState());
+								}
 								break;
 							case IGNORE:
 							case TAKE:
@@ -859,7 +881,7 @@ public class NFA<T> implements Serializable {
 	 */
 	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty constructor is required for deserializing the configuration. */
 		public NFASerializerConfigSnapshot() {}
@@ -875,6 +897,11 @@ public class NFA<T> implements Serializable {
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			return new int[] {1, getVersion()};
+		}
 	}
 
 	/**
@@ -888,15 +915,26 @@ public class NFA<T> implements Serializable {
 
 		private final TypeSerializer<T> eventSerializer;
 
+		private int version = 1;
+
 		public NFASerializer(TypeSerializer<T> typeSerializer) {
-			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer));
+			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer),
+				NFASerializerConfigSnapshot.VERSION);
 		}
 
 		public NFASerializer(
 				TypeSerializer<T> typeSerializer,
 				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
+			this(typeSerializer, sharedBufferSerializer, NFASerializerConfigSnapshot.VERSION);
+		}
+
+		public NFASerializer(
+			TypeSerializer<T> typeSerializer,
+			TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer,
+			int version) {
 			this.eventSerializer = typeSerializer;
 			this.sharedBufferSerializer = sharedBufferSerializer;
+			this.version = version;
 		}
 
 		@Override
@@ -1126,7 +1164,9 @@ public class NFA<T> implements Serializable {
 								serializersAndConfigs.get(1).f1,
 								sharedBufferSerializer);
 
-				if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
+				if (!sharedBufCompatResult.isRequiresMigration()
+					&& !eventCompatResult.isRequiresMigration()
+					&& configSnapshot.getVersion() == NFASerializerConfigSnapshot.VERSION) {
 					return CompatibilityResult.compatible();
 				} else {
 					if (eventCompatResult.getConvertDeserializer() != null &&
@@ -1134,7 +1174,8 @@ public class NFA<T> implements Serializable {
 						return CompatibilityResult.requiresMigration(
 								new NFASerializer<>(
 										new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
-										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
+										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer()),
+										configSnapshot.getVersion()));
 					}
 				}
 			}
@@ -1146,11 +1187,13 @@ public class NFA<T> implements Serializable {
 			TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
 			TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
 			TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+			TypeSerializer<Boolean> greedySerializer = BooleanSerializer.INSTANCE;
 
 			out.writeInt(states.size());
 			for (State<T> state: states) {
 				nameSerializer.serialize(state.getName(), out);
 				stateTypeSerializer.serialize(state.getStateType(), out);
+				greedySerializer.serialize(state.isGreedy(), out);
 			}
 
 			for (State<T> state: states) {
@@ -1171,6 +1214,7 @@ public class NFA<T> implements Serializable {
 			TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
 			TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
 			TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+			TypeSerializer<Boolean> greedySerializer = BooleanSerializer.INSTANCE;
 
 			final int noOfStates = in.readInt();
 			Map<String, State<T>> states = new HashMap<>(noOfStates);
@@ -1178,8 +1222,12 @@ public class NFA<T> implements Serializable {
 			for (int i = 0; i < noOfStates; i++) {
 				String stateName = nameSerializer.deserialize(in);
 				State.StateType stateType = stateTypeSerializer.deserialize(in);
+				boolean greedy = false;
+				if (version > 1) {
+					greedy = greedySerializer.deserialize(in);
+				}
 
-				State<T> state = new State<>(stateName, stateType);
+				State<T> state = new State<>(stateName, stateType, greedy);
 				states.put(stateName, state);
 			}
 

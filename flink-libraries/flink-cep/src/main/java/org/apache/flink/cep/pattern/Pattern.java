@@ -338,6 +338,20 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
+	 * Specifies that this pattern is greedy.
+	 * This means as many events as possible will be matched to this pattern.
+	 *
+	 * @return The same pattern with {@link Quantifier#greedy} set to true.
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> greedy() {
+		checkIfNoNotPattern();
+		checkIfNoFollowedByAny();
+		this.quantifier.greedy();
+		return this;
+	}
+
+	/**
 	 * Specifies exact number of times that this pattern should be matched.
 	 *
 	 * @param times number of times matching event must appear
@@ -507,6 +521,12 @@ public class Pattern<T, F extends T> {
 		if (!quantifier.hasProperty(Quantifier.QuantifierProperty.SINGLE)) {
 			throw new MalformedPatternException("Already applied quantifier to this Pattern. " +
 					"Current quantifier is: " + quantifier);
+		}
+	}
+
+	private void checkIfNoFollowedByAny() {
+		if (quantifier.getConsumingStrategy() == ConsumingStrategy.SKIP_TILL_ANY) {
+			throw new MalformedPatternException("Option not applicable to FollowedByAny pattern");
 		}
 	}
 }
