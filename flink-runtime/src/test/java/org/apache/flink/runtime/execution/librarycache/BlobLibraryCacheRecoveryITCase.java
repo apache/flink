@@ -24,12 +24,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
@@ -65,7 +65,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 		BlobServer[] server = new BlobServer[2];
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
 		BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 		BlobStoreService blobStoreService = null;
 
 		Configuration config = new Configuration();
@@ -102,14 +102,14 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// The cache
-			cache = new BlobCache(serverAddress[0], config, blobStoreService);
+			cache = new PermanentBlobCache(serverAddress[0], config, blobStoreService);
 
 			// Register uploaded libraries
 			ExecutionAttemptID executionId = new ExecutionAttemptID();
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = cache.getFile(jobId, keys.get(0));
+			File f = cache.getHAFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -123,10 +123,10 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			// Shutdown cache and start with other server
 			cache.close();
 
-			cache = new BlobCache(serverAddress[1], config, blobStoreService);
+			cache = new PermanentBlobCache(serverAddress[1], config, blobStoreService);
 
 			// Verify key 1
-			f = cache.getFile(jobId, keys.get(0));
+			f = cache.getHAFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -138,7 +138,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = cache.getFile(jobId, keys.get(1));
+			f = cache.getHAFile(jobId, keys.get(1));
 			assertEquals(256, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {

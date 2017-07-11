@@ -31,8 +31,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -212,10 +212,10 @@ public class JobClient {
 			Option<String> jmHost = jobManager.actor().path().address().host();
 			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
 			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, props.blobManagerPort());
-			final BlobCache blobClient;
+			final PermanentBlobCache blobClient;
 			try {
-				// TODO: Fix lifecycle of BlobCache to properly close it upon usage
-				blobClient = new BlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
+				// TODO: Fix lifecycle of PermanentBlobCache to properly close it upon usage
+				blobClient = new PermanentBlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
 			} catch (IOException e) {
 				throw new JobRetrievalException(jobID,
 					"Failed to setup blob cache", e);
@@ -229,7 +229,7 @@ public class JobClient {
 			int pos = 0;
 			for (BlobKey blobKey : props.requiredJarFiles()) {
 				try {
-					allURLs[pos++] = blobClient.getFile(jobID, blobKey).toURI().toURL();
+					allURLs[pos++] = blobClient.getHAFile(jobID, blobKey).toURI().toURL();
 				} catch (Exception e) {
 					try {
 						blobClient.close();

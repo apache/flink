@@ -180,9 +180,9 @@ public class BlobCacheSuccessTest {
 
 			for (BlobKey blobKey : blobKeys) {
 				if (jobId == null) {
-					blobCache.getFile(blobKey);
+					blobCache.getTransientBlobStore().getFile(blobKey);
 				} else {
-					blobCache.getFile(jobId, blobKey);
+					blobCache.getTransientBlobStore().getFile(jobId, blobKey);
 				}
 			}
 
@@ -196,9 +196,9 @@ public class BlobCacheSuccessTest {
 
 			for(int i = 0; i < blobKeys.size(); i++){
 				if (jobId == null) {
-					files[i] = blobCache.getFile(blobKeys.get(i));
+					files[i] = blobCache.getTransientBlobStore().getFile(blobKeys.get(i));
 				} else {
-					files[i] = blobCache.getFile(jobId, blobKeys.get(i));
+					files[i] = blobCache.getTransientBlobStore().getFile(jobId, blobKeys.get(i));
 				}
 			}
 

@@ -30,9 +30,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobView;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
@@ -111,7 +111,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	private final Configuration config;
 
 	/** Future of the blob cache. */
-	private Future<BlobCache> cache;
+	private Future<TransientBlobCache> cache;
 
 	/** Indicates which log file should be displayed. */
 	private FileMode fileMode;
@@ -166,13 +166,13 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	protected void respondAsLeader(final ChannelHandlerContext ctx, final Routed routed, final ActorGateway jobManager) {
 		if (cache == null) {
 			scala.concurrent.Future<Object> portFuture = jobManager.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
-			scala.concurrent.Future<BlobCache> cacheFuture = portFuture.map(new Mapper<Object, BlobCache>() {
+			scala.concurrent.Future<TransientBlobCache> cacheFuture = portFuture.map(new Mapper<Object, TransientBlobCache>() {
 				@Override
-				public BlobCache checkedApply(Object result) throws IOException {
+				public TransientBlobCache checkedApply(Object result) throws IOException {
 					Option<String> hostOption = jobManager.actor().path().address().host();
 					String host = hostOption.isDefined() ? hostOption.get() : "localhost";
 					int port = (int) result;
-					return new BlobCache(new InetSocketAddress(host, port), config, blobView);
+					return new TransientBlobCache(new InetSocketAddress(host, port), config, blobView);
 				}
 			}, executor);
 
@@ -210,24 +210,24 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 				Future<String> logPathFuture = blobKeyFuture
 					.thenCombine(
 						cache,
-						new BiFunction<BlobKey, BlobCache, Tuple2<BlobKey, BlobCache>>() {
+						new BiFunction<BlobKey, TransientBlobCache, Tuple2<BlobKey, TransientBlobCache>>() {
 							@Override
-							public Tuple2<BlobKey, BlobCache> apply(BlobKey blobKey, BlobCache blobCache) {
+							public Tuple2<BlobKey, TransientBlobCache> apply(BlobKey blobKey, TransientBlobCache blobCache) {
 								return Tuple2.of(blobKey, blobCache);
 							}
 						})
-					.thenComposeAsync(new ApplyFunction<Tuple2<BlobKey, BlobCache>, Future<String>>() {
+					.thenComposeAsync(new ApplyFunction<Tuple2<BlobKey, TransientBlobCache>, Future<String>>() {
 						@Override
-						public Future<String> apply(Tuple2<BlobKey, BlobCache> value) {
+						public Future<String> apply(Tuple2<BlobKey, TransientBlobCache> value) {
 							final BlobKey blobKey = value.f0;
-							final BlobCache blobCache = value.f1;
+							final TransientBlobCache blobCache = value.f1;
 
 							//delete previous log file, if it is different than the current one
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!blobKey.equals(lastSubmittedFile.get(taskManagerID))) {
 									try {
-										blobCache.deleteGlobal(lastSubmittedFile.get(taskManagerID));
+										blobCache.delete(lastSubmittedFile.get(taskManagerID));
 									} catch (IOException e) {
 										return FlinkCompletableFuture.completedExceptionally(
 											new Exception("Could not delete file for " + taskManagerID + '.', e));

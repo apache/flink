@@ -42,7 +42,9 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import java.io.Closeable;
 import java.io.EOFException;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -124,6 +126,55 @@ public final class BlobClient implements Closeable {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("Could not connect to BlobServer at address " + serverAddress, e);
 		}
+	}
+
+	static File downloadFromBlobServer(
+			@Nullable JobID jobId, BlobKey requiredBlob, File localJarFile,
+			InetSocketAddress serverAddress, Configuration blobClientConfig, int numFetchRetries)
+			throws IOException {
+
+		final byte[] buf = new byte[BUFFER_SIZE];
+		LOG.info("Downloading {}/{} from {}", jobId, requiredBlob, serverAddress);
+
+		// loop over retries
+		int attempt = 0;
+		while (true) {
+			try (
+				final BlobClient bc = new BlobClient(serverAddress, blobClientConfig);
+				final InputStream is = bc.getInternal(jobId, requiredBlob);
+				final OutputStream os = new FileOutputStream(localJarFile)
+			) {
+				while (true) {
+					final int read = is.read(buf);
+					if (read < 0) {
+						break;
+					}
+					os.write(buf, 0, read);
+				}
+
+				// success, we finished
+				return localJarFile;
+			}
+			catch (Throwable t) {
+				String message = "Failed to fetch BLOB " + jobId + "/" + requiredBlob + " from " + serverAddress +
+					" and store it under " + localJarFile.getAbsolutePath();
+				if (attempt < numFetchRetries) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(message + " Retrying...", t);
+					} else {
+						LOG.error(message + " Retrying...");
+					}
+				}
+				else {
+					LOG.error(message + " No retries left.", t);
+					throw new IOException(message, t);
+				}
+
+				// retry
+				++attempt;
+				LOG.info("Downloading {}/{} from {} (retry {})", jobId, requiredBlob, serverAddress, attempt);
+			}
+		} // end loop over retries
 	}
 
 	@Override
