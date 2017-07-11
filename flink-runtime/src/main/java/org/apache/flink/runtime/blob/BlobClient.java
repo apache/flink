@@ -417,7 +417,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	private BlobKey putBuffer(@Nullable JobID jobId, byte[] value, int offset, int len) throws IOException {
+	BlobKey putBuffer(@Nullable JobID jobId, byte[] value, int offset, int len) throws IOException {
 		if (this.socket.isClosed()) {
 			throw new IllegalStateException("BLOB Client is not connected. " +
 					"Client has been shut down or encountered an error before.");
@@ -478,7 +478,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	private BlobKey putInputStream(@Nullable JobID jobId, InputStream inputStream) throws IOException {
+	BlobKey putInputStream(@Nullable JobID jobId, InputStream inputStream) throws IOException {
 		if (this.socket.isClosed()) {
 			throw new IllegalStateException("BLOB Client is not connected. " +
 					"Client has been shut down or encountered an error before.");

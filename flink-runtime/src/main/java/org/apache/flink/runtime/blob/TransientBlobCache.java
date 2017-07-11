@@ -91,7 +91,7 @@ public class TransientBlobCache implements TransientBlobService {
 		if (fetchRetries >= 0) {
 			this.numFetchRetries = fetchRetries;
 		} else {
-			LOG.warn("Invalid value for {}. System will attempt no retires on failed fetches of BLOBs.",
+			LOG.warn("Invalid value for {}. System will attempt no retries on failed fetches of BLOBs.",
 				BlobServerOptions.FETCH_RETRIES.key());
 			this.numFetchRetries = 0;
 		}
@@ -144,24 +144,32 @@ public class TransientBlobCache implements TransientBlobService {
 
 	@Override
 	public BlobKey put(byte[] value) throws IOException {
-		return null;
+		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+			return bc.putBuffer(null, value, 0, value.length);
+		}
 	}
 
 	@Override
 	public BlobKey put(JobID jobId, byte[] value) throws IOException {
 		checkNotNull(jobId);
-		return null;
+		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+			return bc.putBuffer(jobId, value, 0, value.length);
+		}
 	}
 
 	@Override
 	public BlobKey put(InputStream inputStream) throws IOException {
-		return null;
+		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+			return bc.putInputStream(null, inputStream);
+		}
 	}
 
 	@Override
 	public BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
-		return null;
+		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+			return bc.putInputStream(jobId, inputStream);
+		}
 	}
 
 	@Override
