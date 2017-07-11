@@ -55,6 +55,7 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
     postSubmit()
     resultPath = getTempDirPath("result2")
     internalRun(testDeprecatedAPI = false)
+    postSubmit()
   }
 
   private def internalRun (testDeprecatedAPI: Boolean): Unit = {

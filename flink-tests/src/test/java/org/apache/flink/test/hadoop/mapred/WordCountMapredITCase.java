@@ -70,6 +70,7 @@ public class WordCountMapredITCase extends JavaProgramTestBase {
 		postSubmit();
 		resultPath = getTempDirPath("result2");
 		internalRun(false);
+		postSubmit();
 	}
 
 	private void internalRun(boolean isTestDeprecatedAPI) throws Exception {
