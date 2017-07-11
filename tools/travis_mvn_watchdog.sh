@@ -165,7 +165,7 @@ watchdog () {
 	done
 }
 
-# Check the final fat jar for illegal artifacts
+# Check the final fat jar for illegal or missing artifacts
 check_shaded_artifacts() {
 	jar tf build-target/lib/flink-dist*.jar > allClasses
 	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
@@ -184,6 +184,13 @@ check_shaded_artifacts() {
 		exit 1
 	fi
 
+	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
+	if [ $SNAPPY == "0" ]; then
+		echo "=============================================================================="
+		echo "Missing snappy dependencies in fat jar"
+		echo "=============================================================================="
+		exit 1
+	fi
 }
 
 # =============================================================================
