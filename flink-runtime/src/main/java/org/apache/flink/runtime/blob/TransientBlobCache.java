@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -215,6 +216,25 @@ public class TransientBlobCache implements TransientBlobService {
 
 	public int getPort() {
 		return serverAddress.getPort();
+	}
+
+	/**
+	 * Returns a file handle to the file associated with the given blob key on the blob
+	 * server.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param key
+	 * 		identifying the file
+	 *
+	 * @return file handle to the file
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
+	 */
+	@VisibleForTesting
+	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
+		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 
 	private BlobClient createClient() throws IOException {

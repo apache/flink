@@ -259,6 +259,8 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 			return localJarFile;
 		}
 
+		// TODO: only download to a temporary file, then move to its final place atomically!
+
 		// first try the distributed blob store (if available)
 		try {
 			blobView.get(jobId, requiredBlob, localJarFile);

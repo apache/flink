@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -29,14 +28,12 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,25 +44,25 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
+import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
- * BlobServer}.
+ * BlobCache}.
  * <p>
  * Successful GET requests are tested in conjunction wit the PUT requests.
  */
-public class BlobServerGetTest extends TestLogger {
+public class BlobCacheGetTest extends TestLogger {
 
 	private final Random rnd = new Random();
 
@@ -103,7 +100,10 @@ public class BlobServerGetTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+		try (
+			BlobServer server = new BlobServer(config, new VoidBlobStore());
+			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+				config, new VoidBlobStore())) {
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -117,7 +117,7 @@ public class BlobServerGetTest extends TestLogger {
 			assertTrue(blobFile.delete());
 
 			// issue a GET request that fails
-			verifyDeleted(server, jobId1, key, highAvailabibility);
+			verifyDeleted(cache, jobId1, key, highAvailabibility);
 
 			// add the same data under a second jobId
 			BlobKey key2 = put(server, jobId2, data, highAvailabibility);
@@ -125,14 +125,29 @@ public class BlobServerGetTest extends TestLogger {
 			assertEquals(key, key2);
 
 			// request for jobId2 should succeed
-			get(server, jobId2, key, highAvailabibility);
+			get(cache, jobId2, key, highAvailabibility);
 			// request for jobId1 should still fail
-			verifyDeleted(server, jobId1, key, highAvailabibility);
+			verifyDeleted(cache, jobId1, key, highAvailabibility);
 
-			// same checks as for jobId1 but for jobId2 should also work:
+			// delete on cache, try to retrieve again
+			if (highAvailabibility) {
+				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key);
+			} else {
+				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key);
+			}
+			assertTrue(blobFile.delete());
+			get(cache, jobId2, key, highAvailabibility);
+
+			// delete on cache and server, verify that it is not accessible anymore
+			if (highAvailabibility) {
+				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key);
+			} else {
+				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key);
+			}
+			assertTrue(blobFile.delete());
 			blobFile = server.getStorageLocation(jobId2, key);
 			assertTrue(blobFile.delete());
-			verifyDeleted(server, jobId2, key, highAvailabibility);
+			verifyDeleted(cache, jobId2, key, highAvailabibility);
 		}
 	}
 
@@ -143,7 +158,7 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentGetOperationsNoJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentGetOperations(null, false);
+		testConcurrentGetOperations(null, false, false);
 	}
 
 	/**
@@ -153,7 +168,7 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentGetOperationsForJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentGetOperations(new JobID(), false);
+		testConcurrentGetOperations(new JobID(), false, false);
 	}
 
 	/**
@@ -163,57 +178,55 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentGetOperationsForJobHa() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentGetOperations(new JobID(), true);
+		testConcurrentGetOperations(new JobID(), true, false);
 	}
 
-	private void testConcurrentGetOperations(final JobID jobId, final boolean highAvailabibility)
+	/**
+	 * FLINK-6020
+	 *
+	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
+	 */
+	@Test
+	public void testConcurrentGetOperationsForJobHa2() throws IOException, ExecutionException, InterruptedException {
+		testConcurrentGetOperations(new JobID(), true, true);
+	}
+
+	private void testConcurrentGetOperations(final JobID jobId, final boolean highAvailabibility,
+			final boolean cacheAccessesHAStore)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-		final BlobStore blobStore = mock(BlobStore.class);
+		final BlobStore blobStoreServer = mock(BlobStore.class);
+		final BlobStore blobStoreCache = mock(BlobStore.class);
 
 		final int numberConcurrentGetOperations = 3;
 		final List<Future<File>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
 
 		final byte[] data = {1, 2, 3, 4, 99, 42};
-		final ByteArrayInputStream bais = new ByteArrayInputStream(data);
 
 		MessageDigest md = BlobUtils.createMessageDigest();
 
 		// create the correct blob key by hashing our input data
 		final BlobKey blobKey = new BlobKey(md.digest(data));
 
-		doAnswer(
-			new Answer() {
-				@Override
-				public Object answer(InvocationOnMock invocation) throws Throwable {
-					File targetFile = (File) invocation.getArguments()[2];
-
-					FileUtils.copyInputStreamToFile(bais, targetFile);
-
-					return null;
-				}
-			}
-		).when(blobStore).get(any(JobID.class), any(BlobKey.class), any(File.class));
-
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
+		try (
+			final BlobServer server = new BlobServer(config, blobStoreServer);
+			final BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+				config, cacheAccessesHAStore ? blobStoreServer : blobStoreCache)) {
+
 			// upload data first
-			assertEquals(blobKey, put(blobServer, jobId, data, highAvailabibility));
+			assertEquals(blobKey, put(server, jobId, data, highAvailabibility));
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
-			if (highAvailabibility) {
-				// remove local copy so that a transfer from HA store takes place
-				assertTrue(blobServer.getStorageLocation(jobId, blobKey).delete());
-			}
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
 				Future<File> getOperation = FlinkCompletableFuture
 					.supplyAsync(new Callable<File>() {
 					@Override
 					public File call() throws Exception {
-						return get(blobServer, jobId, blobKey, highAvailabibility);
+						return get(cache, jobId, blobKey, highAvailabibility);
 					}
 				}, executor);
 
@@ -231,50 +244,16 @@ public class BlobServerGetTest extends TestLogger {
 				}
 			}
 
-			// verify that we downloaded the requested blob exactly once from the BlobStore
-			if (highAvailabibility) {
-				verify(blobStore, times(1)).get(eq(jobId), eq(blobKey), any(File.class));
+			// TODO: verify that the file is written only once (concurrent access in PermanentBlobCache)
+			if (cacheAccessesHAStore) {
+				// ...
 			} else {
-				// can't really verify much in the other cases other than that the get operations should
-				// work and retrieve correct files
-				verify(blobStore, times(0)).get(eq(jobId), eq(blobKey), any(File.class));
+				// verify that we did not download the requested blob from the HA store
+				verify(blobStoreServer, times(0)).get(eq(jobId), eq(blobKey), any(File.class));
+				// ...
 			}
 		} finally {
 			executor.shutdownNow();
-		}
-	}
-
-	static File get(BlobService blobService, JobID jobId, BlobKey blobKey, boolean highAvailability)
-		throws IOException {
-		if (highAvailability) {
-			return blobService.getPermanentBlobStore().getHAFile(jobId, blobKey);
-		} else if (jobId == null) {
-			return blobService.getTransientBlobStore().getFile(blobKey);
-		} else {
-			return blobService.getTransientBlobStore().getFile(jobId, blobKey);
-		}
-	}
-
-	/**
-	 * Checks that the given blob does not exist anymore.
-	 *
-	 * @param service
-	 * 		BLOB client to use for connecting to the BLOB service
-	 * @param jobId
-	 * 		job ID or <tt>null</tt> if job-unrelated
-	 * @param key
-	 * 		key identifying the BLOB to request
-	 * @param highAvailability
-	 * 		whether to check HA mode accessors
-	 */
-	static void verifyDeleted(
-			BlobService service, JobID jobId, BlobKey key, boolean highAvailability)
-			throws IOException {
-		try {
-			get(service, jobId, key, highAvailability);
-			fail("This should not succeed.");
-		} catch (IOException e) {
-			// expected
 		}
 	}
 }
