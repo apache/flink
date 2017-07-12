@@ -36,9 +36,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
+import java.util.concurrent.locks.Lock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
@@ -414,5 +417,73 @@ public class BlobUtils {
 	 */
 	private BlobUtils() {
 		throw new RuntimeException();
+	}
+
+	/**
+	 * Moves the temporary <tt>incomingFile</tt> to its permanent location where it is available for
+	 * use.
+	 *
+	 * @param incomingFile
+	 * 		temporary file created during transfer
+	 * @param jobId
+	 * 		ID of the job this blob belongs to or <tt>null</tt> if job-unrelated
+	 * @param blobKey
+	 * 		BLOB key identifying the file
+	 * @param storageFile
+	 *      (local) file where the blob is/should be stored
+	 * @param writeLock
+	 *      lock to acquire before doing the move
+	 * @param log
+	 *      logger for debug information
+	 * @param blobStore
+	 *      HA store (or <tt>null</tt> if unavailable)
+	 *
+	 * @throws IOException
+	 * 		thrown if an I/O error occurs while moving the file or uploading it to the HA store
+	 */
+	static void moveTempFileToStore(
+			File incomingFile, @Nullable JobID jobId, BlobKey blobKey, File storageFile,
+			Lock writeLock, Logger log, @Nullable BlobStore blobStore) throws IOException {
+
+		writeLock.lock();
+
+		try {
+			// first check whether the file already exists
+			if (!storageFile.exists()) {
+				try {
+					// only move the file if it does not yet exist
+					Files.move(incomingFile.toPath(), storageFile.toPath());
+
+					incomingFile = null;
+
+				} catch (FileAlreadyExistsException ignored) {
+					log.warn("Detected concurrent file modifications. This should only happen if multiple" +
+						"BlobServer use the same storage directory.");
+					// we cannot be sure at this point whether the file has already been uploaded to the blob
+					// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
+					// persist the blob. Otherwise we might not be able to recover the job.
+				}
+
+				if (blobStore != null) {
+					// only the one moving the incoming file to its final destination is allowed to upload the
+					// file to the blob store
+					blobStore.put(storageFile, jobId, blobKey);
+				}
+			} else {
+				log.warn("File upload for an existing file with key {} for job {}. This may indicate a duplicate upload or a hash collision. Ignoring newest upload.", blobKey, jobId);
+			}
+			storageFile = null;
+		} finally {
+			// we failed to either create the local storage file or to upload it --> try to delete the local file
+			// while still having the write lock
+			if (storageFile != null && !storageFile.delete() && storageFile.exists()) {
+				log.warn("Could not delete the storage file {}.", storageFile);
+			}
+			if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
+				log.warn("Could not delete the staging file {} for blob key {} and job {}.", incomingFile, blobKey, jobId);
+			}
+
+			writeLock.unlock();
+		}
 	}
 }

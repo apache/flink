@@ -38,8 +38,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -476,7 +474,9 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			try {
 				incomingFile = createTemporaryFilename();
 				blobStore.get(jobId, blobKey, incomingFile);
-				moveTempFileToStore(incomingFile, jobId, blobKey, false);
+
+				BlobUtils.moveTempFileToStore(
+					incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
 
 				return;
 			} finally {
@@ -678,46 +678,10 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			throws IOException {
 
 		File storageFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
-		readWriteLock.writeLock().lock();
 
-		try {
-			// first check whether the file already exists
-			if (!storageFile.exists()) {
-				try {
-					// only move the file if it does not yet exist
-					Files.move(incomingFile.toPath(), storageFile.toPath());
-
-					incomingFile = null;
-
-				} catch (FileAlreadyExistsException ignored) {
-					LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
-						"BlobServer use the same storage directory.");
-					// we cannot be sure at this point whether the file has already been uploaded to the blob
-					// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
-					// persist the blob. Otherwise we might not be able to recover the job.
-				}
-
-				if (highlyAvailable) {
-					// only the one moving the incoming file to its final destination is allowed to upload the
-					// file to the blob store
-					blobStore.put(storageFile, jobId, blobKey);
-				}
-			} else {
-				LOG.warn("File upload for an existing file with key {} for job {}. This may indicate a duplicate upload or a hash collision. Ignoring newest upload.", blobKey, jobId);
-			}
-			storageFile = null;
-		} finally {
-			// we failed to either create the local storage file or to upload it --> try to delete the local file
-			// while still having the write lock
-			if (storageFile != null && !storageFile.delete() && storageFile.exists()) {
-				LOG.warn("Could not delete the storage file {}.", storageFile);
-			}
-			if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
-				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.", incomingFile, blobKey, jobId);
-			}
-
-			readWriteLock.writeLock().unlock();
-		}
+		BlobUtils.moveTempFileToStore(
+			incomingFile, jobId, blobKey, storageFile, readWriteLock.writeLock(), LOG,
+			highlyAvailable ? blobStore : null);
 	}
 
 	/**

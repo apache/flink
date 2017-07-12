@@ -37,6 +37,9 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,6 +59,9 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(PermanentBlobCache.class);
 
+	/** Counter to generate unique names for temporary files. */
+	private final AtomicLong tempFileCounter = new AtomicLong(0);
+
 	private final InetSocketAddress serverAddress;
 
 	/** Root directory for local file storage */
@@ -74,6 +80,9 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
+
+	/** Lock guarding concurrent file accesses */
+	private final ReadWriteLock readWriteLock;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -122,6 +131,7 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
 		this.blobView = checkNotNull(blobView, "blobStore");
+		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(BlobServerOptions.STORAGE_DIRECTORY);
@@ -231,7 +241,7 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	@Override
 	public File getHAFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
-		return getFileInternal(jobId, key);
+		return getHAFileInternal(jobId, key);
 	}
 
 	/**
@@ -242,7 +252,7 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param requiredBlob
+	 * @param blobKey
 	 * 		The key of the desired BLOB.
 	 *
 	 * @return file referring to the local storage location of the BLOB.
@@ -250,32 +260,48 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	 * @throws IOException
 	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
-	private File getFileInternal(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
-		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
+	private File getHAFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
+		checkArgument(blobKey != null, "BLOB key cannot be null.");
 
-		final File localJarFile = BlobUtils.getStorageLocation(storageDir, jobId, requiredBlob);
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+		readWriteLock.readLock().lock();
 
-		if (localJarFile.exists()) {
-			return localJarFile;
+		try {
+			if (localFile.exists()) {
+				return localFile;
+			}
+		} finally {
+			readWriteLock.readLock().unlock();
 		}
-
-		// TODO: only download to a temporary file, then move to its final place atomically!
 
 		// first try the distributed blob store (if available)
+		// use a temporary file (thread-safe without locking)
+		File incomingFile = createTemporaryFilename();
 		try {
-			blobView.get(jobId, requiredBlob, localJarFile);
-		} catch (Exception e) {
-			LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
-		}
+			try {
+				blobView.get(jobId, blobKey, incomingFile);
+				BlobUtils.moveTempFileToStore(
+					incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
 
-		if (localJarFile.exists()) {
-			return localJarFile;
-		}
+				return localFile;
+			} catch (Exception e) {
+				LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
+			}
 
-		// fallback: download from the BlobServer
-		return BlobClient.downloadFromBlobServer(jobId, requiredBlob, localJarFile, serverAddress,
-			blobClientConfig,
-			numFetchRetries);
+			// fallback: download from the BlobServer
+			BlobClient.downloadFromBlobServer(
+				jobId, blobKey, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
+			BlobUtils.moveTempFileToStore(
+				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+
+			return localFile;
+		} finally {
+			// delete incomingFile from a failed download
+			if (!incomingFile.delete() && incomingFile.exists()) {
+				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
+					incomingFile, blobKey, jobId);
+			}
+		}
 	}
 
 	public int getPort() {
@@ -299,6 +325,19 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	@VisibleForTesting
 	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
+	}
+
+	/**
+	 * Returns a temporary file inside the BLOB server's incoming directory.
+	 *
+	 * @return a temporary file inside the BLOB server's incoming directory
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
+	 */
+	File createTemporaryFilename() throws IOException {
+		return new File(BlobUtils.getIncomingDirectory(storageDir),
+			String.format("temp-%08d", tempFileCounter.getAndIncrement()));
 	}
 
 	/**

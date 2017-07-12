@@ -31,7 +31,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,7 +49,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TransientBlobCache implements TransientBlobService {
 
 	/** The log object used for debugging. */
-	private static final Logger LOG = LoggerFactory.getLogger(BlobCache.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TransientBlobCache.class);
+
+	/** Counter to generate unique names for temporary files. */
+	private final AtomicLong tempFileCounter = new AtomicLong(0);
 
 	private final InetSocketAddress serverAddress;
 
@@ -55,7 +63,7 @@ public class TransientBlobCache implements TransientBlobService {
 
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/** Shutdown hook thread to ensure deletion of the storage directory. */
+	/** Shutdown hook thread to ensure deletion of the local storage directory. */
 	private final Thread shutdownHook;
 
 	/** The number of retries when the transfer fails */
@@ -63,6 +71,9 @@ public class TransientBlobCache implements TransientBlobService {
 
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
+
+	/** Lock guarding concurrent file accesses */
+	private final ReadWriteLock readWriteLock;
 
 	/**
 	 * Instantiates a new BLOB cache.
@@ -81,6 +92,7 @@ public class TransientBlobCache implements TransientBlobService {
 
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
+		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(BlobServerOptions.STORAGE_DIRECTORY);
@@ -120,7 +132,7 @@ public class TransientBlobCache implements TransientBlobService {
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param requiredBlob
+	 * @param blobKey
 	 * 		The key of the desired BLOB.
 	 *
 	 * @return file referring to the local storage location of the BLOB.
@@ -128,19 +140,38 @@ public class TransientBlobCache implements TransientBlobService {
 	 * @throws IOException
 	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
-	private File getFileInternal(@Nullable JobID jobId, BlobKey requiredBlob) throws IOException {
-		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
+	private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
+		checkArgument(blobKey != null, "BLOB key cannot be null.");
 
-		final File localJarFile = BlobUtils.getStorageLocation(storageDir, jobId, requiredBlob);
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+		readWriteLock.readLock().lock();
 
-		if (localJarFile.exists()) {
-			return localJarFile;
+		try {
+			if (localFile.exists()) {
+				return localFile;
+			}
+		} finally {
+			readWriteLock.readLock().unlock();
 		}
 
 		// download from the BlobServer directly
-		return BlobClient.downloadFromBlobServer(jobId, requiredBlob, localJarFile, serverAddress,
-			blobClientConfig,
-			numFetchRetries);
+		// use a temporary file (thread-safe without locking)
+		File incomingFile = createTemporaryFilename();
+		try {
+			BlobClient.downloadFromBlobServer(jobId, blobKey, incomingFile, serverAddress,
+				blobClientConfig, numFetchRetries);
+
+			BlobUtils.moveTempFileToStore(
+				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+
+			return localFile;
+		} finally {
+			// delete incomingFile from a failed download
+			if (!incomingFile.delete() && incomingFile.exists()) {
+				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
+					incomingFile, blobKey, jobId);
+			}
+		}
 	}
 
 	@Override
@@ -199,9 +230,15 @@ public class TransientBlobCache implements TransientBlobService {
 		// delete locally
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
 
-		if (!localFile.delete() && localFile.exists()) {
-			LOG.warn("Failed to delete locally cached BLOB {} at {}", key,
-				localFile.getAbsolutePath());
+		readWriteLock.writeLock().lock();
+
+		try {
+			if (!localFile.delete() && localFile.exists()) {
+				LOG.warn("Failed to delete locally cached BLOB {} at {}", key,
+					localFile.getAbsolutePath());
+			}
+		} finally {
+			readWriteLock.writeLock().unlock();
 		}
 
 		// then delete on the BLOB server
@@ -235,6 +272,19 @@ public class TransientBlobCache implements TransientBlobService {
 	@VisibleForTesting
 	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
+	}
+
+	/**
+	 * Returns a temporary file inside the BLOB server's incoming directory.
+	 *
+	 * @return a temporary file inside the BLOB server's incoming directory
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
+	 */
+	File createTemporaryFilename() throws IOException {
+		return new File(BlobUtils.getIncomingDirectory(storageDir),
+			String.format("temp-%08d", tempFileCounter.getAndIncrement()));
 	}
 
 	private BlobClient createClient() throws IOException {
