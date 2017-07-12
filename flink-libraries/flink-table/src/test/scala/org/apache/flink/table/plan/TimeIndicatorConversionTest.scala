@@ -85,7 +85,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime"),
-      term("where", ">(TIME_MATERIALIZATION(rowtime), 1990-12-02 12:11:11)")
+      term("where", ">(rowtime, 1990-12-02 12:11:11)")
     )
 
     util.verifyTable(result, expected)

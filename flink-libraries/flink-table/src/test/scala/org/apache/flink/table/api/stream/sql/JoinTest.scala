@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.api.scala.stream.sql
+package org.apache.flink.table.api.stream.sql
 
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.join.WindowJoinUtil
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
@@ -35,11 +32,16 @@ class JoinTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
   @Test
-  def testProcessingTimeInnerJoin() = {
+  def testProcessingTimeInnerJoinWithOnClause() = {
 
-    val sqlQuery = "SELECT t1.a, t2.b " +
-      "FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " +
-      "t1.proctime between t2.proctime - interval '1' hour and t2.proctime + interval '1' hour"
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+        |""".stripMargin
+
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -67,37 +69,42 @@ class JoinTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, expected)
   }
 
-  /** There should exist time conditions **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinUnExistTimeCondition() = {
-    val sql = "SELECT t2.a from MyTable as t1 join MyTable2 as t2 on t1.a = t2.a"
-    streamUtil.verifySql(sql, "n/a")
-  }
+  @Test
+  def testProcessingTimeInnerJoinWithWhereClause() = {
 
-  /** There should exist exactly two time conditions **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinSingleTimeCondition() = {
-    val sql = "SELECT t2.a from MyTable as t1 join MyTable2 as t2 on t1.a = t2.a" +
-      " and t1.proctime > t2.proctime - interval '5' second"
-    streamUtil.verifySql(sql, "n/a")
-  }
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+        |""".stripMargin
 
-  /** Both time attributes in a join condition must be of the same type **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinDiffTimeIndicator() = {
-    val sql = "SELECT t2.a from MyTable as t1 join MyTable2 as t2 on t1.a = t2.a" +
-      " and t1.proctime > t2.proctime - interval '5' second " +
-      " and t1.proctime < t2.c + interval '5' second"
-    streamUtil.verifySql(sql, "n/a")
-  }
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "proctime")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "proctime")
+          ),
+          term("where",
+            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
+              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+          term("join", "a, proctime, a0, b, proctime0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b0 AS b")
+      )
 
-  /** The time conditions should be an And condition **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinNotCnfCondition() = {
-    val sql = "SELECT t2.a from MyTable as t1 join MyTable2 as t2 on t1.a = t2.a" +
-      " and (t1.proctime > t2.proctime - interval '5' second " +
-      " or t1.proctime < t2.c + interval '5' second)"
-    streamUtil.verifySql(sql, "n/a")
+    streamUtil.verifySql(sqlQuery, expected)
   }
 
   @Test
@@ -170,7 +177,7 @@ class JoinTest extends TableTestBase {
         "t1.c > t2.c"
     verifyRemainConditionConvert(
       query,
-      ">($1, $3)")
+      ">($2, $6)")
 
     val query1 =
       "SELECT t1.a, t2.c FROM MyTable3 as t1 join MyTable4 as t2 on t1.a = t2.a and " +
@@ -188,45 +195,53 @@ class JoinTest extends TableTestBase {
         "t1.c > t2.c"
     verifyRemainConditionConvert(
       query2,
-      ">($2, $5)")
+      ">($2, $6)")
   }
 
-  def verifyTimeBoundary(
+  private def verifyTimeBoundary(
       timeSql: String,
       expLeftSize: Long,
       expRightSize: Long,
-      expTimeType: String) = {
+      expTimeType: String): Unit = {
     val query =
       "SELECT t1.a, t2.b FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " + timeSql
 
-    val resultTable = streamUtil.tEnv.sql(query)
+    val resultTable = streamUtil.tableEnv.sql(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val rexNode = joinNode.getCondition
-    val (isRowTime, lowerBound, upperBound, conditionWithoutTime) =
-      WindowJoinUtil.analyzeTimeBoundary(rexNode, 4, new RowSchema(joinNode.getRowType),
-        joinNode.getCluster.getRexBuilder, streamUtil.tEnv.getConfig)
+    val (windowBounds, _) =
+      WindowJoinUtil.extractWindowBoundsFromPredicate(
+        rexNode,
+        4,
+        joinNode.getRowType,
+        joinNode.getCluster.getRexBuilder,
+        streamUtil.tableEnv.getConfig)
 
     val timeTypeStr =
-      if (isRowTime) "rowtime"
+      if (windowBounds.get.isEventTime) "rowtime"
       else  "proctime"
-    assertEquals(expLeftSize, lowerBound)
-    assertEquals(expRightSize, upperBound)
+    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
+    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
     assertEquals(expTimeType, timeTypeStr)
   }
 
-  def verifyRemainConditionConvert(
+  private def verifyRemainConditionConvert(
       query: String,
-      expectCondStr: String) = {
+      expectCondStr: String): Unit = {
 
-    val resultTable = streamUtil.tEnv.sql(query)
+    val resultTable = streamUtil.tableEnv.sql(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val joinInfo = joinNode.analyzeCondition
     val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
-    val (isRowTime, lowerBound, upperBound, remainCondition) =
-      WindowJoinUtil.analyzeTimeBoundary(rexNode, 4, new RowSchema(joinNode.getRowType),
-        joinNode.getCluster.getRexBuilder, streamUtil.tEnv.getConfig)
+    val (_, remainCondition) =
+      WindowJoinUtil.extractWindowBoundsFromPredicate(
+        rexNode,
+        4,
+        joinNode.getRowType,
+        joinNode.getCluster.getRexBuilder,
+        streamUtil.tableEnv.getConfig)
 
     val actual: String = remainCondition.getOrElse("").toString
 
