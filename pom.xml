@@ -110,7 +110,7 @@ under the License.
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.4</jackson.version>
-		<metrics.version>3.1.0</metrics.version>
+		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.0.21</prometheus.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
