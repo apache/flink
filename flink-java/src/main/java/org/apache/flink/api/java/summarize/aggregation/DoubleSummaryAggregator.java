@@ -32,7 +32,7 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 
 	public static class MinDoubleAggregator implements Aggregator<Double,Double> {
 
-		private double min = Double.MAX_VALUE;
+		private double min = Double.POSITIVE_INFINITY;
 
 		@Override
 		public void aggregate(Double value) {
