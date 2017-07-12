@@ -40,7 +40,6 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg = call.rel(0).asInstanceOf[LogicalAggregate]
 
-    val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
     val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
 
     val windowExpressions = getWindowExpressions(agg)
@@ -48,7 +47,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
       throw new TableException("Only a single window group function may be used in GROUP BY")
     }
 
-    !distinctAggs && !groupSets && !agg.indicator && windowExpressions.nonEmpty
+    !groupSets && !agg.indicator && windowExpressions.nonEmpty
   }
 
   /**

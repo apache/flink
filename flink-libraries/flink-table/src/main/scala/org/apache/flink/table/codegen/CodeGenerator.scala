@@ -47,6 +47,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
 import org.apache.flink.table.runtime.TableFunctionCollector
+import org.apache.flink.table.runtime.aggregate.DistinctAccumulator
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
 
@@ -278,6 +279,8 @@ class CodeGenerator(
     *                     assume that both rows have the accumulators at the same position.
     * @param constantFlags An optional parameter to define where to set constant boolean flags in
     *                      the output row.
+    * @param distinctAggs  An parameter indicating the aggregations that should
+    *                      aggregate only DISTINCT values
     * @param outputArity The number of fields in the output row.
     * @param needRetract a flag to indicate if the aggregate needs the retract method
     * @param needMerge a flag to indicate if the aggregate needs the merge method
@@ -296,6 +299,7 @@ class CodeGenerator(
       fwdMapping: Array[Int],
       mergeMapping: Option[Array[Int]],
       constantFlags: Option[Array[(Int, Boolean)]],
+      distinctAggs: Set[Int],
       outputArity: Int,
       needRetract: Boolean,
       needMerge: Boolean,
@@ -381,6 +385,21 @@ class CodeGenerator(
       }
     }
 
+    val distinctAccumulatorType = s"${classOf[DistinctAccumulator[_]].getName}"
+    val distinctAcc = distinctAggs.map(x => (x,
+      s"(($distinctAccumulatorType) accs.getField($x))")).toMap
+
+    def isDistinct(i: Int): Boolean = {
+      distinctAcc.contains(i)
+    }
+
+    val realAcc = for (i <- aggs.indices) yield
+      if (isDistinct(i)) {
+        s"(${accTypes(i)}) (${distinctAcc(i)}.delegate)"
+      } else {
+        s"(${accTypes(i)}) accs.getField($i)"
+      }
+
     def genSetAggregationResults: String = {
 
       val sig: String =
@@ -390,13 +409,12 @@ class CodeGenerator(
            |    org.apache.flink.types.Row output)""".stripMargin
 
       val setAggs: String = {
-        for (i <- aggs.indices) yield
-
+        for (i <- aggs.indices) yield {
           if (partialResults) {
             j"""
                |    output.setField(
                |      ${aggMapping(i)},
-               |      (${accTypes(i)}) accs.getField($i));""".stripMargin
+               |      ${realAcc(i)});""".stripMargin
           } else {
             j"""
                |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
@@ -404,8 +422,9 @@ class CodeGenerator(
                |
                |    output.setField(
                |      ${aggMapping(i)},
-               |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+               |      baseClass$i.getValue(${realAcc(i)}));""".stripMargin
           }
+        }
       }.mkString("\n")
 
       j"""
@@ -424,10 +443,16 @@ class CodeGenerator(
 
       val accumulate: String = {
         for (i <- aggs.indices) yield
-          j"""
-             |    ${aggs(i)}.accumulate(
-             |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+          if (isDistinct(i)) {
+            j"""
+               |    if (${distinctAcc(i)}.add(${parameters(i)})) {
+               |        ${aggs(i)}.accumulate((${realAcc(i)}), ${parameters(i)});
+               |    }""".stripMargin
+          } else {
+            j"""
+               |    ${aggs(i)}.accumulate((${realAcc(i)}), ${parameters(i)});
+               |    """.stripMargin
+          }
       }.mkString("\n")
 
       j"""$sig {
@@ -444,11 +469,18 @@ class CodeGenerator(
             |    org.apache.flink.types.Row input)""".stripMargin
 
       val retract: String = {
-        for (i <- aggs.indices) yield
-          j"""
-             |    ${aggs(i)}.retract(
-             |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+        for (i <- aggs.indices) yield {
+          if (isDistinct(i)) {
+            j"""
+               |    if (${distinctAcc(i)}.retract(${parameters(i)}) {
+               |        ${aggs(i)}.retract((${realAcc(i)}), ${parameters(i)});
+               |     }""".stripMargin
+          } else {
+            j"""
+               |    ${aggs(i)}.retract((${realAcc(i)}), ${parameters(i)});
+               |        """.stripMargin
+          }
+        }
       }.mkString("\n")
 
       if (needRetract) {
@@ -476,11 +508,20 @@ class CodeGenerator(
           .stripMargin
       val create: String = {
         for (i <- aggs.indices) yield
-          j"""
-             |    accs.setField(
-             |      $i,
-             |      ${aggs(i)}.createAccumulator());"""
-            .stripMargin
+          if (isDistinct(i)) {
+            j"""
+               |    accs.setField(
+               |      $i,
+               |      new org.apache.flink.table.runtime.
+               |          aggregate.DistinctAccumulator(${aggs(i)}.createAccumulator()));"""
+              .stripMargin
+          } else {
+            j"""
+               |    accs.setField(
+               |      $i,
+               |      ${aggs(i)}.createAccumulator());"""
+              .stripMargin
+          }
       }.mkString("\n")
       val ret: String =
         j"""
@@ -562,13 +603,28 @@ class CodeGenerator(
            """.stripMargin
       val merge: String = {
         for (i <- aggs.indices) yield
-          j"""
-             |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
-             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
-             |    accIt$i.setElement(bAcc$i);
-             |    ${aggs(i)}.merge(aAcc$i, accIt$i);
-             |    a.setField($i, aAcc$i);
+          if (isDistinct(i)) {
+            j"""
+               |    $distinctAccumulatorType aAcc$i = ($distinctAccumulatorType) a.getField($i);
+               |    $distinctAccumulatorType bAcc$i = ($distinctAccumulatorType)
+               |        b.getField(${mapping(i)});
+               |    java.util.Iterator tmpIt$i = bAcc$i.values().iterator();
+               |    while (tmpIt$i.hasNext()) {
+               |        Object o = tmpIt$i.next();
+               |        if (aAcc$i.add(o)) {
+               |            ${aggs(i)}.accumulate((${accTypes(i)}) aAcc$i.delegate, o);
+               |        }
+               |    }
              """.stripMargin
+          } else {
+            j"""
+               |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+               |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
+               |    accIt$i.setElement(bAcc$i);
+               |    ${aggs(i)}.merge(aAcc$i, accIt$i);
+               |    a.setField($i, aAcc$i);
+             """.stripMargin
+          }
       }.mkString("\n")
       val ret: String =
         j"""
@@ -608,10 +664,17 @@ class CodeGenerator(
            |    org.apache.flink.types.Row accs)""".stripMargin
 
       val reset: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
+          val resetClause = if (isDistinct(i)) {
+            s"${distinctAcc(i)}.reset();"
+          } else {
+            ""
+          }
           j"""
-             |    ${aggs(i)}.resetAccumulator(
-             |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
+             |    $resetClause
+             |    ${aggs(i)}.resetAccumulator(${realAcc(i)});
+             |    """.stripMargin
+        }
       }.mkString("\n")
 
       if (needReset) {
