@@ -202,6 +202,21 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 		}
 	}
 
+	@Override
+	public void cleanupData(JobID jobID) throws Exception {
+		Throwable exception = null;
+
+		try {
+			blobStoreService.deleteAll(jobID);
+		} catch (Throwable t) {
+			exception = t;
+		}
+
+		if (exception != null) {
+			ExceptionUtils.rethrowException(exception, "Could not properly clean up data of ZooKeeperHaServices for job[" + jobID + "].");
+		}
+	}
+
 	/**
 	 * Closes components which don't distinguish between close and closeAndCleanupAllData
 	 */

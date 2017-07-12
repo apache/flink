@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.nonha;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -108,6 +109,11 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 	public void closeAndCleanupAllData() throws Exception {
 		// this stores no data, so this method is the same as 'close()'
 		close();
+	}
+
+	@Override
+	public void cleanupData(JobID jobID) throws Exception {
+		// this stores no data, so this method will do nothing
 	}
 
 	// ----------------------------------------------------------------------

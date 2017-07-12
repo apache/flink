@@ -172,4 +172,11 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 *                   or cleaning up data stored by them.
 	 */
 	void closeAndCleanupAllData() throws Exception;
+
+	/**
+	 * Deletes all data of job for the given {@link JobID}
+	 * @param jobID The identifier of the job.
+	 * @throws Exception Thrown, if an exceptions occurred while cleanup data of job.
+	 */
+	void cleanupData(JobID jobID) throws Exception;
 }

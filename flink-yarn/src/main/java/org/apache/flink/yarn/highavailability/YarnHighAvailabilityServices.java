@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.highavailability;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
@@ -259,6 +260,22 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 			}
 		}
 		finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	public void cleanupData(JobID jobID) throws Exception {
+		lock.lock();
+		try {
+			checkState(!closed, "YarnHighAvailabilityServices are already closed");
+
+			try {
+				blobStoreService.deleteAll(jobID);
+			} catch (Throwable t) {
+				ExceptionUtils.rethrowException(t, t.getMessage());
+			}
+		} finally {
 			lock.unlock();
 		}
 	}
