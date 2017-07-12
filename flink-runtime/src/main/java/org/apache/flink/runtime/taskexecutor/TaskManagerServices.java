@@ -38,12 +38,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
-import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -193,7 +193,8 @@ public class TaskManagerServices {
 			taskManagerLocation.getResourceID().toString());
 
 		// Initialize the TM metrics
-		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, network);
+		MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup);
+		MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network);
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
