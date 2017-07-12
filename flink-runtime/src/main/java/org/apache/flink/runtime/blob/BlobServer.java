@@ -449,23 +449,16 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 				// Try the HA blob store
 				// first we have to release the read lock in order to acquire the write lock
 				readWriteLock.readLock().unlock();
-				readWriteLock.writeLock().lock();
 
-				try {
-					if (localFile.exists()) {
-						LOG.debug("Blob file {} has been downloaded from the (distributed) blob store by a different thread.", localFile);
-					} else {
-						blobStore.get(jobId, blobKey, localFile);
-					}
-				} finally {
-					readWriteLock.writeLock().unlock();
-				}
+				// use a temporary file (thread-safe without locking)
+				File incomingFile = createTemporaryFilename();
+				blobStore.get(jobId, blobKey, incomingFile);
 
+				moveTempFileToStore(incomingFile, jobId, blobKey, false);
+
+				// re-acquire lock so that it can be unlocked again below
 				readWriteLock.readLock().lock();
-
-				if (localFile.exists()) {
-					return localFile;
-				}
+				return localFile;
 			}
 
 			throw new FileNotFoundException("Local file " + localFile + " does not exist " +
