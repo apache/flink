@@ -35,6 +35,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Integration tests for connected streams.
+ */
 public class SelfConnectionITCase extends StreamingMultipleProgramsTestBase {
 
 	/**
@@ -135,7 +138,6 @@ public class SelfConnectionITCase extends StreamingMultipleProgramsTestBase {
 				return value.intValue();
 			}
 		});
-
 
 		stringMap.connect(longMap).map(new CoMapFunction<String, Long, String>() {
 

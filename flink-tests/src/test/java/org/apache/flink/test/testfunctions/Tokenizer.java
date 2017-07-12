@@ -22,6 +22,9 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
+/**
+ * FlatMap for splitting strings.
+ */
 public final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 
 	@Override

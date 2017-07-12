@@ -18,14 +18,17 @@
 
 package org.apache.flink.test.completeness;
 
-import java.lang.reflect.Modifier;
-import java.util.Set;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.util.TestLogger;
-import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 import org.reflections.Reflections;
+
+import java.lang.reflect.Modifier;
+import java.util.Set;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Scans the class path for type information and checks if there is a test for it.

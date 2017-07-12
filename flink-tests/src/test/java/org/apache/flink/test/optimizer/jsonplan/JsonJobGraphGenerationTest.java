@@ -18,12 +18,6 @@
 
 package org.apache.flink.test.optimizer.jsonplan;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,10 +31,14 @@ import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,8 +49,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Test job graph generation in JSON format.
+ */
 public class JsonJobGraphGenerationTest {
 
 	private PrintStream out;
@@ -67,11 +71,11 @@ public class JsonJobGraphGenerationTest {
 			@Override
 			public void write(int b) {}
 		};
-		
+
 		System.setOut(new PrintStream(discards));
 		System.setErr(new PrintStream(discards));
 	}
-	
+
 	@After
 	public void restoreStreams() {
 		if (out != null) {
@@ -81,8 +85,7 @@ public class JsonJobGraphGenerationTest {
 			System.setOut(err);
 		}
 	}
-	
-	
+
 	@Test
 	public void testWordCountPlan() {
 		try {
@@ -95,13 +98,13 @@ public class JsonJobGraphGenerationTest {
 				WordCount.main(new String[0]);
 			}
 			catch (AbortError ignored) {}
-			
+
 			// with arguments
 			try {
 				final int parallelism = 17;
 				JsonValidator validator = new GenericValidator(parallelism, 3);
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
-				
+
 				String tmpDir = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
 				WordCount.main(new String[] {
 						"--input", tmpDir,
@@ -186,7 +189,7 @@ public class JsonJobGraphGenerationTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testConnectedComponents() {
 		try {
@@ -214,7 +217,7 @@ public class JsonJobGraphGenerationTest {
 						"--iterations", "100");
 			}
 			catch (AbortError ignored) {}
-			
+
 		}
 		catch (Exception e) {
 			restoreStreams();
@@ -224,12 +227,12 @@ public class JsonJobGraphGenerationTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
-	private static interface JsonValidator {
-		
+
+	private interface JsonValidator {
+
 		void validateJson(String json) throws Exception;
 	}
-	
+
 	private static class GenericValidator implements JsonValidator {
 
 		private final int expectedParallelism;
@@ -243,7 +246,7 @@ public class JsonJobGraphGenerationTest {
 		@Override
 		public void validateJson(String json) throws Exception {
 			final Map<String, JsonNode> idToNode = new HashMap<>();
-			
+
 			// validate the produced JSON
 			ObjectMapper m = new ObjectMapper();
 			JsonNode rootNode = m.readTree(json);
@@ -251,7 +254,7 @@ public class JsonJobGraphGenerationTest {
 			JsonNode idField = rootNode.get("jid");
 			JsonNode nameField = rootNode.get("name");
 			JsonNode arrayField = rootNode.get("nodes");
-			
+
 			assertNotNull(idField);
 			assertNotNull(nameField);
 			assertNotNull(arrayField);
@@ -260,14 +263,15 @@ public class JsonJobGraphGenerationTest {
 			assertTrue(arrayField.isArray());
 
 			ArrayNode array = (ArrayNode) arrayField;
-			for (Iterator<JsonNode> iter = array.elements(); iter.hasNext(); ) {
+			Iterator<JsonNode> iter = array.elements();
+			while (iter.hasNext()) {
 				JsonNode vertex = iter.next();
 
 				JsonNode vertexIdField = vertex.get("id");
 				JsonNode parallelismField = vertex.get("parallelism");
 				JsonNode contentsFields = vertex.get("description");
 				JsonNode operatorField = vertex.get("operator");
-				
+
 				assertNotNull(vertexIdField);
 				assertTrue(vertexIdField.isTextual());
 				assertNotNull(parallelismField);
@@ -276,30 +280,31 @@ public class JsonJobGraphGenerationTest {
 				assertTrue(contentsFields.isTextual());
 				assertNotNull(operatorField);
 				assertTrue(operatorField.isTextual());
-				
+
 				if (contentsFields.asText().startsWith("Sync")) {
 					assertEquals(1, parallelismField.asInt());
 				}
 				else {
 					assertEquals(expectedParallelism, parallelismField.asInt());
 				}
-				
+
 				idToNode.put(vertexIdField.asText(), vertex);
 			}
-			
+
 			assertEquals(numNodes, idToNode.size());
-			
+
 			// check that all inputs are contained
 			for (JsonNode node : idToNode.values()) {
 				JsonNode inputsField = node.get("inputs");
 				if (inputsField != null) {
-					for (Iterator<JsonNode> inputsIter = inputsField.elements(); inputsIter.hasNext(); ) {
+					Iterator<JsonNode> inputsIter = inputsField.elements();
+					while (inputsIter.hasNext()) {
 						JsonNode inputNode = inputsIter.next();
 						JsonNode inputIdField = inputNode.get("id");
-						
+
 						assertNotNull(inputIdField);
 						assertTrue(inputIdField.isTextual());
-						
+
 						String inputIdString = inputIdField.asText();
 						assertTrue(idToNode.containsKey(inputIdString));
 					}
@@ -309,15 +314,15 @@ public class JsonJobGraphGenerationTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private static class AbortError extends Error {
 		private static final long serialVersionUID = 152179957828703919L;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	private static class TestingExecutionEnvironment extends ExecutionEnvironment {
-		
+
 		private final JsonValidator validator;
 
 		private TestingExecutionEnvironment(JsonValidator validator) {
@@ -331,7 +336,7 @@ public class JsonJobGraphGenerationTest {
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			Plan plan = createProgramPlan(jobName);
-			
+
 			Optimizer pc = new Optimizer(new Configuration());
 			OptimizedPlan op = pc.compile(plan);
 
@@ -339,13 +344,13 @@ public class JsonJobGraphGenerationTest {
 			JobGraph jobGraph = jgg.compileJobGraph(op);
 
 			String jsonPlan = JsonPlanGenerator.generatePlan(jobGraph);
-			
+
 			// first check that the JSON is valid
 			JsonParser parser = new JsonFactory().createJsonParser(jsonPlan);
-			while (parser.nextToken() != null);
-			
+			while (parser.nextToken() != null) {}
+
 			validator.validateJson(jsonPlan);
-			
+
 			throw new AbortError();
 		}
 
@@ -353,7 +358,7 @@ public class JsonJobGraphGenerationTest {
 		public String getExecutionPlan() throws Exception {
 			throw new UnsupportedOperationException();
 		}
-		
+
 		public static void setAsNext(final JsonValidator validator, final int defaultParallelism) {
 			initializeContextEnvironment(new ExecutionEnvironmentFactory() {
 				@Override

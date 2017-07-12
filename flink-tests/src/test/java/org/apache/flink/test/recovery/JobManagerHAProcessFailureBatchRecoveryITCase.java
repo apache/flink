@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -49,14 +46,15 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import scala.Option;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,6 +62,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.createTempDirectory;
 import static org.junit.Assert.assertEquals;
@@ -88,9 +90,9 @@ import static org.junit.Assert.fail;
 @RunWith(Parameterized.class)
 public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
-	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
+	private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
-	private final static FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
+	private static final FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
 
 	private static final File FileStateBackendBasePath;
 
@@ -164,8 +166,8 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 		env.getConfig().setExecutionMode(executionMode);
 		env.getConfig().disableSysoutLogging();
 
-		final long NUM_ELEMENTS = 100000L;
-		final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
+		final long numElements = 100000L;
+		final DataSet<Long> result = env.generateSequence(1, numElements)
 				// make sure every mapper is involved (no one is skipped because of lazy split assignment)
 				.rebalance()
 				// the majority of the behavior is in the MapFunction
@@ -209,7 +211,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 				.flatMap(new RichFlatMapFunction<Long, Long>() {
 					@Override
 					public void flatMap(Long value, Collector<Long> out) throws Exception {
-						assertEquals(NUM_ELEMENTS * (NUM_ELEMENTS + 1L) / 2L, (long) value);
+						assertEquals(numElements * (numElements + 1L) / 2L, (long) value);
 
 						int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
 						AbstractTaskManagerProcessFailureRecoveryTest.touchFile(

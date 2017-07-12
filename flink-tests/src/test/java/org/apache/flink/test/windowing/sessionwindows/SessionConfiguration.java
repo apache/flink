@@ -21,7 +21,7 @@ package org.apache.flink.test.windowing.sessionwindows;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Configuration data for a session
+ * Configuration data for a session.
  *
  * @param <K> type of session key
  * @param <E> type of session event

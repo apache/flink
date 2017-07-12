@@ -26,10 +26,10 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 /**
  * Test class used by the {@link org.apache.flink.test.classloading.ClassLoaderITCase}.
  *
- * This class is used to test FLINK-3633
+ * <p>This class is used to test FLINK-3633
  */
 public class UserCodeType {
-	public static class CustomType {
+	private static class CustomType {
 		private final int value;
 
 		public CustomType(int value) {
@@ -46,7 +46,7 @@ public class UserCodeType {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
-		DataSet<Integer> input = env.fromElements(1,2,3,4,5);
+		DataSet<Integer> input = env.fromElements(1, 2, 3, 4, 5);
 
 		DataSet<CustomType> customTypes = input.map(new MapFunction<Integer, CustomType>() {
 			private static final long serialVersionUID = -5878758010124912128L;

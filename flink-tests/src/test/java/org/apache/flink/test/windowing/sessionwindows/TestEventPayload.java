@@ -21,7 +21,7 @@ package org.apache.flink.test.windowing.sessionwindows;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Test payload that contains useful information for the correctness checks in our test
+ * Test payload that contains useful information for the correctness checks in our test.
  */
 public final class TestEventPayload {
 

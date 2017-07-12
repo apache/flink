@@ -60,11 +60,11 @@ import static org.junit.Assert.fail;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
- * 
- * The test triggers a failure after a while and verifies that, after
+ *
+ * <p>The test triggers a failure after a while and verifies that, after
  * completion, the state reflects the "exactly once" semantics.
- * 
- * It is designed to check partitioned states.
+ *
+ * <p>It is designed to check partitioned states.
  */
 @SuppressWarnings("serial")
 public class KeyedStateCheckpointingITCase extends TestLogger {
@@ -197,7 +197,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 	 * A source that generates a sequence of integers and throttles down until a checkpoint
 	 * has happened.
 	 */
-	private static class IntGeneratingSourceFunction extends RichParallelSourceFunction<Integer> 
+	private static class IntGeneratingSourceFunction extends RichParallelSourceFunction<Integer>
 		implements ListCheckpointed<Integer>, CheckpointListener {
 
 		private final int numElements;
@@ -363,7 +363,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 		}
 	}
 
-	public static class IdentityKeySelector<T> implements KeySelector<T, T> {
+	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
 
 		@Override
 		public T getKey(T value) throws Exception {
@@ -375,6 +375,9 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 	//  data types
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Custom boxed long type that does not implement Serializable.
+	 */
 	public static class NonSerializableLong {
 
 		public long value;
@@ -389,7 +392,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 
 		@Override
 		public boolean equals(Object obj) {
-			return this == obj || 
+			return this == obj ||
 					obj != null && obj.getClass() == getClass() && ((NonSerializableLong) obj).value == this.value;
 		}
 

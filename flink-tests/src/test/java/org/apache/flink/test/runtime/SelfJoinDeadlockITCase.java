@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Rule;
 import org.junit.rules.Timeout;
 
@@ -62,7 +63,7 @@ public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static class Joiner implements FlatJoinFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Integer, String>, Tuple5<Integer, Integer, Integer, String, String>> {
+	private static class Joiner implements FlatJoinFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Integer, String>, Tuple5<Integer, Integer, Integer, String, String>> {
 
 		@Override
 		public void join(Tuple3<Integer, Integer, String> in1, Tuple3<Integer, Integer, String> in2, Collector<Tuple5<Integer, Integer, Integer, String, String>> out) throws Exception {

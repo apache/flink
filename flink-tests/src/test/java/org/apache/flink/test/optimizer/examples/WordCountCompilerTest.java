@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.optimizer.examples;
 
-import java.util.Arrays;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -33,13 +31,19 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+
+/**
+ * Validate program compilation.
+ */
 public class WordCountCompilerTest extends CompilerTestBase {
 
 	private static final long serialVersionUID = 8988304231385358228L;
@@ -52,7 +56,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 		checkWordCount(true);
 		checkWordCount(false);
 	}
-	
+
 	private void checkWordCount(boolean estimates) {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -81,8 +85,8 @@ public class WordCountCompilerTest extends CompilerTestBase {
 
 		OptimizedPlan plan;
 		if (estimates) {
-			GenericDataSourceBase<?,?> source = getContractResolver(p).getNode("Input Lines");
-			setSourceStatistics(source, 1024*1024*1024*1024L, 24f);
+			GenericDataSourceBase<?, ?> source = getContractResolver(p).getNode("Input Lines");
+			setSourceStatistics(source, 1024 * 1024 * 1024 * 1024L, 24f);
 			plan = compileWithStats(p);
 		} else {
 			plan = compileNoStats(p);
@@ -111,7 +115,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
 		Assert.assertEquals(l, combiner.getKeys(0));
 		Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
-			
+
 	}
-	
+
 }

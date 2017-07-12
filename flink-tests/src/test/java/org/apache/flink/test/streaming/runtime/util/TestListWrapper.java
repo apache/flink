@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Catalog for lists stored by {@link TestListResultSink}.
+ */
 public class TestListWrapper {
 
 	private static TestListWrapper instance;
