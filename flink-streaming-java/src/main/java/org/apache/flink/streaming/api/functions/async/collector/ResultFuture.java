@@ -23,12 +23,12 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.util.Collection;
 
 /**
- * {@link AsyncCollector} collects data / error in user codes while processing async i/o.
+ * {@link ResultFuture} collects data / error in user codes while processing async i/o.
  *
  * @param <OUT> Output type
  */
 @PublicEvolving
-public interface AsyncCollector<OUT> {
+public interface ResultFuture<OUT> {
 	/**
 	 * Set result.
 	 *

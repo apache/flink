@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.collector.ResultFuture;
 
 import java.io.Serializable;
 
@@ -28,13 +28,13 @@ import java.io.Serializable;
  * A function to trigger Async I/O operation.
  *
  * <p>For each #asyncInvoke, an async io operation can be triggered, and once it has been done,
- * the result can be collected by calling {@link AsyncCollector#collect}. For each async
+ * the result can be collected by calling {@link ResultFuture#collect}. For each async
  * operation, its context is stored in the operator immediately after invoking
  * #asyncInvoke, avoiding blocking for each stream input as long as the internal buffer is not full.
  *
- * <p>{@link AsyncCollector} can be passed into callbacks or futures to collect the result data.
+ * <p>{@link ResultFuture} can be passed into callbacks or futures to collect the result data.
  * An error can also be propagate to the async IO operator by
- * {@link AsyncCollector#collect(Throwable)}.
+ * {@link ResultFuture#collect(Throwable)}.
  *
  * <p>Callback example usage:
  *
@@ -84,5 +84,5 @@ public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 	 * @exception Exception in case of a user code error. An exception will make the task fail and
 	 * trigger fail-over process.
 	 */
-	void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
+	void asyncInvoke(IN input, ResultFuture<OUT> collector) throws Exception;
 }

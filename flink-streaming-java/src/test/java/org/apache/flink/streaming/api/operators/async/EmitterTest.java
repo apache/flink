@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.collector.ResultFuture;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
@@ -133,7 +133,7 @@ public class EmitterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the emitter handles exceptions occurring in the {@link AsyncCollector} correctly.
+	 * Tests that the emitter handles exceptions occurring in the {@link ResultFuture} correctly.
 	 */
 	@Test
 	public void testEmitterWithExceptions() throws Exception {

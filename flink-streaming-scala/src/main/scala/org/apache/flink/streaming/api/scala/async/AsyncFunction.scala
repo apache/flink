@@ -28,9 +28,9 @@ import org.apache.flink.annotation.PublicEvolving
   * context is stored in the operator immediately after invoking asyncInvoke, avoiding blocking for
   * each stream input as long as the internal buffer is not full.
   *
-  * [[AsyncCollector]] can be passed into callbacks or futures to collect the result data.
+  * [[ResultFuture]] can be passed into callbacks or futures to collect the result data.
   * An error can also be propagate to the async IO operator by
-  * [[AsyncCollector.collect(Throwable)]].
+  * [[ResultFuture.collect(Throwable)]].
   *
   * @tparam IN The type of the input element
   * @tparam OUT The type of the output elements
@@ -44,5 +44,5 @@ trait AsyncFunction[IN, OUT] {
     * @param input element coming from an upstream task
     * @param collector to collect the result data
     */
-  def asyncInvoke(input: IN, collector: AsyncCollector[OUT]): Unit
+  def asyncInvoke(input: IN, collector: ResultFuture[OUT]): Unit
 }

@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.collector.ResultFuture;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -178,7 +178,7 @@ public class AsyncIOExample {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<String> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<String> collector) throws Exception {
 			this.executorService.submit(new Runnable() {
 				@Override
 				public void run() {
