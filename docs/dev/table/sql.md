@@ -1915,123 +1915,10 @@ DATE_FORMAT(timestamp, format)
 {% endhighlight %}
       </td>
       <td>
-        <p>Formats timestamp as a string using format. The format is compatible with the one used by <code>date_parse</code> and <code>str_to_date</code> in MySQL. The following table describes the specified. </p>  
+        <p>Formats <code>timestamp</code> as a string using a specified <code>format</code>. The format must be compatible with MySQL's date formatting syntax as used by the <code>date_parse</code> function. The format specification is given in the <a href="#date-format-specifier">Date Format Specifier table</a> below.</p>
+        <p>For example <code>DATE_FORMAT(ts, '%Y, %d %M')</code> results in strings formatted as <code>"2017, 05 May"</code>.</p>
       </td>
     </tr>
-  </tbody>
-</table>
-
-#### MySQL date format specifier
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 40%">Specifier</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-  <tr><td>{% highlight text %}%a{% endhighlight %}</td>
-  <td>Abbreviated weekday name (<code>Sun</code> .. <code>Sat</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%b{% endhighlight %}</td>
-  <td>Abbreviated month name (<code>Jan</code> .. <code>Dec</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%c{% endhighlight %}</td>
-  <td>Month, numeric (<code>1</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%D{% endhighlight %}</td>
-  <td>Day of the month with English suffix (<code>0th</code>, <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ...)</td>
-  </tr>
-  <tr><td>{% highlight text %}%d{% endhighlight %}</td>
-  <td>Day of the month, numeric (<code>01</code> .. <code>31</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%e{% endhighlight %}</td>
-  <td>Day of the month, numeric (<code>1</code> .. <code>31</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%f{% endhighlight %}</td>
-  <td>Fraction of second (6 digits for printing: <code>000000</code> .. <code>999000</code>; 1 - 9 digits for parsing: <code>0</code> .. <code>999999999</code>) (Timestamp is truncated to milliseconds.) </td>
-  </tr>
-  <tr><td>{% highlight text %}%H{% endhighlight %}</td>
-  <td>Hour (<code>00</code> .. <code>23</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%h{% endhighlight %}</td>
-  <td>Hour (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%I{% endhighlight %}</td>
-  <td>Hour (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%i{% endhighlight %}</td>
-  <td>Minutes, numeric (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%j{% endhighlight %}</td>
-  <td>Day of year (<code>001</code> .. <code>366</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%k{% endhighlight %}</td>
-  <td>Hour (<code>0</code> .. <code>23</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%l{% endhighlight %}</td>
-  <td>Hour (<code>1</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%M{% endhighlight %}</td>
-  <td>Month name (<code>January</code> .. <code>December</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%m{% endhighlight %}</td>
-  <td>Month, numeric (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%p{% endhighlight %}</td>
-  <td><code>AM</code> or <code>PM</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%r{% endhighlight %}</td>
-  <td>Time, 12-hour (<code>hh:mm:ss</code> followed by <code>AM</code> or <code>PM</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%S{% endhighlight %}</td>
-  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%s{% endhighlight %}</td>
-  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%T{% endhighlight %}</td>
-  <td>Time, 24-hour (<code>hh:mm:ss</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%U{% endhighlight %}</td>
-  <td>Week (<code>00</code> .. <code>53</code>), where Sunday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%u{% endhighlight %}</td>
-  <td>Week (<code>00</code> .. <code>53</code>), where Monday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%V{% endhighlight %}</td>
-  <td>Week (<code>01</code> .. <code>53</code>), where Sunday is the first day of the week; used with <code>%X</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%v{% endhighlight %}</td>
-  <td>Week (<code>01</code> .. <code>53</code>), where Monday is the first day of the week; used with <code>%x</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
-  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
-  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%w{% endhighlight %}</td>
-  <td>Day of the week (<code>0</code> .. <code>6</code>), where Sunday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%X{% endhighlight %}</td>
-  <td>Year for the week where Sunday is the first day of the week, numeric, four digits; used with <code>%V</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
-  <td>Year for the week, where Monday is the first day of the week, numeric, four digits; used with <code>%v</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%Y{% endhighlight %}</td>
-  <td>Year, numeric, four digits</td>
-  </tr>
-  <tr><td>{% highlight text %}%y{% endhighlight %}</td>
-  <td>Year, numeric (two digits) </td>
-  </tr>
-  <tr><td>{% highlight text %}%%{% endhighlight %}</td>
-  <td>A literal <code>%</code> character</td>
-  </tr>
-  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
-  <td><code>x</code>, for any <code>x</code> not listed above</td>
-  </tr>
   </tbody>
 </table>
 
@@ -2287,4 +2174,121 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
 
 {% endhighlight %}
 
+#### Date Format Specifier
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Specifier</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  <tr><td>{% highlight text %}%a{% endhighlight %}</td>
+  <td>Abbreviated weekday name (<code>Sun</code> .. <code>Sat</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%b{% endhighlight %}</td>
+  <td>Abbreviated month name (<code>Jan</code> .. <code>Dec</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%c{% endhighlight %}</td>
+  <td>Month, numeric (<code>1</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%D{% endhighlight %}</td>
+  <td>Day of the month with English suffix (<code>0th</code>, <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ...)</td>
+  </tr>
+  <tr><td>{% highlight text %}%d{% endhighlight %}</td>
+  <td>Day of the month, numeric (<code>01</code> .. <code>31</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%e{% endhighlight %}</td>
+  <td>Day of the month, numeric (<code>1</code> .. <code>31</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%f{% endhighlight %}</td>
+  <td>Fraction of second (6 digits for printing: <code>000000</code> .. <code>999000</code>; 1 - 9 digits for parsing: <code>0</code> .. <code>999999999</code>) (Timestamp is truncated to milliseconds.) </td>
+  </tr>
+  <tr><td>{% highlight text %}%H{% endhighlight %}</td>
+  <td>Hour (<code>00</code> .. <code>23</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%h{% endhighlight %}</td>
+  <td>Hour (<code>01</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%I{% endhighlight %}</td>
+  <td>Hour (<code>01</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%i{% endhighlight %}</td>
+  <td>Minutes, numeric (<code>00</code> .. <code>59</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%j{% endhighlight %}</td>
+  <td>Day of year (<code>001</code> .. <code>366</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%k{% endhighlight %}</td>
+  <td>Hour (<code>0</code> .. <code>23</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%l{% endhighlight %}</td>
+  <td>Hour (<code>1</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%M{% endhighlight %}</td>
+  <td>Month name (<code>January</code> .. <code>December</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%m{% endhighlight %}</td>
+  <td>Month, numeric (<code>01</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%p{% endhighlight %}</td>
+  <td><code>AM</code> or <code>PM</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%r{% endhighlight %}</td>
+  <td>Time, 12-hour (<code>hh:mm:ss</code> followed by <code>AM</code> or <code>PM</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%S{% endhighlight %}</td>
+  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%s{% endhighlight %}</td>
+  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%T{% endhighlight %}</td>
+  <td>Time, 24-hour (<code>hh:mm:ss</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%U{% endhighlight %}</td>
+  <td>Week (<code>00</code> .. <code>53</code>), where Sunday is the first day of the week</td>
+  </tr>
+  <tr><td>{% highlight text %}%u{% endhighlight %}</td>
+  <td>Week (<code>00</code> .. <code>53</code>), where Monday is the first day of the week</td>
+  </tr>
+  <tr><td>{% highlight text %}%V{% endhighlight %}</td>
+  <td>Week (<code>01</code> .. <code>53</code>), where Sunday is the first day of the week; used with <code>%X</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%v{% endhighlight %}</td>
+  <td>Week (<code>01</code> .. <code>53</code>), where Monday is the first day of the week; used with <code>%x</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
+  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
+  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%w{% endhighlight %}</td>
+  <td>Day of the week (<code>0</code> .. <code>6</code>), where Sunday is the first day of the week</td>
+  </tr>
+  <tr><td>{% highlight text %}%X{% endhighlight %}</td>
+  <td>Year for the week where Sunday is the first day of the week, numeric, four digits; used with <code>%V</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
+  <td>Year for the week, where Monday is the first day of the week, numeric, four digits; used with <code>%v</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%Y{% endhighlight %}</td>
+  <td>Year, numeric, four digits</td>
+  </tr>
+  <tr><td>{% highlight text %}%y{% endhighlight %}</td>
+  <td>Year, numeric (two digits) </td>
+  </tr>
+  <tr><td>{% highlight text %}%%{% endhighlight %}</td>
+  <td>A literal <code>%</code> character</td>
+  </tr>
+  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
+  <td><code>x</code>, for any <code>x</code> not listed above</td>
+  </tr>
+  </tbody>
+</table>
+
 {% top %}
+
+

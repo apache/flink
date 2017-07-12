@@ -37,7 +37,7 @@ class DateTimeFunctionTest extends ExpressionTestBase {
   def testDateFormat(): Unit = {
     val expected = LOCAL_TIME.toString("MM/dd/yyyy HH:mm:ss.SSSSSS")
     testAllApis(
-      DateFormat('f0, "%m/%d/%Y %H:%i:%s.%f"),
+      dateFormat('f0, "%m/%d/%Y %H:%i:%s.%f"),
       "dateFormat(f0, \"%m/%d/%Y %H:%i:%s.%f\")",
       "DATE_FORMAT(f0, '%m/%d/%Y %H:%i:%s.%f')",
       expected)
@@ -47,7 +47,7 @@ class DateTimeFunctionTest extends ExpressionTestBase {
   def testDateFormatNonConstantFormatter(): Unit = {
     val expected = LOCAL_TIME.toString("MM/dd/yyyy")
     testAllApis(
-      DateFormat('f0, 'f1),
+      dateFormat('f0, 'f1),
       "dateFormat(f0, f1)",
       "DATE_FORMAT(f0, f1)",
       expected)

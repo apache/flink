@@ -898,6 +898,35 @@ object temporalOverlaps {
 }
 
 /**
+  * Formats a timestamp as a string using a specified format.
+  * The format must be compatible with MySQL's date formatting syntax as used by the
+  * date_parse function.
+  *
+  * For example <code>dataFormat('time, "%Y, %d %M")</code> results in strings
+  * formatted as "2017, 05 May".
+  */
+object dateFormat {
+
+  /**
+    * Formats a timestamp as a string using a specified format.
+    * The format must be compatible with MySQL's date formatting syntax as used by the
+    * date_parse function.
+    *
+    * For example dataFormat('time, "%Y, %d %M") results in strings formatted as "2017, 05 May".
+    *
+    * @param timestamp The timestamp to format as string.
+    * @param format The format of the string.
+    * @return The formatted timestamp as string.
+    */
+  def apply(
+    timestamp: Expression,
+    format: Expression
+  ): Expression = {
+    DateFormat(timestamp, format)
+  }
+}
+
+/**
   * Creates an array of literals. The array will be an array of objects (not primitives).
   */
 object array {
