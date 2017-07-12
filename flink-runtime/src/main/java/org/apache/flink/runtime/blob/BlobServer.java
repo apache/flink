@@ -472,13 +472,20 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			readWriteLock.readLock().unlock();
 
 			// use a temporary file (thread-safe without locking)
+			File incomingFile = null;
 			try {
-				File incomingFile = createTemporaryFilename();
+				incomingFile = createTemporaryFilename();
 				blobStore.get(jobId, blobKey, incomingFile);
 				moveTempFileToStore(incomingFile, jobId, blobKey, false);
 
 				return;
 			} finally {
+				// delete incomingFile from a failed download
+				if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
+					LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
+						incomingFile, blobKey, jobId);
+				}
+
 				// re-acquire lock so that it can be unlocked again outside
 				readWriteLock.readLock().lock();
 			}
@@ -574,29 +581,25 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 		}
 
 		File incomingFile = createTemporaryFilename();
-
-		// read stream
 		MessageDigest md = BlobUtils.createMessageDigest();
-		FileOutputStream fos = new FileOutputStream(incomingFile);
-
-		final BlobKey blobKey;
-		try {
+		BlobKey blobKey = null;
+		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
 			md.update(value);
 			fos.write(value);
 
 			blobKey = new BlobKey(md.digest());
+
+			// persist file
+			moveTempFileToStore(incomingFile, jobId, blobKey, highlyAvailable);
+
+			return blobKey;
 		} finally {
-			try {
-				fos.close();
-			} catch (Throwable t) {
-				LOG.warn("Cannot close stream to BLOB staging file", t);
+			// delete incomingFile from a failed download
+			if (!incomingFile.delete() && incomingFile.exists()) {
+				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
+					incomingFile, blobKey, jobId);
 			}
 		}
-
-		// persist file
-		moveTempFileToStore(incomingFile, jobId, blobKey, highlyAvailable);
-
-		return blobKey;
 	}
 
 
@@ -624,14 +627,11 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 		}
 
 		File incomingFile = createTemporaryFilename();
-
-		// read stream
 		MessageDigest md = BlobUtils.createMessageDigest();
-		FileOutputStream fos = new FileOutputStream(incomingFile);
-		byte[] buf = new byte[BUFFER_SIZE];
-
-		final BlobKey blobKey;
-		try {
+		BlobKey blobKey = null;
+		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
+			// read stream
+			byte[] buf = new byte[BUFFER_SIZE];
 			while (true) {
 				final int bytesRead = inputStream.read(buf);
 				if (bytesRead == -1) {
@@ -641,19 +641,20 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 				fos.write(buf, 0, bytesRead);
 				md.update(buf, 0, bytesRead);
 			}
+
 			blobKey = new BlobKey(md.digest());
+
+			// persist file
+			moveTempFileToStore(incomingFile, jobId, blobKey, highlyAvailable);
+
+			return blobKey;
 		} finally {
-			try {
-				fos.close();
-			} catch (Throwable t) {
-				LOG.warn("Cannot close stream to BLOB staging file", t);
+			// delete incomingFile from a failed download
+			if (!incomingFile.delete() && incomingFile.exists()) {
+				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
+					incomingFile, blobKey, jobId);
 			}
 		}
-
-		// persist file
-		moveTempFileToStore(incomingFile, jobId, blobKey, highlyAvailable);
-
-		return blobKey;
 	}
 
 	/**
