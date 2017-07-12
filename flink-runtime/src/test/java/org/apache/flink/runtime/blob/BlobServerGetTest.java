@@ -99,13 +99,10 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	private void testGetFailsDuringLookup(final JobID jobId1, final JobID jobId2, boolean highAvailabibility)
 		throws IOException {
-		BlobServer server = null;
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-		try {
-			final Configuration config = new Configuration();
-			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-			server = new BlobServer(config, new VoidBlobStore());
+		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -121,9 +118,11 @@ public class BlobServerGetTest extends TestLogger {
 			// issue a GET request that fails
 			verifyDeleted(server, jobId1, key, highAvailabibility);
 
+			// add the same data under a second jobId
 			BlobKey key2 = put(server, jobId2, data, highAvailabibility);
 			assertNotNull(key);
 			assertEquals(key, key2);
+
 			// request for jobId2 should succeed
 			get(server, jobId2, key, highAvailabibility);
 			// request for jobId1 should still fail
@@ -133,19 +132,14 @@ public class BlobServerGetTest extends TestLogger {
 			blobFile = server.getStorageLocation(jobId2, key);
 			assertTrue(blobFile.delete());
 			verifyDeleted(server, jobId2, key, highAvailabibility);
-
-		} finally {
-			if (server != null) {
-				server.close();
-			}
 		}
 	}
 
 	/**
 	 * Checks that the given blob does not exist anymore.
 	 *
-	 * @param server
-	 * 		BLOB client to use for connecting to the BLOB server
+	 * @param service
+	 * 		BLOB client to use for connecting to the BLOB service
 	 * @param jobId
 	 * 		job ID or <tt>null</tt> if job-unrelated
 	 * @param key
@@ -154,10 +148,10 @@ public class BlobServerGetTest extends TestLogger {
 	 * 		whether to check HA mode accessors
 	 */
 	private static void verifyDeleted(
-			BlobServer server, JobID jobId, BlobKey key, boolean highAvailability)
+			BlobService service, JobID jobId, BlobKey key, boolean highAvailability)
 			throws IOException {
 		try {
-			get(server, jobId, key, highAvailability);
+			get(service, jobId, key, highAvailability);
 			fail("This should not succeed.");
 		} catch (IOException e) {
 			// expected

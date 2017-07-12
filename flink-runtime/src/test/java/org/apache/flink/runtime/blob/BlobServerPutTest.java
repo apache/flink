@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -38,10 +40,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -498,14 +504,32 @@ public class BlobServerPutTest extends TestLogger {
 	 *
 	 * @return blob key for the uploaded data
 	 */
-	static BlobKey put(BlobServer server, JobID jobId, InputStream data, boolean highAvailabibility)
-		throws IOException {
+	static BlobKey put(BlobService service, JobID jobId, InputStream data, boolean highAvailabibility)
+			throws IOException {
 		if (highAvailabibility) {
-			return server.putHA(jobId, data);
+			if (service instanceof BlobServer) {
+				return ((BlobServer) service).putHA(jobId, data);
+			} else {
+				// implement via JAR file upload instead:
+				File tmpFile = Files.createTempFile("blob", ".jar").toFile();
+				try {
+					FileUtils.copyInputStreamToFile(data, tmpFile);
+					InetSocketAddress serverAddress = new InetSocketAddress("localhost", service.getPort());
+					// uploading HA BLOBs works on BlobServer only (and, for now, via the BlobClient)
+					Configuration clientConfig = new Configuration();
+					List<Path> jars = Collections.singletonList(new Path(tmpFile.getAbsolutePath()));
+					List<BlobKey> keys = BlobClient.uploadJarFiles(serverAddress, clientConfig, jobId, jars);
+					assertEquals(1, keys.size());
+					return keys.get(0);
+				} finally {
+					//noinspection ResultOfMethodCallIgnored
+					tmpFile.delete();
+				}
+			}
 		} else if (jobId == null) {
-			return server.put(data);
+			return service.getTransientBlobStore().put(data);
 		} else {
-			return server.put(jobId, data);
+			return service.getTransientBlobStore().put(jobId, data);
 		}
 	}
 
@@ -514,14 +538,14 @@ public class BlobServerPutTest extends TestLogger {
 	 *
 	 * @return blob key for the uploaded data
 	 */
-	static BlobKey put(BlobServer server, JobID jobId, byte[] data, boolean highAvailabibility)
-		throws IOException {
+	static BlobKey put(BlobService service, JobID jobId, byte[] data, boolean highAvailabibility)
+			throws IOException {
 		if (highAvailabibility) {
-			return server.putHA(jobId, data);
+			return ((BlobServer) service.getPermanentBlobStore()).putHA(jobId, data);
 		} else if (jobId == null) {
-			return server.put(data);
+			return service.getTransientBlobStore().put(data);
 		} else {
-			return server.put(jobId, data);
+			return service.getTransientBlobStore().put(jobId, data);
 		}
 	}
 
