@@ -46,7 +46,7 @@ public class KafkaTopicPartitionAssigner {
 	 * @return index of the target subtask that the Kafka partition should be assigned to.
 	 */
 	public static int assign(KafkaTopicPartition partition, int numParallelSubtasks) {
-		int startIndex = Math.abs(partition.getTopic().hashCode() * 31 % numParallelSubtasks);
+		int startIndex = ((partition.getTopic().hashCode() * 31) & 0x7FFFFFFF) % numParallelSubtasks;
 
 		// here, the assumption is that the id of Kafka partitions are always ascending
 		// starting from 0, and therefore can be used directly as the offset clockwise from the start index
