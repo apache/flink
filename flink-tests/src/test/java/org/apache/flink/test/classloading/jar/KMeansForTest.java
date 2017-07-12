@@ -69,7 +69,7 @@ public class KMeansForTest {
 		DataSet<Centroid> centroids = env.fromElements(centersData.split("\n"))
 				.map(new TupleCentroidConverter());
 
-		// set number of bulk iterations for kmeans algorithm
+		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<Centroid> loop = centroids.iterate(numIterations);
 
 		DataSet<Centroid> newCentroids = points

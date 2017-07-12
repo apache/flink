@@ -97,7 +97,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("kmeans failed with an exception");
+			Assert.fail("KMeans failed with an exception");
 		}
 		dump(env.getPlan());
 	}

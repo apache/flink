@@ -68,7 +68,7 @@ public class KMeansWithBroadcastSetITCase extends JavaProgramTestBase {
 					}
 				});
 
-		// set number of bulk iterations for kmeans algorithm
+		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<Centroid> loop = centroidsSet.iterate(20);
 
 		DataSet<Centroid> newCentroids = pointsSet

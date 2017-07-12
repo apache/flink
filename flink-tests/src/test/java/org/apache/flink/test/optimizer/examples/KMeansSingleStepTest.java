@@ -151,7 +151,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("kmeans failed with an exception");
+			Assert.fail("KMeans failed with an exception");
 		}
 		return env.getPlan();
 	}
@@ -191,7 +191,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 
 		recomputeClusterCenter.project(0, 1).writeAsCsv(args[2], "\n", " ").name(SINK);
 
-		env.execute("kmeans Example");
+		env.execute("KMeans Example");
 	}
 
 	/**
