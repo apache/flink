@@ -42,6 +42,7 @@ import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitModes;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.Preconditions;
@@ -699,7 +700,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
 		for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
-			if (Math.abs(kafkaTopicPartition.hashCode() % numParallelSubtasks) == indexOfThisSubtask) {
+			// only handle partitions that this subtask should subscribe to
+			if (KafkaTopicPartitionAssigner.assign(kafkaTopicPartition, numParallelSubtasks) == indexOfThisSubtask) {
 				if (startupMode != StartupMode.SPECIFIC_OFFSETS) {
 					subscribedPartitionsToStartOffsets.put(kafkaTopicPartition, startupMode.getStateSentinel());
 				} else {

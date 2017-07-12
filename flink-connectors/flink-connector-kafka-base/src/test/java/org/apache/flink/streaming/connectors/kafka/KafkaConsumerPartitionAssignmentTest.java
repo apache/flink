@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -49,7 +50,12 @@ public class KafkaConsumerPartitionAssignmentTest {
 				new KafkaTopicPartition("test-topic", 2),
 				new KafkaTopicPartition("test-topic", 3));
 
-			for (int subtaskIndex = 0; subtaskIndex < inPartitions.size(); subtaskIndex++) {
+			int numSubtasks = inPartitions.size();
+
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(inPartitions.get(0), numSubtasks);
+
+			for (int subtaskIndex = 0; subtaskIndex < numSubtasks; subtaskIndex++) {
 				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
 				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
 					subscribedPartitionsToStartOffsets,
@@ -63,7 +69,9 @@ public class KafkaConsumerPartitionAssignmentTest {
 
 				assertEquals(1, subscribedPartitions.size());
 				assertTrue(contains(inPartitions, subscribedPartitions.get(0).getPartition()));
-				assertEquals(getExpectedSubtaskIndex(subscribedPartitions.get(0), 4), subtaskIndex);
+
+				// assert that round-robin distribution is used starting clockwise from the start index
+				assertEquals(getExpectedSubtaskIndex(subscribedPartitions.get(0), startIndex, numSubtasks), subtaskIndex);
 			}
 		}
 		catch (Exception e) {
@@ -90,6 +98,9 @@ public class KafkaConsumerPartitionAssignmentTest {
 			final int minPartitionsPerConsumer = partitions.size() / numConsumers;
 			final int maxPartitionsPerConsumer = partitions.size() / numConsumers + 1;
 
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(partitions.get(0), numConsumers);
+
 			for (int subtaskIndex = 0; subtaskIndex < numConsumers; subtaskIndex++) {
 				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
 				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
@@ -104,13 +115,13 @@ public class KafkaConsumerPartitionAssignmentTest {
 
 				assertTrue(subscribedPartitions.size() >= minPartitionsPerConsumer);
 				assertTrue(subscribedPartitions.size() <= maxPartitionsPerConsumer);
-				for (KafkaTopicPartition subscribedPartition : subscribedPartitions) {
-					assertEquals(getExpectedSubtaskIndex(subscribedPartition, numConsumers), subtaskIndex);
-				}
 
 				for (KafkaTopicPartition p : subscribedPartitions) {
 					// check that the element was actually contained
 					assertTrue(allPartitions.remove(p));
+
+					// assert that round-robin distribution is used starting clockwise from the start index
+					assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), subtaskIndex);
 				}
 			}
 
@@ -127,15 +138,18 @@ public class KafkaConsumerPartitionAssignmentTest {
 	public void testPartitionsFewerThanConsumers() {
 		try {
 			List<KafkaTopicPartition> inPartitions = Arrays.asList(
-					new KafkaTopicPartition("test-topic", 4),
-					new KafkaTopicPartition("test-topic", 52),
-					new KafkaTopicPartition("test-topic", 17),
-					new KafkaTopicPartition("test-topic", 1));
+					new KafkaTopicPartition("test-topic", 0),
+					new KafkaTopicPartition("test-topic", 1),
+					new KafkaTopicPartition("test-topic", 2),
+					new KafkaTopicPartition("test-topic", 3));
 
 			final Set<KafkaTopicPartition> allPartitions = new HashSet<>();
 			allPartitions.addAll(inPartitions);
 
 			final int numConsumers = 2 * inPartitions.size() + 3;
+
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(inPartitions.get(0), numConsumers);
 
 			for (int subtaskIndex = 0; subtaskIndex < numConsumers; subtaskIndex++) {
 				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
@@ -150,13 +164,13 @@ public class KafkaConsumerPartitionAssignmentTest {
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
 
 				assertTrue(subscribedPartitions.size() <= 1);
-				for (KafkaTopicPartition subscribedPartition : subscribedPartitions) {
-					assertEquals(getExpectedSubtaskIndex(subscribedPartition, numConsumers), subtaskIndex);
-				}
 
 				for (KafkaTopicPartition p : subscribedPartitions) {
 					// check that the element was actually contained
 					assertTrue(allPartitions.remove(p));
+
+					// assert that round-robin distribution is used starting clockwise from the start index
+					assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), subtaskIndex);
 				}
 			}
 
@@ -260,22 +274,25 @@ public class KafkaConsumerPartitionAssignmentTest {
 			assertTrue(subscribedPartitions3.size() >= minInitialPartitionsPerConsumer);
 			assertTrue(subscribedPartitions3.size() <= maxInitialPartitionsPerConsumer);
 
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(initialPartitions.get(0), numConsumers);
+
 			for (KafkaTopicPartition p : subscribedPartitions1) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 0);
 			}
 
 			for (KafkaTopicPartition p : subscribedPartitions2) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 1);
 			}
 
 			for (KafkaTopicPartition p : subscribedPartitions3) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 2);
 			}
 
 			// all partitions must have been assigned
@@ -335,17 +352,17 @@ public class KafkaConsumerPartitionAssignmentTest {
 			for (KafkaTopicPartition p : subscribedPartitions1New) {
 				// check that the element was actually contained
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 0);
 			}
 			for (KafkaTopicPartition p : subscribedPartitions2New) {
 				// check that the element was actually contained
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 1);
 			}
 			for (KafkaTopicPartition p : subscribedPartitions3New) {
 				// check that the element was actually contained
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 2);
 			}
 
 			// all partitions must have been assigned
@@ -408,8 +425,16 @@ public class KafkaConsumerPartitionAssignmentTest {
 		}
 	}
 
-	private static int getExpectedSubtaskIndex(KafkaTopicPartition partition, int numTasks) {
-		return Math.abs(partition.hashCode() % numTasks);
+	/**
+	 * Utility method that determines the expected subtask index a partition should be assigned to,
+	 * depending on the start index and using the partition id as the offset from that start index
+	 * in clockwise direction.
+	 *
+	 * <p>The expectation is based on the distribution contract of
+	 * {@link KafkaTopicPartitionAssigner#assign(KafkaTopicPartition, int)}.
+	 */
+	private static int getExpectedSubtaskIndex(KafkaTopicPartition partition, int startIndex, int numSubtasks) {
+		return (startIndex + partition.getPartition()) % numSubtasks;
 	}
 
 	private boolean contains(List<KafkaTopicPartition> inPartitions, int partition) {
