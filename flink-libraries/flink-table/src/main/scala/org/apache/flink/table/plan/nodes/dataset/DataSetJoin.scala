@@ -36,7 +36,6 @@ import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -59,7 +58,7 @@ class DataSetJoin(
   with CommonJoin
   with DataSetRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetJoin(

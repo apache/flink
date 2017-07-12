@@ -369,6 +369,35 @@ FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
+      <td><strong>Time-windowed Join</strong><br>
+        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+
+        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by either two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) or a <code>BETWEEN</code> predicate that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+          <ul>
+            <li>Time predicates must compare time attributes of both input tables.</li>
+            <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
+            <li>Only range predicates are valid time predicates.</li>
+            <li>Non-time predicates must not access a time attribute.</li>
+          </ul>
+        </p>
+
+        <p><b>Note:</b> Currently, only processing time window joins and <code>INNER</code> joins are supported.</p>
+
+{% highlight sql %}
+SELECT *
+FROM Orders o, Shipments s
+WHERE o.id = s.orderId AND
+      o.ordertime BETWEEN s.shiptime - INTERVAL '4' HOUR AND s.shiptime
+{% endhighlight %}
+
+The example above will join all orders with their corresponding shipments if the order was shipped four hours after the order was received.
+      </td>
+    </tr>
+    <tr>
     	<td>
         <strong>Expanding arrays into a relation</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>

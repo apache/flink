@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.stream.sql
+package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit._
 
@@ -30,24 +30,13 @@ import scala.collection.mutable
 
 class JoinITCase extends StreamingWithStateTestBase {
 
-  val data = List(
-    (1L, 1, "Hello"),
-    (2L, 2, "Hello"),
-    (3L, 3, "Hello"),
-    (4L, 4, "Hello"),
-    (5L, 5, "Hello"),
-    (6L, 6, "Hello"),
-    (7L, 7, "Hello World"),
-    (8L, 8, "Hello World"),
-    (20L, 20, "Hello World"))
-
   /** test process time inner join **/
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setStateBackend(getStateBackend)
-    StreamITCase.testResults = mutable.MutableList()
+    StreamITCase.clear
     env.setParallelism(1)
 
     val sqlQuery = "SELECT t2.a, t2.c, t1.c from T1 as t1 join T2 as t2 on t1.a = t2.a and " +
@@ -82,7 +71,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setStateBackend(getStateBackend)
-    StreamITCase.testResults = mutable.MutableList()
+    StreamITCase.clear
     env.setParallelism(1)
 
     val sqlQuery = "SELECT t2.a, t2.c, t1.c from T1 as t1 join T2 as t2 on t1.a = t2.a and " +

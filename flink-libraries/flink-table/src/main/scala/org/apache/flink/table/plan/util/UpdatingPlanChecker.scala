@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.updateutils
+package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.plan.nodes.datastream._
+
 import _root_.scala.collection.JavaConverters._
 
-object UpdateCheckUtils {
+object UpdatingPlanChecker {
 
   /** Validates that the plan produces only append changes. */
   def isAppendOnly(plan: RelNode): Boolean = {

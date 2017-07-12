@@ -59,24 +59,26 @@ class ProcTimeWindowInnerJoin(
 
   private var cRowWrapper: CRowWrappingCollector = _
 
-  /** other condition function **/
+  // other condition function
   private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
-  /** tmp list to store expired records **/
-  private var listToRemove: JList[Long] = _
+  // tmp list to store expired records
+  private var removeList: JList[Long] = _
 
-  /** state to hold left stream element **/
+  // state to hold left stream element
   private var row1MapState: MapState[Long, JList[Row]] = _
-  /** state to hold right stream element **/
+  // state to hold right stream element
   private var row2MapState: MapState[Long, JList[Row]] = _
 
-  /** state to record last timer of left stream, 0 means no timer **/
+  // state to record last timer of left stream, 0 means no timer
   private var timerState1: ValueState[Long] = _
-  /** state to record last timer of right stream, 0 means no timer **/
+  // state to record last timer of right stream, 0 means no timer
   private var timerState2: ValueState[Long] = _
 
-  private val leftStreamWinSize: Long = if (leftLowerBound < 0) -leftLowerBound else 0
-  private val rightStreamWinSize: Long = if (leftUpperBound > 0) leftUpperBound else 0
+  // compute window sizes, i.e., how long to keep rows in state.
+  // window size of -1 means rows do not need to be put into state.
+  private val leftStreamWinSize: Long = if (leftLowerBound <= 0) -leftLowerBound else -1
+  private val rightStreamWinSize: Long = if (leftUpperBound >= 0) leftUpperBound else -1
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -90,7 +92,7 @@ class ProcTimeWindowInnerJoin(
     LOG.debug("Instantiating JoinFunction.")
     joinFunction = clazz.newInstance()
 
-    listToRemove = new util.ArrayList[Long]()
+    removeList = new util.ArrayList[Long]()
     cRowWrapper = new CRowWrappingCollector()
     cRowWrapper.setChange(true)
 
@@ -140,7 +142,7 @@ class ProcTimeWindowInnerJoin(
       row2MapState,
       -leftUpperBound,     // right stream lower
       -leftLowerBound,     // right stream upper
-      true
+      isLeft = true
     )
   }
 
@@ -165,9 +167,9 @@ class ProcTimeWindowInnerJoin(
       timerState2,
       row2MapState,
       row1MapState,
-      leftLowerBound,    // left stream upper
+      leftLowerBound,    // left stream lower
       leftUpperBound,    // left stream upper
-      false
+      isLeft = false
     )
   }
 
@@ -217,66 +219,82 @@ class ProcTimeWindowInnerJoin(
       winSize: Long,
       timerState: ValueState[Long],
       rowMapState: MapState[Long, JList[Row]],
-      oppoRowMapState: MapState[Long, JList[Row]],
-      oppoLowerBound: Long,
-      oppoUpperBound: Long,
+      otherRowMapState: MapState[Long, JList[Row]],
+      otherLowerBound: Long,
+      otherUpperBound: Long,
       isLeft: Boolean): Unit = {
 
     cRowWrapper.out = out
 
-    val value = valueC.row
+    val row = valueC.row
 
     val curProcessTime = ctx.timerService.currentProcessingTime
-    val oppoLowerTime = curProcessTime + oppoLowerBound
-    val oppoUpperTime = curProcessTime + oppoUpperBound
+    val otherLowerTime = curProcessTime + otherLowerBound
+    val otherUpperTime = curProcessTime + otherUpperBound
 
-    // only when windowsize != 0, we need to store the element
-    if (winSize != 0) {
-      // register a timer to expire the element
-      if (timerState.value == 0) {
-        ctx.timerService.registerProcessingTimeTimer(curProcessTime + winSize + 1)
-        timerState.update(curProcessTime + winSize + 1)
-      }
-
+    if (winSize >= 0) {
+      // put row into state for later joining.
+      // (winSize == 0) joins rows received in the same millisecond.
       var rowList = rowMapState.get(curProcessTime)
       if (rowList == null) {
         rowList = new util.ArrayList[Row]()
       }
-      rowList.add(value)
+      rowList.add(row)
       rowMapState.put(curProcessTime, rowList)
 
+      // register a timer to remove the row from state once it is expired
+      if (timerState.value == 0) {
+        val cleanupTime = curProcessTime + winSize + 1
+        ctx.timerService.registerProcessingTimeTimer(cleanupTime)
+        timerState.update(cleanupTime)
+      }
     }
 
-    // loop the other stream elements
-    val oppositeKeyIter = oppoRowMapState.keys().iterator()
-    while (oppositeKeyIter.hasNext) {
-      val eleTime = oppositeKeyIter.next()
-      if (eleTime < oppoLowerTime) {
-        listToRemove.add(eleTime)
-      } else if (eleTime <= oppoUpperTime) {
-        val oppoRowList = oppoRowMapState.get(eleTime)
-        var i = 0
-        if (isLeft) {
-          while (i < oppoRowList.size) {
-            joinFunction.join(value, oppoRowList.get(i), cRowWrapper)
+    // join row with rows received from the other input
+    val otherTimeIter = otherRowMapState.keys().iterator()
+    if (isLeft) {
+      // go over all timestamps in the other input's state
+      while (otherTimeIter.hasNext) {
+        val otherTimestamp = otherTimeIter.next()
+        if (otherTimestamp < otherLowerTime) {
+          // other timestamp is expired. Remove it later.
+          removeList.add(otherTimestamp)
+        } else if (otherTimestamp <= otherUpperTime) {
+          // join row with all rows from the other input for this timestamp
+          val otherRows = otherRowMapState.get(otherTimestamp)
+          var i = 0
+          while (i < otherRows.size) {
+            joinFunction.join(row, otherRows.get(i), cRowWrapper)
             i += 1
           }
-        } else {
-          while (i < oppoRowList.size) {
-            joinFunction.join(oppoRowList.get(i), value, cRowWrapper)
+        }
+      }
+    } else {
+      // go over all timestamps in the other input's state
+      while (otherTimeIter.hasNext) {
+        val otherTimestamp = otherTimeIter.next()
+        if (otherTimestamp < otherLowerTime) {
+          // other timestamp is expired. Remove it later.
+          removeList.add(otherTimestamp)
+        } else if (otherTimestamp <= otherUpperTime) {
+          // join row with all rows from the other input for this timestamp
+          val otherRows = otherRowMapState.get(otherTimestamp)
+          var i = 0
+          while (i < otherRows.size) {
+            joinFunction.join(otherRows.get(i), row, cRowWrapper)
             i += 1
           }
         }
       }
     }
 
-    // expire records out-of-time
-    var i = listToRemove.size - 1
+    // remove rows for expired timestamps
+    var i = removeList.size - 1
     while (i >= 0) {
-      oppoRowMapState.remove(listToRemove.get(i))
+      otherRowMapState.remove(removeList.get(i))
       i -= 1
     }
-    listToRemove.clear()
+    removeList.clear()
   }
 
   /**
@@ -292,32 +310,34 @@ class ProcTimeWindowInnerJoin(
 
     val expiredTime = curTime - winSize
     val keyIter = rowMapState.keys().iterator()
-    var nextTimer: Long = 0
+    var validTimestamp: Boolean = false
     // Search for expired timestamps.
     // If we find a non-expired timestamp, remember the timestamp and leave the loop.
     // This way we find all expired timestamps if they are sorted without doing a full pass.
-    while (keyIter.hasNext && nextTimer == 0) {
+    while (keyIter.hasNext && !validTimestamp) {
       val recordTime = keyIter.next
       if (recordTime < expiredTime) {
-        listToRemove.add(recordTime)
+        removeList.add(recordTime)
       } else {
-        nextTimer = recordTime
+        // we found a timestamp that is still valid
+        validTimestamp = true
       }
     }
 
     // Remove expired records from state
-    var i = listToRemove.size - 1
+    var i = removeList.size - 1
     while (i >= 0) {
-      rowMapState.remove(listToRemove.get(i))
+      rowMapState.remove(removeList.get(i))
       i -= 1
     }
-    listToRemove.clear()
+    removeList.clear()
 
     // If the state has non-expired timestamps, register a new timer.
     // Otherwise clean the complete state for this input.
-    if (nextTimer != 0) {
-      ctx.timerService.registerProcessingTimeTimer(nextTimer + winSize + 1)
-      timerState.update(nextTimer + winSize + 1)
+    if (validTimestamp) {
+      val cleanupTime = curTime + winSize + 1
+      ctx.timerService.registerProcessingTimeTimer(cleanupTime)
+      timerState.update(cleanupTime)
     } else {
       timerState.clear()
       rowMapState.clear()

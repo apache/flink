@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
@@ -27,12 +28,12 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.join.{ProcTimeWindowInnerJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.updateutils.UpdateCheckUtils
 
 /**
-  * Flink RelNode which matches along with JoinOperator and its related operations.
+  * RelNode for a time windowed stream join.
   */
 class DataStreamWindowJoin(
     cluster: RelOptCluster,
@@ -53,7 +54,7 @@ class DataStreamWindowJoin(
     with CommonJoin
     with DataStreamRel {
 
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamWindowJoin(
@@ -96,8 +97,8 @@ class DataStreamWindowJoin(
 
     val config = tableEnv.getConfig
 
-    val isLeftAppendOnly = UpdateCheckUtils.isAppendOnly(left)
-    val isRightAppendOnly = UpdateCheckUtils.isAppendOnly(right)
+    val isLeftAppendOnly = UpdatingPlanChecker.isAppendOnly(left)
+    val isRightAppendOnly = UpdatingPlanChecker.isAppendOnly(right)
     if (!isLeftAppendOnly || !isRightAppendOnly) {
       throw new TableException(
         "Windowed stream join does not support updates.")
@@ -124,21 +125,20 @@ class DataStreamWindowJoin(
 
     joinType match {
       case JoinRelType.INNER =>
-        isRowTime match {
-          case false =>
-            // Proctime JoinCoProcessFunction
-            createProcTimeInnerJoinFunction(
-              leftDataStream,
-              rightDataStream,
-              joinFunction.name,
-              joinFunction.code,
-              leftKeys,
-              rightKeys
-            )
-          case true =>
-            // RowTime JoinCoProcessFunction
-            throw new TableException(
-              "RowTime inner join between stream and stream is not supported yet.")
+        if (isRowTime) {
+          // RowTime JoinCoProcessFunction
+          throw new TableException(
+            "RowTime inner join between stream and stream is not supported yet.")
+        } else {
+          // Proctime JoinCoProcessFunction
+          createProcTimeInnerJoinFunction(
+            leftDataStream,
+            rightDataStream,
+            joinFunction.name,
+            joinFunction.code,
+            leftKeys,
+            rightKeys
+          )
         }
       case JoinRelType.FULL =>
         throw new TableException(
