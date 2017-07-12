@@ -687,11 +687,11 @@ case class LogicalTableFunctionCall(
     parameters: Seq[Expression],
     resultType: TypeInformation[_],
     fieldNames: Array[String],
-    child: LogicalNode)
+    child: LogicalNode,
+    evalMethod: Option[Method] = None)
   extends UnaryNode {
 
   private val (generatedNames, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
-  private var evalMethod: Method = _
 
   override def output: Seq[Attribute] = {
     if (fieldNames.isEmpty) {
@@ -719,10 +719,8 @@ case class LogicalTableFunctionCall(
         s"Given parameters of function '$functionName' do not match any signature. \n" +
           s"Actual: ${signatureToString(signature)} \n" +
           s"Expected: ${signaturesToString(tableFunction, "eval")}")
-    } else {
-      node.evalMethod = foundMethod.get
     }
-    node
+    node.copy(evalMethod = foundMethod)
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -730,7 +728,7 @@ case class LogicalTableFunctionCall(
     val function = new FlinkTableFunctionImpl(
       resultType,
       fieldIndexes,
-      if (fieldNames.isEmpty) generatedNames else fieldNames, evalMethod
+      if (fieldNames.isEmpty) generatedNames else fieldNames, evalMethod.get
     )
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(

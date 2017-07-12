@@ -189,7 +189,8 @@ class Table(
             functionCall.parameters,
             functionCall.resultType,
             fields.map(_.asInstanceOf[UnresolvedFieldReference].name).toArray,
-            functionCall.child)
+            functionCall.child,
+            functionCall.evalMethod)
         )
       case _ =>
         // prepend an AliasNode
