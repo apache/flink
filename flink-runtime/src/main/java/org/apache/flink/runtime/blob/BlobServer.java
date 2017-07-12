@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -97,8 +96,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	private final ReadWriteLock readWriteLock;
 
 	/**
-	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
-	 * the configured high availability mode does not equal{@link HighAvailabilityMode#NONE})
+	 * Shutdown hook thread to ensure deletion of the local storage directory.
 	 */
 	private final Thread shutdownHook;
 
@@ -221,13 +219,6 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	File createTemporaryFilename() throws IOException {
 		return new File(BlobUtils.getIncomingDirectory(storageDir),
 				String.format("temp-%08d", tempFileCounter.getAndIncrement()));
-	}
-
-	/**
-	 * Returns the blob store.
-	 */
-	BlobStore getBlobStore() {
-		return blobStore;
 	}
 
 	/**
@@ -435,37 +426,66 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @throws IOException
 	 * 		Thrown if the file retrieval failed.
 	 */
-	private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable) throws IOException {
+	File getFileInternal(@Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable) throws IOException {
 		checkArgument(blobKey != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
 		readWriteLock.readLock().lock();
 
 		try {
-
-			if (localFile.exists()) {
-				return localFile;
-			} else if (highlyAvailable) {
-				// Try the HA blob store
-				// first we have to release the read lock in order to acquire the write lock
-				readWriteLock.readLock().unlock();
-
-				// use a temporary file (thread-safe without locking)
-				File incomingFile = createTemporaryFilename();
-				blobStore.get(jobId, blobKey, incomingFile);
-
-				moveTempFileToStore(incomingFile, jobId, blobKey, false);
-
-				// re-acquire lock so that it can be unlocked again below
-				readWriteLock.readLock().lock();
-				return localFile;
-			}
-
-			throw new FileNotFoundException("Local file " + localFile + " does not exist " +
-				"and failed to copy from blob store.");
+			getFileInternal(jobId, blobKey, highlyAvailable, localFile);
+			return localFile;
 		} finally {
 			readWriteLock.readLock().unlock();
 		}
+	}
+
+	/**
+	 * Helper to retrieve the local path of a file associated with a job and a blob key.
+	 * <p>
+	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
+	 * or a {@link FileNotFoundException} is thrown.
+	 * <p>
+	 * <strong>Assumes the read lock has already been acquired.</strong>
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param blobKey
+	 * 		blob key associated with the requested file
+	 * @param highlyAvailable
+	 * 		whether to the requested file is highly available (HA)
+	 * @param localFile
+	 *      (local) file where the blob is/should be stored
+	 *
+	 * @throws IOException
+	 * 		Thrown if the file retrieval failed.
+	 */
+	void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable, File localFile) throws IOException {
+		// assume readWriteLock.readLock() was already locked (cannot really check that)
+
+		if (localFile.exists()) {
+			return;
+		} else if (highlyAvailable) {
+			// Try the HA blob store
+			// first we have to release the read lock in order to acquire the write lock
+			readWriteLock.readLock().unlock();
+
+			// use a temporary file (thread-safe without locking)
+			try {
+				File incomingFile = createTemporaryFilename();
+				blobStore.get(jobId, blobKey, incomingFile);
+				moveTempFileToStore(incomingFile, jobId, blobKey, false);
+
+				return;
+			} finally {
+				// re-acquire lock so that it can be unlocked again outside
+				readWriteLock.readLock().lock();
+			}
+		}
+
+		throw new FileNotFoundException("Local file " + localFile + " does not exist " +
+			"and failed to copy from blob store.");
 	}
 
 	@Override
@@ -652,7 +672,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while moving the file or uploading it to the HA store
 	 */
-	private void moveTempFileToStore(
+	void moveTempFileToStore(
 			File incomingFile, @Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable)
 			throws IOException {
 
