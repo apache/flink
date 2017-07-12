@@ -233,7 +233,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	/**
 	 * Returns the lock used to guard file accesses
 	 */
-	public ReadWriteLock getReadWriteLock() {
+	ReadWriteLock getReadWriteLock() {
 		return readWriteLock;
 	}
 
@@ -425,7 +425,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param requiredBlob
+	 * @param blobKey
 	 * 		blob key associated with the requested file
 	 * @param highlyAvailable
 	 * 		whether to the requested file is highly available (HA)
@@ -435,29 +435,44 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @throws IOException
 	 * 		Thrown if the file retrieval failed.
 	 */
-	private File getFileInternal(@Nullable JobID jobId, BlobKey requiredBlob, boolean highlyAvailable) throws IOException {
-		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
+	private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable) throws IOException {
+		checkArgument(blobKey != null, "BLOB key cannot be null.");
 
-		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, requiredBlob);
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+		readWriteLock.readLock().lock();
 
-		if (localFile.exists()) {
-			return localFile;
-		} else if (highlyAvailable) {
-			try {
-				// Try the blob store
-				blobStore.get(jobId, requiredBlob, localFile);
-			} catch (Exception e) {
-				throw new IOException(
-					"Failed to copy BLOB " + requiredBlob + " from blob store to " + localFile, e);
-			}
+		try {
 
 			if (localFile.exists()) {
 				return localFile;
-			}
-		}
+			} else if (highlyAvailable) {
+				// Try the HA blob store
+				// first we have to release the read lock in order to acquire the write lock
+				readWriteLock.readLock().unlock();
+				readWriteLock.writeLock().lock();
 
-		throw new FileNotFoundException("Local file " + localFile + " does not exist " +
-			"and failed to copy from blob store.");
+				try {
+					if (localFile.exists()) {
+						LOG.debug("Blob file {} has been downloaded from the (distributed) blob store by a different thread.", localFile);
+					} else {
+						blobStore.get(jobId, blobKey, localFile);
+					}
+				} finally {
+					readWriteLock.writeLock().unlock();
+				}
+
+				readWriteLock.readLock().lock();
+
+				if (localFile.exists()) {
+					return localFile;
+				}
+			}
+
+			throw new FileNotFoundException("Local file " + localFile + " does not exist " +
+				"and failed to copy from blob store.");
+		} finally {
+			readWriteLock.readLock().unlock();
+		}
 	}
 
 	@Override
@@ -648,7 +663,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			File incomingFile, @Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable)
 			throws IOException {
 
-		File storageFile = getStorageLocation(jobId, blobKey);
+		File storageFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
 		readWriteLock.writeLock().lock();
 
 		try {
