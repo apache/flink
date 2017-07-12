@@ -155,8 +155,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 			this.mockEnv.addInputGate(inputGates[i].getInputGate());
 		}
 
-		streamConfig.setInPhysicalEdges(inPhysicalEdges);
-		streamConfig.setInputsNum(numInputGates);
+		streamTaskConfig.setInPhysicalEdges(inPhysicalEdges);
+		streamTaskConfig.setInputsNum(numInputGates);
 		operatorConfig.setTypeSerializerIn1(inputSerializer1);
 		operatorConfig.setTypeSerializerIn2(inputSerializer2);
 	}

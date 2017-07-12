@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
-import org.apache.flink.streaming.api.graph.OperatorConfig;
+import org.apache.flink.streaming.api.graph.OperatorContext;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -131,13 +131,13 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	@Override
-	public void setup(StreamTask<?, ?> containingTask, OperatorConfig config, Output<StreamRecord<OUT>> output) {
-		super.setup(containingTask, config, output);
+	public void setup(StreamTask<?, ?> containingTask, OperatorContext context, Output<StreamRecord<OUT>> output) {
+		super.setup(containingTask, context, output);
 
 		this.checkpointingLock = getContainingTask().getCheckpointLock();
 
 		this.inStreamElementSerializer = new StreamElementSerializer<>(
-			getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
+			getOperatorContext().<IN>getTypeSerializerIn1());
 
 		// create the operators executor for the complete operations of the queue entries
 		this.executor = Executors.newSingleThreadExecutor();

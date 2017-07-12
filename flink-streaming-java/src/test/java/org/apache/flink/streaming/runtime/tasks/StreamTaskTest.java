@@ -76,7 +76,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
@@ -163,8 +163,8 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testEarlyCanceling() throws Exception {
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		operatorConfig.setStreamOperator(new SlowlyDeserializingOperator());
 		cfg.setHeadNodeID(0);
@@ -212,8 +212,8 @@ public class StreamTaskTest extends TestLogger {
 		Configuration taskManagerConfig = new Configuration();
 		taskManagerConfig.setString(CoreOptions.STATE_BACKEND, MockStateBackend.class.getName());
 
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		operatorConfig.setStreamOperator(new StreamSource<>(new MockSourceFunction()));
 		cfg.setHeadNodeID(0);
@@ -240,8 +240,8 @@ public class StreamTaskTest extends TestLogger {
 		Configuration taskManagerConfig = new Configuration();
 		taskManagerConfig.setString(CoreOptions.STATE_BACKEND, MockStateBackend.class.getName());
 
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		operatorConfig.setStreamOperator(new StreamSource<>(new MockSourceFunction()));
 		cfg.setHeadNodeID(0);
@@ -267,8 +267,8 @@ public class StreamTaskTest extends TestLogger {
 	public void testCancellationNotBlockedOnLock() throws Exception {
 		syncLatch = new OneShotLatch();
 
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
 		operatorConfigMap.put(0, operatorConfig);
@@ -293,8 +293,8 @@ public class StreamTaskTest extends TestLogger {
 	public void testCancellationFailsWithBlockingLock() throws Exception {
 		syncLatch = new OneShotLatch();
 
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();
 		operatorConfigMap.put(0, operatorConfig);
@@ -365,7 +365,7 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "lock", new Object());
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
-		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "configuration", new StreamTaskConfig(new Configuration()));
 
 		try {
 			streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
@@ -439,7 +439,7 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", new DirectExecutorService());
-		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "configuration", new StreamTaskConfig(new Configuration()));
 
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
 
@@ -528,7 +528,7 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", Executors.newFixedThreadPool(1));
-		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "configuration", new StreamTaskConfig(new Configuration()));
 		Whitebox.setInternalState(streamTask, "stateBackend", mockStateBackend);
 
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
@@ -646,7 +646,7 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", executor);
-		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "configuration", new StreamTaskConfig(new Configuration()));
 		Whitebox.setInternalState(streamTask, "stateBackend", mockStateBackend);
 
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
@@ -732,7 +732,7 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "lock", new Object());
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
-		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "configuration", new StreamTaskConfig(new Configuration()));
 		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", Executors.newCachedThreadPool());
 
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
@@ -790,7 +790,7 @@ public class StreamTaskTest extends TestLogger {
 
 	public static Task createTask(
 			Class<? extends AbstractInvokable> invokable,
-			StreamConfig taskConfig,
+			StreamTaskConfig taskConfig,
 			Configuration taskManagerConfig) throws Exception {
 
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);

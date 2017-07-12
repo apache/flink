@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 
@@ -37,9 +37,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
+		StreamTaskConfig configuration = getConfiguration();
 
-		TypeSerializer<IN> inSerializer = configuration.getHeadOperatorConfig(getUserCodeClassLoader()).getTypeSerializerIn1(getUserCodeClassLoader());
+		TypeSerializer<IN> inSerializer = configuration.getHeadOperatorConfig(getUserCodeClassLoader()).getTypeSerializerIn1();
 		int numberOfInputs = configuration.getInputsNum();
 
 		if (numberOfInputs > 0) {

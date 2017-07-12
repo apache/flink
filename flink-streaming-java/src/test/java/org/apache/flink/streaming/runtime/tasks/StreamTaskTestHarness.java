@@ -30,9 +30,9 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -77,7 +77,7 @@ public class StreamTaskTestHarness<OUT> {
 	public Configuration jobConfig;
 	public Configuration taskConfig;
 	public OperatorConfig operatorConfig;
-	protected StreamConfig streamConfig;
+	protected StreamTaskConfig streamTaskConfig;
 
 	private AbstractInvokable task;
 
@@ -106,14 +106,14 @@ public class StreamTaskTestHarness<OUT> {
 
 		this.jobConfig = new Configuration();
 		this.taskConfig = new Configuration();
-		this.operatorConfig = new OperatorConfig(new Configuration());
+		this.operatorConfig = new OperatorConfig();
 		this.operatorConfig.setNodeID(0);
 		this.executionConfig = new ExecutionConfig();
 
-		streamConfig = new StreamConfig(taskConfig);
+		streamTaskConfig = new StreamTaskConfig(taskConfig);
 		operatorConfig.setChainStart();
-		streamConfig.setBufferTimeout(0);
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		streamTaskConfig.setBufferTimeout(0);
+		streamTaskConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
@@ -146,8 +146,8 @@ public class StreamTaskTestHarness<OUT> {
 	 * please manually configure the stream config.
 	 */
 	public void setupOutputForSingletonOperatorChain() {
-		streamConfig.setBufferTimeout(0);
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		streamTaskConfig.setBufferTimeout(0);
+		streamTaskConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		operatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 		operatorConfig.setTypeSerializerOut(outputSerializer);
 		operatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
@@ -162,7 +162,7 @@ public class StreamTaskTestHarness<OUT> {
 
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
 
-		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
+		streamTaskConfig.setOutEdgesInOrder(outEdgesInOrder);
 		operatorConfig.setNonChainedOutputs(outEdgesInOrder);
 		operatorConfig.setTypeSerializerOut(outputSerializer);
 	}
@@ -201,8 +201,8 @@ public class StreamTaskTestHarness<OUT> {
 			headNodeId = 0;
 		}
 		chainedConfigs.put(headNodeId, operatorConfig);
-		streamConfig.setChainedTaskConfigs(chainedConfigs);
-		streamConfig.setHeadNodeID(headNodeId);
+		streamTaskConfig.setChainedTaskConfigs(chainedConfigs);
+		streamTaskConfig.setHeadNodeID(headNodeId);
 
 		taskThread = new TaskThread(task);
 		taskThread.start();
@@ -288,8 +288,8 @@ public class StreamTaskTestHarness<OUT> {
 		return outputList;
 	}
 
-	public StreamConfig getStreamConfig() {
-		return streamConfig;
+	public StreamTaskConfig getStreamTaskConfig() {
+		return streamTaskConfig;
 	}
 
 	public OperatorConfig getHeadOperatorConfig() {

@@ -43,9 +43,9 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
@@ -263,14 +263,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 		OperatorConfig headOperatorConfig = testHarness.getHeadOperatorConfig();
 
 		WatermarkGeneratingTestOperator watermarkOperator = new WatermarkGeneratingTestOperator();
-		OperatorConfig watermarkOperatorConfig = new OperatorConfig(new Configuration());
+		OperatorConfig watermarkOperatorConfig = new OperatorConfig();
 
 		TriggerableFailOnWatermarkTestOperator tailOperator = new TriggerableFailOnWatermarkTestOperator();
-		OperatorConfig tailOperatorConfig = new OperatorConfig(new Configuration());
+		OperatorConfig tailOperatorConfig = new OperatorConfig();
 
 		headOperatorConfig.setStreamOperator(headOperator);
 		headOperatorConfig.setChainStart();
-		headOperatorConfig.setChainIndex(0);
 		headOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
 			new StreamNode(null, 0, null, null, null, null, null),
 			new StreamNode(null, 1, null, null, null, null, null),
@@ -282,7 +281,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		watermarkOperatorConfig.setStreamOperator(watermarkOperator);
 		watermarkOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
-		watermarkOperatorConfig.setChainIndex(1);
 		watermarkOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
 			new StreamNode(null, 1, null, null, null, null, null),
 			new StreamNode(null, 2, null, null, null, null, null),
@@ -303,7 +301,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		tailOperatorConfig.setStreamOperator(tailOperator);
 		tailOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
-		tailOperatorConfig.setChainIndex(2);
 		tailOperatorConfig.setChainEnd();
 		tailOperatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 		tailOperatorConfig.setNonChainedOutputs(outEdgesInOrder);
@@ -314,9 +311,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		chainedConfigs.put(2, tailOperatorConfig);
 		testHarness.addChainedConfigs(chainedConfigs);
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setBufferTimeout(0);
-		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
+		StreamTaskConfig streamTaskConfig = testHarness.getStreamTaskConfig();
+		streamTaskConfig.setBufferTimeout(0);
+		streamTaskConfig.setOutEdgesInOrder(outEdgesInOrder);
 
 		// -----------------------------------------------------
 
@@ -619,7 +616,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		for (int chainedIndex = 1; chainedIndex < numberChainedTasks; chainedIndex++) {
 			TestingStreamOperator<Integer, Integer> chainedOperator = new TestingStreamOperator<>(random.nextLong(), recoveryTimestamp);
-			OperatorConfig chainedConfig = new OperatorConfig(new Configuration());
+			OperatorConfig chainedConfig = new OperatorConfig();
 			chainedConfig.setStreamOperator(chainedOperator);
 			chainedTaskConfigs.put(chainedIndex, chainedConfig);
 

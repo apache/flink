@@ -66,7 +66,7 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
 
@@ -138,9 +138,9 @@ public class InterruptSensitiveRestoreTest {
 
 		IN_RESTORE_LATCH.reset();
 		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
+		StreamTaskConfig cfg = new StreamTaskConfig(taskConfig);
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		switch (mode) {
 			case OPERATOR_MANAGED:

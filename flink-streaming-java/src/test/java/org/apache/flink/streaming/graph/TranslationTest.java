@@ -22,7 +22,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 
 import org.junit.Test;
 
@@ -42,21 +42,21 @@ public class TranslationTest {
 			StreamExecutionEnvironment deactivated = getSimpleJob();
 
 			for (JobVertex vertex : deactivated.getStreamGraph().getJobGraph().getVertices()) {
-				assertEquals(CheckpointingMode.AT_LEAST_ONCE, new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
+				assertEquals(CheckpointingMode.AT_LEAST_ONCE, new StreamTaskConfig(vertex.getConfiguration()).getCheckpointMode());
 			}
 
 			// with activated fault tolerance, the checkpoint mode should be by default exactly once
 			StreamExecutionEnvironment activated = getSimpleJob();
 			activated.enableCheckpointing(1000L);
 			for (JobVertex vertex : activated.getStreamGraph().getJobGraph().getVertices()) {
-				assertEquals(CheckpointingMode.EXACTLY_ONCE, new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
+				assertEquals(CheckpointingMode.EXACTLY_ONCE, new StreamTaskConfig(vertex.getConfiguration()).getCheckpointMode());
 			}
 
 			// explicitly setting the mode
 			StreamExecutionEnvironment explicit = getSimpleJob();
 			explicit.enableCheckpointing(1000L, CheckpointingMode.AT_LEAST_ONCE);
 			for (JobVertex vertex : explicit.getStreamGraph().getJobGraph().getVertices()) {
-				assertEquals(CheckpointingMode.AT_LEAST_ONCE, new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
+				assertEquals(CheckpointingMode.AT_LEAST_ONCE, new StreamTaskConfig(vertex.getConfiguration()).getCheckpointMode());
 			}
 		}
 		catch (Exception e) {

@@ -24,7 +24,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.migration.streaming.api.graph.StreamGraphHasherV1;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
@@ -104,7 +103,7 @@ public class StreamingJobGraphGenerator {
 
 	private Map<Integer, Map<Integer, OperatorConfig>> chainedConfigs;
 
-	private final Map<Integer, StreamConfig> vertexConfigs;
+	private final Map<Integer, StreamTaskConfig> vertexConfigs;
 	private final Map<Integer, String> chainedNames;
 
 	private final Map<Integer, ResourceSpec> chainedMinResources;
@@ -254,7 +253,7 @@ public class StreamingJobGraphGenerator {
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
 
-			OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+			OperatorConfig operatorConfig = new OperatorConfig();
 
 			setOperatorConfig(currentNodeId, operatorConfig, chainableOutputs, nonChainableOutputs);
 
@@ -264,12 +263,11 @@ public class StreamingJobGraphGenerator {
 
 			if (currentNodeId.equals(startNodeId)) {
 				operatorConfig.setChainStart();
-				operatorConfig.setChainIndex(0);
 				operatorConfig.setOperatorName(currentNode.getOperatorName());
 				putChainOperatorConfig(operatorConfig, startNodeId, chainIndex, currentNode, chainableOutputs.isEmpty());
 
-				StreamConfig streamConfig = createJobVertex(startNodeId, hashes, legacyHashes, chainedOperatorHashes);
-				setJobVertexConfig(startNodeId, streamConfig, transitiveOutEdges);
+				StreamTaskConfig streamTaskConfig = createJobVertex(startNodeId, hashes, legacyHashes, chainedOperatorHashes);
+				setJobVertexConfig(startNodeId, streamTaskConfig, transitiveOutEdges);
 
 				for (StreamEdge edge : transitiveOutEdges) {
 					connect(startNodeId, edge);
@@ -284,33 +282,33 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private void setJobVertexConfig(Integer startNodeId, StreamConfig streamConfig, List<StreamEdge> transitiveOutEdges) {
+	private void setJobVertexConfig(Integer startNodeId, StreamTaskConfig streamTaskConfig, List<StreamEdge> transitiveOutEdges) {
 		StreamNode startNode = streamGraph.getStreamNode(startNodeId);
-		streamConfig.setOutEdgesInOrder(transitiveOutEdges);
-		streamConfig.setChainedTaskConfigs(chainedConfigs.get(startNodeId));
-		streamConfig.setHeadNodeID(startNodeId);
-		streamConfig.setBufferTimeout(startNode.getBufferTimeout());
-		streamConfig.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
+		streamTaskConfig.setOutEdgesInOrder(transitiveOutEdges);
+		streamTaskConfig.setChainedTaskConfigs(chainedConfigs.get(startNodeId));
+		streamTaskConfig.setHeadNodeID(startNodeId);
+		streamTaskConfig.setBufferTimeout(startNode.getBufferTimeout());
+		streamTaskConfig.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
 
-		streamConfig.setStateBackend(streamGraph.getStateBackend());
-		streamConfig.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
+		streamTaskConfig.setStateBackend(streamGraph.getStateBackend());
+		streamTaskConfig.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
 		if (ceckpointCfg.isCheckpointingEnabled()) {
-			streamConfig.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
+			streamTaskConfig.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
 		} else {
 			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
 			// so we use that one if checkpointing is not enabled
-			streamConfig.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
+			streamTaskConfig.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
 
 		Class<? extends AbstractInvokable> vertexClass = startNode.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
 				|| vertexClass.equals(StreamIterationTail.class)) {
-			streamConfig.setIterationId(streamGraph.getBrokerID(startNodeId));
-			streamConfig.setIterationWaitTime(streamGraph.getLoopTimeout(startNodeId));
+			streamTaskConfig.setIterationId(streamGraph.getBrokerID(startNodeId));
+			streamTaskConfig.setIterationWaitTime(streamGraph.getLoopTimeout(startNodeId));
 		}
-		vertexConfigs.put(startNodeId, streamConfig);
+		vertexConfigs.put(startNodeId, streamTaskConfig);
 	}
 
 	private void putChainOperatorConfig(OperatorConfig operatorConfig, int startNodeId, int chainIndex,
@@ -320,7 +318,6 @@ public class StreamingJobGraphGenerator {
 		if (chainedConfs == null) {
 			chainedConfigs.put(startNodeId, new HashMap<Integer, OperatorConfig>());
 		}
-		operatorConfig.setChainIndex(chainIndex);
 		operatorConfig.setOperatorName(currentNode.getOperatorName());
 		chainedConfigs.get(startNodeId).put(currentNode.getId(), operatorConfig);
 		if (isEnd) {
@@ -359,7 +356,7 @@ public class StreamingJobGraphGenerator {
 		return preferredResources;
 	}
 
-	private StreamConfig createJobVertex(
+	private StreamTaskConfig createJobVertex(
 			Integer streamNodeId,
 			Map<Integer, byte[]> hashes,
 			List<Map<Integer, byte[]>> legacyHashes,
@@ -435,7 +432,7 @@ public class StreamingJobGraphGenerator {
 		builtVertices.add(streamNodeId);
 		jobGraph.addVertex(jobVertex);
 
-		return new StreamConfig(jobVertex.getConfiguration());
+		return new StreamTaskConfig(jobVertex.getConfiguration());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -476,8 +473,8 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
-		config.setStatePartitioner(0, node.getStatePartitioner1());
-		config.setStatePartitioner(1, node.getStatePartitioner2());
+		config.setStatePartitioner1(node.getStatePartitioner1());
+		config.setStatePartitioner2(node.getStatePartitioner2());
 		config.setStateKeySerializer(node.getStateKeySerializer());
 
 		List<StreamEdge> allOutputs = new ArrayList<StreamEdge>(chainableOutputs);
@@ -493,9 +490,9 @@ public class StreamingJobGraphGenerator {
 		JobVertex headVertex = jobVertices.get(headOfChain);
 		JobVertex downStreamVertex = jobVertices.get(downStreamvertexID);
 
-		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
+		StreamTaskConfig downStreamTaskConfig = new StreamTaskConfig(downStreamVertex.getConfiguration());
 
-		downStreamConfig.setInputsNum(downStreamConfig.getInputsNum() + 1);
+		downStreamTaskConfig.setInputsNum(downStreamTaskConfig.getInputsNum() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 		JobEdge jobEdge;

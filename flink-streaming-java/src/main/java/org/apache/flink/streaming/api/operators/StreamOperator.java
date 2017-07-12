@@ -21,7 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.streaming.api.graph.OperatorConfig;
+import org.apache.flink.streaming.api.graph.OperatorContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -53,7 +53,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	/**
 	 * Initializes the operator. Sets access to the context and the output.
 	 */
-	void setup(StreamTask<?, ?> containingTask, OperatorConfig config, Output<StreamRecord<OUT>> output);
+	void setup(StreamTask<?, ?> containingTask, OperatorContext context, Output<StreamRecord<OUT>> output);
 
 	/**
 	 * This method is called immediately before any elements are processed, it should contain the

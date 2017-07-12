@@ -65,7 +65,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
 
@@ -95,8 +95,8 @@ public class BlockingCheckpointsTest {
 	public void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
 		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(taskConfig);
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		operatorConfig.setStreamOperator(new TestOperator());
 		Map<Integer, OperatorConfig> operatorConfigMap = Maps.newHashMap();

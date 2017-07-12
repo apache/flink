@@ -48,7 +48,8 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.OperatorContext;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
@@ -97,7 +98,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	protected final Map<OutputTag<?>, ConcurrentLinkedQueue<Object>> sideOutputLists;
 
-	protected final StreamConfig config;
+	protected final StreamTaskConfig config;
 
 	protected final OperatorConfig operatorConfig;
 
@@ -155,9 +156,9 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		this.sideOutputLists = new HashMap<>();
 
 		Configuration underlyingConfig = environment.getTaskConfiguration();
-		this.config = new StreamConfig(underlyingConfig);
+		this.config = new StreamTaskConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
-		this.operatorConfig = new OperatorConfig(underlyingConfig);
+		this.operatorConfig = new OperatorConfig();
 		this.executionConfig = environment.getExecutionConfig();
 		this.closableRegistry = new CloseableRegistry();
 		this.checkpointLock = new Object();
@@ -295,14 +296,14 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * {@link StreamOperator#setup(StreamTask, OperatorConfig, Output)} ()}.
+	 * {@link StreamOperator#setup(StreamTask, OperatorContext, Output)} ()}.
 	 */
 	public void setup() {
 		setup(null);
 	}
 
 	/**
-	 * {@link StreamOperator#setup(StreamTask, OperatorConfig, Output)} ()}.
+	 * {@link StreamOperator#setup(StreamTask, OperatorContext, Output)} ()}.
 	 */
 	public void setup(TypeSerializer<OUT> outputSerializer) {
 		operator.setup(mockTask, operatorConfig, new MockOutput(outputSerializer));
@@ -341,7 +342,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, OperatorConfig, Output)}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, OperatorContext, Output)}
 	 * if it was not called before.
 	 *
 	 * <p>This will reshape the state handles to include only those key-group states
@@ -480,7 +481,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	/**
 	 * Calls {@link StreamOperator#open()}. This also
-	 * calls {@link StreamOperator#setup(StreamTask, OperatorConfig, Output)}
+	 * calls {@link StreamOperator#setup(StreamTask, OperatorContext, Output)}
 	 * if it was not called before.
 	 */
 	public void open() throws Exception {

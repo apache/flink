@@ -37,7 +37,7 @@ import java.util.Map;
  * {@link StreamingJobGraphGenerator}.
  */
 @Internal
-public class StreamConfig {
+public class StreamTaskConfig {
 
 	//  ------------------------input---------------------------------
 
@@ -77,7 +77,7 @@ public class StreamConfig {
 
 	private Configuration config;
 
-	public StreamConfig(Configuration configuration) {
+	public StreamTaskConfig(Configuration configuration) {
 		this.config = configuration;
 	}
 
@@ -257,7 +257,7 @@ public class StreamConfig {
 		}
 		builder.append("\nHead node is: ").append(getHeadNodeID());
 		try {
-			builder.append("\nHead operator: ").append(getHeadOperatorConfig(cl).getStreamOperator(cl).getClass().getSimpleName());
+			builder.append("\nHead operator: ").append(getHeadOperatorConfig(cl).getStreamOperator().getClass().getSimpleName());
 		} catch (Exception e) {
 			builder.append("\nOperator: Missing");
 		}

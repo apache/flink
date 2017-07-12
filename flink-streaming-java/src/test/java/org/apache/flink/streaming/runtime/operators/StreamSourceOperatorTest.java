@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -286,12 +286,12 @@ public class StreamSourceOperatorTest {
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
 		executionConfig.setLatencyTrackingInterval(latencyMarkInterval);
 
-		StreamConfig cfg = new StreamConfig(new Configuration());
+		StreamTaskConfig cfg = new StreamTaskConfig(new Configuration());
 		cfg.setStateBackend(new MemoryStateBackend());
 
 		cfg.setTimeCharacteristic(timeChar);
 
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 
 		DummyEnvironment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
 

@@ -48,7 +48,7 @@ import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
@@ -385,10 +385,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		testHarness.taskConfig = chainedVertex.getConfiguration();
 
-		final StreamConfig operatorChainStreamConfig = new StreamConfig(chainedVertex.getConfiguration());
+		final StreamTaskConfig operatorChainStreamTaskConfig = new StreamTaskConfig(chainedVertex.getConfiguration());
 		final AsyncWaitOperator<Integer, Integer> headOperator =
-				operatorChainStreamConfig.getHeadOperatorConfig(AsyncWaitOperatorTest.class.getClassLoader())
-						.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
+				operatorChainStreamTaskConfig.getHeadOperatorConfig(AsyncWaitOperatorTest.class.getClassLoader())
+						.getStreamOperator();
 		testHarness.getHeadOperatorConfig().setStreamOperator(headOperator);
 
 		testHarness.invoke();
@@ -729,7 +729,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
 
 		OperatorConfig operatorConfig = mock(OperatorConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(operatorConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		doReturn(IntSerializer.INSTANCE).when(operatorConfig).getTypeSerializerIn1();
 
 		final OneShotLatch closingLatch = new OneShotLatch();
 		final OneShotLatch outputLatch = new OneShotLatch();
@@ -842,7 +842,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
 
 		OperatorConfig operatorConfig = mock(OperatorConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(operatorConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		doReturn(IntSerializer.INSTANCE).when(operatorConfig).getTypeSerializerIn1();
 
 		Output<StreamRecord<Integer>> output = mock(Output.class);
 

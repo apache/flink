@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 
@@ -40,11 +40,11 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
+		StreamTaskConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		TypeSerializer<IN1> inputDeserializer1 = configuration.getHeadOperatorConfig(userClassLoader).getTypeSerializerIn1(userClassLoader);
-		TypeSerializer<IN2> inputDeserializer2 = configuration.getHeadOperatorConfig(userClassLoader).getTypeSerializerIn2(userClassLoader);
+		TypeSerializer<IN1> inputDeserializer1 = configuration.getHeadOperatorConfig(userClassLoader).getTypeSerializerIn1();
+		TypeSerializer<IN2> inputDeserializer2 = configuration.getHeadOperatorConfig(userClassLoader).getTypeSerializerIn2();
 
 		int numberOfInputs = configuration.getInputsNum();
 

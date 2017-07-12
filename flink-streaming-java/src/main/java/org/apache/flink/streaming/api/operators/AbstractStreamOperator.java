@@ -56,7 +56,7 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.graph.OperatorConfig;
+import org.apache.flink.streaming.api.graph.OperatorContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -111,7 +111,7 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The task that contains this operator (and other operators in the same chain). */
 	private transient StreamTask<?, ?> container;
 
-	protected transient OperatorConfig config;
+	protected transient OperatorContext context;
 
 	protected transient Output<StreamRecord<OUT>> output;
 
@@ -176,16 +176,16 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(StreamTask<?, ?> containingTask, OperatorConfig config, Output<StreamRecord<OUT>> output) {
+	public void setup(StreamTask<?, ?> containingTask, OperatorContext context, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
-		this.config = config;
+		this.context = context;
 
-		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
+		this.metrics = container.getEnvironment().getMetricGroup().addOperator(context.getOperatorName());
 		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
-		if (config.isChainStart()) {
+		if (context.isChainStart()) {
 			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseInputMetricsForTask();
 		}
-		if (config.isChainEnd()) {
+		if (context.isChainEnd()) {
 			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseOutputMetricsForTask();
 		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
@@ -198,8 +198,8 @@ public abstract class AbstractStreamOperator<OUT>
 		latencyGauge = this.metrics.gauge("latency", new LatencyGauge(historySize));
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
-		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
-		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
+		stateKeySelector1 = context.getStatePartitioner1();
+		stateKeySelector2 = context.getStatePartitioner2();
 	}
 
 	@Override
@@ -302,7 +302,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	private void initKeyedState() {
 		try {
-			TypeSerializer<Object> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
+			TypeSerializer<Object> keySerializer = context.getStateKeySerializer();
 			// create a keyed state backend if there is keyed state, as indicated by the presence of a key serializer
 			if (null != keySerializer) {
 				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
@@ -548,8 +548,8 @@ public abstract class AbstractStreamOperator<OUT>
 		return container.getExecutionConfig();
 	}
 
-	public OperatorConfig getOperatorConfig() {
-		return config;
+	public OperatorContext getOperatorContext() {
+		return context;
 	}
 
 	public StreamTask<?, ?> getContainingTask() {

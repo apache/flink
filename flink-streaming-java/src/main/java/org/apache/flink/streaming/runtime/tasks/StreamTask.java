@@ -47,7 +47,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -140,7 +140,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected OperatorChain<OUT, OP> operatorChain;
 
 	/** The configuration of this streaming task. */
-	private StreamConfig configuration;
+	private StreamTaskConfig configuration;
 
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
 	private StateBackend stateBackend;
@@ -215,7 +215,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			asyncOperationsThreadPool = Executors.newCachedThreadPool();
 
-			configuration = new StreamConfig(getTaskConfiguration());
+			configuration = new StreamTaskConfig(getTaskConfiguration());
 
 			stateBackend = createStateBackend();
 
@@ -483,7 +483,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return lock;
 	}
 
-	public StreamConfig getConfiguration() {
+	public StreamTaskConfig getConfiguration() {
 		return configuration;
 	}
 

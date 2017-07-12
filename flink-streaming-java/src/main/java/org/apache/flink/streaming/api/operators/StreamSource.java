@@ -59,7 +59,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			final StreamStatusMaintainer streamStatusMaintainer,
 			final Output<StreamRecord<OUT>> collector) throws Exception {
 
-		final TimeCharacteristic timeCharacteristic = getRuntimeContext().getStreamConfig().getTimeCharacteristic();
+		final TimeCharacteristic timeCharacteristic = getRuntimeContext().getStreamTaskConfig().getTimeCharacteristic();
 
 		LatencyMarksEmitter latencyEmitter = null;
 		if (getExecutionConfig().isLatencyTrackingEnabled()) {
@@ -67,7 +67,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				getProcessingTimeService(),
 				collector,
 				getExecutionConfig().getLatencyTrackingInterval(),
-				getOperatorConfig().getNodeID(),
+				getOperatorContext().getNodeID(),
 				getRuntimeContext().getIndexOfThisSubtask());
 		}
 

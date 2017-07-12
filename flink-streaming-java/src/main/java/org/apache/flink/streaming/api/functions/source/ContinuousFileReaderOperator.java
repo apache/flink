@@ -135,7 +135,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		this.checkpointLock = getContainingTask().getCheckpointLock();
 
 		// set the reader context based on the time characteristic
-		final TimeCharacteristic timeCharacteristic = getRuntimeContext().getStreamConfig().getTimeCharacteristic();
+		final TimeCharacteristic timeCharacteristic = getRuntimeContext().getStreamTaskConfig().getTimeCharacteristic();
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 		this.readerContext = StreamSourceContexts.getSourceContext(
 			timeCharacteristic,

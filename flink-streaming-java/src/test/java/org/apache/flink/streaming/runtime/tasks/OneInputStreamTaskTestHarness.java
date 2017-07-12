@@ -94,7 +94,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 			this.mockEnv.addInputGate(inputGates[i].getInputGate());
 		}
 
-		streamConfig.setInputsNum(1);
+		streamTaskConfig.setInputsNum(1);
 		operatorConfig.setTypeSerializerIn1(inputSerializer);
 		operatorConfig.setTypeSerializerIn1(inputSerializer);
 	}
@@ -103,7 +103,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 			KeySelector<IN, K> keySelector,
 			TypeInformation<K> keyType) {
 		ClosureCleaner.clean(keySelector, false);
-		getHeadOperatorConfig().setStatePartitioner(0, keySelector);
+		getHeadOperatorConfig().setStatePartitioner1(keySelector);
 		getHeadOperatorConfig().setStateKeySerializer(keyType.createSerializer(executionConfig));
 	}
 }

@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -143,14 +143,13 @@ public class StreamOperatorChainingTest {
 
 		Configuration configuration = chainedVertex.getConfiguration();
 
-		StreamConfig streamConfig = new StreamConfig(configuration);
-		OperatorConfig headConfig = streamConfig.getHeadOperatorConfig(Thread.currentThread().getContextClassLoader());
+		StreamTaskConfig streamTaskConfig = new StreamTaskConfig(configuration);
+		OperatorConfig headConfig = streamTaskConfig.getHeadOperatorConfig(getClass().getClassLoader());
 
-		StreamMap<Integer, Integer> headOperator =
-				headConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
+		StreamMap<Integer, Integer> headOperator = headConfig.getStreamOperator();
 
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
-				createMockTask(streamConfig, chainedVertex.getName());
+				createMockTask(streamTaskConfig, chainedVertex.getName());
 
 		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
 
@@ -284,14 +283,13 @@ public class StreamOperatorChainingTest {
 
 		Configuration configuration = chainedVertex.getConfiguration();
 
-		StreamConfig streamConfig = new StreamConfig(configuration);
-		OperatorConfig headConfig = streamConfig.getHeadOperatorConfig(ClassLoader.getSystemClassLoader());
+		StreamTaskConfig streamTaskConfig = new StreamTaskConfig(configuration);
+		OperatorConfig headConfig = streamTaskConfig.getHeadOperatorConfig(ClassLoader.getSystemClassLoader());
 
-		StreamMap<Integer, Integer> headOperator =
-				headConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
+		StreamMap<Integer, Integer> headOperator = headConfig.getStreamOperator();
 
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
-				createMockTask(streamConfig, chainedVertex.getName());
+				createMockTask(streamTaskConfig, chainedVertex.getName());
 
 		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
 
@@ -312,7 +310,7 @@ public class StreamOperatorChainingTest {
 		assertThat(sink3Results, contains("Second: 2", "Second: 3"));
 	}
 
-	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(StreamConfig streamConfig, String taskName) {
+	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(StreamTaskConfig streamTaskConfig, String taskName) {
 		final Object checkpointLock = new Object();
 		final Environment env = new MockEnvironment(taskName, 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
 
@@ -320,7 +318,7 @@ public class StreamOperatorChainingTest {
 		StreamTask<IN, OT> mockTask = mock(StreamTask.class);
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
-		when(mockTask.getConfiguration()).thenReturn(streamConfig);
+		when(mockTask.getConfiguration()).thenReturn(streamTaskConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(new ExecutionConfig().enableObjectReuse());
 

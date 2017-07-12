@@ -37,7 +37,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
@@ -57,7 +57,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	/** The task environment running the operator. */
 	private final Environment taskEnvironment;
 
-	private final StreamConfig streamConfig;
+	private final StreamTaskConfig streamTaskConfig;
 
 	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
 									Environment env, Map<String, Accumulator<?, ?>> accumulators) {
@@ -70,7 +70,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 		this.operator = operator;
 		this.taskEnvironment = env;
-		this.streamConfig = new StreamConfig(env.getTaskConfiguration());
+		this.streamTaskConfig = new StreamTaskConfig(env.getTaskConfiguration());
 	}
 
 	// ------------------------------------------------------------------------
@@ -161,7 +161,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 * @return true if checkpointing is enabled.
 	 */
 	public boolean isCheckpointingEnabled() {
-		return streamConfig.isCheckpointingEnabled();
+		return streamTaskConfig.isCheckpointingEnabled();
 	}
 
 	/**
@@ -170,7 +170,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 * @return checkpointing mode
 	 */
 	public CheckpointingMode getCheckpointMode() {
-		return streamConfig.getCheckpointMode();
+		return streamTaskConfig.getCheckpointMode();
 	}
 
 	/**
@@ -179,11 +179,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 * @return buffer timeout (in milliseconds)
 	 */
 	public long getBufferTimeout() {
-		return streamConfig.getBufferTimeout();
+		return streamTaskConfig.getBufferTimeout();
 	}
 
-	public StreamConfig getStreamConfig() {
-		return streamConfig;
+	public StreamTaskConfig getStreamTaskConfig() {
+		return streamTaskConfig;
 	}
 
 }

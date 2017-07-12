@@ -20,304 +20,239 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the
  * {@link StreamingJobGraphGenerator}.
  */
 @Internal
-public class OperatorConfig implements java.io.Serializable {
+public class OperatorConfig implements OperatorContext, java.io.Serializable {
 
-	private static final String SERIALIZED_OPERATOR = "serialized.operator";
-
-	private static final String OPERATOR_NAME = "operator.name";
-
-	private static final String NODE_ID = "node.id";
+	private StreamOperator<?> operator;
+	private String name;
+	private int nodeID = -1;
 
 	//  ------------------------input---------------------------------
-
-	private static final String TYPE_SERIALIZER_IN_1 = "type.serializer.in.1";
-
-	private static final String TYPE_SERIALIZER_IN_2 = "type.serializer.in.2";
+	private TypeSerializer<?> typeSerializer1;
+	private TypeSerializer<?> typeSerializer2;
 
 	// ----------------------------output-----------------------------
-
-	private static final String TYPE_SERIALIZER_OUT_1 = "type.serializer.out.1";
-
-	private static final String TYPE_SERIALIZER_SIDE_OUT_PREFIX = "type.serializer.side.out.";
-
-	private static final String NON_CHAINED_OUTPUTS = "non.chained.outputs";
-
-	private static final String CHAINED_OUTPUTS = "chained.outputs";
-
-	private static final String OUTPUT_SELECTOR_WRAPPER = "output.selector.wrapper";
+	private TypeSerializer<?> typeSerializerOut;
+	private Map<String, TypeSerializer<?>> sideOutTypeSerializerMap = new HashMap<>();
+	private List<StreamEdge> nonChainedOutputs;
+	private List<StreamEdge> chainedOutputs;
+	private List<OutputSelector<?>> outputSelectors;
 
 	// ----------------------------chain-----------------------------
-
-	private static final String CHAIN_INDEX = "chain.index";
-
-	private static final String IS_CHAIN_START = "is.chain.start";
-
-	private static final String IS_CHAIN_END = "is.chain.end";
+	private boolean isChainStart = false;
+	private boolean isChainEnd = false;
 
 	// ----------------------------state-----------------------------
-
-	private static final String STATE_KEY_SERIALIZER = "state.keyser";
-
-	private static final String STATE_PARTITIONER_PREFIX = "state.partitioner.";
-
-	private Configuration config;
-
-	public OperatorConfig(Configuration configuration) {
-		this.config = configuration;
-	}
+	private TypeSerializer<?> stateKeySerializer;
+	private KeySelector<?, ?> statePartitioner1;
+	private KeySelector<?, ?> statePartitioner2;
 
 	public void setStreamOperator(StreamOperator<?> operator) {
-		if (operator != null) {
-			try {
-				InstantiationUtil.writeObjectToConfig(operator, this.config, SERIALIZED_OPERATOR);
-			} catch (IOException e) {
-				throw new StreamTaskException("Cannot serialize operator object "
-						+ operator.getClass() + ".", e);
-			}
+		this.operator = operator;
+	}
+
+	public <T extends StreamOperator> T getStreamOperator() {
+		try {
+			return (T) operator;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of operator.", e);
 		}
 	}
 
-	public <T> T getStreamOperator(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerIn1() {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZED_OPERATOR, cl);
-		} catch (ClassNotFoundException e) {
-			String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
-			boolean loadableDoubleCheck = ClassLoaderUtil.validateClassLoadable(e, cl);
-
-			String exceptionMessage = "Cannot load user class: " + e.getMessage()
-					+ "\nClassLoader info: " + classLoaderInfo +
-					(loadableDoubleCheck ?
-							"\nClass was actually found in classloader - deserialization issue." :
-							"\nClass not resolvable through given classloader.");
-
-			throw new StreamTaskException(exceptionMessage);
-		} catch (Exception e) {
-			throw new StreamTaskException("Cannot instantiate user function.", e);
+			return (TypeSerializer<T>) typeSerializer1;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of typeSerializer1.", e);
 		}
 	}
 
-	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerIn2() {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_1, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
+			return (TypeSerializer<T>) typeSerializer2;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of typeSerializer2.", e);
 		}
 	}
 
-	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerOut() {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_2, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
-		}
-	}
-
-	public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_OUT_1, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
+			return (TypeSerializer<T>) typeSerializerOut;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of typeSerializerOut.", e);
 		}
 	}
 
 	public void setNonChainedOutputs(List<StreamEdge> nonChainedOutputs) {
-		try {
-			InstantiationUtil.writeObjectToConfig(nonChainedOutputs, this.config, NON_CHAINED_OUTPUTS);
-		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize non chained outputs.", e);
-		}
+		this.nonChainedOutputs = nonChainedOutputs;
 	}
 
-	public List<StreamEdge> getNonChainedOutputs(ClassLoader cl) {
-		try {
-			List<StreamEdge> nonChainedOutputs = InstantiationUtil.readObjectFromConfig(this.config, NON_CHAINED_OUTPUTS, cl);
-			return nonChainedOutputs == null ? new ArrayList<StreamEdge>() : nonChainedOutputs;
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate non chained outputs.", e);
+	public List<StreamEdge> getNonChainedOutputs() {
+		if (nonChainedOutputs != null) {
+			return nonChainedOutputs;
+		} else {
+			return new ArrayList<>();
 		}
 	}
 
 	public void setChainedOutputs(List<StreamEdge> chainedOutputs) {
-		try {
-			InstantiationUtil.writeObjectToConfig(chainedOutputs, this.config, CHAINED_OUTPUTS);
-		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize chained outputs.", e);
+		this.chainedOutputs = chainedOutputs;
+	}
+
+	public List<StreamEdge> getChainedOutputs() {
+		if (chainedOutputs != null) {
+			return chainedOutputs;
+		} else {
+			return new ArrayList<>();
 		}
 	}
 
-	public List<StreamEdge> getChainedOutputs(ClassLoader cl) {
+	public void setStatePartitioner1(KeySelector<?, ?> keySelector) {
+		this.statePartitioner1 = keySelector;
+	}
+
+	public KeySelector<?, Serializable> getStatePartitioner1() {
 		try {
-			List<StreamEdge> chainedOutputs = InstantiationUtil.readObjectFromConfig(this.config, CHAINED_OUTPUTS, cl);
-			return chainedOutputs == null ? new ArrayList<StreamEdge>() : chainedOutputs;
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate chained outputs.", e);
+			return (KeySelector<?, Serializable>) statePartitioner1;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of statePartitioner1.", e);
 		}
 	}
 
-	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
-		try {
-			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER_PREFIX + input);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize state partitioner.", e);
-		}
+	public void setStatePartitioner2(KeySelector<?, ?> keySelector) {
+		this.statePartitioner2 = keySelector;
 	}
 
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
+	public KeySelector<?, Serializable> getStatePartitioner2() {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER_PREFIX + input, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate state partitioner.", e);
+			return (KeySelector<?, Serializable>) statePartitioner2;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of statePartitioner2.", e);
 		}
 	}
 
 	public void setOperatorName(String name) {
-		this.config.setString(OPERATOR_NAME, name);
+		this.name = name;
 	}
 
 	public String getOperatorName() {
-		return this.config.getString(OPERATOR_NAME, null);
+		return name;
 	}
 
 	public void setChainStart() {
-		config.setBoolean(IS_CHAIN_START, true);
+		this.isChainStart = true;
 	}
 
 	public boolean isChainStart() {
-		return config.getBoolean(IS_CHAIN_START, false);
+		return isChainStart;
 	}
 
 	public void setChainEnd() {
-		config.setBoolean(IS_CHAIN_END, true);
+		isChainEnd = true;
 	}
 
 	public boolean isChainEnd() {
-		return config.getBoolean(IS_CHAIN_END, false);
+		return isChainEnd;
 	}
 
-	public void setChainIndex(int index) {
-		this.config.setInteger(CHAIN_INDEX, index);
+	public void setNodeID(int nodeID) {
+		this.nodeID = nodeID;
 	}
 
-	public int getChainIndex() {
-		return this.config.getInteger(CHAIN_INDEX, 0);
-	}
-
-	public void setNodeID(Integer nodeID) {
-		config.setInteger(NODE_ID, nodeID);
-	}
-
-	public Integer getNodeID() {
-		return config.getInteger(NODE_ID, -1);
+	public int getNodeID() {
+		return nodeID;
 	}
 
 	public void setStateKeySerializer(TypeSerializer<?> serializer) {
-		try {
-			InstantiationUtil.writeObjectToConfig(serializer, this.config, STATE_KEY_SERIALIZER);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize state key serializer.", e);
-		}
+		this.stateKeySerializer = serializer;
 	}
 
-	public <K> TypeSerializer<K> getStateKeySerializer(ClassLoader cl) {
+	public <T> TypeSerializer<T> getStateKeySerializer() {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_KEY_SERIALIZER, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate state key serializer from task config.", e);
+			return (TypeSerializer<T>) stateKeySerializer;
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of stateKeySerializer.", e);
 		}
 	}
 
 	public void setOutputSelectors(List<OutputSelector<?>> outputSelectors) {
-		try {
-			InstantiationUtil.writeObjectToConfig(outputSelectors, this.config, OUTPUT_SELECTOR_WRAPPER);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize output selectors", e);
-		}
+		this.outputSelectors = outputSelectors;
 	}
 
-	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader userCodeClassloader) {
-		try {
-			List<OutputSelector<T>> selectors =
-					InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, userCodeClassloader);
-			return selectors == null ? Collections.<OutputSelector<T>>emptyList() : selectors;
-
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not read output selectors", e);
+	public <T> List<OutputSelector<T>> getOutputSelectors() {
+		if (outputSelectors == null) {
+			return new ArrayList<>();
 		}
+		List<OutputSelector<T>> results = new ArrayList<>(outputSelectors.size());
+		for (OutputSelector<?> outputSelector : outputSelectors) {
+			try {
+				results.add((OutputSelector<T>) outputSelector);
+			} catch (ClassCastException e) {
+				throw new StreamTaskException("Cannot cast type of outputSelector.", e);
+			}
+		}
+		return results;
 	}
 
 	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
+		this.typeSerializer1 = serializer;
 	}
 
 	public void setTypeSerializerIn2(TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_IN_2, serializer);
-	}
-
-	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
-		try {
-			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize type serializer.", e);
-		}
+		this.typeSerializer2 = serializer;
 	}
 
 	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
+		this.typeSerializerOut = serializer;
 	}
 
 	public void setTypeSerializerSideOut(OutputTag<?> outputTag, TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_SIDE_OUT_PREFIX + outputTag.getId(), serializer);
+		sideOutTypeSerializerMap.put(outputTag.getId(), serializer);
 	}
 
-	public <T> TypeSerializer<T> getTypeSerializerSideOut(OutputTag<?> outputTag, ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerSideOut(OutputTag<?> outputTag) {
 		Preconditions.checkNotNull(outputTag, "Side output id must not be null.");
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_SIDE_OUT_PREFIX + outputTag.getId(), cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
+			return (TypeSerializer<T>) sideOutTypeSerializerMap.get(outputTag.getId());
+		} catch (ClassCastException e) {
+			throw new StreamTaskException("Cannot cast type of typeSerializerSideOut.", e);
 		}
 	}
 
 	@Override
 	public String toString() {
-		ClassLoader cl = getClass().getClassLoader();
 		StringBuilder builder = new StringBuilder();
 		builder.append("\n=======================");
-		builder.append("Operator Config");
+		builder.append("Operator Settings");
 		builder.append("=======================");
-		builder.append("\nChain index: ").append(getChainIndex());
 		builder.append("\nNode id: ").append(getNodeID());
-		builder.append("\nNumber of chained outputs: ").append(getChainedOutputs(cl).size());
-		builder.append("\nNumber of non chained outputs: ").append(getNonChainedOutputs(cl).size());
-		builder.append("\nNon chained Output: ").append(getNonChainedOutputs(cl));
+		builder.append("\nNumber of chained outputs: ").append(getChainedOutputs().size());
+		builder.append("\nNumber of non chained outputs: ").append(getNonChainedOutputs().size());
+		builder.append("\nNon chained Output: ").append(getNonChainedOutputs());
 		builder.append("\nPartitioning:");
-		for (StreamEdge output : getNonChainedOutputs(cl)) {
+		for (StreamEdge output : getNonChainedOutputs()) {
 			int outputName = output.getTargetId();
 			builder.append("\n\t").append(outputName).append(": ").append(output.getPartitioner());
 		}
 
 		try {
-			builder.append("\nOperator: ").append(getStreamOperator(cl).getClass().getSimpleName());
+			builder.append("\nOperator: ").append(getStreamOperator().getClass().getSimpleName());
 		} catch (Exception e) {
 			builder.append("\nOperator: Missing");
 		}

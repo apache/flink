@@ -45,7 +45,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
@@ -127,14 +127,14 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}, BasicTypeInfo.STRING_TYPE_INFO);
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
+		StreamTaskConfig streamTaskConfig = testHarness.getStreamTaskConfig();
 
 		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
 
 		RocksDBStateBackend backend = new RocksDBStateBackend(new MemoryStateBackend());
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
-		streamConfig.setStateBackend(backend);
+		streamTaskConfig.setStateBackend(backend);
 
 		testHarness.getHeadOperatorConfig().setStreamOperator(new AsyncCheckpointOperator());
 
@@ -229,7 +229,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}, BasicTypeInfo.STRING_TYPE_INFO);
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
+		StreamTaskConfig streamTaskConfig = testHarness.getStreamTaskConfig();
 
 		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
 
@@ -238,7 +238,7 @@ public class RocksDBAsyncSnapshotTest {
 		RocksDBStateBackend backend = new RocksDBStateBackend(memoryStateBackend);
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
-		streamConfig.setStateBackend(backend);
+		streamTaskConfig.setStateBackend(backend);
 
 		testHarness.getHeadOperatorConfig().setStreamOperator(new AsyncCheckpointOperator());
 

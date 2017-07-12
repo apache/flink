@@ -61,7 +61,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.OperatorConfig;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamTaskConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.FlinkException;
@@ -105,18 +105,18 @@ public class StreamTaskTerminationTest extends TestLogger {
 	@Test
 	public void testConcurrentAsyncCheckpointCannotFailFinishedStreamTask() throws Exception {
 		final Configuration taskConfiguration = new Configuration();
-		final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		final StreamTaskConfig streamTaskConfig = new StreamTaskConfig(taskConfiguration);
 		final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
 
 		final AbstractStateBackend blockingStateBackend = new BlockingStateBackend();
-		OperatorConfig operatorConfig = new OperatorConfig(new Configuration());
+		OperatorConfig operatorConfig = new OperatorConfig();
 		operatorConfig.setNodeID(0);
 		operatorConfig.setStreamOperator(noOpStreamOperator);
 		Map<Integer, OperatorConfig> chainedConfigs = new HashMap<>();
 		chainedConfigs.put(0, operatorConfig);
-		streamConfig.setChainedTaskConfigs(chainedConfigs);
-		streamConfig.setHeadNodeID(0);
-		streamConfig.setStateBackend(blockingStateBackend);
+		streamTaskConfig.setChainedTaskConfigs(chainedConfigs);
+		streamTaskConfig.setHeadNodeID(0);
+		streamTaskConfig.setStateBackend(blockingStateBackend);
 
 		final long checkpointId = 0L;
 		final long checkpointTimestamp = 0L;

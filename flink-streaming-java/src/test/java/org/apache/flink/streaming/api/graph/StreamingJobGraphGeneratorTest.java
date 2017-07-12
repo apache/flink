@@ -144,10 +144,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, mapPrintVertex.getInputs().get(0).getSource().getResultType());
 
-		OperatorConfig sourceConfig = new StreamConfig(sourceVertex.getConfiguration()).getHeadOperatorConfig(getClass().getClassLoader());
-		StreamConfig mapStreamConfig = new StreamConfig(mapPrintVertex.getConfiguration());
-		OperatorConfig mapConfig = mapStreamConfig.getHeadOperatorConfig(getClass().getClassLoader());
-		Map<Integer, OperatorConfig> chainedConfigs = mapStreamConfig.getChainedTaskConfigs(getClass().getClassLoader());
+		OperatorConfig sourceConfig = new StreamTaskConfig(sourceVertex.getConfiguration()).getHeadOperatorConfig(getClass().getClassLoader());
+		StreamTaskConfig mapStreamTaskConfig = new StreamTaskConfig(mapPrintVertex.getConfiguration());
+		OperatorConfig mapConfig = mapStreamTaskConfig.getHeadOperatorConfig(getClass().getClassLoader());
+		Map<Integer, OperatorConfig> chainedConfigs = mapStreamTaskConfig.getChainedTaskConfigs(getClass().getClassLoader());
 		chainedConfigs.remove(mapConfig.getNodeID());
 		OperatorConfig printConfig = chainedConfigs.values().iterator().next();
 
