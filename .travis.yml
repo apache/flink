@@ -4,45 +4,51 @@
 sudo: required
 dist: trusty
 
-#cache:
-#  directories:
-#  - $HOME/.m2
+cache:
+  directories:
+  - $HOME/.m2
+
+# do not cache our own artifacts
+before_cache:
+  - rm -rf $HOME/.m2/repository/org/apache/flink/
 
 install: true
 
 language: java
 
-#See https://issues.apache.org/jira/browse/FLINK-1072
+# - define unique cache names in case the auto-generated ones are not unique
+#  (see https://docs.travis-ci.com/user/caching/#Caches-and-build-matrices)
+# - See https://issues.apache.org/jira/browse/FLINK-1072
 matrix:
   include:
   # Always run test groups A and B together
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-a,include-kinesis,jdk8"
+      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-a,include-kinesis,jdk8" CACHE_NAME=OJDK8_H280_A
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-b,include-kinesis,jdk8"
+      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-b,include-kinesis,jdk8" CACHE_NAME=OJDK8_H280_B
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-c,include-kinesis,jdk8"
+      env: PROFILE="-Dhadoop.version=2.8.0 -Pflink-fast-tests-c,include-kinesis,jdk8" CACHE_NAME=OJDK8_H280_C
 
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-a,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-a,include-kinesis" CACHE_NAME=OJDK8_H273_A
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-b,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-b,include-kinesis" CACHE_NAME=OJDK8_H273_B
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-c,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.7.3 -Dscala-2.10 -Pflink-fast-tests-c,include-kinesis" CACHE_NAME=OJDK8_H273_C
 
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-a,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-a,include-kinesis" CACHE_NAME=JDK7_H265_A
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-b,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-b,include-kinesis" CACHE_NAME=JDK7_H265_B
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-c,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.6.5 -Pflink-fast-tests-c,include-kinesis" CACHE_NAME=JDK7_H265_C
 
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-a,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-a,include-kinesis" CACHE_NAME=JDK7_H241_A
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-b,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-b,include-kinesis" CACHE_NAME=JDK7_H241_B
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-c,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pflink-fast-tests-c,include-kinesis" CACHE_NAME=JDK7_H241_C
 
 git:
   depth: 100
@@ -67,6 +73,8 @@ before_install:
    - "rm apache-maven-3.2.5-bin.zip"
    - "export M2_HOME=$PWD/apache-maven-3.2.5"
    - "export PATH=$M2_HOME/bin:$PATH"
+# just in case: clean up the .m2 home and remove invalid jar files
+   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm {} ; fi'' \;'
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.
