@@ -691,15 +691,17 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			} else {
 				LOG.warn("File upload for an existing file with key {} for job {}. This may indicate a duplicate upload or a hash collision. Ignoring newest upload.", blobKey, jobId);
 			}
-		} catch(IOException ioe) {
+			storageFile = null;
+		} finally {
 			// we failed to either create the local storage file or to upload it --> try to delete the local file
 			// while still having the write lock
-			if (!storageFile.delete() && storageFile.exists()) {
-				LOG.warn("Could not delete the storage file with key {} and job {}.", blobKey, jobId);
+			if (storageFile != null && !storageFile.delete() && storageFile.exists()) {
+				LOG.warn("Could not delete the storage file {}.", storageFile);
+			}
+			if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
+				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.", incomingFile, blobKey, jobId);
 			}
 
-			throw ioe;
-		} finally {
 			readWriteLock.writeLock().unlock();
 		}
 	}
