@@ -85,6 +85,8 @@ public class ConfigurationTest extends TestLogger {
 			pc.setLong("too_long", TOO_LONG);
 			pc.setFloat("float", 2.1456775f);
 			pc.setDouble("double", Math.PI);
+			pc.setDouble("negative_double", -1.0);
+			pc.setDouble("zero", 0.0);
 			pc.setDouble("too_long_double", TOO_LONG_DOUBLE);
 			pc.setString("string", "42");
 			pc.setString("non_convertible_string", "bcdefg&&");
@@ -134,7 +136,25 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("double", true));
 			assertTrue(pc.getString("double", "0").startsWith("3.1415926535"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("double", EMPTY_BYTES));
-			
+
+			// as negative double
+			assertEquals(0, pc.getInteger("negative_double", 0));
+			assertEquals(0L, pc.getLong("negative_double", 0));
+			assertEquals(-1f, pc.getFloat("negative_double", 0), 0.000001);
+			assertEquals(-1, pc.getDouble("negative_double", 0), 0.0);
+			assertEquals(false, pc.getBoolean("negative_double", true));
+			assertTrue(pc.getString("negative_double", "0").startsWith("-1"));
+			assertArrayEquals(EMPTY_BYTES, pc.getBytes("negative_double", EMPTY_BYTES));
+
+			// as zero
+			assertEquals(-1, pc.getInteger("zero", -1));
+			assertEquals(-1L, pc.getLong("zero", -1));
+			assertEquals(0f, pc.getFloat("zero", -1), 0.000001);
+			assertEquals(0.0, pc.getDouble("zero", -1), 0.0);
+			assertEquals(false, pc.getBoolean("zero", true));
+			assertTrue(pc.getString("zero", "-1").startsWith("0"));
+			assertArrayEquals(EMPTY_BYTES, pc.getBytes("zero", EMPTY_BYTES));
+
 			// as too long double
 			assertEquals(0, pc.getInteger("too_long_double", 0));
 			assertEquals(0L, pc.getLong("too_long_double", 0));
