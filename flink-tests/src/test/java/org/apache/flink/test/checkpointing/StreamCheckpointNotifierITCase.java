@@ -118,11 +118,11 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 			assertNotEquals(0L, failureCheckpointID);
 
 			List<List<Long>[]> allLists = Arrays.asList(
-				GeneratingSourceFunction.completedCheckpoints,
-				LongRichFilterFunction.completedCheckpoints,
-				LeftIdentityCoRichFlatMapFunction.completedCheckpoints,
-				IdentityMapFunction.completedCheckpoints,
-				OnceFailingReducer.completedCheckpoints
+				GeneratingSourceFunction.COMPLETED_CHECKPOINTS,
+				LongRichFilterFunction.COMPLETED_CHECKPOINTS,
+				LeftIdentityCoRichFlatMapFunction.COMPLETED_CHECKPOINTS,
+				IdentityMapFunction.COMPLETED_CHECKPOINTS,
+				OnceFailingReducer.COMPLETED_CHECKPOINTS
 			);
 
 			for (List<Long>[] parallelNotifications : allLists) {
@@ -168,7 +168,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class GeneratingSourceFunction extends RichSourceFunction<Long>
 			implements ParallelSourceFunction<Long>, CheckpointListener, ListCheckpointed<Integer> {
 
-		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static final List<Long>[] COMPLETED_CHECKPOINTS = createCheckpointLists(PARALLELISM);
 
 		static AtomicLong numPostFailureNotifications = new AtomicLong();
 
@@ -241,7 +241,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
 			int partition = getRuntimeContext().getIndexOfThisSubtask();
-			completedCheckpoints[partition].add(checkpointId);
+			COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
 			// if this is the first time we get a notification since the failure,
 			// tell the source function
@@ -259,7 +259,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class IdentityMapFunction extends RichMapFunction<Long, Tuple1<Long>>
 			implements CheckpointListener {
 
-		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static final List<Long>[] COMPLETED_CHECKPOINTS = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
 
@@ -272,7 +272,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
 			int partition = getRuntimeContext().getIndexOfThisSubtask();
-			completedCheckpoints[partition].add(checkpointId);
+			COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
 			// if this is the first time we get a notification since the failure,
 			// tell the source function
@@ -290,7 +290,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	 */
 	private static class LongRichFilterFunction extends RichFilterFunction<Long> implements CheckpointListener {
 
-		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static final List<Long>[] COMPLETED_CHECKPOINTS = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
 
@@ -303,7 +303,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
 			int partition = getRuntimeContext().getIndexOfThisSubtask();
-			completedCheckpoints[partition].add(checkpointId);
+			COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
 			// if this is the first time we get a notification since the failure,
 			// tell the source function
@@ -322,7 +322,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<Long, Long, Long>
 			implements CheckpointListener {
 
-		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static final List<Long>[] COMPLETED_CHECKPOINTS = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
 
@@ -340,7 +340,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
 			int partition = getRuntimeContext().getIndexOfThisSubtask();
-			completedCheckpoints[partition].add(checkpointId);
+			COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
 			// if this is the first time we get a notification since the failure,
 			// tell the source function
@@ -359,7 +359,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		static volatile boolean hasFailed = false;
 		static volatile long failureCheckpointID;
 
-		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static final List<Long>[] COMPLETED_CHECKPOINTS = createCheckpointLists(PARALLELISM);
 
 		private final long failurePos;
 
@@ -405,7 +405,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
 			int partition = getRuntimeContext().getIndexOfThisSubtask();
-			completedCheckpoints[partition].add(checkpointId);
+			COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
 			// if this is the first time we get a notification since the failure,
 			// tell the source function

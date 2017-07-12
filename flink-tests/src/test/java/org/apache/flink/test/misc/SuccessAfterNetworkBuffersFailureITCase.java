@@ -152,7 +152,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		DataSet<KMeans.Point> points =  KMeansData.getDefaultPointDataSet(env).rebalance();
 		DataSet<KMeans.Centroid> centroids =  KMeansData.getDefaultCentroidDataSet(env).rebalance();
 
-		// set number of bulk iterations for kmeans algorithm
+		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
 
 		DataSet<KMeans.Centroid> newCentroids = points
@@ -173,6 +173,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 		clusteredPoints.output(new DiscardingOutputFormat<Tuple2<Integer, KMeans.Point>>());
 
-		env.execute("kmeans Example");
+		env.execute("KMeans Example");
 	}
 }

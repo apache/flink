@@ -38,7 +38,8 @@ public interface GeneratorEventFactory<K, E> {
 	 * @param timing          indicator for lateness
 	 * @return event for an keyed event generator
 	 */
-	E createEvent(K key,
+	E createEvent(
+		K key,
 		int sessionId,
 		int eventId,
 		long eventTimestamp,

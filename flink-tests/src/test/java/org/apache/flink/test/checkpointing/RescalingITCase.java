@@ -64,16 +64,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-import java.io.Serializable;
-import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -1038,45 +1034,6 @@ public class RescalingITCase extends TestLogger {
 		@Override
 		public void restoreState(Integer state) throws Exception {
 			counterPartitions.add(state);
-		}
-	}
-
-	/**
-	 * Copied from io.netty.util.internal.ConcurrentSet.
-	 *
-	 * @param <E> the type of elements maintained by this set
-	 */
-	private static final class ConcurrentSet<E> extends AbstractSet<E> implements Serializable {
-
-		private static final long serialVersionUID = -6761513279741915432L;
-
-		private final ConcurrentMap<E, Boolean> map = new ConcurrentHashMap();
-
-		public ConcurrentSet() {
-		}
-
-		public int size() {
-			return this.map.size();
-		}
-
-		public boolean contains(Object o) {
-			return this.map.containsKey(o);
-		}
-
-		public boolean add(E o) {
-			return this.map.putIfAbsent(o, Boolean.TRUE) == null;
-		}
-
-		public boolean remove(Object o) {
-			return this.map.remove(o) != null;
-		}
-
-		public void clear() {
-			this.map.clear();
-		}
-
-		public Iterator<E> iterator() {
-			return this.map.keySet().iterator();
 		}
 	}
 }

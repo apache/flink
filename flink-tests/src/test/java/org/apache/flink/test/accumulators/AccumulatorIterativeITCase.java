@@ -30,7 +30,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
 /**
- *
+ * Test accumulator within iteration.
  */
 public class AccumulatorIterativeITCase extends JavaProgramTestBase {
 	private static final int NUM_ITERATIONS = 3;

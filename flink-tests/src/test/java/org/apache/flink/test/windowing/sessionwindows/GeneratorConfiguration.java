@@ -35,7 +35,8 @@ public final class GeneratorConfiguration {
 	// hint for the maximum additional gap introduced between event times of two generators to separate sessions
 	private final long maxAdditionalSessionGap;
 
-	public GeneratorConfiguration(long allowedLateness,
+	public GeneratorConfiguration(
+			long allowedLateness,
 			int lateEventsWithinLateness,
 			int lateEventsAfterLateness,
 			long maxAdditionalSessionGap) {
@@ -61,7 +62,8 @@ public final class GeneratorConfiguration {
 		return maxAdditionalSessionGap;
 	}
 
-	public static GeneratorConfiguration of(long allowedLateness,
+	public static GeneratorConfiguration of(
+			long allowedLateness,
 			int lateEventsPerSessionWithinLateness,
 			int lateEventsPerSessionOutsideLateness,
 			long maxAdditionalSessionGap) {
