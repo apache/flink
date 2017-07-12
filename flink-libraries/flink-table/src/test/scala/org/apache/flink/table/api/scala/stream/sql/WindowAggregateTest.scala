@@ -18,8 +18,7 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMerge}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestUtil._
@@ -30,17 +29,6 @@ class WindowAggregateTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
-
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
-  @Test(expected = classOf[ValidationException])
-  def testOverAggregation(): Unit = {
-    streamUtil.addFunction("overAgg", new OverAgg0)
-
-    val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
-    streamUtil.tEnv.sql(sqlQuery)
-  }
 
   @Test
   def testGroupbyWithoutWindow() = {
@@ -66,7 +54,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testTumbleFunction() = {
-    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
+    streamUtil.tableEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
     val sql =
       "SELECT " +
@@ -95,7 +83,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testHoppingFunction() = {
-    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
+    streamUtil.tableEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
     val sql =
       "SELECT COUNT(*), weightedAvg(c, a) AS wAvg, " +
@@ -123,7 +111,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testSessionFunction() = {
-    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
+    streamUtil.tableEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
     val sql =
       "SELECT " +
@@ -177,51 +165,4 @@ class WindowAggregateTest extends TableTestBase {
     streamUtil.verifySql(sql, expected)
   }
 
-  @Test(expected = classOf[TableException])
-  def testTumbleWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
-        "FROM MyTable " +
-        "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test(expected = classOf[TableException])
-  def testHopWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
-        "FROM MyTable " +
-        "GROUP BY HOP(proctime, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test(expected = classOf[TableException])
-  def testSessionWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
-        "FROM MyTable " +
-        "GROUP BY SESSION(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test(expected = classOf[TableException])
-  def testVariableWindowSize() = {
-    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
-    streamUtil.verifySql(sql, "n/a")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWindowUdAggInvalidArgs(): Unit = {
-    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
-
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg " +
-        "FROM MyTable " +
-        "GROUP BY TUMBLE(proctime(), INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
-  }
 }

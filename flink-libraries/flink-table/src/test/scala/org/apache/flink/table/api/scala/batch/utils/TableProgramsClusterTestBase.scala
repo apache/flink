@@ -21,6 +21,7 @@ package org.apache.flink.table.api.scala.batch.utils
 import java.util
 
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.runtime.dataset.table.DataSetWindowAggregateITCase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit.runners.Parameterized
 
@@ -29,7 +30,7 @@ import scala.collection.JavaConversions._
 /**
   * This test base provides full cluster-like integration tests for batch programs. Only runtime
   * operator tests should use this test base as they are expensive.
-  * (e.g. [[org.apache.flink.table.runtime.dataset.DataSetWindowAggregateITCase]])
+  * (e.g. [[DataSetWindowAggregateITCase]])
   */
 class TableProgramsClusterTestBase(
     executionMode: TestExecutionMode,

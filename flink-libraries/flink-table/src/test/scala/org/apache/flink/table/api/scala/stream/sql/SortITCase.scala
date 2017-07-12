@@ -22,13 +22,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.runtime.datastream.StreamITCase
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.datastream.StreamingWithStateTestBase
 import org.apache.flink.table.api.scala.stream.sql.SortITCase.StringRowSelectorSink
 import org.apache.flink.table.api.scala.stream.sql.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit._
 

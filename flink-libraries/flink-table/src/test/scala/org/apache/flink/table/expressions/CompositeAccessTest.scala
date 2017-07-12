@@ -18,19 +18,11 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.types.Row
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.CompositeAccessTest.{MyCaseClass, MyCaseClass2, MyPojo}
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils.CompositeAccessTestBase
 import org.junit.Test
 
-
-class CompositeAccessTest extends ExpressionTestBase {
+class CompositeAccessTest extends CompositeAccessTestBase {
 
   @Test
   def testGetField(): Unit = {
@@ -129,85 +121,6 @@ class CompositeAccessTest extends ExpressionTestBase {
     testTableApi('f5.flatten(), "f5.flatten()", "13")
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testWrongSqlFieldFull(): Unit = {
-    testSqlApi("testTable.f5.test", "13")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongSqlField(): Unit = {
-    testSqlApi("f5.test", "13")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongIntKeyField(): Unit = {
-    testTableApi('f0.get(555), "'fail'", "fail")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongIntKeyField2(): Unit = {
-    testTableApi("fail", "f0.get(555)", "fail")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongStringKeyField(): Unit = {
-    testTableApi('f0.get("fghj"), "'fail'", "fail")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongStringKeyField2(): Unit = {
-    testTableApi("fail", "f0.get('fghj')", "fail")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  def testData = {
-    val testData = new Row(8)
-    testData.setField(0, MyCaseClass(42, "Bob", booleanField = true))
-    testData.setField(1, MyCaseClass2(MyCaseClass(25, "Timo", booleanField = false)))
-    testData.setField(2, ("a", "b"))
-    testData.setField(3, new org.apache.flink.api.java.tuple.Tuple2[String, String]("a", "b"))
-    testData.setField(4, new MyPojo())
-    testData.setField(5, 13)
-    testData.setField(6, MyCaseClass2(null))
-    testData.setField(7, Tuple1(true))
-    testData
-  }
-
-  def typeInfo = {
-    new RowTypeInfo(
-      createTypeInformation[MyCaseClass],
-      createTypeInformation[MyCaseClass2],
-      createTypeInformation[(String, String)],
-      new TupleTypeInfo(Types.STRING, Types.STRING),
-      TypeExtractor.createTypeInfo(classOf[MyPojo]),
-      Types.INT,
-      createTypeInformation[MyCaseClass2],
-      createTypeInformation[Tuple1[Boolean]]
-      ).asInstanceOf[TypeInformation[Any]]
-  }
-
 }
 
-object CompositeAccessTest {
-  case class MyCaseClass(intField: Int, stringField: String, booleanField: Boolean)
 
-  case class MyCaseClass2(objectField: MyCaseClass)
-
-  class MyPojo {
-    private var myInt: Int = 0
-    private var myString: String = "Hello"
-
-    def getMyInt = myInt
-
-    def setMyInt(value: Int) = {
-      myInt = value
-    }
-
-    def getMyString = myString
-
-    def setMyString(value: String) = {
-      myString = myString
-    }
-  }
-}

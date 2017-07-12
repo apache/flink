@@ -21,8 +21,7 @@ package org.apache.flink.table.api.scala.batch.sql
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMerge}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestBase
@@ -30,20 +29,6 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
-
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
-  @Test(expected = classOf[ValidationException])
-  def testOverAggregation(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-    util.addFunction("overAgg", new OverAgg0)
-
-    val sqlQuery = "SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
-
-    util.tEnv.sql(sqlQuery)
-  }
 
   @Test
   def testNonPartitionedTumbleWindow(): Unit = {
@@ -106,7 +91,7 @@ class WindowAggregateTest extends TableTestBase {
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val weightedAvg = new WeightedAvgWithMerge
-    util.tEnv.registerFunction("weightedAvg", weightedAvg)
+    util.tableEnv.registerFunction("weightedAvg", weightedAvg)
 
     val sql = "SELECT weightedAvg(b, a) AS wAvg " +
       "FROM T " +
@@ -272,67 +257,4 @@ class WindowAggregateTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-  @Test(expected = classOf[TableException])
-  def testTumbleWindowNoOffset(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
-        "FROM T " +
-        "GROUP BY TUMBLE(ts, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    util.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test(expected = classOf[TableException])
-  def testHopWindowNoOffset(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
-        "FROM T " +
-        "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    util.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test(expected = classOf[TableException])
-  def testSessionWindowNoOffset(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
-        "FROM T " +
-        "GROUP BY SESSION(ts, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    util.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test(expected = classOf[TableException])
-  def testVariableWindowSize() = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-
-    val sql = "SELECT COUNT(*) " +
-      "FROM T " +
-      "GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)"
-    util.verifySql(sql, "n/a")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testTumbleWindowWithInvalidUdAggArgs() = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-
-    val weightedAvg = new WeightedAvgWithMerge
-    util.tEnv.registerFunction("weightedAvg", weightedAvg)
-
-    val sql = "SELECT weightedAvg(c, a) AS wAvg " +
-      "FROM T " +
-      "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
-    util.verifySql(sql, "n/a")
-  }
 }

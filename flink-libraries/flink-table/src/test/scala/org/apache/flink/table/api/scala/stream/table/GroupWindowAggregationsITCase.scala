@@ -29,7 +29,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.table.GroupWindowAggregationsITCase.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.api.scala.stream.utils.StreamITCase
+import org.apache.flink.table.runtime.datastream.StreamITCase
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.types.Row
 import org.junit.Assert._
