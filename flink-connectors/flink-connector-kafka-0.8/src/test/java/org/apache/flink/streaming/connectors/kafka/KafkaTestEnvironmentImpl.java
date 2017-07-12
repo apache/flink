@@ -118,19 +118,21 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	@Override
 	public <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(Properties properties, String topic, int partition, long timeout) {
 		List<ConsumerRecord<K, V>> result = new ArrayList<>();
-		KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties);
-		consumer.subscribe(new TopicPartition(topic, partition));
+		try (KafkaConsumer<K, V> consumer = new KafkaConsumer<>(properties)) {
+			consumer.subscribe(new TopicPartition(topic, partition));
 
-		while (true) {
-			Map<String, ConsumerRecords<K, V>> topics = consumer.poll(timeout);
-			if (topics == null || !topics.containsKey(topic)) {
-				break;
+			while (true) {
+				Map<String, ConsumerRecords<K, V>> topics = consumer.poll(timeout);
+				if (topics == null || !topics.containsKey(topic)) {
+					break;
+				}
+				List<ConsumerRecord<K, V>> records = topics.get(topic).records(partition);
+				result.addAll(records);
+				if (records.size() == 0) {
+					break;
+				}
 			}
-			List<ConsumerRecord<K, V>> records = topics.get(topic).records(partition);
-			result.addAll(records);
-			if (records.size() == 0) {
-				break;
-			}
+			consumer.commit(true);
 		}
 
 		return UnmodifiableList.decorate(result);
