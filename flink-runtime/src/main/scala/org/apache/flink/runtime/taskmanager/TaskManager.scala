@@ -62,7 +62,6 @@ import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
 import org.apache.flink.runtime.messages.{Acknowledge, StackTraceSampleResponse}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
-import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
@@ -127,7 +126,8 @@ class TaskManager(
     protected val network: NetworkEnvironment,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
-    protected val metricsRegistry: FlinkMetricRegistry)
+    protected val metricsRegistry: FlinkMetricRegistry,
+    protected val taskManagerMetricGroup: TaskManagerMetricGroup)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -153,8 +153,6 @@ class TaskManager(
   protected val leaderRetrievalService: LeaderRetrievalService = highAvailabilityServices.
     getJobManagerLeaderRetriever(
       HighAvailabilityServices.DEFAULT_JOB_ID)
-
-  private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
   /** Actors which want to be notified once this task manager has been
     * registered at the job manager */
@@ -982,12 +980,6 @@ class TaskManager(
     else {
       libraryCacheManager = Some(new FallbackLibraryCacheManager)
     }
-    
-    taskManagerMetricGroup = 
-      new TaskManagerMetricGroup(metricsRegistry, location.getHostname, id.toString)
-    
-    MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup)
-    MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network)
     
     // watch job manager to detect when it dies
     context.watch(jobManager)
