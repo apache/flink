@@ -37,10 +37,12 @@ import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.flink.api.common.JobID;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -138,30 +140,58 @@ public class BlobClientTest {
 	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
 	 * the specified buffer.
 	 * 
-	 * @param inputStream
+	 * @param actualInputStream
 	 *        the input stream returned from the GET operation
-	 * @param buf
+	 * @param expectedBuf
 	 *        the buffer to compare the input stream's data to
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream
 	 */
-	static void validateGet(final InputStream inputStream, final byte[] buf) throws IOException {
-		byte[] receivedBuffer = new byte[buf.length];
+	static void validateGet(final InputStream actualInputStream, final byte[] expectedBuf)
+			throws IOException {
+
+		byte[] receivedBuffer = new byte[expectedBuf.length];
 
 		int bytesReceived = 0;
 
 		while (true) {
 
-			final int read = inputStream.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
+			final int read = actualInputStream.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
 			if (read < 0) {
 				throw new EOFException();
 			}
 			bytesReceived += read;
 
 			if (bytesReceived == receivedBuffer.length) {
-				assertEquals(-1, inputStream.read());
-				assertArrayEquals(buf, receivedBuffer);
+				assertEquals(-1, actualInputStream.read());
+				assertArrayEquals(expectedBuf, receivedBuffer);
 				return;
+			}
+		}
+	}
+
+	/**
+	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
+	 * the expected input stream.
+	 *
+	 * @param actualInputStream
+	 *        the input stream returned from the GET operation
+	 * @param expectedInputStream
+	 *        the input stream to compare the input stream's data to
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while reading any input stream
+	 */
+	static void validateGet(InputStream actualInputStream, InputStream expectedInputStream)
+			throws IOException {
+
+		while (true) {
+			final int r1 = actualInputStream.read();
+			final int r2 = expectedInputStream.read();
+
+			assertEquals(r2, r1);
+
+			if (r1 < 0) {
+				break;
 			}
 		}
 	}
@@ -170,36 +200,16 @@ public class BlobClientTest {
 	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
 	 * the specified file.
 	 * 
-	 * @param inputStream
+	 * @param actualInputStream
 	 *        the input stream returned from the GET operation
-	 * @param file
+	 * @param expectedFile
 	 *        the file to compare the input stream's data to
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream or the file
 	 */
-	private static void validateGet(final InputStream inputStream, final File file) throws IOException {
-
-		InputStream inputStream2 = null;
-		try {
-
-			inputStream2 = new FileInputStream(file);
-
-			while (true) {
-
-				final int r1 = inputStream.read();
-				final int r2 = inputStream2.read();
-
-				assertEquals(r2, r1);
-
-				if (r1 < 0) {
-					break;
-				}
-			}
-
-		} finally {
-			if (inputStream2 != null) {
-				inputStream2.close();
-			}
+	static void validateGet(final InputStream actualInputStream, final File expectedFile) throws IOException {
+		try (InputStream inputStream2 = new FileInputStream(expectedFile)) {
+			validateGet(actualInputStream, inputStream2);
 		}
 
 	}
@@ -319,6 +329,74 @@ public class BlobClientTest {
 				try {
 					client.close();
 				} catch (Throwable ignored) {}
+			}
+		}
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingNoJob() throws IOException {
+		testGetFailsDuringStreaming(null);
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingForJob() throws IOException {
+		testGetFailsDuringStreaming(new JobID());
+	}
+
+	/**
+	 * Checks the correct result if a GET operation fails during the file download.
+	 *
+	 * @param jobId job ID or <tt>null</tt> if job-unrelated
+	 */
+	private void testGetFailsDuringStreaming(final JobID jobId) throws IOException {
+		BlobServer server = null;
+		BlobClient client = null;
+
+		try {
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
+			server = new BlobServer(config, new VoidBlobStore());
+
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			client = new BlobClient(serverAddress, config);
+
+			byte[] data = new byte[5000000];
+			Random rnd = new Random();
+			rnd.nextBytes(data);
+
+			// put content addressable (like libraries)
+			BlobKey key = client.put(jobId, data);
+			assertNotNull(key);
+
+			// issue a GET request that succeeds
+			InputStream is = client.get(jobId, key);
+
+			byte[] receiveBuffer = new byte[data.length];
+			int firstChunkLen = 50000;
+			BlobUtils.readFully(is, receiveBuffer, 0, firstChunkLen, null);
+			BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
+
+			// shut down the server
+			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
+				conn.close();
+			}
+
+			try {
+				BlobUtils.readFully(is, receiveBuffer, 2 * firstChunkLen, data.length - 2 * firstChunkLen, null);
+				// we tolerate that this succeeds, as the receiver socket may have buffered
+				// everything already, but in this case, also verify the contents
+				assertArrayEquals(data, receiveBuffer);
+			}
+			catch (IOException e) {
+				// expected
+			}
+		} finally {
+			if (client != null) {
+				client.close();
+			}
+			if (server != null) {
+				server.close();
 			}
 		}
 	}
