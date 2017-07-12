@@ -30,7 +30,7 @@ class DateFormatCallGen extends CallGenerator {
     if (operands.last.literal) {
       val formatter = codeGenerator.addReusableDateFormatter(operands.last)
       generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
-        terms =>s"$formatter.print(${terms.head})"
+        terms => s"$formatter.print(${terms.head})"
       }
     } else {
       generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {

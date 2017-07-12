@@ -2008,9 +2008,7 @@ class CodeGenerator(
   }
 
   /**
-    * Adds a reusable [[java.util.Random]] to the member area of the generated [[Function]].
-    *
-    * The seed parameter must be a literal/constant expression.
+    * Adds a reusable DateFormatter to the member area of the generated [[Function]].
     *
     * @return member variable term
     */
