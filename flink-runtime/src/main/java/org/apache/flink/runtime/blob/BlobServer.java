@@ -534,7 +534,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 */
 	public BlobKey putHA(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
-		return putInputStream(null, inputStream, true);
+		return putInputStream(jobId, inputStream, true);
 	}
 
 	/**
