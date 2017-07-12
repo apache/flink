@@ -34,7 +34,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
 	public static class MinFloatAggregator implements Aggregator<Float,Float> {
 
-		private float min = Float.MAX_VALUE;
+		private float min = Float.POSITIVE_INFINITY;
 
 		@Override
 		public void aggregate(Float value) {
@@ -54,7 +54,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
 	public static class MaxFloatAggregator implements Aggregator<Float,Float> {
 
-		private float max = Float.MIN_VALUE;
+		private float max = Float.NEGATIVE_INFINITY;
 
 		@Override
 		public void aggregate(Float value) {

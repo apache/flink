@@ -129,6 +129,7 @@ public class DoubleSummaryAggregatorTest {
 		Assert.assertEquals(1001.0, summarize(-1000.0, 0.0, 1.0, 50.0, 999.0, 1001.0).getMax().doubleValue(), 0.0);
 		Assert.assertEquals(11.0, summarize(1.0, 8.0, 7.0, 6.0, 9.0, 10.0, 2.0, 3.0, 5.0, 0.0, 11.0, -2.0, 3.0).getMax().doubleValue(), 0.0);
 		Assert.assertEquals(11.0, summarize(1.0, 8.0, 7.0, 6.0, 9.0, null, 10.0, 2.0, 3.0, 5.0, null, 0.0, 11.0, -2.0, 3.0).getMax().doubleValue(), 0.0);
+		Assert.assertEquals(-1.0, summarize(-1.0, -8.0, -7.0, null, -11.0).getMax().doubleValue(), 0.0);
 		Assert.assertNull(summarize().getMax());
 	}
 

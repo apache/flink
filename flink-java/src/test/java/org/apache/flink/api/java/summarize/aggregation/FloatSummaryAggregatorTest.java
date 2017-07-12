@@ -130,6 +130,7 @@ public class FloatSummaryAggregatorTest {
 		Assert.assertEquals(1001.0f, summarize(-1000.0f, 0.0f, 1.0f, 50.0f, 999.0f, 1001.0f).getMax().floatValue(), 0.0f);
 		Assert.assertEquals(11.0f, summarize(1.0f, 8.0f, 7.0f, 6.0f, 9.0f, 10.0f, 2.0f, 3.0f, 5.0f, 0.0f, 11.0f, -2.0f, 3.0f).getMax().floatValue(), 0.0f);
 		Assert.assertEquals(11.0f, summarize(1.0f, 8.0f, 7.0f, 6.0f, 9.0f, null, 10.0f, 2.0f, 3.0f, 5.0f, null, 0.0f, 11.0f, -2.0f, 3.0f).getMax().floatValue(), 0.0f);
+		Assert.assertEquals(-2.0f, summarize(-8.0f, -7.0f, -6.0f, -9.0f, null, -10.0f, null, -2.0f).getMax().floatValue(), 0.0f);
 		Assert.assertNull(summarize().getMax());
 	}
 
