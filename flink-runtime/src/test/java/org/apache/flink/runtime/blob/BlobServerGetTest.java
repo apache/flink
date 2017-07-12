@@ -213,7 +213,11 @@ public class BlobServerGetTest extends TestLogger {
 					.supplyAsync(new Callable<File>() {
 					@Override
 					public File call() throws Exception {
-						return get(blobServer, jobId, blobKey, highAvailabibility);
+						File file = get(blobServer, jobId, blobKey, highAvailabibility);
+						try (InputStream is = new FileInputStream(file)) {
+							BlobClientTest.validateGet(is, data);
+						}
+						return file;
 					}
 				}, executor);
 
@@ -221,15 +225,7 @@ public class BlobServerGetTest extends TestLogger {
 			}
 
 			Future<Collection<File>> filesFuture = FutureUtils.combineAll(getOperations);
-
-			Collection<File> files = filesFuture.get();
-
-			// check that we have read the right data
-			for (File file : files) {
-				try (InputStream is = new FileInputStream(file)) {
-					BlobClientTest.validateGet(is, data);
-				}
-			}
+			filesFuture.get();
 
 			// verify that we downloaded the requested blob exactly once from the BlobStore
 			if (highAvailabibility) {

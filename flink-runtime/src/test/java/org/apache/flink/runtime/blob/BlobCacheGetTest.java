@@ -226,7 +226,12 @@ public class BlobCacheGetTest extends TestLogger {
 					.supplyAsync(new Callable<File>() {
 					@Override
 					public File call() throws Exception {
-						return get(cache, jobId, blobKey, highAvailabibility);
+						File file = get(cache, jobId, blobKey, highAvailabibility);
+						// check that we have read the right data
+						try (InputStream is = new FileInputStream(file)) {
+							BlobClientTest.validateGet(is, data);
+						}
+						return file;
 					}
 				}, executor);
 
@@ -234,15 +239,7 @@ public class BlobCacheGetTest extends TestLogger {
 			}
 
 			Future<Collection<File>> filesFuture = FutureUtils.combineAll(getOperations);
-
-			Collection<File> files = filesFuture.get();
-
-			// check that we have read the right data
-			for (File file : files) {
-				try (InputStream is = new FileInputStream(file)) {
-					BlobClientTest.validateGet(is, data);
-				}
-			}
+			filesFuture.get();
 
 			// TODO: verify that the file is written only once (concurrent access in PermanentBlobCache)
 			if (cacheAccessesHAStore) {
