@@ -202,7 +202,38 @@ val csvTableSource = CsvTableSource
 Provided TableSinks
 -------------------
 
-**TODO**
+### JDBCAppendSink
+
+<code>JDBCAppendSink</code> allows you to bridge the data stream to the JDBC driver. The sink only supports append-only data. It does not support retractions and upserts from Flink's perspectives. However, you can customize the query using <code>REPLACE</code> or <code>INSERT OVERWRITE</code> to implement upsert inside the database.
+
+To use the JDBC sink, you have to add the JDBC connector dependency (<code>flink-jdbc</code>) to your project. Then you can create the sink using <code>JDBCAppendSinkBuilder</code>:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
+  .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+  .setDBUrl("jdbc:derby:memory:ebookshop")
+  .setQuery("INSERT INTO books (id) VALUES (?)")
+  .setFieldTypes(new TypeInformation<?>[] {INT_TYPE_INFO})
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val sink = JDBCAppendTableSink.builder()
+  .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+  .setDBUrl("jdbc:derby:memory:ebookshop")
+  .setQuery("INSERT INTO books (id) VALUES (?)")
+  .setFieldTypes(Array(INT_TYPE_INFO))
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+Similar to using <code>JDBCOutputFormat</code>, you have to explicitly specify the name of the JDBC driver, the JDBC URL, the query to be executed, and the field types of the JDBC table. You can connect the sink with other <code>DataStream</code>s once the sink is constructed.
 
 {% top %}
 

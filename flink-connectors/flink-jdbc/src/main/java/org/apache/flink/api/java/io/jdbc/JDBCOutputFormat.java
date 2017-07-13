@@ -40,6 +40,7 @@ import java.sql.SQLException;
  */
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
+	static final int DEFAULT_BATCH_INTERVAL = 5000;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -48,7 +49,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private String drivername;
 	private String dbURL;
 	private String query;
-	private int batchInterval = 5000;
+	private int batchInterval = DEFAULT_BATCH_INTERVAL;
 
 	private Connection dbConn;
 	private PreparedStatement upload;

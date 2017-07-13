@@ -18,36 +18,41 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
 /**
  * An at-least-once Table sink for JDBC.
  */
-public class JDBCTableSink extends RichSinkFunction<Row>
-	implements AppendStreamTableSink<Row>, CheckpointedFunction {
-	private final JDBCOutputFormat outputFormat;
+public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTableSink<Row> {
+	private final JDBCSinkFunction sink;
 
 	private String[] fieldNames;
 	private TypeInformation[] fieldTypes;
 
-	public JDBCTableSink(JDBCOutputFormat outputFormat) {
-		this.outputFormat = outputFormat;
+	JDBCAppendTableSink(JDBCOutputFormat outputFormat) {
+		this.sink = new JDBCSinkFunction(outputFormat);
+	}
+
+	public static JDBCAppendTableSinkBuilder builder() {
+		return new JDBCAppendTableSinkBuilder();
 	}
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
-		dataStream.addSink(this);
+		dataStream.addSink(sink);
+	}
+
+	@Override
+	public void emitDataSet(DataSet<Row> dataSet) {
+		dataSet.output(sink.outputFormat);
 	}
 
 	@Override
@@ -67,36 +72,14 @@ public class JDBCTableSink extends RichSinkFunction<Row>
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		JDBCTableSink copy = new JDBCTableSink(outputFormat);
+		JDBCAppendTableSink copy = new JDBCAppendTableSink(sink.outputFormat);
 		copy.fieldNames = fieldNames;
 		copy.fieldTypes = fieldTypes;
 		return copy;
 	}
 
-	@Override
-	public void invoke(Row value) throws Exception {
-		outputFormat.writeRecord(value);
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		RuntimeContext ctx = getRuntimeContext();
-		outputFormat.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
-	}
-
-	@Override
-	public void close() throws Exception {
-		outputFormat.close();
-		super.close();
-	}
-
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		outputFormat.flush();
-	}
-
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
+	@VisibleForTesting
+	JDBCSinkFunction getSink() {
+		return sink;
 	}
 }
