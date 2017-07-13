@@ -191,43 +191,6 @@ public final class BlobClient implements Closeable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Downloads the (job-unrelated) BLOB identified by the given BLOB key from the BLOB server.
-	 *
-	 * @param blobKey
-	 * 		blob key associated with the requested file
-	 *
-	 * @return an input stream to read the retrieved data from
-	 *
-	 * @throws FileNotFoundException
-	 * 		if there is no such file;
-	 * @throws IOException
-	 * 		if an I/O error occurs during the download
-	 */
-	InputStream get(BlobKey blobKey) throws IOException {
-		return getInternal(null, blobKey);
-	}
-
-	/**
-	 * Downloads the BLOB identified by the given BLOB key from the BLOB server.
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 * @param blobKey
-	 * 		blob key associated with the requested file
-	 *
-	 * @return an input stream to read the retrieved data from
-	 *
-	 * @throws FileNotFoundException
-	 * 		if there is no such file;
-	 * @throws IOException
-	 * 		if an I/O error occurs during the download
-	 */
-	InputStream get(JobID jobId, BlobKey blobKey) throws IOException {
-		checkNotNull(jobId);
-		return getInternal(jobId, blobKey);
-	}
-
-	/**
 	 * Downloads the BLOB identified by the given BLOB key from the BLOB server.
 	 *
 	 * @param jobId
@@ -324,58 +287,6 @@ public final class BlobClient implements Closeable {
 	// --------------------------------------------------------------------------------------------
 	//  PUT
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Uploads the data of the given byte array for the given job to the BLOB server.
-	 *
-	 * @param jobId
-	 * 		the ID of the job the BLOB belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param value
-	 * 		the buffer to upload
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
-	 */
-	BlobKey put(@Nullable JobID jobId, byte[] value) throws IOException {
-		return putBuffer(jobId, value, 0, value.length);
-	}
-
-	/**
-	 * Uploads the (job-unrelated) data from the given input stream to the BLOB server.
-	 *
-	 * @param inputStream
-	 * 		the input stream to read the data from
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
-	 * 		data to the BLOB server
-	 */
-	BlobKey put(InputStream inputStream) throws IOException {
-		return putInputStream(null, inputStream);
-	}
-
-	/**
-	 * Uploads the data from the given input stream for the given job to the BLOB server.
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 * @param inputStream
-	 * 		the input stream to read the data from
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
-	 * 		data to the BLOB server
-	 */
-	BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
-		checkNotNull(jobId);
-		return putInputStream(jobId, inputStream);
-	}
 
 	/**
 	 * Uploads data from the given byte buffer to the BLOB server.
@@ -562,43 +473,6 @@ public final class BlobClient implements Closeable {
 	// --------------------------------------------------------------------------------------------
 	//  DELETE
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Deletes the (job-unrelated) BLOB identified by the given BLOB key from the BLOB server.
-	 *
-	 * @param key
-	 * 		the key to identify the BLOB
-	 *
-	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
-	 *          <tt>false</tt> otherwise
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if
-	 * 		the BLOB server throws an exception while processing the request
-	 */
-	boolean delete(BlobKey key) throws IOException {
-		return deleteInternal(null, key);
-	}
-
-	/**
-	 * Deletes the BLOB identified by the given BLOB key and job ID from the BLOB server.
-	 *
-	 * @param jobId
-	 * 		the ID of job the BLOB belongs to
-	 * @param key
-	 * 		the key to identify the BLOB
-	 *
-	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
-	 *          <tt>false</tt> otherwise
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if
-	 * 		the BLOB server throws an exception while processing the request
-	 */
-	boolean delete(JobID jobId, BlobKey key) throws IOException {
-		checkNotNull(jobId);
-		return deleteInternal(jobId, key);
-	}
 
 	/**
 	 * Deletes the BLOB identified by the given BLOB key and job ID from the BLOB server.
