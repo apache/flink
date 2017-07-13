@@ -92,6 +92,9 @@ public class KafkaConsumerThread extends Thread {
 	/** This lock is used to isolate the consumer for partition reassignment. */
 	private final Object consumerReassignmentLock;
 
+	/** Indication if this consumer has any assigned partition. */
+	private boolean hasAssignedPartitions;
+
 	/**
 	 * Flag to indicate whether an external operation ({@link #setOffsetsToCommit(Map)} or {@link #shutdown()})
 	 * had attempted to wakeup the consumer while it was isolated for partition reassignment.
@@ -151,6 +154,7 @@ public class KafkaConsumerThread extends Thread {
 		// including concurrent 'close()' calls.
 		try {
 			this.consumer = getConsumer(kafkaProperties);
+			this.hasAssignedPartitions = !consumer.assignment().isEmpty();
 		}
 		catch (Throwable t) {
 			handover.reportError(t);
@@ -210,11 +214,25 @@ public class KafkaConsumerThread extends Thread {
 				}
 
 				try {
-					newPartitions = unassignedPartitionsQueue.pollBatch();
+					if (hasAssignedPartitions) {
+						newPartitions = unassignedPartitionsQueue.pollBatch();
+					}
+					else {
+						// if no assigned partitions block until we get at least one
+						// instead of hot spinning this loop. We relay on a fact that
+						// unassignedPartitionsQueue will be closed on a shutdown, so
+						// we don't block indefinitely
+						newPartitions = unassignedPartitionsQueue.getBatchBlocking();
+					}
 					if (newPartitions != null) {
 						reassignPartitions(newPartitions);
 					}
 				} catch (AbortedReassignmentException e) {
+					continue;
+				}
+
+				if (!hasAssignedPartitions) {
+					// Without assigned partitions KafkaConsumer.poll will throw an exception
 					continue;
 				}
 
@@ -263,6 +281,9 @@ public class KafkaConsumerThread extends Thread {
 	 */
 	public void shutdown() {
 		running = false;
+
+		// wake up all blocking calls on the queue
+		unassignedPartitionsQueue.close();
 
 		// We cannot call close() on the KafkaConsumer, because it will actually throw
 		// an exception if a concurrent call is in progress
@@ -335,6 +356,9 @@ public class KafkaConsumerThread extends Thread {
 	 */
 	@VisibleForTesting
 	void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
+		if (newPartitions.size() > 0) {
+			hasAssignedPartitions = true;
+		}
 		boolean reassignmentStarted = false;
 
 		// since the reassignment may introduce several Kafka blocking calls that cannot be interrupted,

@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -744,17 +745,21 @@ public class KafkaConsumerThreadTest {
 			final OneShotLatch continueAssignmentLatch) {
 
 		final KafkaConsumer<byte[], byte[]> mockConsumer = mock(KafkaConsumer.class);
+		final AtomicInteger callCounter = new AtomicInteger();
+
 		when(mockConsumer.assignment()).thenAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				if (midAssignmentLatch != null) {
-					midAssignmentLatch.trigger();
-				}
+				// first call is not the one that we want to catch... we all love mocks, don't we?
+				if (callCounter.getAndIncrement() > 0) {
+					if (midAssignmentLatch != null) {
+						midAssignmentLatch.trigger();
+					}
 
-				if (continueAssignmentLatch != null) {
-					continueAssignmentLatch.await();
+					if (continueAssignmentLatch != null) {
+						continueAssignmentLatch.await();
+					}
 				}
-
 				return mockConsumerAssignmentAndPosition.keySet();
 			}
 		});
