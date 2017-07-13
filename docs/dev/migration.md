@@ -37,7 +37,7 @@ This would be relevant mostly for users implementing custom `TypeSerializer`s fo
 
 Since Flink 1.3, two additional methods have been added that are related to serializer compatibility
 across savepoint restores. Please see
-[Handling serializer upgrades and compatibility](../stream/state.html#handling-serializer-upgrades-and-compatibility)
+[Handling serializer upgrades and compatibility]({{ site.baseurl }}/dev/stream/state.html#handling-serializer-upgrades-and-compatibility)
 for further details on how to implement these methods.
 
 ### `ProcessFunction` is always a `RichFunction`
@@ -49,7 +49,7 @@ the lifecycle methods and runtime context.
 ### Flink CEP library API changes
 
 The CEP library in Flink 1.3 ships with a number of new features which have led to some changes in the API.
-Please visit the [CEP Migration docs](../libs/cep.html#migrating-from-an-older-flink-version) for details.
+Please visit the [CEP Migration docs]({{ site.baseurl }}/dev/libs/cep.html#migrating-from-an-older-flink-version) for details.
 
 ### Logger dependencies removed from Flink core artifacts
 
