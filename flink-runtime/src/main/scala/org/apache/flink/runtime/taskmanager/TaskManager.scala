@@ -256,7 +256,14 @@ class TaskManager(
     } catch {
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
-    
+
+    // failsafe shutdown of the metrics group
+    try {
+      taskManagerMetricGroup.close()
+    } catch {
+      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
+    }
+
     // failsafe shutdown of the metrics registry
     try {
       metricsRegistry.shutdown()
@@ -1065,13 +1072,6 @@ class TaskManager(
 
     if (network.getKvStateRegistry != null) {
       network.getKvStateRegistry.unregisterListener()
-    }
-    
-    // failsafe shutdown of the metrics registry
-    try {
-      taskManagerMetricGroup.close()
-    } catch {
-      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
     }
   }
 
@@ -1991,7 +1991,8 @@ object TaskManager {
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
       highAvailabilityServices,
-      metricRegistry)
+      metricRegistry,
+      taskManagerServices.getTaskManagerMetricGroup())
 
     metricRegistry.startQueryService(actorSystem, resourceID)
 
@@ -2010,7 +2011,8 @@ object TaskManager {
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
     highAvailabilityServices: HighAvailabilityServices,
-    metricsRegistry: FlinkMetricRegistry
+    metricsRegistry: FlinkMetricRegistry,
+    taskManagerMetricGroup: TaskManagerMetricGroup
   ): Props = {
     Props(
       taskManagerClass,
@@ -2022,7 +2024,8 @@ object TaskManager {
       networkEnvironment,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
-      metricsRegistry)
+      metricsRegistry,
+      taskManagerMetricGroup)
   }
 
   // --------------------------------------------------------------------------

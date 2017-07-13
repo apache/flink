@@ -101,7 +101,8 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getIOManager(),
 				taskManagerServices.getNetworkEnvironment(),
 				highAvailabilityServices,
-				tmRegistry);
+				tmRegistry,
+				taskManagerServices.getTaskManagerMetricGroup());
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 

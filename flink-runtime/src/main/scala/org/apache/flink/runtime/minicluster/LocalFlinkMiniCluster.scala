@@ -46,6 +46,7 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -252,7 +253,8 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
-      metricRegistry)
+      metricRegistry,
+      taskManagerServices.getTaskManagerMetricGroup)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
       metricRegistry.startQueryService(system, resourceID)
@@ -316,7 +318,8 @@ class LocalFlinkMiniCluster(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    metricsRegistry: MetricRegistry): Props = {
+    metricsRegistry: MetricRegistry,
+    taskManagerMetricGroup: TaskManagerMetricGroup): Props = {
 
     TaskManager.getTaskManagerProps(
       taskManagerClass,
@@ -327,7 +330,8 @@ class LocalFlinkMiniCluster(
       ioManager,
       networkEnvironment,
       highAvailabilityServices,
-      metricsRegistry)
+      metricsRegistry,
+      taskManagerMetricGroup)
   }
 
   def getResourceManagerProps(
