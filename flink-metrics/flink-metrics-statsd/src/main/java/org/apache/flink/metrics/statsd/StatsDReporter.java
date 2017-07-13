@@ -27,8 +27,10 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.reporter.AbstractReporterV2;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,20 +44,35 @@ import java.nio.charset.StandardCharsets;
 import java.util.ConcurrentModificationException;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Originially based on the StatsDReporter class by ReadyTalk.
+ * Originally based on the StatsDReporter class by ReadyTalk.
  *
  * <p>https://github.com/ReadyTalk/metrics-statsd/blob/master/metrics3-statsd/src/main/java/com/readytalk/metrics/StatsDReporter.java
  *
  * <p>Ported since it was not present in maven central.
  */
 @PublicEvolving
-public class StatsDReporter extends AbstractReporter implements Scheduled {
+public class StatsDReporter extends AbstractReporterV2<StatsDReporter.TaggedMetric> implements Scheduled {
+
+	class TaggedMetric {
+		private final String name;
+		private final String tags;
+		TaggedMetric(String name, String tags) {
+			this.name = name;
+			this.tags = tags;
+		}
+
+		String getName() {
+			return name;
+		}
+
+		String getTags() {
+			return tags;
+		}
+	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
 
@@ -72,10 +89,9 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	private boolean dogstatsdMode;
 	private boolean shortIds;
 
-	private final Map<Metric, String> tagTable = new ConcurrentHashMap<>();
-
 	private final Pattern instanceRef = Pattern.compile("@[a-f0-9]+");
 	private final Pattern flinkId = Pattern.compile("[a-f0-9]{32}");
+	private static final char SCOPE_SEPARATOR = '.';
 
 	@Override
 	public void open(MetricConfig config) {
@@ -116,36 +132,36 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		return str.substring(1, str.length() - 1);
 	}
 
-	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		if (dogstatsdMode) {
-			// memoize dogstatsd tag section: "|#tag:val,tag:val,tag:val"
-			StringBuilder statsdTagLine = new StringBuilder();
-			Map<String, String> orderedTags = new TreeMap<>(group.getAllVariables());
-			for (Map.Entry<String, String> entry: orderedTags.entrySet()) {
-				String k = stripBrackets(entry.getKey());
-				String v = filterCharacters(entry.getValue());
-				statsdTagLine.append(",").append(k).append(":").append(v);
-			}
-			if (statsdTagLine.length() > 0) {
-				// remove first comma, prefix with "|#"
-				tagTable.put(metric, "|#" + statsdTagLine.substring(1));
-
-				String name = metric.getClass().getSimpleName();
-				if (name.length() == 0) {
-					name = metric.toString();
-				}
-			}
-		}
-		super.notifyOfAddedMetric(metric, metricName, group);
+	@SuppressWarnings("unchecked")
+	private String getLogicalScope(MetricGroup group) {
+		return ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this, SCOPE_SEPARATOR);
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+	protected TaggedMetric getMetricInfo(Metric metric, String metricName, MetricGroup group) {
 		if (dogstatsdMode) {
-			tagTable.remove(metric);
+			String name = "flink" + SCOPE_SEPARATOR + getLogicalScope(group) + SCOPE_SEPARATOR + filterCharacters(metricName);
+
+			// memoize dogstatsd tag section: "|#tag:val,tag:val,tag:val"
+			StringBuilder statsdTagLine = new StringBuilder();
+			for (Map.Entry<String, String> entry: group.getAllVariables().entrySet()) {
+				String k = stripBrackets(entry.getKey());
+				String v = filterCharacters(entry.getValue());
+				if (statsdTagLine.length() == 0) {
+					// begin tag section with dogstatsd format |#
+					statsdTagLine.append("|#");
+				} else {
+					// separate multiple k:v with commas
+					statsdTagLine.append(',');
+				}
+				statsdTagLine.append(k).append(':').append(v);
+			}
+			return new TaggedMetric(name, statsdTagLine.toString());
+		} else {
+			// the simple case with one scoped name
+			String name = group.getMetricIdentifier(metricName, this);
+			return new TaggedMetric(name, null);
 		}
-		super.notifyOfRemovedMetric(metric, metricName, group);
 	}
 
 	@Override
@@ -154,25 +170,25 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		// we do this to prevent holding the lock for very long and blocking
 		// operator creation and shutdown
 		try {
-			for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
+			for (Map.Entry<Gauge<?>, TaggedMetric> entry : gauges.entrySet()) {
 				if (closed) {
 					return;
 				}
 				reportGauge(entry.getValue(), entry.getKey());
 			}
 
-			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
+			for (Map.Entry<Counter, TaggedMetric> entry : counters.entrySet()) {
 				if (closed) {
 					return;
 				}
 				reportCounter(entry.getValue(), entry.getKey());
 			}
 
-			for (Map.Entry<Histogram, String> entry : histograms.entrySet()) {
+			for (Map.Entry<Histogram, TaggedMetric> entry : histograms.entrySet()) {
 				reportHistogram(entry.getValue(), entry.getKey());
 			}
 
-			for (Map.Entry<Meter, String> entry : meters.entrySet()) {
+			for (Map.Entry<Meter, TaggedMetric> entry : meters.entrySet()) {
 				reportMeter(entry.getValue(), entry.getKey());
 			}
 		}
@@ -184,59 +200,56 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	// ------------------------------------------------------------------------
 
-	private void reportCounter(final String name, final Counter counter) {
-		send(name, String.valueOf(counter.getCount()), tagTable.get(counter));
+	private void reportCounter(final TaggedMetric metric, final Counter counter) {
+		send(metric.getName(), String.valueOf(counter.getCount()), metric.getTags());
 	}
 
-	private void reportGauge(final String name, final Gauge<?> gauge) {
+	private void reportGauge(final TaggedMetric metric, final Gauge<?> gauge) {
 		Object value = gauge.getValue();
 		if (value == null) {
 			return;
 		}
-		String tags = tagTable.get(gauge);
-		if (value instanceof Map) {
+		if (value instanceof Map && gauge.getClass().getSimpleName().equals("LatencyGauge")) {
 			// LatencyGauge is a Map<String, HashMap<String,Double>>
 			for (Object m: ((Map<?, ?>) value).values()) {
 				if (m instanceof Map) {
 					for (Map.Entry<?, ?> entry: ((Map<?, ?>) m).entrySet()) {
 						String k = String.valueOf(entry.getKey());
 						String v = String.valueOf(entry.getValue());
-						send(prefix(name, k), v, tags);
+						send(prefix(metric.getName(), k), v, metric.getTags());
 					}
 				}
 			}
 		} else {
-			send(name, value.toString(), tags);
+			send(metric.getName(), value.toString(), metric.getTags());
 		}
 	}
 
-	private void reportHistogram(final String name, final Histogram histogram) {
+	private void reportHistogram(final TaggedMetric metric, final Histogram histogram) {
 		if (histogram != null) {
 
 			HistogramStatistics statistics = histogram.getStatistics();
-			String tags = tagTable.get(histogram);
 
 			if (statistics != null) {
-				send(prefix(name, "count"), String.valueOf(histogram.getCount()), tags);
-				send(prefix(name, "max"), String.valueOf(statistics.getMax()), tags);
-				send(prefix(name, "min"), String.valueOf(statistics.getMin()), tags);
-				send(prefix(name, "mean"), String.valueOf(statistics.getMean()), tags);
-				send(prefix(name, "stddev"), String.valueOf(statistics.getStdDev()), tags);
-				send(prefix(name, "p50"), String.valueOf(statistics.getQuantile(0.5)), tags);
-				send(prefix(name, "p75"), String.valueOf(statistics.getQuantile(0.75)), tags);
-				send(prefix(name, "p95"), String.valueOf(statistics.getQuantile(0.95)), tags);
-				send(prefix(name, "p98"), String.valueOf(statistics.getQuantile(0.98)), tags);
-				send(prefix(name, "p99"), String.valueOf(statistics.getQuantile(0.99)), tags);
-				send(prefix(name, "p999"), String.valueOf(statistics.getQuantile(0.999)), tags);
+				send(prefix(metric.getName(), "count"), String.valueOf(histogram.getCount()), metric.getTags());
+				send(prefix(metric.getName(), "max"), String.valueOf(statistics.getMax()), metric.getTags());
+				send(prefix(metric.getName(), "min"), String.valueOf(statistics.getMin()), metric.getTags());
+				send(prefix(metric.getName(), "mean"), String.valueOf(statistics.getMean()), metric.getTags());
+				send(prefix(metric.getName(), "stddev"), String.valueOf(statistics.getStdDev()), metric.getTags());
+				send(prefix(metric.getName(), "p50"), String.valueOf(statistics.getQuantile(0.5)), metric.getTags());
+				send(prefix(metric.getName(), "p75"), String.valueOf(statistics.getQuantile(0.75)), metric.getTags());
+				send(prefix(metric.getName(), "p95"), String.valueOf(statistics.getQuantile(0.95)), metric.getTags());
+				send(prefix(metric.getName(), "p98"), String.valueOf(statistics.getQuantile(0.98)), metric.getTags());
+				send(prefix(metric.getName(), "p99"), String.valueOf(statistics.getQuantile(0.99)), metric.getTags());
+				send(prefix(metric.getName(), "p999"), String.valueOf(statistics.getQuantile(0.999)), metric.getTags());
 			}
 		}
 	}
 
-	private void reportMeter(final String name, final Meter meter) {
+	private void reportMeter(final TaggedMetric metric, final Meter meter) {
 		if (meter != null) {
-			String tags = tagTable.get(meter);
-			send(prefix(name, "rate"), String.valueOf(meter.getRate()), tags);
-			send(prefix(name, "count"), String.valueOf(meter.getCount()), tags);
+			send(prefix(metric.getName(), "rate"), String.valueOf(meter.getRate()), metric.getTags());
+			send(prefix(metric.getName(), "count"), String.valueOf(meter.getCount()), metric.getTags());
 		}
 	}
 
@@ -245,7 +258,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 			StringBuilder stringBuilder = new StringBuilder(names[0]);
 
 			for (int i = 1; i < names.length; i++) {
-				stringBuilder.append('.').append(names[i]);
+				stringBuilder.append(SCOPE_SEPARATOR).append(names[i]);
 			}
 
 			return stringBuilder.toString();

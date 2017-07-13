@@ -450,8 +450,10 @@ In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.ve
 of your Flink distribution.
 
 In `dogstatsd` mode, all variables in Flink metrics such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`,
-`<operator_name>` and others, will be included as tags.  It is recommended to define scopes for this reporter such that no
-variables are included in the name itself, as they will be provided in tags (see below for example.)
+`<operator_name>` and others, will be included as tags.  The domain always begins with `flink` followed by a generalized metric
+identifier. In contrast to the usual identifier it is not affected by scope-formats, does not contain any variables and is
+constant across jobs. An example for such a domain would be `flink.job.task.numBytesOut`.
+
 
 In `shortids` mode, Flink variables like `<tm_id>`, `<task_id>`, `<job_id>`, `<task_attempt_id>` will print only the first
 8 hex characters of the 32 hex character value.  This is to provide good enough distinction and identification, while
@@ -488,13 +490,6 @@ metrics.reporter.stsd.port: 8125
 {% highlight yaml %}
 
 // in dogstatsd mode, all scope variables will be provided in tags:
-metrics.scope.jm: flink.jobmanager
-metrics.scope.jm.job: flink.jobmanager.job
-metrics.scope.tm: flink.taskmanager
-metrics.scope.tm.job: flink.taskmanager.job
-metrics.scope.task: flink.taskmanager.task
-metrics.scope.operator: flink.taskmanager.operator
-
 metrics.reporters: stsd
 metrics.reporter.stsd.class: org.apache.flink.metrics.statsd.StatsDReporter
 metrics.reporter.stsd.host: localhost

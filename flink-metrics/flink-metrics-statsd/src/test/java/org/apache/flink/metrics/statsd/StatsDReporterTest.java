@@ -39,8 +39,6 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
-import com.google.common.base.Joiner;
-
 import org.junit.Test;
 
 import java.io.IOException;
@@ -53,7 +51,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
@@ -142,7 +139,7 @@ public class StatsDReporterTest extends TestLogger {
 
 		TestingStatsDReporter reporter = (TestingStatsDReporter) metricReporter;
 
-		Map<Counter, String> counters = reporter.getCounters();
+		Map<Counter, StatsDReporter.TaggedMetric> counters = reporter.getCounters();
 
 		assertTrue(counters.containsKey(myCounter));
 
@@ -154,7 +151,7 @@ public class StatsDReporterTest extends TestLogger {
 			+ delimiter
 			+ reporter.filterCharacters(counterName);
 
-		assertEquals(expectedCounterName, counters.get(myCounter));
+		assertEquals(expectedCounterName, counters.get(myCounter).getName());
 
 		metricRegistry.shutdown();
 	}
@@ -302,7 +299,7 @@ public class StatsDReporterTest extends TestLogger {
 			receiver.waitUntilNumLines(22, timeout);
 			Set<String> lines = receiver.getLines();
 
-			Map<String, String> expectedTags = new TreeMap<>();
+			Map<String, String> expectedTags = new HashMap<>();
 			expectedTags.put("host", "hostName");
 			expectedTags.put("job_id", jobID.toString().substring(0, 8));
 			expectedTags.put("job_name", "jobName");
@@ -314,12 +311,20 @@ public class StatsDReporterTest extends TestLogger {
 			expectedTags.put("task_name", "taskName");
 			expectedTags.put("tm_id", "taskManagerId");
 
-			Joiner.MapJoiner joiner = Joiner.on(",").withKeyValueSeparator(":");
+			String expectedName = "flink.taskmanager.job.task.operator.sample";
 
-			Set<String> expectedLines = new HashSet<>();
-			expectedLines.add(String.format("%s:1.23|g|#%s", omg.getMetricIdentifier("sample"), joiner.join(expectedTags)));
-
-			assertTrue(lines.containsAll(expectedLines));
+			Boolean gotName = false;
+			for (String line : lines) {
+				if (line.startsWith(expectedName + ':')) {
+					gotName = true;
+					for (Map.Entry<String, String> tag: expectedTags.entrySet()) {
+						String tagLine = tag.getKey() + ':' + tag.getValue();
+						assertTrue("expecting to find " + tagLine + " in " + line, line.contains(tagLine));
+					}
+					break;
+				}
+			}
+			assertTrue("expecting to find " + expectedName, gotName);
 
 		} finally {
 			if (registry != null) {
@@ -370,7 +375,7 @@ public class StatsDReporterTest extends TestLogger {
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
-			TestingLatencyGauge latency = new TestingLatencyGauge();
+			LatencyGauge latency = new LatencyGauge();
 
 			metricGroup.gauge(latencyName, latency);
 
@@ -551,7 +556,7 @@ public class StatsDReporterTest extends TestLogger {
 			// disable the socket creation
 		}
 
-		public Map<Counter, String> getCounters() {
+		public Map<Counter, TaggedMetric> getCounters() {
 			return counters;
 		}
 	}
@@ -560,7 +565,7 @@ public class StatsDReporterTest extends TestLogger {
 	 * Imitate a LatencyGauge.
 	 * eg: {LatencySourceDescriptor{vertexID=1, subtaskIndex=-1}={p99=79.0, p50=79.0, min=79.0, max=79.0, p95=79.0, mean=79.0}}
 	 */
-	public static class TestingLatencyGauge implements Gauge<Map<String, HashMap<String, Double>>> {
+	public static class LatencyGauge implements Gauge<Map<String, HashMap<String, Double>>> {
 		@Override
 		public Map<String, HashMap<String, Double>> getValue() {
 			Map<String, HashMap<String, Double>> ret = new HashMap<>();
