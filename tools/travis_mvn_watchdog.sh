@@ -172,7 +172,7 @@ check_shaded_artifacts() {
 		echo "=============================================================================="
 		echo "Detected $ASM asm dependencies in fat jar"
 		echo "=============================================================================="
-		exit 1
+		return 1
 	fi
 	 
 	GUAVA=`cat allClasses | grep '^com/google/common' | wc -l`
@@ -180,7 +180,7 @@ check_shaded_artifacts() {
 		echo "=============================================================================="
 		echo "Detected $GUAVA guava dependencies in fat jar"
 		echo "=============================================================================="
-		exit 1
+		return 1
 	fi
 
 	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
@@ -188,8 +188,9 @@ check_shaded_artifacts() {
 		echo "=============================================================================="
 		echo "Missing snappy dependencies in fat jar"
 		echo "=============================================================================="
-		exit 1
+		return 1
 	fi
+	return 0
 }
 
 # =============================================================================
@@ -225,9 +226,16 @@ echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 rm $MVN_PID
 rm $MVN_EXIT
 
-check_shaded_artifacts
-
 put_yarn_logs_to_artifacts
+
+if [ $EXIT_CODE == 0 ]; then
+	check_shaded_artifacts
+	EXIT_CODE=$?
+else
+	echo "=============================================================================="
+	echo "Compilation/test failure detected, skipping shaded dependency check."
+	echo "=============================================================================="
+fi
 
 upload_artifacts_s3
 
