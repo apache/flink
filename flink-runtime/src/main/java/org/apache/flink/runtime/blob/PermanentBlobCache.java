@@ -323,7 +323,8 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	 * 		if creating the directory fails
 	 */
 	@VisibleForTesting
-	public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
+	public File getStorageLocation(JobID jobId, BlobKey key) throws IOException {
+		checkNotNull(jobId);
 		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 

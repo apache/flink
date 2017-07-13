@@ -32,6 +32,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -98,8 +99,9 @@ public class BlobServerGetTest extends TestLogger {
 	 * @param jobId1 first job ID or <tt>null</tt> if job-unrelated
 	 * @param jobId2 second job ID different to <tt>jobId1</tt>
 	 */
-	private void testGetFailsDuringLookup(final JobID jobId1, final JobID jobId2, boolean highAvailabibility)
-		throws IOException {
+	private void testGetFailsDuringLookup(
+			@Nullable final JobID jobId1, @Nullable final JobID jobId2, boolean highAvailabibility)
+			throws IOException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
@@ -136,37 +138,32 @@ public class BlobServerGetTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * FLINK-6020
-	 *
-	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
-	 */
 	@Test
 	public void testConcurrentGetOperationsNoJob() throws IOException, ExecutionException, InterruptedException {
 		testConcurrentGetOperations(null, false);
 	}
 
-	/**
-	 * FLINK-6020
-	 *
-	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
-	 */
 	@Test
 	public void testConcurrentGetOperationsForJob() throws IOException, ExecutionException, InterruptedException {
 		testConcurrentGetOperations(new JobID(), false);
 	}
 
-	/**
-	 * FLINK-6020
-	 *
-	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
-	 */
 	@Test
 	public void testConcurrentGetOperationsForJobHa() throws IOException, ExecutionException, InterruptedException {
 		testConcurrentGetOperations(new JobID(), true);
 	}
 
-	private void testConcurrentGetOperations(final JobID jobId, final boolean highAvailabibility)
+	/**
+	 * [FLINK-6020] Tests that concurrent get operations don't concurrently access the BlobStore to
+	 * download a blob.
+	 *
+	 * @param jobId
+	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
+	 * @param highAvailability
+	 * 		whether to use permanent (<tt>true</tt>) or transient BLOBs (<tt>false</tt>)
+	 */
+	private void testConcurrentGetOperations(
+			@Nullable final JobID jobId, final boolean highAvailability)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -200,10 +197,10 @@ public class BlobServerGetTest extends TestLogger {
 
 		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
 			// upload data first
-			assertEquals(blobKey, put(blobServer, jobId, data, highAvailabibility));
+			assertEquals(blobKey, put(blobServer, jobId, data, highAvailability));
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
-			if (highAvailabibility) {
+			if (highAvailability) {
 				// remove local copy so that a transfer from HA store takes place
 				assertTrue(blobServer.getStorageLocation(jobId, blobKey).delete());
 			}
@@ -212,7 +209,8 @@ public class BlobServerGetTest extends TestLogger {
 					.supplyAsync(new Callable<File>() {
 					@Override
 					public File call() throws Exception {
-						File file = get(blobServer, jobId, blobKey, highAvailabibility);
+						File file = get(blobServer, jobId, blobKey, highAvailability);
+						// check that we have read the right data
 						try (InputStream is = new FileInputStream(file)) {
 							BlobClientTest.validateGet(is, data);
 						}
@@ -227,7 +225,7 @@ public class BlobServerGetTest extends TestLogger {
 			filesFuture.get();
 
 			// TODO: verify that we stored the requested blob exactly once to the local BlobStore folder
-			if (highAvailabibility) {
+			if (highAvailability) {
 				// download could be up to numberConcurrentGetOperations times:
 //				verify(blobStore, times(1)).get(eq(jobId), eq(blobKey), any(File.class));
 			} else {
@@ -240,19 +238,38 @@ public class BlobServerGetTest extends TestLogger {
 		}
 	}
 
-	static File get(BlobService blobService, JobID jobId, BlobKey blobKey, boolean highAvailability)
-		throws IOException {
+	/**
+	 * Retrieves the given blob.
+	 * <p>
+	 * Note that if a {@link BlobCache} is used, it may try to access the {@link BlobServer} to
+	 * retrieve the blob.
+	 *
+	 * @param service
+	 * 		BLOB client to use for connecting to the BLOB service
+	 * @param jobId
+	 * 		job ID or <tt>null</tt> if job-unrelated
+	 * @param key
+	 * 		key identifying the BLOB to request
+	 * @param highAvailability
+	 * 		whether to check HA mode accessors
+	 */
+	static File get(
+			BlobService service, @Nullable JobID jobId, BlobKey key, boolean highAvailability)
+			throws IOException {
 		if (highAvailability) {
-			return blobService.getPermanentBlobStore().getHAFile(jobId, blobKey);
+			return service.getPermanentBlobStore().getHAFile(jobId, key);
 		} else if (jobId == null) {
-			return blobService.getTransientBlobStore().getFile(blobKey);
+			return service.getTransientBlobStore().getFile(key);
 		} else {
-			return blobService.getTransientBlobStore().getFile(jobId, blobKey);
+			return service.getTransientBlobStore().getFile(jobId, key);
 		}
 	}
 
 	/**
-	 * Checks that the given blob does not exist anymore.
+	 * Checks that the given blob does not exist anymore by trying to access it.
+	 * <p>
+	 * Note that if a {@link BlobCache} is used, it may try to access the {@link BlobServer} to
+	 * retrieve the blob.
 	 *
 	 * @param service
 	 * 		BLOB client to use for connecting to the BLOB service
@@ -264,7 +281,7 @@ public class BlobServerGetTest extends TestLogger {
 	 * 		whether to check HA mode accessors
 	 */
 	static void verifyDeleted(
-			BlobService service, JobID jobId, BlobKey key, boolean highAvailability)
+			BlobService service, @Nullable JobID jobId, BlobKey key, boolean highAvailability)
 			throws IOException {
 		try {
 			get(service, jobId, key, highAvailability);

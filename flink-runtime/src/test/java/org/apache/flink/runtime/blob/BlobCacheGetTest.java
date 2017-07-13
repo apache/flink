@@ -161,37 +161,33 @@ public class BlobCacheGetTest extends TestLogger {
 		testConcurrentGetOperations(null, false, false);
 	}
 
-	/**
-	 * FLINK-6020
-	 *
-	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
-	 */
 	@Test
 	public void testConcurrentGetOperationsForJob() throws IOException, ExecutionException, InterruptedException {
 		testConcurrentGetOperations(new JobID(), false, false);
 	}
 
-	/**
-	 * FLINK-6020
-	 *
-	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
-	 */
 	@Test
 	public void testConcurrentGetOperationsForJobHa() throws IOException, ExecutionException, InterruptedException {
 		testConcurrentGetOperations(new JobID(), true, false);
 	}
 
-	/**
-	 * FLINK-6020
-	 *
-	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
-	 */
 	@Test
 	public void testConcurrentGetOperationsForJobHa2() throws IOException, ExecutionException, InterruptedException {
 		testConcurrentGetOperations(new JobID(), true, true);
 	}
 
-	private void testConcurrentGetOperations(final JobID jobId, final boolean highAvailabibility,
+	/**
+	 * [FLINK-6020] Tests that concurrent get operations don't concurrently access the BlobStore to
+	 * download a blob.
+	 *
+	 * @param jobId
+	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
+	 * @param highAvailability
+	 * 		whether to use permanent (<tt>true</tt>) or transient BLOBs (<tt>false</tt>)
+	 * @param cacheAccessesHAStore
+	 * 		whether the cache has access to the {@link BlobServer}'s HA store or not
+	 */
+	private void testConcurrentGetOperations(final JobID jobId, final boolean highAvailability,
 			final boolean cacheAccessesHAStore)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
@@ -218,7 +214,7 @@ public class BlobCacheGetTest extends TestLogger {
 				config, cacheAccessesHAStore ? blobStoreServer : blobStoreCache)) {
 
 			// upload data first
-			assertEquals(blobKey, put(server, jobId, data, highAvailabibility));
+			assertEquals(blobKey, put(server, jobId, data, highAvailability));
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
@@ -226,7 +222,7 @@ public class BlobCacheGetTest extends TestLogger {
 					.supplyAsync(new Callable<File>() {
 					@Override
 					public File call() throws Exception {
-						File file = get(cache, jobId, blobKey, highAvailabibility);
+						File file = get(cache, jobId, blobKey, highAvailability);
 						// check that we have read the right data
 						try (InputStream is = new FileInputStream(file)) {
 							BlobClientTest.validateGet(is, data);

@@ -31,15 +31,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -97,7 +97,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 			BlobServer server0 = new BlobServer(config, blobStore);
 			BlobServer server1 = new BlobServer(config, blobStore);
 			// use VoidBlobStore as the HA store to force download from server[1]'s HA store
-			PermanentBlobCache cache1 = new PermanentBlobCache(
+			BlobCache cache1 = new BlobCache(
 				new InetSocketAddress("localhost", server1.getPort()), config,
 				new VoidBlobStore())) {
 
@@ -107,30 +107,28 @@ public class BlobServerRecoveryTest extends TestLogger {
 			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
 
 			BlobKey[] keys = new BlobKey[2];
+			BlobKey nonHAKey;
 
 			// Put job-related HA data
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
 			keys[0] = server0.putHA(jobId[0], expected); // Request 1
 			keys[1] = server0.putHA(jobId[1], expected2); // Request 2
 
+			// put non-HA data
+			nonHAKey = server0.put(jobId[0], expected2);
+			assertEquals(keys[1], nonHAKey);
+
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
 			FileSystem fs = blobServerPath.getFileSystem();
 			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
 
-			// Verify request 1 from cache1/server1 with no immediate access to the file
-			try (InputStream is = new FileInputStream(cache1.getHAFile(jobId[0], keys[0]))) {
-				byte[] actual = new byte[expected.length];
-				BlobUtils.readFully(is, actual, 0, expected.length, null);
-				assertArrayEquals(expected, actual);
-			}
+			// Verify HA requests from cache1 (connected to server1) with no immediate access to the file
+			verifyContents(cache1, jobId[0], keys[0], expected, true);
+			verifyContents(cache1, jobId[1], keys[1], expected2, true);
 
-			// Verify request 2 from cache1/server1 with no immediate access to the file
-			try (InputStream is = new FileInputStream(cache1.getHAFile(jobId[1], keys[1]))) {
-				byte[] actual = new byte[expected2.length];
-				BlobUtils.readFully(is, actual, 0, expected2.length, null);
-				assertArrayEquals(expected2, actual);
-			}
+			// Verify non-HA file is not accessible from server1
+			verifyDeleted(cache1, jobId[0], nonHAKey, true);
 
 			// Remove again
 			server1.cleanupJob(jobId[0]);
@@ -141,7 +139,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 			if (fs.exists(blobServerPath)) {
 				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
 					fs.listStatus(blobServerPath);
-				ArrayList<String> filenames = new ArrayList<String>(recoveryFiles.length);
+				ArrayList<String> filenames = new ArrayList<>(recoveryFiles.length);
 				for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
 					filenames.add(file.toString());
 				}
