@@ -611,6 +611,7 @@ public class NFA<T> implements Serializable {
 
 	private State<T> findFinalStateAfterProceed(State<T> state, T event, ComputationState<T> computationState) {
 		final Stack<State<T>> statesToCheck = new Stack<>();
+		// skip greedy state
 		if (!state.isGreedy()) {
 			statesToCheck.push(state);
 		}
@@ -624,6 +625,7 @@ public class NFA<T> implements Serializable {
 						if (transition.getTargetState().isFinal()) {
 							return transition.getTargetState();
 						} else {
+							// skip greedy state
 							if (!transition.getTargetState().isGreedy()) {
 								statesToCheck.push(transition.getTargetState());
 							}
@@ -662,7 +664,8 @@ public class NFA<T> implements Serializable {
 							case PROCEED:
 								// simply advance the computation state, but apply the current event to it
 								// PROCEED is equivalent to an epsilon transition
-								if (stateTransition.getTargetState().isFinal() && stateTransition.getSourceState().isGreedy()) {
+								if (stateTransition.getTargetState().isFinal() &&
+										stateTransition.getSourceState().isGreedy()) {
 									outgoingEdges.add(stateTransition);
 								} else {
 									states.push(stateTransition.getTargetState());
