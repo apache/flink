@@ -37,11 +37,13 @@ public class VoidBlobStore implements BlobStoreService {
 	}
 
 	@Override
-	public void delete(JobID jobId, BlobKey blobKey) {
+	public boolean delete(JobID jobId, BlobKey blobKey) {
+		return true;
 	}
 
 	@Override
-	public void deleteAll(JobID jobId) {
+	public boolean deleteAll(JobID jobId) {
+		return true;
 	}
 
 	@Override

@@ -691,11 +691,12 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @param key
 	 * 		blob key associated with the file to be deleted
 	 *
-	 * @throws IOException
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
 	@Override
-	public void delete(BlobKey key) throws IOException {
-		deleteInternal(null, key);
+	public boolean delete(BlobKey key) {
+		return deleteInternal(null, key);
 	}
 
 	/**
@@ -706,12 +707,13 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @param key
 	 * 		blob key associated with the file to be deleted
 	 *
-	 * @throws IOException
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
 	@Override
-	public void delete(JobID jobId, BlobKey key) throws IOException {
+	public boolean delete(JobID jobId, BlobKey key) {
 		checkNotNull(jobId);
-		deleteInternal(jobId, key);
+		return deleteInternal(jobId, key);
 	}
 
 	/**
@@ -722,17 +724,21 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @param key
 	 * 		blob key associated with the file to be deleted
 	 *
-	 * @throws IOException
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
-		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+	boolean deleteInternal(@Nullable JobID jobId, BlobKey key) {
+		final File localFile =
+			new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 
 		readWriteLock.writeLock().lock();
 
 		try {
 			if (!localFile.delete() && localFile.exists()) {
 				LOG.warn("Failed to locally delete BLOB " + key + " at " + localFile.getAbsolutePath());
+				return false;
 			}
+			return true;
 		} finally {
 			readWriteLock.writeLock().unlock();
 		}
@@ -743,8 +749,11 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
+	 *
+	 * @return  <tt>true</tt> if the job directory is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	public void cleanupJob(JobID jobId) {
+	public boolean cleanupJob(JobID jobId) {
 		checkNotNull(jobId);
 
 		final File jobDir =
@@ -754,15 +763,19 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 
 		try {
 			// delete locally
+			boolean deletedLocally = false;
 			try {
 				FileUtils.deleteDirectory(jobDir);
+				deletedLocally = true;
 			} catch (IOException e) {
 				LOG.warn("Failed to locally delete BLOB storage directory at " +
 					jobDir.getAbsolutePath(), e);
 			}
 
 			// delete in HA store
-			blobStore.deleteAll(jobId);
+			boolean deletedHA = blobStore.deleteAll(jobId);
+
+			return deletedLocally && deletedHA;
 		} finally {
 			readWriteLock.writeLock().unlock();
 		}

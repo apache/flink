@@ -569,12 +569,15 @@ public final class BlobClient implements Closeable {
 	 * @param key
 	 * 		the key to identify the BLOB
 	 *
+	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
+	 *          <tt>false</tt> otherwise
+	 *
 	 * @throws IOException
-	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
-	 * 		BLOB server cannot delete the file
+	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if
+	 * 		the BLOB server throws an exception while processing the request
 	 */
-	void delete(BlobKey key) throws IOException {
-		deleteInternal(null, key);
+	boolean delete(BlobKey key) throws IOException {
+		return deleteInternal(null, key);
 	}
 
 	/**
@@ -585,13 +588,16 @@ public final class BlobClient implements Closeable {
 	 * @param key
 	 * 		the key to identify the BLOB
 	 *
+	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
+	 *          <tt>false</tt> otherwise
+	 *
 	 * @throws IOException
-	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
-	 * 		BLOB server cannot delete the file
+	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if
+	 * 		the BLOB server throws an exception while processing the request
 	 */
-	void delete(JobID jobId, BlobKey key) throws IOException {
+	boolean delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
-		deleteInternal(jobId, key);
+		return deleteInternal(jobId, key);
 	}
 
 	/**
@@ -602,11 +608,14 @@ public final class BlobClient implements Closeable {
 	 * @param key
 	 * 		the key to identify the BLOB
 	 *
+	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
+	 *          <tt>false</tt> otherwise
+	 *
 	 * @throws IOException
-	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
-	 * 		BLOB server cannot delete the file
+	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if
+	 * 		the BLOB server throws an exception while processing the request
 	 */
-	void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
+	boolean deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(key);
 
 		try {
@@ -625,13 +634,43 @@ public final class BlobClient implements Closeable {
 			}
 			key.writeToOutputStream(outputStream);
 
-			// the response is the same as for a GET request
-			receiveAndCheckGetResponse(inputStream);
+			return receiveAndCheckDeleteResponse(inputStream);
 		}
 		catch (Throwable t) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("DELETE operation failed: " + t.getMessage(), t);
 		}
+	}
+
+	/**
+	 * Reads the response from the input stream and throws in case of errors
+	 *
+	 * @param is
+	 * 		stream to read from
+	 *
+	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
+	 *          <tt>false</tt> otherwise
+	 *
+	 * @throws IOException
+	 * 		if the server code throws an exception or if reading the response failed
+	 */
+	private static boolean receiveAndCheckDeleteResponse(InputStream is) throws IOException {
+		int response = is.read();
+		if (response < 0) {
+			throw new EOFException("Premature end of response");
+		}
+		if (response == RETURN_ERROR) {
+			Throwable cause = readExceptionFromStream(is);
+			if (cause == null) {
+				return false;
+			} else {
+				throw new IOException("Server side error: " + cause.getMessage(), cause);
+			}
+		}
+		else if (response != RETURN_OKAY) {
+			throw new IOException("Unrecognized response");
+		}
+		return true;
 	}
 
 	/**

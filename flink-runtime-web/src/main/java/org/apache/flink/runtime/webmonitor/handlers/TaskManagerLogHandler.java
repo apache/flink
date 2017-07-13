@@ -219,11 +219,9 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!blobKey.equals(lastSubmittedFile.get(taskManagerID))) {
-									try {
-										blobCache.delete(lastSubmittedFile.get(taskManagerID));
-									} catch (IOException e) {
+									if (!blobCache.delete(lastSubmittedFile.get(taskManagerID))) {
 										return FlinkCompletableFuture.completedExceptionally(
-											new Exception("Could not delete file for " + taskManagerID + '.', e));
+											new Exception("Could not delete file for " + taskManagerID + '.'));
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);
 								}

@@ -150,10 +150,10 @@ public interface TransientBlobService extends Closeable {
 	 * @param key
 	 * 		associated with the file to be deleted
 	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while deleting the data from the BLOB server
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	void delete(BlobKey key) throws IOException;
+	boolean delete(BlobKey key);
 
 	/**
 	 * Deletes the file associated with the provided job ID and blob key.
@@ -163,9 +163,9 @@ public interface TransientBlobService extends Closeable {
 	 * @param key
 	 * 		associated with the file to be deleted
 	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while deleting the data from the BLOB server
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	void delete(JobID jobId, BlobKey key) throws IOException;
+	boolean delete(JobID jobId, BlobKey key);
 
 }

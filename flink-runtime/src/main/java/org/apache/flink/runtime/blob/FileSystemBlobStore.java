@@ -112,22 +112,22 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Delete ---------------------------------------------------------------
 
 	@Override
-	public void delete(JobID jobId, BlobKey blobKey) {
-		delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
+	public boolean delete(JobID jobId, BlobKey blobKey) {
+		return delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
 	@Override
-	public void deleteAll(JobID jobId) {
-		delete(BlobUtils.getStorageLocationPath(basePath, jobId));
+	public boolean deleteAll(JobID jobId) {
+		return delete(BlobUtils.getStorageLocationPath(basePath, jobId));
 	}
 
-	private void delete(String blobPath) {
+	private boolean delete(String blobPath) {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
 			
 			Path path = new Path(blobPath);
 
-			fileSystem.delete(path, true);
+			boolean result = fileSystem.delete(path, true);
 
 			// send a call to delete the directory containing the file. This will
 			// fail (and be ignored) when some files still exist.
@@ -135,9 +135,11 @@ public class FileSystemBlobStore implements BlobStoreService {
 				fileSystem.delete(path.getParent(), false);
 				fileSystem.delete(new Path(basePath), false);
 			} catch (IOException ignored) {}
+			return result;
 		}
 		catch (Exception e) {
 			LOG.warn("Failed to delete blob at " + blobPath);
+			return false;
 		}
 	}
 

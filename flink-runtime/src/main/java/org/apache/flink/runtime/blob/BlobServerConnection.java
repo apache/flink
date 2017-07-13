@@ -413,9 +413,12 @@ class BlobServerConnection extends Thread {
 			}
 			BlobKey key = BlobKey.readFromInputStream(inputStream);
 
-			blobServer.deleteInternal(jobId, key);
-
-			outputStream.write(RETURN_OKAY);
+			if (!blobServer.deleteInternal(jobId, key)) {
+				LOG.error("DELETE operation failed");
+				writeErrorToStream(outputStream, null);
+			} else {
+				outputStream.write(RETURN_OKAY);
+			}
 		}
 		catch (Throwable t) {
 			LOG.error("DELETE operation failed", t);

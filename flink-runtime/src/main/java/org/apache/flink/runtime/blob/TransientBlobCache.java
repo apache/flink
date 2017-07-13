@@ -203,14 +203,14 @@ public class TransientBlobCache implements TransientBlobService {
 	}
 
 	@Override
-	public void delete(BlobKey key) throws IOException {
-		deleteInternal(null, key);
+	public boolean delete(BlobKey key) {
+		return deleteInternal(null, key);
 	}
 
 	@Override
-	public void delete(JobID jobId, BlobKey key) throws IOException {
+	public boolean delete(JobID jobId, BlobKey key) {
 		checkNotNull(jobId);
-		deleteInternal(jobId, key);
+		return deleteInternal(jobId, key);
 	}
 
 	/**
@@ -221,28 +221,36 @@ public class TransientBlobCache implements TransientBlobService {
 	 * @param key
 	 * 		blob key associated with the file to be deleted
 	 *
-	 * @throws IOException
+	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
+	 *          <tt>false</tt> otherwise
 	 */
-	private void deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
+	private boolean deleteInternal(@Nullable JobID jobId, BlobKey key) {
 
 		// delete locally
-		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+		final File localFile =
+			new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 
 		readWriteLock.writeLock().lock();
 
+		boolean deleteLocal = true;
 		try {
 			if (!localFile.delete() && localFile.exists()) {
 				LOG.warn("Failed to delete locally cached BLOB {} at {}", key,
 					localFile.getAbsolutePath());
+				deleteLocal = false;
 			}
 		} finally {
 			readWriteLock.writeLock().unlock();
 		}
 
 		// then delete on the BLOB server
+		boolean deletedGlobal;
 		try (BlobClient bc = createClient()) {
-			bc.deleteInternal(jobId, key);
+			deletedGlobal = bc.deleteInternal(jobId, key);
+		} catch (Throwable t) {
+			deletedGlobal = false;
 		}
+		return deleteLocal && deletedGlobal;
 	}
 
 	public File getStorageDir() {
