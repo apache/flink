@@ -26,15 +26,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
 
 /**
  * This class contains unit tests for the {@link BlobCache}.
@@ -77,17 +75,14 @@ public class BlobCacheSuccessTest {
 	 */
 	@Test
 	public void testBlobForJobCacheHa() throws IOException {
-		testBlobCacheHa(new JobID());
-	}
-
-	private void testBlobCacheHa(final JobID jobId) throws IOException {
 		Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getPath());
-		uploadFileGetTest(config, jobId, true, true, true);
+
+		uploadFileGetTest(config, new JobID(), true, true, true);
 	}
 
 	/**
@@ -96,116 +91,66 @@ public class BlobCacheSuccessTest {
 	 */
 	@Test
 	public void testBlobForJobCacheHaFallback() throws IOException {
-		testBlobCacheHaFallback(new JobID());
-	}
-
-	private void testBlobCacheHaFallback(final JobID jobId) throws IOException {
 		Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getPath());
-		uploadFileGetTest(config, jobId, false, false, true);
+
+		uploadFileGetTest(config, new JobID(), false, false, true);
 	}
 
 	private void uploadFileGetTest(
-		final Configuration config, JobID jobId, boolean cacheWorksWithoutServer,
-		boolean cacheHasAccessToFs, boolean highAvailabibility) throws IOException {
+			final Configuration config, @Nullable JobID jobId, boolean cacheWorksWithoutServer,
+			boolean cacheHasAccessToFs, boolean highAvailabibility) throws IOException {
 
-		// First create two BLOBs and upload them to BLOB server
-		final byte[] buf = new byte[128];
-		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
-
-		BlobServer blobServer = null;
-		BlobCache blobCache = null;
-		BlobStoreService blobStoreService = null;
-		try {
-			final Configuration cacheConfig = new Configuration(config);
+		final Configuration cacheConfig = new Configuration(config);
+		cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		if (!cacheHasAccessToFs) {
+			// make sure the cache cannot access the HA store directly
 			cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
 				temporaryFolder.newFolder().getAbsolutePath());
-			if (!cacheHasAccessToFs) {
-				// make sure the cache cannot access the HA store directly
-				cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
-					temporaryFolder.newFolder().getAbsolutePath());
-				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-					temporaryFolder.newFolder().getPath() + "/does-not-exist");
-			}
+			cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+				temporaryFolder.newFolder().getPath() + "/does-not-exist");
+		}
 
+		// First create two BLOBs and upload them to BLOB server
+		final byte[] data = new byte[128];
+		byte[] data2 = Arrays.copyOf(data, data.length);
+		data2[0] ^= 1;
+
+		BlobStoreService blobStoreService = null;
+
+		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
+			try (
+				BlobServer server = new BlobServer(config, blobStoreService);
+				BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+					cacheConfig, blobStoreService)) {
 
-			// Start the BLOB server
-			blobServer = new BlobServer(config, blobStoreService);
-			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
+				// Upload BLOBs
+				BlobKey key1 = put(server, jobId, data, highAvailabibility);
+				BlobKey key2 = put(server, jobId, data2, highAvailabibility);
 
-			// Upload BLOBs
-			if (highAvailabibility) {
-				blobKeys.add(blobServer.putHA(jobId, buf));
-				buf[0] = 1; // Make sure the BLOB key changes
-				blobKeys.add(blobServer.putHA(jobId, buf));
-			} else if (jobId == null) {
-				blobKeys.add(blobServer.put(buf));
-				buf[0] = 1; // Make sure the BLOB key changes
-				blobKeys.add(blobServer.put(buf));
-			} else {
-				blobKeys.add(blobServer.put(jobId, buf));
-				buf[0] = 1; // Make sure the BLOB key changes
-				blobKeys.add(blobServer.put(jobId, buf));
-			}
-
-			if (cacheWorksWithoutServer) {
-				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-				blobServer.close();
-				blobServer = null;
-			}
-
-			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
-
-			for (BlobKey blobKey : blobKeys) {
-				if (highAvailabibility) {
-					blobCache.getPermanentBlobStore().getHAFile(jobId, blobKey);
-				} else if (jobId == null) {
-					blobCache.getTransientBlobStore().getFile(blobKey);
-				} else {
-					blobCache.getTransientBlobStore().getFile(jobId, blobKey);
+				if (cacheWorksWithoutServer) {
+					// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
+					server.close();
 				}
-			}
 
-			if (blobServer != null) {
-				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-				blobServer.close();
-				blobServer = null;
-			}
+				verifyContents(cache, jobId, key1, data, highAvailabibility);
+				verifyContents(cache, jobId, key2, data2, highAvailabibility);
 
-			final File[] files = new File[blobKeys.size()];
+				if (!cacheWorksWithoutServer) {
+					// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
+					server.close();
 
-			for(int i = 0; i < blobKeys.size(); i++){
-				if (highAvailabibility) {
-					files[i] = blobCache.getPermanentBlobStore().getHAFile(jobId, blobKeys.get(i));
-				} else if (jobId == null) {
-					files[i] = blobCache.getTransientBlobStore().getFile(blobKeys.get(i));
-				} else {
-					files[i] = blobCache.getTransientBlobStore().getFile(jobId, blobKeys.get(i));
+					verifyContents(cache, jobId, key1, data, highAvailabibility);
+					verifyContents(cache, jobId, key2, data2, highAvailabibility);
 				}
-			}
-
-			// Verify the result
-			assertEquals(blobKeys.size(), files.length);
-
-			for (final File file : files) {
-				assertNotNull(file);
-
-				assertTrue(file.exists());
-				assertEquals(buf.length, file.length());
 			}
 		} finally {
-			if (blobServer != null) {
-				blobServer.close();
-			}
-
-			if(blobCache != null){
-				blobCache.close();
-			}
 
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
