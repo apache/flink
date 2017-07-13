@@ -1444,6 +1444,18 @@ RAND_INTEGER(seed integer, bound integer)
     </td>
    </tr>
 
+    <tr>
+     <td>
+       {% highlight text %}
+LOG(x numeric), LOG(b numeric, x numeric)
+{% endhighlight %}
+     </td>
+    <td>
+      <p>If called with one parameter, this function returns the natural logarithm of x. If x is less than or equal to 0.0E0, the "IllegalArgumentException" is reported.</p>
+      <p>If called with two parameters, this function returns the logarithm of x to the base b. If x is less than or equal to 0, or if b is less than or equal to 1, then the "IllegalArgumentException" is reported.</p>
+    </td>
+   </tr>
+
   </tbody>
 </table>
 

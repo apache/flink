@@ -82,4 +82,31 @@ object ScalarFunctions {
     }
     sb.toString
   }
+
+  /**
+    * Returns the natural logarithm of "x".
+    */
+  def log(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log(x)' must be > 0, but x = $x")
+    }
+    else {
+      Math.log(x)
+    }
+  }
+
+  /**
+    * Returns the logarithm of "x" with base "base".
+    */
+  def log(base: Double, x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log(base, x)' must be > 0, but x = $x")
+    }
+    if (base <= 1.0) {
+      throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 1, but base = $base")
+    }
+    else {
+      Math.log(x) / Math.log(base)
+    }
+  }
 }

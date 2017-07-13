@@ -26,6 +26,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
+import org.apache.jute.compiler.JDouble
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -1176,6 +1177,51 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "e()",
       "e()",
       math.E.toString)
+  }
+
+  @Test
+  def testLog(): Unit = {
+    testSqlApi(
+      "log(f6)",
+      "1.5260563034950492"
+    )
+
+    testSqlApi(
+      "log(f6-f6 + 10,f6-f6+100)",
+      "2.0"
+    )
+
+    testSqlApi(
+      "log(f6+20)",
+      "3.202746442938317"
+    )
+
+    testSqlApi(
+      "log(10)",
+      "2.302585092994046"
+    )
+
+    testSqlApi(
+      "log(10, 100)",
+      "2.0"
+    )
+
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testLog2(): Unit = {
+    testSqlApi(
+      "log(1, 100)",
+      "null"
+    )
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testLog3(): Unit ={
+    testSqlApi(
+      "log(-1)",
+      "N/a"
+    )
   }
 
   // ----------------------------------------------------------------------------------------------
