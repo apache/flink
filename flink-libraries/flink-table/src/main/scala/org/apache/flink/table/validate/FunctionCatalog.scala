@@ -163,6 +163,7 @@ object FunctionCatalog {
     "lessThan" -> classOf[LessThan],
     "lessThanOrEqual" -> classOf[LessThanOrEqual],
     "notEquals" -> classOf[NotEqualTo],
+    "in" -> classOf[In],
     "isNull" -> classOf[IsNull],
     "isNotNull" -> classOf[IsNotNull],
     "isTrue" -> classOf[IsTrue],
@@ -350,6 +351,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CASE,
     SqlStdOperatorTable.REINTERPRET,
     SqlStdOperatorTable.EXTRACT_DATE,
+    SqlStdOperatorTable.IN,
     // FUNCTIONS
     SqlStdOperatorTable.SUBSTRING,
     SqlStdOperatorTable.OVERLAY,

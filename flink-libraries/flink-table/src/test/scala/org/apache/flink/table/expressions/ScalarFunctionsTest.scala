@@ -20,12 +20,14 @@ package org.apache.flink.table.expressions
 
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.types.Row
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.types.Row
+import org.codehaus.commons.compiler.CompileException
+import org.codehaus.janino.SimpleCompiler
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -1582,6 +1584,79 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test(expected = classOf[CompileException])
+  def testInNotCompiledExpression(): Unit = {
+    val compiler = new SimpleCompiler()
+    compiler.setParentClassLoader(this.getClass.getClassLoader)
+    compiler.cook("Null(Types.INT).in(1,2,42, Null(Types.INT))")
+  }
+
+  @Test
+  def testInExpressions(): Unit = {
+    testTableApi(
+      'f2.in(1,2,42),
+      "f2.in(1,2,42)",
+      "true"
+    )
+
+    testTableApi(
+      'f2.in(BigDecimal(42.0), BigDecimal(2.00), BigDecimal(3.01)),
+      "f2.in(42.0, 2.00, 3.01)",
+      "true"
+    )
+
+    testTableApi(
+      'f0.in("This is a test String.", "Hello world", "Comment#1"),
+      "f0.in('This is a test String.', 'Hello world', 'Comment#1')",
+      "true"
+    )
+
+    testTableApi(
+      'f16.in("1996-11-10".toDate),
+      "f16.in('1996-11-10'.toDate)",
+      "true"
+    )
+
+    testTableApi(
+      'f17.in("06:55:44".toTime),
+      "f17.in('06:55:44'.toTime)",
+      "true"
+    )
+
+    testTableApi(
+      'f18.in("1996-11-10 06:55:44.333".toTimestamp),
+      "f18.in('1996-11-10 06:55:44.333'.toTimestamp)",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInValidationExceptionMoreThanOneTypes(): Unit = {
+    testTableApi(
+      'f2.in('f3, 'f4, 4),
+      "f2.in(f3, f4, 4)",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      'f1.in("Hi", "Hello world", "Comment#1"),
+      "true",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def javaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      true,
+      "f1.in('Hi','Hello world','Comment#1')",
+      "true"
+    )
+  }  
+  
   // ----------------------------------------------------------------------------------------------
 
   def testData = {

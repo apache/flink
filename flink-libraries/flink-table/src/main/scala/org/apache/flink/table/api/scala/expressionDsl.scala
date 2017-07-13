@@ -24,6 +24,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
@@ -232,6 +233,17 @@ trait ImplicitExpressionOperations {
 
   def asc = Asc(expr)
   def desc = Desc(expr)
+
+  /**
+    * Returns true if given subquery has elements from expression.
+    */
+  def in(subquery: Expression*) = In(expr, subquery)
+
+  /**
+    * Returns true if given table has elements from expression.
+    */
+  def in(table: Table) = InSub(expr, table)
+
 
   /**
     * Returns the start time (inclusive) of a window when applied on a window reference.
