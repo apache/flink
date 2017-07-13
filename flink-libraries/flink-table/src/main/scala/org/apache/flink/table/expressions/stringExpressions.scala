@@ -289,10 +289,10 @@ case class Concat(strings: Seq[Expression]) extends Expression with InputTypeSpe
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    children.map(_ => STRING_TYPE_INFO)
 
-  override def toString: String = s"Concat($strings)"
-
+  override def toString: String = s"concat($strings)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(ScalarSqlFunctions.CONCAT, children.map(_.toRexNode))
@@ -313,10 +313,10 @@ case class ConcatWs(separator: Expression, strings: Seq[Expression])
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    children.map(_ => STRING_TYPE_INFO)
 
-  override def toString: String = s"ConcatWs($separator, $strings)"
-
+  override def toString: String = s"concat_ws($separator, $strings)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(ScalarSqlFunctions.CONCAT_WS, children.map(_.toRexNode))

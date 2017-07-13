@@ -40,6 +40,14 @@ trait InputTypeSpec extends Expression {
 
   override private[flink] def validateInput(): ValidationResult = {
     val typeMismatches = mutable.ArrayBuffer.empty[String]
+
+    if(expectedTypes.size != children.size){
+      return ValidationFailure(
+        s"""|$this fails on input type size checking: expected types size[${expectedTypes.size}].
+            |Operands types size[${children.size}].
+            |""".stripMargin)
+    }
+
     children.zip(expectedTypes).zipWithIndex.foreach { case ((e, tpe), i) =>
       if (e.resultType != tpe) {
         typeMismatches += s"expecting $tpe on ${i}th input, get ${e.resultType}"

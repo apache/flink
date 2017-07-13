@@ -107,18 +107,6 @@ class FunctionCatalog {
         val function = aggregateFunction.getFunction
         AggFunctionCall(function, children)
 
-      // concat_ws
-      case concat_ws if classOf[ConcatWs].isAssignableFrom(concat_ws) =>
-        Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
-          case Success(ctor) =>
-            Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
-              case Success(expr) => expr
-              case Failure(e) => throw new ValidationException(e.getMessage)
-            }
-          case _ =>
-            throw ValidationException("Never be here.")
-        }
-
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>
         // try to find a constructor accepts `Seq[Expression]`
@@ -129,19 +117,27 @@ class FunctionCatalog {
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
           case Failure(_) =>
-            val childrenClass = Seq.fill(children.length)(classOf[Expression])
-            // try to find a constructor matching the exact number of children
-            Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
+            Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
               case Success(ctor) =>
-                Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+                Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
                   case Success(expr) => expr
-                  case Failure(exception) => throw ValidationException(exception.getMessage)
+                  case Failure(e) => throw new ValidationException(e.getMessage)
                 }
               case Failure(_) =>
-                throw ValidationException(s"Invalid number of arguments for function $funcClass")
+                val childrenClass = Seq.fill(children.length)(classOf[Expression])
+                // try to find a constructor matching the exact number of children
+                Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
+                  case Success(ctor) =>
+                    Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+                      case Success(expr) => expr
+                      case Failure(exception) => throw ValidationException(exception.getMessage)
+                    }
+                  case Failure(_) =>
+                    throw ValidationException(
+                      s"Invalid number of arguments for function $funcClass")
+                }
             }
         }
-
       case _ =>
         throw ValidationException("Unsupported function.")
     }

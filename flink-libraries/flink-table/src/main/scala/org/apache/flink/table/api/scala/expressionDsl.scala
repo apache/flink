@@ -987,8 +987,8 @@ object randInteger {
   * Returns NULL if any argument is NULL.
   */
 object concat {
-  def apply(strings: Expression*): Expression = {
-    new Concat(strings)
+  def apply(string: Expression, strings: Expression*): Expression = {
+    new Concat(Seq(string) ++ strings)
   }
 }
 
@@ -1000,8 +1000,8 @@ object concat {
   * values after the separator argument.
   **/
 object concat_ws {
-  def apply(separator: Expression, strings: Expression*): Expression = {
-    new ConcatWs(separator, strings)
+  def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
+    new ConcatWs(separator, Seq(string) ++ strings)
   }
 }
 
