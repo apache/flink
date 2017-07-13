@@ -309,6 +309,7 @@ class BlobServerConnection extends Thread {
 			incomingFile = blobServer.createTemporaryFilename();
 			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf);
 
+			// TODO: add PUT operation without HA
 			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey, true);
 
 			// Return computed key to client for validation
