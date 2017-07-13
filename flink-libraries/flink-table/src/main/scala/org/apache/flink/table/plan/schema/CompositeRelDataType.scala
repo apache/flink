@@ -73,7 +73,7 @@ object CompositeRelDataType {
         new RelDataTypeFieldImpl(
           name,
           index,
-          typeFactory.createTypeFromTypeInfo(compositeType.getTypeAt(index)))
+          typeFactory.createTypeFromTypeInfo(compositeType.getTypeAt(index), nullable = true))
             .asInstanceOf[RelDataTypeField]
       }
       .toList

@@ -138,6 +138,17 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testOtherExpressions(): Unit = {
+
+    // nested field null type
+    testSqlApi("CASE WHEN f13.f1 IS NULL THEN 'a' ELSE 'b' END", "a")
+    testSqlApi("CASE WHEN f13.f1 IS NOT NULL THEN 'a' ELSE 'b' END", "b")
+    testAllApis('f13.isNull, "f13.isNull", "f13 IS NULL", "false")
+    testAllApis('f13.isNotNull, "f13.isNotNull", "f13 IS NOT NULL", "true")
+    testAllApis('f13.get("f0").isNull, "f13.get('f0').isNull", "f13.f0 IS NULL", "false")
+    testAllApis('f13.get("f0").isNotNull, "f13.get('f0').isNotNull", "f13.f0 IS NOT NULL", "true")
+    testAllApis('f13.get("f1").isNull, "f13.get('f1').isNull", "f13.f1 IS NULL", "true")
+    testAllApis('f13.get("f1").isNotNull, "f13.get('f1').isNotNull", "f13.f1 IS NOT NULL", "false")
+
     // boolean literals
     testAllApis(
       true,
