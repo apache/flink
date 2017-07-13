@@ -51,7 +51,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   private val seenTypes = mutable.HashMap[TypeInformation[_], RelDataType]()
 
-  def createTypeFromTypeInfo(typeInfo: TypeInformation[_]): RelDataType = {
+  def createTypeFromTypeInfo(typeInfo: TypeInformation[_]): RelDataType =
+    createTypeFromTypeInfo(typeInfo, nullable = false)
+
+  def createTypeFromTypeInfo(typeInfo: TypeInformation[_], nullable: Boolean): RelDataType = {
     // simple type can be converted to SQL types and vice versa
     if (isSimple(typeInfo)) {
       val sqlType = typeInfoToSqlTypeName(typeInfo)
@@ -73,7 +76,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           }
 
         case _ =>
-          createSqlType(sqlType)
+          createTypeWithNullability(createSqlType(sqlType), nullable)
       }
     }
     // advanced types require specific RelDataType
@@ -191,7 +194,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         createTypeFromTypeInfo(mp.getValueTypeInfo), true)
 
     case ti: TypeInformation[_] =>
-      new GenericRelDataType(typeInfo, getTypeSystem.asInstanceOf[FlinkTypeSystem])
+      createTypeWithNullability(
+        new GenericRelDataType(ti, getTypeSystem.asInstanceOf[FlinkTypeSystem]),
+        nullable = true
+      )
 
     case ti@_ =>
       throw TableException(s"Unsupported type information: $ti")
