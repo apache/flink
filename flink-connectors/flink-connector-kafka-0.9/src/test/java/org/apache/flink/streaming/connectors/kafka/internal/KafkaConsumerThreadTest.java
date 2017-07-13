@@ -61,6 +61,36 @@ import static org.mockito.Mockito.when;
  */
 public class KafkaConsumerThreadTest {
 
+	@Test(timeout = 10000)
+	public void testCloseWithoutAssignedPartitions() throws Exception {
+		// no initial assignment
+		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+			new LinkedHashMap<TopicPartition, Long>(),
+			Collections.<TopicPartition, Long>emptyMap(),
+			false,
+			null,
+			null);
+
+		// setup latch so the test waits until testThread is blocked on getBatchBlocking method
+		final MultiShotLatch getBatchBlockingInvoked = new MultiShotLatch();
+		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+			new ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>>() {
+				@Override
+				public List<KafkaTopicPartitionState<TopicPartition>> getBatchBlocking() throws InterruptedException {
+					getBatchBlockingInvoked.trigger();
+					return super.getBatchBlocking();
+				}
+			};
+
+		final TestKafkaConsumerThread testThread =
+			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+
+		testThread.start();
+		getBatchBlockingInvoked.await();
+		testThread.shutdown();
+		testThread.join();
+	}
+
 	/**
 	 * Tests reassignment works correctly in the case when:
 	 *  - the consumer initially had no assignments
@@ -744,6 +774,7 @@ public class KafkaConsumerThreadTest {
 			final OneShotLatch continueAssignmentLatch) {
 
 		final KafkaConsumer<byte[], byte[]> mockConsumer = mock(KafkaConsumer.class);
+
 		when(mockConsumer.assignment()).thenAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -754,7 +785,6 @@ public class KafkaConsumerThreadTest {
 				if (continueAssignmentLatch != null) {
 					continueAssignmentLatch.await();
 				}
-
 				return mockConsumerAssignmentAndPosition.keySet();
 			}
 		});
