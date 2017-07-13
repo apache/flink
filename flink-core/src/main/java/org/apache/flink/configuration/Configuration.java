@@ -843,14 +843,13 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 		else if (o.getClass() == Double.class) {
 			double value = ((Double) o);
-			if (value < -Float.MAX_VALUE
-					|| (value < 0 && value > -Float.MIN_VALUE)
-					|| (value > 0 && value < Float.MIN_VALUE)
-					|| value > Float.MAX_VALUE) {
+			if (value == 0.0
+					|| (value >= Float.MIN_VALUE && value <= Float.MAX_VALUE)
+					|| (value >= -Float.MAX_VALUE && value <= -Float.MIN_VALUE)) {
+				return (float) value;
+			} else {
 				LOG.warn("Configuration value {} overflows/underflows the float type.", value);
 				return defaultValue;
-			} else {
-				return (float) value;
 			}
 		}
 		else {
