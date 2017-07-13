@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
+import java.io.InterruptedIOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
@@ -165,7 +166,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		try {
 			splits = this.mapreduceInputFormat.getSplits(jobContext);
 		} catch (InterruptedException e) {
-			throw new IOException("Could not get Splits.", e);
+			throw new InterruptedIOException("Could not get Splits." + e);
 		}
 		HadoopInputSplit[] hadoopInputSplits = new HadoopInputSplit[splits.size()];
 
