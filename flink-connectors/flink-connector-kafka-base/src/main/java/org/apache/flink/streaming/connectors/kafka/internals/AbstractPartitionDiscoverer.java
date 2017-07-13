@@ -196,7 +196,7 @@ public abstract class AbstractPartitionDiscoverer {
 	 */
 	public boolean setAndCheckDiscoveredPartition(KafkaTopicPartition partition) {
 		if (isUndiscoveredPartition(partition)) {
-				topicsToLargestDiscoveredPartitionId.put(partition.getTopic(), partition.getPartition());
+			topicsToLargestDiscoveredPartitionId.put(partition.getTopic(), partition.getPartition());
 
 			return shouldAssignToThisSubtask(partition, indexOfThisSubtask, numParallelSubtasks);
 		}
