@@ -40,6 +40,7 @@ import java.util.Map;
  * This example shows how to use the Elasticsearch Sink. Before running it you must ensure that
  * you have a cluster named "elasticsearch" running or change the cluster name in the config map.
  */
+@SuppressWarnings("serial")
 public class ElasticsearchSinkExample {
 
 	public static void main(String[] args) throws Exception {

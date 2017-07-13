@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
-
-import java.io.BufferedReader;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.DataSet;
@@ -34,18 +31,19 @@ import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
+import java.io.BufferedReader;
+
 /**
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.
  */
 public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTestBase {
-	
+
 	private static final long SEED = 0xBADC0FFEEBEEFL;
-	
+
 	private static final int NUM_VERTICES = 1000;
-	
+
 	private static final int NUM_EDGES = 10000;
 
-	
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
@@ -56,7 +54,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
 		resultPath = getTempFilePath("results");
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		// set up execution environment
@@ -92,7 +90,6 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 		env.execute("Connected Components Example");
 	}
 
-
 	@Override
 	protected void postSubmit() throws Exception {
 		for (BufferedReader reader : getResultReader(resultPath)) {
@@ -105,7 +102,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 	// --------------------------------------------------------------------------------------------
 
 	@FunctionAnnotation.ForwardedFieldsSecond("*")
-	public static final class UpdateComponentIdMatchMirrored
+	private static final class UpdateComponentIdMatchMirrored
 			implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
 
@@ -115,7 +112,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 				Tuple2<Long, Long> candidate,
 				Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			if(candidate.f1 < current.f1) {
+			if (candidate.f1 < current.f1) {
 				out.collect(candidate);
 			}
 

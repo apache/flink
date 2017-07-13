@@ -24,6 +24,9 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 
+/**
+ * Integration tests for {@link org.apache.flink.api.java.io.CsvOutputFormat}.
+ */
 public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 
 	protected String resultPath;

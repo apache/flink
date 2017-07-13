@@ -27,13 +27,17 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
 import org.junit.AfterClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * A series of tests (reusing one FlinkMiniCluster) where tasks fail (one or more time)
@@ -130,14 +134,14 @@ public abstract class SimpleRecoveryITCaseBase {
 
 	private void executeAndRunAssertions(ExecutionEnvironment env) throws Exception {
 		try {
-            JobExecutionResult result = env.execute();
-            assertTrue(result.getNetRuntime() >= 0);
-            assertNotNull(result.getAllAccumulatorResults());
-            assertTrue(result.getAllAccumulatorResults().isEmpty());
-        }
-        catch (JobExecutionException e) {
-            fail("The program should have succeeded on the second run");
-        }
+			JobExecutionResult result = env.execute();
+			assertTrue(result.getNetRuntime() >= 0);
+			assertNotNull(result.getAllAccumulatorResults());
+			assertTrue(result.getAllAccumulatorResults().isEmpty());
+		}
+		catch (JobExecutionException e) {
+			fail("The program should have succeeded on the second run");
+		}
 	}
 
 	@Test

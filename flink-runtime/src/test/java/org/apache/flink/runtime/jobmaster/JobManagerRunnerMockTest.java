@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -111,7 +112,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 			mockRpc,
 			haServices,
 			heartbeatServices,
-			JobManagerServices.fromConfiguration(new Configuration(), haServices),
+			JobManagerServices.fromConfiguration(new Configuration(), mock(BlobServer.class)),
 			new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
 			jobCompletion,
 			jobCompletion));

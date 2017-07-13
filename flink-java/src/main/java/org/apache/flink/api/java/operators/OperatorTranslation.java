@@ -209,10 +209,14 @@ public class OperatorTranslation {
 	private <T> BulkIterationBase<T> translateBulkIteration(BulkIterationResultSet<?> untypedIterationEnd) {
 		@SuppressWarnings("unchecked")
 		BulkIterationResultSet<T> iterationEnd = (BulkIterationResultSet<T>) untypedIterationEnd;
-		
+		IterativeDataSet<T> iterationHead = iterationEnd.getIterationHead();
+
 		BulkIterationBase<T> iterationOperator =
 				new BulkIterationBase<>(new UnaryOperatorInformation<>(iterationEnd.getType(), iterationEnd.getType()), "Bulk Iteration");
-		IterativeDataSet<T> iterationHead = iterationEnd.getIterationHead();
+
+		if (iterationHead.getParallelism() > 0) {
+			iterationOperator.setParallelism(iterationHead.getParallelism());
+		}
 
 		translated.put(iterationHead, iterationOperator.getPartialSolution());
 

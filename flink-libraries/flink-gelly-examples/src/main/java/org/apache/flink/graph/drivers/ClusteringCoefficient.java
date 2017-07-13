@@ -23,15 +23,12 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
-import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.types.CopyableValue;
 
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 
 import java.io.PrintStream;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Driver for directed and undirected clustering coefficient algorithm and analytics.
@@ -52,9 +49,6 @@ extends DriverBase<K, VV, EV> {
 
 	private ChoiceParameter order = new ChoiceParameter(this, "order")
 		.addChoices(DIRECTED, UNDIRECTED);
-
-	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> globalClusteringCoefficient;
 
@@ -81,37 +75,37 @@ extends DriverBase<K, VV, EV> {
 
 	@Override
 	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		int lp = littleParallelism.getValue().intValue();
+		int parallelism = this.parallelism.getValue().intValue();
 
 		switch (order.getValue()) {
 			case DIRECTED:
 				globalClusteringCoefficient = graph
 					.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<K, VV, EV>()
-						.setLittleParallelism(lp));
+						.setParallelism(parallelism));
 
 				averageClusteringCoefficient = graph
 					.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<K, VV, EV>()
-						.setLittleParallelism(lp));
+						.setParallelism(parallelism));
 
 				@SuppressWarnings("unchecked")
 				DataSet<PrintableResult> directedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
 					.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<K, VV, EV>()
-						.setLittleParallelism(lp));
+						.setParallelism(parallelism));
 				return directedResult;
 
 			case UNDIRECTED:
 				globalClusteringCoefficient = graph
 					.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<K, VV, EV>()
-						.setLittleParallelism(lp));
+						.setParallelism(parallelism));
 
 				averageClusteringCoefficient = graph
 					.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<K, VV, EV>()
-						.setLittleParallelism(lp));
+						.setParallelism(parallelism));
 
 				@SuppressWarnings("unchecked")
 				DataSet<PrintableResult> undirectedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
 					.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<K, VV, EV>()
-						.setLittleParallelism(lp));
+						.setParallelism(parallelism));
 				return undirectedResult;
 
 			default:

@@ -24,7 +24,6 @@ import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 import static org.apache.flink.graph.generator.HypercubeGraph.MINIMUM_DIMENSIONS;
 
 /**
@@ -36,9 +35,6 @@ extends GeneratedGraph<LongValue> {
 	private LongParameter dimensions = new LongParameter(this, "dimensions")
 		.setMinimumValue(MINIMUM_DIMENSIONS)
 		.setMaximumValue(63);
-
-	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
 	public String getIdentity() {
@@ -53,7 +49,7 @@ extends GeneratedGraph<LongValue> {
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
 		return new org.apache.flink.graph.generator.HypercubeGraph(env, dimensions.getValue())
-			.setParallelism(littleParallelism.getValue().intValue())
+			.setParallelism(parallelism.getValue().intValue())
 			.generate();
 	}
 }

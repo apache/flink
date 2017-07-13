@@ -29,8 +29,9 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.DoubleValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,6 +44,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Integration tests for {@link DataSetUtils}.
+ */
 @RunWith(Parameterized.class)
 public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 
@@ -52,14 +56,14 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testCountElementsPerPartition() throws Exception {
-	 	ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-	 	long expectedSize = 100L;
-	 	DataSet<Long> numbers = env.generateSequence(0, expectedSize - 1);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		long expectedSize = 100L;
+		DataSet<Long> numbers = env.generateSequence(0, expectedSize - 1);
 
-	 	DataSet<Tuple2<Integer, Long>> ds = DataSetUtils.countElementsPerPartition(numbers);
+		DataSet<Tuple2<Integer, Long>> ds = DataSetUtils.countElementsPerPartition(numbers);
 
-	 	Assert.assertEquals(env.getParallelism(), ds.count());
-	 	Assert.assertEquals(expectedSize, ds.sum(1).collect().get(0).f1.longValue());
+		Assert.assertEquals(env.getParallelism(), ds.count());
+		Assert.assertEquals(expectedSize, ds.sum(1).collect().get(0).f1.longValue());
 	}
 
 	@Test
@@ -90,7 +94,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		long expectedSize = 100L;
 		DataSet<Long> numbers = env.generateSequence(1L, expectedSize);
 
-		DataSet<Long> ids = DataSetUtils.zipWithUniqueId(numbers).map(new MapFunction<Tuple2<Long,Long>, Long>() {
+		DataSet<Long> ids = DataSetUtils.zipWithUniqueId(numbers).map(new MapFunction<Tuple2<Long, Long>, Long>() {
 			@Override
 			public Long map(Tuple2<Long, Long> value) throws Exception {
 				return value.f0;
@@ -118,14 +122,14 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		List<Tuple8<Short, Integer, Long, Float, Double, String, Boolean, DoubleValue>> data = new ArrayList<>();
-		data.add(new Tuple8<>((short)1, 1, 100L, 0.1f, 1.012376, "hello", false, new DoubleValue(50.0)));
-		data.add(new Tuple8<>((short)2, 2, 1000L, 0.2f, 2.003453, "hello", true, new DoubleValue(50.0)));
-		data.add(new Tuple8<>((short)4, 10, 10000L, 0.2f, 75.00005, "null", true, new DoubleValue(50.0)));
-		data.add(new Tuple8<>((short)10, 4, 100L, 0.9f, 79.5, "", true, new DoubleValue(50.0)));
-		data.add(new Tuple8<>((short)5, 5, 1000L, 0.2f, 10.0000001, "a", false, new DoubleValue(50.0)));
-		data.add(new Tuple8<>((short)6, 6, 10L, 0.1f, 0.0000000000023, "", true, new DoubleValue(100.0)));
-		data.add(new Tuple8<>((short)7, 7, 1L, 0.2f, Double.POSITIVE_INFINITY, "abcdefghijklmnop", true, new DoubleValue(100.0)));
-		data.add(new Tuple8<>((short)8, 8, -100L, 0.001f, Double.NaN, "abcdefghi", true, new DoubleValue(100.0)));
+		data.add(new Tuple8<>((short) 1, 1, 100L, 0.1f, 1.012376, "hello", false, new DoubleValue(50.0)));
+		data.add(new Tuple8<>((short) 2, 2, 1000L, 0.2f, 2.003453, "hello", true, new DoubleValue(50.0)));
+		data.add(new Tuple8<>((short) 4, 10, 10000L, 0.2f, 75.00005, "null", true, new DoubleValue(50.0)));
+		data.add(new Tuple8<>((short) 10, 4, 100L, 0.9f, 79.5, "", true, new DoubleValue(50.0)));
+		data.add(new Tuple8<>((short) 5, 5, 1000L, 0.2f, 10.0000001, "a", false, new DoubleValue(50.0)));
+		data.add(new Tuple8<>((short) 6, 6, 10L, 0.1f, 0.0000000000023, "", true, new DoubleValue(100.0)));
+		data.add(new Tuple8<>((short) 7, 7, 1L, 0.2f, Double.POSITIVE_INFINITY, "abcdefghijklmnop", true, new DoubleValue(100.0)));
+		data.add(new Tuple8<>((short) 8, 8, -100L, 0.001f, Double.NaN, "abcdefghi", true, new DoubleValue(100.0)));
 
 		Collections.shuffle(data);
 

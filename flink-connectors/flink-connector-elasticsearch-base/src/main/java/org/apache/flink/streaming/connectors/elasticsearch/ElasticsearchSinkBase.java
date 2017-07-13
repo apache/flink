@@ -94,7 +94,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	 *
 	 * <p>This is a proxy for version specific backoff policies.
 	 */
-	public class BulkFlushBackoffPolicy implements Serializable {
+	public static class BulkFlushBackoffPolicy implements Serializable {
 
 		private static final long serialVersionUID = -6022851996101826049L;
 

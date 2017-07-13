@@ -36,7 +36,7 @@ import java.util.Random;
  * (See also http://peel-framework.org/2016/04/07/hash-aggregations-in-flink.html)
  */
 public class ReducePerformance {
-	
+
 	public static void main(String[] args) throws Exception {
 
 		final int numElements = 40_000_000;
@@ -120,7 +120,7 @@ public class ReducePerformance {
 			int rem = numElements % numPartitions;
 			SplittableRandomIterator<T, B>[] res = new SplittableRandomIterator[numPartitions];
 			for (int i = 0; i < numPartitions; i++) {
-				res[i] = new SplittableRandomIterator<T, B>(i < rem ? splitSize : splitSize + 1, (B)baseIterator.copy());
+				res[i] = new SplittableRandomIterator<T, B>(i < rem ? splitSize : splitSize + 1, (B) baseIterator.copy());
 			}
 			return res;
 		}
@@ -139,7 +139,6 @@ public class ReducePerformance {
 	private interface CopyableIterator<T> extends Iterator<T> {
 		CopyableIterator<T> copy();
 	}
-
 
 	private static final class TupleIntIntIterator implements CopyableIterator<Tuple2<Integer, Integer>>, Serializable {
 
@@ -183,7 +182,6 @@ public class ReducePerformance {
 		}
 	}
 
-
 	private static final class TupleStringIntIterator implements CopyableIterator<Tuple2<String, Integer>>, Serializable {
 
 		private final int keyRange;
@@ -225,7 +223,6 @@ public class ReducePerformance {
 			return new TupleStringIntIterator(keyRange, rndSeed + rnd.nextInt(10000));
 		}
 	}
-
 
 	private static final class SumReducer<K> implements ReduceFunction<Tuple2<K, Integer>> {
 		@Override

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
@@ -428,8 +429,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 	}
 
 	private static void checkJobManagerAddress(Configuration config, String expectedAddress, int expectedPort) {
-		String jobManagerAddress = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		int jobManagerPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+		String jobManagerAddress = config.getString(JobManagerOptions.ADDRESS);
+		int jobManagerPort = config.getInteger(JobManagerOptions.PORT, -1);
 
 		assertEquals(expectedAddress, jobManagerAddress);
 		assertEquals(expectedPort, jobManagerPort);

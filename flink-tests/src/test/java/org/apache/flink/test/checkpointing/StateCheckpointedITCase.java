@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +47,11 @@ import static org.junit.Assert.assertTrue;
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
  *
- * The test triggers a failure after a while and verifies that, after completion, the
+ * <p>The test triggers a failure after a while and verifies that, after completion, the
  * state defined with either the {@link ValueState} or the {@link ListCheckpointed}
  * interface reflects the "exactly once" semantics.
- * 
- * The test throttles the input until at least two checkpoints are completed, to make sure that
+ *
+ * <p>The test throttles the input until at least two checkpoints are completed, to make sure that
  * the recovery does not fall back to "square one" (which would naturally lead to correct
  * results without testing the checkpointing).
  */
@@ -59,11 +60,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StateCheckpointedITCase.class);
 
-	final long NUM_STRINGS = 10_000_000L;
+	static final long NUM_STRINGS = 10_000_000L;
 
 	/**
-	 * Runs the following program:
-	 *
+	 * Runs the following program.
 	 * <pre>
 	 *     [ (source)->(filter)] -> [ (map) -> (map) ] -> [ (groupBy/reduce)->(sink) ]
 	 * </pre>
@@ -84,7 +84,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		stream
 				// first vertex, chained to the source
 				// this filter throttles the flow until at least one checkpoint
-				// is complete, to make sure this program does not run without 
+				// is complete, to make sure this program does not run without
 				.filter(new StringRichFilterFunction())
 
 						// -------------- seconds vertex - one-to-one connected ----------------
@@ -100,13 +100,13 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 	@Override
 	public void postSubmit() {
-		
+
 		//assertTrue("Test inconclusive: failure occurred before first checkpoint",
 		//		OnceFailingAggregator.wasCheckpointedBeforeFailure);
-		if(!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
+		if (!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
 			LOG.warn("Test inconclusive: failure occurred before first checkpoint");
 		}
-		
+
 		long filterSum = 0;
 		for (long l : StringRichFilterFunction.counts) {
 			filterSum += l;
@@ -137,10 +137,9 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	// --------------------------------------------------------------------------------------------
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
-	
-	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String> 
-			implements ListCheckpointed<Integer>
-	{
+
+	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
+			implements ListCheckpointed<Integer> {
 		private final long numElements;
 
 		private int index;
@@ -157,9 +156,9 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 			final Random rnd = new Random();
 			final StringBuilder stringBuilder = new StringBuilder();
-			
+
 			final int step = getRuntimeContext().getNumberOfParallelSubtasks();
-			
+
 			if (index == 0) {
 				index = getRuntimeContext().getIndexOfThisSubtask();
 			}
@@ -178,7 +177,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 				}
 			}
 		}
-		
+
 		@Override
 		public void cancel() {
 			isRunning = false;
@@ -209,11 +208,11 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 	}
 
-	private static class StringRichFilterFunction extends RichFilterFunction<String> 
+	private static class StringRichFilterFunction extends RichFilterFunction<String>
 			implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
-		
+		static long[] counts = new long[PARALLELISM];
+
 		private long count;
 
 		@Override
@@ -241,10 +240,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 	}
 
-	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> 
+	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
 			implements ListCheckpointed<Long> {
-		
-		static final long[] counts = new long[PARALLELISM];
+
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 
@@ -272,12 +271,12 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 			this.count = state.get(0);
 		}
 	}
-	
-	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> 
+
+	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount>
 		implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
-		
+		static long[] counts = new long[PARALLELISM];
+
 		private long count;
 
 		@Override
@@ -304,25 +303,25 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 			this.count = state.get(0);
 		}
 	}
-	
-	private static class OnceFailingAggregator extends RichFlatMapFunction<PrefixCount, PrefixCount> 
+
+	private static class OnceFailingAggregator extends RichFlatMapFunction<PrefixCount, PrefixCount>
 		implements ListCheckpointed<HashMap<String, PrefixCount>>, CheckpointListener {
 
 		static boolean wasCheckpointedBeforeFailure = false;
-		
+
 		private static volatile boolean hasFailed = false;
 
 		private final HashMap<String, PrefixCount> aggregationMap = new HashMap<String, PrefixCount>();
-		
+
 		private long failurePos;
 		private long count;
-		
+
 		private boolean wasCheckpointed;
 
 		OnceFailingAggregator(long failurePos) {
 			this.failurePos = failurePos;
 		}
-		
+
 		@Override
 		public void open(Configuration parameters) {
 			count = 0;
@@ -336,7 +335,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 				hasFailed = true;
 				throw new Exception("Test Failure");
 			}
-			
+
 			PrefixCount curr = aggregationMap.get(value.prefix);
 			if (curr == null) {
 				aggregationMap.put(value.prefix, value);
@@ -367,12 +366,12 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 	}
 
-	private static class ValidatingSink extends RichSinkFunction<PrefixCount> 
+	private static class ValidatingSink extends RichSinkFunction<PrefixCount>
 			implements ListCheckpointed<HashMap<Character, Long>> {
 
 		@SuppressWarnings("unchecked")
 		private static Map<Character, Long>[] maps = (Map<Character, Long>[]) new Map<?, ?>[PARALLELISM];
-		
+
 		private HashMap<Character, Long> counts = new HashMap<Character, Long>();
 
 		@Override

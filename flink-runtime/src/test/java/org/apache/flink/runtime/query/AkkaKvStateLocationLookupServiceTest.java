@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.query;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -34,12 +30,14 @@ import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.LookupRet
 import org.apache.flink.runtime.query.KvStateMessage.LookupKvStateLocation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.Status;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -48,11 +46,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link AkkaKvStateLocationLookupService}.
+ */
 public class AkkaKvStateLocationLookupServiceTest extends TestLogger {
 
 	/** The default timeout. */
@@ -315,15 +320,15 @@ public class AkkaKvStateLocationLookupServiceTest extends TestLogger {
 		}
 	}
 
-	private final static class LookupResponseActor extends FlinkUntypedActor {
+	private static final class LookupResponseActor extends FlinkUntypedActor {
 
-		/** Received lookup messages */
+		/** Received lookup messages. */
 		private final Queue<LookupKvStateLocation> receivedLookups;
 
-		/** Responses on KvStateMessage.LookupKvStateLocation messages */
+		/** Responses on KvStateMessage.LookupKvStateLocation messages. */
 		private final Queue<Object> lookupResponses;
 
-		/** The leader session ID */
+		/** The leader session ID. */
 		private UUID leaderSessionId;
 
 		public LookupResponseActor(

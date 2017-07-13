@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 import static org.apache.flink.graph.generator.CirculantGraph.MINIMUM_VERTEX_COUNT;
 
 /**
@@ -45,9 +44,6 @@ extends GeneratedGraph<LongValue> {
 
 	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
 		.setMinimumValue(MINIMUM_VERTEX_COUNT);
-
-	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	private List<OffsetRange> offsetRanges = new ArrayList<>();
 
@@ -118,7 +114,7 @@ extends GeneratedGraph<LongValue> {
 		}
 
 		return graph
-			.setParallelism(littleParallelism.getValue().intValue())
+			.setParallelism(parallelism.getValue().intValue())
 			.generate();
 	}
 }

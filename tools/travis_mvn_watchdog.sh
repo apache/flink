@@ -43,11 +43,107 @@ SLEEP_TIME=20
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
+MODULES_CORE="\
+flink-test-utils-parent/flink-test-utils,\
+flink-contrib/flink-statebackend-rocksdb,\
+flink-clients,\
+flink-core,\
+flink-java,\
+flink-optimizer,\
+flink-runtime,\
+flink-runtime-web,\
+flink-scala,\
+flink-scala-shell,\
+flink-streaming-java,\
+flink-streaming-scala"
+
+MODULES_LIBRARIES="\
+flink-contrib/flink-storm,\
+flink-contrib/flink-storm-examples,\
+flink-libraries/flink-cep,\
+flink-libraries/flink-cep-scala,\
+flink-libraries/flink-gelly,\
+flink-libraries/flink-gelly-scala,\
+flink-libraries/flink-gelly-examples,\
+flink-libraries/flink-ml,\
+flink-libraries/flink-python,\
+flink-libraries/flink-table"
+
+MODULES_CONNECTORS="\
+flink-contrib/flink-connector-wikiedits,\
+flink-connectors/flink-avro,\
+flink-connectors/flink-hbase,\
+flink-connectors/flink-hcatalog,\
+flink-connectors/flink-hadoop-compatibility,\
+flink-connectors/flink-jdbc,\
+flink-connectors/flink-connector-cassandra,\
+flink-connectors/flink-connector-elasticsearch,\
+flink-connectors/flink-connector-elasticsearch2,\
+flink-connectors/flink-connector-elasticsearch-base,\
+flink-connectors/flink-connector-filesystem,\
+flink-connectors/flink-connector-kafka-0.8,\
+flink-connectors/flink-connector-kafka-0.9,\
+flink-connectors/flink-connector-kafka-0.10,\
+flink-connectors/flink-connector-kafka-base,\
+flink-connectors/flink-connector-nifi,\
+flink-connectors/flink-connector-rabbitmq,\
+flink-connectors/flink-connector-twitter"
+
+MODULES_TESTS="\
+flink-tests"
+
+if [[ $PROFILE == *"jdk8"* ]]; then
+	case $TEST in
+		(connectors)
+			MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-elasticsearch5"
+		;;
+	esac
+fi
+
+if [[ $PROFILE == *"include-kinesis"* ]]; then
+	case $TEST in
+		(connectors)
+			MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
+		;;
+	esac
+fi
+
+MVN_COMPILE_MODULES=""
+MVN_TEST_MODULES=""
+case $TEST in
+	(core)
+		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
+		MVN_TEST_MODULES="-pl $MODULES_CORE"
+	;;
+	(libraries)
+		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
+		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
+	;;
+	(connectors)
+		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
+		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
+	;;
+	(tests)
+		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
+		MVN_TEST_MODULES="-pl $MODULES_TESTS"
+	;;
+	(misc)
+		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
+		NEGATED_LIBRARIES=\!${MODULES_LIBRARIES//,/,\!}
+		NEGATED_CONNECTORS=\!${MODULES_CONNECTORS//,/,\!}
+		NEGATED_TESTS=\!${MODULES_TESTS//,/,\!}
+		# compile everything since dist needs it anyway
+		MVN_COMPILE_MODULES=""
+		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
+	;;
+esac
+
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
 # on the Travis VMs. Set forkCountTestPackage to 1 for container-based environment (4 GiB memory)
 # and 2 for sudo-enabled environment (7.5 GiB memory).
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS clean install"
+MVN_COMPILE="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -DskipTests -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_COMPILE_MODULES clean install"
+MVN_TEST="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_TEST_MODULES verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -165,7 +261,7 @@ watchdog () {
 	done
 }
 
-# Check the final fat jar for illegal artifacts
+# Check the final fat jar for illegal or missing artifacts
 check_shaded_artifacts() {
 	jar tf build-target/lib/flink-dist*.jar > allClasses
 	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
@@ -184,6 +280,13 @@ check_shaded_artifacts() {
 		exit 1
 	fi
 
+	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
+	if [ $SNAPPY == "0" ]; then
+		echo "=============================================================================="
+		echo "Missing snappy dependencies in fat jar"
+		echo "=============================================================================="
+		exit 1
+	fi
 }
 
 # =============================================================================
@@ -219,12 +322,14 @@ echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
 # Make sure to be in project root
 cd $HERE/../
 
-echo "RUNNING '${MVN}'."
+# Compile modules
 
-# Run $MVN and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
+echo "RUNNING '${MVN_COMPILE}'."
+
+# Run $MVN_COMPILE and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
 # allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
 # the exit code. This is important for Travis' build life-cycle (success/failure).
-( $MVN & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
+( $MVN_COMPILE & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
 
 echo "Trying to KILL watchdog (${WD_PID})."
 
@@ -238,7 +343,35 @@ echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 rm $MVN_PID
 rm $MVN_EXIT
 
-check_shaded_artifacts
+# Run tests
+
+echo "RUNNING '${MVN_TEST}'."
+
+# Run $MVN_TEST and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
+# allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
+# the exit code. This is important for Travis' build life-cycle (success/failure).
+( $MVN_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
+
+echo "Trying to KILL watchdog (${WD_PID})."
+
+# Make sure to kill the watchdog in any case after $MVN has completed
+( kill $WD_PID 2>&1 ) > /dev/null
+
+EXIT_CODE=$(<$MVN_EXIT)
+
+echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
+
+rm $MVN_PID
+rm $MVN_EXIT
+
+# Post
+
+# only misc builds flink-dist
+case $TEST in
+	(misc)
+		check_shaded_artifacts
+	;;
+esac
 
 put_yarn_logs_to_artifacts
 

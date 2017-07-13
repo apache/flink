@@ -24,7 +24,6 @@ import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 import static org.apache.flink.graph.generator.EchoGraph.MINIMUM_VERTEX_COUNT;
 import static org.apache.flink.graph.generator.EchoGraph.MINIMUM_VERTEX_DEGREE;
 
@@ -40,9 +39,6 @@ extends GeneratedGraph<LongValue> {
 	private LongParameter vertexDegree = new LongParameter(this, "vertex_degree")
 		.setMinimumValue(MINIMUM_VERTEX_DEGREE);
 
-	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
-
 	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() + " (" + vertexCount.getValue() + ":" + vertexDegree.getValue() + ")";
@@ -56,7 +52,7 @@ extends GeneratedGraph<LongValue> {
 	@Override
 	protected Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
 		return new org.apache.flink.graph.generator.EchoGraph(env, vertexCount.getValue(), vertexDegree.getValue())
-			.setParallelism(littleParallelism.getValue().intValue())
+			.setParallelism(parallelism.getValue().intValue())
 			.generate();
 	}
 }

@@ -176,7 +176,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
+		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp) throws Exception {
 			for (Tuple1<Integer> value : values) {
 				this.values.add(value.f0);
 			}
@@ -226,7 +226,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
+		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp) throws Exception {
 			for (Tuple1<Integer> value : values) {
 				this.values.add(value.f0);
 			}

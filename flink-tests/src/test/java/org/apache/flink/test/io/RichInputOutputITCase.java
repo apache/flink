@@ -79,9 +79,9 @@ public class RichInputOutputITCase extends JavaProgramTestBase {
 
 		@Override
 		public void open(FileInputSplit split) throws IOException{
-			try{
+			try {
 				getRuntimeContext().addAccumulator("DATA_SOURCE_ACCUMULATOR", counter);
-			} catch(UnsupportedOperationException e){
+			} catch (UnsupportedOperationException e){
 				// the accumulator is already added
 			}
 			super.open(split);
@@ -104,9 +104,9 @@ public class RichInputOutputITCase extends JavaProgramTestBase {
 
 		@Override
 		public void open(int a, int b){
-			try{
+			try {
 				getRuntimeContext().addAccumulator("DATA_SINK_ACCUMULATOR", counter);
-			} catch(UnsupportedOperationException e){
+			} catch (UnsupportedOperationException e){
 				// the accumulator is already added
 			}
 		}

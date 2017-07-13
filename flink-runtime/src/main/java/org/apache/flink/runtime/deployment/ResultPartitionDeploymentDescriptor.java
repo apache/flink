@@ -51,9 +51,9 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	/** The number of subpartitions. */
 	private final int numberOfSubpartitions;
 
-	/** The maximum parallelism */
+	/** The maximum parallelism. */
 	private final int maxParallelism;
-	
+
 	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
 	private final boolean sendScheduleOrUpdateConsumersMessage;
 

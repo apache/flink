@@ -72,7 +72,7 @@ abstract class FlinkMiniCluster(
   // NOTE: THIS MUST BE getByName("localhost"), which is 127.0.0.1 and
   // not getLocalHost(), which may be 127.0.1.1
   val hostname = userConfiguration.getString(
-    ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+    JobManagerOptions.ADDRESS,
     "localhost")
 
   protected val originalConfiguration = generateConfiguration(userConfiguration)
@@ -129,14 +129,12 @@ abstract class FlinkMiniCluster(
   }
 
   def configuration: Configuration = {
-    if (originalConfiguration.getInteger(
-      ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT) == 0) {
+    if (originalConfiguration.getInteger(JobManagerOptions.PORT) == 0) {
       val leaderConfiguration = new Configuration(originalConfiguration)
 
       val leaderPort = getLeaderRPCPort
 
-      leaderConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, leaderPort)
+      leaderConfiguration.setInteger(JobManagerOptions.PORT, leaderPort)
 
       leaderConfiguration
     } else {
@@ -241,8 +239,7 @@ abstract class FlinkMiniCluster(
       AkkaUtils.getAkkaConfig(originalConfiguration, None)
     }
     else {
-      val port = originalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-                                                  ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+      val port = originalConfiguration.getInteger(JobManagerOptions.PORT)
 
       val resolvedPort = if(port != 0) port + index else port
 

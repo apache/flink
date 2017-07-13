@@ -18,6 +18,9 @@
 
 package org.apache.flink.test.checkpointing;
 
+/**
+ * Integration tests for incremental RocksDB backend.
+ */
 public class IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
 	public IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase() {

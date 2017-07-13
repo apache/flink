@@ -21,12 +21,13 @@ package org.apache.flink.test.hadoop.mapred;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.OperatingSystem;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
@@ -49,10 +50,13 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
 
+/**
+ * Integraiton tests for Hadoop IO formats.
+ */
 @RunWith(Parameterized.class)
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 2;
+	private static final int NUM_PROGRAMS = 2;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String[] resultPath;
@@ -61,9 +65,9 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 	private String sequenceFileInPathNull;
 
 	public HadoopIOFormatsITCase(Configuration config) {
-		super(config);	
+		super(config);
 	}
-	
+
 	@Before
 	public void checkOperatingSystem() {
 		// FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
@@ -89,24 +93,23 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 		Text value = new Text();
 		SequenceFile.Writer writer = null;
 		try {
-			writer = SequenceFile.createWriter( fs, conf, path, key.getClass(), value.getClass());
-			for (int i = 0; i < kvCount; i ++) {
-				if(i == 1) {
+			writer = SequenceFile.createWriter(fs, conf, path, key.getClass(), value.getClass());
+			for (int i = 0; i < kvCount; i++) {
+				if (i == 1) {
 					// write key = 0 a bit more often.
-					for(int a = 0;a < 15; a++) {
+					for (int a = 0; a < 15; a++) {
 						key.set(i);
-						value.set(i+" - somestring");
+						value.set(i + " - somestring");
 						writer.append(key, value);
 					}
 				}
 				key.set(i);
-				value.set(i+" - somestring");
+				value.set(i + " - somestring");
 				writer.append(key, value);
 			}
 		} finally {
 			IOUtils.closeStream(writer);
 		}
-
 
 		//  ------------------ Long / Text Key Value pair: ------------
 
@@ -117,8 +120,8 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 		LongWritable value1 = new LongWritable();
 		SequenceFile.Writer writer1 = null;
 		try {
-			writer1 = SequenceFile.createWriter( fs, conf, path, NullWritable.class, value1.getClass());
-			for (int i = 0; i < kvCount; i ++) {
+			writer1 = SequenceFile.createWriter(fs, conf, path, NullWritable.class, value1.getClass());
+			for (int i = 0; i < kvCount; i++) {
 				value1.set(i);
 				writer1.append(NullWritable.get(), value1);
 			}
@@ -131,32 +134,32 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		expectedResult = HadoopIOFormatPrograms.runProgram(curProgId, resultPath, sequenceFileInPath, sequenceFileInPathNull);
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
-		for(int i = 0; i < resultPath.length; i++) {
+		for (int i = 0; i < resultPath.length; i++) {
 			compareResultsByLinesInMemory(expectedResult[i], resultPath[i]);
 		}
 	}
-	
+
 	@Parameters
 	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
+		for (int i = 1; i <= NUM_PROGRAMS; i++) {
 			Configuration config = new Configuration();
 			config.setInteger("ProgramId", i);
 			tConfigs.add(config);
 		}
-		
+
 		return TestBaseUtils.toParameterList(tConfigs);
 	}
-	
-	public static class HadoopIOFormatPrograms {
-		
-		public static String[] runProgram(int progId, String resultPath[], String sequenceFileInPath, String sequenceFileInPathNull) throws Exception {
-			
+
+	private static class HadoopIOFormatPrograms {
+
+		public static String[] runProgram(int progId, String[] resultPath, String sequenceFileInPath, String sequenceFileInPathNull) throws Exception {
+
 			switch(progId) {
 			case 1: {
 				/**
@@ -184,7 +187,7 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 				});
 				res.writeAsText(resultPath[1]);
 				env.execute();
-				
+
 				// return expected result
 				return 	new String [] {"(21,3 - somestring)", "0 - somestring - 0\n" +
 						"1 - somestring - 1\n" +
@@ -224,8 +227,8 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
+
 		}
-	
+
 	}
 }

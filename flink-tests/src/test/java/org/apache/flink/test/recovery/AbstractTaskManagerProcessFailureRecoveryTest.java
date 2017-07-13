@@ -18,12 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -42,16 +36,14 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
+import org.apache.commons.io.FileUtils;
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.Some;
-import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -60,6 +52,12 @@ import java.io.StringWriter;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
@@ -70,7 +68,7 @@ import static org.junit.Assert.fail;
  * Abstract base for tests verifying the behavior of the recovery in the
  * case when a TaskManager fails (process is killed) in the middle of a job execution.
  *
- * The test works with multiple task managers processes by spawning JVMs.
+ * <p>The test works with multiple task managers processes by spawning JVMs.
  * Initially, it starts a JobManager in process and two TaskManagers JVMs with
  * 2 task slots each.
  * It submits a program with parallelism 4 and waits until all tasks are brought up.
@@ -80,8 +78,6 @@ import static org.junit.Assert.fail;
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
 public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends TestLogger {
-
-	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
@@ -293,10 +289,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	 */
 	public abstract void testTaskManagerFailure(int jobManagerPort, File coordinateDir) throws Exception;
 
-
 	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelayMillis)
-			throws Exception
-	{
+			throws Exception {
 		final long pollInterval = 10_000_000; // 10 ms = 10,000,000 nanos
 		final long deadline = System.nanoTime() + maxDelayMillis * 1_000_000;
 
@@ -360,7 +354,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 		long now = System.currentTimeMillis();
 		final long deadline = now + timeout;
 
-
 		while (now < deadline) {
 			boolean allFound = true;
 
@@ -405,8 +398,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				int jobManagerPort = Integer.parseInt(args[0]);
 
 				Configuration cfg = new Configuration();
-				cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-				cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
+				cfg.setString(JobManagerOptions.ADDRESS, "localhost");
+				cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
 				cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);

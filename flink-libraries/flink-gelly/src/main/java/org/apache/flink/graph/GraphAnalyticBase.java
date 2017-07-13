@@ -21,6 +21,8 @@ package org.apache.flink.graph;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+
 /**
  * Base class for {@link GraphAnalytic}.
  *
@@ -34,10 +36,33 @@ implements GraphAnalytic<K, VV, EV, T> {
 
 	protected ExecutionEnvironment env;
 
+	protected int parallelism = PARALLELISM_DEFAULT;
+
 	@Override
 	public GraphAnalytic<K, VV, EV, T> run(Graph<K, VV, EV> input)
 			throws Exception {
 		env = input.getContext();
+		return this;
+	}
+
+	/**
+	 * Set the parallelism for this analytic's operators. This parameter is
+	 * necessary because processing a small amount of data with high operator
+	 * parallelism is slow and wasteful with memory and buffers.
+	 *
+	 * <p>Operator parallelism should be set to this given value unless
+	 * processing asymptotically more data, in which case the default job
+	 * parallelism should be inherited.
+	 *
+	 * @param parallelism operator parallelism
+	 * @return this
+	 */
+	public GraphAnalyticBase<K, VV, EV, T> setParallelism(int parallelism) {
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
+		this.parallelism = parallelism;
+
 		return this;
 	}
 

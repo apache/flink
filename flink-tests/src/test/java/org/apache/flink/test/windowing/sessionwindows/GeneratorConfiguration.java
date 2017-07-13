@@ -19,7 +19,7 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 /**
- * Configuration for event generators
+ * Configuration for event generators.
  */
 public final class GeneratorConfiguration {
 
@@ -35,10 +35,11 @@ public final class GeneratorConfiguration {
 	// hint for the maximum additional gap introduced between event times of two generators to separate sessions
 	private final long maxAdditionalSessionGap;
 
-	public GeneratorConfiguration(long allowedLateness,
-	                              int lateEventsWithinLateness,
-	                              int lateEventsAfterLateness,
-	                              long maxAdditionalSessionGap) {
+	public GeneratorConfiguration(
+			long allowedLateness,
+			int lateEventsWithinLateness,
+			int lateEventsAfterLateness,
+			long maxAdditionalSessionGap) {
 		this.allowedLateness = allowedLateness;
 		this.lateEventsWithinLateness = lateEventsWithinLateness;
 		this.lateEventsAfterLateness = lateEventsAfterLateness;
@@ -61,10 +62,11 @@ public final class GeneratorConfiguration {
 		return maxAdditionalSessionGap;
 	}
 
-	public static GeneratorConfiguration of(long allowedLateness,
-	                                        int lateEventsPerSessionWithinLateness,
-	                                        int lateEventsPerSessionOutsideLateness,
-	                                        long maxAdditionalSessionGap) {
+	public static GeneratorConfiguration of(
+			long allowedLateness,
+			int lateEventsPerSessionWithinLateness,
+			int lateEventsPerSessionOutsideLateness,
+			long maxAdditionalSessionGap) {
 		return new GeneratorConfiguration(
 				allowedLateness,
 				lateEventsPerSessionWithinLateness,

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.state.operator.restore.unkeyed;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
+
 import org.junit.Assert;
 
 import java.util.Arrays;
@@ -40,7 +42,7 @@ import java.util.List;
  * Savepoint generator to create the savepoint used by the {@link AbstractNonKeyedOperatorRestoreTestBase}.
  * Switch to specific version branches and run this job to create savepoints of different Flink versions.
  *
- * The job should be cancelled manually through the REST API using the cancel-with-savepoint operation.
+ * <p>The job should be cancelled manually through the REST API using the cancel-with-savepoint operation.
  */
 public class NonKeyedJob {
 

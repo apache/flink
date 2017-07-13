@@ -45,8 +45,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * The Jaccard Index measures the similarity between vertex neighborhoods and
  * is computed as the number of shared neighbors divided by the number of
@@ -83,8 +81,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	private int maximumScoreDenominator = 1;
 
 	private boolean mirrorResults;
-
-	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Override the default group size for the quadratic expansion of neighbor
@@ -158,49 +154,29 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		return this;
 	}
 
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public JaccardIndex<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		Preconditions.checkNotNull(other);
-
-		if (!JaccardIndex.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		JaccardIndex rhs = (JaccardIndex) other;
 
-		// verify that configurations can be merged
+		return unboundedScores == rhs.unboundedScores &&
+			minimumScoreNumerator == rhs.minimumScoreNumerator &&
+			minimumScoreDenominator == rhs.minimumScoreDenominator &&
+			maximumScoreNumerator == rhs.maximumScoreNumerator &&
+			maximumScoreDenominator == rhs.maximumScoreDenominator &&
+			mirrorResults == rhs.mirrorResults;
+	}
 
-		if (unboundedScores != rhs.unboundedScores ||
-			minimumScoreNumerator != rhs.minimumScoreNumerator ||
-			minimumScoreDenominator != rhs.minimumScoreDenominator ||
-			maximumScoreNumerator != rhs.maximumScoreNumerator ||
-			maximumScoreDenominator != rhs.maximumScoreDenominator ||
-			mirrorResults != rhs.mirrorResults) {
-			return false;
-		}
+	@Override
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
-		// merge configurations
+		JaccardIndex rhs = (JaccardIndex) other;
 
 		groupSize = Math.max(groupSize, rhs.groupSize);
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
 	}
 
 	/*
@@ -217,23 +193,23 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// s, t, d(t)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> neighborDegree = input
 			.run(new EdgeTargetDegree<K, VV, EV>()
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// group span, s, t, d(t)
 		DataSet<Tuple4<IntValue, K, K, IntValue>> groupSpans = neighborDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
 			.reduceGroup(new GenerateGroupSpans<K, EV>(groupSize))
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Generate group spans");
 
 		// group, s, t, d(t)
 		DataSet<Tuple4<IntValue, K, K, IntValue>> groups = groupSpans
 			.rebalance()
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Rebalance")
 			.flatMap(new GenerateGroups<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Generate groups");
 
 		// t, u, d(t)+d(u)

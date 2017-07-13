@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.akka;
 
-import akka.actor.ActorSystem;
-import akka.actor.Address;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorSystem;
+import akka.actor.Address;
 import org.slf4j.Logger;
+
 import scala.concurrent.duration.FiniteDuration;
 
 /**

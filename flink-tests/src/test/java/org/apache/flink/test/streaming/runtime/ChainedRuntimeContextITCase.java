@@ -29,6 +29,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertNotEquals;
 
+/**
+ * Test creation of context for chained streaming operators.
+ */
 @SuppressWarnings("serial")
 public class ChainedRuntimeContextITCase extends StreamingMultipleProgramsTestBase {
 	private static RuntimeContext srcContext;

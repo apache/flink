@@ -274,7 +274,7 @@ class StreamTableEnvironment(
     * @tparam T The type of the output value.
     * @tparam ACC The type of aggregate accumulator.
     */
-  def registerFunction[T: TypeInformation, ACC](
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC])
   : Unit = {

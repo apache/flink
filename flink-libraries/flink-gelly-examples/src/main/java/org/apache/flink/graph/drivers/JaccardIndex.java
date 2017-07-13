@@ -27,8 +27,6 @@ import org.apache.flink.types.CopyableValue;
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Driver for {@link org.apache.flink.graph.library.similarity.JaccardIndex}.
  */
@@ -53,9 +51,6 @@ extends DriverBase<K, VV, EV> {
 
 	private BooleanParameter mirrorResults = new BooleanParameter(this, "mirror_results");
 
-	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
-
 	@Override
 	public String getShortDescription() {
 		return "similarity score as fraction of common neighbors";
@@ -76,13 +71,11 @@ extends DriverBase<K, VV, EV> {
 
 	@Override
 	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		int lp = littleParallelism.getValue().intValue();
-
 		return graph
 			.run(new org.apache.flink.graph.library.similarity.JaccardIndex<K, VV, EV>()
 				.setMinimumScore(minNumerator.getValue().intValue(), minDenominator.getValue().intValue())
 				.setMaximumScore(maxNumerator.getValue().intValue(), maxDenominator.getValue().intValue())
 				.setMirrorResults(mirrorResults.getValue())
-				.setLittleParallelism(lp));
+				.setParallelism(parallelism.getValue().intValue()));
 	}
 }

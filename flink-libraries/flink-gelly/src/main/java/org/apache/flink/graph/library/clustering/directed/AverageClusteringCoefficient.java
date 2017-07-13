@@ -33,8 +33,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * The average clustering coefficient measures the mean connectedness of a
  * graph. Scores range from 0.0 (no triangles) to 1.0 (complete graph).
@@ -52,21 +50,6 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private AverageClusteringCoefficientHelper<K> averageClusteringCoefficientHelper;
 
-	// Optional configuration
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public AverageClusteringCoefficient<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	/*
 	 * Implementation notes:
 	 *
@@ -81,7 +64,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 		DataSet<LocalClusteringCoefficient.Result<K>> localClusteringCoefficient = input
 			.run(new LocalClusteringCoefficient<K, VV, EV>()
-				.setLittleParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		averageClusteringCoefficientHelper = new AverageClusteringCoefficientHelper<>();
 

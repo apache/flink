@@ -23,11 +23,11 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.testfunctions.Tokenizer;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.OperatingSystem;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -37,6 +37,11 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.Assume;
 import org.junit.Before;
 
+import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
+
+/**
+ * Test WordCount with Hadoop input and output "mapreduce" (modern) formats.
+ */
 public class WordCountMapreduceITCase extends JavaProgramTestBase {
 
 	protected String textPath;
@@ -86,7 +91,6 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 			}
 		});
 
-
 		DataSet<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.flatMap(new Tokenizer())
@@ -95,7 +99,6 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 						.sum(1);
 
 		DataSet<Tuple2<Text, LongWritable>> words = counts.map(new MapFunction<Tuple2<String, Integer>, Tuple2<Text, LongWritable>>() {
-
 
 			@Override
 			public Tuple2<Text, LongWritable> map(Tuple2<String, Integer> value) throws Exception {

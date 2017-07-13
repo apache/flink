@@ -237,55 +237,6 @@ public class BlobClientSslTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the PUT/GET operations for regular (non-content-addressable) streams.
-	 */
-	@Test
-	public void testRegularStream() {
-
-		final JobID jobID = JobID.generate();
-		final String key = "testkey3";
-
-		try {
-			final File testFile = File.createTempFile("testfile", ".dat");
-			testFile.deleteOnExit();
-			prepareTestFile(testFile);
-
-			BlobClient client = null;
-			InputStream is = null;
-			try {
-
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SSL_SERVER.getPort());
-				client = new BlobClient(serverAddress, sslClientConfig);
-
-				// Store the data
-				is = new FileInputStream(testFile);
-				client.put(jobID, key, is);
-
-				is.close();
-				is = null;
-
-				// Retrieve the data
-				is = client.get(jobID, key);
-				validateGet(is, testFile);
-
-			}
-			finally {
-				if (is != null) {
-					is.close();
-				}
-				if (client != null) {
-					client.close();
-				}
-			}
-
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
 	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
 	 */
 	private void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
