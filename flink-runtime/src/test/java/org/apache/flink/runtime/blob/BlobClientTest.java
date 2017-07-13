@@ -40,6 +40,9 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.JobID;
+
+import javax.annotation.Nullable;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -207,6 +210,7 @@ public class BlobClientTest {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream or the file
 	 */
+	@SuppressWarnings("WeakerAccess")
 	static void validateGet(final InputStream actualInputStream, final File expectedFile) throws IOException {
 		try (InputStream inputStream2 = new FileInputStream(expectedFile)) {
 			validateGet(actualInputStream, inputStream2);
@@ -233,31 +237,35 @@ public class BlobClientTest {
 
 			JobID jobId = new JobID();
 
-			// Store the data
-			BlobKey receivedKey = client.put(null, testBuffer);
+			// Store the data (job-unrelated)
+			BlobKey receivedKey = client.putBuffer(null, testBuffer, 0, testBuffer.length);
 			assertEquals(origKey, receivedKey);
+
 			// try again with a job-related BLOB:
-			receivedKey = client.put(jobId, testBuffer);
+			receivedKey = client.putBuffer(jobId, testBuffer, 0, testBuffer.length);
 			assertEquals(origKey, receivedKey);
 
-			// Retrieve the data
-			InputStream is = client.get(receivedKey);
+			// Retrieve the data (job-unrelated)
+			InputStream is = client.getInternal(null, receivedKey);
 			validateGet(is, testBuffer);
-			is = client.get(jobId, receivedKey);
+			// job-related
+			is = client.getInternal(jobId, receivedKey);
 			validateGet(is, testBuffer);
 
-			// Check reaction to invalid keys
+			// Check reaction to invalid keys for job-unrelated blobs
 			try {
-				client.get(new BlobKey());
+				client.getInternal(null, new BlobKey());
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
 				// expected
 			}
+
+			// Check reaction to invalid keys for job-related blobs
 			// new client needed (closed from failure above)
 			client = new BlobClient(serverAddress, getBlobClientConfig());
 			try {
-				client.get(jobId, new BlobKey());
+				client.getInternal(jobId, new BlobKey());
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -287,47 +295,38 @@ public class BlobClientTest {
 	@Test
 	public void testContentAddressableStream() throws IOException {
 
-		BlobClient client = null;
+		File testFile = temporaryFolder.newFile();
+		BlobKey origKey = prepareTestFile(testFile);
+
 		InputStream is = null;
 
-		try {
-			File testFile = File.createTempFile("testfile", ".dat");
-			testFile.deleteOnExit();
-
-			BlobKey origKey = prepareTestFile(testFile);
-
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
-			client = new BlobClient(serverAddress, getBlobClientConfig());
+		try (BlobClient client = new BlobClient(new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
 
 			JobID jobId = new JobID();
 
-			// Store the data
+			// Store the data (job-unrelated)
 			is = new FileInputStream(testFile);
-			BlobKey receivedKey = client.put(is);
+			BlobKey receivedKey = client.putInputStream(null, is);
 			assertEquals(origKey, receivedKey);
+
 			// try again with a job-related BLOB:
 			is = new FileInputStream(testFile);
-			receivedKey = client.put(jobId, is);
+			receivedKey = client.putInputStream(jobId, is);
 			assertEquals(origKey, receivedKey);
 
 			is.close();
 			is = null;
 
-			// Retrieve the data
-			is = client.get(receivedKey);
+			// Retrieve the data (job-unrelated)
+			is = client.getInternal(null, receivedKey);
 			validateGet(is, testFile);
-			is = client.get(jobId, receivedKey);
+			// job-related
+			is = client.getInternal(jobId, receivedKey);
 			validateGet(is, testFile);
-		}
-		finally {
+		} finally {
 			if (is != null) {
 				try {
 					is.close();
-				} catch (Throwable ignored) {}
-			}
-			if (client != null) {
-				try {
-					client.close();
 				} catch (Throwable ignored) {}
 			}
 		}
@@ -348,29 +347,21 @@ public class BlobClientTest {
 	 *
 	 * @param jobId job ID or <tt>null</tt> if job-unrelated
 	 */
-	private void testGetFailsDuringStreaming(final JobID jobId) throws IOException {
-		BlobServer server = null;
-		BlobClient client = null;
+	private void testGetFailsDuringStreaming(@Nullable final JobID jobId) throws IOException {
 
-		try {
-			final Configuration config = new Configuration();
-			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-			server = new BlobServer(config, new VoidBlobStore());
-
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress, config);
+		try (BlobClient client = new BlobClient(
+			new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
 
 			byte[] data = new byte[5000000];
 			Random rnd = new Random();
 			rnd.nextBytes(data);
 
 			// put content addressable (like libraries)
-			BlobKey key = client.put(jobId, data);
+			BlobKey key = client.putBuffer(jobId, data, 0, data.length);
 			assertNotNull(key);
 
 			// issue a GET request that succeeds
-			InputStream is = client.get(jobId, key);
+			InputStream is = client.getInternal(jobId, key);
 
 			byte[] receiveBuffer = new byte[data.length];
 			int firstChunkLen = 50000;
@@ -378,7 +369,7 @@ public class BlobClientTest {
 			BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
 
 			// shut down the server
-			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
+			for (BlobServerConnection conn : getBlobServer().getCurrentActiveConnections()) {
 				conn.close();
 			}
 
@@ -390,13 +381,6 @@ public class BlobClientTest {
 			}
 			catch (IOException e) {
 				// expected
-			}
-		} finally {
-			if (client != null) {
-				client.close();
-			}
-			if (server != null) {
-				server.close();
 			}
 		}
 	}
@@ -433,7 +417,7 @@ public class BlobClientTest {
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			InputStream is = blobClient.get(jobId, blobKeys.get(0));
+			InputStream is = blobClient.getInternal(jobId, blobKeys.get(0));
 			validateGet(is, testFile);
 		}
 	}
