@@ -110,6 +110,11 @@ under the License.
             <scope>compile</scope>
         </dependency>
 
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
