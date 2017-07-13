@@ -18,6 +18,12 @@
 
 package org.apache.flink.runtime.query.netty;
 
+import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.util.Preconditions;
+
 import akka.dispatch.Futures;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.bootstrap.Bootstrap;
@@ -33,13 +39,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
-import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.runtime.query.KvStateServerAddress;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
-import org.apache.flink.util.Preconditions;
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
 
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayDeque;
@@ -50,6 +49,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import scala.concurrent.Future;
+import scala.concurrent.Promise;
 
 /**
  * Netty-based client querying {@link KvStateServer} instances.
@@ -74,7 +76,7 @@ public class KvStateClient {
 	/** Netty's Bootstrap. */
 	private final Bootstrap bootstrap;
 
-	/** Statistics tracker */
+	/** Statistics tracker. */
 	private final KvStateRequestStats stats;
 
 	/** Established connections. */

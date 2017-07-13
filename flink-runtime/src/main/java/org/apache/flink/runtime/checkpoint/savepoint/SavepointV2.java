@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -177,6 +178,18 @@ public class SavepointV2 implements Savepoint {
 			}
 
 			List<OperatorID> operatorIDs = jobVertex.getOperatorIDs();
+
+			Preconditions.checkArgument(
+				jobVertex.getParallelism() == taskState.getParallelism(),
+				"Detected change in parallelism during migration for task " + jobVertex.getJobVertexId() +"." +
+					"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
+					"to the parallelism of stateful operators.");
+
+			Preconditions.checkArgument(
+				operatorIDs.size() == taskState.getChainLength(),
+				"Detected change in chain length during migration for task " + jobVertex.getJobVertexId() +". " +
+					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
+					"changed by modification of a chain containing a stateful operator.");
 
 			for (int subtaskIndex = 0; subtaskIndex < jobVertex.getParallelism(); subtaskIndex++) {
 				SubtaskState subtaskState;

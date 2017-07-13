@@ -195,6 +195,16 @@ public class PatternTest extends TestLogger {
 		assertEquals(previous2.getName(), "start");
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testPatternTimesNegativeTimes() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).times(-1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testPatternTimesNegativeFrom() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+	}
+
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
 
@@ -255,6 +265,24 @@ public class PatternTest extends TestLogger {
 	public void testNotFollowedCannotBeOptional() throws Exception {
 
 		Pattern.begin("start").where(dummyCondition()).notFollowedBy("not").where(dummyCondition()).optional();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testUntilCannotBeAppliedToTimes() throws Exception {
+
+		Pattern.begin("start").where(dummyCondition()).times(1).until(dummyCondition());
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testUntilCannotBeAppliedToSingleton() throws Exception {
+
+		Pattern.begin("start").where(dummyCondition()).until(dummyCondition());
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testUntilCannotBeAppliedTwice() throws Exception {
+
+		Pattern.begin("start").where(dummyCondition()).until(dummyCondition()).until(dummyCondition());
 	}
 
 	private SimpleCondition<Object> dummyCondition() {

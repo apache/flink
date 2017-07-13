@@ -34,10 +34,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
-import org.apache.flink.graph.asm.result.BinaryResult;
+import org.apache.flink.graph.asm.result.BinaryResultBase;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.graph.utils.MurmurHash;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.FloatValue;
@@ -49,8 +50,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf
@@ -83,8 +82,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private float minimumRatio = 0.0f;
 
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * Filter out Adamic-Adar scores less than the given minimum.
 	 *
@@ -113,49 +110,15 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		return this;
 	}
 
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public AdamicAdar<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	@Override
-	protected String getAlgorithmName() {
-		return AdamicAdar.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (!AdamicAdar.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		AdamicAdar rhs = (AdamicAdar) other;
 
-		// verify that configurations can be merged
-
-		if (minimumRatio != rhs.minimumRatio ||
-			minimumScore != rhs.minimumScore) {
-			return false;
-		}
-
-		// merge configurations
-
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
+		return minimumRatio == rhs.minimumRatio && minimumScore == rhs.minimumScore;
 	}
 
 	/*
@@ -172,9 +135,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// s, d(s), 1/log(d(s))
 		DataSet<Tuple3<K, LongValue, FloatValue>> inverseLogDegree = input
 			.run(new VertexDegree<K, VV, EV>()
-				.setParallelism(littleParallelism))
+				.setParallelism(parallelism))
 			.map(new VertexInverseLogDegree<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Vertex score");
 
 		// s, t, 1/log(d(s))
@@ -185,7 +148,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.equalTo(0)
 			.projectFirst(0, 1)
 			.<Tuple3<K, K, FloatValue>>projectSecond(2)
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Edge score");
 
 		// group span, s, t, 1/log(d(s))
@@ -193,16 +156,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
 			.reduceGroup(new GenerateGroupSpans<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Generate group spans");
 
 		// group, s, t, 1/log(d(s))
 		DataSet<Tuple4<IntValue, K, K, FloatValue>> groups = groupSpans
 			.rebalance()
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Rebalance")
 			.flatMap(new GenerateGroups<K>())
-				.setParallelism(littleParallelism)
+				.setParallelism(parallelism)
 				.name("Generate groups");
 
 		// t, u, 1/log(d(s)) where (s, t) and (s, u) are edges in graph
@@ -222,7 +185,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			// total score, number of pairs of neighbors
 			DataSet<Tuple2<FloatValue, LongValue>> sumOfScoresAndNumberOfNeighborPairs = inverseLogDegree
 				.map(new ComputeScoreFromVertex<K>())
-					.setParallelism(littleParallelism)
+					.setParallelism(parallelism)
 					.name("Average score")
 				.sum(0)
 				.andSum(1);
@@ -392,7 +355,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0; 1")
+	@ForwardedFields("0->vertexId0; 1->vertexId1")
 	private static class ComputeScores<T>
 	extends RichGroupReduceFunction<Tuple3<T, T, FloatValue>, Result<T>> {
 		private float minimumScore;
@@ -433,52 +396,23 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			}
 
 			if (sum >= minimumScore) {
-				output.f0 = edge.f0;
-				output.f1 = edge.f1;
-				output.f2.setValue(sum);
+				output.setVertexId0(edge.f0);
+				output.setVertexId1(edge.f1);
+				output.setAdamicAdarScore(sum);
 				out.collect(output);
 			}
 		}
 	}
 
 	/**
-	 * Wraps {@link Tuple3} to encapsulate results from the Adamic-Adar algorithm.
+	 * A result for the Adamic-Adar algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple3<T, T, FloatValue>
-	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
-		public static final int HASH_SEED = 0xe405f6d1;
-
-		private MurmurHash hasher = new MurmurHash(HASH_SEED);
-
-		/**
-		 * No-args constructor.
-		 */
-		public Result() {
-			f2 = new FloatValue();
-		}
-
-		@Override
-		public T getVertexId0() {
-			return f0;
-		}
-
-		@Override
-		public void setVertexId0(T value) {
-			f0 = value;
-		}
-
-		@Override
-		public T getVertexId1() {
-			return f1;
-		}
-
-		@Override
-		public void setVertexId1(T value) {
-			f1 = value;
-		}
+	extends BinaryResultBase<T>
+	implements PrintableResult {
+		private FloatValue adamicAdarScore = new FloatValue();
 
 		/**
 		 * Get the Adamic-Adar score, equal to the sum over common neighbors of
@@ -487,27 +421,55 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return Adamic-Adar score
 		 */
 		public FloatValue getAdamicAdarScore() {
-			return f2;
+			return adamicAdarScore;
+		}
+
+		/**
+		 * Set the Adamic-Adar score, equal to the sum over common neighbors of
+		 * the inverse logarithm of degree.
+		 *
+		 * @param adamicAdarScore the Adamic-Adar score
+		 */
+		public void setAdamicAdarScore(FloatValue adamicAdarScore) {
+			this.adamicAdarScore = adamicAdarScore;
+		}
+
+		private void setAdamicAdarScore(float adamicAdarScore) {
+			this.adamicAdarScore.setValue(adamicAdarScore);
+		}
+
+		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + getVertexId1()
+				+ "," + adamicAdarScore
+				+ ")";
 		}
 
 		@Override
 		public String toPrintableString() {
-			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
-				+ "), adamic-adar score: " + getAdamicAdarScore();
+			return "Vertex IDs: (" + getVertexId0()
+				+ ", " + getVertexId1()
+				+ "), adamic-adar score: " + adamicAdarScore;
 		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0xe405f6d1;
+
+		private transient MurmurHash hasher;
 
 		@Override
 		public int hashCode() {
-			return hasher.reset()
-				.hash(f0.hashCode())
-				.hash(f1.hashCode())
-				.hash(f2.getValue())
-				.hash();
-		}
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
 
-		@Override
-		public int compareTo(Result<T> o) {
-			return Float.compare(getAdamicAdarScore().getValue(), o.getAdamicAdarScore().getValue());
+			return hasher.reset()
+				.hash(getVertexId0().hashCode())
+				.hash(getVertexId1().hashCode())
+				.hash(adamicAdarScore.getValue())
+				.hash();
 		}
 	}
 }

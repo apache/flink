@@ -18,15 +18,15 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.asm.result.PrintableResult;
-import org.apache.flink.graph.drivers.output.Hash;
-import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 
 import org.apache.commons.lang3.text.StrBuilder;
+
+import java.io.PrintStream;
 
 /**
  * Driver for directed and undirected graph metrics analytics.
@@ -37,8 +37,7 @@ import org.apache.commons.lang3.text.StrBuilder;
  * @see org.apache.flink.graph.library.metric.undirected.VertexMetrics
  */
 public class GraphMetrics<K extends Comparable<K>, VV, EV>
-extends ParameterizedBase
-implements Driver<K, VV, EV>, Hash, Print {
+extends DriverBase<K, VV, EV> {
 
 	private static final String DIRECTED = "directed";
 
@@ -50,11 +49,6 @@ implements Driver<K, VV, EV>, Hash, Print {
 	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> vertexMetrics;
 
 	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> edgeMetrics;
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
 
 	@Override
 	public String getShortDescription() {
@@ -87,40 +81,39 @@ implements Driver<K, VV, EV>, Hash, Print {
 	}
 
 	@Override
-	public void plan(Graph<K, VV, EV> graph) throws Exception {
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		switch (order.getValue()) {
 			case DIRECTED:
 				vertexMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.directed.VertexMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.directed.VertexMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 
 				edgeMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.directed.EdgeMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.directed.EdgeMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 				break;
 
 			case UNDIRECTED:
 				vertexMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.undirected.VertexMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.undirected.VertexMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 
 				edgeMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.undirected.EdgeMetrics<K, VV, EV>());
+					.run(new org.apache.flink.graph.library.metric.undirected.EdgeMetrics<K, VV, EV>()
+						.setParallelism(parallelism.getValue().intValue()));
 				break;
 		}
+
+		return null;
 	}
 
 	@Override
-	public void hash(String executionName) throws Exception {
-		print(executionName);
-	}
+	public void printAnalytics(PrintStream out) {
+		out.print("Vertex metrics:\n  ");
+		out.println(vertexMetrics.getResult().toPrintableString().replace(";", "\n "));
 
-	@Override
-	public void print(String executionName) throws Exception {
-		vertexMetrics.execute(executionName);
-
-		System.out.print("Vertex metrics:\n  ");
-		System.out.println(vertexMetrics.getResult().toPrintableString().replace(";", "\n "));
-
-		System.out.println();
-		System.out.print("Edge metrics:\n  ");
-		System.out.println(edgeMetrics.getResult().toPrintableString().replace(";", "\n "));
+		out.println();
+		out.print("Edge metrics:\n  ");
+		out.println(edgeMetrics.getResult().toPrintableString().replace(";", "\n "));
 	}
 }

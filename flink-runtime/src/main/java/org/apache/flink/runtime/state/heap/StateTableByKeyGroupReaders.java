@@ -48,6 +48,7 @@ class StateTableByKeyGroupReaders {
 				return new StateTableByKeyGroupReaderV1<>(table);
 			case 2:
 			case 3:
+			case 4:
 				return new StateTableByKeyGroupReaderV2V3<>(table);
 			default:
 				throw new IllegalArgumentException("Unknown version: " + version);

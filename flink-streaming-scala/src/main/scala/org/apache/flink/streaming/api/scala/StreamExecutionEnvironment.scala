@@ -768,6 +768,18 @@ object StreamExecutionEnvironment {
   }
 
   /**
+   * Creates a local execution environment. The local execution environment will run the
+   * program in a multi-threaded fashion in the same JVM as the environment was created in.
+   *
+   * @param parallelism   The parallelism for the local environment.
+   * @param configuration Pass a custom configuration into the cluster.
+   */
+  def createLocalEnvironment(parallelism: Int, configuration: Configuration):
+  StreamExecutionEnvironment = {
+    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism, configuration))
+  }
+
+  /**
    * Creates a [[StreamExecutionEnvironment]] for local program execution that also starts the
    * web monitoring UI.
    *

@@ -20,13 +20,11 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.elasticsearch.action.ActionRequest;
 
-import java.io.Serializable;
-
 /**
  * Users add multiple {@link ActionRequest ActionRequests} to a {@link RequestIndexer} to prepare
  * them for sending to an Elasticsearch cluster.
  */
-public interface RequestIndexer extends Serializable {
+public interface RequestIndexer {
 
 	/**
 	 * Add multiple {@link ActionRequest} to the indexer to prepare for sending requests to Elasticsearch.

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.security.UserGroupInformation;
 
 import java.security.PrivilegedExceptionAction;

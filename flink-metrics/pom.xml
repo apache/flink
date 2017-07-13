@@ -39,6 +39,7 @@ under the License.
 		<module>flink-metrics-ganglia</module>
 		<module>flink-metrics-graphite</module>
 		<module>flink-metrics-jmx</module>
+		<module>flink-metrics-prometheus</module>
 		<module>flink-metrics-statsd</module>
 		<module>flink-metrics-datadog</module>
 	</modules>

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -25,14 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * A concurrent data structure that allows the hand-over of an object between a pair of threads
+ * A concurrent data structure that allows the hand-over of an object between a pair of threads.
  */
 public class Broker<V> {
 
 	private final ConcurrentMap<String, BlockingQueue<V>> mediations = new ConcurrentHashMap<String, BlockingQueue<V>>();
 
 	/**
-	 * hand in the object to share
+	 * Hand in the object to share.
 	 */
 	public void handIn(String key, V obj) {
 		if (!retrieveSharedQueue(key).offer(obj)) {
@@ -40,7 +39,7 @@ public class Broker<V> {
 		}
 	}
 
-	/** blocking retrieval and removal of the object to share */
+	/** Blocking retrieval and removal of the object to share. */
 	public V getAndRemove(String key) {
 		try {
 			V objToShare = retrieveSharedQueue(key).take();
@@ -50,13 +49,13 @@ public class Broker<V> {
 			throw new RuntimeException(e);
 		}
 	}
-	
-	/** blocking retrieval and removal of the object to share */
+
+	/** Blocking retrieval and removal of the object to share. */
 	public void remove(String key) {
 		mediations.remove(key);
 	}
-	
-	/** blocking retrieval and removal of the object to share */
+
+	/** Blocking retrieval and removal of the object to share. */
 	public V get(String key) {
 		try {
 			BlockingQueue<V> queue = retrieveSharedQueue(key);
@@ -71,7 +70,7 @@ public class Broker<V> {
 	}
 
 	/**
-	 * thread-safe call to get a shared {@link BlockingQueue}
+	 * Thread-safe call to get a shared {@link BlockingQueue}.
 	 */
 	private BlockingQueue<V> retrieveSharedQueue(String key) {
 		BlockingQueue<V> queue = mediations.get(key);

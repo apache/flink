@@ -32,10 +32,9 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.JavaProgramTestBase;
-
 import org.apache.flink.util.TestLogger;
-import org.junit.Ignore;
 
+import org.junit.Ignore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +42,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Manually test the throughput of the network stack.
+ */
 @Ignore
 public class NetworkStackThroughputITCase extends TestLogger {
 
@@ -144,7 +146,6 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			return jobGraph;
 		}
 
-
 		@Override
 		protected void testProgram() throws Exception {
 			JobExecutionResult jer = executor.submitJobAndWait(getJobGraph(), false);
@@ -162,7 +163,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
-	public static class SpeedTestProducer extends AbstractInvokable {
+	private static class SpeedTestProducer extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -197,7 +198,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		}
 	}
 
-	public static class SpeedTestForwarder extends AbstractInvokable {
+	private static class SpeedTestForwarder extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -221,7 +222,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		}
 	}
 
-	public static class SpeedTestConsumer extends AbstractInvokable {
+	private static class SpeedTestConsumer extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -246,7 +247,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		}
 	}
 
-	public static class SpeedTestRecord implements IOReadableWritable {
+	private static class SpeedTestRecord implements IOReadableWritable {
 
 		private static final int RECORD_SIZE = 128;
 

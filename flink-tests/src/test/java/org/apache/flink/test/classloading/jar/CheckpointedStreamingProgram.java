@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
-import java.lang.RuntimeException;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,7 +38,7 @@ import java.util.List;
 public class CheckpointedStreamingProgram {
 
 	private static final int CHECKPOINT_INTERVALL = 100;
-	
+
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -47,21 +46,20 @@ public class CheckpointedStreamingProgram {
 		env.enableCheckpointing(CHECKPOINT_INTERVALL);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 100L));
 		env.disableOperatorChaining();
-		
+
 		DataStream<String> text = env.addSource(new SimpleStringGenerator());
 		text.map(new StatefulMapper()).addSink(new NoOpSink());
 		env.setParallelism(1);
 		env.execute("Checkpointed Streaming Program");
 	}
 
-
 	// with Checkpoining
-	public static class SimpleStringGenerator implements SourceFunction<String>, ListCheckpointed<Integer> {
+	private static class SimpleStringGenerator implements SourceFunction<String>, ListCheckpointed<Integer> {
 		public boolean running = true;
 
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {
-			while(running) {
+			while (running) {
 				Thread.sleep(1);
 				ctx.collect("someString");
 			}
@@ -83,7 +81,7 @@ public class CheckpointedStreamingProgram {
 		}
 	}
 
-	public static class StatefulMapper implements MapFunction<String, String>, ListCheckpointed<StatefulMapper>, CheckpointListener {
+	private static class StatefulMapper implements MapFunction<String, String>, ListCheckpointed<StatefulMapper>, CheckpointListener {
 
 		private String someState;
 		private boolean atLeastOneSnapshotComplete = false;
@@ -107,14 +105,14 @@ public class CheckpointedStreamingProgram {
 
 		@Override
 		public String map(String value) throws Exception {
-			if(!atLeastOneSnapshotComplete) {
+			if (!atLeastOneSnapshotComplete) {
 				// throttle consumption by the checkpoint interval until we have one snapshot.
 				Thread.sleep(CHECKPOINT_INTERVALL);
 			}
-			if(atLeastOneSnapshotComplete && !restored) {
+			if (atLeastOneSnapshotComplete && !restored) {
 				throw new RuntimeException("Intended failure, to trigger restore");
 			}
-			if(restored) {
+			if (restored) {
 				throw new SuccessException();
 				//throw new RuntimeException("All good");
 			}
@@ -130,13 +128,13 @@ public class CheckpointedStreamingProgram {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * We intentionally use a user specified failure exception
+	 * We intentionally use a user specified failure exception.
 	 */
-	public static class SuccessException extends Exception {
+	private static class SuccessException extends Exception {
 
 	}
 
-	public static class NoOpSink implements SinkFunction<String>{
+	private static class NoOpSink implements SinkFunction<String>{
 		@Override
 		public void invoke(String value) throws Exception {
 		}

@@ -20,10 +20,7 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.IterationConvergence;
-import org.apache.flink.graph.library.linkanalysis.HITS.Result;
 
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
@@ -32,17 +29,11 @@ import org.apache.commons.lang3.text.WordUtils;
  * Driver for {@link org.apache.flink.graph.library.linkanalysis.HITS}.
  */
 public class HITS<K, VV, EV>
-extends SimpleDriver<K, VV, EV, Result<K>>
-implements CSV, Print {
+extends DriverBase<K, VV, EV> {
 
 	private static final int DEFAULT_ITERATIONS = 10;
 
 	private IterationConvergence iterationConvergence = new IterationConvergence(this, DEFAULT_ITERATIONS);
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
 
 	@Override
 	public String getShortDescription() {
@@ -61,10 +52,11 @@ implements CSV, Print {
 	}
 
 	@Override
-	protected DataSet<Result<K>> simplePlan(Graph<K, VV, EV> graph) throws Exception {
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		return graph
 			.run(new org.apache.flink.graph.library.linkanalysis.HITS<K, VV, EV>(
-				iterationConvergence.getValue().iterations,
-				iterationConvergence.getValue().convergenceThreshold));
+					iterationConvergence.getValue().iterations,
+					iterationConvergence.getValue().convergenceThreshold)
+				.setParallelism(parallelism.getValue().intValue()));
 	}
 }

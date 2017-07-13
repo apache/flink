@@ -36,11 +36,6 @@ extends GeneratedGraph<LongValue> {
 		.setMinimumValue(MINIMUM_VERTEX_COUNT);
 
 	@Override
-	public String getName() {
-		return EmptyGraph.class.getSimpleName();
-	}
-
-	@Override
 	public String getIdentity() {
 		return getTypeName() + " " + getName() + " (" + vertexCount + ")";
 	}
@@ -53,6 +48,7 @@ extends GeneratedGraph<LongValue> {
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
 		return new org.apache.flink.graph.generator.EmptyGraph(env, vertexCount.getValue())
+			.setParallelism(parallelism.getValue().intValue())
 			.generate();
 	}
 }

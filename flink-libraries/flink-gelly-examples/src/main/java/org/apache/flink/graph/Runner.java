@@ -19,8 +19,9 @@
 package org.apache.flink.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.drivers.AdamicAdar;
@@ -46,16 +47,26 @@ import org.apache.flink.graph.drivers.input.RMatGraph;
 import org.apache.flink.graph.drivers.input.SingletonEdgeGraph;
 import org.apache.flink.graph.drivers.input.StarGraph;
 import org.apache.flink.graph.drivers.output.Hash;
+import org.apache.flink.graph.drivers.output.Output;
 import org.apache.flink.graph.drivers.output.Print;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
+import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
+import org.apache.flink.graph.drivers.parameter.StringParameter;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.commons.lang3.text.StrBuilder;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This default main class executes Flink drivers.
@@ -70,7 +81,8 @@ import java.util.List;
  * <p>Algorithms must explicitly support each type of output via implementation of
  * interfaces. This is scalable as the number of outputs is small and finite.
  */
-public class Runner {
+public class Runner
+extends ParameterizedBase {
 
 	private static final String INPUT = "input";
 
@@ -102,6 +114,32 @@ public class Runner {
 		.addClass(JaccardIndex.class)
 		.addClass(PageRank.class)
 		.addClass(TriangleListing.class);
+
+	private static ParameterizedFactory<Output> outputFactory = new ParameterizedFactory<Output>()
+		.addClass(org.apache.flink.graph.drivers.output.CSV.class)
+		.addClass(Hash.class)
+		.addClass(Print.class);
+
+	private final ParameterTool parameters;
+
+	private final BooleanParameter disableObjectReuse = new BooleanParameter(this, "__disable_object_reuse");
+
+	private final StringParameter jobDetailsPath = new StringParameter(this, "__job_details_path")
+		.setDefaultValue(null);
+
+	/**
+	 * Create an algorithm runner from the given arguments.
+	 *
+	 * @param args command-line arguments
+	 */
+	public Runner(String[] args) {
+		parameters = ParameterTool.fromArgs(args);
+	}
+
+	@Override
+	public String getName() {
+		return this.getClass().getSimpleName();
+	}
 
 	/**
 	 * List available algorithms. This is displayed to the user when no valid
@@ -174,16 +212,12 @@ public class Runner {
 			.appendNewLine()
 			.appendln("Available outputs:");
 
-		if (algorithm instanceof org.apache.flink.graph.drivers.output.CSV) {
-			strBuilder.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
-		}
-
-		if (algorithm instanceof Hash) {
-			strBuilder.appendln("  --output hash");
-		}
-
-		if (algorithm instanceof Print) {
-			strBuilder.appendln("  --output print");
+		for (Output output : outputFactory) {
+			strBuilder
+				.append("  --output ")
+				.append(output.getName())
+				.append(" ")
+				.appendln(output.getUsage());
 		}
 
 		return strBuilder
@@ -191,28 +225,36 @@ public class Runner {
 			.toString();
 	}
 
-	public static void main(String[] args) throws Exception {
+	public void run() throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		ExecutionConfig config = env.getConfig();
 
 		// should not have any non-Flink data types
-		config.disableAutoTypeRegistration();
 		config.disableForceAvro();
 		config.disableForceKryo();
 
-		ParameterTool parameters = ParameterTool.fromArgs(args);
 		config.setGlobalJobParameters(parameters);
 
+		// configure local parameters and throw proper exception on error
+		try {
+			this.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
+		}
+
 		// integration tests run with with object reuse both disabled and enabled
-		if (parameters.has("__disable_object_reuse")) {
+		if (disableObjectReuse.getValue()) {
 			config.disableObjectReuse();
 		} else {
 			config.enableObjectReuse();
 		}
 
-		// Usage
+		// ----------------------------------------------------------------------------------------
+		// Usage and configuration
+		// ----------------------------------------------------------------------------------------
 
+		// algorithm and usage
 		if (!parameters.has(ALGORITHM)) {
 			throw new ProgramParametrizationException(getAlgorithmsListing());
 		}
@@ -224,12 +266,19 @@ public class Runner {
 			throw new ProgramParametrizationException("Unknown algorithm name: " + algorithmName);
 		}
 
+		// input and usage
 		if (!parameters.has(INPUT)) {
 			if (!parameters.has(OUTPUT)) {
 				// if neither input nor output is given then print algorithm usage
 				throw new ProgramParametrizationException(getAlgorithmUsage(algorithmName));
 			}
 			throw new ProgramParametrizationException("No input given");
+		}
+
+		try {
+			algorithm.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
 		}
 
 		String inputName = parameters.get(INPUT);
@@ -239,72 +288,101 @@ public class Runner {
 			throw new ProgramParametrizationException("Unknown input type: " + inputName);
 		}
 
-		// Input
-
 		try {
 			input.configure(parameters);
 		} catch (RuntimeException ex) {
 			throw new ProgramParametrizationException(ex.getMessage());
 		}
 
-		Graph graph = input.create(env);
-
-		// Algorithm
-
-		algorithm.configure(parameters);
-		algorithm.plan(graph);
-
-		// Output
+		// output and usage
 		if (!parameters.has(OUTPUT)) {
 			throw new ProgramParametrizationException("No output given");
 		}
 
 		String outputName = parameters.get(OUTPUT);
-		String executionNamePrefix = input.getIdentity() + " -> " + algorithmName + " -> ";
+		Output output = outputFactory.get(outputName);
+
+		if (output == null) {
+			throw new ProgramParametrizationException("Unknown output type: " + outputName);
+		}
+
+		try {
+			output.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Execute
+		// ----------------------------------------------------------------------------------------
+
+		// Create input
+		Graph graph = input.create(env);
+
+		// Run algorithm
+		DataSet results = algorithm.plan(graph);
+
+		// Output
+		String executionName = input.getIdentity() + " ⇨ " + algorithmName + " ⇨ " + output.getName();
 
 		System.out.println();
 
-		switch (outputName.toLowerCase()) {
-			case "csv":
-				if (algorithm instanceof org.apache.flink.graph.drivers.output.CSV) {
-					String filename = parameters.getRequired("output_filename");
-
-					String lineDelimiter = StringEscapeUtils.unescapeJava(
-						parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-					String fieldDelimiter = StringEscapeUtils.unescapeJava(
-						parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-					org.apache.flink.graph.drivers.output.CSV c = (org.apache.flink.graph.drivers.output.CSV) algorithm;
-					c.writeCSV(filename, lineDelimiter, fieldDelimiter);
-
-					env.execute(executionNamePrefix + "CSV");
-				} else {
-					throw new ProgramParametrizationException("Algorithm does not support output type 'CSV'");
-				}
-				break;
-
-			case "hash":
-				if (algorithm instanceof Hash) {
-					Hash h = (Hash) algorithm;
-					h.hash(executionNamePrefix + "Hash");
-				} else {
-					throw new ProgramParametrizationException("Algorithm does not support output type 'hash'");
-				}
-				break;
-
-			case "print":
-				if (algorithm instanceof Print) {
-					Print h = (Print) algorithm;
-					h.print(executionNamePrefix + "Print");
-				} else {
-					throw new ProgramParametrizationException("Algorithm does not support output type 'print'");
-				}
-				break;
-
-			default:
-				throw new ProgramParametrizationException("Unknown output type: " + outputName);
+		if (results == null) {
+			env.execute(executionName);
+		} else {
+			output.write(executionName, System.out, results);
 		}
+
+		algorithm.printAnalytics(System.out);
+
+		if (jobDetailsPath.getValue() != null) {
+			writeJobDetails(env, jobDetailsPath.getValue());
+		}
+	}
+
+	/**
+	 * Write the following job details as a JSON encoded file: runtime environment
+	 * job ID, runtime, parameters, and accumulators.
+	 *
+	 * @param env the execution environment
+	 * @param jobDetailsPath filesystem path to write job details
+	 * @throws IOException on error writing to jobDetailsPath
+	 */
+	private static void writeJobDetails(ExecutionEnvironment env, String jobDetailsPath) throws IOException {
+		JobExecutionResult result = env.getLastJobExecutionResult();
+
+		File jsonFile = new File(jobDetailsPath);
+
+		try (JsonGenerator json = new JsonFactory().createGenerator(jsonFile, JsonEncoding.UTF8)) {
+			json.writeStartObject();
+
+			json.writeObjectFieldStart("Apache Flink");
+			json.writeStringField("version", EnvironmentInformation.getVersion());
+			json.writeStringField("commit ID", EnvironmentInformation.getRevisionInformation().commitId);
+			json.writeStringField("commit date", EnvironmentInformation.getRevisionInformation().commitDate);
+			json.writeEndObject();
+
+			json.writeStringField("job_id", result.getJobID().toString());
+			json.writeNumberField("runtime_ms", result.getNetRuntime());
+
+			json.writeObjectFieldStart("parameters");
+			for (Map.Entry<String, String> entry : env.getConfig().getGlobalJobParameters().toMap().entrySet()) {
+				json.writeStringField(entry.getKey(), entry.getValue());
+			}
+			json.writeEndObject();
+
+			json.writeObjectFieldStart("accumulators");
+			for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
+				json.writeStringField(entry.getKey(), entry.getValue().toString());
+			}
+			json.writeEndObject();
+
+			json.writeEndObject();
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		new Runner(args).run();
 	}
 
 	/**
@@ -336,7 +414,7 @@ public class Runner {
 		 */
 		public T get(String name) {
 			for (T instance : this) {
-				if (name.equals(instance.getName())) {
+				if (name.equalsIgnoreCase(instance.getName())) {
 					return instance;
 				}
 			}

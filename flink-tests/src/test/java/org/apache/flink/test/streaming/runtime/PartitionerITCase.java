@@ -72,7 +72,6 @@ public class PartitionerITCase extends StreamingMultipleProgramsTestBase {
 		env.execute();
 	}
 
-
 	@Test
 	public void partitionerTest() {
 
@@ -88,7 +87,6 @@ public class PartitionerITCase extends StreamingMultipleProgramsTestBase {
 				new TestListResultSink<Tuple2<Integer, String>>();
 		TestListResultSink<Tuple2<Integer, String>> globalPartitionResultSink =
 				new TestListResultSink<Tuple2<Integer, String>>();
-
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(3);

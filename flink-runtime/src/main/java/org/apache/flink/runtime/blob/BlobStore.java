@@ -38,18 +38,6 @@ public interface BlobStore extends BlobView {
 	void put(File localFile, BlobKey blobKey) throws IOException;
 
 	/**
-	 * Copies a local file to the blob store.
-	 *
-	 * <p>The job ID and key make up a composite key for the file.
-	 *
-	 * @param localFile The file to copy
-	 * @param jobId     The JobID part of ID for the file in the blob store
-	 * @param key       The String part of ID for the file in the blob store
-	 * @throws IOException If the copy fails
-	 */
-	void put(File localFile, JobID jobId, String key) throws IOException;
-
-	/**
 	 * Tries to delete a blob from storage.
 	 *
 	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
@@ -57,16 +45,6 @@ public interface BlobStore extends BlobView {
 	 * @param blobKey The blob ID
 	 */
 	void delete(BlobKey blobKey);
-
-	/**
-	 * Tries to delete a blob from storage.
-	 *
-	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
-	 *
-	 * @param jobId The JobID part of ID for the blob
-	 * @param key   The String part of ID for the blob
-	 */
-	void delete(JobID jobId, String key);
 
 	/**
 	 * Tries to delete all blobs for the given job from storage.

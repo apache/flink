@@ -782,7 +782,7 @@ an alternative WordCount implementation.
 DataSet<String> input = [..] // The words received as input
 
 DataSet<Tuple2<String, Integer>> combinedWords = input
-  .groupBy(0); // group identical words
+  .groupBy(0) // group identical words
   .combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
 
     public void combine(Iterable<String> words, Collector<Tuple2<String, Integer>>) { // combine
@@ -799,7 +799,7 @@ DataSet<Tuple2<String, Integer>> combinedWords = input
 });
 
 DataSet<Tuple2<String, Integer>> output = combinedWords
-  .groupBy(0);                             // group by words again
+  .groupBy(0)                              // group by words again
   .reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
 
     public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {

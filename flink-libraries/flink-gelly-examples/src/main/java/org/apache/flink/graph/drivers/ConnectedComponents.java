@@ -22,16 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
-import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
-import org.apache.flink.graph.asm.dataset.Collect;
-import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Hash;
-import org.apache.flink.graph.drivers.output.Print;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.graph.library.GSAConnectedComponents;
-
-import java.util.List;
 
 /**
  * Driver for {@link org.apache.flink.graph.library.GSAConnectedComponents}.
@@ -40,15 +31,7 @@ import java.util.List;
  * handle object reuse (see FLINK-5891).
  */
 public class ConnectedComponents<K extends Comparable<K>, VV, EV>
-extends ParameterizedBase
-implements Driver<K, VV, EV>, CSV, Hash, Print {
-
-	private DataSet<Vertex<K, K>> components;
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
+extends DriverBase<K, VV, EV> {
 
 	@Override
 	public String getShortDescription() {
@@ -61,37 +44,19 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 	}
 
 	@Override
-	public void plan(Graph<K, VV, EV> graph) throws Exception {
-		components = graph
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+		return graph
 			.mapVertices(new MapVertices<K, VV>())
 			.run(new GSAConnectedComponents<K, K, EV>(Integer.MAX_VALUE));
 	}
 
-	@Override
-	public void hash(String executionName) throws Exception {
-		Checksum checksum = new ChecksumHashCode<Vertex<K, K>>()
-			.run(components)
-			.execute(executionName);
-
-		System.out.println(checksum);
-	}
-
-	@Override
-	public void print(String executionName) throws Exception {
-		List<Vertex<K, K>> results = new Collect<Vertex<K, K>>().run(components).execute(executionName);
-
-		for (Vertex<K, K> result : results) {
-			System.out.println(result);
-		}
-	}
-
-	@Override
-	public void writeCSV(String filename, String lineDelimiter, String fieldDelimiter) {
-		components
-			.writeAsCsv(filename, lineDelimiter, fieldDelimiter)
-				.name("CSV: " + filename);
-	}
-
+	/**
+	 * Initialize vertices into separate components by setting each vertex
+	 * value to the vertex ID.
+	 *
+	 * @param <T> vertex ID type
+	 * @param <VT> vertex value type
+	 */
 	private static final class MapVertices<T, VT>
 	implements MapFunction<Vertex<T, VT>, T> {
 		@Override

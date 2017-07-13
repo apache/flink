@@ -31,24 +31,27 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Manual test to evaluate impact of checkpointing on latency.
+ */
 public class StreamingScalabilityAndLatency {
-	
+
 	public static void main(String[] args) throws Exception {
 		if ((Runtime.getRuntime().maxMemory() >>> 20) < 5000) {
 			throw new RuntimeException("This test program needs to run with at least 5GB of heap space.");
 		}
-		
-		final int TASK_MANAGERS = 1;
-		final int SLOTS_PER_TASK_MANAGER = 80;
-		final int PARALLELISM = TASK_MANAGERS * SLOTS_PER_TASK_MANAGER;
+
+		final int taskManagers = 1;
+		final int slotsPerTaskManager = 80;
+		final int parallelism = taskManagers * slotsPerTaskManager;
 
 		LocalFlinkMiniCluster cluster = null;
 
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, TASK_MANAGERS);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, taskManagers);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, SLOTS_PER_TASK_MANAGER);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slotsPerTaskManager);
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 20000);
 
 			config.setInteger("taskmanager.net.server.numThreads", 1);
@@ -56,8 +59,8 @@ public class StreamingScalabilityAndLatency {
 
 			cluster = new LocalFlinkMiniCluster(config, false);
 			cluster.start();
-			
-			runPartitioningProgram(cluster.getLeaderRPCPort(), PARALLELISM);
+
+			runPartitioningProgram(cluster.getLeaderRPCPort(), parallelism);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -69,7 +72,7 @@ public class StreamingScalabilityAndLatency {
 			}
 		}
 	}
-	
+
 	private static void runPartitioningProgram(int jobManagerPort, int parallelism) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(parallelism);
@@ -83,23 +86,22 @@ public class StreamingScalabilityAndLatency {
 			.map(new IdMapper<Tuple2<Long, Long>>())
 			.keyBy(0)
 			.addSink(new TimestampingSink());
-		
+
 		env.execute("Partitioning Program");
 	}
-	
-	public static class TimeStampingSource implements ParallelSourceFunction<Tuple2<Long, Long>> {
+
+	private static class TimeStampingSource implements ParallelSourceFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = -151782334777482511L;
 
 		private volatile boolean running = true;
-		
-		
+
 		@Override
 		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-			
+
 			long num = 100;
 			long counter = (long) (Math.random() * 4096);
-			
+
 			while (running) {
 				if (num < 100) {
 					num++;
@@ -119,14 +121,14 @@ public class StreamingScalabilityAndLatency {
 			running = false;
 		}
 	}
-	
-	public static class TimestampingSink implements SinkFunction<Tuple2<Long, Long>> {
+
+	private static class TimestampingSink implements SinkFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1876986644706201196L;
 
 		private long maxLatency;
-		private long count; 
-		
+		private long count;
+
 		@Override
 		public void invoke(Tuple2<Long, Long> value) {
 			long ts = value.f1;
@@ -134,7 +136,7 @@ public class StreamingScalabilityAndLatency {
 				long diff = System.currentTimeMillis() - ts;
 				maxLatency = Math.max(diff, maxLatency);
 			}
-			
+
 			count++;
 			if (count == 5000) {
 				System.out.println("Max latency: " + maxLatency);
@@ -144,7 +146,7 @@ public class StreamingScalabilityAndLatency {
 		}
 	}
 
-	public static class IdMapper<T> implements MapFunction<T, T> {
+	private static class IdMapper<T> implements MapFunction<T, T> {
 
 		private static final long serialVersionUID = -6543809409233225099L;
 

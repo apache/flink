@@ -18,27 +18,27 @@
 
 package org.apache.flink.test.recovery;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
 import static org.junit.Assert.assertTrue;
 
@@ -46,7 +46,7 @@ import static org.junit.Assert.assertTrue;
  * Test for streaming program behaviour in case of TaskManager failure
  * based on {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  *
- * The logic in this test is as follows:
+ * <p>The logic in this test is as follows:
  *  - The source slowly emits records (every 10 msecs) until the test driver
  *    gives the "go" for regular execution
  *  - The "go" is given after the first taskmanager has been killed, so it can only
@@ -74,7 +74,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.enableCheckpointing(200);
-		
+
 		env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
@@ -107,7 +107,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> 
+	private static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
 			implements ListCheckpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;
@@ -175,7 +175,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	public static class Mapper extends RichMapFunction<Long, Long> {
+	private static class Mapper extends RichMapFunction<Long, Long> {
 		private boolean markerCreated = false;
 		private File coordinateDir;
 

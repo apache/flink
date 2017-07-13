@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
+
+import org.apache.flink.util.Preconditions;
 
 import com.google.common.collect.Lists;
 import org.junit.Test;
-
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +34,9 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Broker}.
+ */
 public class BrokerTest {
 
 	@Test

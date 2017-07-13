@@ -30,8 +30,9 @@ GEM
       redcarpet (~> 3.1)
       safe_yaml (~> 1.0)
       toml (~> 0.1.0)
-    jekyll-coffeescript (1.0.1)
+    jekyll-coffeescript (1.0.2)
       coffee-script (~> 2.2)
+      coffee-script-source (~> 1.11.1)
     jekyll-gist (1.4.0)
       octokit (~> 4.2)
     jekyll-paginate (1.1.0)
@@ -39,7 +40,7 @@ GEM
       sass (~> 3.4)
     jekyll-watch (1.5.0)
       listen (~> 3.0, < 3.1)
-    json (1.8.3)
+    json (2.0.4)
     kramdown (1.10.0)
     libv8 (3.16.14.17)
     liquid (2.6.3)
@@ -71,7 +72,7 @@ GEM
       ref
     toml (0.1.2)
       parslet (~> 1.5.0)
-    yajl-ruby (1.2.1)
+    yajl-ruby (1.2.2)
 
 PLATFORMS
   ruby
@@ -79,11 +80,13 @@ PLATFORMS
 DEPENDENCIES
   addressable (= 2.4.0)
   jekyll (= 2.5.3)
-  json
+  jekyll-coffeescript (= 1.0.2)
+  json (= 2.0.4)
   kramdown (= 1.10.0)
   octokit (~> 4.3.0)
   pygments.rb (= 0.6.3)
   therubyracer (= 0.12.2)
+  yajl-ruby (= 1.2.2)
 
 RUBY VERSION
    ruby 2.3.1p112

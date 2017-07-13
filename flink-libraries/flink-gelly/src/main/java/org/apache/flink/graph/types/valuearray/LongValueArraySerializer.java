@@ -87,6 +87,6 @@ public final class LongValueArraySerializer extends TypeSerializerSingleton<Long
 	@Override
 	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
 		return super.isCompatibleSerializationFormatIdentifier(identifier)
-				|| identifier.equals(LongPrimitiveArraySerializer.class.getCanonicalName());
+			|| identifier.equals(LongPrimitiveArraySerializer.class.getCanonicalName());
 	}
 }

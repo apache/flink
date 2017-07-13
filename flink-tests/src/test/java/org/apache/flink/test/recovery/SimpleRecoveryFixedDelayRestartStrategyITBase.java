@@ -21,8 +21,12 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
 import org.junit.BeforeClass;
 
+/**
+ * Test cluster configuration with fixed-delay recovery.
+ */
 public class SimpleRecoveryFixedDelayRestartStrategyITBase extends SimpleRecoveryITCaseBase {
 	@BeforeClass
 	public static void setupCluster() {

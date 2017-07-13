@@ -83,8 +83,6 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<!-- Internal property to reduce build times on TravisCi -->
-		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
 		<hadoop.version>2.4.1</hadoop.version>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
@@ -98,16 +96,22 @@ under the License.
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
+		<!-- Overwrite default values from parent pom.
+			 Intellij is (sometimes?) using those values to choose target language level
+			 and thus is changing back to java 1.6 on each maven re-import -->
+		<maven.compiler.source>${java.version}</maven.compiler.source>
+		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<scala.macros.version>2.1.0</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
-		<scala.version>2.10.6</scala.version>
-		<scala.binary.version>2.10</scala.binary.version>
+		<scala.version>2.11.11</scala.version>
+		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.4</jackson.version>
 		<metrics.version>3.1.0</metrics.version>
+		<prometheus.version>0.0.21</prometheus.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
@@ -252,13 +256,19 @@ under the License.
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
-				<version>1.7.7</version>
+				<version>1.8.2</version>
 			</dependency>
 			
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-ipc</artifactId>
-				<version>1.7.7</version>
+				<version>1.8.2</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.xerial.snappy</groupId>
+				<artifactId>snappy-java</artifactId>
+				<version>1.1.1.3</version>
 			</dependency>
 
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
@@ -496,17 +506,17 @@ under the License.
 
 	<profiles>
 		
-		<!-- Profile to switch to Scala Version 2.11 -->
+		<!-- Profile to switch to Scala Version 2.10 -->
 		<profile>
-			<id>scala-2.11</id>
+			<id>scala-2.10</id>
 			<activation>
 				<property>
-					<name>scala-2.11</name>
+					<name>scala-2.10</name>
 				</property>
 			</activation>
 			<properties>
-				<scala.version>2.11.11</scala.version>
-				<scala.binary.version>2.11</scala.binary.version>
+				<scala.version>2.10.6</scala.version>
+				<scala.binary.version>2.10</scala.binary.version>
 			</properties>
 		</profile>
 
@@ -852,32 +862,6 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
-		<!--
-			Test profile A excludes all tests starting with (A-M).
-			profile B excludes tests (N-Z).
-			This allows us to split up the test execution into separate profiles.
-		-->
-		<profile>
-			<id>flink-fast-tests-a</id>
-			<properties>
-				<!-- Allow A-I by forbidding J-Z -->
-				<flink-fast-tests-pattern>%regex[.*/[J-Z].*]</flink-fast-tests-pattern>
-			</properties>
-		</profile>
-		<profile>
-			<id>flink-fast-tests-b</id>
-			<properties>
-				<!-- Allow J-R, forbid A-I and S - Z -->
-				<flink-fast-tests-pattern>%regex[.*/[A-IS-Z].*]</flink-fast-tests-pattern>
-			</properties>
-		</profile>
-		<profile>
-			<id>flink-fast-tests-c</id>
-			<properties>
-				<!-- Allow S-Z, forbid A-R -->
-				<flink-fast-tests-pattern>%regex[.*/[A-R].*]</flink-fast-tests-pattern>
-			</properties>
-		</profile>
 	</profiles>
 
 	<build>
@@ -995,8 +979,6 @@ under the License.
 						<exclude>**/src/test/resources/*-snapshot</exclude>
 						<exclude>**/src/test/resources/*-savepoint</exclude>
 
-						<!-- TweetInputFormat Test Data-->
-						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
 						<exclude>flink-connectors/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
@@ -1021,6 +1003,8 @@ under the License.
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
+						<!-- manually installed version on travis -->
+						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 					</excludes>
@@ -1073,7 +1057,7 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx1536m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseSerialGC</argLine>
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseSerialGC</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
@@ -1087,10 +1071,6 @@ under the License.
 							<includes>
 								<include>**/*Test.*</include>
 							</includes>
-							<excludes>
-								<exclude>**/*ITCase.*</exclude>
-								<exclude>${flink-fast-tests-pattern}</exclude>
-							</excludes>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1104,9 +1084,6 @@ under the License.
 							<includes>
 								<include>**/*ITCase.*</include>
 							</includes>
-							<excludes>
-								<exclude>${flink-fast-tests-pattern}</exclude>
-							</excludes>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>

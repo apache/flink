@@ -559,8 +559,12 @@ abstract class StreamTableEnvironment(
     */
   private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
 
+    // 0. convert registered tables
+    val fullRelNode = runHepPlanner(
+      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_CONV_RULES, relNode, relNode.getTraitSet)
+
     // 1. decorrelate
-    val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
+    val decorPlan = RelDecorrelator.decorrelateQuery(fullRelNode)
 
     // 2. convert time indicators
     val convPlan = RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)

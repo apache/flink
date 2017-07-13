@@ -1,7 +1,8 @@
 # s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
 
-# send to container based infrastructure: http://docs.travis-ci.com/user/workers/container-based-infrastructure/
-sudo: false
+# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
+sudo: required
+dist: trusty
 
 #cache:
 #  directories:
@@ -14,35 +15,46 @@ language: java
 #See https://issues.apache.org/jira/browse/FLINK-1072
 matrix:
   include:
-  # Always run test groups A and B together
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Dscala-2.11 -Pflink-fast-tests-a,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
+      env:
+        - TEST="core"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Dscala-2.11 -Pflink-fast-tests-b,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
+      env:
+        - TEST="libraries"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.8.0 -Dscala-2.11 -Pflink-fast-tests-c,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
-
+      env:
+        - TEST="connectors"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8,include-kinesis"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Pflink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
+      env:
+        - TEST="tests"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Pflink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
-    - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.3 -Pflink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
-
+      env:
+        - TEST="misc"
+        - PROFILE="-Dhadoop.version=2.8.0 -Pjdk8"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Dscala-2.11 -Pflink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
+      env:
+        - TEST="core"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Dscala-2.11 -Pflink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
+      env:
+        - TEST="libraries"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.6.5 -Dscala-2.11 -Pflink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
-
-    - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pflink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
-    - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pflink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
-    - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pflink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
-
+      env:
+        - TEST="connectors"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10 -Pinclude-kinesis"
+    - jdk: "openjdk7"
+      env:
+        - TEST="tests"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
+    - jdk: "openjdk7"
+      env:
+        - TEST="misc"
+        - PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.10"
 
 git:
   depth: 100
@@ -59,6 +71,14 @@ env:
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
+
+# Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
+before_install:
+   - "wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.zip"
+   - "unzip -qq apache-maven-3.2.5-bin.zip"
+   - "rm apache-maven-3.2.5-bin.zip"
+   - "export M2_HOME=$PWD/apache-maven-3.2.5"
+   - "export PATH=$M2_HOME/bin:$PATH"
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.

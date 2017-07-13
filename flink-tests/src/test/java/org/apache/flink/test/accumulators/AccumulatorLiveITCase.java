@@ -18,12 +18,6 @@
 
 package org.apache.flink.test.accumulators;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
-import akka.testkit.JavaTestKit;
-import akka.util.Timeout;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -55,18 +49,18 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
-
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+import akka.testkit.JavaTestKit;
+import akka.util.Timeout;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -74,20 +68,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
+import static org.junit.Assert.fail;
 
 /**
  * Tests the availability of accumulator results during runtime. The test case tests a user-defined
  * accumulator and Flink's internal accumulators for two consecutive tasks.
  *
- * CHAINED[Source -> Map] -> Sink
+ * <p>CHAINED[Source -> Map] -> Sink
  *
- * Checks are performed as the elements arrive at the operators. Checks consist of a message sent by
+ * <p>Checks are performed as the elements arrive at the operators. Checks consist of a message sent by
  * the task to the task manager which notifies the job manager and sends the current accumulators.
  * The task blocks until the test has been notified about the current accumulator values.
  *
- * A barrier between the operators ensures that that pipelining is disabled for the streaming test.
+ * <p>A barrier between the operators ensures that that pipelining is disabled for the streaming test.
  * The batch job reads the records one at a time. The streaming code buffers the records beforehand;
  * that's why exact guarantees about the number of records read are very hard to make. Thus, why we
  * check for an upper bound of the elements read.
@@ -104,7 +101,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 	private static JobGraph jobGraph;
 
 	// name of user accumulator
-	private static String ACCUMULATOR_NAME = "test";
+	private static final String ACCUMULATOR_NAME = "test";
 
 	// number of heartbeat intervals to check
 	private static final int NUM_ITERATIONS = 5;
@@ -112,7 +109,6 @@ public class AccumulatorLiveITCase extends TestLogger {
 	private static List<String> inputData = new ArrayList<>(NUM_ITERATIONS);
 
 	private static final FiniteDuration TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
-
 
 	@Before
 	public void before() throws Exception {
@@ -129,8 +125,8 @@ public class AccumulatorLiveITCase extends TestLogger {
 		taskManager = testingCluster.getTaskManagersAsJava().get(0);
 
 		// generate test data
-		for (int i=0; i < NUM_ITERATIONS; i++) {
-			inputData.add(i, String.valueOf(i+1));
+		for (int i = 0; i < NUM_ITERATIONS; i++) {
+			inputData.add(i, String.valueOf(i + 1));
 		}
 
 		NotifyingMapper.finished = false;
@@ -163,7 +159,6 @@ public class AccumulatorLiveITCase extends TestLogger {
 		verifyResults();
 	}
 
-
 	@Test
 	public void testStreaming() throws Exception {
 
@@ -175,13 +170,11 @@ public class AccumulatorLiveITCase extends TestLogger {
 				.flatMap(new NotifyingMapper())
 				.writeUsingOutputFormat(new NotifyingOutputFormat()).disableChaining();
 
-
 		jobGraph = env.getStreamGraph().getJobGraph();
 		jobID = jobGraph.getJobID();
 
 		verifyResults();
 	}
-
 
 	private static void verifyResults() {
 		new JavaTestKit(system) {{
@@ -201,7 +194,6 @@ public class AccumulatorLiveITCase extends TestLogger {
 					selfGateway);
 			expectMsgClass(TIMEOUT, JobManagerMessages.JobSubmitSuccess.class);
 
-
 			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
 			Map<String, Accumulator<?, ?>> userAccumulators = msg.userAccumulators();
 
@@ -210,7 +202,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 			ExecutionAttemptID sinkTaskID = null;
 
 			/* Check for accumulator values */
-			if(checkUserAccumulators(0, userAccumulators)) {
+			if (checkUserAccumulators(0, userAccumulators)) {
 				LOG.info("Passed initial check for map task.");
 			} else {
 				fail("Wrong accumulator results when map task begins execution.");
@@ -244,7 +236,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 			msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
 			userAccumulators = msg.userAccumulators();
 
-			if(checkUserAccumulators(expectedAccVal, userAccumulators)) {
+			if (checkUserAccumulators(expectedAccVal, userAccumulators)) {
 				LOG.info("Passed initial check for sink task.");
 			} else {
 				fail("Wrong accumulator results when sink task begins execution.");
@@ -272,14 +264,13 @@ public class AccumulatorLiveITCase extends TestLogger {
 		}};
 	}
 
-
-	private static boolean checkUserAccumulators(int expected, Map<String, Accumulator<?,?>> accumulatorMap) {
+	private static boolean checkUserAccumulators(int expected, Map<String, Accumulator<?, ?>> accumulatorMap) {
 		LOG.info("checking user accumulators");
-		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter)accumulatorMap.get(ACCUMULATOR_NAME)).getLocalValue();
+		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter) accumulatorMap.get(ACCUMULATOR_NAME)).getLocalValue();
 	}
 
 	/**
-	 * UDF that notifies when it changes the accumulator values
+	 * UDF that notifies when it changes the accumulator values.
 	 */
 	private static class NotifyingMapper extends RichFlatMapFunction<String, Integer> {
 		private static final long serialVersionUID = 1L;
@@ -356,7 +347,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 	}
 
 	/**
-	 * Helpers to generate the JobGraph
+	 * Helpers to generate the JobGraph.
 	 */
 	private static JobGraph getOptimizedPlan(Plan plan) {
 		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
@@ -375,7 +366,6 @@ public class AccumulatorLiveITCase extends TestLogger {
 			return new JobExecutionResult(new JobID(), -1, null);
 		}
 	}
-
 
 	/**
 	 * This is used to for creating the example topology. {@link #execute} is never called, we

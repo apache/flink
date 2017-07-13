@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.akka;
 
-import akka.actor.UntypedActor;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
+import akka.actor.UntypedActor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,20 +34,22 @@ import java.util.UUID;
  * of type {@link RequiresLeaderSessionID} without being wrapped in a LeaderSessionMessage is
  * detected, then an Exception is thrown.
  *
- * In order to implement the actor behavior, an implementing subclass has to override the method
+ * <p>In order to implement the actor behavior, an implementing subclass has to override the method
  * handleMessage, which defines how messages are processed. Furthermore, the subclass has to provide
  * a leader session ID option which is returned by getLeaderSessionID.
  */
 public abstract class FlinkUntypedActor extends UntypedActor {
 
+	//CHECKSTYLE.OFF: MemberNameCheck - re-enable after JobManager/TaskManager refactoring in FLIP-6?
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
+	//CHECKSTYLE.ON: MemberNameCheck
 
 	/**
 	 * This method is called by Akka if a new message has arrived for the actor. It logs the
 	 * processing time of the incoming message if the logging level is set to debug. After logging
 	 * the handleLeaderSessionID method is called.
 	 *
-	 * Important: This method cannot be overriden. The actor specific message handling logic is
+	 * <p>Important: This method cannot be overriden. The actor specific message handling logic is
 	 * implemented by the method handleMessage.
 	 *
 	 * @param message Incoming message
@@ -54,14 +57,14 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 */
 	@Override
 	public final void onReceive(Object message) throws Exception {
-		if(LOG.isTraceEnabled()) {
+		if (LOG.isTraceEnabled()) {
 			LOG.trace("Received message {} at {} from {}.", message, getSelf().path(), getSender());
 
 			long start = System.nanoTime();
 
 			handleLeaderSessionID(message);
 
-			long duration = (System.nanoTime() - start)/ 1_000_000;
+			long duration = (System.nanoTime() - start) / 1_000_000;
 
 			LOG.trace("Handled message {} in {} ms from {}.", message, duration, getSender());
 		} else {
@@ -124,14 +127,14 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * Returns the current leader session ID associcated with this actor.
 	 * @return
 	 */
-	abstract protected UUID getLeaderSessionID();
+	protected abstract UUID getLeaderSessionID();
 
 	/**
 	 * This method should be called for every outgoing message. It wraps messages which require
 	 * a leader session ID (indicated by {@link RequiresLeaderSessionID}) in a
 	 * {@link LeaderSessionMessage} with the actor's leader session ID.
 	 *
-	 * This method can be overriden to implement a different decoration behavior.
+	 * <p>This method can be overriden to implement a different decoration behavior.
 	 *
 	 * @param message Message to be decorated
 	 * @return The deocrated message

@@ -69,15 +69,15 @@ extends CopyableValueDriverBaseITCase {
 			case "short":
 			case "char":
 			case "integer":
-				checksum = 0x000000003d2f0a9aL;
+				checksum = 0x00000784d2c336cdL;
 				break;
 
 			case "long":
-				checksum = 0x000000016aba3720L;
+				checksum = 0x0000078e5ebf2927L;
 				break;
 
 			case "string":
-				checksum = 0x0000005bfef84facL;
+				checksum = 0x0000077eddf67481L;
 				break;
 
 			default:
@@ -115,15 +115,15 @@ extends CopyableValueDriverBaseITCase {
 			case "short":
 			case "char":
 			case "integer":
-				checksum = 0x0000000001f92b0cL;
+				checksum = 0x0000075b6b9a0ad0L;
 				break;
 
 			case "long":
-				checksum = 0x000000000bb355c6L;
+				checksum = 0x00000761619e7f3cL;
 				break;
 
 			case "string":
-				checksum = 0x00000002f7b5576aL;
+				checksum = 0x0000079b15eb30acL;
 				break;
 
 			default:
@@ -154,15 +154,15 @@ extends CopyableValueDriverBaseITCase {
 			case "short":
 			case "char":
 			case "integer":
-				checksum = 0x00000248fef26209L;
+				checksum = 0x0003a986d6bedc53L;
 				break;
 
 			case "long":
-				checksum = 0x000002dcdf0fbb1bL;
+				checksum = 0x0003a8d91c92b884L;
 				break;
 
 			case "string":
-				checksum = 0x00035b760ab9da74L;
+				checksum = 0x0003a88fffc33f27L;
 				break;
 
 			default:
@@ -205,15 +205,15 @@ extends CopyableValueDriverBaseITCase {
 			case "short":
 			case "char":
 			case "integer":
-				checksum = 0x00000012dee4bf2cL;
+				checksum = 0x0003a95630aae344L;
 				break;
 
 			case "long":
-				checksum = 0x00000017a40efbdaL;
+				checksum = 0x0003a9b1e055d59dL;
 				break;
 
 			case "string":
-				checksum = 0x000159e8be3e370bL;
+				checksum = 0x0003aa1e3d8f2c6bL;
 				break;
 
 			default:

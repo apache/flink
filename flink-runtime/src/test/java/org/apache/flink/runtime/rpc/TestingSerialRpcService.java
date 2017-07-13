@@ -173,6 +173,11 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
+	public int getPort() {
+		return -1;
+	}
+
+	@Override
 	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
 		RpcGateway gateway = registeredConnections.get(address);
 

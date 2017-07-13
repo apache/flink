@@ -18,6 +18,12 @@
 
 package org.apache.flink.runtime.query.netty;
 
+import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.query.netty.message.KvStateRequest;
+import org.apache.flink.util.Preconditions;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -29,11 +35,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateServerAddress;
-import org.apache.flink.runtime.query.netty.message.KvStateRequest;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,10 +69,10 @@ public class KvStateServer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KvStateServer.class);
 
-	/** Server config: low water mark */
+	/** Server config: low water mark. */
 	private static final int LOW_WATER_MARK = 8 * 1024;
 
-	/** Server config: high water mark */
+	/** Server config: high water mark. */
 	private static final int HIGH_WATER_MARK = 32 * 1024;
 
 	/** Netty's ServerBootstrap. */

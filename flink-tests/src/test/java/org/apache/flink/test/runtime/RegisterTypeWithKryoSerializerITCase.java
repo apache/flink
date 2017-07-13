@@ -18,14 +18,15 @@
 
 package org.apache.flink.test.runtime;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -35,6 +36,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Test registering types with Kryo.
+ */
 @RunWith(Parameterized.class)
 public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBase {
 
@@ -73,7 +77,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
 		compareResultCollections(expected, mapped.collect(), new Comparator<TestClass>() {
 			@Override
 			public int compare(TestClass o1, TestClass o2) {
-				return (int)(o1.getValue() - o2.getValue());
+				return (int) (o1.getValue() - o2.getValue());
 			}
 		});
 	}
@@ -108,7 +112,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
 
 		@Override
 		public int hashCode() {
-			return (int)value;
+			return (int) value;
 		}
 	}
 

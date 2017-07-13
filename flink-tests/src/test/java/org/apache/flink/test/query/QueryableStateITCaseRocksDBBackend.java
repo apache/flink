@@ -20,6 +20,7 @@ package org.apache.flink.test.query;
 
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 

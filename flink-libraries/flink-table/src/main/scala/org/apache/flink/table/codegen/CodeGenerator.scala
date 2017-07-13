@@ -40,8 +40,9 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.codegen.calls.FunctionGenerator
+import org.apache.flink.table.codegen.calls.{BuiltInMethods, FunctionGenerator}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
@@ -1559,6 +1560,12 @@ class CodeGenerator(
         val array = operands.head
         requireArray(array)
         generateArrayElement(this, array)
+
+      case ScalarSqlFunctions.CONCAT =>
+        generateConcat(BuiltInMethods.CONCAT, operands)
+
+      case ScalarSqlFunctions.CONCAT_WS =>
+        generateConcat(BuiltInMethods.CONCAT_WS, operands)
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>

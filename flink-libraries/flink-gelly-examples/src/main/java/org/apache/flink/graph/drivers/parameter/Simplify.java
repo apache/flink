@@ -67,7 +67,12 @@ implements Parameter<Ordering> {
 
 	@Override
 	public String getUsage() {
-		return "[--simplify <directed | undirected [--clip_and_flip]>]";
+		return "[--simplify <directed | undirected [--clip_and_flip]>] ";
+	}
+
+	@Override
+	public boolean isHidden() {
+		return false;
 	}
 
 	@Override

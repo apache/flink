@@ -18,31 +18,34 @@
 
 package org.apache.flink.runtime.deployment;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
-
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for the {@link TaskDeploymentDescriptor}.
+ */
 public class TaskDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
@@ -83,9 +86,9 @@ public class TaskDeploymentDescriptorTest {
 				taskStateHandles,
 				producedResults,
 				inputGates);
-	
+
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
-	
+
 			assertFalse(orig.getSerializedJobInformation() == copy.getSerializedJobInformation());
 			assertFalse(orig.getSerializedTaskInformation() == copy.getSerializedTaskInformation());
 			assertFalse(orig.getExecutionAttemptId() == copy.getExecutionAttemptId());

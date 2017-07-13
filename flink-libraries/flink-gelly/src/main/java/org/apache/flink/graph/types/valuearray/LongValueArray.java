@@ -54,7 +54,7 @@ implements ValueArray<LongValue> {
 	private transient int mark;
 
 	// hasher used to generate the normalized key
-	private MurmurHash hash = new MurmurHash(0xdf099ea8);
+	private MurmurHash hash = new MurmurHash(0x2d37e1b6);
 
 	// hash result stored as normalized key
 	private IntValue hashValue = new IntValue();
@@ -244,7 +244,7 @@ implements ValueArray<LongValue> {
 
 	@Override
 	public int hashCode() {
-		int hash = 1;
+		int hash = 0;
 
 		for (int i = 0; i < position; i++) {
 			hash = 31 * hash + (int) (data[i] ^ data[i] >>> 32);

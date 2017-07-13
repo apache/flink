@@ -30,8 +30,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.types.Value;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,11 +41,15 @@ import java.io.IOException;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Test for proper error messages in case user-defined serialization is broken
+ * and detected in the network stack.
+ */
 @SuppressWarnings("serial")
 public class CustomSerializationITCase extends TestLogger {
 
 	private static final int PARLLELISM = 5;
-	
+
 	private static LocalFlinkMiniCluster cluster;
 
 	private static TestEnvironment env;
@@ -66,13 +70,13 @@ public class CustomSerializationITCase extends TestLogger {
 		cluster.shutdown();
 		cluster = null;
 	}
-	
+
 	@Test
 	public void testIncorrectSerializer1() {
 		try {
 			env.setParallelism(PARLLELISM);
 			env.getConfig().disableSysoutLogging();
-			
+
 			env
 				.generateSequence(1, 10 * PARLLELISM)
 				.map(new MapFunction<Long, ConsumesTooMuch>() {
@@ -83,7 +87,7 @@ public class CustomSerializationITCase extends TestLogger {
 				})
 				.rebalance()
 				.output(new DiscardingOutputFormat<ConsumesTooMuch>());
-			
+
 			env.execute();
 		}
 		catch (JobExecutionException e) {
@@ -186,11 +190,14 @@ public class CustomSerializationITCase extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Custom Data Types with broken Serialization Logic
 	// ------------------------------------------------------------------------
-	
+
+	/**
+	 * {@link Value} reading more data than written.
+	 */
 	public static class ConsumesTooMuch implements Value {
 
 		@Override
@@ -206,6 +213,9 @@ public class CustomSerializationITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link Value} reading more buffers than written.
+	 */
 	public static class ConsumesTooMuchSpanning implements Value {
 
 		@Override
@@ -221,6 +231,9 @@ public class CustomSerializationITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link Value} reading less data than written.
+	 */
 	public static class ConsumesTooLittle implements Value {
 
 		@Override
@@ -236,6 +249,9 @@ public class CustomSerializationITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link Value} reading fewer buffers than written.
+	 */
 	public static class ConsumesTooLittleSpanning implements Value {
 
 		@Override

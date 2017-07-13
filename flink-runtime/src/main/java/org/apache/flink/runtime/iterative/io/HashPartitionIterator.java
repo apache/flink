@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.iterative.io;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.hash.HashPartition;
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.Iterator;
+
 /**
- * {@link Iterator} over the build side entries of a {@link HashPartition}
- * 
+ * {@link Iterator} over the build side entries of a {@link HashPartition}.
+ *
  * @param <BT>
  */
 public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> {

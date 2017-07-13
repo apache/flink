@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.query;
 
-import akka.actor.ActorSystem;
-import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.query.netty.AtomicKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateClient;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
@@ -41,17 +39,21 @@ import org.apache.flink.runtime.state.heap.HeapValueState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.MathUtils;
+
+import akka.actor.ActorSystem;
+import akka.dispatch.Futures;
 import org.junit.AfterClass;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -63,6 +65,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link QueryableStateClient}.
+ */
 public class QueryableStateClientTest {
 
 	private static final ActorSystem testActorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
@@ -79,7 +84,7 @@ public class QueryableStateClientTest {
 	/**
 	 * All failures should lead to a retry with a forced location lookup.
 	 *
-	 * UnknownKvStateID, UnknownKvStateKeyGroupLocation, UnknownKvStateLocation,
+	 * <p>UnknownKvStateID, UnknownKvStateKeyGroupLocation, UnknownKvStateLocation,
 	 * ConnectException are checked explicitly as these indicate out-of-sync
 	 * KvStateLocation.
 	 */
@@ -108,11 +113,12 @@ public class QueryableStateClientTest {
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query1)))
 					.thenReturn(unknownKvStateLocation);
 
-			Future<byte[]> result = client.getKvState(
+			Future<Integer> result = client.getKvState(
 					jobId,
 					query1,
 					0,
-					new byte[0]);
+					BasicTypeInfo.INT_TYPE_INFO,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
 			try {
 				Await.result(result, timeout);
@@ -134,7 +140,12 @@ public class QueryableStateClientTest {
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query2)))
 					.thenReturn(unknownKeyGroupLocation);
 
-			result = client.getKvState(jobId, query2, 0, new byte[0]);
+			result = client.getKvState(
+					jobId,
+					query2,
+					0,
+					BasicTypeInfo.INT_TYPE_INFO,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
 			try {
 				Await.result(result, timeout);
@@ -164,7 +175,12 @@ public class QueryableStateClientTest {
 			when(networkClient.getKvState(eq(serverAddress), eq(kvStateId), any(byte[].class)))
 					.thenReturn(unknownKvStateId);
 
-			result = client.getKvState(jobId, query3, 0, new byte[0]);
+			result = client.getKvState(
+					jobId,
+					query3,
+					0,
+					BasicTypeInfo.INT_TYPE_INFO,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
 			try {
 				Await.result(result, timeout);
@@ -194,7 +210,12 @@ public class QueryableStateClientTest {
 			when(networkClient.getKvState(eq(serverAddress), eq(kvStateId), any(byte[].class)))
 					.thenReturn(connectException);
 
-			result = client.getKvState(jobId, query4, 0, new byte[0]);
+			result = client.getKvState(
+					jobId,
+					query4,
+					0,
+					BasicTypeInfo.INT_TYPE_INFO,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
 			try {
 				Await.result(result, timeout);
@@ -213,7 +234,12 @@ public class QueryableStateClientTest {
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query5)))
 					.thenReturn(exception);
 
-			client.getKvState(jobId, query5, 0, new byte[0]);
+			client.getKvState(
+					jobId,
+					query5,
+					0,
+					BasicTypeInfo.INT_TYPE_INFO,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
 			verify(lookupService, times(1)).getKvStateLookupInfo(eq(jobId), eq(query5));
 		} finally {
@@ -255,7 +281,6 @@ public class QueryableStateClientTest {
 				new KeyGroupRange(0, 0),
 				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 
-
 		try {
 			KvStateRegistry[] registries = new KvStateRegistry[numServers];
 			KvStateID[] kvStateIds = new KvStateID[numServers];
@@ -279,7 +304,7 @@ public class QueryableStateClientTest {
 				// Register state
 				HeapValueState<Integer, VoidNamespace, Integer> kvState = new HeapValueState<>(
 						descriptor,
-						new NestedMapsStateTable<Integer, VoidNamespace, Integer>(keyedStateBackend, registeredKeyedBackendStateMetaInfo),
+						new NestedMapsStateTable<>(keyedStateBackend, registeredKeyedBackendStateMetaInfo),
 						IntSerializer.INSTANCE,
 						VoidNamespaceSerializer.INSTANCE);
 
@@ -322,25 +347,25 @@ public class QueryableStateClientTest {
 			client = new QueryableStateClient(lookupService, networkClient, testActorSystem.dispatcher());
 
 			// Send all queries
-			List<Future<byte[]>> futures = new ArrayList<>(numKeys);
+			List<Future<Integer>> futures = new ArrayList<>(numKeys);
 			for (int key = 0; key < numKeys; key++) {
-				byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+				ValueStateDescriptor<Integer> descriptor =
+						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
+				futures.add(client.getKvState(
+						jobId,
+						"choco",
 						key,
-						IntSerializer.INSTANCE,
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE);
-
-				futures.add(client.getKvState(jobId, "choco", key, serializedKeyAndNamespace));
+						BasicTypeInfo.INT_TYPE_INFO,
+						descriptor));
 			}
 
 			// Verify results
-			Future<Iterable<byte[]>> future = Futures.sequence(futures, testActorSystem.dispatcher());
-			Iterable<byte[]> results = Await.result(future, timeout);
+			Future<Iterable<Integer>> future = Futures.sequence(futures, testActorSystem.dispatcher());
+			Iterable<Integer> results = Await.result(future, timeout);
 
 			int index = 0;
-			for (byte[] buffer : results) {
-				int deserializedValue = KvStateRequestSerializer.deserializeValue(buffer, IntSerializer.INSTANCE);
-				assertEquals(1337 + index, deserializedValue);
+			for (int buffer : results) {
+				assertEquals(1337 + index, buffer);
 				index++;
 			}
 
@@ -355,7 +380,7 @@ public class QueryableStateClientTest {
 						break;
 					} catch (Throwable t) {
 						// Retry
-						if (retry == numRetries-1) {
+						if (retry == numRetries - 1) {
 							throw t;
 						} else {
 							Thread.sleep(100);
@@ -411,10 +436,12 @@ public class QueryableStateClientTest {
 				networkClient,
 				testActorSystem.dispatcher());
 
+		ValueStateDescriptor<Integer> stateDesc = new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
+
 		// Query ies with same name, but different job IDs should lead to a
 		// single lookup per query and job ID.
-		client.getKvState(jobId1, name, 0, new byte[0]);
-		client.getKvState(jobId2, name, 0, new byte[0]);
+		client.getKvState(jobId1, name, 0, BasicTypeInfo.INT_TYPE_INFO, stateDesc);
+		client.getKvState(jobId2, name, 0, BasicTypeInfo.INT_TYPE_INFO, stateDesc);
 
 		verify(lookupService, times(1)).getKvStateLookupInfo(eq(jobId1), eq(name));
 		verify(lookupService, times(1)).getKvStateLookupInfo(eq(jobId2), eq(name));

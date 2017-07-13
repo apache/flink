@@ -189,20 +189,26 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 *
 	 * @param pruningTimestamp The time which is used for pruning. All elements whose timestamp is
 	 *                         lower than the pruning timestamp will be removed.
+	 * @return {@code true} if pruning happened
 	 */
-	public void prune(long pruningTimestamp) {
+	public boolean prune(long pruningTimestamp) {
 		Iterator<Map.Entry<K, SharedBufferPage<K, V>>> iter = pages.entrySet().iterator();
+		boolean pruned = false;
 
 		while (iter.hasNext()) {
 			SharedBufferPage<K, V> page = iter.next().getValue();
 
-			page.prune(pruningTimestamp);
+			if (page.prune(pruningTimestamp)) {
+				pruned = true;
+			}
 
 			if (page.isEmpty()) {
 				// delete page if it is empty
 				iter.remove();
 			}
 		}
+
+		return pruned;
 	}
 
 	/**
@@ -488,20 +494,25 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		 * Removes all entries from the map whose timestamp is smaller than the pruning timestamp.
 		 *
 		 * @param pruningTimestamp Timestamp for the pruning
+		 * @return {@code true} if pruning happened
 		 */
-		public void prune(long pruningTimestamp) {
+		public boolean prune(long pruningTimestamp) {
 			Iterator<Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>>> iterator = entries.entrySet().iterator();
 			boolean continuePruning = true;
+			boolean pruned = false;
 
 			while (iterator.hasNext() && continuePruning) {
 				SharedBufferEntry<K, V> entry = iterator.next().getValue();
 
 				if (entry.getValueTime().getTimestamp() <= pruningTimestamp) {
 					iterator.remove();
+					pruned = true;
 				} else {
 					continuePruning = false;
 				}
 			}
+
+			return pruned;
 		}
 
 		public boolean isEmpty() {

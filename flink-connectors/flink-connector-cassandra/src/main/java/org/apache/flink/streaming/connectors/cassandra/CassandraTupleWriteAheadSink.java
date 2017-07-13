@@ -97,7 +97,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 	}
 
 	@Override
-	protected boolean sendValues(Iterable<IN> values, long timestamp) throws Exception {
+	protected boolean sendValues(Iterable<IN> values, long checkpointId, long timestamp) throws Exception {
 		final AtomicInteger updatesCount = new AtomicInteger(0);
 		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
 

@@ -18,37 +18,37 @@
 
 package org.apache.flink.test.iterative.aggregators;
 
+import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.functions.RichFilterFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.operators.util.CollectionDataSets;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.util.Collector;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.Random;
-
-import org.apache.flink.api.common.functions.RichFilterFunction;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Assert;
-
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.util.Collector;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import static org.junit.Assert.assertEquals;
 
@@ -99,7 +99,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		env.registerCachedFile(resultPath, testName);
 
 		IterativeDataSet<Long> solution = env.fromElements(1L).iterate(2);
-		solution.closeWith(env.generateSequence(1,2).filter(new RichFilterFunction<Long>() {
+		solution.closeWith(env.generateSequence(1, 2).filter(new RichFilterFunction<Long>() {
 			@Override
 			public void open(Configuration parameters) throws Exception{
 				File file = getRuntimeContext().getDistributedCache().getFile(testName);
@@ -108,6 +108,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 				reader.close();
 				assertEquals(output, testString);
 			}
+
 			@Override
 			public boolean filter(Long value) throws Exception {
 				return false;
@@ -311,7 +312,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class NegativeElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
+	private static final class NegativeElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
 		@Override
 		public boolean isConverged(int iteration, LongValue value) {
@@ -320,7 +321,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class NegativeElementsConvergenceCriterionWithParam implements ConvergenceCriterion<LongValue> {
+	private static final class NegativeElementsConvergenceCriterionWithParam implements ConvergenceCriterion<LongValue> {
 
 		private int value;
 
@@ -339,7 +340,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class SubtractOneMap extends RichMapFunction<Integer, Integer> {
+	private static final class SubtractOneMap extends RichMapFunction<Integer, Integer> {
 
 		private LongSumAggregator aggr;
 
@@ -354,14 +355,14 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 			Integer newValue = value - 1;
 			// count negative numbers
 			if (newValue < 0) {
-				aggr.aggregate(1l);
+				aggr.aggregate(1L);
 			}
 			return newValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class SubtractOneMapWithParam extends RichMapFunction<Integer, Integer> {
+	private static final class SubtractOneMapWithParam extends RichMapFunction<Integer, Integer> {
 
 		private LongSumAggregatorWithParameter aggr;
 
@@ -374,15 +375,15 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		public Integer map(Integer value) {
 			Integer newValue = value - 1;
 			// count numbers less than the aggregator parameter
-			if ( newValue < aggr.getValue() ) {
-				aggr.aggregate(1l);
+			if (newValue < aggr.getValue()) {
+				aggr.aggregate(1L);
 			}
 			return newValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static class LongSumAggregatorWithParameter extends LongSumAggregator {
+	private static class LongSumAggregatorWithParameter extends LongSumAggregator {
 
 		private int value;
 
@@ -396,7 +397,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class TupleMakerMap extends RichMapFunction<Integer, Tuple2<Integer, Integer>> {
+	private static final class TupleMakerMap extends RichMapFunction<Integer, Tuple2<Integer, Integer>> {
 
 		private Random rnd;
 
@@ -414,7 +415,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AggregateMapDelta extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	private static final class AggregateMapDelta extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
 		private LongSumAggregator aggr;
 		private LongValue previousAggr;
@@ -437,14 +438,14 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 			// count the elements that are equal to the superstep number
 			if (value.f1 == superstep) {
-				aggr.aggregate(1l);
+				aggr.aggregate(1L);
 			}
 			return value;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class UpdateFilter extends RichFlatMapFunction<Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
+	private static final class UpdateFilter extends RichFlatMapFunction<Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
 			Tuple2<Integer, Integer>> {
 
 		private int superstep;
@@ -465,7 +466,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class ProjectSecondMapper extends RichMapFunction<Tuple2<Integer, Integer>, Integer> {
+	private static final class ProjectSecondMapper extends RichMapFunction<Tuple2<Integer, Integer>, Integer> {
 
 		@Override
 		public Integer map(Tuple2<Integer, Integer> value) {
@@ -474,7 +475,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AggregateAndSubtractOneDelta extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	private static final class AggregateAndSubtractOneDelta extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
 		private LongSumAggregator aggr;
 		private LongValue previousAggr;
@@ -497,7 +498,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 			// count the ones
 			if (value.f1 == 1) {
-				aggr.aggregate(1l);
+				aggr.aggregate(1L);
 			}
 			value.f1--;
 			return value;

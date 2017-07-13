@@ -27,7 +27,9 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaW
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import kafka.server.KafkaServer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -80,6 +82,12 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
 
+	public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
+			Properties properties,
+			String topic,
+			int partition,
+			long timeout);
+
 	public abstract <T> StreamSink<T> getProducerSink(String topic,
 			KeyedSerializationSchema<T> serSchema, Properties props,
 			FlinkKafkaPartitioner<T> partitioner);
@@ -87,6 +95,12 @@ public abstract class KafkaTestEnvironment {
 	public abstract <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
 														KeyedSerializationSchema<T> serSchema, Properties props,
 														FlinkKafkaPartitioner<T> partitioner);
+
+	public abstract <T> DataStreamSink<T> writeToKafkaWithTimestamps(
+			DataStream<T> stream,
+			String topic,
+			KeyedSerializationSchema<T> serSchema,
+			Properties props);
 
 	// -- offset handlers
 

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -43,6 +44,9 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link InputChannelDeploymentDescriptor}.
+ */
 public class InputChannelDeploymentDescriptorTest {
 
 	/**
@@ -122,7 +126,6 @@ public class InputChannelDeploymentDescriptorTest {
 		ExecutionVertex consumer = mock(ExecutionVertex.class);
 		SimpleSlot consumerSlot = mockSlot(consumerResourceId);
 
-
 		// Unknown partition
 		ExecutionVertex unknownProducer = mockExecutionVertex(ExecutionState.CREATED, null); // no assigned resource
 		IntermediateResultPartition unknownPartition = mockPartition(unknownProducer);
@@ -142,7 +145,6 @@ public class InputChannelDeploymentDescriptorTest {
 		assertEquals(unknownPartitionId, desc[0].getConsumedPartitionId());
 		assertTrue(desc[0].getConsumedPartitionLocation().isUnknown());
 		assertNull(desc[0].getConsumedPartitionLocation().getConnectionId());
-
 
 		try {
 			// Fail if lazy deployment is *not* allowed

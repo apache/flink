@@ -18,16 +18,33 @@
 
 package org.apache.flink.graph.drivers.output;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
+
+import java.io.PrintStream;
+
 /**
  * Print hash of algorithm output.
+ *
+ * @param <T> result Type
  */
-public interface Hash {
+public class Hash<T>
+extends OutputBase<T> {
 
-	/**
-	 * Print hash of execution results.
-	 *
-	 * @param executionName job name
-	 * @throws Exception on error
-	 */
-	void hash(String executionName) throws Exception;
+	private BooleanParameter printExecutionPlan = new BooleanParameter(this, "__print_execution_plan");
+
+	@Override
+	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
+		ChecksumHashCode<T> checksumHashCode = new ChecksumHashCode<T>().run(data);
+
+		if (printExecutionPlan.getValue()) {
+			System.out.println(data.getExecutionEnvironment().getExecutionPlan());
+		}
+
+		ChecksumHashCode.Checksum checksum = checksumHashCode
+			.execute(executionName);
+
+		out.println(checksum);
+	}
 }

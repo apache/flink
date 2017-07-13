@@ -15,12 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.util;
 
-import java.io.IOException;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import java.io.IOException;
+
+/**
+ * Generates an infinite series of integer 2-tuples elements with optional read delay.
+ */
 public class InfiniteIntegerTupleInputFormat extends GenericInputFormat<Tuple2<Integer, Integer>> {
 	private static final long serialVersionUID = 1L;
 	private static final int DELAY = 20;

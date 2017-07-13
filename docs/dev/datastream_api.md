@@ -211,7 +211,7 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
             Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
-            This transformation returns a KeyedDataStream.</p>
+            This transformation returns a KeyedStream.</p>
     {% highlight java %}
 dataStream.keyBy("someKey") // Key by field "someKey"
 dataStream.keyBy(0) // Key by the first element of a Tuple
@@ -607,7 +607,7 @@ dataStream.filter { _ != 0 }
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
             Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
-            This transformation returns a KeyedDataStream.</p>
+            This transformation returns a KeyedStream.</p>
     {% highlight scala %}
 dataStream.keyBy("someKey") // Key by field "someKey"
 dataStream.keyBy(0) // Key by the first element of a Tuple

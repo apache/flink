@@ -68,11 +68,6 @@ public class FileSystemBlobStore implements BlobStoreService {
 		put(localFile, BlobUtils.getRecoveryPath(basePath, blobKey));
 	}
 
-	@Override
-	public void put(File localFile, JobID jobId, String key) throws IOException {
-		put(localFile, BlobUtils.getRecoveryPath(basePath, jobId, key));
-	}
-
 	private void put(File fromFile, String toBlobPath) throws IOException {
 		try (OutputStream os = fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
@@ -85,11 +80,6 @@ public class FileSystemBlobStore implements BlobStoreService {
 	@Override
 	public void get(BlobKey blobKey, File localFile) throws IOException {
 		get(BlobUtils.getRecoveryPath(basePath, blobKey), localFile);
-	}
-
-	@Override
-	public void get(JobID jobId, String key, File localFile) throws IOException {
-		get(BlobUtils.getRecoveryPath(basePath, jobId, key), localFile);
 	}
 
 	private void get(String fromBlobPath, File toFile) throws IOException {
@@ -124,11 +114,6 @@ public class FileSystemBlobStore implements BlobStoreService {
 	@Override
 	public void delete(BlobKey blobKey) {
 		delete(BlobUtils.getRecoveryPath(basePath, blobKey));
-	}
-
-	@Override
-	public void delete(JobID jobId, String key) {
-		delete(BlobUtils.getRecoveryPath(basePath, jobId, key));
 	}
 
 	@Override

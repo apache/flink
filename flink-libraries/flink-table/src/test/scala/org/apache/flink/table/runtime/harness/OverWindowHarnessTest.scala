@@ -18,7 +18,7 @@
 package org.apache.flink.table.runtime.harness
 
 import java.lang.{Integer => JInt, Long => JLong}
-import java.util.concurrent.{ConcurrentLinkedQueue}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -276,7 +276,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
   def testProcTimeUnboundedOver(): Unit = {
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeUnboundedPartitionedOver(
+      new ProcTimeUnboundedOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         queryConfig))

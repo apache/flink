@@ -31,8 +31,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class BulkProcessorIndexer implements RequestIndexer {
 
-	private static final long serialVersionUID = 6841162943062034253L;
-
 	private final BulkProcessor bulkProcessor;
 	private final boolean flushOnCheckpoint;
 	private final AtomicLong numPendingRequestsRef;
