@@ -285,7 +285,7 @@ public class BlobServerGetTest extends TestLogger {
 			throws IOException {
 		try {
 			get(service, jobId, key, highAvailability);
-			fail("This should not succeed.");
+			fail("File " + jobId + "/" + key + " should have been deleted.");
 		} catch (IOException e) {
 			// expected
 		}
