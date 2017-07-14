@@ -274,7 +274,7 @@ public class CheckpointTestUtils {
 
 	public static IncrementalKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
 		return new IncrementalKeyedStateHandle(
-			createRandomUUID(rnd).toString(),
+			createRandomUUID(rnd),
 			new KeyGroupRange(1, 1),
 			42L,
 			createRandomStateHandleMap(rnd),
