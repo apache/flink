@@ -564,7 +564,7 @@ public class FlinkKafkaConsumerBaseTest {
 	 * <p>This also verifies that a restoring source is always impervious to changes in the list
 	 * of topics fetched from Kafka.
 	 */
-	void testRescaling(
+	private void testRescaling(
 		final int initialParallelism,
 		final int numPartitions,
 		final int restoredParallelism,
@@ -578,7 +578,7 @@ public class FlinkKafkaConsumerBaseTest {
 		DummyFlinkKafkaConsumer<String>[] consumers =
 			new DummyFlinkKafkaConsumer[initialParallelism];
 
-		AbstractStreamOperatorTestHarness<String>[] testHarnesses=
+		AbstractStreamOperatorTestHarness<String>[] testHarnesses =
 			new AbstractStreamOperatorTestHarness[initialParallelism];
 
 
@@ -657,6 +657,110 @@ public class FlinkKafkaConsumerBaseTest {
 
 		assertThat(restoredGlobalSubscribedPartitions.values(), hasSize(numPartitions));
 		assertThat(mockFetchedPartitionsOnStartup, everyItem(isIn(restoredGlobalSubscribedPartitions.keySet())));
+	}
+
+	@Test
+	public void testRestoredStateInsensitiveToMissingPartitions() throws Exception {
+		List<KafkaTopicPartition> mockFetchedPartitionsOnStartup = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 0),
+			new KafkaTopicPartition("test-topic", 1),
+			new KafkaTopicPartition("test-topic", 2));
+
+		// missing fetched partitions on restore
+		List<KafkaTopicPartition> mockFetchedPartitionsOnRestore = mockFetchedPartitionsOnStartup.subList(0, 2);
+
+		testRestoredStateInsensitiveToFetchedPartitions(mockFetchedPartitionsOnStartup, mockFetchedPartitionsOnRestore);
+	}
+
+	@Test
+	public void testRestoredStateInsensitiveToNewPartitions() throws Exception {
+		List<KafkaTopicPartition> mockFetchedPartitionsOnStartup = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 0),
+			new KafkaTopicPartition("test-topic", 1),
+			new KafkaTopicPartition("test-topic", 2));
+
+		// new partitions (partition id 3 and 4) on restore
+		List<KafkaTopicPartition> mockFetchedPartitionsOnRestore = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 0),
+			new KafkaTopicPartition("test-topic", 1),
+			new KafkaTopicPartition("test-topic", 2),
+			new KafkaTopicPartition("test-topic", 3),
+			new KafkaTopicPartition("test-topic", 4));
+
+		testRestoredStateInsensitiveToFetchedPartitions(mockFetchedPartitionsOnStartup, mockFetchedPartitionsOnRestore);
+	}
+
+	@Test
+	public void testRestoredStateInsensitiveToDifferentPartitionOrdering() throws Exception {
+		List<KafkaTopicPartition> mockFetchedPartitionsOnStartup = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 0),
+			new KafkaTopicPartition("test-topic", 1),
+			new KafkaTopicPartition("test-topic", 2));
+
+		// different partition ordering on restore
+		List<KafkaTopicPartition> mockFetchedPartitionsOnRestore = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 0),
+			new KafkaTopicPartition("test-topic", 2),
+			new KafkaTopicPartition("test-topic", 1));
+
+		testRestoredStateInsensitiveToFetchedPartitions(mockFetchedPartitionsOnStartup, mockFetchedPartitionsOnRestore);
+	}
+
+	private void testRestoredStateInsensitiveToFetchedPartitions(
+			List<KafkaTopicPartition> mockFetchedPartitionsOnStartup,
+			List<KafkaTopicPartition> mockFetchedPartitionsOnRestore) throws Exception {
+
+		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+		when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing
+		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
+		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
+
+		// startup run for consumer
+		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer(mockFetchedPartitionsOnStartup);
+		consumer.setRuntimeContext(mockRuntimeContext);
+
+		TestingListState<Serializable> listState = new TestingListState<>();
+
+		OperatorStateStore backend = mock(OperatorStateStore.class);
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+		when(initializationContext.getOperatorStateStore()).thenReturn(backend);
+		when(initializationContext.isRestored()).thenReturn(false);
+
+		consumer.initializeState(initializationContext);
+		consumer.open(new Configuration());
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
+
+		HashMap<KafkaTopicPartition, Long> startupSnapshot = new HashMap<>();
+
+		for (Serializable serializable : listState.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
+			startupSnapshot.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+		}
+
+		// restore run for consumer; re-initialize consumer, this
+		// time mocking partition fetching to have missing partitions
+		consumer = new DummyFlinkKafkaConsumer(mockFetchedPartitionsOnRestore);
+		consumer.setRuntimeContext(mockRuntimeContext);
+
+		// re-initialize mock state init context to return true for isRestored
+		initializationContext = mock(StateInitializationContext.class);
+		when(initializationContext.getOperatorStateStore()).thenReturn(backend);
+		when(initializationContext.isRestored()).thenReturn(true);
+
+		consumer.initializeState(initializationContext);
+		consumer.open(new Configuration());
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
+
+		HashMap<KafkaTopicPartition, Long> restoreSnapshot = new HashMap<>();
+		for (Serializable serializable : listState.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
+			restoreSnapshot.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+		}
+
+		// no state should be missing regardless of what partitions were fetched on the restore run
+		Assert.assertEquals(startupSnapshot, restoreSnapshot);
 	}
 
 	// ------------------------------------------------------------------------
