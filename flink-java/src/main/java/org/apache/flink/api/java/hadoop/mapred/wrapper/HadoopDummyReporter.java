@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.Reporter;
 
 /**
- * This is a dummy progress monitor / reporter
+ * This is a dummy progress monitor / reporter.
  *
  */
 @PublicEvolving
@@ -64,6 +64,7 @@ public class HadoopDummyReporter implements Reporter {
 	public InputSplit getInputSplit() throws UnsupportedOperationException {
 		return null;
 	}
+
 	// There should be an @Override, but some CDH4 dependency does not contain this method
 	public float getProgress() {
 		return 0;

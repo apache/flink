@@ -18,43 +18,44 @@
 
 package org.apache.flink.api.java.hadoop.mapred;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.apache.hadoop.mapred.JobConf;
+
+import java.io.IOException;
 
 /**
  * Wrapper for using HadoopInputFormats (mapred-variant) with Flink.
  *
- * The IF is returning a {@code Tuple2<K,V>}.
+ * <p>The IF is returning a {@code Tuple2<K,V>}.
  *
  * @param <K> Type of the key
  * @param <V> Type of the value.
  */
 @Public
-public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K,V>> implements ResultTypeQueryable<Tuple2<K,V>> {
-	
+public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>> implements ResultTypeQueryable<Tuple2<K, V>> {
+
 	private static final long serialVersionUID = 1L;
 
-	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
+	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
 		super(mapredInputFormat, key, value, job);
 	}
 
-	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value) {
+	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value) {
 		super(mapredInputFormat, key, value, new JobConf());
 	}
-	
+
 	@Override
 	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
-		if(!fetched) {
+		if (!fetched) {
 			fetchNext();
 		}
-		if(!hasNext) {
+		if (!hasNext) {
 			return null;
 		}
 		record.f0 = key;
@@ -62,9 +63,9 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 		fetched = false;
 		return record;
 	}
-	
+
 	@Override
-	public TypeInformation<Tuple2<K,V>> getProducedType() {
+	public TypeInformation<Tuple2<K, V>> getProducedType() {
 		return new TupleTypeInfo<>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }

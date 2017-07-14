@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.configuration.Configuration;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,7 +45,7 @@ import java.io.ObjectOutputStream;
 import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase.getCredentialsFromUGI;
 
 /**
- * Base class shared between the Java and Scala API of Flink
+ * Base class shared between the Java and Scala API of Flink.
  */
 @Internal
 public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T> implements FinalizeOnMaster {
@@ -60,8 +61,8 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	protected static final Object CLOSE_MUTEX = new Object();
 
 	protected org.apache.hadoop.conf.Configuration configuration;
-	protected org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat;
-	protected transient RecordWriter<K,V> recordWriter;
+	protected org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat;
+	protected transient RecordWriter<K, V> recordWriter;
 	protected transient OutputCommitter outputCommitter;
 	protected transient TaskAttemptContext context;
 	protected transient int taskNumber;
@@ -191,7 +192,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 		TaskAttemptContext taskContext;
 		try {
 			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
-					+ String.format("%" + (6 - Integer.toString(1).length()) + "s"," ").replace(" ", "0")
+					+ String.format("%" + (6 - Integer.toString(1).length()) + "s", " ").replace(" ", "0")
 					+ Integer.toString(1)
 					+ "_0");
 
@@ -204,40 +205,40 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 
 		jobContext.getCredentials().addAll(this.credentials);
 		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if(currentUserCreds != null) {
+		if (currentUserCreds != null) {
 			jobContext.getCredentials().addAll(currentUserCreds);
 		}
 
 		// finalize HDFS output format
-		if(this.outputCommitter != null) {
+		if (this.outputCommitter != null) {
 			this.outputCommitter.commitJob(jobContext);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		out.writeUTF(this.mapreduceOutputFormat.getClass().getName());
 		this.configuration.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		super.read(in);
 		String hadoopOutputFormatClassName = in.readUTF();
-		
+
 		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
 		configuration.readFields(in);
-		
-		if(this.configuration == null) {
+
+		if (this.configuration == null) {
 			this.configuration = configuration;
 		}
-		
+
 		try {
-			this.mapreduceOutputFormat = (org.apache.hadoop.mapreduce.OutputFormat<K,V>) Class.forName(hadoopOutputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
+			this.mapreduceOutputFormat = (org.apache.hadoop.mapreduce.OutputFormat<K, V>) Class.forName(hadoopOutputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop output format", e);
 		}

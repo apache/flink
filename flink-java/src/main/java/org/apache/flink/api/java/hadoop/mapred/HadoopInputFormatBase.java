@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
@@ -90,15 +91,15 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		this.jobConf = job;
 		ReflectionUtils.setConf(mapredInputFormat, jobConf);
 	}
-	
+
 	public JobConf getJobConf() {
 		return jobConf;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  InputFormat
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void configure(Configuration parameters) {
 
@@ -112,20 +113,20 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			}
 		}
 	}
-	
+
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		// only gather base statistics for FileInputFormats
-		if(!(mapredInputFormat instanceof FileInputFormat)) {
+		if (!(mapredInputFormat instanceof FileInputFormat)) {
 			return null;
 		}
-		
+
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
-		
+
 		try {
 			final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(this.jobConf);
-			
+
 			return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
@@ -138,27 +139,27 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 						+ t.getMessage(), t);
 			}
 		}
-		
+
 		// no statistics available
 		return null;
 	}
-	
+
 	@Override
 	public HadoopInputSplit[] createInputSplits(int minNumSplits)
 			throws IOException {
 		org.apache.hadoop.mapred.InputSplit[] splitArray = mapredInputFormat.getSplits(jobConf, minNumSplits);
 		HadoopInputSplit[] hiSplit = new HadoopInputSplit[splitArray.length];
-		for (int i=0; i<splitArray.length; i++) {
+		for (int i = 0; i < splitArray.length; i++) {
 			hiSplit[i] = new HadoopInputSplit(i, splitArray[i], jobConf);
 		}
 		return hiSplit;
 	}
-	
+
 	@Override
 	public InputSplitAssigner getInputSplitAssigner(HadoopInputSplit[] inputSplits) {
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
-	
+
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
 
@@ -174,7 +175,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			this.fetched = false;
 		}
 	}
-	
+
 	@Override
 	public boolean reachedEnd() throws IOException {
 		if (!fetched) {
@@ -182,7 +183,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		}
 		return !hasNext;
 	}
-	
+
 	protected void fetchNext() throws IOException {
 		hasNext = this.recordReader.next(key, value);
 		fetched = true;
@@ -198,30 +199,30 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths,
 			ArrayList<FileStatus> files) throws IOException {
-		
+
 		long latestModTime = 0L;
-		
+
 		// get the file info and check whether the cached statistics are still valid.
-		for(org.apache.hadoop.fs.Path hadoopPath : hadoopFilePaths) {
-			
+		for (org.apache.hadoop.fs.Path hadoopPath : hadoopFilePaths) {
+
 			final Path filePath = new Path(hadoopPath.toUri());
 			final FileSystem fs = FileSystem.get(filePath.toUri());
-			
+
 			final FileStatus file = fs.getFileStatus(filePath);
 			latestModTime = Math.max(latestModTime, file.getModificationTime());
-			
+
 			// enumerate all files and check their modification time stamp.
 			if (file.isDir()) {
 				FileStatus[] fss = fs.listStatus(filePath);
 				files.ensureCapacity(files.size() + fss.length);
-				
+
 				for (FileStatus s : fss) {
 					if (!s.isDir()) {
 						files.add(s);
@@ -232,30 +233,30 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 				files.add(file);
 			}
 		}
-		
+
 		// check whether the cached statistics are still valid, if we have any
 		if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
 			return cachedStats;
 		}
-		
+
 		// calculate the whole length
 		long len = 0;
 		for (FileStatus s : files) {
 			len += s.getLen();
 		}
-		
+
 		// sanity check
 		if (len <= 0) {
 			len = BaseStatistics.SIZE_UNKNOWN;
 		}
-		
+
 		return new FileBaseStatistics(latestModTime, len, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		out.writeUTF(mapredInputFormat.getClass().getName());
@@ -263,7 +264,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		out.writeUTF(valueClass.getName());
 		jobConf.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		super.read(in);
@@ -271,12 +272,12 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		String hadoopInputFormatClassName = in.readUTF();
 		String keyClassName = in.readUTF();
 		String valueClassName = in.readUTF();
-		if(jobConf == null) {
+		if (jobConf == null) {
 			jobConf = new JobConf();
 		}
 		jobConf.readFields(in);
 		try {
-			this.mapredInputFormat = (org.apache.hadoop.mapred.InputFormat<K,V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
+			this.mapredInputFormat = (org.apache.hadoop.mapred.InputFormat<K, V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop input format", e);
 		}
@@ -294,7 +295,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 		jobConf.getCredentials().addAll(this.credentials);
 		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if(currentUserCreds != null) {
+		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
 		}
 	}
