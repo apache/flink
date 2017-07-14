@@ -45,7 +45,9 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -55,6 +57,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
+import static org.apache.flink.runtime.blob.BlobUtils.NO_JOB_DIR_PREFIX;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -192,9 +195,15 @@ public class BlobServerGetTest extends TestLogger {
 				try {
 					get(server, jobId, blobKey, true);
 				} finally {
+					HashSet<String> expectedDirs = new HashSet<>();
+					expectedDirs.add("incoming");
+					expectedDirs.add(JOB_DIR_PREFIX + jobId);
 					// only the incoming and job directory should exist (no job directory!)
 					File storageDir = tempFileDir.getParentFile();
-					assertArrayEquals(new String[] {"incoming", JOB_DIR_PREFIX + jobId}, storageDir.list());
+					String[] actualDirs = storageDir.list();
+					assertNotNull(actualDirs);
+					assertEquals(expectedDirs, new HashSet<>(Arrays.asList(actualDirs)));
+
 					// job directory should be empty
 					File jobDir = new File(tempFileDir.getParentFile(), JOB_DIR_PREFIX + jobId);
 					assertArrayEquals(new String[] {}, jobDir.list());
@@ -303,9 +312,15 @@ public class BlobServerGetTest extends TestLogger {
 			try {
 				get(server, jobId, blobKey, true);
 			} finally {
+				HashSet<String> expectedDirs = new HashSet<>();
+				expectedDirs.add("incoming");
+				expectedDirs.add(JOB_DIR_PREFIX + jobId);
 				// only the incoming and job directory should exist (no job directory!)
 				File storageDir = tempFileDir.getParentFile();
-				assertArrayEquals(new String[] {"incoming", JOB_DIR_PREFIX + jobId}, storageDir.list());
+				String[] actualDirs = storageDir.list();
+				assertNotNull(actualDirs);
+				assertEquals(expectedDirs, new HashSet<>(Arrays.asList(actualDirs)));
+
 				// job directory should be empty
 				File jobDir = new File(tempFileDir.getParentFile(), JOB_DIR_PREFIX + jobId);
 				assertArrayEquals(new String[] {}, jobDir.list());
