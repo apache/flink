@@ -424,7 +424,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * @throws IOException
 	 * 		Thrown if the file retrieval failed.
 	 */
-	File getFileInternal(@Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable) throws IOException {
+	private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable) throws IOException {
 		checkArgument(blobKey != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
@@ -573,7 +573,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * 		thrown if an I/O error occurs while writing it to a local file, or uploading it to the HA
 	 * 		store
 	 */
-	BlobKey putBuffer(@Nullable JobID jobId, byte[] value, boolean highlyAvailable)
+	private BlobKey putBuffer(@Nullable JobID jobId, byte[] value, boolean highlyAvailable)
 			throws IOException {
 
 		if (LOG.isDebugEnabled()) {
@@ -619,7 +619,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * 		thrown if an I/O error occurs while reading the data from the input stream, writing it to a
 	 * 		local file, or uploading it to the HA store
 	 */
-	BlobKey putInputStream(@Nullable JobID jobId, InputStream inputStream, boolean highlyAvailable)
+	private BlobKey putInputStream(
+			@Nullable JobID jobId, InputStream inputStream, boolean highlyAvailable)
 			throws IOException {
 
 		if (LOG.isDebugEnabled()) {
@@ -832,7 +833,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 */
 	List<BlobServerConnection> getCurrentActiveConnections() {
 		synchronized (activeConnections) {
-			return new ArrayList<BlobServerConnection>(activeConnections);
+			return new ArrayList<>(activeConnections);
 		}
 	}
 }
