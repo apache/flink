@@ -58,7 +58,6 @@ public class Option {
 		return this;
 	}
 
-
 	/**
 	 * Define the type of the Option.
 	 *
@@ -73,11 +72,10 @@ public class Option {
 	/**
 	 * Define a default value for the option.
 	 *
-	 * Throws an exception if the list of possible values for the parameter is not empty and the default value passed
-	 * is not in the list.
-	 *
 	 * @param defaultValue - the default value
 	 * @return the updated Option
+	 * @throws RequiredParametersException if the list of possible values for the parameter is not empty and the default
+	 *                                     value passed is not in the list.
 	 */
 	public Option defaultValue(String defaultValue) throws RequiredParametersException {
 		if (this.choices.isEmpty()) {
