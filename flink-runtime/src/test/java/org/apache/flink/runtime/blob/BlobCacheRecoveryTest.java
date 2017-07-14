@@ -33,7 +33,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -41,10 +40,10 @@ import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-public class BlobServerRecoveryTest extends TestLogger {
+public class BlobCacheRecoveryTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -54,7 +53,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 	 * participating BlobServer.
 	 */
 	@Test
-	public void testBlobServerRecovery() throws Exception {
+	public void testBlobCacheRecovery() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
@@ -66,7 +65,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testBlobServerRecovery(config, blobStoreService);
+			testBlobCacheRecovery(config, blobStoreService);
 		} finally {
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
@@ -89,7 +88,9 @@ public class BlobServerRecoveryTest extends TestLogger {
 	 * @throws IOException
 	 * 		in case of failures
 	 */
-	public static void testBlobServerRecovery(final Configuration config, final BlobStore blobStore) throws IOException {
+	public static void testBlobCacheRecovery(
+			final Configuration config, final BlobStore blobStore) throws IOException {
+
 		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
 		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
 		Random rand = new Random();
@@ -97,7 +98,10 @@ public class BlobServerRecoveryTest extends TestLogger {
 		try (
 			BlobServer server0 = new BlobServer(config, blobStore);
 			BlobServer server1 = new BlobServer(config, blobStore);
-			// use VoidBlobStore as the HA store to force download from server[1]'s HA store
+			// use VoidBlobStore as the HA store to force download from each server's HA store
+			BlobCache cache0 = new BlobCache(
+				new InetSocketAddress("localhost", server0.getPort()), config,
+				new VoidBlobStore());
 			BlobCache cache1 = new BlobCache(
 				new InetSocketAddress("localhost", server1.getPort()), config,
 				new VoidBlobStore())) {
@@ -112,11 +116,12 @@ public class BlobServerRecoveryTest extends TestLogger {
 
 			// Put job-related HA data
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
-			keys[0] = put(server0, jobId[0], expected, true); // Request 1
-			keys[1] = put(server0, jobId[1], expected2, true); // Request 2
+			keys[0] = put(cache0, jobId[0], expected, true); // Request 1
+			keys[1] = put(cache0, jobId[1], expected2, true); // Request 2
 
 			// put non-HA data
-			nonHAKey = put(server0, jobId[0], expected2, false);
+			nonHAKey = put(cache0, jobId[0], expected2, false);
+			assertNotEquals(keys[0], nonHAKey);
 			assertEquals(keys[1], nonHAKey);
 
 			// check that the storage directory exists
@@ -130,22 +135,6 @@ public class BlobServerRecoveryTest extends TestLogger {
 
 			// Verify non-HA file is not accessible from server1
 			verifyDeleted(cache1, jobId[0], nonHAKey, true);
-
-			// Remove again
-			server1.cleanupJob(jobId[0]);
-			server1.cleanupJob(jobId[1]);
-
-			// Verify everything is clean
-			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
-			if (fs.exists(blobServerPath)) {
-				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
-					fs.listStatus(blobServerPath);
-				ArrayList<String> filenames = new ArrayList<>(recoveryFiles.length);
-				for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
-					filenames.add(file.toString());
-				}
-				fail("Unclean state backend: " + filenames);
-			}
 		}
 	}
 }

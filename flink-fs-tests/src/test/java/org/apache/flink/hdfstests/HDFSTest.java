@@ -30,6 +30,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
+import org.apache.flink.runtime.blob.BlobCacheRecoveryTest;
 import org.apache.flink.runtime.blob.BlobServerRecoveryTest;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
@@ -240,7 +241,7 @@ public class HDFSTest {
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
-	 * participating BlobServer.
+	 * participating BlobServer when talking to the {@link org.apache.flink.runtime.blob.BlobServer} directly.
 	 */
 	@Test
 	public void testBlobServerRecovery() throws Exception {
@@ -258,6 +259,33 @@ public class HDFSTest {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 			BlobServerRecoveryTest.testBlobServerRecovery(config, blobStoreService);
+		} finally {
+			if (blobStoreService != null) {
+				blobStoreService.closeAndCleanupAllData();
+			}
+		}
+	}
+
+	/**
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
+	 * participating BlobServer when uploaded via a {@link org.apache.flink.runtime.blob.BlobCache}.
+	 */
+	@Test
+	public void testBlobCacheRecovery() throws Exception {
+		org.apache.flink.configuration.Configuration
+			config = new org.apache.flink.configuration.Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+
+		BlobStoreService blobStoreService = null;
+
+		try {
+			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
+			BlobCacheRecoveryTest.testBlobCacheRecovery(config, blobStoreService);
 		} finally {
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
