@@ -20,7 +20,6 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.cep.EventComparator;
@@ -29,6 +28,7 @@ import org.apache.flink.cep.PatternFlatTimeoutFunction;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.PatternTimeoutFunction;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -62,20 +62,18 @@ public class CEPOperatorUtils {
 			final TypeInformation<OUT> outTypeInfo) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
 			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT> build(
+			public OneInputStreamOperator<IN, OUT> build(
 				TypeSerializer<IN> inputSerializer,
 				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
 				return new SelectCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					migratingFromOldKeyedOperator,
 					comparator,
+					skipStrategy,
 					selectFunction
 				);
 			}
@@ -111,20 +109,18 @@ public class CEPOperatorUtils {
 			final TypeInformation<OUT> outTypeInfo) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
 			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT> build(
+			public OneInputStreamOperator<IN, OUT> build(
 				TypeSerializer<IN> inputSerializer,
 				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
 				return new FlatSelectCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					migratingFromOldKeyedOperator,
 					comparator,
+					skipStrategy,
 					selectFunction
 				);
 			}
@@ -167,20 +163,18 @@ public class CEPOperatorUtils {
 			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
 			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT1> build(
+			public OneInputStreamOperator<IN, OUT1> build(
 				TypeSerializer<IN> inputSerializer,
 				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
 				return new FlatSelectTimeoutCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					migratingFromOldKeyedOperator,
 					comparator,
+					skipStrategy,
 					selectFunction,
 					timeoutFunction,
 					outputTag
@@ -225,20 +219,18 @@ public class CEPOperatorUtils {
 			final PatternTimeoutFunction<IN, OUT2> timeoutFunction) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
 			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT1> build(
+			public OneInputStreamOperator<IN, OUT1> build(
 				TypeSerializer<IN> inputSerializer,
 				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
 				return new SelectTimeoutCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					migratingFromOldKeyedOperator,
 					comparator,
+					skipStrategy,
 					selectFunction,
 					timeoutFunction,
 					outputTag
@@ -277,21 +269,17 @@ public class CEPOperatorUtils {
 		if (inputStream instanceof KeyedStream) {
 			KeyedStream<IN, K> keyedStream = (KeyedStream<IN, K>) inputStream;
 
-			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
-
 			patternStream = keyedStream.transform(
 				operatorBuilder.getKeyedOperatorName(),
 				outTypeInfo,
 				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					true,
-					comparator));
+					comparator,
+					pattern.getAfterMatchSkipStrategy()));
 		} else {
 			KeySelector<IN, Byte> keySelector = new NullByteKeySelector<>();
-			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
 
 			patternStream = inputStream.keyBy(keySelector).transform(
 				operatorBuilder.getOperatorName(),
@@ -299,10 +287,9 @@ public class CEPOperatorUtils {
 				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					false,
-					comparator
+					comparator,
+					pattern.getAfterMatchSkipStrategy()
 				)).forceNonParallel();
 		}
 
@@ -310,13 +297,12 @@ public class CEPOperatorUtils {
 	}
 
 	private interface OperatorBuilder<IN, OUT> {
-		<K> OneInputStreamOperator<IN, OUT> build(
+			OneInputStreamOperator<IN, OUT> build(
 			TypeSerializer<IN> inputSerializer,
 			boolean isProcessingTime,
-			TypeSerializer<K> keySerializer,
 			NFACompiler.NFAFactory<IN> nfaFactory,
-			boolean migratingFromOldKeyedOperator,
-			EventComparator<IN> comparator);
+			EventComparator<IN> comparator,
+			AfterMatchSkipStrategy skipStrategy);
 
 		String getKeyedOperatorName();
 

@@ -1250,6 +1250,105 @@ pattern.within(Time.seconds(10))
 
 </div>
 
+### After Match Skip Strategy
+
+For a given pattern, same event may be assigned to multiple successful matches. In order to control to how many matches an event will be assigned, we need to specify the skip strategy called `AfterMatchSkipStrategy`. 
+There're four types of skip strategies, listed as follows:
+
+* <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
+* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that contains event of the match.
+* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that contains event of the match preceding the first of *PatternName*.
+* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that contains event of the match preceding the last of *PatternName*.
+
+Notice that when using *SKIP_TO_FIRST* and *SKIP_TO_LAST* skip strategy, a valid *PatternName* should also be specified.
+
+Let's take an example: For a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4, ab5, ab6`, the differences between these four skip strategies can be listed as follows:
+
+<table class="table table-bordered">
+    <tr>
+        <th class="text-left" style="width: 25%">Skip Strategy</th>
+        <th class="text-center" style="width: 25%">Result</th>
+        <th class="text-center"> Description</th>
+    </tr>
+    <tr>
+        <td><strong>NO_SKIP</strong></td>
+        <td>
+            <code>ab1 ab2 ab3</code><br>
+            <code>ab2 ab3 ab4</code><br>
+            <code>ab3 ab4 ab5</code><br>
+            <code>ab4 ab5 ab6</code><br>
+        </td>
+        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will not discard any result.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_PAST_LAST_EVENT</strong></td>
+        <td>
+            <code>ab1 ab2 ab3</code><br>
+            <code>ab4 ab5 ab6</code><br>
+        </td>
+        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all started partial matches.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b</code>]</td>
+        <td>
+            <code>ab1 ab2 ab3</code><br>
+            <code>ab2 ab3 ab4</code><br>
+            <code>ab3 ab4 ab5</code><br>
+            <code>ab4 ab5 ab6</code><br>
+        </td>
+        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code>, which is the only event that comes before the first <code>b</code>.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_TO_LAST</strong>[<code>b</code>]</td>
+        <td>
+            <code>ab1 ab2 ab3</code><br>
+            <code>ab3 ab4 ab5</code><br>
+        </td>
+        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code> and <code>ab2</code>, which are events that comes before the last <code>b</code>.</td>
+    </tr>
+</table>
+
+To specify which skip strategy to use, just create an `AfterMatchSkipStrategy` by calling:
+<table class="table table-bordered">
+    <tr>
+        <th class="text-left" width="25%">Function</th>
+        <th class="text-center">Description</th>
+    </tr>
+    <tr>
+        <td><code>AfterMatchSkipStrategy.noSkip()</code></td>
+        <td>Create a <strong>NO_SKIP</strong> skip strategy </td>
+    </tr>
+    <tr>
+        <td><code>AfterMatchSkipStrategy.skipPastLastEvent()</code></td>
+        <td>Create a <strong>SKIP_PAST_LAST_EVENT</strong> skip strategy </td>
+    </tr>
+    <tr>
+        <td><code>AfterMatchSkipStrategy.skipToFirst(patternName)</code></td>
+        <td>Create a <strong>SKIP_TO_FIRST</strong> skip strategy with the referenced pattern name <i>patternName</i></td>
+    </tr>
+    <tr>
+        <td><code>AfterMatchSkipStrategy.skipToLast(patternName)</code></td>
+        <td>Create a <strong>SKIP_TO_LAST</strong> skip strategy with the referenced pattern name <i>patternName</i></td>
+    </tr>
+</table>
+
+Then apply the skip strategy to a pattern by calling:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+AfterMatchSkipStrategy skipStrategy = ...
+Pattern.begin("patternName", skipStrategy);
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val skipStrategy = ...
+Pattern.begin("patternName", skipStrategy)
+{% endhighlight %}
+</div>
+</div>
+
 ## Detecting Patterns
 
 After specifying the pattern sequence you are looking for, it is time to apply it to your input stream to detect

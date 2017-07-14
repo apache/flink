@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -189,5 +190,50 @@ public class SharedBufferTest extends TestLogger {
 
 		//There should be still events[1] and events[2] in the buffer
 		assertFalse(sharedBuffer.isEmpty());
+	}
+
+	@Test
+	public void testSharedBufferExtractOrder() {
+		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>(Event.createTypeSerializer());
+		int numberEvents = 10;
+		Event[] events = new Event[numberEvents];
+		final long timestamp = 1L;
+
+		for (int i = 0; i < numberEvents; i++) {
+			events[i] = new Event(i + 1, "e" + (i + 1), i);
+		}
+
+		Map<String, List<Event>> expectedResult = new LinkedHashMap<>();
+		expectedResult.put("a", new ArrayList<>());
+		expectedResult.get("a").add(events[1]);
+		expectedResult.put("b", new ArrayList<>());
+		expectedResult.get("b").add(events[2]);
+		expectedResult.put("aa", new ArrayList<>());
+		expectedResult.get("aa").add(events[3]);
+		expectedResult.put("bb", new ArrayList<>());
+		expectedResult.get("bb").add(events[4]);
+		expectedResult.put("c", new ArrayList<>());
+		expectedResult.get("c").add(events[5]);
+
+		sharedBuffer.put("a", events[1], timestamp, DeweyNumber.fromString("1"));
+		sharedBuffer.put("b", events[2], timestamp, "a", events[1], timestamp, 0, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("aa", events[3], timestamp, "b", events[2], timestamp, 1, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.put("bb", events[4], timestamp, "aa", events[3], timestamp, 2, DeweyNumber.fromString("1.0.0.0"));
+		sharedBuffer.put("c", events[5], timestamp, "bb", events[4], timestamp, 3, DeweyNumber.fromString("1.0.0.0.0"));
+
+		Collection<Map<String, List<Event>>> patternsResult = sharedBuffer.extractPatterns("c", events[5], timestamp, 4, DeweyNumber.fromString("1.0.0.0.0"));
+
+		List<String> expectedOrder = new ArrayList<>();
+		expectedOrder.add("a");
+		expectedOrder.add("b");
+		expectedOrder.add("aa");
+		expectedOrder.add("bb");
+		expectedOrder.add("c");
+
+		List<String> resultOrder = new ArrayList<>();
+		for (String key: patternsResult.iterator().next().keySet()){
+			resultOrder.add(key);
+		}
+		assertEquals(expectedOrder, resultOrder);
 	}
 }

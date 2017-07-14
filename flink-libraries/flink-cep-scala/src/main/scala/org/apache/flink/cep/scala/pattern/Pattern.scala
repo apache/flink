@@ -18,6 +18,7 @@
 package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.cep
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy
 import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JContext}
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, SimpleCondition}
 import org.apache.flink.cep.pattern.{MalformedPatternException, Quantifier, Pattern => JPattern}
@@ -478,6 +479,12 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   def next(pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](jPattern.next(pattern.wrappedPattern))
 
+  /**
+    * Get after match skip strategy.
+    * @return current after match skip strategy
+    */
+  def getAfterMatchSkipStrategy: AfterMatchSkipStrategy =
+    jPattern.getAfterMatchSkipStrategy
 }
 
 object Pattern {
@@ -503,6 +510,18 @@ object Pattern {
   def begin[X](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
 
   /**
+    * Starts a new pattern sequence. The provided name is the one of the initial pattern
+    * of the new sequence. Furthermore, the base type of the event sequence is set.
+    *
+    * @param name The name of starting pattern of the new pattern sequence
+    * @param afterMatchSkipStrategy The skip strategy to use after each match
+    * @tparam X Base type of the event pattern
+    * @return The first pattern of a pattern sequence
+    */
+  def begin[X](name: String, afterMatchSkipStrategy: AfterMatchSkipStrategy): Pattern[X, X] =
+    Pattern(JPattern.begin(name, afterMatchSkipStrategy))
+
+  /**
     * Starts a new pattern sequence. The provided pattern is the initial pattern
     * of the new sequence.
     *
@@ -511,4 +530,17 @@ object Pattern {
     */
   def begin[T, F <: T](pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](JPattern.begin(pattern.wrappedPattern))
+
+  /**
+    * Starts a new pattern sequence. The provided pattern is the initial pattern
+    * of the new sequence.
+    *
+    * @param pattern the pattern to begin with
+    * @param afterMatchSkipStrategy The skip strategy to use after each match
+    * @return The first pattern of a pattern sequence
+    */
+  def begin[T, F <: T](pattern: Pattern[T, F],
+      afterMatchSkipStrategy: AfterMatchSkipStrategy): GroupPattern[T, F] =
+    GroupPattern(JPattern.begin(pattern.wrappedPattern, afterMatchSkipStrategy))
+
 }

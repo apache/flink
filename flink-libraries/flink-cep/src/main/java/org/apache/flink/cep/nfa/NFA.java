@@ -55,6 +55,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -227,6 +228,26 @@ public class NFA<T> implements Serializable {
 	 * activated)
 	 */
 	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event, final long timestamp) {
+		return process(event, timestamp, AfterMatchSkipStrategy.noSkip());
+	}
+
+	/**
+	 * Processes the next input event. If some of the computations reach a final state then the
+	 * resulting event sequences are returned. If computations time out and timeout handling is
+	 * activated, then the timed out event patterns are returned.
+	 *
+	 * <p>If computations reach a stop state, the path forward is discarded and currently constructed path is returned
+	 * with the element that resulted in the stop state.
+	 *
+	 * @param event The current event to be processed or null if only pruning shall be done
+	 * @param timestamp The timestamp of the current event
+	 * @param afterMatchSkipStrategy The skip strategy to use after per match
+	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
+	 * reached a final state) and the collection of timed out patterns (if timeout handling is
+	 * activated)
+	 */
+	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event,
+		final long timestamp, AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		final int numberComputationStates = computationStates.size();
 		final Collection<Map<String, List<T>>> result = new ArrayList<>();
 		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
@@ -317,6 +338,8 @@ public class NFA<T> implements Serializable {
 
 		}
 
+		discardComputationStatesAccordingToStrategy(computationStates, result, afterMatchSkipStrategy);
+
 		// prune shared buffer based on window length
 		if (windowTime > 0L) {
 			long pruningTimestamp = timestamp - windowTime;
@@ -333,6 +356,66 @@ public class NFA<T> implements Serializable {
 		}
 
 		return Tuple2.of(result, timeoutResult);
+	}
+
+	private void discardComputationStatesAccordingToStrategy(Queue<ComputationState<T>> computationStates,
+		Collection<Map<String, List<T>>> matchedResult, AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		Set<T> discardEvents = new HashSet<>();
+		switch(afterMatchSkipStrategy.getStrategy()) {
+			case SKIP_TO_LAST:
+				for (Map<String, List<T>> resultMap: matchedResult) {
+					for (Map.Entry<String, List<T>> keyMatches : resultMap.entrySet()) {
+						if (keyMatches.getKey().equals(afterMatchSkipStrategy.getPatternName())) {
+							discardEvents.addAll(keyMatches.getValue().subList(0, keyMatches.getValue().size() - 1));
+							break;
+						} else {
+							discardEvents.addAll(keyMatches.getValue());
+						}
+					}
+				}
+				break;
+			case SKIP_TO_FIRST:
+				for (Map<String, List<T>> resultMap: matchedResult) {
+					for (Map.Entry<String, List<T>> keyMatches : resultMap.entrySet()) {
+						if (keyMatches.getKey().equals(afterMatchSkipStrategy.getPatternName())) {
+							break;
+						} else {
+							discardEvents.addAll(keyMatches.getValue());
+						}
+					}
+				}
+				break;
+			case SKIP_PAST_LAST_EVENT:
+				for (Map<String, List<T>> resultMap: matchedResult) {
+					for (List<T> eventList: resultMap.values()) {
+						discardEvents.addAll(eventList);
+					}
+				}
+				break;
+		}
+		if (!discardEvents.isEmpty()) {
+			List<ComputationState<T>> discardStates = new ArrayList<>();
+			for (ComputationState<T> computationState : computationStates) {
+				Map<String, List<T>> partialMatch = extractCurrentMatches(computationState);
+				for (List<T> list: partialMatch.values()) {
+					for (T e: list) {
+						if (discardEvents.contains(e)) {
+							// discard the computation state.
+							eventSharedBuffer.release(
+								NFAStateNameHandler.getOriginalNameFromInternal(
+									computationState.getState().getName()),
+								computationState.getEvent(),
+								computationState.getTimestamp(),
+								computationState.getCounter()
+							);
+							discardStates.add(computationState);
+							break;
+						}
+					}
+				}
+			}
+			computationStates.removeAll(discardStates);
+		}
 	}
 
 	@Override
@@ -691,7 +774,7 @@ public class NFA<T> implements Serializable {
 		// for a given computation state, we cannot have more than one matching patterns.
 		Preconditions.checkState(paths.size() == 1);
 
-		Map<String, List<T>> result = new HashMap<>();
+		Map<String, List<T>> result = new LinkedHashMap<>();
 		Map<String, List<T>> path = paths.get(0);
 		for (String key: path.keySet()) {
 			List<T> events = path.get(key);
@@ -1035,11 +1118,11 @@ public class NFA<T> implements Serializable {
 					return CompatibilityResult.compatible();
 				} else {
 					if (eventCompatResult.getConvertDeserializer() != null &&
-							sharedBufCompatResult.getConvertDeserializer() != null) {
+						sharedBufCompatResult.getConvertDeserializer() != null) {
 						return CompatibilityResult.requiresMigration(
-								new NFASerializer<>(
-										new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
-										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
+							new NFASerializer<>(
+								new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
+								new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
 					}
 				}
 			}
