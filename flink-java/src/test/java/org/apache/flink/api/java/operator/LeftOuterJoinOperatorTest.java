@@ -19,21 +19,24 @@
 package org.apache.flink.api.java.operator;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#leftOuterJoin(DataSet)}.
+ */
 public class LeftOuterJoinOperatorTest {
 
 	// TUPLE DATA
@@ -202,7 +205,6 @@ public class LeftOuterJoinOperatorTest {
 		this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
 	}
 
-
 	private void testLeftOuterStrategies(JoinHint hint) {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -215,13 +217,12 @@ public class LeftOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	
 	/*
 	 * ####################################################################
 	 */
 
 	@SuppressWarnings("serial")
-	public static class DummyJoin implements
+	private static class DummyJoin implements
 			JoinFunction<Tuple5<Integer, Long, String, Long, Integer>, Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
 		@Override
@@ -231,7 +232,7 @@ public class LeftOuterJoinOperatorTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
+	private static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
 
 		@Override
 		public Integer getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
@@ -240,7 +241,7 @@ public class LeftOuterJoinOperatorTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
+	private static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
 		@Override
 		public Long getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
