@@ -18,14 +18,6 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
@@ -33,6 +25,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * An input format that returns objects from a collection.
@@ -55,7 +55,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		}
 
 		this.serializer = serializer;
-		
+
 		this.dataSet = dataSet;
 	}
 
@@ -67,10 +67,10 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	@Override
 	public void open(GenericInputSplit split) throws IOException {
 		super.open(split);
-		
+
 		this.iterator = this.dataSet.iterator();
 	}
-	
+
 	@Override
 	public T nextRecord(T record) throws IOException {
 		return this.iterator.next();
@@ -80,10 +80,10 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.defaultWriteObject();
-		
+
 		final int size = dataSet.size();
 		out.writeInt(size);
-		
+
 		if (size > 0) {
 			DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(out);
 			for (T element : dataSet){
@@ -97,7 +97,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 		int collectionLength = in.readInt();
 		List<T> list = new ArrayList<T>(collectionLength);
-		
+
 		if (collectionLength > 0) {
 			try {
 				DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(in);
@@ -113,9 +113,9 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 		dataSet = list;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
@@ -136,14 +136,14 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		sb.append(']');
 		return sb.toString();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static <X> void checkCollection(Collection<X> elements, Class<X> viewedAs) {
 		if (elements == null || viewedAs == null) {
 			throw new NullPointerException();
 		}
-		
+
 		for (X elem : elements) {
 			if (elem == null) {
 				throw new IllegalArgumentException("The collection must not contain null elements.");
@@ -157,7 +157,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 			if (!viewedAs.isAssignableFrom(elem.getClass()) &&
 					!(elem.getClass().toString().equals("class scala.runtime.BoxedUnit") && viewedAs.equals(void.class))) {
 
-				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " + 
+				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " +
 							viewedAs.getCanonicalName());
 			}
 		}
