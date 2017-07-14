@@ -19,11 +19,17 @@
 package org.apache.flink.api.java.operators.translation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 
+/**
+ * Mapper that extracts two keys of a value.
+ * @param <T> type of the values
+ * @param <K1> type of the first key
+ * @param <K2> type of the second key
+ */
 @Internal
 @ForwardedFields("*->2")
 public final class TwoKeyExtractingMapper<T, K1, K2> extends RichMapFunction<T, Tuple3<K1, K2, T>> {
@@ -36,12 +42,10 @@ public final class TwoKeyExtractingMapper<T, K1, K2> extends RichMapFunction<T, 
 
 	private final Tuple3<K1, K2, T> tuple = new Tuple3<K1, K2, T>();
 
-
 	public TwoKeyExtractingMapper(KeySelector<T, K1> keySelector1, KeySelector<T, K2> keySelector2) {
 		this.keySelector1 = keySelector1;
 		this.keySelector2 = keySelector2;
 	}
-
 
 	@Override
 	public Tuple3<K1, K2, T> map(T value) throws Exception {
