@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.hadoop.mapreduce.wrapper.HadoopInputSplit;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -48,6 +49,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link HadoopInputFormat}.
+ */
 public class HadoopInputFormatTest {
 
 	@Rule
@@ -148,16 +152,15 @@ public class HadoopInputFormatTest {
 		HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<>(
 				new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, Job.getInstance());
 
-		TypeInformation<Tuple2<Void,Long>> tupleType = hadoopInputFormat.getProducedType();
-		TypeInformation<Tuple2<Void,Long>> expectedType = new TupleTypeInfo<>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+		TypeInformation<Tuple2<Void, Long>> tupleType = hadoopInputFormat.getProducedType();
+		TypeInformation<Tuple2<Void, Long>> expectedType = new TupleTypeInfo<>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 
 		assertThat(tupleType.isTupleType(), is(true));
 		assertThat(tupleType, is(equalTo(expectedType)));
 	}
 
-
 	private HadoopInputFormat<String, Long> setupHadoopInputFormat(InputFormat<String, Long> inputFormat, Job job,
-																   RecordReader<String, Long> recordReader) {
+																	RecordReader<String, Long> recordReader) {
 
 		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat,
 				String.class, Long.class, job);
@@ -166,7 +169,7 @@ public class HadoopInputFormatTest {
 		return hadoopInputFormat;
 	}
 
-	public class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
+	private class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
 
 		public DummyVoidKeyInputFormat() {}
 
@@ -176,7 +179,7 @@ public class HadoopInputFormatTest {
 		}
 	}
 
-	public class DummyRecordReader extends RecordReader<String, Long> {
+	private class DummyRecordReader extends RecordReader<String, Long> {
 
 		@Override
 		public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
@@ -209,7 +212,7 @@ public class HadoopInputFormatTest {
 		}
 	}
 
-	public class DummyInputFormat extends InputFormat<String, Long> {
+	private class DummyInputFormat extends InputFormat<String, Long> {
 
 		@Override
 		public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
@@ -222,7 +225,7 @@ public class HadoopInputFormatTest {
 		}
 	}
 
-	public class ConfigurableDummyInputFormat extends DummyInputFormat implements Configurable {
+	private class ConfigurableDummyInputFormat extends DummyInputFormat implements Configurable {
 
 		@Override
 		public void setConf(Configuration configuration) {}
