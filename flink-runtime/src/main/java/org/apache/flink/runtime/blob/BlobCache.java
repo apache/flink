@@ -26,7 +26,7 @@ import java.net.InetSocketAddress;
 /**
  * The BLOB cache provides access to BLOB services for permanent and transient BLOBs.
  */
-public final class BlobCache implements BlobService {
+public class BlobCache implements BlobService {
 
 	/** Caching store for permanent BLOBs. */
 	private final PermanentBlobCache permanentBlobStore;
