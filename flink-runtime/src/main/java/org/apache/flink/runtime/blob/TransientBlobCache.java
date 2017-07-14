@@ -156,7 +156,7 @@ public class TransientBlobCache implements TransientBlobService {
 		// use a temporary file (thread-safe without locking)
 		File incomingFile = createTemporaryFilename();
 		try {
-			BlobClient.downloadFromBlobServer(jobId, blobKey, incomingFile, serverAddress,
+			BlobClient.downloadFromBlobServer(jobId, blobKey, false, incomingFile, serverAddress,
 				blobClientConfig, numFetchRetries);
 
 			BlobUtils.moveTempFileToStore(
@@ -175,7 +175,7 @@ public class TransientBlobCache implements TransientBlobService {
 	@Override
 	public BlobKey put(byte[] value) throws IOException {
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putBuffer(null, value, 0, value.length);
+			return bc.putBuffer(null, value, 0, value.length, false);
 		}
 	}
 
@@ -183,14 +183,14 @@ public class TransientBlobCache implements TransientBlobService {
 	public BlobKey put(JobID jobId, byte[] value) throws IOException {
 		checkNotNull(jobId);
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putBuffer(jobId, value, 0, value.length);
+			return bc.putBuffer(jobId, value, 0, value.length, false);
 		}
 	}
 
 	@Override
 	public BlobKey put(InputStream inputStream) throws IOException {
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putInputStream(null, inputStream);
+			return bc.putInputStream(null, inputStream, false);
 		}
 	}
 
@@ -198,7 +198,7 @@ public class TransientBlobCache implements TransientBlobService {
 	public BlobKey put(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putInputStream(jobId, inputStream);
+			return bc.putInputStream(jobId, inputStream, false);
 		}
 	}
 

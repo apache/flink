@@ -41,6 +41,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_FOR_JOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_NO_JOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_FOR_JOB_HA;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
@@ -172,21 +173,29 @@ class BlobServerConnection extends Thread {
 		final File blobFile;
 		final JobID jobId;
 		final BlobKey blobKey;
+		final boolean permanentBlob;
 
 		try {
+			// read HEADER contents: job ID, key, HA mode/permanent or transient BLOB
 			final int mode = inputStream.read();
-
 			if (mode < 0) {
 				throw new EOFException("Premature end of GET request");
 			}
 
-			// Receive the job ID and key
+			// Receive the
 			if (mode == CONTENT_NO_JOB) {
 				jobId = null;
+				permanentBlob = false;
+			} else if (mode == CONTENT_FOR_JOB_HA) {
+				byte[] jidBytes = new byte[JobID.SIZE];
+				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
+				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = true;
 			} else if (mode == CONTENT_FOR_JOB) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = false;
 			} else {
 				throw new IOException("Unknown type of BLOB addressing: " + mode + '.');
 			}
@@ -197,6 +206,7 @@ class BlobServerConnection extends Thread {
 					blobKey, clientSocket.getInetAddress());
 			}
 
+			// the file's (destined) location at the BlobServer
 			blobFile = blobServer.getStorageLocation(jobId, blobKey);
 
 			// up to here, an error can give a good message
@@ -219,7 +229,7 @@ class BlobServerConnection extends Thread {
 		try {
 			// copy the file to local store if it does not exist yet
 			try {
-				blobServer.getFileInternal(jobId, blobKey, true, blobFile);
+				blobServer.getFileInternal(jobId, blobKey, permanentBlob, blobFile);
 
 				// enforce a 2GB max for now (otherwise the protocol's length field needs to be increased)
 				if (blobFile.length() > Integer.MAX_VALUE) {
@@ -283,20 +293,27 @@ class BlobServerConnection extends Thread {
 		File incomingFile = null;
 
 		try {
+			// read HEADER contents: job ID, HA mode/permanent or transient BLOB
 			final int mode = inputStream.read();
-
 			if (mode < 0) {
 				throw new EOFException("Premature end of PUT request");
 			}
 
-			// Receive the job ID and key
 			final JobID jobId;
+			final boolean permanentBlob;
 			if (mode == CONTENT_NO_JOB) {
 				jobId = null;
+				permanentBlob = false;
+			} else if (mode == CONTENT_FOR_JOB_HA) {
+				byte[] jidBytes = new byte[JobID.SIZE];
+				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
+				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = true;
 			} else if (mode == CONTENT_FOR_JOB) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);
+				permanentBlob = false;
 			} else {
 				throw new IOException("Unknown type of BLOB addressing.");
 			}
@@ -309,8 +326,7 @@ class BlobServerConnection extends Thread {
 			incomingFile = blobServer.createTemporaryFilename();
 			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf);
 
-			// TODO: add PUT operation without HA
-			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey, true);
+			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey, permanentBlob);
 
 			// Return computed key to client for validation
 			outputStream.write(RETURN_OKAY);
@@ -395,13 +411,12 @@ class BlobServerConnection extends Thread {
 	private void delete(InputStream inputStream, OutputStream outputStream) throws IOException {
 
 		try {
+			// read HEADER contents: job ID, key, HA mode/permanent or transient BLOB
 			final int mode = inputStream.read();
-
 			if (mode < 0) {
 				throw new EOFException("Premature end of DELETE request");
 			}
 
-			// Receive the job ID and key
 			final JobID jobId;
 			if (mode == CONTENT_NO_JOB) {
 				jobId = null;

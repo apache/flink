@@ -218,12 +218,23 @@ public class BlobClientTest {
 
 	}
 
+	@Test
+	public void testContentAddressableBufferTransientBlob() throws IOException {
+		testContentAddressableBuffer(false);
+	}
+
+	@Test
+	public void testContentAddressableBufferPermantBlob() throws IOException {
+		testContentAddressableBuffer(true);
+	}
+
 	/**
 	 * Tests the PUT/GET operations for content-addressable buffers.
+	 *
+	 * @param permanentBlob
+	 * 		whether the BLOB is permanent (<tt>true</tt>) or transient (<tt>false</tt>)
 	 */
-	@Test
-	public void testContentAddressableBuffer() throws IOException {
-
+	private void testContentAddressableBuffer(boolean permanentBlob) throws IOException {
 		BlobClient client = null;
 
 		try {
@@ -236,25 +247,31 @@ public class BlobClientTest {
 			client = new BlobClient(serverAddress, getBlobClientConfig());
 
 			JobID jobId = new JobID();
+			BlobKey receivedKey;
 
 			// Store the data (job-unrelated)
-			BlobKey receivedKey = client.putBuffer(null, testBuffer, 0, testBuffer.length);
-			assertEquals(origKey, receivedKey);
+			if (!permanentBlob) {
+				receivedKey = client.putBuffer(null, testBuffer, 0, testBuffer.length, false);
+				assertEquals(origKey, receivedKey);
+			}
 
 			// try again with a job-related BLOB:
-			receivedKey = client.putBuffer(jobId, testBuffer, 0, testBuffer.length);
+			receivedKey = client.putBuffer(jobId, testBuffer, 0, testBuffer.length, permanentBlob);
 			assertEquals(origKey, receivedKey);
 
 			// Retrieve the data (job-unrelated)
-			InputStream is = client.getInternal(null, receivedKey);
-			validateGet(is, testBuffer);
+			InputStream is;
+			if (!permanentBlob) {
+				is = client.getInternal(null, receivedKey, false);
+				validateGet(is, testBuffer);
+			}
 			// job-related
-			is = client.getInternal(jobId, receivedKey);
+			is = client.getInternal(jobId, receivedKey, permanentBlob);
 			validateGet(is, testBuffer);
 
 			// Check reaction to invalid keys for job-unrelated blobs
 			try {
-				client.getInternal(null, new BlobKey());
+				client.getInternal(null, new BlobKey(), permanentBlob);
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -265,7 +282,7 @@ public class BlobClientTest {
 			// new client needed (closed from failure above)
 			client = new BlobClient(serverAddress, getBlobClientConfig());
 			try {
-				client.getInternal(jobId, new BlobKey());
+				client.getInternal(jobId, new BlobKey(), permanentBlob);
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -289,11 +306,23 @@ public class BlobClientTest {
 		return BLOB_SERVER;
 	}
 
+	@Test
+	public void testContentAddressableStreamTransientBlob() throws IOException {
+		testContentAddressableStream(false);
+	}
+
+	@Test
+	public void testContentAddressableStreamPermanentBlob() throws IOException {
+		testContentAddressableStream(true);
+	}
+
 	/**
 	 * Tests the PUT/GET operations for content-addressable streams.
+	 *
+	 * @param permanentBlob
+	 * 		whether the BLOB is permanent (<tt>true</tt>) or transient (<tt>false</tt>)
 	 */
-	@Test
-	public void testContentAddressableStream() throws IOException {
+	private void testContentAddressableStream(boolean permanentBlob) throws IOException {
 
 		File testFile = temporaryFolder.newFile();
 		BlobKey origKey = prepareTestFile(testFile);
@@ -303,25 +332,30 @@ public class BlobClientTest {
 		try (BlobClient client = new BlobClient(new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
 
 			JobID jobId = new JobID();
+			BlobKey receivedKey;
 
 			// Store the data (job-unrelated)
-			is = new FileInputStream(testFile);
-			BlobKey receivedKey = client.putInputStream(null, is);
-			assertEquals(origKey, receivedKey);
+			if (!permanentBlob) {
+				is = new FileInputStream(testFile);
+				receivedKey = client.putInputStream(null, is, false);
+				assertEquals(origKey, receivedKey);
+			}
 
 			// try again with a job-related BLOB:
 			is = new FileInputStream(testFile);
-			receivedKey = client.putInputStream(jobId, is);
+			receivedKey = client.putInputStream(jobId, is, permanentBlob);
 			assertEquals(origKey, receivedKey);
 
 			is.close();
 			is = null;
 
 			// Retrieve the data (job-unrelated)
-			is = client.getInternal(null, receivedKey);
-			validateGet(is, testFile);
+			if (!permanentBlob) {
+				is = client.getInternal(null, receivedKey, false);
+				validateGet(is, testFile);
+			}
 			// job-related
-			is = client.getInternal(jobId, receivedKey);
+			is = client.getInternal(jobId, receivedKey, permanentBlob);
 			validateGet(is, testFile);
 		} finally {
 			if (is != null) {
@@ -333,21 +367,30 @@ public class BlobClientTest {
 	}
 
 	@Test
-	public void testGetFailsDuringStreamingNoJob() throws IOException {
-		testGetFailsDuringStreaming(null);
+	public void testGetFailsDuringStreamingNoJobTransientBlob() throws IOException {
+		testGetFailsDuringStreaming(null, false);
 	}
 
 	@Test
-	public void testGetFailsDuringStreamingForJob() throws IOException {
-		testGetFailsDuringStreaming(new JobID());
+	public void testGetFailsDuringStreamingForJobTransientBlob() throws IOException {
+		testGetFailsDuringStreaming(new JobID(), false);
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingForJobPermanentBlob() throws IOException {
+		testGetFailsDuringStreaming(new JobID(), true);
 	}
 
 	/**
 	 * Checks the correct result if a GET operation fails during the file download.
 	 *
-	 * @param jobId job ID or <tt>null</tt> if job-unrelated
+	 * @param jobId
+	 * 		job ID or <tt>null</tt> if job-unrelated
+	 * @param permanentBlob
+	 * 		whether the BLOB is permanent (<tt>true</tt>) or transient (<tt>false</tt>)
 	 */
-	private void testGetFailsDuringStreaming(@Nullable final JobID jobId) throws IOException {
+	private void testGetFailsDuringStreaming(@Nullable final JobID jobId, boolean permanentBlob)
+			throws IOException {
 
 		try (BlobClient client = new BlobClient(
 			new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
@@ -357,11 +400,11 @@ public class BlobClientTest {
 			rnd.nextBytes(data);
 
 			// put content addressable (like libraries)
-			BlobKey key = client.putBuffer(jobId, data, 0, data.length);
+			BlobKey key = client.putBuffer(jobId, data, 0, data.length, permanentBlob);
 			assertNotNull(key);
 
 			// issue a GET request that succeeds
-			InputStream is = client.getInternal(jobId, key);
+			InputStream is = client.getInternal(jobId, key, permanentBlob);
 
 			byte[] receiveBuffer = new byte[data.length];
 			int firstChunkLen = 50000;
@@ -417,7 +460,7 @@ public class BlobClientTest {
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			InputStream is = blobClient.getInternal(jobId, blobKeys.get(0));
+			InputStream is = blobClient.getInternal(jobId, blobKeys.get(0), true);
 			validateGet(is, testFile);
 		}
 	}

@@ -290,7 +290,7 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 
 			// fallback: download from the BlobServer
 			BlobClient.downloadFromBlobServer(
-				jobId, blobKey, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
+				jobId, blobKey, true, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
 			BlobUtils.moveTempFileToStore(
 				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
 
