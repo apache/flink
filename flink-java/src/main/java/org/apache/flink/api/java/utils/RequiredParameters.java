@@ -21,8 +21,8 @@ package org.apache.flink.api.java.utils;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -78,9 +78,9 @@ public class RequiredParameters {
 	 * - has a value been passed
 	 *   - if not, does the parameter have an associated default value
 	 * - does the type of the parameter match the one defined in RequiredParameters
-	 * - does the value provided in the parameterTool adhere to the choices defined in the option
+	 * - does the value provided in the parameterTool adhere to the choices defined in the option.
 	 *
-	 * If any check fails, a RequiredParametersException is thrown
+	 * <p>If any check fails, a RequiredParametersException is thrown
 	 *
 	 * @param parameterTool - parameters supplied by the user.
 	 * @throws RequiredParametersException if any of the specified checks fail
@@ -167,7 +167,7 @@ public class RequiredParameters {
 	/**
 	 * Build a help text for the defined parameters.
 	 *
-	 * The format of the help text will be:
+	 * <p>The format of the help text will be:
 	 * Required Parameters:
 	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices: \n
 	 *
@@ -190,11 +190,11 @@ public class RequiredParameters {
 	/**
 	 * Build a help text for the defined parameters and list the missing arguments at the end of the text.
 	 *
-	 * The format of the help text will be:
+	 * <p>The format of the help text will be:
 	 * Required Parameters:
 	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices: \n
 	 *
-	 * Missing parameters:
+	 * <p>Missing parameters:
 	 * \t param1 param2 ... paramN
 	 *
 	 * @param missingArguments - a list of missing parameters
@@ -205,7 +205,7 @@ public class RequiredParameters {
 	}
 
 	/**
-	 * for the given option create a line for the help text which looks like:
+	 * for the given option create a line for the help text. The line looks like:
 	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices:
 	 */
 	private String helpText(Option option) {

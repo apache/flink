@@ -20,6 +20,7 @@ package org.apache.flink.api.java.utils;
 
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -28,6 +29,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
+/**
+ * Base class for tests for {@link ParameterTool}.
+ */
 public abstract class AbstractParameterToolTest {
 
 	@Rule
