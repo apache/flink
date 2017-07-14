@@ -26,6 +26,10 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 
+/**
+ * Definitions of sum functions for different numerical types.
+ * @param <T> type of elements being summed
+ */
 @Internal
 public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
@@ -38,7 +42,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class ByteSumAgg extends SumAggregationFunction<Byte> {
+	private static final class ByteSumAgg extends SumAggregationFunction<Byte> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -59,7 +63,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class ByteValueSumAgg extends SumAggregationFunction<ByteValue> {
+	private static final class ByteValueSumAgg extends SumAggregationFunction<ByteValue> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -80,7 +84,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class ShortSumAgg extends SumAggregationFunction<Short> {
+	private static final class ShortSumAgg extends SumAggregationFunction<Short> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -101,7 +105,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class ShortValueSumAgg extends SumAggregationFunction<ShortValue> {
+	private static final class ShortValueSumAgg extends SumAggregationFunction<ShortValue> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -122,7 +126,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class IntSumAgg extends SumAggregationFunction<Integer> {
+	private static final class IntSumAgg extends SumAggregationFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -143,7 +147,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class IntValueSumAgg extends SumAggregationFunction<IntValue> {
+	private static final class IntValueSumAgg extends SumAggregationFunction<IntValue> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -164,7 +168,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class LongSumAgg extends SumAggregationFunction<Long> {
+	private static final class LongSumAgg extends SumAggregationFunction<Long> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -185,7 +189,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class LongValueSumAgg extends SumAggregationFunction<LongValue> {
+	private static final class LongValueSumAgg extends SumAggregationFunction<LongValue> {
 		private static final long serialVersionUID = 1L;
 
 		private long agg;
@@ -206,7 +210,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class FloatSumAgg extends SumAggregationFunction<Float> {
+	private static final class FloatSumAgg extends SumAggregationFunction<Float> {
 		private static final long serialVersionUID = 1L;
 
 		private double agg;
@@ -227,7 +231,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class FloatValueSumAgg extends SumAggregationFunction<FloatValue> {
+	private static final class FloatValueSumAgg extends SumAggregationFunction<FloatValue> {
 		private static final long serialVersionUID = 1L;
 
 		private double agg;
@@ -248,7 +252,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class DoubleSumAgg extends SumAggregationFunction<Double> {
+	private static final class DoubleSumAgg extends SumAggregationFunction<Double> {
 		private static final long serialVersionUID = 1L;
 
 		private double agg;
@@ -269,7 +273,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 		}
 	}
 
-	public static final class DoubleValueSumAgg extends SumAggregationFunction<DoubleValue> {
+	private static final class DoubleValueSumAgg extends SumAggregationFunction<DoubleValue> {
 		private static final long serialVersionUID = 1L;
 
 		private double agg;
@@ -292,6 +296,9 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Factory for {@link SumAggregationFunction}.
+	 */
 	public static final class SumAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
 
@@ -335,7 +342,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 				return (AggregationFunction<T>) new ShortValueSumAgg();
 			}
 			else {
-				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
+				throw new UnsupportedAggregationTypeException("The type " + type.getName() +
 					" is currently not supported for built-in sum aggregations.");
 			}
 		}
