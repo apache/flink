@@ -21,8 +21,11 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.ObjectColumnSummary;
 
+/**
+ * {@link Aggregator} that calculates statistics for {@link Object} values.
+ */
 @Internal
-public class ObjectSummaryAggregator implements Aggregator<Object,ObjectColumnSummary> {
+public class ObjectSummaryAggregator implements Aggregator<Object, ObjectColumnSummary> {
 
 	private long nonNullCount;
 	private long nullCount;

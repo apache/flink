@@ -37,11 +37,11 @@ import org.apache.flink.types.Value;
  *
  * @param <VT> the "Value Type" to aggregate, e.g. DoubleValue, StringValue
  * @param <PT> the "Primitive Type" that "Value Type" can be naturally converted to, e.g. DoubleValue converts to Double
- * @param <R> the result type of the aggregation, e.g. NumericColumnSummary<Double>
+ * @param <R> the result type of the aggregation, e.g. NumericColumnSummary&lt;Double&gt;
  * @param <A> the underlying primitive Aggregator that does the actual work, e.g. DoubleSummaryAggregator
  */
 @Internal
-public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Aggregator<PT,R>> implements Aggregator<VT,R> {
+public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends Aggregator<PT, R>> implements Aggregator<VT, R> {
 
 	private A aggregator = initPrimitiveAggregator();
 
@@ -57,8 +57,8 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void combine(Aggregator<VT,R> otherSameType) {
-		ValueSummaryAggregator<VT,PT,R,A> other = (ValueSummaryAggregator<VT,PT,R,A>) otherSameType;
+	public void combine(Aggregator<VT, R> otherSameType) {
+		ValueSummaryAggregator<VT, PT, R, A> other = (ValueSummaryAggregator<VT, PT, R, A>) otherSameType;
 		aggregator.combine(other.aggregator);
 	}
 
@@ -70,7 +70,7 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 	/**
 	 * Initialize an aggregator that can be used for the underlying primitive in the Value type.
 	 *
-	 * E.g. DoubleValues can easily be converted to Double and could use an underlying Aggregator<Double,?>
+	 * <p>E.g. DoubleValues can easily be converted to Double and could use an underlying Aggregator&lt;Double,?&gt;
 	 */
 	protected abstract A initPrimitiveAggregator();
 
@@ -79,12 +79,14 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 	 */
 	protected abstract PT getValue(VT value);
 
-
 	// -----------------------------------------------------------------------------
 	// Implementations below
 	// -----------------------------------------------------------------------------
 
-	public static class ShortValueSummaryAggregator extends ValueSummaryAggregator<ShortValue,Short,NumericColumnSummary<Short>,ShortSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Short}.
+	 */
+	public static class ShortValueSummaryAggregator extends ValueSummaryAggregator<ShortValue, Short, NumericColumnSummary<Short>, ShortSummaryAggregator> {
 
 		@Override
 		protected ShortSummaryAggregator initPrimitiveAggregator() {
@@ -97,7 +99,10 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
-	public static class IntegerValueSummaryAggregator extends ValueSummaryAggregator<IntValue,Integer,NumericColumnSummary<Integer>,IntegerSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Integer}.
+	 */
+	public static class IntegerValueSummaryAggregator extends ValueSummaryAggregator<IntValue, Integer, NumericColumnSummary<Integer>, IntegerSummaryAggregator> {
 
 		@Override
 		protected IntegerSummaryAggregator initPrimitiveAggregator() {
@@ -110,7 +115,10 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
-	public static class LongValueSummaryAggregator extends ValueSummaryAggregator<LongValue,Long,NumericColumnSummary<Long>,LongSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Long}.
+	 */
+	public static class LongValueSummaryAggregator extends ValueSummaryAggregator<LongValue, Long, NumericColumnSummary<Long>, LongSummaryAggregator> {
 
 		@Override
 		protected LongSummaryAggregator initPrimitiveAggregator() {
@@ -123,7 +131,10 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
-	public static class FloatValueSummaryAggregator extends ValueSummaryAggregator<FloatValue,Float,NumericColumnSummary<Float>,FloatSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Float}.
+	 */
+	public static class FloatValueSummaryAggregator extends ValueSummaryAggregator<FloatValue, Float, NumericColumnSummary<Float>, FloatSummaryAggregator> {
 
 		@Override
 		protected FloatSummaryAggregator initPrimitiveAggregator() {
@@ -136,7 +147,10 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
-	public static class DoubleValueSummaryAggregator extends ValueSummaryAggregator<DoubleValue,Double,NumericColumnSummary<Double>,DoubleSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Double}.
+	 */
+	public static class DoubleValueSummaryAggregator extends ValueSummaryAggregator<DoubleValue, Double, NumericColumnSummary<Double>, DoubleSummaryAggregator> {
 
 		@Override
 		protected DoubleSummaryAggregator initPrimitiveAggregator() {
@@ -149,7 +163,10 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
-	public static class BooleanValueSummaryAggregator extends ValueSummaryAggregator<BooleanValue,Boolean,BooleanColumnSummary,BooleanSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Boolean}.
+	 */
+	public static class BooleanValueSummaryAggregator extends ValueSummaryAggregator<BooleanValue, Boolean, BooleanColumnSummary, BooleanSummaryAggregator> {
 
 		@Override
 		protected BooleanSummaryAggregator initPrimitiveAggregator() {
@@ -162,7 +179,10 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
-	public static class StringValueSummaryAggregator extends ValueSummaryAggregator<StringValue,String,StringColumnSummary,StringSummaryAggregator> {
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link String}.
+	 */
+	public static class StringValueSummaryAggregator extends ValueSummaryAggregator<StringValue, String, StringColumnSummary, StringSummaryAggregator> {
 
 		@Override
 		protected StringSummaryAggregator initPrimitiveAggregator() {
