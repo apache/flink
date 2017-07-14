@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.operator.CEPOperatorUtils;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -52,9 +53,12 @@ public class PatternStream<T> {
 
 	private final Pattern<T, ?> pattern;
 
-	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
+	private AfterMatchSkipStrategy skipStrategy;
+
+	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern, final AfterMatchSkipStrategy skipStrategy) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
+		this.skipStrategy = skipStrategy;
 	}
 
 	public Pattern<T, ?> getPattern() {
@@ -63,6 +67,10 @@ public class PatternStream<T> {
 
 	public DataStream<T> getInputStream() {
 		return inputStream;
+	}
+
+	public AfterMatchSkipStrategy getSkipStrategy() {
+		return skipStrategy;
 	}
 
 	/**
@@ -108,7 +116,7 @@ public class PatternStream<T> {
 	 */
 	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
 		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
-				CEPOperatorUtils.createPatternStream(inputStream, pattern);
+				CEPOperatorUtils.createPatternStream(inputStream, pattern, skipStrategy);
 
 		return patternStream.map(
 			new PatternSelectMapper<>(
@@ -139,7 +147,7 @@ public class PatternStream<T> {
 		final PatternSelectFunction<T, R> patternSelectFunction) {
 
 		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
-				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, skipStrategy);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternTimeoutFunction,
@@ -215,7 +223,7 @@ public class PatternStream<T> {
 	 */
 	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
 		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
-				CEPOperatorUtils.createPatternStream(inputStream, pattern);
+				CEPOperatorUtils.createPatternStream(inputStream, pattern, skipStrategy);
 
 		return patternStream.flatMap(
 			new PatternFlatSelectMapper<>(
@@ -247,7 +255,7 @@ public class PatternStream<T> {
 		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 
 		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
-				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, skipStrategy);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatTimeoutFunction,

@@ -21,6 +21,7 @@ package org.apache.flink.cep.nfa.compiler;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
@@ -70,7 +71,25 @@ public class NFACompiler {
 		Pattern<T, ?> pattern,
 		TypeSerializer<T> inputTypeSerializer,
 		boolean timeoutHandling) {
-		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, timeoutHandling);
+		return compile(pattern, inputTypeSerializer, timeoutHandling);
+	}
+
+	/**
+	 * Compiles the given pattern into a {@link NFA}.
+	 *
+	 * @param pattern Definition of sequence pattern
+	 * @param inputTypeSerializer Serializer for the input type
+	 * @param timeoutHandling True if the NFA shall return timed out event patterns
+	 * @param <T> Type of the input events
+	 * @param skipStrategy The skip strategy after match
+	 * @return Non-deterministic finite automaton representing the given pattern
+	 */
+	public static <T> NFA<T> compile(
+		Pattern<T, ?> pattern,
+		TypeSerializer<T> inputTypeSerializer,
+		boolean timeoutHandling,
+		AfterMatchSkipStrategy skipStrategy) {
+		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, timeoutHandling, skipStrategy);
 
 		return factory.createNFA();
 	}
@@ -90,13 +109,32 @@ public class NFACompiler {
 		final Pattern<T, ?> pattern,
 		final TypeSerializer<T> inputTypeSerializer,
 		boolean timeoutHandling) {
+		return compileFactory(pattern, inputTypeSerializer, timeoutHandling, new AfterMatchSkipStrategy());
+	}
+
+	/**
+	 * Compiles the given pattern into a {@link NFAFactory}. The NFA factory can be used to create
+	 * multiple NFAs.
+	 *
+	 * @param pattern Definition of sequence pattern
+	 * @param inputTypeSerializer Serializer for the input type
+	 * @param timeoutHandling True if the NFA shall return timed out event patterns
+	 * @param <T> Type of the input events
+	 * @param skipStrategy the AfterMatchSkipStrategy.
+	 * @return Factory for NFAs corresponding to the given pattern
+	 */
+	public static <T> NFAFactory<T> compileFactory(
+		final Pattern<T, ?> pattern,
+		final TypeSerializer<T> inputTypeSerializer,
+		boolean timeoutHandling,
+		AfterMatchSkipStrategy skipStrategy) {
 		if (pattern == null) {
 			// return a factory for empty NFAs
-			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
+			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling, skipStrategy);
 		} else {
 			final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
 			nfaFactoryCompiler.compileFactory();
-			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
+			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling, skipStrategy);
 		}
 	}
 
@@ -950,22 +988,25 @@ public class NFACompiler {
 		private final long windowTime;
 		private final Collection<State<T>> states;
 		private final boolean timeoutHandling;
+		private final AfterMatchSkipStrategy skipStrategy;
 
 		private NFAFactoryImpl(
 			TypeSerializer<T> inputTypeSerializer,
 			long windowTime,
 			Collection<State<T>> states,
-			boolean timeoutHandling) {
+			boolean timeoutHandling,
+			AfterMatchSkipStrategy skipStrategy) {
 
 			this.inputTypeSerializer = inputTypeSerializer;
 			this.windowTime = windowTime;
 			this.states = states;
 			this.timeoutHandling = timeoutHandling;
+			this.skipStrategy = skipStrategy;
 		}
 
 		@Override
 		public NFA<T> createNFA() {
-			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling);
+			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling, skipStrategy);
 
 			result.addStates(states);
 
