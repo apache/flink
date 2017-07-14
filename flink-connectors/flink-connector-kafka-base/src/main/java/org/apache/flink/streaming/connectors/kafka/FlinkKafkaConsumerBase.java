@@ -351,24 +351,17 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 						getRuntimeContext().getIndexOfThisSubtask());
 		}
 
-		// initialize subscribed partitions
-		List<KafkaTopicPartition> kafkaTopicPartitions = getKafkaPartitions(topics);
-		Preconditions.checkNotNull(kafkaTopicPartitions, "TopicPartitions must not be null.");
-
-		subscribedPartitionsToStartOffsets = new HashMap<>(kafkaTopicPartitions.size());
-
 		if (restored) {
-			for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
-				if (restoredState.containsKey(kafkaTopicPartition)) {
-					subscribedPartitionsToStartOffsets.put(kafkaTopicPartition, restoredState.get(kafkaTopicPartition));
-				}
-			}
+			subscribedPartitionsToStartOffsets = restoredState;
 
 			LOG.info("Consumer subtask {} will start reading {} partitions with offsets in restored state: {}",
 				getRuntimeContext().getIndexOfThisSubtask(), subscribedPartitionsToStartOffsets.size(), subscribedPartitionsToStartOffsets);
 		} else {
-			initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets,
+			// initialize subscribed partitions
+			List<KafkaTopicPartition> kafkaTopicPartitions = getKafkaPartitions(topics);
+			Preconditions.checkNotNull(kafkaTopicPartitions, "TopicPartitions must not be null.");
+
+			subscribedPartitionsToStartOffsets = initializeSubscribedPartitionsToStartOffsets(
 				kafkaTopicPartitions,
 				getRuntimeContext().getIndexOfThisSubtask(),
 				getRuntimeContext().getNumberOfParallelSubtasks(),
@@ -688,7 +681,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * values. The method decides which partitions this consumer instance should subscribe to, and also
 	 * sets the initial offset each subscribed partition should be started from based on the configured startup mode.
 	 *
-	 * @param subscribedPartitionsToStartOffsets to subscribedPartitionsToStartOffsets to initialize
 	 * @param kafkaTopicPartitions the complete list of all Kafka partitions
 	 * @param indexOfThisSubtask the index of this consumer instance
 	 * @param numParallelSubtasks total number of parallel consumer instances
@@ -698,13 +690,14 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *
 	 * Note: This method is also exposed for testing.
 	 */
-	protected static void initializeSubscribedPartitionsToStartOffsets(
-			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets,
+	protected static Map<KafkaTopicPartition, Long> initializeSubscribedPartitionsToStartOffsets(
 			List<KafkaTopicPartition> kafkaTopicPartitions,
 			int indexOfThisSubtask,
 			int numParallelSubtasks,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+
+		Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>(kafkaTopicPartitions.size());
 
 		for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
 			// only handle partitions that this subtask should subscribe to
@@ -729,6 +722,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			}
 		}
+
+		return subscribedPartitionsToStartOffsets;
 	}
 
 	/**
