@@ -64,12 +64,12 @@ public class BlobUtils {
 	/**
 	 * The prefix of all job-specific directories created by the BLOB server.
 	 */
-	private static final String JOB_DIR_PREFIX = "job_";
+	static final String JOB_DIR_PREFIX = "job_";
 
 	/**
 	 * The prefix of all job-unrelated directories created by the BLOB server.
 	 */
-	private static final String NO_JOB_DIR_PREFIX = "no_job";
+	static final String NO_JOB_DIR_PREFIX = "no_job";
 
 	/**
 	 * Creates a BlobStore based on the parameters set in the configuration.

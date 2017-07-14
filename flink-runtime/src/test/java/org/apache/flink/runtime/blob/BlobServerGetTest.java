@@ -22,22 +22,27 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.NoSuchFileException;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,10 +54,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
+import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -72,6 +80,9 @@ public class BlobServerGetTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Rule
+	public final ExpectedException exception = ExpectedException.none();
 
 	@Test
 	public void testGetFailsDuringLookup1() throws IOException {
@@ -135,6 +146,170 @@ public class BlobServerGetTest extends TestLogger {
 			blobFile = server.getStorageLocation(jobId2, key);
 			assertTrue(blobFile.delete());
 			verifyDeleted(server, jobId2, key, highAvailabibility);
+		}
+	}
+
+	/**
+	 * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create incoming
+	 * files. File transfers should fail.
+	 */
+	@Test
+	public void testGetFailsIncomingForJobHa() throws IOException {
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
+		final JobID jobId = new JobID();
+
+		final Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+
+		BlobStoreService blobStore = null;
+
+		try {
+			blobStore = BlobUtils.createBlobStoreFromConfig(config);
+
+			File tempFileDir = null;
+			try (BlobServer server = new BlobServer(config, blobStore)) {
+
+				// store the data on the server (and blobStore), remove from local store
+				byte[] data = new byte[2000000];
+				rnd.nextBytes(data);
+				BlobKey blobKey = put(server, jobId, data, true);
+				assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+
+				// make sure the blob server cannot create any files in its storage dir
+				tempFileDir = server.createTemporaryFilename().getParentFile();
+				assertTrue(tempFileDir.setExecutable(true, false));
+				assertTrue(tempFileDir.setReadable(true, false));
+				assertTrue(tempFileDir.setWritable(false, false));
+
+				// request the file from the BlobStore
+				exception.expect(IOException.class);
+				exception.expectMessage("Permission denied");
+
+				try {
+					get(server, jobId, blobKey, true);
+				} finally {
+					// only the incoming and job directory should exist (no job directory!)
+					File storageDir = tempFileDir.getParentFile();
+					assertArrayEquals(new String[] {"incoming", JOB_DIR_PREFIX + jobId}, storageDir.list());
+					// job directory should be empty
+					File jobDir = new File(tempFileDir.getParentFile(), JOB_DIR_PREFIX + jobId);
+					assertArrayEquals(new String[] {}, jobDir.list());
+				}
+			} finally {
+				// set writable again to make sure we can remove the directory
+				if (tempFileDir != null) {
+					//noinspection ResultOfMethodCallIgnored
+					tempFileDir.setWritable(true, false);
+				}
+			}
+		} finally {
+			if (blobStore != null) {
+				blobStore.closeAndCleanupAllData();
+			}
+		}
+	}
+
+	/**
+	 * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create the final
+	 * storage file. File transfers should fail.
+	 */
+	@Test
+	public void testGetFailsStoreForJobHa() throws IOException {
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
+		final JobID jobId = new JobID();
+
+		final Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+
+		BlobStoreService blobStore = null;
+
+		try {
+			blobStore = BlobUtils.createBlobStoreFromConfig(config);
+
+			File jobStoreDir = null;
+			try (BlobServer server = new BlobServer(config, blobStore)) {
+
+				// store the data on the server (and blobStore), remove from local store
+				byte[] data = new byte[2000000];
+				rnd.nextBytes(data);
+				BlobKey blobKey = put(server, jobId, data, true);
+				assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+
+				// make sure the blob cache cannot create any files in its storage dir
+				jobStoreDir = server.getStorageLocation(jobId, blobKey).getParentFile();
+				assertTrue(jobStoreDir.setExecutable(true, false));
+				assertTrue(jobStoreDir.setReadable(true, false));
+				assertTrue(jobStoreDir.setWritable(false, false));
+
+				// request the file from the BlobStore
+				exception.expect(AccessDeniedException.class);
+
+				try {
+					get(server, jobId, blobKey, true);
+				} finally {
+					// there should be no remaining incoming files
+					File incomingFileDir = new File(jobStoreDir.getParent(), "incoming");
+					assertArrayEquals(new String[] {}, incomingFileDir.list());
+
+					// there should be no files in the job directory
+					assertArrayEquals(new String[] {}, jobStoreDir.list());
+				}
+			} finally {
+				// set writable again to make sure we can remove the directory
+				if (jobStoreDir != null) {
+					//noinspection ResultOfMethodCallIgnored
+					jobStoreDir.setWritable(true, false);
+				}
+			}
+		} finally {
+			if (blobStore != null) {
+				blobStore.closeAndCleanupAllData();
+			}
+		}
+	}
+
+	/**
+	 * Retrieves a BLOB from the HA store to a {@link BlobServer} whose HA store does not contain
+	 * the file. File transfers should fail.
+	 */
+	@Test
+	public void testGetFailsHaStoreForJobHa() throws IOException {
+		final JobID jobId = new JobID();
+
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
+		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			// store the data on the server (and blobStore), remove from local store
+			byte[] data = new byte[2000000];
+			rnd.nextBytes(data);
+			BlobKey blobKey = put(server, jobId, data, true);
+			assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+
+			File tempFileDir = server.createTemporaryFilename().getParentFile();
+
+			// request the file from the BlobStore
+			exception.expect(NoSuchFileException.class);
+
+			try {
+				get(server, jobId, blobKey, true);
+			} finally {
+				// only the incoming and job directory should exist (no job directory!)
+				File storageDir = tempFileDir.getParentFile();
+				assertArrayEquals(new String[] {"incoming", JOB_DIR_PREFIX + jobId}, storageDir.list());
+				// job directory should be empty
+				File jobDir = new File(tempFileDir.getParentFile(), JOB_DIR_PREFIX + jobId);
+				assertArrayEquals(new String[] {}, jobDir.list());
+			}
 		}
 	}
 
