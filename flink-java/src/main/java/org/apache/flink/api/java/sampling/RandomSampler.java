@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.sampling;
 
 import org.apache.flink.annotation.Internal;
@@ -30,20 +31,20 @@ import java.util.Iterator;
 @Internal
 public abstract class RandomSampler<T> {
 
-	protected final static double EPSILON = 1e-5;
-	
-	protected final Iterator<T> EMPTY_ITERABLE = new SampledIterator<T>() {
+	protected static final double EPSILON = 1e-5;
+
+	protected final Iterator<T> emptyIterable = new SampledIterator<T>() {
 		@Override
 		public boolean hasNext() {
 			return false;
 		}
-		
+
 		@Override
 		public T next() {
 			return null;
 		}
 	};
-	
+
 	/**
 	 * Randomly sample the elements from input in sequence, and return the result iterator.
 	 *
