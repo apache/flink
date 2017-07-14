@@ -43,6 +43,7 @@ import org.apache.flink.api.common.JobID;
 
 import javax.annotation.Nullable;
 
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -113,7 +114,7 @@ public class BlobClientTest {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while writing to the test file
 	 */
-	private static BlobKey prepareTestFile(File file) throws IOException {
+	private static byte[] prepareTestFile(File file) throws IOException {
 
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -137,7 +138,7 @@ public class BlobClientTest {
 			}
 		}
 
-		return new BlobKey(md.digest());
+		return md.digest();
 	}
 
 	/**
@@ -242,32 +243,32 @@ public class BlobClientTest {
 			byte[] testBuffer = createTestBuffer();
 			MessageDigest md = BlobUtils.createMessageDigest();
 			md.update(testBuffer);
-			BlobKey origKey = new BlobKey(md.digest());
+			byte[] digest = md.digest();
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
 			client = new BlobClient(serverAddress, getBlobClientConfig());
 
 			JobID jobId = new JobID();
-			BlobKey receivedKey;
 
 			// Store the data (job-unrelated)
+			BlobKey receivedKey1 = null;
 			if (!permanentBlob) {
-				receivedKey = client.putBuffer(null, testBuffer, 0, testBuffer.length, false);
-				assertEquals(origKey, receivedKey);
+				receivedKey1 = client.putBuffer(null, testBuffer, 0, testBuffer.length, false);
+				assertArrayEquals(digest, receivedKey1.getHash());
 			}
 
 			// try again with a job-related BLOB:
-			receivedKey = client.putBuffer(jobId, testBuffer, 0, testBuffer.length, permanentBlob);
-			assertEquals(origKey, receivedKey);
+			BlobKey receivedKey2 = client.putBuffer(jobId, testBuffer, 0, testBuffer.length, permanentBlob);
+			assertArrayEquals(digest, receivedKey2.getHash());
 
 			// Retrieve the data (job-unrelated)
 			InputStream is;
 			if (!permanentBlob) {
-				is = client.getInternal(null, receivedKey, false);
+				is = client.getInternal(null, receivedKey1, false);
 				validateGet(is, testBuffer);
 			}
 			// job-related
-			is = client.getInternal(jobId, receivedKey, permanentBlob);
+			is = client.getInternal(jobId, receivedKey2, permanentBlob);
 			validateGet(is, testBuffer);
 
 			// Check reaction to invalid keys for job-unrelated blobs
@@ -326,37 +327,40 @@ public class BlobClientTest {
 	private void testContentAddressableStream(boolean permanentBlob) throws IOException {
 
 		File testFile = temporaryFolder.newFile();
-		BlobKey origKey = prepareTestFile(testFile);
+		byte[] digest = prepareTestFile(testFile);
 
 		InputStream is = null;
 
 		try (BlobClient client = new BlobClient(new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
 
 			JobID jobId = new JobID();
-			BlobKey receivedKey;
+			BlobKey receivedKey1 = null;
 
 			// Store the data (job-unrelated)
 			if (!permanentBlob) {
 				is = new FileInputStream(testFile);
-				receivedKey = client.putInputStream(null, is, false);
-				assertEquals(origKey, receivedKey);
+				receivedKey1 = client.putInputStream(null, is, false);
+				assertArrayEquals(digest, receivedKey1.getHash());
 			}
 
 			// try again with a job-related BLOB:
 			is = new FileInputStream(testFile);
-			receivedKey = client.putInputStream(jobId, is, permanentBlob);
-			assertEquals(origKey, receivedKey);
+			BlobKey receivedKey2 = client.putInputStream(jobId, is, permanentBlob);
+			if (!permanentBlob) {
+				verifyKeyDifferentHashEquals(receivedKey1, receivedKey2);
+			}
+			assertArrayEquals(digest, receivedKey2.getHash());
 
 			is.close();
 			is = null;
 
 			// Retrieve the data (job-unrelated)
 			if (!permanentBlob) {
-				is = client.getInternal(null, receivedKey, false);
+				is = client.getInternal(null, receivedKey1, false);
 				validateGet(is, testFile);
 			}
 			// job-related
-			is = client.getInternal(jobId, receivedKey, permanentBlob);
+			is = client.getInternal(jobId, receivedKey2, permanentBlob);
 			validateGet(is, testFile);
 		} finally {
 			if (is != null) {

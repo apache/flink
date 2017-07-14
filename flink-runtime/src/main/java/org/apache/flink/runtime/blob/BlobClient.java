@@ -51,6 +51,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -503,13 +504,13 @@ public final class BlobClient implements Closeable {
 		else if (response == RETURN_OKAY) {
 
 			BlobKey remoteKey = BlobKey.readFromInputStream(is);
-			BlobKey localKey = new BlobKey(md.digest());
+			byte[] localHash = md.digest();
 
-			if (!localKey.equals(remoteKey)) {
+			if (!Arrays.equals(localHash, remoteKey.getHash())) {
 				throw new IOException("Detected data corruption during transfer");
 			}
 
-			return localKey;
+			return remoteKey;
 		}
 		else if (response == RETURN_ERROR) {
 			Throwable cause = readExceptionFromStream(is);

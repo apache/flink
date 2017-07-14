@@ -279,8 +279,14 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 		try {
 			try {
 				blobView.get(jobId, blobKey, incomingFile);
-				BlobUtils.moveTempFileToStore(
-					incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+
+				readWriteLock.writeLock().lock();
+				try {
+					BlobUtils.moveTempFileToStore(
+						incomingFile, jobId, blobKey, localFile, LOG, null);
+				} finally {
+					readWriteLock.writeLock().unlock();
+				}
 
 				return localFile;
 			} catch (Exception e) {
@@ -290,8 +296,13 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 			// fallback: download from the BlobServer
 			BlobClient.downloadFromBlobServer(
 				jobId, blobKey, true, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
-			BlobUtils.moveTempFileToStore(
-				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+			readWriteLock.writeLock().lock();
+			try {
+				BlobUtils.moveTempFileToStore(
+					incomingFile, jobId, blobKey, localFile, LOG, null);
+			} finally {
+				readWriteLock.writeLock().unlock();
+			}
 
 			return localFile;
 		} finally {

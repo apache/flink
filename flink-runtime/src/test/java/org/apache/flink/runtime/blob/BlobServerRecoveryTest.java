@@ -40,7 +40,7 @@ import java.util.Random;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -120,7 +120,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 
 			// put non-HA data
 			nonHAKey = put(server0, jobId[0], expected2, false);
-			assertEquals(keys[1], nonHAKey);
+			assertArrayEquals(keys[1].getHash(), nonHAKey.getHash());
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");

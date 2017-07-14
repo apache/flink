@@ -159,8 +159,13 @@ public class TransientBlobCache implements TransientBlobService {
 			BlobClient.downloadFromBlobServer(jobId, blobKey, false, incomingFile, serverAddress,
 				blobClientConfig, numFetchRetries);
 
-			BlobUtils.moveTempFileToStore(
-				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+			readWriteLock.writeLock().lock();
+			try {
+				BlobUtils.moveTempFileToStore(
+					incomingFile, jobId, blobKey, localFile, LOG, null);
+			} finally {
+				readWriteLock.writeLock().unlock();
+			}
 
 			return localFile;
 		} finally {

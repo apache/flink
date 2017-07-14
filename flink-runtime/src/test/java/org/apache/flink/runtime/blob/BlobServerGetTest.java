@@ -136,17 +136,17 @@ public class BlobServerGetTest extends TestLogger {
 			// add the same data under a second jobId
 			BlobKey key2 = put(server, jobId2, data, highAvailability);
 			assertNotNull(key);
-			assertEquals(key, key2);
+			assertArrayEquals(key.getHash(), key2.getHash());
 
 			// request for jobId2 should succeed
-			get(server, jobId2, key, highAvailability);
+			get(server, jobId2, key2, highAvailability);
 			// request for jobId1 should still fail
 			verifyDeleted(server, jobId1, key, highAvailability);
 
 			// same checks as for jobId1 but for jobId2 should also work:
-			blobFile = server.getStorageLocation(jobId2, key);
+			blobFile = server.getStorageLocation(jobId2, key2);
 			assertTrue(blobFile.delete());
-			verifyDeleted(server, jobId2, key, highAvailability);
+			verifyDeleted(server, jobId2, key2, highAvailability);
 		}
 	}
 
@@ -372,7 +372,7 @@ public class BlobServerGetTest extends TestLogger {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
 		// create the correct blob key by hashing our input data
-		final BlobKey blobKey = new BlobKey(md.digest(data));
+		final byte[] digest = md.digest(data);
 
 		doAnswer(
 			new Answer() {
@@ -394,7 +394,8 @@ public class BlobServerGetTest extends TestLogger {
 			server.start();
 
 			// upload data first
-			assertEquals(blobKey, put(server, jobId, data, highAvailability));
+			final BlobKey blobKey = put(server, jobId, data, highAvailability);
+			assertArrayEquals(digest, blobKey.getHash());
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
 			if (highAvailability) {

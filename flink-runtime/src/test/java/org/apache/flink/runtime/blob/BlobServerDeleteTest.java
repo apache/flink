@@ -46,7 +46,7 @@ import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountF
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -82,6 +82,12 @@ public class BlobServerDeleteTest extends TestLogger {
 		testDeleteTransient(new JobID(), new JobID());
 	}
 
+	@Test
+	public void testDeleteTransient5() throws IOException {
+		JobID jobId = new JobID();
+		testDeleteTransient(jobId, jobId);
+	}
+
 	/**
 	 * Uploads a (different) byte array for each of the given jobs and verifies that deleting one of
 	 * them (via the {@link BlobServer}) does not influence the other.
@@ -113,7 +119,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			// put two more BLOBs (same key, other key) for another job ID
 			BlobKey key2a = put(server, jobId2, data, false);
 			assertNotNull(key2a);
-			assertEquals(key1, key2a);
+			assertArrayEquals(key1.getHash(), key2a.getHash());
 			BlobKey key2b = put(server, jobId2, data2, false);
 			assertNotNull(key2b);
 
@@ -121,10 +127,9 @@ public class BlobServerDeleteTest extends TestLogger {
 			assertTrue(delete(server, jobId1, key1));
 
 			verifyDeleted(server, jobId1, key1, false);
-			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
-			if ((jobId1 == null && jobId2 != null) || (jobId1 != null && !jobId1.equals(jobId2))) {
-				verifyContents(server, jobId2, key2a, data, false);
-			}
+			// deleting a one BLOB should not affect another BLOB with a different key
+			// (and keys are always different now)
+			verifyContents(server, jobId2, key2a, data, false);
 			verifyContents(server, jobId2, key2b, data2, false);
 
 			// delete first file of second job
@@ -280,7 +285,7 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			BlobKey key1a = put(server, jobId1, data, highAvailability);
 			BlobKey key2 = put(server, jobId2, data, highAvailability);
-			assertEquals(key1a, key2);
+			assertArrayEquals(key1a.getHash(), key2.getHash());
 
 			BlobKey key1b = put(server, jobId1, data2, highAvailability);
 

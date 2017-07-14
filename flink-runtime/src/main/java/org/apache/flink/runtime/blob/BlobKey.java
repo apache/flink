@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,21 +36,38 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	private static final long serialVersionUID = 3847117712521785209L;
 
-	/** Array of hex characters to facilitate fast toString() method. */
-	private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
-
 	/** Size of the internal BLOB key in bytes. */
-	private static final int SIZE = 20;
+	public static final int SIZE = 20;
 
-	
 	/** The byte buffer storing the actual key data. */
 	private final byte[] key;
+
+	/**
+	 * Random component of the key.
+	 */
+	private final AbstractID random;
 
 	/**
 	 * Constructs a new BLOB key.
 	 */
 	public BlobKey() {
 		this.key = new byte[SIZE];
+		this.random = new AbstractID();
+	}
+
+	/**
+	 * Constructs a new BLOB key from the given byte array.
+	 *
+	 * @param key
+	 *        the actual key data
+	 */
+	BlobKey(byte[] key) {
+		if (key == null || key.length != SIZE) {
+			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
+		}
+
+		this.key = key;
+		this.random = new AbstractID();
 	}
 
 	/**
@@ -55,13 +75,25 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 * 
 	 * @param key
 	 *        the actual key data
+	 * @param random
+	 *        the random component of the key
 	 */
-	BlobKey(byte[] key) {
-		if (key.length != SIZE) {
+	BlobKey(byte[] key, byte[] random) {
+		if (key == null || key.length != SIZE) {
 			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
 		}
 
 		this.key = key;
+		this.random = new AbstractID(random);
+	}
+
+	/**
+	 * Returns the hash component of this key.
+	 *
+	 * @return a 20 bit hash of the contents the key refers to
+	 */
+	byte[] getHash() {
+		return key;
 	}
 
 	/**
@@ -83,30 +115,22 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
 		final BlobKey bk = (BlobKey) obj;
 
-		return Arrays.equals(this.key, bk.key);
+		return Arrays.equals(this.key, bk.key) && this.random.equals(bk.random);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(this.key);
+		return Arrays.hashCode(this.key) + random.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		// from http://stackoverflow.com/questions/9655181/convert-from-byte-array-to-hex-string-in-java
-		final char[] hexChars = new char[SIZE * 2];
-		for (int i = 0; i < SIZE; ++i) {
-			int v = this.key[i] & 0xff;
-			hexChars[i * 2] = HEX_ARRAY[v >>> 4];
-			hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0f];
-		}
-
-		return new String(hexChars);
+		return StringUtils.byteToHexString(this.key) + "-" + random.toString();
 	}
 
 	@Override
 	public int compareTo(BlobKey o) {
-	
+		// compare the hashes first
 		final byte[] aarr = this.key;
 		final byte[] barr = o.key;
 		final int len = Math.min(aarr.length, barr.length);
@@ -118,8 +142,13 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 				return a - b;
 			}
 		}
-	
-		return aarr.length - barr.length;
+
+		if (aarr.length == barr.length) {
+			// same hash contents - continue and compare random components
+			return this.random.compareTo(o.random);
+		} else {
+			return aarr.length - barr.length;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -136,8 +165,10 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	static BlobKey readFromInputStream(InputStream inputStream) throws IOException {
 
 		final byte[] key = new byte[BlobKey.SIZE];
+		final byte[] random = new byte[AbstractID.SIZE];
 
 		int bytesRead = 0;
+		// read key
 		while (bytesRead < BlobKey.SIZE) {
 			final int read = inputStream.read(key, bytesRead, BlobKey.SIZE - bytesRead);
 			if (read < 0) {
@@ -145,8 +176,17 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 			}
 			bytesRead += read;
 		}
+		// read random component
+		bytesRead = 0;
+		while (bytesRead < AbstractID.SIZE) {
+			final int read = inputStream.read(random, bytesRead, AbstractID.SIZE - bytesRead);
+			if (read < 0) {
+				throw new EOFException("Read an incomplete BLOB key");
+			}
+			bytesRead += read;
+		}
 
-		return new BlobKey(key);
+		return new BlobKey(key, random);
 	}
 
 	/**
@@ -159,5 +199,6 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 */
 	void writeToOutputStream(final OutputStream outputStream) throws IOException {
 		outputStream.write(this.key);
+		outputStream.write(this.random.getBytes());
 	}
 }

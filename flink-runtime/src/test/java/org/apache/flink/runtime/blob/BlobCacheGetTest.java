@@ -133,32 +133,32 @@ public class BlobCacheGetTest extends TestLogger {
 			// add the same data under a second jobId
 			BlobKey key2 = put(server, jobId2, data, highAvailability);
 			assertNotNull(key);
-			assertEquals(key, key2);
+			assertArrayEquals(key.getHash(), key2.getHash());
 
 			// request for jobId2 should succeed
-			get(cache, jobId2, key, highAvailability);
+			get(cache, jobId2, key2, highAvailability);
 			// request for jobId1 should still fail
 			verifyDeleted(cache, jobId1, key, highAvailability);
 
 			// delete on cache, try to retrieve again
 			if (highAvailability) {
-				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key);
+				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key2);
 			} else {
-				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key);
+				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key2);
 			}
 			assertTrue(blobFile.delete());
-			get(cache, jobId2, key, highAvailability);
+			get(cache, jobId2, key2, highAvailability);
 
 			// delete on cache and server, verify that it is not accessible anymore
 			if (highAvailability) {
-				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key);
+				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key2);
 			} else {
-				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key);
+				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key2);
 			}
 			assertTrue(blobFile.delete());
-			blobFile = server.getStorageLocation(jobId2, key);
+			blobFile = server.getStorageLocation(jobId2, key2);
 			assertTrue(blobFile.delete());
-			verifyDeleted(cache, jobId2, key, highAvailability);
+			verifyDeleted(cache, jobId2, key2, highAvailability);
 		}
 	}
 
@@ -444,7 +444,7 @@ public class BlobCacheGetTest extends TestLogger {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
 		// create the correct blob key by hashing our input data
-		final BlobKey blobKey = new BlobKey(md.digest(data));
+		final byte[] digest = md.digest(data);
 
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
@@ -456,7 +456,8 @@ public class BlobCacheGetTest extends TestLogger {
 			server.start();
 
 			// upload data first
-			assertEquals(blobKey, put(server, jobId, data, highAvailability));
+			final BlobKey blobKey = put(server, jobId, data, highAvailability);
+			assertArrayEquals(digest, blobKey.getHash());
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {

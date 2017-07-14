@@ -57,6 +57,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -217,24 +218,30 @@ public class BlobServerPutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(server, jobId1, data, highAvailability);
 			assertNotNull(key1a);
+			// second upload of same data should yield a different BlobKey
+			BlobKey key1a2 = put(server, jobId1, data, highAvailability);
+			assertNotNull(key1a2);
+			verifyKeyDifferentHashEquals(key1a, key1a2);
 
 			BlobKey key1b = put(server, jobId1, data2, highAvailability);
 			assertNotNull(key1b);
 
 			verifyContents(server, jobId1, key1a, data, highAvailability);
+			verifyContents(server, jobId1, key1a2, data, highAvailability);
 			verifyContents(server, jobId1, key1b, data2, highAvailability);
 
 			// now put data for jobId2 and verify that both are ok
 			BlobKey key2a = put(server, jobId2, data, highAvailability);
 			assertNotNull(key2a);
-			assertEquals(key1a, key2a);
+			assertArrayEquals(key1a.getHash(), key2a.getHash());
 
 			BlobKey key2b = put(server, jobId2, data2, highAvailability);
 			assertNotNull(key2b);
-			assertEquals(key1b, key2b);
+			assertArrayEquals(key1b.getHash(), key2b.getHash());
 
 			// verify the accessibility and the BLOB contents
 			verifyContents(server, jobId1, key1a, data, highAvailability);
+			verifyContents(server, jobId1, key1a2, data, highAvailability);
 			verifyContents(server, jobId1, key1b, data2, highAvailability);
 			verifyContents(server, jobId2, key2a, data, highAvailability);
 			verifyContents(server, jobId2, key2b, data2, highAvailability);
@@ -297,24 +304,30 @@ public class BlobServerPutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(server, jobId1, new ByteArrayInputStream(data), highAvailability);
 			assertNotNull(key1a);
+			// second upload of same data should yield a different BlobKey
+			BlobKey key1a2 = put(server, jobId1, new ByteArrayInputStream(data), highAvailability);
+			assertNotNull(key1a2);
+			verifyKeyDifferentHashEquals(key1a, key1a2);
 
 			BlobKey key1b = put(server, jobId1, new ByteArrayInputStream(data2), highAvailability);
 			assertNotNull(key1b);
 
 			verifyContents(server, jobId1, key1a, data, highAvailability);
+			verifyContents(server, jobId1, key1a2, data, highAvailability);
 			verifyContents(server, jobId1, key1b, data2, highAvailability);
 
 			// now put data for jobId2 and verify that both are ok
 			BlobKey key2a = put(server, jobId2, new ByteArrayInputStream(data), highAvailability);
 			assertNotNull(key2a);
-			assertEquals(key1a, key2a);
+			assertArrayEquals(key1a.getHash(), key2a.getHash());
 
 			BlobKey key2b = put(server, jobId2, new ByteArrayInputStream(data2), highAvailability);
 			assertNotNull(key2b);
-			assertEquals(key1b, key2b);
+			assertArrayEquals(key1b.getHash(), key2b.getHash());
 
 			// verify the accessibility and the BLOB contents
 			verifyContents(server, jobId1, key1a, data, highAvailability);
+			verifyContents(server, jobId1, key1a2, data, highAvailability);
 			verifyContents(server, jobId1, key1b, data2, highAvailability);
 			verifyContents(server, jobId2, key2a, data, highAvailability);
 			verifyContents(server, jobId2, key2b, data2, highAvailability);
@@ -377,24 +390,30 @@ public class BlobServerPutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(server, jobId1, new ChunkedInputStream(data, 19), highAvailability);
 			assertNotNull(key1a);
+			// second upload of same data should yield a different BlobKey
+			BlobKey key1a2 = put(server, jobId1, new ChunkedInputStream(data, 19), highAvailability);
+			assertNotNull(key1a2);
+			verifyKeyDifferentHashEquals(key1a, key1a2);
 
 			BlobKey key1b = put(server, jobId1, new ChunkedInputStream(data2, 19), highAvailability);
 			assertNotNull(key1b);
 
 			verifyContents(server, jobId1, key1a, data, highAvailability);
+			verifyContents(server, jobId1, key1a2, data, highAvailability);
 			verifyContents(server, jobId1, key1b, data2, highAvailability);
 
 			// now put data for jobId2 and verify that both are ok
 			BlobKey key2a = put(server, jobId2, new ChunkedInputStream(data, 19), highAvailability);
 			assertNotNull(key2a);
-			assertEquals(key1a, key2a);
+			assertArrayEquals(key1a.getHash(), key2a.getHash());
 
 			BlobKey key2b = put(server, jobId2, new ChunkedInputStream(data2, 19), highAvailability);
 			assertNotNull(key2b);
-			assertEquals(key1b, key2b);
+			assertArrayEquals(key1b.getHash(), key2b.getHash());
 
 			// verify the accessibility and the BLOB contents
 			verifyContents(server, jobId1, key1a, data, highAvailability);
+			verifyContents(server, jobId1, key1a2, data, highAvailability);
 			verifyContents(server, jobId1, key1b, data2, highAvailability);
 			verifyContents(server, jobId2, key2a, data, highAvailability);
 			verifyContents(server, jobId2, key2b, data2, highAvailability);
@@ -671,7 +690,7 @@ public class BlobServerPutTest extends TestLogger {
 
 			// make sure that all blob keys are the same
 			while(blobKeyIterator.hasNext()) {
-				assertEquals(blobKey, blobKeyIterator.next());
+				verifyKeyDifferentHashEquals(blobKey, blobKeyIterator.next());
 			}
 
 			// check the uploaded file's contents

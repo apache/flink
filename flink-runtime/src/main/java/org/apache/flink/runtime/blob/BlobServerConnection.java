@@ -324,9 +324,9 @@ class BlobServerConnection extends Thread {
 			}
 
 			incomingFile = blobServer.createTemporaryFilename();
-			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf);
+			byte[] digest = readFileFully(inputStream, incomingFile, buf);
 
-			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey, permanentBlob);
+			BlobKey blobKey = blobServer.moveTempFileToStore(incomingFile, jobId, digest, permanentBlob);
 
 			// Return computed key to client for validation
 			outputStream.write(RETURN_OKAY);
@@ -366,12 +366,12 @@ class BlobServerConnection extends Thread {
 	 * @param buf
 	 * 		An auxiliary buffer for data serialization/deserialization
 	 *
-	 * @return the received file's content hash as a BLOB key
+	 * @return the received file's content hash
 	 *
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
-	private static BlobKey readFileFully(
+	private static byte[] readFileFully(
 			final InputStream inputStream, final File incomingFile, final byte[] buf)
 			throws IOException {
 		MessageDigest md = BlobUtils.createMessageDigest();
@@ -393,7 +393,7 @@ class BlobServerConnection extends Thread {
 
 				md.update(buf, 0, bytesExpected);
 			}
-			return new BlobKey(md.digest());
+			return md.digest();
 		}
 	}
 

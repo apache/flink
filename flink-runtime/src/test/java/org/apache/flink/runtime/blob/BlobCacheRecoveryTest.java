@@ -36,11 +36,11 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashDifferent;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
 public class BlobCacheRecoveryTest extends TestLogger {
@@ -124,8 +124,8 @@ public class BlobCacheRecoveryTest extends TestLogger {
 
 			// put non-HA data
 			nonHAKey = put(cache0, jobId[0], expected2, false);
-			assertNotEquals(keys[0], nonHAKey);
-			assertEquals(keys[1], nonHAKey);
+			verifyKeyDifferentHashDifferent(keys[0], nonHAKey);
+			assertArrayEquals(keys[1].getHash(), nonHAKey.getHash());
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");

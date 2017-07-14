@@ -474,8 +474,13 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 				incomingFile = createTemporaryFilename();
 				blobStore.get(jobId, blobKey, incomingFile);
 
-				BlobUtils.moveTempFileToStore(
-					incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+				readWriteLock.writeLock().lock();
+				try {
+					BlobUtils.moveTempFileToStore(
+						incomingFile, jobId, blobKey, localFile, LOG, null);
+				} finally {
+					readWriteLock.writeLock().unlock();
+				}
 
 				return;
 			} finally {
@@ -586,10 +591,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			md.update(value);
 			fos.write(value);
 
-			blobKey = new BlobKey(md.digest());
-
 			// persist file
-			moveTempFileToStore(incomingFile, jobId, blobKey, highlyAvailable);
+			blobKey = moveTempFileToStore(incomingFile, jobId, md.digest(), highlyAvailable);
 
 			return blobKey;
 		} finally {
@@ -642,10 +645,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 				md.update(buf, 0, bytesRead);
 			}
 
-			blobKey = new BlobKey(md.digest());
-
 			// persist file
-			moveTempFileToStore(incomingFile, jobId, blobKey, highlyAvailable);
+			blobKey = moveTempFileToStore(incomingFile, jobId, md.digest(), highlyAvailable);
 
 			return blobKey;
 		} finally {
@@ -665,23 +666,55 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 * 		temporary file created during transfer
 	 * @param jobId
 	 * 		ID of the job this blob belongs to or <tt>null</tt> if job-unrelated
-	 * @param blobKey
-	 * 		BLOB key identifying the file
+	 * @param digest
+	 * 		BLOB content digest, i.e. hash
 	 * @param highlyAvailable
 	 * 		whether this file should be stored in the HA store
+	 *
+	 * @return unique BLOB key that identifies the BLOB on the server
 	 *
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while moving the file or uploading it to the HA store
 	 */
-	void moveTempFileToStore(
-			File incomingFile, @Nullable JobID jobId, BlobKey blobKey, boolean highlyAvailable)
+	BlobKey moveTempFileToStore(
+			File incomingFile, @Nullable JobID jobId, byte[] digest, boolean highlyAvailable)
 			throws IOException {
 
-		File storageFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+		int retries = 10;
 
-		BlobUtils.moveTempFileToStore(
-			incomingFile, jobId, blobKey, storageFile, readWriteLock.writeLock(), LOG,
-			highlyAvailable ? blobStore : null);
+		readWriteLock.writeLock().lock();
+		try {
+			int attempt = 0;
+			while (true) {
+				// add unique component independent of the BLOB content
+				BlobKey blobKey = new BlobKey(digest);
+				File storageFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+
+				// try again until the key is unique
+				if (!storageFile.exists()) {
+					BlobUtils.moveTempFileToStore(
+						incomingFile, jobId, blobKey, storageFile, LOG,
+						highlyAvailable ? blobStore : null);
+
+					return blobKey;
+				}
+
+				++attempt;
+				if (attempt >= retries) {
+					String message = "Failed to find a unique key for BLOB of job " + jobId + " (last tried " + storageFile.getAbsolutePath() + ".";
+					LOG.error(message + " No retries left.");
+					throw new IOException(message);
+				} else {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Trying to find a unique key for BLOB of job {} (retry {}, last tried {})",
+							jobId, attempt, storageFile.getAbsolutePath());
+					}
+				}
+			}
+
+		} finally {
+			readWriteLock.writeLock().unlock();
+		}
 	}
 
 	/**
