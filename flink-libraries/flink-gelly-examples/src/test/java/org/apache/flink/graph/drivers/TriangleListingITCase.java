@@ -113,4 +113,15 @@ public class TriangleListingITCase extends CopyableValueDriverBaseITCase {
 
 		expectedOutputChecksum(parameters(8, "undirected", "print"), new Checksum(61410, 0x0000780ffcb6838eL));
 	}
+
+	@Test
+	public void testParallelism() throws Exception {
+		String[] largeOperators = new String[]{
+			"FlatMap \\(Permute triangle vertices\\)",
+			"Join \\(Triangle listing\\)",
+			"GroupReduce \\(Generate triplets\\)"};
+
+		TestUtils.verifyParallelism(parameters(8, "directed", "print"), largeOperators);
+		TestUtils.verifyParallelism(parameters(8, "undirected", "print"), largeOperators);
+	}
 }

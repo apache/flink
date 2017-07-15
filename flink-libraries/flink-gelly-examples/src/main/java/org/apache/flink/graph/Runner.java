@@ -123,6 +123,8 @@ extends ParameterizedBase {
 		.addClass(Hash.class)
 		.addClass(Print.class);
 
+	// parameters
+
 	private final ParameterTool parameters;
 
 	private final BooleanParameter disableObjectReuse = new BooleanParameter(this, "__disable_object_reuse");
@@ -132,6 +134,18 @@ extends ParameterizedBase {
 
 	private StringParameter jobName = new StringParameter(this, "__job_name")
 		.setDefaultValue(null);
+
+	// state
+
+	private ExecutionEnvironment env;
+
+	private DataSet result;
+
+	private String executionName;
+
+	private Driver algorithm;
+
+	private Output output;
 
 	/**
 	 * Create an algorithm runner from the given arguments.
@@ -145,6 +159,26 @@ extends ParameterizedBase {
 	@Override
 	public String getName() {
 		return this.getClass().getSimpleName();
+	}
+
+	/**
+	 * Get the ExecutionEnvironment. The ExecutionEnvironment is only available
+	 * after calling {@link Runner#run()}.
+	 *
+	 * @return the ExecutionEnvironment
+	 */
+	public ExecutionEnvironment getExecutionEnvironment() {
+		return env;
+	}
+
+	/**
+	 * Get the result DataSet. The result is only available after calling
+	 * {@link Runner#run()}.
+	 *
+	 * @return the result DataSet
+	 */
+	public DataSet getResult() {
+		return result;
 	}
 
 	/**
@@ -246,9 +280,17 @@ extends ParameterizedBase {
 		}
 	}
 
-	public void run() throws Exception {
+	/**
+	 * Setup the Flink job with the graph input, algorithm, and output.
+	 *
+	 * <p>To then execute the job call {@link #execute}.
+	 *
+	 * @return this
+	 * @throws Exception on error
+	 */
+	public Runner run() throws Exception {
 		// Set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env = ExecutionEnvironment.getExecutionEnvironment();
 		ExecutionConfig config = env.getConfig();
 
 		// should not have any non-Flink data types
@@ -282,7 +324,7 @@ extends ParameterizedBase {
 		}
 
 		String algorithmName = parameters.get(ALGORITHM);
-		Driver algorithm = driverFactory.get(algorithmName);
+		algorithm = driverFactory.get(algorithmName);
 
 		if (algorithm == null) {
 			throw new ProgramParametrizationException("Unknown algorithm name: " + algorithmName);
@@ -314,7 +356,7 @@ extends ParameterizedBase {
 		}
 
 		String outputName = parameters.get(OUTPUT);
-		Output output = outputFactory.get(outputName);
+		output = outputFactory.get(outputName);
 
 		if (output == null) {
 			throw new ProgramParametrizationException("Unknown output type: " + outputName);
@@ -358,10 +400,10 @@ extends ParameterizedBase {
 		}
 
 		// Run algorithm
-		DataSet results = algorithm.plan(graph);
+		result = algorithm.plan(graph);
 
 		// Output
-		String executionName = jobName.getValue() != null ? jobName.getValue() + ": " : "";
+		executionName = jobName.getValue() != null ? jobName.getValue() + ": " : "";
 
 		executionName += input.getIdentity() + " ⇨ " + algorithmName + " ⇨ " + output.getName();
 
@@ -386,18 +428,29 @@ extends ParameterizedBase {
 			throw new ProgramParametrizationException(ex.getMessage());
 		}
 
-		if (results == null) {
-			env.execute(executionName);
-		} else {
+		if (result != null) {
 			// Transform output if algorithm returned result DataSet
 			if (transforms.size() > 0) {
 				Collections.reverse(transforms);
 				for (Transform transform : transforms) {
-					results = (DataSet) transform.transformResult(results);
+					result = (DataSet) transform.transformResult(result);
 				}
 			}
+		}
 
-			output.write(executionName.toString(), System.out, results);
+		return this;
+	}
+
+	/**
+	 * Execute the Flink job.
+	 *
+	 * @throws Exception on error
+	 */
+	private void execute() throws Exception {
+		if (result == null) {
+			env.execute(executionName);
+		} else {
+			output.write(executionName.toString(), System.out, result);
 		}
 
 		System.out.println();
@@ -450,7 +503,7 @@ extends ParameterizedBase {
 	}
 
 	public static void main(String[] args) throws Exception {
-		new Runner(args).run();
+		new Runner(args).run().execute();
 	}
 
 	/**
