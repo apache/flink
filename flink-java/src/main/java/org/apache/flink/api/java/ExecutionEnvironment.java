@@ -587,7 +587,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}.
 	 *
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V>, Class<K>, Class<V>, String, JobConf)}
+	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V>, Class<K>, Class<V>, String, JobConf)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
@@ -604,7 +604,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from {@link org.apache.hadoop.mapred.SequenceFileInputFormat}
 	 * A {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
 	 *
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopInputs#readSequenceFile(Class<K>, Class<V>, String)}
+	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readSequenceFile(Class<K>, Class<V>, String)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
@@ -617,7 +617,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}. A
 	 * {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
 	 *
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V>, Class<K>, Class<V>, String)}
+	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V>, Class<K>, Class<V>, String)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
@@ -629,7 +629,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.InputFormat}.
 	 *
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopInputs#createHadoopInput(org.apache.hadoop.mapred.InputFormat<K,V>, Class<K>, Class<V>, JobConf)}
+	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#createHadoopInput(org.apache.hadoop.mapred.InputFormat<K,V>, Class<K>, Class<V>, JobConf)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
@@ -644,7 +644,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. The
 	 * given inputName is set on the given job.
 	 *
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V>, Class<K>, Class<V>, String, Job)}
+	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V>, Class<K>, Class<V>, String, Job)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
@@ -662,7 +662,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. A
 	 * {@link org.apache.hadoop.mapreduce.Job} with the given inputPath is created.
 	 *
-	 * @deprecated Please use {@link  org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V>, Class<K>, Class<V>, String)}
+	 * @deprecated Please use {@code  org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V>, Class<K>, Class<V>, String)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
@@ -674,7 +674,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.InputFormat}.
 	 *
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopInputs#createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K,V>, Class<K>, Class<V>, Job)}
+	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K,V>, Class<K>, Class<V>, Job)}
 	 * from the flink-hadoop-compatibility module.
 	 */
 	@Deprecated
