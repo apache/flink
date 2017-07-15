@@ -140,11 +140,12 @@ public class HadoopOutputFormatTest {
 		return outputCommitter;
 	}
 
-	private HadoopOutputFormat<String, Long> setupHadoopOutputFormat(OutputFormat<String, Long> outputFormat,
-																	Job job,
-																	RecordWriter<String, Long> recordWriter,
-																	OutputCommitter outputCommitter,
-																	Configuration configuration) {
+	private HadoopOutputFormat<String, Long> setupHadoopOutputFormat(
+		OutputFormat<String, Long> outputFormat,
+		Job job,
+		RecordWriter<String, Long> recordWriter,
+		OutputCommitter outputCommitter,
+		Configuration configuration) {
 
 		HadoopOutputFormat<String, Long> hadoopOutputFormat = new HadoopOutputFormat<>(outputFormat, job);
 		hadoopOutputFormat.recordWriter = recordWriter;
