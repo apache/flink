@@ -22,7 +22,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.junit.Test;
 
 /**
- * Tests for {@link ExecutionEnvironment::fromElements}.
+ * Tests for {@link ExecutionEnvironment#fromElements}}.
  */
 public class FromElementsTest {
 

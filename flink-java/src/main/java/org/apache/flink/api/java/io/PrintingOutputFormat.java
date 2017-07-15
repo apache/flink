@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import java.io.PrintStream;
 
 /**
- * Output format that prints results into underlying {@link PrintStream}.
+ * Output format that prints results into either stdout or stderr.
  * @param <T>
  */
 @PublicEvolving

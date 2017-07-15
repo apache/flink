@@ -94,7 +94,8 @@ public class CollectionInputFormatTest {
 	@Test
 	public void testSerializability() {
 		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-				ObjectOutputStream out = new ObjectOutputStream(buffer)) {
+			ObjectOutputStream out = new ObjectOutputStream(buffer)) {
+
 			Collection<ElementType> inputCollection = new ArrayList<ElementType>();
 			ElementType element1 = new ElementType(1);
 			ElementType element2 = new ElementType(2);

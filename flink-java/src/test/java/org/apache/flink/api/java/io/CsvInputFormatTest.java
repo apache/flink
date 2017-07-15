@@ -235,7 +235,10 @@ public class CsvInputFormatTest {
 	public void ignoreSingleCharPrefixComments() {
 		try {
 			final String fileContent = "#description of the data\n" +
-										"#successive commented line\n" + "this is|1|2.0|\n" + "a test|3|4.0|\n" + "#next|5|6.0|\n";
+				"#successive commented line\n" +
+				"this is|1|2.0|\n" +
+				"a test|3|4.0|\n" +
+				"#next|5|6.0|\n";
 
 			final FileInputSplit split = createTempFile(fileContent);
 
@@ -275,10 +278,10 @@ public class CsvInputFormatTest {
 		try {
 
 			final String fileContent = "//description of the data\n" +
-										"//successive commented line\n" +
-										"this is|1|2.0|\n" +
-										"a test|3|4.0|\n" +
-										"//next|5|6.0|\n";
+				"//successive commented line\n" +
+				"this is|1|2.0|\n" +
+				"a test|3|4.0|\n" +
+				"//next|5|6.0|\n";
 
 			final FileInputSplit split = createTempFile(fileContent);
 

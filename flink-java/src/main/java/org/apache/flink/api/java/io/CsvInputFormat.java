@@ -29,7 +29,7 @@ import org.apache.flink.util.StringUtils;
 import java.io.IOException;
 
 /**
- * InputFormat thar reads csv files.
+ * InputFormat that reads csv files.
  *
  * @param <OUT>
  */
