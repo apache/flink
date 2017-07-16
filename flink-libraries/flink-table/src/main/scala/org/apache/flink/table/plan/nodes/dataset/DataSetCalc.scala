@@ -35,6 +35,8 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.FlatMapRunner
 import org.apache.flink.types.Row
 
+import scala.collection.JavaConverters._
+
 /**
   * Flink RelNode which matches along with LogicalCalc.
   *
@@ -90,12 +92,20 @@ class DataSetCalc(
 
     val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
+    val projection = calcProgram.getProjectList.asScala.map(calcProgram.expandLocalRef)
+    val condition = if (calcProgram.getCondition != null) {
+      Some(calcProgram.expandLocalRef(calcProgram.getCondition))
+    } else {
+      None
+    }
+
     val genFunction = generateFunction(
       generator,
       ruleDescription,
       new RowSchema(getInput.getRowType),
       new RowSchema(getRowType),
-      calcProgram,
+      projection,
+      condition,
       config,
       classOf[FlatMapFunction[Row, Row]])
 
