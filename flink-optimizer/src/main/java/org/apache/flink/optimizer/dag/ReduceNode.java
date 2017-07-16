@@ -63,6 +63,9 @@ public class ReduceNode extends SingleInputNode {
 				case HASH:
 					combinerStrategy = DriverStrategy.HASHED_PARTIAL_REDUCE;
 					break;
+				case NONE:
+					combinerStrategy = DriverStrategy.SORTED_REDUCE;
+					break;
 				default:
 					throw new RuntimeException("Unknown CombineHint");
 			}

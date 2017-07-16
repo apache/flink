@@ -95,7 +95,7 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 										in.getShipStrategySortOrder(), in.getDataExchangeMode());
 			toReducer.setLocalStrategy(LocalStrategy.SORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 
-			return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", toReducer,
+			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")", toReducer,
 											DriverStrategy.SORTED_REDUCE, this.keyList);
 		}
 	}
