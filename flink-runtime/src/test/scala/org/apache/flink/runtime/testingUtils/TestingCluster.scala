@@ -391,13 +391,20 @@ class TestingCluster(
     result match {
       case success: CheckpointRequestSuccess => success.path
       case fail: CheckpointRequestFailure => {
-        if (fail.cause.getMessage.contains("tasks not ready")) {
-          // retry if the tasks are not ready yet.
-          Thread.sleep(50)
-          requestCheckpoint(jobId, options)
-        } else {
-          throw new IOException(fail.cause)
+        // TODO right now, this is a dirty way to detect whether the checkpoint
+        // failed because tasks were not ready.This would not be required if
+        // TestingJobManagerMessages.WaitForAllVerticesToBeRunning(...) works
+        // properly.
+        if (fail.cause != null) {
+          val innerCause = fail.cause.getCause
+          if (innerCause != null
+            && innerCause.getMessage.contains("tasks not ready")) {
+            // retry if the tasks are not ready yet.
+            Thread.sleep(50)
+            return requestCheckpoint(jobId, options)
+          }
         }
+        throw new IOException(fail.cause)
       }
       case _ => throw new IllegalStateException("Trigger checkpoint failed")
     }
