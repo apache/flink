@@ -21,11 +21,11 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.api.common.state.{StateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.dataview.StateViewFactory
 import org.apache.flink.table.runtime.types.CRow
 import org.slf4j.LoggerFactory
 
@@ -38,7 +38,8 @@ import org.slf4j.LoggerFactory
 class ProcTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
-    queryConfig: StreamQueryConfig)
+    queryConfig: StreamQueryConfig,
+    accConfig: Map[String, StateDescriptor[_, _]])
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
@@ -56,6 +57,7 @@ class ProcTimeUnboundedOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setDataViewFactory(new StateViewFactory(getRuntimeContext, accConfig))
 
     output = new CRow(function.createOutputRow(), true)
     val stateDescriptor: ValueStateDescriptor[Row] =

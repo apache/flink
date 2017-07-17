@@ -44,7 +44,8 @@ class NonWindowHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         false,
-        queryConfig))
+        queryConfig,
+        Map()))
 
     val testHarness =
       createHarnessTester(
@@ -104,7 +105,8 @@ class NonWindowHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         true,
-        queryConfig))
+        queryConfig,
+        Map()))
 
     val testHarness =
       createHarnessTester(
