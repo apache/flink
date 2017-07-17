@@ -192,6 +192,7 @@ under the License.
 			</includes>
 			<excludes>
 				<exclude>original-*.jar</exclude>
+				<exclude>*-javadoc.jar</exclude>
 				<exclude>*-tests.jar</exclude>
 			</excludes>
 		</fileSet>
