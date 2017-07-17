@@ -524,6 +524,81 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>spotbugs</id>
+			<activation>
+				<property>
+					<name>spotbugs</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.github.hazendaz.spotbugs</groupId>
+						<artifactId>spotbugs-maven-plugin</artifactId>
+						<version>3.0.6</version>
+
+						<executions>
+							<execution>
+								<id>findbugs-run</id>
+								<phase>compile</phase>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
+
+						<configuration>
+							<xmlOutput>true</xmlOutput>
+							<threshold>Low</threshold>
+							<effort>default</effort>
+							<findbugsXmlOutputDirectory>${project.build.directory}/spotbugs</findbugsXmlOutputDirectory>
+							<excludeFilterFile>tools/maven/spotbugs-exclude.xml</excludeFilterFile>
+							<failOnError>true</failOnError>
+						</configuration>
+					</plugin>
+
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>xml-maven-plugin</artifactId>
+						<version>1.0.1</version>
+						<executions>
+							<execution>
+								<phase>verify</phase>
+								<goals>
+									<goal>transform</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<transformationSets>
+								<transformationSet>
+									<dir>${project.build.directory}/spotbugs</dir>
+									<outputDir>${project.build.directory}/spotbugs</outputDir>
+									<!-- A list of available stylesheets can be found here: https://github.com/findbugsproject/findbugs/tree/master/findbugs/src/xsl -->
+									<stylesheet>plain.xsl</stylesheet>
+									
+									<fileMappers>
+										<fileMapper
+											implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
+											<targetExtension>.html</targetExtension>
+										</fileMapper>
+									</fileMappers>
+								</transformationSet>
+							</transformationSets>
+						</configuration>
+						<dependencies>
+							<dependency>
+								<groupId>com.github.hazendaz.spotbugs</groupId>
+								<artifactId>spotbugs-maven-plugin</artifactId>
+								<version>3.0.6</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
 			<repositories>
