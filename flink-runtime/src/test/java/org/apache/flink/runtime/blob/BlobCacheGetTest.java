@@ -473,15 +473,6 @@ public class BlobCacheGetTest extends TestLogger {
 
 			Future<Collection<File>> filesFuture = FutureUtils.combineAll(getOperations);
 			filesFuture.get();
-
-			// TODO: verify that the file is written only once (concurrent access in PermanentBlobCache)
-			if (cacheAccessesHAStore) {
-				// ...
-			} else {
-				// verify that we did not download the requested blob from the HA store
-				verify(blobStoreServer, times(0)).get(eq(jobId), eq(blobKey), any(File.class));
-				// ...
-			}
 		} finally {
 			executor.shutdownNow();
 		}

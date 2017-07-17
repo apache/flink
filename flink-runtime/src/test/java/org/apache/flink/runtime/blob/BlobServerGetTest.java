@@ -57,7 +57,6 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
-import static org.apache.flink.runtime.blob.BlobUtils.NO_JOB_DIR_PREFIX;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -65,11 +64,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
@@ -413,16 +409,6 @@ public class BlobServerGetTest extends TestLogger {
 
 			Future<Collection<File>> filesFuture = FutureUtils.combineAll(getOperations);
 			filesFuture.get();
-
-			// TODO: verify that we stored the requested blob exactly once to the local BlobStore folder
-			if (highAvailability) {
-				// download could be up to numberConcurrentGetOperations times:
-//				verify(blobStore, times(1)).get(eq(jobId), eq(blobKey), any(File.class));
-			} else {
-				// can't really verify much in the other cases other than that the get operations should
-				// work and retrieve correct files
-				verify(blobStore, times(0)).get(eq(jobId), eq(blobKey), any(File.class));
-			}
 		} finally {
 			executor.shutdownNow();
 		}

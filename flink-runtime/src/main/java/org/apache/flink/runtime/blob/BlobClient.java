@@ -480,7 +480,6 @@ public final class BlobClient implements Closeable {
 			outputStream.write(CONTENT_FOR_JOB);
 			outputStream.write(jobId.getBytes());
 		}
-		// TODO: write permanentBlob
 	}
 
 	/**

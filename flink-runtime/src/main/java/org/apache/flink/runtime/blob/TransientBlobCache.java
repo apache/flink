@@ -95,7 +95,7 @@ public class TransientBlobCache implements TransientBlobService {
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(BlobServerOptions.STORAGE_DIRECTORY);
 		this.storageDir = BlobUtils.initLocalStorageDirectory(storageDirectory);
-		LOG.info("Created BLOB cache storage directory " + storageDir);
+		LOG.info("Created transient BLOB cache storage directory " + storageDir);
 
 		// configure the number of fetch retries
 		final int fetchRetries = blobClientConfig.getInteger(BlobServerOptions.FETCH_RETRIES);
@@ -300,7 +300,7 @@ public class TransientBlobCache implements TransientBlobService {
 	@Override
 	public void close() throws IOException {
 		if (shutdownRequested.compareAndSet(false, true)) {
-			LOG.info("Shutting down BlobCache");
+			LOG.info("Shutting down transient BlobCache");
 
 			// Clean up the storage directory
 			try {

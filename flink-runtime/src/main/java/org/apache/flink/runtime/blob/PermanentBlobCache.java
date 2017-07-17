@@ -375,7 +375,7 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 		cleanupTimer.cancel();
 
 		if (shutdownRequested.compareAndSet(false, true)) {
-			LOG.info("Shutting down BlobCache");
+			LOG.info("Shutting down permanent BlobCache");
 
 			// Clean up the storage directory
 			try {
