@@ -142,6 +142,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/** Flag indicating whether the consumer is still running **/
 	private volatile boolean running = true;
 
+	/** Whether this operator instance was restored from checkpointed state. */
+	private transient boolean restored = false;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -354,7 +357,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		subscribedPartitionsToStartOffsets = new HashMap<>(kafkaTopicPartitions.size());
 
-		if (restoredState != null) {
+		if (restored) {
 			for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
 				if (restoredState.containsKey(kafkaTopicPartition)) {
 					subscribedPartitionsToStartOffsets.put(kafkaTopicPartition, restoredState.get(kafkaTopicPartition));
@@ -503,6 +506,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 
+		// we might have been restored via restoreState() which restores from legacy operator state
+		if (!restored) {
+			restored = context.isRestored();
+		}
+
 		OperatorStateStore stateStore = context.getOperatorStateStore();
 		offsetsStateForCheckpoint = stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
@@ -517,9 +525,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Using the following offsets: {}", restoredState);
 				}
-			}
-			if (restoredState != null && restoredState.isEmpty()) {
-				restoredState = null;
 			}
 		} else {
 			LOG.info("No restore state for FlinkKafkaConsumer.");
@@ -576,7 +581,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
 			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
 
-		restoredState = restoredOffsets.isEmpty() ? null : restoredOffsets;
+		restoredState = restoredOffsets.isEmpty()
+			? new HashMap<KafkaTopicPartition, Long>() : restoredOffsets;
+		restored = true;
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",

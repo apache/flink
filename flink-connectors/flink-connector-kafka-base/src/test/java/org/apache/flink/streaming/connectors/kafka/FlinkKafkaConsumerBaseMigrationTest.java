@@ -202,7 +202,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
 
 		// assert that no state was restored
-		assertTrue(consumerFunction.getRestoredState() == null);
+		assertTrue(consumerFunction.getRestoredState().isEmpty());
 
 		consumerOperator.close();
 		consumerOperator.cancel();
@@ -244,12 +244,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			expectedSubscribedPartitionsWithStartOffsets.put(partition, KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		}
 
-		// assert that there are partitions and is identical to expected list
-		assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
-		assertTrue(!consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
-		Assert.assertEquals(expectedSubscribedPartitionsWithStartOffsets, consumerFunction.getSubscribedPartitionsToStartOffsets());
-
-		assertTrue(consumerFunction.getRestoredState() == null);
+		// verify that we do not try to fetch the partitions list and subscribe to them even though we have empty state
+		assertTrue(consumerFunction.getRestoredState().isEmpty());
+		assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
 
 		consumerOperator.close();
 		consumerOperator.cancel();
