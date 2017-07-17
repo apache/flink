@@ -21,23 +21,19 @@ package org.apache.flink.api.scala.runtime.jobmanager
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
+import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
-import org.apache.flink.runtime.messages.JobManagerMessages.{LeaderSessionMessage, CancelJob,
-JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
-WaitForAllVerticesToBeRunning}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
-import org.scalatest.{FunSuiteLike, Matchers, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
+class JobManagerLeaderSessionIDITCase(_system: ActorSystem)
   extends TestKit(_system)
   with ImplicitSender
   with FunSuiteLike
@@ -75,7 +71,7 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
     within(TestingUtils.TESTING_DURATION) {
       jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-      expectMsg(Success(jobGraph.getJobID))
+      expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
       jmGateway.tell(WaitForAllVerticesToBeRunning(jobGraph.getJobID), self)
 
