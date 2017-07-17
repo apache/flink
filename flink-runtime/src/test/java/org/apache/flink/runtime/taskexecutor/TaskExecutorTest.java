@@ -24,6 +24,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -669,6 +671,13 @@ public class TaskExecutorTest extends TestLogger {
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 
+		BlobCache blobCache = mock(BlobCache.class);
+		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
+		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
+
+		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
 			ResourceID.generate(),
@@ -676,7 +685,7 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
-			mock(BlobCache.class),
+			blobCache,
 			libraryCacheManager,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class));
@@ -1149,6 +1158,13 @@ public class TaskExecutorTest extends TestLogger {
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
+		BlobCache blobCache = mock(BlobCache.class);
+		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
+		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
+
+		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
 			jmResourceId,
@@ -1156,7 +1172,7 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
-			mock(BlobCache.class),
+			blobCache,
 			libraryCacheManager,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class));

@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -137,6 +139,13 @@ public class BlockingCheckpointsTest {
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class))).thenReturn(mockKvRegistry);
 
+		BlobCache blobCache = mock(BlobCache.class);
+		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
+		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
+
+		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+
 		return new Task(
 				jobInformation,
 				taskInformation,
@@ -155,7 +164,7 @@ public class BlockingCheckpointsTest {
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				mock(CheckpointResponder.class),
-				mock(BlobCache.class),
+				blobCache,
 				new FallbackLibraryCacheManager(),
 				new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() }),
 				new TestingTaskManagerRuntimeInfo(),

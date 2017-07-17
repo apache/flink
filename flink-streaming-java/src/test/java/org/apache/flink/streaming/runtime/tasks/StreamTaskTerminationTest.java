@@ -25,6 +25,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -135,6 +137,13 @@ public class StreamTaskTerminationTest extends TestLogger {
 		final NetworkEnvironment networkEnv = mock(NetworkEnvironment.class);
 		when(networkEnv.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class))).thenReturn(mock(TaskKvStateRegistry.class));
 
+		BlobCache blobCache = mock(BlobCache.class);
+		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
+		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
+
+		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+
 		final Task task = new Task(
 			jobInformation,
 			taskInformation,
@@ -153,7 +162,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
-			mock(BlobCache.class),
+			blobCache,
 			new FallbackLibraryCacheManager(),
 			mock(FileCache.class),
 			taskManagerRuntimeInfo,

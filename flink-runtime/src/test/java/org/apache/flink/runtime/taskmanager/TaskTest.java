@@ -25,6 +25,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -228,7 +230,8 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testLibraryCacheRegistrationFailed() {
 		try {
-			Task task = createTask(TestInvokableCorrect.class, mock(BlobCache.class),
+			BlobCache blobCache = createBlobCache();
+			Task task = createTask(TestInvokableCorrect.class, blobCache,
 				mock(LibraryCacheManager.class));
 
 			// task should be new and perfect
@@ -245,6 +248,7 @@ public class TaskTest extends TestLogger {
 			assertEquals(ExecutionState.FAILED, task.getExecutionState());
 			assertTrue(task.isCanceledOrFailed());
 			assertNotNull(task.getFailureCause());
+			assertNotNull(task.getFailureCause().getMessage());
 			assertTrue(task.getFailureCause().getMessage().contains("classloader"));
 
 			// verify listener messages
@@ -262,7 +266,7 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testExecutionFailsInNetworkRegistration() {
 		try {
-			BlobCache blobCache = mock(BlobCache.class);
+			BlobCache blobCache = createBlobCache();
 			// mock a working library cache
 			LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 			when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
@@ -327,6 +331,8 @@ public class TaskTest extends TestLogger {
 
 			assertEquals(ExecutionState.FAILED, task.getExecutionState());
 			assertTrue(task.isCanceledOrFailed());
+			assertNotNull(task.getFailureCause());
+			assertNotNull(task.getFailureCause().getMessage());
 			assertTrue(task.getFailureCause().getMessage().contains("test"));
 
 			validateTaskManagerStateChange(ExecutionState.RUNNING, task, false);
@@ -620,7 +626,7 @@ public class TaskTest extends TestLogger {
 		IntermediateDataSetID resultId = new IntermediateDataSetID();
 		ResultPartitionID partitionId = new ResultPartitionID();
 
-		BlobCache blobCache = mock(BlobCache.class);
+		BlobCache blobCache = createBlobCache();
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 
@@ -881,19 +887,35 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Creates a {@link BlobCache} mock that is suitable to be used in the tests above.
+	 *
+	 * @return BlobCache mock with the bare minimum of implemented functions that work
+	 */
+	private BlobCache createBlobCache() {
+		BlobCache blobCache = mock(BlobCache.class);
+		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
+		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
+
+		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+
+		return blobCache;
+	}
+
 	private Task createTask(Class<? extends AbstractInvokable> invokable) throws IOException {
 		return createTask(invokable, new Configuration(), new ExecutionConfig());
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config) throws IOException {
-		BlobCache blobCache = mock(BlobCache.class);
+		BlobCache blobCache = createBlobCache();
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, blobCache,libCache, config, new ExecutionConfig());
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config, ExecutionConfig execConfig) throws IOException {
-		BlobCache blobCache = mock(BlobCache.class);
+		BlobCache blobCache = createBlobCache();
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, blobCache,libCache, config, execConfig);
