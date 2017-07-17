@@ -29,6 +29,7 @@ import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.dataview.StateViewFactory
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
 
@@ -45,7 +46,8 @@ class RowTimeBoundedRowsOver(
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
     precedingOffset: Long,
-    queryConfig: StreamQueryConfig)
+    queryConfig: StreamQueryConfig,
+    accConfig: Map[String, StateDescriptor[_, _]])
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
@@ -81,6 +83,7 @@ class RowTimeBoundedRowsOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setDataViewFactory(new StateViewFactory(getRuntimeContext, accConfig))
 
     output = new CRow(function.createOutputRow(), true)
 

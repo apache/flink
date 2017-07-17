@@ -45,7 +45,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         2,
         minMaxAggregationStateType,
         minMaxCRowType,
-        queryConfig))
+        queryConfig,
+        Map()))
 
     val testHarness =
       createHarnessTester(processFunction,new TupleRowKeySelector[Integer](0),BasicTypeInfo
@@ -158,7 +159,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         4000,
         minMaxAggregationStateType,
         minMaxCRowType,
-        queryConfig))
+        queryConfig,
+        Map()))
 
     val testHarness =
       createHarnessTester(
@@ -279,7 +281,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
       new ProcTimeUnboundedOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
-        queryConfig))
+        queryConfig,
+        Map()))
 
     val testHarness =
       createHarnessTester(
@@ -387,7 +390,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         4000,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2)),
+        Map()))
 
     val testHarness =
       createHarnessTester(
@@ -552,7 +556,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         3,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2)),
+        Map()))
 
     val testHarness =
       createHarnessTester(
@@ -715,7 +720,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2)),
+        Map()))
 
     val testHarness =
       createHarnessTester(
@@ -863,7 +869,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2)),
+        Map()))
 
     val testHarness =
       createHarnessTester(

@@ -23,9 +23,9 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.api.common.state.{StateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.common.state.ValueState
+import org.apache.flink.table.dataview.{DataViewSpec, StateViewFactory}
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.slf4j.{Logger, LoggerFactory}
@@ -41,7 +41,8 @@ class GroupAggProcessFunction(
     private val genAggregations: GeneratedAggregationsFunction,
     private val aggregationStateType: RowTypeInfo,
     private val generateRetraction: Boolean,
-    private val queryConfig: StreamQueryConfig)
+    private val queryConfig: StreamQueryConfig,
+    private val dataViewSpec: Map[String, StateDescriptor[_, _]])
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
@@ -57,14 +58,15 @@ class GroupAggProcessFunction(
   private var cntState: ValueState[JLong] = _
 
   override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
-      s"Code:\n$genAggregations.code")
+    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n " +
+      s"Code:\n${genAggregations.code}")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setDataViewFactory(new StateViewFactory(getRuntimeContext, dataViewSpec))
 
     newRow = new CRow(function.createOutputRow(), true)
     prevRow = new CRow(function.createOutputRow(), false)

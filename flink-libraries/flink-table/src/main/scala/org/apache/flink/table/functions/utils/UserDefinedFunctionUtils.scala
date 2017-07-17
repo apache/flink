@@ -19,8 +19,9 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
 import java.lang.{Integer => JInt, Long => JLong}
-import java.lang.reflect.{Method, Modifier}
+import java.lang.reflect.{Field, Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.codec.binary.Base64
@@ -29,7 +30,9 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
+import org.apache.flink.table.dataview.{MapViewSpec, _}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions._
@@ -37,6 +40,8 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
+
+import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
 
@@ -307,6 +312,120 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
+    * get data view type information from accumulator constructor.
+    *
+    * @param aggFun aggregate function
+    * @return the data view specification
+    */
+  def getDataViewTypeInfoFromConstructor(
+    aggFun: AggregateFunction[_, _])
+  : mutable.HashMap[String, TypeInformation[_]] = {
+
+    val resultMap = new mutable.HashMap[String, TypeInformation[_]]
+    val acc = aggFun.createAccumulator()
+    val fields: util.List[Field] = TypeExtractor.getAllDeclaredFields(acc.getClass, true)
+    for (i <- 0 until fields.size()) {
+      val field = fields.get(i)
+      field.setAccessible(true)
+      if (classOf[DataView].isAssignableFrom(field.getType)) {
+        if (field.getType == classOf[MapView[_, _]]) {
+          val mapView = field.get(acc)
+          val keyTypeInfo = getFieldTypeInfo(classOf[MapView[_, _]], mapView,
+            "keyTypeInfo")
+          val valueTypeInfo = getFieldTypeInfo(classOf[MapView[_, _]], mapView,
+            "valueTypeInfo")
+          if (keyTypeInfo.isDefined && valueTypeInfo.isDefined) {
+              resultMap.put(field.getName, new MapViewTypeInfo(keyTypeInfo.get,
+                valueTypeInfo.get))
+          }
+        } else if (field.getType == classOf[ListView[_]]) {
+          val listView = field.get(acc)
+          val elementTypeInfo = getFieldTypeInfo(classOf[ListView[_]], listView,
+            "elementTypeInfo")
+          if (elementTypeInfo.isDefined) {
+            resultMap.put(field.getName, new ListViewTypeInfo(elementTypeInfo.get))
+          }
+        }
+      }
+    }
+
+    resultMap
+  }
+
+
+  /**
+    * Extract data view specification.
+    *
+    * @param index aggregate function index
+    * @param aggFun aggregate function
+    * @param accType accumulator type information
+    * @param dataViewTypes data view fields types
+    * @param isUseState is use state
+    * @return the data view specification
+    */
+  def extractDataViewTypeInfo(
+    index: Int,
+    aggFun: AggregateFunction[_, _],
+    accType: TypeInformation[_],
+    dataViewTypes: mutable.HashMap[String, TypeInformation[_]],
+    isUseState: Boolean)
+  : (TypeInformation[_], Option[Seq[DataViewSpec[_]]]) = {
+
+    accType match {
+      case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
+        val arity = pojoType.getArity
+        val newPojoFields = new util.ArrayList[PojoField]()
+        val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec[_]]
+        for (i <- 0 until arity) {
+          val pojoField = pojoType.getPojoFieldAt(i)
+          val fieldName = pojoField.getField.getName
+          pojoField.getTypeInformation match {
+            case map: MapViewTypeInfo[Any, Any] =>
+              val newTypeInfo: MapViewTypeInfo[Any, Any] = if (dataViewTypes.contains(fieldName)) {
+                dataViewTypes(fieldName).asInstanceOf[MapViewTypeInfo[Any, Any]]
+              } else {
+                map
+              }
+              var spec = MapViewSpec[Any, Any](
+                "agg" + index + "$" + fieldName,
+                pojoField.getField,
+                newTypeInfo)
+
+              accumulatorSpecs += spec
+              if (!isUseState) {
+                newPojoFields.add(new PojoField(pojoField.getField, newTypeInfo))
+              }
+
+            case list: ListViewTypeInfo[Any] =>
+              val newTypeInfo: ListViewTypeInfo[Any] = if (dataViewTypes.contains(fieldName)) {
+                dataViewTypes(fieldName).asInstanceOf[ListViewTypeInfo[Any]]
+              } else {
+                list
+              }
+              var spec = ListViewSpec[Any](
+                "agg" + index + "$" + fieldName,
+                pojoField.getField,
+                newTypeInfo)
+
+              accumulatorSpecs += spec
+              if (!isUseState) {
+                newPojoFields.add(new PojoField(pojoField.getField, newTypeInfo))
+              }
+
+            case _ => newPojoFields.add(pojoField)
+          }
+        }
+        (new PojoTypeInfo(accType.getTypeClass, newPojoFields), Some(accumulatorSpecs))
+
+      case _ => if (dataViewTypes.isEmpty) {
+        (accType, None)
+      } else {
+          throw new TableException("MapView and ListView only support in PoJo class")
+      }
+    }
+  }
+
+  /**
     * Internal method of AggregateFunction#getResultType() that does some pre-checking and uses
     * [[TypeExtractor]] as default return type inference.
     */
@@ -534,5 +653,22 @@ object UserDefinedFunctionUtils {
         FlinkTypeFactory.toTypeInfo(operandType)
       }
     }
+  }
+
+  def getFieldTypeInfo(
+    clazz: Class[_],
+    obj: Object,
+    fieldName: String): Option[TypeInformation[_]] = {
+
+    val field = TypeExtractor.getDeclaredField(clazz, fieldName)
+    val typeInfo = if (field != null ) {
+      if (!field.isAccessible) {
+        field.setAccessible(true)
+      }
+      field.get(obj).asInstanceOf[TypeInformation[_]]
+    } else {
+      null
+    }
+    Some(typeInfo)
   }
 }

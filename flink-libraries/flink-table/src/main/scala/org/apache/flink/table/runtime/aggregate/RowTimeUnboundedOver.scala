@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.dataview.StateViewFactory
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
 
@@ -45,7 +46,8 @@ abstract class RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
-    queryConfig: StreamQueryConfig)
+    queryConfig: StreamQueryConfig,
+    accConfig: Map[String, StateDescriptor[_, _]])
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
@@ -69,6 +71,7 @@ abstract class RowTimeUnboundedOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setDataViewFactory(new StateViewFactory(getRuntimeContext, accConfig))
 
     output = new CRow(function.createOutputRow(), true)
     sortedTimestamps = new util.LinkedList[Long]()
@@ -250,12 +253,14 @@ class RowTimeUnboundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
-    queryConfig: StreamQueryConfig)
+    queryConfig: StreamQueryConfig,
+    accConfig: Map[String, StateDescriptor[_, _]])
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
-    queryConfig) {
+    queryConfig,
+    accConfig) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],
@@ -290,12 +295,14 @@ class RowTimeUnboundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
-    queryConfig: StreamQueryConfig)
+    queryConfig: StreamQueryConfig,
+    accConfig: Map[String, StateDescriptor[_, _]])
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
-    queryConfig) {
+    queryConfig,
+    accConfig) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],

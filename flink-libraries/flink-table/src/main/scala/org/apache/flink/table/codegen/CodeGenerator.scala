@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.codegen
 
-import java.lang.reflect.ParameterizedType
+import java.lang.reflect.{Modifier, ParameterizedType}
 import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal => JBigDecimal}
 
@@ -35,7 +35,9 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.dataview.{MapView, ListView}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -47,6 +49,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
 import org.apache.flink.table.runtime.TableFunctionCollector
+import org.apache.flink.table.runtime.aggregate.DataViewConfig
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
 
@@ -282,6 +285,7 @@ class CodeGenerator(
     * @param needRetract a flag to indicate if the aggregate needs the retract method
     * @param needMerge a flag to indicate if the aggregate needs the merge method
     * @param needReset a flag to indicate if the aggregate needs the resetAccumulator method
+    * @param accConfig accumulator data view config
     *
     * @return A GeneratedAggregationsFunction
     */
@@ -299,7 +303,8 @@ class CodeGenerator(
       outputArity: Int,
       needRetract: Boolean,
       needMerge: Boolean,
-      needReset: Boolean)
+      needReset: Boolean,
+      accConfig: Option[DataViewConfig])
   : GeneratedAggregationsFunction = {
 
     // get unique function name
@@ -381,6 +386,38 @@ class CodeGenerator(
       }
     }
 
+    def genDataViewFieldSetter(accTerm: String, specs: Seq[DataViewSpec[_]]): String = {
+      val setters = for (spec <- specs) yield {
+        val dataViewTerm = newName("dataView")
+        val field = spec.field
+        val fieldSetter = if (Modifier.isPublic(field.getModifiers)) {
+          s"$accTerm.${field.getName} = $dataViewTerm;"
+        } else {
+          val fieldTerm = addReusablePrivateFieldAccess(field.getDeclaringClass, field.getName)
+          s"${reflectiveFieldWriteAccess(fieldTerm, field, accTerm, dataViewTerm)};"
+        }
+        val dataViewTypeTerm = field.getType.getCanonicalName
+
+        val createFactory = if (field.getType == classOf[MapView[_, _]]) {
+          s"""
+             | $dataViewTypeTerm $dataViewTerm = getDataViewFactory().createMapView("${spec.id}");
+           """.stripMargin
+        } else if (field.getType == classOf[ListView[_]]) {
+          s"""
+             | $dataViewTypeTerm $dataViewTerm = getDataViewFactory().createListView("${spec.id}");
+           """.stripMargin
+        } else {
+          throw new CodeGenException(s"Unsupported dataview type: $dataViewTypeTerm")
+        }
+
+        s"""
+           |      $createFactory
+           |      $fieldSetter
+        """.stripMargin
+      }
+      setters.mkString("\n")
+    }
+
     def genSetAggregationResults: String = {
 
       val sig: String =
@@ -398,13 +435,21 @@ class CodeGenerator(
                |      ${aggMapping(i)},
                |      (${accTypes(i)}) accs.getField($i));""".stripMargin
           } else {
+            val setDataView = if (accConfig.isDefined && accConfig.get.isUseState) {
+              genDataViewFieldSetter(s"acc$i", accConfig.get.accSpecs(i))
+            } else {
+
+              ""
+            }
+
             j"""
                |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
                |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-               |
+               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |    $setDataView
                |    output.setField(
                |      ${aggMapping(i)},
-               |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+               |      baseClass$i.getValue(acc$i));""".stripMargin
           }
       }.mkString("\n")
 
@@ -423,11 +468,19 @@ class CodeGenerator(
             |    org.apache.flink.types.Row input)""".stripMargin
 
       val accumulate: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
+          val setDataView = if (accConfig.isDefined && accConfig.get.isUseState) {
+            genDataViewFieldSetter(s"acc$i", accConfig.get.accSpecs(i))
+          } else {
+            ""
+          }
           j"""
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+             |    $setDataView
              |    ${aggs(i)}.accumulate(
-             |      ((${accTypes(i)}) accs.getField($i)),
+             |      acc$i,
              |      ${parameters(i)});""".stripMargin
+        }
       }.mkString("\n")
 
       j"""$sig {
@@ -444,11 +497,19 @@ class CodeGenerator(
             |    org.apache.flink.types.Row input)""".stripMargin
 
       val retract: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
+          val setDataView = if (accConfig.isDefined && accConfig.get.isUseState) {
+            genDataViewFieldSetter(s"acc$i", accConfig.get.accSpecs(i))
+          } else {
+            ""
+          }
           j"""
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+             |    $setDataView
              |    ${aggs(i)}.retract(
-             |      ((${accTypes(i)}) accs.getField($i)),
+             |      acc$i,
              |      ${parameters(i)});""".stripMargin
+        }
       }.mkString("\n")
 
       if (needRetract) {
@@ -475,12 +536,21 @@ class CodeGenerator(
            |          new org.apache.flink.types.Row(${aggs.length});"""
           .stripMargin
       val create: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
+          val setDataView = if (accConfig.isDefined && !accConfig.get.isUseState) {
+            // only accumulator use heap need to inject the accumulator after creating
+            genDataViewFieldSetter(s"acc$i", accConfig.get.accSpecs(i))
+          } else {
+            ""
+          }
           j"""
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
+             |    $setDataView
              |    accs.setField(
              |      $i,
-             |      ${aggs(i)}.createAccumulator());"""
+             |      acc$i);"""
             .stripMargin
+        }
       }.mkString("\n")
       val ret: String =
         j"""
@@ -551,7 +621,6 @@ class CodeGenerator(
     }
 
     def genMergeAccumulatorsPair: String = {
-
       val mapping = mergeMapping.getOrElse(aggs.indices.toArray)
 
       val sig: String =
@@ -576,6 +645,10 @@ class CodeGenerator(
            """.stripMargin
 
       if (needMerge) {
+        if (accConfig.isDefined && accConfig.get.isUseState) {
+          throw new CodeGenException("Not support merge when use state")
+        }
+
         j"""
            |$sig {
            |$merge
@@ -608,10 +681,17 @@ class CodeGenerator(
            |    org.apache.flink.types.Row accs)""".stripMargin
 
       val reset: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
+          val setDataView = if (accConfig.isDefined && accConfig.get.isUseState) {
+            genDataViewFieldSetter(s"acc$i", accConfig.get.accSpecs(i))
+          } else {
+            ""
+          }
           j"""
-             |    ${aggs(i)}.resetAccumulator(
-             |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+             |    $setDataView
+             |    ${aggs(i)}.resetAccumulator(acc$i);""".stripMargin
+        }
       }.mkString("\n")
 
       if (needReset) {

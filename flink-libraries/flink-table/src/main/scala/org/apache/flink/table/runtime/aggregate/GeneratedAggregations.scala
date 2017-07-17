@@ -19,12 +19,19 @@
 package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.functions.Function
+import org.apache.flink.table.dataview.{DataViewFactory, HeapViewFactory}
 import org.apache.flink.types.Row
 
 /**
   * Base class for code-generated aggregations.
   */
 abstract class GeneratedAggregations extends Function {
+
+  var factory: DataViewFactory = new HeapViewFactory(Map())
+
+  def getDataViewFactory: DataViewFactory = factory
+
+  def setDataViewFactory(factory: DataViewFactory): Unit = this.factory = factory
 
   /**
     * Sets the results of the aggregations (partial or final) to the output row.
