@@ -188,12 +188,8 @@ under the License.
 			<outputDirectory>examples/gelly</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
-				<include>*.jar</include>
+				<include>flink-gelly-examples_2.10-${project.version}.jar</include>
 			</includes>
-			<excludes>
-				<exclude>original-*.jar</exclude>
-				<exclude>*-tests.jar</exclude>
-			</excludes>
 		</fileSet>
 
 		<!-- copy python package -->
