@@ -19,12 +19,9 @@
 package org.apache.flink.runtime.blob;
 
 import com.google.common.io.Files;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.IOUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +30,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,24 +77,44 @@ public class FileSystemBlobStore implements BlobStoreService {
 
 	@Override
 	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
-		get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile);
+		get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile, blobKey);
 	}
 
-	private void get(String fromBlobPath, File toFile) throws IOException {
+	private void get(String fromBlobPath, File toFile, BlobKey blobKey) throws IOException {
 		checkNotNull(fromBlobPath, "Blob path");
 		checkNotNull(toFile, "File");
+		checkNotNull(blobKey, "Blob key");
 
 		if (!toFile.exists() && !toFile.createNewFile()) {
 			throw new IOException("Failed to create target file to copy to");
 		}
 
 		final Path fromPath = new Path(fromBlobPath);
+		MessageDigest md = BlobUtils.createMessageDigest();
+
+		final int buffSize = 4096; // like IOUtils#BLOCKSIZE, for chunked file copying
 
 		boolean success = false;
 		try (InputStream is = fileSystem.open(fromPath);
 			FileOutputStream fos = new FileOutputStream(toFile)) {
 			LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
-			IOUtils.copyBytes(is, fos); // closes the streams
+
+			// not using IOUtils.copyBytes(is, fos) here to be able to create a hash on-the-fly
+			final byte[] buf = new byte[buffSize];
+			int bytesRead = is.read(buf);
+			while (bytesRead >= 0) {
+				fos.write(buf, 0, bytesRead);
+				md.update(buf, 0, bytesRead);
+
+				bytesRead = is.read(buf);
+			}
+
+			// verify that file contents are correct
+			final BlobKey computedKey = new BlobKey(md.digest());
+			if (!computedKey.equals(blobKey)) {
+				throw new IOException("Detected data corruption during transfer");
+			}
+
 			success = true;
 		} finally {
 			// if the copy fails, we need to remove the target file because
