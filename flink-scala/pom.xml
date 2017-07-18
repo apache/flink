@@ -251,10 +251,10 @@ under the License.
 			<id>scala-2.10</id>
 			<activation>
 				<property>
-					<!-- only required for Scala 2.10 -->
-					<name>!scala-2.11</name>
+					<name>scala-2.10</name>
 				</property>
 			</activation>
+			<!-- only required for Scala 2.10 -->
 			<dependencies>
 				<dependency>
 					<groupId>org.scalamacros</groupId>
