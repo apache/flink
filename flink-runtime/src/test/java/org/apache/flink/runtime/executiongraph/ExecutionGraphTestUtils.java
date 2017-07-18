@@ -254,9 +254,7 @@ public class ExecutionGraphTestUtils {
 	 * restart strategy.
 	 */
 	public static ExecutionGraph createSimpleTestGraph(RestartStrategy restartStrategy) throws Exception {
-		JobVertex vertex = new JobVertex("vertex");
-		vertex.setInvokableClass(NoOpInvokable.class);
-		vertex.setParallelism(10);
+		JobVertex vertex = createNoOpVertex(10);
 
 		return createSimpleTestGraph(new JobID(), restartStrategy, vertex);
 	}
@@ -312,6 +310,13 @@ public class ExecutionGraphTestUtils {
 				new UnregisteredMetricsGroup(),
 				1,
 				TEST_LOGGER);
+	}
+	
+	public static JobVertex createNoOpVertex(int parallelism) {
+		JobVertex vertex = new JobVertex("vertex");
+		vertex.setInvokableClass(NoOpInvokable.class);
+		vertex.setParallelism(parallelism);
+		return vertex;
 	}
 
 	// ------------------------------------------------------------------------

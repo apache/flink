@@ -18,21 +18,24 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.dispatch.Futures;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.executiongraph.restart.FailureRateRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -41,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
@@ -56,11 +60,9 @@ import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -156,34 +158,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		ExecutionGraph eg = executionGraphInstanceTuple.f0;
 
 		restartAfterFailure(eg, new FiniteDuration(2, TimeUnit.MINUTES), true);
-	}
-
-	@Test
-	public void taskShouldFailWhenFailureRateLimitExceeded() throws Exception {
-		FailureRateRestartStrategy restartStrategy = new FailureRateRestartStrategy(2, Time.of(10, TimeUnit.SECONDS), Time.of(0, TimeUnit.SECONDS));
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
-		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createExecutionGraph(restartStrategy);
-		ExecutionGraph eg = executionGraphInstanceTuple.f0;
-
-		restartAfterFailure(eg, timeout, false);
-		restartAfterFailure(eg, timeout, false);
-		makeAFailureAndWait(eg, timeout);
-		//failure rate limit exceeded, so task should be failed
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
-
-	@Test
-	public void taskShouldNotFailWhenFailureRateLimitWasNotExceeded() throws Exception {
-		FailureRateRestartStrategy restartStrategy = new FailureRateRestartStrategy(1, Time.of(1, TimeUnit.MILLISECONDS), Time.of(0, TimeUnit.SECONDS));
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
-		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createExecutionGraph(restartStrategy);
-		ExecutionGraph eg = executionGraphInstanceTuple.f0;
-
-		//task restarted many times, but after all job is still running, because rate limit was not exceeded
-		restartAfterFailure(eg, timeout, false);
-		restartAfterFailure(eg, timeout, false);
-		restartAfterFailure(eg, timeout, false);
-		assertEquals(JobStatus.RUNNING, eg.getState());
 	}
 
 	@Test
@@ -618,23 +592,20 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 
 		@Override
-		public void restart(final ExecutionGraph executionGraph) {
-			Futures.future(new Callable<Object>() {
+		public void restart(final RestartCallback restarter, ScheduledExecutor executor) {
+			executor.execute(new Runnable() {
 				@Override
-				public Object call() throws Exception {
+				public void run() {
 					try {
-
 						Await.ready(doRestart.future(), timeout);
-						executionGraph.restart();
+						restarter.triggerFullRecovery();
 					} catch (Exception e) {
 						exception = e;
 					}
 
 					restartDone.success(true);
-
-					return null;
 				}
-			}, TestingUtils.defaultExecutionContext());
+			});
 		}
 	}
 
