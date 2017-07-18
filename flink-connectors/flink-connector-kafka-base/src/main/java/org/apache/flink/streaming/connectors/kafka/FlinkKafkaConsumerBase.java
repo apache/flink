@@ -504,7 +504,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
+	public final void initializeState(FunctionInitializationContext context) throws Exception {
 
 		// we might have been restored via restoreState() which restores from legacy operator state
 		if (!restored) {
@@ -532,7 +532,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	}
 
 	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+	public final void snapshotState(FunctionSnapshotContext context) throws Exception {
 		if (!running) {
 			LOG.debug("snapshotState() called on closed source");
 		} else {
@@ -577,7 +577,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	}
 
 	@Override
-	public void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
+	public final void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
 		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
 			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
 
