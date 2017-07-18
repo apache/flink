@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.sampling;
 
 import org.apache.flink.annotation.Internal;
@@ -35,14 +36,14 @@ import java.util.Random;
  * select top K elements as the output of each partitions. In the second phase, we select top K
  * elements from all the outputs of the first phase.
  *
- * This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
+ * <p>This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
  * "Optimal Random Sampling from Distributed Streams Revisited"</a>.
  *
  * @param <T> The type of the sampler.
  */
 @Internal
 public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSampler<T> {
-	
+
 	private final Random random;
 
 	/**
@@ -56,7 +57,7 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 		Preconditions.checkArgument(numSamples >= 0, "numSamples should be non-negative.");
 		this.random = random;
 	}
-	
+
 	/**
 	 * Create a new sampler with reservoir size and a default random number generator.
 	 *
@@ -65,7 +66,7 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 	public ReservoirSamplerWithoutReplacement(int numSamples) {
 		this(numSamples, new XORShiftRandom());
 	}
-	
+
 	/**
 	 * Create a new sampler with reservoir size and the seed for random number generator.
 	 *
@@ -73,14 +74,14 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 	 * @param seed       Random number generator seed.
 	 */
 	public ReservoirSamplerWithoutReplacement(int numSamples, long seed) {
-		
+
 		this(numSamples, new XORShiftRandom(seed));
 	}
-	
+
 	@Override
 	public Iterator<IntermediateSampleData<T>> sampleInPartition(Iterator<T> input) {
 		if (numSamples == 0) {
-			return EMPTY_INTERMEDIATE_ITERABLE;
+			return emptyIntermediateIterable;
 		}
 
 		// This queue holds fixed number elements with the top K weight for current partition.
