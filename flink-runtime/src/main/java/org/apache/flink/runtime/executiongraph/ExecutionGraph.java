@@ -966,7 +966,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				if (transitionState(current, JobStatus.CANCELLING)) {
 
 					// make sure no concurrent local actions interfere with the cancellation
-					incrementGlobalModVersion();
+					final long globalVersionForRestart = incrementGlobalModVersion();
 
 					final ArrayList<Future<?>> futures = new ArrayList<>(verticesInCreationOrder.size());
 
@@ -980,7 +980,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					allTerminal.thenAccept(new AcceptFunction<Void>() {
 						@Override
 						public void accept(Void value) {
-							allVerticesInTerminalState();
+							// cancellations may currently be overridden by failures which trigger
+							// restarts, so we need to pass a proper restart global version here
+							allVerticesInTerminalState(globalVersionForRestart);
 						}
 					});
 
@@ -1085,17 +1087,20 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				return;
 			}
 			else if (current == JobStatus.RESTARTING) {
+				// we handle 'failGlobal()' while in 'RESTARTING' as a safety net in case something
+				// has gone wrong in 'RESTARTING' and we need to re-attempt the restarts
 				this.failureCause = t;
 
-				if (tryRestartOrFail()) {
+				final long globalVersionForRestart = incrementGlobalModVersion();
+				if (tryRestartOrFail(globalVersionForRestart)) {
 					return;
 				}
 			}
 			else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
-				// make sure no concurrent local actions interfere with the cancellation
-				incrementGlobalModVersion();
+				// make sure no concurrent local or global actions interfere with the failover
+				final long globalVersionForRestart = incrementGlobalModVersion();
 
 				// we build a future that is complete once all vertices have reached a terminal state
 				final ArrayList<Future<?>> futures = new ArrayList<>(verticesInCreationOrder.size());
@@ -1109,7 +1114,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				allTerminal.thenAccept(new AcceptFunction<Void>() {
 					@Override
 					public void accept(Void value) {
-						allVerticesInTerminalState();
+						allVerticesInTerminalState(globalVersionForRestart);
 					}
 				});
 
@@ -1120,10 +1125,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	public void restart() {
+	public void restart(long expectedGlobalVersion) {
 		try {
 			synchronized (progressLock) {
-				JobStatus current = state;
+				// check and increment the global version to move this recovery up
+				if (globalModVersion != expectedGlobalVersion) {
+					LOG.info("Concurrent full restart subsumed this restart.");
+					return;
+				}
+
+				final JobStatus current = state;
 
 				if (current == JobStatus.CANCELED) {
 					LOG.info("Canceled job during restart. Aborting restart.");
@@ -1329,7 +1340,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * This method is a callback during cancellation/failover and called when all tasks
 	 * have reached a terminal state (cancelled/failed/finished).
 	 */
-	private void allVerticesInTerminalState() {
+	private void allVerticesInTerminalState(long expectedGlobalVersionForRestart) {
 		// we are done, transition to the final state
 		JobStatus current;
 		while (true) {
@@ -1345,7 +1356,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				}
 			}
 			else if (current == JobStatus.FAILING) {
-				if (tryRestartOrFail()) {
+				if (tryRestartOrFail(expectedGlobalVersionForRestart)) {
 					break;
 				}
 				// concurrent job status change, let's check again
@@ -1374,7 +1385,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * @return true if the operation could be executed; false if a concurrent job status change occurred
 	 */
-	private boolean tryRestartOrFail() {
+	private boolean tryRestartOrFail(long globalModVersionForRestart) {
 		JobStatus currentState = state;
 
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
@@ -1392,7 +1403,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 
-					RestartCallback restarter = new ExecutionGraphRestartCallback(this);
+					RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
 					restartStrategy.restart(restarter, new ScheduledExecutorServiceAdapter(futureExecutor));
 
 					return true;

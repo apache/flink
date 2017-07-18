@@ -37,7 +37,7 @@ public interface RestartStrategy {
 	 * Called by the ExecutionGraph to eventually trigger a full recovery.
 	 * The recovery must be triggered on the given callback object, and may be delayed
 	 * with the help of the given scheduled executor.
-	 * 
+	 *
 	 * <p>The thread that calls this method is not supposed to block/sleep.
 	 *
 	 * @param restarter The hook to restart the ExecutionGraph
