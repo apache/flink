@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,9 +36,6 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that the partition assignment in the partition discoverer is
@@ -82,8 +79,8 @@ public class AbstractPartitionDiscovererTest {
 					topicsDescriptor,
 					subtaskIndex,
 					mockGetAllPartitionsForTopicsReturn.size(),
-					createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
-					createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
+					TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
+					TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
 			partitionDiscoverer.open();
 
 			List<KafkaTopicPartition> initialDiscovery = partitionDiscoverer.discoverPartitions();
@@ -127,8 +124,8 @@ public class AbstractPartitionDiscovererTest {
 						topicsDescriptor,
 						subtaskIndex,
 						numConsumers,
-						createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
-						createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
+						TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
+						TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
 				partitionDiscoverer.open();
 
 				List<KafkaTopicPartition> initialDiscovery = partitionDiscoverer.discoverPartitions();
@@ -179,8 +176,8 @@ public class AbstractPartitionDiscovererTest {
 						topicsDescriptor,
 						subtaskIndex,
 						numConsumers,
-						createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
-						createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
+						TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
+						TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
 				partitionDiscoverer.open();
 
 				List<KafkaTopicPartition> initialDiscovery = partitionDiscoverer.discoverPartitions();
@@ -240,7 +237,7 @@ public class AbstractPartitionDiscovererTest {
 					topicsDescriptor,
 					0,
 					numConsumers,
-					createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
+					TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
 					deepClone(mockGetAllPartitionsForTopicsReturnSequence));
 			partitionDiscovererSubtask0.open();
 
@@ -248,7 +245,7 @@ public class AbstractPartitionDiscovererTest {
 					topicsDescriptor,
 					1,
 					numConsumers,
-					createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
+					TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
 					deepClone(mockGetAllPartitionsForTopicsReturnSequence));
 			partitionDiscovererSubtask1.open();
 
@@ -256,7 +253,7 @@ public class AbstractPartitionDiscovererTest {
 					topicsDescriptor,
 					2,
 					numConsumers,
-					createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
+					TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(TEST_TOPIC)),
 					deepClone(mockGetAllPartitionsForTopicsReturnSequence));
 			partitionDiscovererSubtask2.open();
 
@@ -375,16 +372,16 @@ public class AbstractPartitionDiscovererTest {
 					topicsDescriptor,
 					subtaskIndex,
 					numSubtasks,
-					createMockGetAllTopicsSequenceFromFixedReturn(Arrays.asList("test-topic", "test-topic2")),
-					createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
+					TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Arrays.asList("test-topic", "test-topic2")),
+					TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
 			partitionDiscoverer.open();
 
 			TestPartitionDiscoverer partitionDiscovererOutOfOrder = new TestPartitionDiscoverer(
 					topicsDescriptor,
 					subtaskIndex,
 					numSubtasks,
-					createMockGetAllTopicsSequenceFromFixedReturn(Arrays.asList("test-topic", "test-topic2")),
-					createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturnOutOfOrder));
+					TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Arrays.asList("test-topic", "test-topic2")),
+					TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturnOutOfOrder));
 			partitionDiscovererOutOfOrder.open();
 
 			List<KafkaTopicPartition> discoveredPartitions = partitionDiscoverer.discoverPartitions();
@@ -395,88 +392,6 @@ public class AbstractPartitionDiscovererTest {
 			Collections.sort(discoveredPartitionsOutOfOrder, new KafkaTopicPartition.Comparator());
 			assertEquals(discoveredPartitions, discoveredPartitionsOutOfOrder);
 		}
-	}
-
-	private static class TestPartitionDiscoverer extends AbstractPartitionDiscoverer {
-
-		private final KafkaTopicsDescriptor topicsDescriptor;
-
-		private final List<List<String>> mockGetAllTopicsReturnSequence;
-		private final List<List<KafkaTopicPartition>> mockGetAllPartitionsForTopicsReturnSequence;
-
-		private int getAllTopicsInvokeCount = 0;
-		private int getAllPartitionsForTopicsInvokeCount = 0;
-
-		public TestPartitionDiscoverer(
-				KafkaTopicsDescriptor topicsDescriptor,
-				int indexOfThisSubtask,
-				int numParallelSubtasks,
-				List<List<String>> mockGetAllTopicsReturnSequence,
-				List<List<KafkaTopicPartition>> mockGetAllPartitionsForTopicsReturnSequence) {
-
-			super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
-
-			this.topicsDescriptor = topicsDescriptor;
-			this.mockGetAllTopicsReturnSequence = mockGetAllTopicsReturnSequence;
-			this.mockGetAllPartitionsForTopicsReturnSequence = mockGetAllPartitionsForTopicsReturnSequence;
-		}
-
-		@Override
-		protected List<String> getAllTopics() {
-			assertTrue(topicsDescriptor.isTopicPattern());
-			return mockGetAllTopicsReturnSequence.get(getAllTopicsInvokeCount++);
-		}
-
-		@Override
-		protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) {
-			if (topicsDescriptor.isFixedTopics()) {
-				assertEquals(topicsDescriptor.getFixedTopics(), topics);
-			} else {
-				assertEquals(mockGetAllTopicsReturnSequence.get(getAllPartitionsForTopicsInvokeCount - 1), topics);
-			}
-			return mockGetAllPartitionsForTopicsReturnSequence.get(getAllPartitionsForTopicsInvokeCount++);
-		}
-
-		@Override
-		protected void initializeConnections() {
-			// nothing to do
-		}
-
-		@Override
-		protected void wakeupConnections() {
-			// nothing to do
-		}
-
-		@Override
-		protected void closeConnections() {
-			// nothing to do
-		}
-	}
-
-	private static List<List<String>> createMockGetAllTopicsSequenceFromFixedReturn(final List<String> fixed) {
-		@SuppressWarnings("unchecked")
-		List<List<String>> mockSequence = mock(List.class);
-		when(mockSequence.get(anyInt())).thenAnswer(new Answer<List<String>>() {
-			@Override
-			public List<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return new ArrayList<>(fixed);
-			}
-		});
-
-		return mockSequence;
-	}
-
-	private static List<List<KafkaTopicPartition>> createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(final List<KafkaTopicPartition> fixed) {
-		@SuppressWarnings("unchecked")
-		List<List<KafkaTopicPartition>> mockSequence = mock(List.class);
-		when(mockSequence.get(anyInt())).thenAnswer(new Answer<List<KafkaTopicPartition>>() {
-			@Override
-			public List<KafkaTopicPartition> answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return new ArrayList<>(fixed);
-			}
-		});
-
-		return mockSequence;
 	}
 
 	private boolean contains(List<KafkaTopicPartition> partitions, int partition) {

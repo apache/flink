@@ -25,15 +25,22 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
+import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
@@ -47,14 +54,21 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.collection.IsIn.isIn;
+import static org.hamcrest.collection.IsMapContaining.hasKey;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyMap;
@@ -181,6 +195,10 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void checkRestoredNullCheckpointWhenFetcherNotReady() throws Exception {
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
+		StreamingRuntimeContext runtimeContext = mock(StreamingRuntimeContext.class);
+		when(runtimeContext.getIndexOfThisSubtask()).thenReturn(0);
+		when(runtimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
+		consumer.setRuntimeContext(runtimeContext);
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Serializable> listState = new TestingListState<>();
@@ -299,6 +317,8 @@ public class FlinkKafkaConsumerBaseTest {
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, pendingOffsetsToCommit, true);
 		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
 		when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing
+		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
+		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
 		consumer.setRuntimeContext(mockRuntimeContext);
 
 		assertEquals(0, pendingOffsetsToCommit.size());
@@ -426,6 +446,8 @@ public class FlinkKafkaConsumerBaseTest {
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, pendingOffsetsToCommit, true);
 		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
 		when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing
+		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
+		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
 		consumer.setRuntimeContext(mockRuntimeContext);
 
 		consumer.setCommitOffsetsOnCheckpoints(false); // disable offset committing
@@ -523,6 +545,120 @@ public class FlinkKafkaConsumerBaseTest {
 		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
 	}
 
+	@Test
+	public void testScaleUp() throws Exception {
+		testRescaling(5, 2, 15, 1000);
+	}
+
+	@Test
+	public void testScaleDown() throws Exception {
+		testRescaling(5, 10, 2, 100);
+	}
+
+	/**
+	 * Tests whether the Kafka consumer behaves correctly when scaling the parallelism up/down,
+	 * which means that operator state is being reshuffled.
+	 *
+	 * <p>This also verifies that a restoring source is always impervious to changes in the list
+	 * of topics fetched from Kafka.
+	 */
+	@SuppressWarnings("unchecked")
+	void testRescaling(
+		final int initialParallelism,
+		final int numPartitions,
+		final int restoredParallelism,
+		final int restoredNumPartitions) throws Exception {
+
+		Preconditions.checkArgument(
+			restoredNumPartitions >= numPartitions,
+			"invalid test case for Kafka repartitioning; Kafka only allows increasing partitions.");
+
+		List<KafkaTopicPartition> mockFetchedPartitionsOnStartup = new ArrayList<>();
+		for (int i = 0; i < numPartitions; i++) {
+			mockFetchedPartitionsOnStartup.add(new KafkaTopicPartition("test-topic", i));
+		}
+
+		DummyFlinkKafkaConsumer<String>[] consumers =
+			new DummyFlinkKafkaConsumer[initialParallelism];
+
+		AbstractStreamOperatorTestHarness<String>[] testHarnesses =
+			new AbstractStreamOperatorTestHarness[initialParallelism];
+
+		for (int i = 0; i < initialParallelism; i++) {
+			consumers[i] = new DummyFlinkKafkaConsumer<>(
+				Collections.singletonList("test-topic"), mockFetchedPartitionsOnStartup);
+			testHarnesses[i] = createTestHarness(consumers[i], initialParallelism, i);
+
+			// initializeState() is always called, null signals that we didn't restore
+			testHarnesses[i].initializeState(null);
+			testHarnesses[i].open();
+		}
+
+		Map<KafkaTopicPartition, Long> globalSubscribedPartitions = new HashMap<>();
+
+		for (int i = 0; i < initialParallelism; i++) {
+			Map<KafkaTopicPartition, Long> subscribedPartitions =
+				consumers[i].getSubscribedPartitionsToStartOffsets();
+
+			// make sure that no one else is subscribed to these partitions
+			for (KafkaTopicPartition partition : subscribedPartitions.keySet()) {
+				assertThat(globalSubscribedPartitions, not(hasKey(partition)));
+			}
+			globalSubscribedPartitions.putAll(subscribedPartitions);
+		}
+
+		assertThat(globalSubscribedPartitions.values(), hasSize(numPartitions));
+		assertThat(mockFetchedPartitionsOnStartup, everyItem(isIn(globalSubscribedPartitions.keySet())));
+
+		OperatorStateHandles[] state = new OperatorStateHandles[initialParallelism];
+
+		for (int i = 0; i < initialParallelism; i++) {
+			state[i] = testHarnesses[i].snapshot(0, 0);
+		}
+
+		OperatorStateHandles mergedState = AbstractStreamOperatorTestHarness.repackageState(state);
+
+		// -----------------------------------------------------------------------------------------
+		// restore
+
+		List<KafkaTopicPartition> mockFetchedPartitionsAfterRestore = new ArrayList<>();
+		for (int i = 0; i < restoredNumPartitions; i++) {
+			mockFetchedPartitionsAfterRestore.add(new KafkaTopicPartition("test-topic", i));
+		}
+
+		DummyFlinkKafkaConsumer<String>[] restoredConsumers =
+			new DummyFlinkKafkaConsumer[restoredParallelism];
+
+		AbstractStreamOperatorTestHarness<String>[] restoredTestHarnesses =
+			new AbstractStreamOperatorTestHarness[restoredParallelism];
+
+		for (int i = 0; i < restoredParallelism; i++) {
+			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(
+				Collections.singletonList("test-topic"), mockFetchedPartitionsAfterRestore);
+			restoredTestHarnesses[i] = createTestHarness(restoredConsumers[i], restoredParallelism, i);
+
+			// initializeState() is always called, null signals that we didn't restore
+			restoredTestHarnesses[i].initializeState(mergedState);
+			restoredTestHarnesses[i].open();
+		}
+
+		Map<KafkaTopicPartition, Long> restoredGlobalSubscribedPartitions = new HashMap<>();
+
+		for (int i = 0; i < restoredParallelism; i++) {
+			Map<KafkaTopicPartition, Long> subscribedPartitions =
+				restoredConsumers[i].getSubscribedPartitionsToStartOffsets();
+
+			// make sure that no one else is subscribed to these partitions
+			for (KafkaTopicPartition partition : subscribedPartitions.keySet()) {
+				assertThat(restoredGlobalSubscribedPartitions, not(hasKey(partition)));
+			}
+			restoredGlobalSubscribedPartitions.putAll(subscribedPartitions);
+		}
+
+		assertThat(restoredGlobalSubscribedPartitions.values(), hasSize(restoredNumPartitions));
+		assertThat(mockFetchedPartitionsOnStartup, everyItem(isIn(restoredGlobalSubscribedPartitions.keySet())));
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static <T> FlinkKafkaConsumerBase<T> getConsumer(
@@ -547,6 +683,19 @@ public class FlinkKafkaConsumerBaseTest {
 		return consumer;
 	}
 
+	private static <T> AbstractStreamOperatorTestHarness<T> createTestHarness(
+		SourceFunction<T> source, int numSubtasks, int subtaskIndex) throws Exception {
+
+		AbstractStreamOperatorTestHarness<T> testHarness =
+			new AbstractStreamOperatorTestHarness<>(
+				new StreamSource<>(source), Short.MAX_VALUE / 2, numSubtasks, subtaskIndex);
+
+		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		return testHarness;
+	}
+
+
 	// ------------------------------------------------------------------------
 
 	private static class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
@@ -554,9 +703,20 @@ public class FlinkKafkaConsumerBaseTest {
 
 		boolean isAutoCommitEnabled = false;
 
-		@SuppressWarnings("unchecked")
+		private List<String> fixedMockGetAllTopicsReturnSequence;
+		private List<KafkaTopicPartition> fixedMockGetAllPartitionsForTopicsReturnSequence;
+
 		public DummyFlinkKafkaConsumer() {
+			this(Collections.singletonList("dummy-topic"), Collections.singletonList(new KafkaTopicPartition("dummy-topic", 0)));
+		}
+
+		@SuppressWarnings("unchecked")
+		public DummyFlinkKafkaConsumer(
+				List<String> fixedMockGetAllTopicsReturnSequence,
+				List<KafkaTopicPartition> fixedMockGetAllPartitionsForTopicsReturnSequence) {
 			super(Arrays.asList("dummy-topic"), null, (KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class), 0);
+			this.fixedMockGetAllTopicsReturnSequence = Preconditions.checkNotNull(fixedMockGetAllTopicsReturnSequence);
+			this.fixedMockGetAllPartitionsForTopicsReturnSequence = Preconditions.checkNotNull(fixedMockGetAllPartitionsForTopicsReturnSequence);
 		}
 
 		@Override
@@ -576,7 +736,12 @@ public class FlinkKafkaConsumerBaseTest {
 				KafkaTopicsDescriptor topicsDescriptor,
 				int indexOfThisSubtask,
 				int numParallelSubtasks) {
-			return mock(AbstractPartitionDiscoverer.class);
+			return new TestPartitionDiscoverer(
+				topicsDescriptor,
+				indexOfThisSubtask,
+				numParallelSubtasks,
+				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(fixedMockGetAllTopicsReturnSequence),
+				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(fixedMockGetAllPartitionsForTopicsReturnSequence));
 		}
 
 		@Override
