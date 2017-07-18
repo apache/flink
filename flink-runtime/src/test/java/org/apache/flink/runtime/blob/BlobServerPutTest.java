@@ -697,9 +697,9 @@ public class BlobServerPutTest extends TestLogger {
 	 *
 	 * @return blob key for the uploaded data
 	 */
-	static BlobKey put(BlobService service, @Nullable JobID jobId, InputStream data, boolean highAvailabibility)
+	static BlobKey put(BlobService service, @Nullable JobID jobId, InputStream data, boolean highAvailability)
 			throws IOException {
-		if (highAvailabibility) {
+		if (highAvailability) {
 			if (service instanceof BlobServer) {
 				return ((BlobServer) service).putHA(jobId, data);
 			} else {
@@ -717,9 +717,9 @@ public class BlobServerPutTest extends TestLogger {
 	 *
 	 * @return blob key for the uploaded data
 	 */
-	static BlobKey put(BlobService service, @Nullable JobID jobId, byte[] data, boolean highAvailabibility)
+	static BlobKey put(BlobService service, @Nullable JobID jobId, byte[] data, boolean highAvailability)
 			throws IOException {
-		if (highAvailabibility) {
+		if (highAvailability) {
 			if (service instanceof BlobServer) {
 				return ((BlobServer) service).putHA(jobId, data);
 			} else {

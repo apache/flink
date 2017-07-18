@@ -103,7 +103,7 @@ public class BlobCacheSuccessTest {
 
 	private void uploadFileGetTest(
 			final Configuration config, @Nullable JobID jobId, boolean cacheWorksWithoutServer,
-			boolean cacheHasAccessToFs, boolean highAvailabibility) throws IOException {
+			boolean cacheHasAccessToFs, boolean highAvailability) throws IOException {
 
 		final Configuration cacheConfig = new Configuration(config);
 		cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
@@ -133,23 +133,23 @@ public class BlobCacheSuccessTest {
 				server.start();
 
 				// Upload BLOBs
-				BlobKey key1 = put(server, jobId, data, highAvailabibility);
-				BlobKey key2 = put(server, jobId, data2, highAvailabibility);
+				BlobKey key1 = put(server, jobId, data, highAvailability);
+				BlobKey key2 = put(server, jobId, data2, highAvailability);
 
 				if (cacheWorksWithoutServer) {
 					// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
 					server.close();
 				}
 
-				verifyContents(cache, jobId, key1, data, highAvailabibility);
-				verifyContents(cache, jobId, key2, data2, highAvailabibility);
+				verifyContents(cache, jobId, key1, data, highAvailability);
+				verifyContents(cache, jobId, key2, data2, highAvailability);
 
 				if (!cacheWorksWithoutServer) {
 					// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
 					server.close();
 
-					verifyContents(cache, jobId, key1, data, highAvailabibility);
-					verifyContents(cache, jobId, key2, data2, highAvailabibility);
+					verifyContents(cache, jobId, key1, data, highAvailability);
+					verifyContents(cache, jobId, key2, data2, highAvailability);
 				}
 			}
 		} finally {

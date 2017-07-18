@@ -103,7 +103,7 @@ public class BlobCacheRetriesTest {
 	 */
 	private static void testBlobFetchRetries(
 			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
-			boolean highAvailabibility) throws IOException {
+			boolean highAvailability) throws IOException {
 
 		final byte[] data = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
 
@@ -115,10 +115,10 @@ public class BlobCacheRetriesTest {
 			server.start();
 
 			// upload some blob
-			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailabibility);
+			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailability);
 
 			// trigger a download - it should fail the first two times, but retry, and succeed eventually
-			verifyContents(cache, jobId, key, data, highAvailabibility);
+			verifyContents(cache, jobId, key, data, highAvailability);
 		}
 	}
 
@@ -184,7 +184,7 @@ public class BlobCacheRetriesTest {
 	 */
 	private static void testBlobFetchWithTooManyFailures(
 			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
-			boolean highAvailabibility) throws IOException {
+			boolean highAvailability) throws IOException {
 
 		final byte[] data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
 
@@ -196,11 +196,11 @@ public class BlobCacheRetriesTest {
 			server.start();
 
 			// upload some blob
-			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailabibility);
+			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailability);
 
 			// trigger a download - it should fail eventually
 			try {
-				verifyContents(cache, jobId, key, data, highAvailabibility);
+				verifyContents(cache, jobId, key, data, highAvailability);
 				fail("This should fail");
 			}
 			catch (IOException e) {

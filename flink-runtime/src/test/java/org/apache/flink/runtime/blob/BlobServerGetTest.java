@@ -110,7 +110,7 @@ public class BlobServerGetTest extends TestLogger {
 	 * @param jobId2 second job ID different to <tt>jobId1</tt>
 	 */
 	private void testGetFailsDuringLookup(
-			@Nullable final JobID jobId1, @Nullable final JobID jobId2, boolean highAvailabibility)
+			@Nullable final JobID jobId1, @Nullable final JobID jobId2, boolean highAvailability)
 			throws IOException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -123,7 +123,7 @@ public class BlobServerGetTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId1, data, highAvailabibility);
+			BlobKey key = put(server, jobId1, data, highAvailability);
 			assertNotNull(key);
 
 			// delete file to make sure that GET requests fail
@@ -131,22 +131,22 @@ public class BlobServerGetTest extends TestLogger {
 			assertTrue(blobFile.delete());
 
 			// issue a GET request that fails
-			verifyDeleted(server, jobId1, key, highAvailabibility);
+			verifyDeleted(server, jobId1, key, highAvailability);
 
 			// add the same data under a second jobId
-			BlobKey key2 = put(server, jobId2, data, highAvailabibility);
+			BlobKey key2 = put(server, jobId2, data, highAvailability);
 			assertNotNull(key);
 			assertEquals(key, key2);
 
 			// request for jobId2 should succeed
-			get(server, jobId2, key, highAvailabibility);
+			get(server, jobId2, key, highAvailability);
 			// request for jobId1 should still fail
-			verifyDeleted(server, jobId1, key, highAvailabibility);
+			verifyDeleted(server, jobId1, key, highAvailability);
 
 			// same checks as for jobId1 but for jobId2 should also work:
 			blobFile = server.getStorageLocation(jobId2, key);
 			assertTrue(blobFile.delete());
-			verifyDeleted(server, jobId2, key, highAvailabibility);
+			verifyDeleted(server, jobId2, key, highAvailability);
 		}
 	}
 

@@ -104,7 +104,7 @@ public class BlobCacheGetTest extends TestLogger {
 	 * @param jobId1 first job ID or <tt>null</tt> if job-unrelated
 	 * @param jobId2 second job ID different to <tt>jobId1</tt>
 	 */
-	private void testGetFailsDuringLookup(final JobID jobId1, final JobID jobId2, boolean highAvailabibility)
+	private void testGetFailsDuringLookup(final JobID jobId1, final JobID jobId2, boolean highAvailability)
 		throws IOException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -120,7 +120,7 @@ public class BlobCacheGetTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId1, data, highAvailabibility);
+			BlobKey key = put(server, jobId1, data, highAvailability);
 			assertNotNull(key);
 
 			// delete file to make sure that GET requests fail
@@ -128,29 +128,29 @@ public class BlobCacheGetTest extends TestLogger {
 			assertTrue(blobFile.delete());
 
 			// issue a GET request that fails
-			verifyDeleted(cache, jobId1, key, highAvailabibility);
+			verifyDeleted(cache, jobId1, key, highAvailability);
 
 			// add the same data under a second jobId
-			BlobKey key2 = put(server, jobId2, data, highAvailabibility);
+			BlobKey key2 = put(server, jobId2, data, highAvailability);
 			assertNotNull(key);
 			assertEquals(key, key2);
 
 			// request for jobId2 should succeed
-			get(cache, jobId2, key, highAvailabibility);
+			get(cache, jobId2, key, highAvailability);
 			// request for jobId1 should still fail
-			verifyDeleted(cache, jobId1, key, highAvailabibility);
+			verifyDeleted(cache, jobId1, key, highAvailability);
 
 			// delete on cache, try to retrieve again
-			if (highAvailabibility) {
+			if (highAvailability) {
 				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key);
 			} else {
 				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key);
 			}
 			assertTrue(blobFile.delete());
-			get(cache, jobId2, key, highAvailabibility);
+			get(cache, jobId2, key, highAvailability);
 
 			// delete on cache and server, verify that it is not accessible anymore
-			if (highAvailabibility) {
+			if (highAvailability) {
 				blobFile = cache.getPermanentBlobStore().getStorageLocation(jobId2, key);
 			} else {
 				blobFile = cache.getTransientBlobStore().getStorageLocation(jobId2, key);
@@ -158,7 +158,7 @@ public class BlobCacheGetTest extends TestLogger {
 			assertTrue(blobFile.delete());
 			blobFile = server.getStorageLocation(jobId2, key);
 			assertTrue(blobFile.delete());
-			verifyDeleted(cache, jobId2, key, highAvailabibility);
+			verifyDeleted(cache, jobId2, key, highAvailability);
 		}
 	}
 
