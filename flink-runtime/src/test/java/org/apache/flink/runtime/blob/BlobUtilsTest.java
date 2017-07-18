@@ -30,7 +30,6 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
-import static org.mockito.Mockito.mock;
 
 public class BlobUtilsTest {
 

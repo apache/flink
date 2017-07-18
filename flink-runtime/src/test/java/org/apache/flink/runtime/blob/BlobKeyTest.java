@@ -18,18 +18,15 @@
 
 package org.apache.flink.runtime.blob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.StringUtils;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This class contains unit tests for the {@link BlobKey} class.
