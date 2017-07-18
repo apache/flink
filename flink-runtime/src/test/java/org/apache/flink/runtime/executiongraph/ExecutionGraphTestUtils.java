@@ -170,8 +170,8 @@ public class ExecutionGraphTestUtils {
 	}
 
 	/**
-	 * Takes all vertices in the given ExecutionGraph and switches their current
-	 * execution to RUNNING.
+	 * Takes all vertices in the given ExecutionGraph and attempts to move them
+	 * from CANCELING to CANCELED.
 	 */
 	public static void completeCancellingForAllVertices(ExecutionGraph eg) {
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
@@ -181,11 +181,40 @@ public class ExecutionGraphTestUtils {
 
 	/**
 	 * Takes all vertices in the given ExecutionGraph and switches their current
-	 * execution to RUNNING.
+	 * execution to FINISHED.
 	 */
 	public static void finishAllVertices(ExecutionGraph eg) {
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
 			vertex.getCurrentExecutionAttempt().markFinished();
+		}
+	}
+
+	/**
+	 * Turns a newly scheduled execution graph into a state where all vertices run.
+	 * This waits until all executions have reached state 'DEPLOYING' and then switches them to running.
+	 */
+	public static void waitUntilDeployedAndSwitchToRunning(ExecutionGraph eg, long timeout) throws TimeoutException {
+		// wait until everything is running
+		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
+			final Execution exec = ev.getCurrentExecutionAttempt();
+			waitUntilExecutionState(exec, ExecutionState.DEPLOYING, timeout);
+		}
+
+		// Note: As ugly as it is, we need this minor sleep, because between switching
+		// to 'DEPLOYED' and when the 'switchToRunning()' may be called lies a race check
+		// against concurrent modifications (cancel / fail). We can only switch this to running
+		// once that check is passed. For the actual runtime, this switch is triggered by a callback
+		// from the TaskManager, which comes strictly after that. For tests, we use mock TaskManagers
+		// which cannot easily tell us when that condition has happened, unfortunately.
+		try {
+			Thread.sleep(2);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+
+		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
+			final Execution exec = ev.getCurrentExecutionAttempt();
+			exec.switchToRunning();
 		}
 	}
 
