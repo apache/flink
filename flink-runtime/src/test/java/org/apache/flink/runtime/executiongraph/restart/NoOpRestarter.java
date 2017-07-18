@@ -18,28 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+/**
+ * A testing RestartCallback that does nothing. 
+ */
+class NoOpRestarter implements RestartCallback {
 
-import java.util.concurrent.Callable;
-
-class ExecutionGraphRestarter {
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphRestarter.class);
-	public static Callable<Object> restartWithDelay(final ExecutionGraph executionGraph, final long delayBetweenRestartAttemptsInMillis) {
-		return new Callable<Object>() {
-			@Override
-			public Object call() throws Exception {
-				try {
-					LOG.info("Delaying retry of job execution for {} ms ...", delayBetweenRestartAttemptsInMillis);
-					// do the delay
-					Thread.sleep(delayBetweenRestartAttemptsInMillis);
-				} catch(InterruptedException e) {
-					// should only happen on shutdown
-				}
-				executionGraph.restart();
-				return null;
-			}
-		};
-	}
+	@Override
+	public void triggerFullRecovery() {}
 }
