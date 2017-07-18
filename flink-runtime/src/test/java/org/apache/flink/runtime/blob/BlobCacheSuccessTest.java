@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.junit.Rule;
@@ -27,15 +28,12 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * This class contains unit tests for the {@link BlobCache}.
@@ -52,6 +50,9 @@ public class BlobCacheSuccessTest {
 	@Test
 	public void testBlobCache() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+
 		uploadFileGetTest(config, false, false);
 	}
 
@@ -63,9 +64,11 @@ public class BlobCacheSuccessTest {
 	@Test
 	public void testBlobCacheHa() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-			temporaryFolder.getRoot().getPath());
+			temporaryFolder.newFolder().getPath());
 		uploadFileGetTest(config, true, true);
 	}
 
@@ -76,9 +79,11 @@ public class BlobCacheSuccessTest {
 	@Test
 	public void testBlobCacheHaFallback() throws IOException {
 		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-			temporaryFolder.getRoot().getPath());
+			temporaryFolder.newFolder().getPath());
 		uploadFileGetTest(config, false, false);
 	}
 
@@ -92,15 +97,15 @@ public class BlobCacheSuccessTest {
 		BlobCache blobCache = null;
 		BlobStoreService blobStoreService = null;
 		try {
-			final Configuration cacheConfig;
-			if (cacheHasAccessToFs) {
-				cacheConfig = config;
-			} else {
-				// just in case parameters are still read from the server,
-				// create a separate configuration object for the cache
-				cacheConfig = new Configuration(config);
+			final Configuration cacheConfig = new Configuration(config);
+			cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+			if (!cacheHasAccessToFs) {
+				// make sure the cache cannot access the HA store directly
+				cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,
+					temporaryFolder.newFolder().getAbsolutePath());
 				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-					temporaryFolder.getRoot().getPath() + "/does-not-exist");
+					temporaryFolder.newFolder().getPath() + "/does-not-exist");
 			}
 
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
@@ -133,7 +138,7 @@ public class BlobCacheSuccessTest {
 			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
 
 			for (BlobKey blobKey : blobKeys) {
-				blobCache.getURL(blobKey);
+				blobCache.getFile(blobKey);
 			}
 
 			if (blobServer != null) {
@@ -142,28 +147,20 @@ public class BlobCacheSuccessTest {
 				blobServer = null;
 			}
 
-			final URL[] urls = new URL[blobKeys.size()];
+			final File[] files = new File[blobKeys.size()];
 
 			for(int i = 0; i < blobKeys.size(); i++){
-				urls[i] = blobCache.getURL(blobKeys.get(i));
+				files[i] = blobCache.getFile(blobKeys.get(i));
 			}
 
 			// Verify the result
-			assertEquals(blobKeys.size(), urls.length);
+			assertEquals(blobKeys.size(), files.length);
 
-			for (final URL url : urls) {
+			for (final File file : files) {
+				assertNotNull(file);
 
-				assertNotNull(url);
-
-				try {
-					final File cachedFile = new File(url.toURI());
-
-					assertTrue(cachedFile.exists());
-					assertEquals(buf.length, cachedFile.length());
-
-				} catch (URISyntaxException e) {
-					fail(e.getMessage());
-				}
+				assertTrue(file.exists());
+				assertEquals(buf.length, file.length());
 			}
 		} finally {
 			if (blobServer != null) {
