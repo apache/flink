@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -70,7 +71,10 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.newFolder().getAbsolutePath());
 
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
@@ -103,7 +107,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = libCache.getFile(keys.get(0));
+			File f = new File(cache.getURL(keys.get(0)).toURI());
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -122,7 +126,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
 
 			// Verify key 1
-			f = libCache.getFile(keys.get(0));
+			f = new File(cache.getURL(keys.get(0)).toURI());
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -134,7 +138,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = libCache.getFile(keys.get(1));
+			f = new File(cache.getURL(keys.get(1)).toURI());
 			assertEquals(256, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -153,7 +157,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Verify everything is clean below recoveryDir/<cluster_id>
 			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-			File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
+			String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
+			File haBlobStoreDir = new File(haBlobStorePath, clusterId);
 			File[] recoveryFiles = haBlobStoreDir.listFiles();
 			assertNotNull("HA storage directory does not exist", recoveryFiles);
 			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);

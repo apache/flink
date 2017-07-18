@@ -18,16 +18,20 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.OperatingSystem;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -42,6 +46,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class BlobLibraryCacheManagerTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
@@ -59,6 +66,9 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
@@ -73,7 +83,7 @@ public class BlobLibraryCacheManagerTest {
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
 			libraryCacheManager.registerJob(jid, keys, Collections.<URL>emptyList());
 
-			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, checkFilesExist(keys, server, true));
 			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
 			assertEquals(1, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
@@ -95,7 +105,7 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(0, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			// the blob cache should no longer contain the files
-			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
+			assertEquals(0, checkFilesExist(keys, server, false));
 
 			try {
 				server.getURL(keys.get(0));
@@ -135,21 +145,21 @@ public class BlobLibraryCacheManagerTest {
 	 *
 	 * @param keys
 	 * 		blob keys to check
-	 * @param libraryCacheManager
-	 * 		cache manager to use
+	 * @param blobService
+	 * 		BLOB store to use
 	 * @param doThrow
 	 * 		whether exceptions should be ignored (<tt>false</tt>), or throws (<tt>true</tt>)
 	 *
-	 * @return number of files we were able to retrieve via {@link BlobLibraryCacheManager#getFile(BlobKey)}
+	 * @return number of files we were able to retrieve via {@link BlobService#getURL(BlobKey)}
 	 */
-	private int checkFilesExist(
-			List<BlobKey> keys, BlobLibraryCacheManager libraryCacheManager, boolean doThrow)
+	private static int checkFilesExist(
+		List<BlobKey> keys, BlobService blobService, boolean doThrow)
 			throws IOException {
 		int numFiles = 0;
 
 		for (BlobKey key : keys) {
 			try {
-				libraryCacheManager.getFile(key);
+				blobService.getURL(key);
 				++numFiles;
 			} catch (IOException e) {
 				if (doThrow) {
@@ -179,6 +189,9 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
@@ -192,13 +205,13 @@ public class BlobLibraryCacheManagerTest {
 			libraryCacheManager.registerTask(jid, executionId1, keys, Collections.<URL>emptyList());
 			libraryCacheManager.registerTask(jid, executionId2, keys, Collections.<URL>emptyList());
 
-			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, checkFilesExist(keys, server, true));
 			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
 			assertEquals(2, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			libraryCacheManager.unregisterTask(jid, executionId1);
 
-			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, checkFilesExist(keys, server, true));
 			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
 			assertEquals(1, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
@@ -220,7 +233,7 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(0, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			// the blob cache should no longer contain the files
-			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
+			assertEquals(0, checkFilesExist(keys, server, false));
 
 			bc.close();
 		} finally {
@@ -249,6 +262,9 @@ public class BlobLibraryCacheManagerTest {
 		try {
 			// create the blob transfer services
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
