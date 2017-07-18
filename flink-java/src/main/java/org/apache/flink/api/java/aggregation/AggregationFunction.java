@@ -28,8 +28,8 @@ public abstract class AggregationFunction<T> implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
 	public abstract void initializeAggregate();
-	
+
 	public abstract void aggregate(T value);
-	
+
 	public abstract T getAggregate();
 }
