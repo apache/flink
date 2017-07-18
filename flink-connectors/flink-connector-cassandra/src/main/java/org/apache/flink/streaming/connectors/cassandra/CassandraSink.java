@@ -310,7 +310,7 @@ public class CassandraSink<IN> {
 		 * Enables the write-ahead log, which allows exactly-once processing for non-deterministic algorithms that use
 		 * idempotent updates.
 		 *
-		 * @param committer CheckpointCommitter, that stores informationa bout completed checkpoints in an external
+		 * @param committer CheckpointCommitter, that stores information about completed checkpoints in an external
 		 *                  resource. By default this information is stored within a separate table within Cassandra.
 		 * @return this builder
 		 */
