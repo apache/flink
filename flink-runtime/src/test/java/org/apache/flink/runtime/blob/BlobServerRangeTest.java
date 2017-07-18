@@ -47,8 +47,9 @@ public class BlobServerRangeTest extends TestLogger {
 		conf.setString(BlobServerOptions.PORT, "0");
 		conf.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-		BlobServer srv = new BlobServer(conf, new VoidBlobStore());
-		srv.close();
+		BlobServer server = new BlobServer(conf, new VoidBlobStore());
+		server.start();
+		server.close();
 	}
 
 	/**
@@ -72,7 +73,8 @@ public class BlobServerRangeTest extends TestLogger {
 
 		// this thing is going to throw an exception
 		try {
-			BlobServer srv = new BlobServer(conf, new VoidBlobStore());
+			BlobServer server = new BlobServer(conf, new VoidBlobStore());
+			server.start();
 		} finally {
 			socket.close();
 		}
@@ -87,7 +89,6 @@ public class BlobServerRangeTest extends TestLogger {
 		int numAllocated = 2;
 		ServerSocket[] sockets = new ServerSocket[numAllocated];
 		for(int i = 0; i < numAllocated; i++) {
-			ServerSocket socket = null;
 			try {
 				sockets[i] = new ServerSocket(0);
 			} catch (IOException e) {
@@ -102,12 +103,14 @@ public class BlobServerRangeTest extends TestLogger {
 
 		// this thing is going to throw an exception
 		try {
-			BlobServer srv = new BlobServer(conf, new VoidBlobStore());
-			Assert.assertEquals(availablePort, srv.getPort());
-			srv.close();
+			BlobServer server = new BlobServer(conf, new VoidBlobStore());
+			server.start();
+			Assert.assertEquals(availablePort, server.getPort());
+			server.close();
 		} finally {
-			sockets[0].close();
-			sockets[1].close();
+			for (int i = 0; i < numAllocated; ++i) {
+				sockets[i].close();
+			}
 		}
 	}
 }

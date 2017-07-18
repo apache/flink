@@ -62,6 +62,7 @@ public class BlobClientSslTest extends BlobClientTest {
 		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		BLOB_SSL_SERVER = new BlobServer(config, new VoidBlobStore());
+		BLOB_SSL_SERVER.start();
 
 		sslClientConfig = new Configuration();
 		sslClientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
@@ -80,6 +81,7 @@ public class BlobClientSslTest extends BlobClientTest {
 		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		BLOB_NON_SSL_SERVER = new BlobServer(config, new VoidBlobStore());
+		BLOB_NON_SSL_SERVER.start();
 
 		nonSslClientConfig = new Configuration();
 		nonSslClientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);

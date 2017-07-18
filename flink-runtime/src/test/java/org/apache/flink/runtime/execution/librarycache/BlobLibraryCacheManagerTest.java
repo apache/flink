@@ -79,6 +79,7 @@ public class BlobLibraryCacheManagerTest {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
@@ -209,6 +210,7 @@ public class BlobLibraryCacheManagerTest {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
@@ -320,6 +322,7 @@ public class BlobLibraryCacheManagerTest {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
@@ -426,6 +429,7 @@ public class BlobLibraryCacheManagerTest {
 
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 

@@ -149,6 +149,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 					HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 				blobServer = new BlobServer(config, haServices.createBlobStore());
+				blobServer.start();
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 

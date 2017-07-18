@@ -119,6 +119,8 @@ public class BlobCacheGetTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 
@@ -203,6 +205,8 @@ public class BlobCacheGetTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			// store the data on the server
 			byte[] data = new byte[2000000];
@@ -302,6 +306,8 @@ public class BlobCacheGetTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			// store the data on the server
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -356,6 +362,8 @@ public class BlobCacheGetTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			// store the data on the server (and blobStore), remove from local server store
 			byte[] data = new byte[2000000];
@@ -449,6 +457,8 @@ public class BlobCacheGetTest extends TestLogger {
 			final BlobServer server = new BlobServer(config, blobStoreServer);
 			final BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, cacheAccessesHAStore ? blobStoreServer : blobStoreCache)) {
+
+			server.start();
 
 			// upload data first
 			assertEquals(blobKey, put(server, jobId, data, highAvailability));

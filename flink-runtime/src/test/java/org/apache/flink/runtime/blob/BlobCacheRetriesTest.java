@@ -112,6 +112,8 @@ public class BlobCacheRetriesTest {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			// upload some blob
 			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailabibility);
 
@@ -190,6 +192,8 @@ public class BlobCacheRetriesTest {
 			BlobServer server = new TestingFailingBlobServer(config, blobStore, 0, 10);
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			// upload some blob
 			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailabibility);

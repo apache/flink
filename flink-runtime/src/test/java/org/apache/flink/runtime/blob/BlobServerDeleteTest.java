@@ -99,6 +99,8 @@ public class BlobServerDeleteTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			byte[] data2 = Arrays.copyOf(data, data.length);
@@ -161,6 +163,8 @@ public class BlobServerDeleteTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 
@@ -209,6 +213,9 @@ public class BlobServerDeleteTest extends TestLogger {
 		File directory = null;
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
+
 			try {
 				byte[] data = new byte[2000000];
 				rnd.nextBytes(data);
@@ -264,6 +271,8 @@ public class BlobServerDeleteTest extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath());
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
 
 			final byte[] data = new byte[128];
 			byte[] data2 = Arrays.copyOf(data, data.length);
@@ -337,6 +346,8 @@ public class BlobServerDeleteTest extends TestLogger {
 
 		try (final BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+			
 			final BlobKey blobKey = put(server, jobId, data, false);
 
 			assertTrue(server.getStorageLocation(jobId, blobKey).exists());

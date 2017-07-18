@@ -148,6 +148,9 @@ public class BlobCachePutTest extends TestLogger {
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore());
 			final TransientBlobCache cache = new TransientBlobCache(
 				new InetSocketAddress("localhost", server.getPort()), config)) {
+
+			server.start();
+
 			BlobKey key = new BlobKey();
 			CheckedThread[] threads = new CheckedThread[] {
 				new TransientBlobCacheGetStorageLocation(cache, jobId, key),
@@ -171,6 +174,9 @@ public class BlobCachePutTest extends TestLogger {
 			final PermanentBlobCache cache = new PermanentBlobCache(
 				new InetSocketAddress("localhost", server.getPort()), config,
 				new VoidBlobStore())) {
+
+			server.start();
+
 			BlobKey key = new BlobKey();
 			CheckedThread[] threads = new CheckedThread[] {
 				new PermanentBlobCacheGetStorageLocation(cache, jobId, key),
@@ -253,6 +259,8 @@ public class BlobCachePutTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
@@ -329,6 +337,8 @@ public class BlobCachePutTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -407,6 +417,8 @@ public class BlobCachePutTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
@@ -480,6 +492,8 @@ public class BlobCachePutTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			// make sure the blob server cannot create any files in its storage dir
 			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
 			assertTrue(tempFileDir.setExecutable(true, false));
@@ -542,6 +556,8 @@ public class BlobCachePutTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			// make sure the blob server cannot create any files in its storage dir
 			tempFileDir = server.createTemporaryFilename().getParentFile();
@@ -610,6 +626,8 @@ public class BlobCachePutTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			// make sure the blob server cannot create any files in its storage dir
 			jobStoreDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
@@ -702,6 +720,8 @@ public class BlobCachePutTest extends TestLogger {
 			final BlobServer server = new BlobServer(config, blobStoreServer);
 			final BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, blobStoreCache)) {
+
+			server.start();
 
 			// for highAvailability
 			final InetSocketAddress serverAddress =

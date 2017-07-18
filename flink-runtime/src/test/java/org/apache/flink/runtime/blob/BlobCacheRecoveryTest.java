@@ -106,6 +106,9 @@ public class BlobCacheRecoveryTest extends TestLogger {
 				new InetSocketAddress("localhost", server1.getPort()), config,
 				new VoidBlobStore())) {
 
+			server0.start();
+			server1.start();
+
 			// Random data
 			byte[] expected = new byte[1024];
 			rand.nextBytes(expected);

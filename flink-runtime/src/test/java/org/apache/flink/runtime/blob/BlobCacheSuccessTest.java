@@ -130,6 +130,8 @@ public class BlobCacheSuccessTest {
 				BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 					cacheConfig, blobStoreService)) {
 
+				server.start();
+
 				// Upload BLOBs
 				BlobKey key1 = put(server, jobId, data, highAvailabibility);
 				BlobKey key2 = put(server, jobId, data2, highAvailabibility);

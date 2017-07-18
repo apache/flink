@@ -102,6 +102,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			byte[] data2 = Arrays.copyOf(data, data.length);
@@ -170,6 +172,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 
@@ -220,6 +224,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			try {
 				byte[] data = new byte[2000000];
@@ -286,6 +292,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			try {
 				byte[] data = new byte[2000000];
@@ -362,6 +370,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
 			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
+
+			server.start();
 
 			final BlobKey blobKey = put(server, jobId, data, false);
 

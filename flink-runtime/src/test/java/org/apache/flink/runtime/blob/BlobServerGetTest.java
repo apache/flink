@@ -117,6 +117,8 @@ public class BlobServerGetTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 
@@ -171,6 +173,8 @@ public class BlobServerGetTest extends TestLogger {
 
 			File tempFileDir = null;
 			try (BlobServer server = new BlobServer(config, blobStore)) {
+
+				server.start();
 
 				// store the data on the server (and blobStore), remove from local store
 				byte[] data = new byte[2000000];
@@ -242,6 +246,8 @@ public class BlobServerGetTest extends TestLogger {
 			File jobStoreDir = null;
 			try (BlobServer server = new BlobServer(config, blobStore)) {
 
+				server.start();
+
 				// store the data on the server (and blobStore), remove from local store
 				byte[] data = new byte[2000000];
 				rnd.nextBytes(data);
@@ -293,6 +299,8 @@ public class BlobServerGetTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
 
 			// store the data on the server (and blobStore), remove from local store
 			byte[] data = new byte[2000000];
@@ -381,21 +389,24 @@ public class BlobServerGetTest extends TestLogger {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
+		try (final BlobServer server = new BlobServer(config, blobStore)) {
+
+			server.start();
+
 			// upload data first
-			assertEquals(blobKey, put(blobServer, jobId, data, highAvailability));
+			assertEquals(blobKey, put(server, jobId, data, highAvailability));
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
 			if (highAvailability) {
 				// remove local copy so that a transfer from HA store takes place
-				assertTrue(blobServer.getStorageLocation(jobId, blobKey).delete());
+				assertTrue(server.getStorageLocation(jobId, blobKey).delete());
 			}
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
 				Future<File> getOperation = FlinkCompletableFuture
 					.supplyAsync(new Callable<File>() {
 					@Override
 					public File call() throws Exception {
-						File file = get(blobServer, jobId, blobKey, highAvailability);
+						File file = get(server, jobId, blobKey, highAvailability);
 						// check that we have read the right data
 						try (InputStream is = new FileInputStream(file)) {
 							BlobClientTest.validateGet(is, data);

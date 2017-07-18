@@ -176,7 +176,6 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 		// start the server thread
 		setName("BLOB Server listener at " + getPort());
 		setDaemon(true);
-		start();
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Started BLOB server at {}:{} - max concurrent requests: {} - max backlog: {}",

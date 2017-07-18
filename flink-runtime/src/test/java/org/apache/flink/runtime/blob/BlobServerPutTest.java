@@ -128,6 +128,9 @@ public class BlobServerPutTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
+
 			BlobKey key = new BlobKey();
 			CheckedThread[] threads = new CheckedThread[] {
 				new ContentAddressableGetStorageLocation(server, jobId, key),
@@ -204,6 +207,8 @@ public class BlobServerPutTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -283,6 +288,8 @@ public class BlobServerPutTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
@@ -361,6 +368,8 @@ public class BlobServerPutTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
@@ -428,6 +437,8 @@ public class BlobServerPutTest extends TestLogger {
 		File tempFileDir = null;
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
 
+			server.start();
+
 			// make sure the blob server cannot create any files in its storage dir
 			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
 			assertTrue(tempFileDir.setExecutable(true, false));
@@ -485,6 +496,8 @@ public class BlobServerPutTest extends TestLogger {
 
 		File tempFileDir = null;
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
 
 			// make sure the blob server cannot create any files in its storage dir
 			tempFileDir = server.createTemporaryFilename().getParentFile();
@@ -548,6 +561,8 @@ public class BlobServerPutTest extends TestLogger {
 
 		File jobStoreDir = null;
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+
+			server.start();
 
 			// make sure the blob server cannot create any files in its storage dir
 			jobStoreDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
@@ -623,6 +638,8 @@ public class BlobServerPutTest extends TestLogger {
 		ExecutorService executor = Executors.newFixedThreadPool(concurrentPutOperations);
 
 		try (final BlobServer server = new BlobServer(config, blobStore)) {
+
+			server.start();
 
 			for (int i = 0; i < concurrentPutOperations; i++) {
 				Future<BlobKey> putFuture = FlinkCompletableFuture

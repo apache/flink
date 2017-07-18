@@ -75,6 +75,7 @@ public class BlobClientTest {
 			temporaryFolder.newFolder().getAbsolutePath());
 
 		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
+		BLOB_SERVER.start();
 
 		clientConfig = new Configuration();
 	}

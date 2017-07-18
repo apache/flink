@@ -65,6 +65,7 @@ public class BlobCacheCleanupTest {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
@@ -159,6 +160,7 @@ public class BlobCacheCleanupTest {
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
 			server = new BlobServer(config, new VoidBlobStore());
+			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
