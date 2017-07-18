@@ -61,6 +61,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
@@ -492,6 +493,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					for (int k = 0; k < sources.length; k++) {
 						// look-up assigned slot of input source
 						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
+						if (sourceSlot == null) {
+							// look-up assigned slot of input source from assigned future source
+							final Future<SimpleSlot> sourceFutureSource = sources[k].getSource().getProducer().getCurrentExecutionAttempt().getAssignedFutureResource();
+							if (sourceFutureSource != null) {
+								try {
+									sourceSlot = sourceFutureSource.get();
+								} catch (InterruptedException e) {
+									LOG.info("get sourceSlot from future failed {}.", e);
+								} catch (ExecutionException e) {
+									LOG.info("get sourceSlot from future failed {}.", e);
+								}
+							}
+						}
 						if (sourceSlot != null) {
 							// add input location
 							inputLocations.add(sourceSlot.getTaskManagerLocation());

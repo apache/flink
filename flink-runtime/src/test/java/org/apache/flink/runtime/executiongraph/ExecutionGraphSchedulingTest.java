@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -42,13 +43,22 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.mockito.invocation.InvocationOnMock;
@@ -59,6 +69,7 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -541,6 +552,70 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		}
 
 		assertEquals(numSlotsToExpectBack, returnedSlots.size());
+	}
+
+	/**
+	 * Tests that {@link ExecutionVertex#getPreferredLocationsBasedOnInputs(()} method
+	 * return the Prefered Location base on future source before deploy to the TM.
+	 */
+	@Test
+	@Ignore
+	public void testExecutionVertexGetPreferredLocationsBasedOnInputs() {
+		try {
+			final JobID jobId = new JobID();
+
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+
+			JobVertex v1 = new JobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
+
+			v1.setParallelism(2);
+			v2.setParallelism(2);
+
+			SlotSharingGroup group = new SlotSharingGroup();
+			v1.setSlotSharingGroup(group);
+			v2.setSlotSharingGroup(group);
+
+			v1.setInvokableClass(BatchTask.class);
+			v2.setInvokableClass(BatchTask.class);
+
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
+
+			ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
+				jobId,
+				"some job",
+				new Configuration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
+
+			List<JobVertex> ordered = Arrays.asList(v1, v2);
+
+			eg.attachJobGraph(ordered);
+
+			Map<JobVertexID, ExecutionJobVertex> ejvMap = eg.getAllVertices();
+
+			ExecutionVertex[] evList1 = ejvMap.get(jid1).getTaskVertices();
+			ExecutionVertex[] evList2 = ejvMap.get(jid2).getTaskVertices();
+
+			for (int i = 0; i < 2; ++i) {
+				ExecutionVertex ev1 = evList1[i];
+				ExecutionVertex ev2 = evList2[i];
+
+				TaskManagerLocation tmLocation = ev1.getCurrentExecutionAttempt().getAssignedFutureResource().get().getTaskManagerLocation();
+				Iterable<TaskManagerLocation> tmLocationIter = ev2.getPreferredLocationsBasedOnInputs();
+
+				assertTrue(tmLocation != null);
+				assertTrue(tmLocationIter.iterator().next() == tmLocationIter);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	// ------------------------------------------------------------------------
