@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -54,7 +55,8 @@ public class BlobRecoveryITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
 		BlobStoreService blobStoreService = null;
 
@@ -92,11 +94,17 @@ public class BlobRecoveryITCase extends TestLogger {
 
 			BlobKey[] keys = new BlobKey[2];
 
-			// Put data
-			keys[0] = client.put(expected); // Request 1
-			keys[1] = client.put(expected, 32, 256); // Request 2
+			// Put job-unrelated data
+			keys[0] = client.put(null, expected); // Request 1
+			keys[1] = client.put(null, expected, 32, 256); // Request 2
 
+			// Put job-related data, verify that the checksums match
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
+			BlobKey key;
+			key = client.put(jobId[0], expected); // Request 3
+			assertEquals(keys[0], key);
+			key = client.put(jobId[1], expected, 32, 256); // Request 4
+			assertEquals(keys[1], key);
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
@@ -128,9 +136,31 @@ public class BlobRecoveryITCase extends TestLogger {
 				}
 			}
 
+			// Verify request 3
+			try (InputStream is = client.get(jobId[0], keys[0])) {
+				byte[] actual = new byte[expected.length];
+				BlobUtils.readFully(is, actual, 0, expected.length, null);
+
+				for (int i = 0; i < expected.length; i++) {
+					assertEquals(expected[i], actual[i]);
+				}
+			}
+
+			// Verify request 4
+			try (InputStream is = client.get(jobId[1], keys[1])) {
+				byte[] actual = new byte[256];
+				BlobUtils.readFully(is, actual, 0, 256, null);
+
+				for (int i = 32, j = 0; i < 256; i++, j++) {
+					assertEquals(expected[i], actual[j]);
+				}
+			}
+
 			// Remove again
 			client.delete(keys[0]);
 			client.delete(keys[1]);
+			client.delete(jobId[0], keys[0]);
+			client.delete(jobId[1], keys[1]);
 
 			// Verify everything is clean
 			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));

@@ -18,16 +18,21 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.OperatingSystem;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -42,6 +47,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class BlobLibraryCacheManagerTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
@@ -59,21 +67,28 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
 
-			keys.add(bc.put(buf));
+			// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
+//			JobID jobId = new JobID();
+			JobID jobId = null;
+
+			keys.add(bc.put(jobId, buf));
 			buf[0] += 1;
-			keys.add(bc.put(buf));
+			keys.add(bc.put(jobId, buf));
 
 			bc.close();
 
-			long cleanupInterval = 1000l;
+			long cleanupInterval = 1000L;
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
 			libraryCacheManager.registerJob(jid, keys, Collections.<URL>emptyList());
 
-			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, checkFilesExist(jobId, keys, server, true));
 			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
 			assertEquals(1, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
@@ -95,17 +110,25 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(0, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			// the blob cache should no longer contain the files
-			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
+			assertEquals(0, checkFilesExist(jobId, keys, server, false));
 
 			try {
-				server.getURL(keys.get(0));
-				fail("name-addressable BLOB should have been deleted");
+				if (jobId == null) {
+					server.getFile(keys.get(0));
+				} else {
+					server.getFile(jobId, keys.get(0));
+				}
+				fail("BLOB should have been deleted");
 			} catch (IOException e) {
 				// expected
 			}
 			try {
-				server.getURL(keys.get(1));
-				fail("name-addressable BLOB should have been deleted");
+				if (jobId == null) {
+					server.getFile(keys.get(1));
+				} else {
+					server.getFile(jobId, keys.get(1));
+				}
+				fail("BLOB should have been deleted");
 			} catch (IOException e) {
 				// expected
 			}
@@ -135,21 +158,25 @@ public class BlobLibraryCacheManagerTest {
 	 *
 	 * @param keys
 	 * 		blob keys to check
-	 * @param libraryCacheManager
-	 * 		cache manager to use
+	 * @param blobService
+	 * 		BLOB store to use
 	 * @param doThrow
 	 * 		whether exceptions should be ignored (<tt>false</tt>), or throws (<tt>true</tt>)
 	 *
-	 * @return number of files we were able to retrieve via {@link BlobLibraryCacheManager#getFile(BlobKey)}
+	 * @return number of files we were able to retrieve via {@link BlobService#getFile}
 	 */
-	private int checkFilesExist(
-			List<BlobKey> keys, BlobLibraryCacheManager libraryCacheManager, boolean doThrow)
+	private static int checkFilesExist(
+			JobID jobId, List<BlobKey> keys, BlobService blobService, boolean doThrow)
 			throws IOException {
 		int numFiles = 0;
 
 		for (BlobKey key : keys) {
 			try {
-				libraryCacheManager.getFile(key);
+				if (jobId == null) {
+					blobService.getFile(key);
+				} else {
+					blobService.getFile(jobId, key);
+				}
 				++numFiles;
 			} catch (IOException e) {
 				if (doThrow) {
@@ -179,26 +206,33 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
 
-			keys.add(bc.put(buf));
-			buf[0] += 1;
-			keys.add(bc.put(buf));
+			// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
+//			JobID jobId = new JobID();
+			JobID jobId = null;
 
-			long cleanupInterval = 1000l;
+			keys.add(bc.put(jobId, buf));
+			buf[0] += 1;
+			keys.add(bc.put(jobId, buf));
+
+			long cleanupInterval = 1000L;
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
 			libraryCacheManager.registerTask(jid, executionId1, keys, Collections.<URL>emptyList());
 			libraryCacheManager.registerTask(jid, executionId2, keys, Collections.<URL>emptyList());
 
-			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, checkFilesExist(jobId, keys, server, true));
 			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
 			assertEquals(2, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			libraryCacheManager.unregisterTask(jid, executionId1);
 
-			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, checkFilesExist(jobId, keys, server, true));
 			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
 			assertEquals(1, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
@@ -220,7 +254,7 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(0, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			// the blob cache should no longer contain the files
-			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
+			assertEquals(0, checkFilesExist(jobId, keys, server, false));
 
 			bc.close();
 		} finally {
@@ -249,14 +283,21 @@ public class BlobLibraryCacheManagerTest {
 		try {
 			// create the blob transfer services
 			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
 
+			// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
+//			JobID jobId = new JobID();
+			JobID jobId = null;
+
 			// upload some meaningless data to the server
 			BlobClient uploader = new BlobClient(serverAddress, config);
-			BlobKey dataKey1 = uploader.put(new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
-			BlobKey dataKey2 = uploader.put(new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
+			BlobKey dataKey1 = uploader.put(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
+			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();
 
 			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache, 1000000000L);
@@ -300,11 +341,12 @@ public class BlobLibraryCacheManagerTest {
 					fail("Should fail with an IllegalStateException");
 				}
 				catch (IllegalStateException e) {
-					// that#s what we want
+					// that's what we want
 				}
 			}
 
-			cacheDir = new File(cache.getStorageDir(), "cache");
+			// see BlobUtils for the directory layout
+			cacheDir = new File(cache.getStorageDir(), "no_job");
 			assertTrue(cacheDir.exists());
 
 			// make sure no further blobs can be downloaded by removing the write
