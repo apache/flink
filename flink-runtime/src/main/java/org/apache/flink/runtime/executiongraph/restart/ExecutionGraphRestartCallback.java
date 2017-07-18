@@ -18,30 +18,34 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * Strategy for {@link ExecutionGraph} restarts.
+ * A {@link RestartCallback} that abstracts restart calls on an {@link ExecutionGraph}. 
+ * 
+ * <p>This callback implementation is one-shot; it can only be used once.
  */
-public interface RestartStrategy {
+public class ExecutionGraphRestartCallback implements RestartCallback {
 
-	/**
-	 * True if the restart strategy can be applied to restart the {@link ExecutionGraph}.
-	 *
-	 * @return true if restart is possible, otherwise false
-	 */
-	boolean canRestart();
+	/** The ExecutionGraph to restart */
+	private final ExecutionGraph execGraph;
 
-	/**
-	 * Called by the ExecutionGraph to eventually trigger a full recovery.
-	 * The recovery must be triggered on the given callback object, and may be delayed
-	 * with the help of the given scheduled executor.
-	 * 
-	 * <p>The thread that calls this method is not supposed to block/sleep.
-	 *
-	 * @param restarter The hook to restart the ExecutionGraph
-	 * @param executor An scheduled executor to delay the restart
-	 */
-	void restart(RestartCallback restarter, ScheduledExecutor executor);
+	/** Atomic flag to make sure this is used only once */
+	private final AtomicBoolean used;
+
+	public ExecutionGraphRestartCallback(ExecutionGraph execGraph) {
+		this.execGraph = checkNotNull(execGraph);
+		this.used = new AtomicBoolean(false);
+	}
+
+	@Override
+	public void triggerFullRecovery() {
+		if (used.compareAndSet(false, true)) {
+			execGraph.restart();
+		}
+	}
 }

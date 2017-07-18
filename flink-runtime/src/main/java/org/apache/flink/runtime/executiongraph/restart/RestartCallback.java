@@ -18,30 +18,15 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-
 /**
- * Strategy for {@link ExecutionGraph} restarts.
+ * A callback to trigger restarts, passed to the {@link RestartStrategy} to
+ * trigger recovery on the ExecutionGraph. 
  */
-public interface RestartStrategy {
+public interface RestartCallback {
 
 	/**
-	 * True if the restart strategy can be applied to restart the {@link ExecutionGraph}.
-	 *
-	 * @return true if restart is possible, otherwise false
+	 * Triggers a full recovery in the target ExecutionGraph.
+	 * A full recovery resets all vertices to the state of the latest checkpoint.
 	 */
-	boolean canRestart();
-
-	/**
-	 * Called by the ExecutionGraph to eventually trigger a full recovery.
-	 * The recovery must be triggered on the given callback object, and may be delayed
-	 * with the help of the given scheduled executor.
-	 * 
-	 * <p>The thread that calls this method is not supposed to block/sleep.
-	 *
-	 * @param restarter The hook to restart the ExecutionGraph
-	 * @param executor An scheduled executor to delay the restart
-	 */
-	void restart(RestartCallback restarter, ScheduledExecutor executor);
+	void triggerFullRecovery();
 }
