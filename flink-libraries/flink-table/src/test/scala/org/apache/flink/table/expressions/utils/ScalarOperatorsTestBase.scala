@@ -27,7 +27,7 @@ import org.apache.flink.types.Row
 class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   def testData: Row = {
-    val testData = new Row(13)
+    val testData = new Row(14)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -41,6 +41,7 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(10, "String")
     testData.setField(11, false)
     testData.setField(12, null)
+    testData.setField(13, Row.of("foo", null))
     testData
   }
 
@@ -58,7 +59,8 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
       Types.INT,
       Types.STRING,
       Types.BOOLEAN,
-      Types.BOOLEAN
+      Types.BOOLEAN,
+      Types.ROW(Types.STRING, Types.STRING)
       ).asInstanceOf[TypeInformation[Any]]
   }
 
