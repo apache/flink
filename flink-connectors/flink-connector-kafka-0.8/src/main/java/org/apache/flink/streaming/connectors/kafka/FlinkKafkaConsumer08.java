@@ -78,10 +78,6 @@ import static org.apache.flink.util.PropertiesUtil.getLong;
  *
  * <p>When using a Kafka topic to send data between Flink jobs, we recommend using the
  * {@see TypeInformationSerializationSchema} and {@see TypeInformationKeyValueSerializationSchema}.</p>
- *
- * <p><b>NOTE:</b> The implementation currently accesses partition metadata when the consumer
- * is constructed. That means that the client that submits the program needs to be able to
- * reach the Kafka brokers or ZooKeeper.</p>
  */
 public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
