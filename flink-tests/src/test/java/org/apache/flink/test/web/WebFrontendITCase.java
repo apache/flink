@@ -33,11 +33,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.TestBaseUtils;
 
 import org.apache.flink.util.TestLogger;
+import org.apache.commons.io.IOUtils;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,6 +48,9 @@ import scala.concurrent.duration.FiniteDuration;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -103,6 +107,38 @@ public class WebFrontendITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testResponseHeaders() throws Exception {
+		// check headers for successful json response
+		URL taskManagersUrl = new URL("http://localhost:" + port + "/taskmanagers");
+		HttpURLConnection taskManagerConnection = (HttpURLConnection) taskManagersUrl.openConnection();
+		taskManagerConnection.setConnectTimeout(100000);
+		taskManagerConnection.connect();
+		if (taskManagerConnection.getResponseCode() >= 400) {
+			// error!
+			InputStream is = taskManagerConnection.getErrorStream();
+			String errorMessage = IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+			throw new RuntimeException(errorMessage);
+		}
+
+		// we don't set the content-encoding header
+		Assert.assertNull(taskManagerConnection.getContentEncoding());
+		Assert.assertEquals("application/json; charset=UTF-8", taskManagerConnection.getContentType());
+
+		// check headers in case of an error
+		URL notFoundJobUrl = new URL("http://localhost:" + port + "/jobs/dontexist");
+		HttpURLConnection notFoundJobConnection = (HttpURLConnection) notFoundJobUrl.openConnection();
+		notFoundJobConnection.setConnectTimeout(100000);
+		notFoundJobConnection.connect();
+		if (notFoundJobConnection.getResponseCode() >= 400) {
+			// we don't set the content-encoding header
+			Assert.assertNull(notFoundJobConnection.getContentEncoding());
+			Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
+		} else {
+			throw new RuntimeException("Request for non-existing job did not return an error.");
 		}
 	}
 
@@ -234,7 +270,7 @@ public class WebFrontendITCase extends TestLogger {
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 	
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertEquals("{}", response.getContent());
 			}
 
@@ -248,7 +284,7 @@ public class WebFrontendITCase extends TestLogger {
 			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
 
 			assertEquals(HttpResponseStatus.OK, response.getStatus());
-			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{\"jid\":\""+jid+"\",\"name\":\"Stoppable streaming test job\"," +
 					"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
 					"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
@@ -287,7 +323,7 @@ public class WebFrontendITCase extends TestLogger {
 						.getNextResponse(deadline.timeLeft());
 	
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertEquals("{}", response.getContent());
 			}
 			

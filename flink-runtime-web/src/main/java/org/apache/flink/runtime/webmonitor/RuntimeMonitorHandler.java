@@ -113,7 +113,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			ByteBuf message = e.getMessage() == null ? Unpooled.buffer(0)
 					: Unpooled.wrappedBuffer(e.getMessage().getBytes(ENCODING));
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND, message);
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 			LOG.debug("Error while handling request", e);
 		}
@@ -121,15 +121,13 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			byte[] bytes = ExceptionUtils.stringifyException(e).getBytes(ENCODING);
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
 					HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(bytes));
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			LOG.debug("Error while handling request", e);
 		}
 
 		response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin);
-		// Content-Encoding:utf-8
-		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, ENCODING.name());
 
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}

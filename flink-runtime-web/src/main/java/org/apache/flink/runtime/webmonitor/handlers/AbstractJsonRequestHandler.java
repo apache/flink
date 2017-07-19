@@ -44,7 +44,7 @@ public abstract class AbstractJsonRequestHandler implements RequestHandler {
 		DefaultFullHttpResponse response = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
 
-		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
+		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 		return response;
