@@ -173,4 +173,9 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	public void closeAndCleanupAllData() throws Exception {
 		// nothing to do
 	}
+
+	@Override
+	public void cleanupData(JobID jobID) throws Exception {
+		// nothing to do
+	}
 }

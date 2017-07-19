@@ -109,6 +109,11 @@ public class TestingManualHighAvailabilityServices implements HighAvailabilitySe
 		// nothing to do
 	}
 
+	@Override
+	public void cleanupData(JobID jobID) throws Exception {
+		// nothing to do
+	}
+
 	public void grantLeadership(JobID jobId, int index, UUID leaderId) {
 		ManualLeaderService manualLeaderService = jobManagerLeaderServices.get(jobId);
 
