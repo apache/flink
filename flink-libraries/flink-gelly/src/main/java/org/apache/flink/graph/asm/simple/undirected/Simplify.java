@@ -19,6 +19,7 @@
 package org.apache.flink.graph.asm.simple.undirected;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -74,6 +75,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 				.setParallelism(parallelism)
 				.name("Remove self-loops")
 			.distinct(0, 1)
+				.setCombineHint(CombineHint.NONE)
 				.setParallelism(parallelism)
 				.name("Remove duplicate edges");
 
