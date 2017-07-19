@@ -149,6 +149,9 @@ class RexNodeToExpressionConverter(
     ))
   }
 
+  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[Expression] =
+    visitInputRef(rexTableInputRef)
+
   override def visitLocalRef(localRef: RexLocalRef): Option[Expression] = {
     throw new TableException("Bug: RexLocalRef should have been expanded")
   }

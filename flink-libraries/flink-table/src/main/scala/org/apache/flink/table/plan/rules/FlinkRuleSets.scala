@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.rules
 
+import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.rules.common._
@@ -59,7 +60,8 @@ object FlinkRuleSets {
     ProjectFilterTransposeRule.INSTANCE,
     FilterProjectTransposeRule.INSTANCE,
     // push a projection to the children of a join
-    ProjectJoinTransposeRule.INSTANCE,
+    // push all expressions to handle the time indicator correctly
+    new ProjectJoinTransposeRule(PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
     // merge projections
     ProjectMergeRule.INSTANCE,
     // remove identity project

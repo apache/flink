@@ -553,6 +553,9 @@ abstract class CodeGenerator(
     generateInputAccess(input._1, input._2, index)
   }
 
+  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): GeneratedExpression =
+    visitInputRef(rexTableInputRef)
+
   override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
     val refExpr = rexFieldAccess.getReferenceExpr.accept(this)
     val index = rexFieldAccess.getField.getIndex
