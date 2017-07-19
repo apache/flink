@@ -141,9 +141,12 @@ esac
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
 # on the Travis VMs. Set forkCountTestPackage to 1 for container-based environment (4 GiB memory)
 # and 2 for sudo-enabled environment (7.5 GiB memory).
+#
+# -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
+# Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMPILE="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -DskipTests -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_COMPILE_MODULES clean install"
-MVN_TEST="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_TEST_MODULES verify"
+MVN_COMPILE="mvn -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -DskipTests -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_COMPILE_MODULES clean install"
+MVN_TEST="mvn -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_TEST_MODULES verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
