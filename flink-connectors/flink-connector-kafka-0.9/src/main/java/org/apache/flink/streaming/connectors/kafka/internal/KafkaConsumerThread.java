@@ -154,7 +154,6 @@ public class KafkaConsumerThread extends Thread {
 		// including concurrent 'close()' calls.
 		try {
 			this.consumer = getConsumer(kafkaProperties);
-			this.hasAssignedPartitions = !consumer.assignment().isEmpty();
 		}
 		catch (Throwable t) {
 			handover.reportError(t);
@@ -219,7 +218,7 @@ public class KafkaConsumerThread extends Thread {
 					}
 					else {
 						// if no assigned partitions block until we get at least one
-						// instead of hot spinning this loop. We relay on a fact that
+						// instead of hot spinning this loop. We rely on a fact that
 						// unassignedPartitionsQueue will be closed on a shutdown, so
 						// we don't block indefinitely
 						newPartitions = unassignedPartitionsQueue.getBatchBlocking();
@@ -356,9 +355,10 @@ public class KafkaConsumerThread extends Thread {
 	 */
 	@VisibleForTesting
 	void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
-		if (newPartitions.size() > 0) {
-			hasAssignedPartitions = true;
+		if (newPartitions.size() == 0) {
+			return;
 		}
+		hasAssignedPartitions = true;
 		boolean reassignmentStarted = false;
 
 		// since the reassignment may introduce several Kafka blocking calls that cannot be interrupted,
