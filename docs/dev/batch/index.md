@@ -205,12 +205,17 @@ data.filter(new FilterFunction<Integer>() {
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a group of elements into a single element by repeatedly combining two elements
-        into one. Reduce may be applied on a full data set, or on a grouped data set.</p>
+        into one. Reduce may be applied on a full data set or on a grouped data set.</p>
 {% highlight java %}
 data.reduce(new ReduceFunction<Integer> {
   public Integer reduce(Integer a, Integer b) { return a + b; }
 });
 {% endhighlight %}
+        <p>If the reduce was applied to a grouped data set then you can specify the way that the
+        runtime executes the combine phase of the reduce by supplying a <code>CombineHint</code> to
+        <code>setCombineHint</code>. The hash-based strategy should be faster in most cases,
+        especially if the number of different keys is small compared to the number of input
+        elements (eg. 1/10).</p>
       </td>
     </tr>
 
@@ -218,7 +223,7 @@ data.reduce(new ReduceFunction<Integer> {
       <td><strong>ReduceGroup</strong></td>
       <td>
         <p>Combines a group of elements into one or more elements. ReduceGroup may be applied on a
-        full data set, or on a grouped data set.</p>
+        full data set or on a grouped data set.</p>
 {% highlight java %}
 data.reduceGroup(new GroupReduceFunction<Integer, Integer> {
   public void reduce(Iterable<Integer> values, Collector<Integer> out) {
@@ -230,10 +235,6 @@ data.reduceGroup(new GroupReduceFunction<Integer, Integer> {
   }
 });
 {% endhighlight %}
-        <p>If the reduce was applied to a grouped data set, you can specify the way that the
-        runtime executes the combine phase of the reduce via supplying a CombineHint as a second
-        parameter. The hash-based strategy should be faster in most cases, especially if the
-        number of different keys is small compared to the number of input elements (eg. 1/10).</p>
       </td>
     </tr>
 
@@ -260,9 +261,14 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
       <td>
         <p>Returns the distinct elements of a data set. It removes the duplicate entries
         from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
-    {% highlight java %}
-        data.distinct();
-    {% endhighlight %}
+{% highlight java %}
+data.distinct();
+{% endhighlight %}
+        <p>Distinct is implemented using a reduce function. You can specify the way that the
+        runtime executes the combine phase of the reduce by supplying a <code>CombineHint</code> to
+        <code>setCombineHint</code>. The hash-based strategy should be faster in most cases,
+        especially if the number of different keys is small compared to the number of input
+        elements (eg. 1/10).</p>
       </td>
     </tr>
 

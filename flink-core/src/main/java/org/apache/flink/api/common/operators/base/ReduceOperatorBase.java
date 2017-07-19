@@ -79,8 +79,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		HASH,
 
 		/**
-		 * Disable the use of a combiner. This can be faster in cases when the number of different keys
-		 * is very small compared to the number of input elements (eg. 1/100).
+		 * Disable the use of a combiner.
 		 */
 		NONE
 	}
