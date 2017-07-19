@@ -924,13 +924,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					}
 					catch (Throwable t) {
 						// we catch everything here to make sure cleanup happens and the
-						// ExecutionGraph notices
-						// we need to go into recovery and make sure to release all slots
+						// ExecutionGraph notices the error
+
+						// we need to to release all slots before going into recovery! 
 						try {
-							failGlobal(t);
+							ExecutionGraphUtils.releaseAllSlotsSilently(resources);
 						}
 						finally {
-							ExecutionGraphUtils.releaseAllSlotsSilently(resources);
+							failGlobal(t);
 						}
 					}
 

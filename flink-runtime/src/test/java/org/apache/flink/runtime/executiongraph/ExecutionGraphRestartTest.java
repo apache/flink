@@ -21,13 +21,12 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -35,24 +34,33 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.NotCancelAckingTaskGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
-import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Test;
 
 import scala.concurrent.Await;
@@ -62,8 +70,12 @@ import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -84,6 +96,15 @@ import static org.mockito.Mockito.spy;
 public class ExecutionGraphRestartTest extends TestLogger {
 
 	private final static int NUM_TASKS = 31;
+
+	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+
+	@After
+	public void shutdown() {
+		executor.shutdownNow();
+	}
+
+	// ------------------------------------------------------------------------
 
 	@Test
 	public void testNoManualRestart() throws Exception {
@@ -661,8 +682,115 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testRestartWithEagerSchedulingAndSlotSharing() throws Exception {
+		// this test is inconclusive if not used with a proper multi-threaded executor
+		assertTrue("test assumptions violated", ((ThreadPoolExecutor) executor).getCorePoolSize() > 1);
+
+		final int parallelism = 20;
+		final Scheduler scheduler = createSchedulerWithInstances(parallelism);
+
+		final SlotSharingGroup sharingGroup = new SlotSharingGroup();
+
+		final JobVertex source = new JobVertex("source");
+		source.setInvokableClass(NoOpInvokable.class);
+		source.setParallelism(parallelism);
+		source.setSlotSharingGroup(sharingGroup);
+
+		final JobVertex sink = new JobVertex("sink");
+		sink.setInvokableClass(NoOpInvokable.class);
+		sink.setParallelism(parallelism);
+		sink.setSlotSharingGroup(sharingGroup);
+		sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
+
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
+				new JobID(), scheduler, new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0), executor, source, sink);
+
+		eg.setScheduleMode(ScheduleMode.EAGER);
+		eg.scheduleForExecution();
+
+		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+
+		// fail into 'RESTARTING'
+		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().fail(
+				new Exception("intended test failure"));
+
+		assertEquals(JobStatus.FAILING, eg.getState());
+		completeCancellingForAllVertices(eg);
+
+		// clean termination
+		waitUntilJobStatus(eg, JobStatus.RUNNING, 1000);
+		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		finishAllVertices(eg);
+		waitUntilJobStatus(eg, JobStatus.FINISHED, 1000);
+	}
+
+	@Test
+	public void testRestartWithSlotSharingAndNotEnoughResources() throws Exception {
+		// this test is inconclusive if not used with a proper multi-threaded executor
+		assertTrue("test assumptions violated", ((ThreadPoolExecutor) executor).getCorePoolSize() > 1);
+
+		final int numRestarts = 10;
+		final int parallelism = 20;
+
+		final Scheduler scheduler = createSchedulerWithInstances(parallelism - 1);
+
+		final SlotSharingGroup sharingGroup = new SlotSharingGroup();
+
+		final JobVertex source = new JobVertex("source");
+		source.setInvokableClass(NoOpInvokable.class);
+		source.setParallelism(parallelism);
+		source.setSlotSharingGroup(sharingGroup);
+
+		final JobVertex sink = new JobVertex("sink");
+		sink.setInvokableClass(NoOpInvokable.class);
+		sink.setParallelism(parallelism);
+		sink.setSlotSharingGroup(sharingGroup);
+		sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
+
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
+				new JobID(), scheduler, new FixedDelayRestartStrategy(numRestarts, 0), executor, source, sink);
+
+		eg.setScheduleMode(ScheduleMode.EAGER);
+		eg.scheduleForExecution();
+
+		// wait until no more changes happen
+		while (eg.getNumberOfFullRestarts() < numRestarts) {
+			Thread.sleep(1);
+		}
+
+		waitUntilJobStatus(eg, JobStatus.FAILED, 1000);
+
+		final Throwable t = eg.getFailureCause().getException();
+		if (!(t instanceof NoResourceAvailableException)) {
+			ExceptionUtils.rethrowException(t, t.getMessage());
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
+	// ------------------------------------------------------------------------
+
+	private Scheduler createSchedulerWithInstances(int num) {
+		final Scheduler scheduler = new Scheduler(executor);
+		final Instance[] instances = new Instance[num];
+
+		for (int i = 0; i < instances.length; i++) {
+			instances[i] = createInstance(55443 + i);
+			scheduler.newInstanceAvailable(instances[i]);
+		}
+
+		return scheduler;
+	}
+
+	private static Instance createInstance(int port) {
+		final HardwareDescription resources = new HardwareDescription(4, 1_000_000_000, 500_000_000, 400_000_000);
+		final TaskManagerGateway taskManager = new SimpleAckingTaskManagerGateway();
+		final TaskManagerLocation location = new TaskManagerLocation(
+				ResourceID.generate(), InetAddress.getLoopbackAddress(), port);
+		return new Instance(taskManager, location, new InstanceID(), resources, 1);
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static class ControllableRestartStrategy implements RestartStrategy {
@@ -773,10 +901,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			scheduler);
 	}
 
-	private static ExecutionGraph newExecutionGraph(RestartStrategy restartStrategy) throws IOException {
-		return newExecutionGraph(restartStrategy, new Scheduler(TestingUtils.defaultExecutionContext()));
-	}
-
 	private static void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws InterruptedException {
 		makeAFailureAndWait(eg, timeout);
 
@@ -839,17 +963,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-
-	/**
-	 * A TaskManager gateway that does not ack cancellations.
-	 */
-	private static final class NotCancelAckingTaskGateway extends SimpleAckingTaskManagerGateway {
-
-		@Override
-		public org.apache.flink.runtime.concurrent.Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-			return new FlinkCompletableFuture<>();
-		}
-	}
 
 	/**
 	 * A RestartStrategy that blocks restarting on a given {@link OneShotLatch}.
