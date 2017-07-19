@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -321,6 +322,16 @@ public class ExecutionGraphTestUtils {
 			RestartStrategy restartStrategy,
 			JobVertex... vertices) throws Exception {
 
+		return createExecutionGraph(jid, slotProvider, restartStrategy, TestingUtils.defaultExecutor(), vertices);
+	}
+
+	public static ExecutionGraph createExecutionGraph(
+			JobID jid,
+			SlotProvider slotProvider,
+			RestartStrategy restartStrategy,
+			ScheduledExecutorService executor,
+			JobVertex... vertices) throws Exception {
+
 		checkNotNull(jid);
 		checkNotNull(restartStrategy);
 		checkNotNull(vertices);
@@ -329,18 +340,18 @@ public class ExecutionGraphTestUtils {
 				null,
 				new JobGraph(jid, "test job", vertices),
 				new Configuration(),
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+				executor,
+				executor,
 				slotProvider,
 				ExecutionGraphTestUtils.class.getClassLoader(),
-				mock(CheckpointRecoveryFactory.class),
+				new StandaloneCheckpointRecoveryFactory(),
 				Time.seconds(10),
 				restartStrategy,
 				new UnregisteredMetricsGroup(),
 				1,
 				TEST_LOGGER);
 	}
-	
+
 	public static JobVertex createNoOpVertex(int parallelism) {
 		JobVertex vertex = new JobVertex("vertex");
 		vertex.setInvokableClass(NoOpInvokable.class);
