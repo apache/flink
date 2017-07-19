@@ -43,7 +43,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("function", function),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "s")
@@ -63,7 +63,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
         term("function", function),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "s")
@@ -88,7 +88,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("function", function),
         term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "LEFT")
       ),
       term("select", "c", "s")

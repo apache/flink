@@ -1039,7 +1039,7 @@ public class SqlStdOperatorTable extends ReflectiveSqlOperatorTable {
 		new SqlCollectionTableOperator("TABLE", SqlModality.RELATION);
 
 	public static final SqlOverlapsOperator OVERLAPS =
-		new SqlOverlapsOperator();
+		new SqlOverlapsOperator(SqlKind.OVERLAPS);
 
 	public static final SqlSpecialOperator VALUES =
 		new SqlValuesOperator();
