@@ -25,10 +25,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.JobContext;
-import org.apache.hadoop.mapred.JobID;
-import org.apache.hadoop.mapred.TaskAttemptContext;
-import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -36,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.lang.reflect.Constructor;
 import java.util.Collection;
 import java.util.Map;
 
@@ -63,49 +58,6 @@ public final class HadoopUtils {
 			if (jobConf.get(e.getKey()) == null) {
 				jobConf.set(e.getKey(), e.getValue());
 			}
-		}
-	}
-
-	public static JobContext instantiateJobContext(JobConf jobConf, JobID jobId) throws Exception {
-		try {
-			// for Hadoop 1.xx
-			Class<?> clazz = null;
-			if (!TaskAttemptContext.class.isInterface()) {
-				clazz = Class.forName("org.apache.hadoop.mapred.JobContext", true, Thread.currentThread().getContextClassLoader());
-			}
-			// for Hadoop 2.xx
-			else {
-				clazz = Class.forName("org.apache.hadoop.mapred.JobContextImpl", true, Thread.currentThread().getContextClassLoader());
-			}
-			Constructor<?> constructor = clazz.getDeclaredConstructor(JobConf.class, org.apache.hadoop.mapreduce.JobID.class);
-			// for Hadoop 1.xx
-			constructor.setAccessible(true);
-			JobContext context = (JobContext) constructor.newInstance(jobConf, jobId);
-
-			return context;
-		} catch (Exception e) {
-			throw new Exception("Could not create instance of JobContext.", e);
-		}
-	}
-
-	public static TaskAttemptContext instantiateTaskAttemptContext(JobConf jobConf,  TaskAttemptID taskAttemptID) throws Exception {
-		try {
-			// for Hadoop 1.xx
-			Class<?> clazz = null;
-			if (!TaskAttemptContext.class.isInterface()) {
-				clazz = Class.forName("org.apache.hadoop.mapred.TaskAttemptContext", true, Thread.currentThread().getContextClassLoader());
-			}
-			// for Hadoop 2.xx
-			else {
-				clazz = Class.forName("org.apache.hadoop.mapred.TaskAttemptContextImpl", true, Thread.currentThread().getContextClassLoader());
-			}
-			Constructor<?> constructor = clazz.getDeclaredConstructor(JobConf.class, TaskAttemptID.class);
-			// for Hadoop 1.xx
-			constructor.setAccessible(true);
-			TaskAttemptContext context = (TaskAttemptContext) constructor.newInstance(jobConf, taskAttemptID);
-			return context;
-		} catch (Exception e) {
-			throw new Exception("Could not create instance of TaskAttemptContext.", e);
 		}
 	}
 
