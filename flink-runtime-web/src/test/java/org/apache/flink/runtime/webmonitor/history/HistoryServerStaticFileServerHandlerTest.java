@@ -44,31 +44,33 @@ public class HistoryServerStaticFileServerHandlerTest {
 			tmp.newFolder("uploadDir"),
 			null,
 			"localhost",
-			8081,
+			0,
 			new Configuration());
+
+		int port = webUI.getServerPort();
 		try {
 			// verify that 404 message is returned when requesting a non-existant file
-			String notFound404 = HistoryServerTest.getFromHTTP("http://localhost:8081/hello");
+			String notFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/hello");
 			Assert.assertTrue(notFound404.contains("404 Not Found"));
 
 			// verify that a) a file can be loaded using the ClassLoader and b) that the HistoryServer
 			// index_hs.html is injected
-			String index = HistoryServerTest.getFromHTTP("http://localhost:8081/index.html");
+			String index = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
 			Assert.assertTrue(index.contains("Completed Jobs"));
 
 			// verify that index.html is appended if the request path ends on '/'
-			String index2 = HistoryServerTest.getFromHTTP("http://localhost:8081/");
+			String index2 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/");
 			Assert.assertEquals(index, index2);
 
 			// verify that a 404 message is returned when requesting a directory
 			File dir = new File(webDir, "dir.json");
 			dir.mkdirs();
-			String dirNotFound404 = HistoryServerTest.getFromHTTP("http://localhost:8081/dir");
+			String dirNotFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/dir");
 			Assert.assertTrue(dirNotFound404.contains("404 Not Found"));
 
 			// verify that a 404 message is returned when requesting a file outside the webDir
 			tmp.newFile("secret");
-			String x = HistoryServerTest.getFromHTTP("http://localhost:8081/../secret");
+			String x = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/../secret");
 			Assert.assertTrue(x.contains("404 Not Found"));
 		} finally {
 			webUI.shutdown();
