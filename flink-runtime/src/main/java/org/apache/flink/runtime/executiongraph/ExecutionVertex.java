@@ -494,7 +494,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 						// look-up assigned slot of input source
 						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
 						if (sourceSlot == null) {
-							// look-up assigned slot of input source from assigned future source
+							// look-up assigned future slot of input
 							final Future<SimpleSlot> sourceFutureSource = sources[k].getSource().getProducer().getCurrentExecutionAttempt().getAssignedFutureResource();
 							if (sourceFutureSource != null) {
 								try {
