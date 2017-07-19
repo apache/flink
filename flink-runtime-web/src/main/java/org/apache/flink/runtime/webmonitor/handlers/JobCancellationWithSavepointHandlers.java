@@ -266,7 +266,7 @@ public class JobCancellationWithSavepointHandlers {
 
 			response.headers().set(HttpHeaders.Names.LOCATION, location);
 
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			FullHttpResponse accepted = response;
@@ -377,7 +377,7 @@ public class JobCancellationWithSavepointHandlers {
 					HttpResponseStatus.CREATED,
 					Unpooled.wrappedBuffer(bytes));
 
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			return response;
@@ -402,7 +402,7 @@ public class JobCancellationWithSavepointHandlers {
 					HttpResponseStatus.ACCEPTED,
 					Unpooled.wrappedBuffer(bytes));
 
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			return response;
@@ -428,7 +428,7 @@ public class JobCancellationWithSavepointHandlers {
 					code,
 					Unpooled.wrappedBuffer(bytes));
 
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			return response;

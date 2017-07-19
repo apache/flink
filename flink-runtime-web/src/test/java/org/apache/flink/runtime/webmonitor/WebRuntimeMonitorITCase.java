@@ -108,7 +108,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				response = client.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertTrue(response.getContent().contains("\"taskmanagers\":1"));
 			}
 		}
@@ -255,7 +255,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				response = followingClient.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertTrue(response.getContent().contains("\"taskmanagers\":1") ||
 						response.getContent().contains("\"taskmanagers\":0"));
 			} finally {
