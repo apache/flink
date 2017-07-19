@@ -53,15 +53,21 @@ class ExpressionReducer(config: TableConfig)
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>
         Some(
-          rexBuilder.makeCast(typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO), e)
+          rexBuilder.makeCast(
+            typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO, e.getType.isNullable),
+            e)
         )
       case (SqlTypeName.TIME, e) =>
         Some(
-          rexBuilder.makeCast(typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO), e)
+          rexBuilder.makeCast(
+            typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO, e.getType.isNullable),
+            e)
         )
       case (SqlTypeName.TIMESTAMP, e) =>
         Some(
-          rexBuilder.makeCast(typeFactory.createTypeFromTypeInfo(BasicTypeInfo.LONG_TYPE_INFO), e)
+          rexBuilder.makeCast(
+            typeFactory.createTypeFromTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, e.getType.isNullable),
+            e)
         )
 
       // we don't support object literals yet, we skip those constant expressions

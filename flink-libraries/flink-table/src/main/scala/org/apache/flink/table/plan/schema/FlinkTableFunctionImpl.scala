@@ -78,7 +78,7 @@ class FlinkTableFunctionImpl[T](
     fieldNames
       .zip(fieldTypes)
       .foreach { f =>
-        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
+        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2, isNullable = true))
       }
     builder.build
   }

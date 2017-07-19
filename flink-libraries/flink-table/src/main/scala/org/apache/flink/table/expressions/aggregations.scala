@@ -67,7 +67,7 @@ case class Sum(child: Expression) extends Aggregation {
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val returnType = relBuilder
       .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(resultType)
+      .createTypeFromTypeInfo(resultType, isNullable = true)
     new SqlSumAggFunction(returnType)
   }
 }

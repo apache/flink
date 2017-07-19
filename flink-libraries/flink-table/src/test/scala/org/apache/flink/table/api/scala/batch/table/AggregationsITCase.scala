@@ -42,6 +42,23 @@ class AggregationsITCase(
   extends TableProgramsCollectionTestBase(configMode) {
 
   @Test
+  def testAggregationWithCaseClass(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val inputTable = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b)
+    tEnv.registerDataSet("MyTable", inputTable)
+
+    val result = tEnv.scan("MyTable")
+      .where('a.get("_1") > 0)
+      .select('a.get("_1").avg, 'a.get("_2").sum, 'b.count)
+
+    val expected = "2,6,3"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
