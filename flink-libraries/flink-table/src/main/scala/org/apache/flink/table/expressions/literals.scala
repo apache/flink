@@ -121,7 +121,7 @@ case class Null(resultType: TypeInformation[_]) extends LeafExpression {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     rexBuilder
       .makeCast(
-        typeFactory.createTypeFromTypeInfo(resultType),
+        typeFactory.createTypeFromTypeInfo(resultType, isNullable = true),
         rexBuilder.constantNull())
   }
 }

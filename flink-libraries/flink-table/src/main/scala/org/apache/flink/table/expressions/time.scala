@@ -103,7 +103,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 
     // TODO convert this into Table API expressions to make the code more readable
     val rexBuilder = relBuilder.getRexBuilder
-    val resultType = relBuilder.getTypeFactory().createTypeFromTypeInfo(LONG_TYPE_INFO)
+    val resultType = relBuilder
+      .getTypeFactory()
+      .createTypeFromTypeInfo(LONG_TYPE_INFO, isNullable = true)
     var result = rexBuilder.makeReinterpretCast(
       resultType,
       temporal,
