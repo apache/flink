@@ -343,9 +343,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			.name("source").setParallelism(6);
 
 		data
-			.groupBy(new KeySelector<Tuple2<String, Double>, String>() {
-				public String getKey(Tuple2<String, Double> value) { return value.f0; }
-			})
+			.groupBy(0)
 			.reduce(new RichReduceFunction<Tuple2<String, Double>>() {
 				@Override
 				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2) {
@@ -364,13 +362,8 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 		SingleInputPlanNode reduceNode = resolver.getNode("reducer");
 		SinkPlanNode sinkNode = resolver.getNode("sink");
 
-		// get the key extractors and projectors
-		SingleInputPlanNode keyExtractor = (SingleInputPlanNode) reduceNode.getInput().getSource();
-		SingleInputPlanNode keyProjector = (SingleInputPlanNode) sinkNode.getInput().getSource();
-
 		// check wiring
-		assertEquals(sourceNode, keyExtractor.getInput().getSource());
-		assertEquals(keyProjector, sinkNode.getInput().getSource());
+		assertEquals(sourceNode, reduceNode.getInput().getSource());
 
 		// check the strategies
 		assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
@@ -381,10 +374,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 
 		// check parallelism
 		assertEquals(6, sourceNode.getParallelism());
-		assertEquals(6, keyExtractor.getParallelism());
-
 		assertEquals(8, reduceNode.getParallelism());
-		assertEquals(8, keyProjector.getParallelism());
 		assertEquals(8, sinkNode.getParallelism());
 	}
 }
