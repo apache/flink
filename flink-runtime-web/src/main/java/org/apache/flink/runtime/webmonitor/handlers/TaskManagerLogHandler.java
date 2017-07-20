@@ -218,6 +218,9 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 							//delete previous log file, if it is different than the current one
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
+								// the BlobKey will almost certainly be different but the old file
+								// may not exist anymore so we cannot rely on it and need to
+								// download the new file anyway, even if the hashes match
 								if (!blobKey.equals(lastSubmittedFile.get(taskManagerID))) {
 									if (!blobCache.delete(lastSubmittedFile.get(taskManagerID))) {
 										return FlinkCompletableFuture.completedExceptionally(
