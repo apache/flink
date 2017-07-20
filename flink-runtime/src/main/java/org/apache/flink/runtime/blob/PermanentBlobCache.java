@@ -358,12 +358,28 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 
 					final File localFile =
 						new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+
+					/*
+					 * NOTE: normally it is not required to acquire the write lock to delete the job's
+					 *       storage directory since there should be noone accessing it with the ref
+					 *       counter being 0 - acquire it just in case, to always be on the safe side
+					 */
+					readWriteLock.writeLock().lock();
+
+					boolean success = false;
 					try {
 						FileUtils.deleteDirectory(localFile);
-						// let's only remove this directory from cleanup if the cleanup was successful
-						entryIter.remove();
+						success = true;
 					} catch (Throwable t) {
 						LOG.warn("Failed to locally delete job directory " + localFile.getAbsolutePath(), t);
+					} finally {
+						readWriteLock.writeLock().unlock();
+					}
+
+					// let's only remove this directory from cleanup if the cleanup was successful
+					// (does not need the write lock)
+					if (success) {
+						entryIter.remove();
 					}
 				}
 			}
