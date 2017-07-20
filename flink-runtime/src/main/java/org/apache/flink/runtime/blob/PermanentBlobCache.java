@@ -107,6 +107,9 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 	/** Time interval (ms) to run the cleanup task; also used as the default TTL. */
 	private final long cleanupInterval;
 
+	/**
+	 * Timer task to execute the cleanup at regular intervals.
+	 */
 	private final Timer cleanupTimer;
 
 	/**

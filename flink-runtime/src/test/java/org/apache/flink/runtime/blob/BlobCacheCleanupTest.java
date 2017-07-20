@@ -20,27 +20,42 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
+import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
 import static org.junit.Assert.assertEquals;
 
 /**
- * A few tests for the deferred ref-counting based cleanup inside the {@link PermanentBlobCache}.
+ * A few tests for the cleanup of {@link PermanentBlobCache} and {@link TransientBlobCache}.
  */
 public class BlobCacheCleanupTest {
+
+	private final Random rnd = new Random();
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -49,10 +64,10 @@ public class BlobCacheCleanupTest {
 	 * Tests that {@link PermanentBlobCache} cleans up after calling {@link PermanentBlobCache#releaseJob(JobID)}.
 	 */
 	@Test
-	public void testJobCleanup() throws IOException, InterruptedException {
+	public void testPermanentBlobCleanup() throws IOException, InterruptedException {
 
 		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<BlobKey>();
+		List<BlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 
@@ -137,17 +152,18 @@ public class BlobCacheCleanupTest {
 	}
 
 	/**
-	 * Tests that {@link PermanentBlobCache} cleans up after calling {@link PermanentBlobCache#releaseJob(JobID)}
-	 * but only after preserving the file for a bit longer.
+	 * Tests the deferred cleanup of {@link PermanentBlobCache}, i.e. after calling {@link
+	 * PermanentBlobCache#releaseJob(JobID)} the file should be preserved a bit longer and then
+	 * cleaned up.
 	 */
 	@Test
 	@Ignore("manual test due to stalling: ensures a BLOB is retained first and only deleted after the (long) timeout ")
-	public void testJobDeferredCleanup() throws IOException, InterruptedException {
+	public void testPermanentBlobDeferredCleanup() throws IOException, InterruptedException {
 		// file should be deleted between 5 and 10s after last job release
 		long cleanupInterval = 5L;
 
 		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<BlobKey>();
+		List<BlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 
@@ -243,76 +259,104 @@ public class BlobCacheCleanupTest {
 		}
 	}
 
-	/**
-	 * Checks how many of the files given by blob keys are accessible.
-	 *
-	 * @param jobId
-	 * 		ID of a job
-	 * @param keys
-	 * 		blob keys to check
-	 * @param blobService
-	 * 		BLOB store to use
-	 * @param doThrow
-	 * 		whether exceptions should be ignored (<tt>false</tt>), or thrown (<tt>true</tt>)
-	 *
-	 * @return number of files we were able to retrieve via {@link PermanentBlobService#getHAFile}
-	 */
-	public static int checkFilesExist(
-		JobID jobId, Collection<BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
-		throws IOException {
+	@Test
+	public void testTransientBlobNoJobCleanup()
+			throws IOException, InterruptedException, ExecutionException {
+		testTransientBlobCleanup(null);
+	}
 
-		int numFiles = 0;
-
-		for (BlobKey key : keys) {
-			final File blobFile;
-			if (blobService instanceof BlobServer) {
-				BlobServer server = (BlobServer) blobService;
-				blobFile = server.getStorageLocation(jobId, key);
-			} else {
-				PermanentBlobCache cache = (PermanentBlobCache) blobService;
-				blobFile = cache.getStorageLocation(jobId, key);
-			}
-			if (blobFile.exists()) {
-				++numFiles;
-			} else if (doThrow) {
-				throw new IOException("File " + blobFile + " does not exist.");
-			}
-		}
-
-		return numFiles;
+	@Test
+	public void testTransientBlobForJobCleanup()
+			throws IOException, InterruptedException, ExecutionException {
+		testTransientBlobCleanup(new JobID());
 	}
 
 	/**
-	 * Checks how many of the files given by blob keys are accessible.
-	 *
-	 * @param expectedCount
-	 * 		number of expected files in the blob service for the given job
-	 * @param jobId
-	 * 		ID of a job
-	 * @param blobService
-	 * 		BLOB store to use
+	 * Tests that {@link TransientBlobCache} cleans up after a default TTL and keeps files which are
+	 * constantly accessed.
 	 */
-	public static void checkFileCountForJob(
-		int expectedCount, JobID jobId, PermanentBlobService blobService)
-		throws IOException {
+	private void testTransientBlobCleanup(@Nullable final JobID jobId)
+			throws IOException, InterruptedException, ExecutionException {
 
-		final File jobDir;
-		if (blobService instanceof BlobServer) {
-			BlobServer server = (BlobServer) blobService;
-			jobDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
-		} else {
-			PermanentBlobCache cache = (PermanentBlobCache) blobService;
-			jobDir = cache.getStorageLocation(jobId, new BlobKey()).getParentFile();
-		}
-		File[] blobsForJob = jobDir.listFiles();
-		if (blobsForJob == null) {
-			if (expectedCount != 0) {
-				throw new IOException("File " + jobDir + " does not exist.");
+		// 1s should be a safe-enough buffer to still check for existence after a BLOB's last access
+		long cleanupInterval = 1L; // in seconds
+		final int numberConcurrentGetOperations = 3;
+
+		final List<BlobKey> keys = new ArrayList<>();
+		final List<Future<Void>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
+
+		byte[] data = new byte[2000000];
+		rnd.nextBytes(data);
+		byte[] data2 = Arrays.copyOfRange(data, 10, 54);
+
+		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+
+		try (
+			BlobServer server = new BlobServer(config, new VoidBlobStore());
+			final BlobCache cache = new BlobCache(
+				new InetSocketAddress("localhost", server.getPort()), config,
+				new VoidBlobStore())) {
+
+			server.start();
+
+			keys.add(put(server, jobId, data, false));
+			keys.add(put(server, jobId, data2, false));
+
+			verifyContents(cache, jobId, keys.get(0), data, false);
+			verifyContents(cache, jobId, keys.get(1), data2, false);
+
+			// files are cached now for the given TTL - remove from server so that they are not re-downloaded
+			if (jobId != null) {
+				server.cleanupJob(jobId);
+			} else {
+				server.delete(keys.get(0));
+				server.delete(keys.get(1));
 			}
-		} else {
-			assertEquals("Too many/few files in job dir: " +
-					Arrays.asList(blobsForJob).toString(), expectedCount,
-				blobsForJob.length);
+			checkFileCountForJob(0, jobId, server);
+
+			// cleanup task is run every cleanupInterval seconds
+			// => unaccessed file should remain at most 2*cleanupInterval seconds
+			final long finishTime = System.currentTimeMillis() + 2 * cleanupInterval;
+
+			final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
+			for (int i = 0; i < numberConcurrentGetOperations; i++) {
+				Future<Void> getOperation = FlinkCompletableFuture
+					.supplyAsync(new Callable<Void>() {
+						@Override
+						public Void call() throws Exception {
+							// constantly access key1 so this should not get deleted
+							while (System.currentTimeMillis() < finishTime) {
+								get(cache, jobId, keys.get(0), false);
+							}
+							return null;
+						}
+					}, executor);
+
+				getOperations.add(getOperation);
+			}
+
+			Future<Collection<Void>> filesFuture = FutureUtils.combineAll(getOperations);
+			filesFuture.get();
+
+			// file 1 should still be accessible until 1s after the last access which should give
+			// us enough time to still check for its existence
+			verifyContents(cache, jobId, keys.get(0), data, false);
+
+			// because we cannot guarantee that there are not thread races in the build system, we
+			// loop for a certain while until both BLOBs disappear
+			{
+				long deadline = System.currentTimeMillis() + 10_000L;
+				do {
+					Thread.sleep(100);
+				} while (checkFilesExist(jobId, keys, cache.getTransientBlobStore(), false) != 0 &&
+					System.currentTimeMillis() < deadline);
+
+				verifyDeleted(cache, jobId, keys.get(0), false);
+				verifyDeleted(cache, jobId, keys.get(1), false);
+			}
 		}
 	}
 }
