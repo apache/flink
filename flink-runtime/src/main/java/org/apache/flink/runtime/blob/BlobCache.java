@@ -79,9 +79,6 @@ public class BlobCache extends TimerTask implements BlobService {
 
 	// --------------------------------------------------------------------------------------------
 
-	/** The global lock to synchronize operations */
-	private final Object lockObject = new Object();
-
 	private static class RefCount {
 		public int references = 0;
 		public long keepUntil = Long.MAX_VALUE;
@@ -156,7 +153,7 @@ public class BlobCache extends TimerTask implements BlobService {
 	 * @see #releaseJob(JobID)
 	 */
 	public void registerJob(JobID jobId) {
-		synchronized (lockObject) {
+		synchronized (jobRefCounters) {
 			RefCount ref = jobRefCounters.get(jobId);
 			if (ref == null) {
 				ref = new RefCount();
@@ -175,7 +172,7 @@ public class BlobCache extends TimerTask implements BlobService {
 	 * @see #registerJob(JobID)
 	 */
 	public void releaseJob(JobID jobId) {
-		synchronized (lockObject) {
+		synchronized (jobRefCounters) {
 			RefCount ref = jobRefCounters.get(jobId);
 
 			if (ref == null) {
@@ -424,7 +421,7 @@ public class BlobCache extends TimerTask implements BlobService {
 	 */
 	@Override
 	public void run() {
-		synchronized (lockObject) {
+		synchronized (jobRefCounters) {
 			Iterator<Map.Entry<JobID, RefCount>> entryIter = jobRefCounters.entrySet().iterator();
 
 			while (entryIter.hasNext()) {
