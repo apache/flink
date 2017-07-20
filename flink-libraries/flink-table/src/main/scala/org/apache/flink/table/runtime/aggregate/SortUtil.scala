@@ -35,6 +35,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.calcite.rex.{RexLiteral, RexNode}
+import java.math.{BigDecimal=>JBigDecimal}
 
 import java.util.Comparator
 
@@ -81,6 +83,96 @@ object SortUtil {
   }
   
   /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting   
+   * with offset elements based on rowtime and potentially other fields with
+   * @param collationSort The Sort collation list
+   * @param sortOffset The offset indicator
+   * @param inputType input row type
+   * @param inputTypeInfo input type information
+   * @param execCfg table environment execution configuration
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createRowTimeSortFunctionOffset(
+    collationSort: RelCollation,
+    sortOffset: RexNode,
+    inputType: RelDataType,
+    inputTypeInfo: TypeInformation[Row],
+    execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
+
+    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    
+    val offsetInt = sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    
+    val collectionRowComparator = if (collationSort.getFieldCollations.size() > 1) {
+
+      val rowComp = createRowComparator(
+        inputType,
+        collationSort.getFieldCollations.asScala.tail, // strip off time collation
+        execCfg)
+
+      Some(new CollectionRowComparator(rowComp))
+    } else {
+      None
+    }
+    
+    new RowTimeSortProcessFunctionOffset(
+      offsetInt,
+      inputCRowType,
+      collectionRowComparator)
+
+  }
+  
+  /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting   
+   * with (offset and) fetch elements based on rowtime and potentially other fields with
+   * @param collationSort The Sort collation list
+   * @param sortOffset The offset indicator
+   * @param sortFetch The fetch indicator
+   * @param inputType input row type
+   * @param inputTypeInfo input type information
+   * @param execCfg table environment execution configuration
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createRowTimeSortFunctionOffsetFetch(
+    collationSort: RelCollation,
+    sortOffset: RexNode,
+    sortFetch: RexNode,
+    inputType: RelDataType,
+    inputTypeInfo: TypeInformation[Row],
+    execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
+
+    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    
+    val offsetInt = if(sortOffset != null) {
+      sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    } else {
+      0
+    }
+    
+    val fetchInt = sortFetch.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    
+    val collectionRowComparator = if (collationSort.getFieldCollations.size() > 1) {
+
+      val rowComp = createRowComparator(
+        inputType,
+        collationSort.getFieldCollations.asScala.tail, // strip off time collation
+        execCfg)
+
+      Some(new CollectionRowComparator(rowComp))
+    } else {
+      None
+    }
+    
+    new RowTimeSortProcessFunctionOffsetFetch(
+      offsetInt,
+      fetchInt,
+      inputCRowType,
+      collectionRowComparator)
+
+  }
+  
+  
+  /**
    * Creates a ProcessFunction to sort rows based on processing time and additional fields.
    *
    * @param collationSort The list of sort collations.
@@ -106,6 +198,134 @@ object SortUtil {
     new ProcTimeSortProcessFunction(
       inputCRowType,
       collectionRowComparator)
+
+  }
+  
+  /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
+   * elements based on proctime and potentially other fields and selecting output based on offset
+   * @param collationSort The Sort collation list
+   * @param sortOffset The offset indicator
+   * @param inputType input row type
+   * @param inputTypeInfo input type information
+   * @param execCfg table environment execution configuration
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createProcTimeSortFunctionOffset(
+    collationSort: RelCollation,
+    sortOffset: RexNode,
+    inputType: RelDataType,
+    inputTypeInfo: TypeInformation[Row],
+    execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
+
+    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    
+    val offsetInt = sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    
+    val rowComp = createRowComparator(
+      inputType,
+      collationSort.getFieldCollations.asScala.tail, // strip off time collation
+      execCfg)
+
+    val collectionRowComparator = new CollectionRowComparator(rowComp)
+    
+    new ProcTimeSortProcessFunctionOffset(
+      offsetInt,
+      inputCRowType,
+      collectionRowComparator)
+
+  }
+  
+  /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
+   * elements based on proctime alone and selecting the offset
+   * @param sortOffset The offset indicator
+   * @param inputTypeInfo input type information
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createIdentifyProcTimeSortFunctionOffset(
+    sortOffset: RexNode,
+    inputTypeInfo: TypeInformation[Row]): ProcessFunction[CRow, CRow] = {
+
+    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    
+    val offsetInt = sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    
+    new ProcTimeIdentitySortProcessFunctionOffset(
+      offsetInt,
+      inputCRowType)
+
+  }
+  
+  /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
+   * elements based on proctime and potentially other fields while selecting output 
+   * based on offset and fetch parameters
+   * @param collationSort The Sort collation list
+   * @param sortOffset The offset indicator. null value indicates only fetch
+   * @param inputType input row type
+   * @param inputTypeInfo input type information
+   * @param execCfg table environment execution configuration
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createProcTimeSortFunctionOffsetFetch(
+    collationSort: RelCollation,
+    sortOffset: RexNode,
+    sortFetch: RexNode,
+    inputType: RelDataType,
+    inputTypeInfo: TypeInformation[Row],
+    execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
+
+    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    
+    val offsetInt = if(sortOffset != null) {
+      sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    } else {
+      0
+    }
+    val fetchInt = sortFetch.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    
+    val rowComp = createRowComparator(
+      inputType,
+      collationSort.getFieldCollations.asScala.tail, // strip off time collation
+      execCfg)
+
+    val collectionRowComparator = new CollectionRowComparator(rowComp)
+    
+    new ProcTimeSortProcessFunctionOffsetFetch(
+      offsetInt,
+      fetchInt,
+      inputCRowType,
+      collectionRowComparator)
+
+  }
+  
+  /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
+   * elements based on proctime alone and selecting the offset and fetch
+   * @param sortOffset The offset indicator. null value indicates only fetch
+   * @param sortFetch The offset indicator
+   * @param inputTypeInfo input type information
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createIdentifyProcTimeSortFunctionOffsetFetch(
+    sortOffset: RexNode,
+    sortFetch: RexNode,
+    inputTypeInfo: TypeInformation[Row]): ProcessFunction[CRow, CRow] = {
+
+    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    
+    val offsetInt = if(sortOffset != null) {
+      sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    } else {
+      0
+    }
+    val fetchInt = sortFetch.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
+    
+    new ProcTimeIdentitySortProcessFunctionOffsetFetch(
+      offsetInt,
+      fetchInt,
+      inputCRowType)
 
   }
   

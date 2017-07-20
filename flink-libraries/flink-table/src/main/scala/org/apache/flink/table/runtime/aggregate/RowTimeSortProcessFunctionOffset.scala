@@ -33,32 +33,35 @@ import java.util.Collections
 import java.util.{List => JList, ArrayList => JArrayList}
 
 /**
- * ProcessFunction to sort on event-time and possibly addtional secondary sort attributes.
+ * ProcessFunction to sort on event-time and possibly additional secondary sort attributes
+ * with offset for selection
  *
- * @param inputRowType The data type of the input data.
- * @param rowComparator A comparator to sort rows.
+ * @param offset Is used to indicate the number of elements to be skipped in the current context
+ * @param inputType It is used to mark the type of the incoming data
+ * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
-class RowTimeSortProcessFunction(
-    private val inputRowType: CRowTypeInfo,
-    private val rowComparator: Option[CollectionRowComparator])
-  extends ProcessFunction[CRow, CRow] {
+class RowTimeSortProcessFunctionOffset(
+  private val offset: Int,
+  private val inputRowType: CRowTypeInfo,
+  private val rowComparator: Option[CollectionRowComparator])
+    extends ProcessFunction[CRow, CRow] {
 
   Preconditions.checkNotNull(rowComparator)
 
-  // State to collect rows between watermarks.
+  //State to collect rows between watermarks.
   private var dataState: MapState[Long, JList[Row]] = _
-
-  // the state keep the last triggering timestamp. Used to filter late events.
+  
+  // the state which keeps the last triggering timestamp to filter late events
   private var lastTriggeringTsState: ValueState[Long] = _
-
+  
   private var outputC: CRow = _
   
   override def open(config: Configuration) {
      
     val keyTypeInformation: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    val valueTypeInformation: TypeInformation[JList[Row]] = new ListTypeInfo[Row](
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
 
     val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
       new MapStateDescriptor[Long, JList[Row]](
@@ -71,7 +74,8 @@ class RowTimeSortProcessFunction(
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
     lastTriggeringTsState = getRuntimeContext.getState(lastTriggeringTsDescriptor)
-    
+
+    val arity:Integer = inputRowType.getArity
     outputC = new CRow()
   }
 
@@ -84,24 +88,22 @@ class RowTimeSortProcessFunction(
     val input = inputC.row
     
     // timestamp of the processed row
-    val rowtime = ctx.timestamp
+    val triggeringTs = ctx.timestamp
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
     // check if the row is late and drop it if it is late
-    if (rowtime > lastTriggeringTs) {
-      // get list for timestamp
-      val rows = dataState.get(rowtime)
+    if (triggeringTs > lastTriggeringTs) {
+      val rows = dataState.get(triggeringTs)
       if (null != rows) {
         rows.add(input)
-        dataState.put(rowtime, rows)
+        dataState.put(triggeringTs, rows)
       } else {
         val rows = new JArrayList[Row]
         rows.add(input)
-        dataState.put(rowtime, rows)
-
+        dataState.put(triggeringTs, rows)
         // register event time timer
-        ctx.timerService.registerEventTimeTimer(rowtime)
+        ctx.timerService.registerEventTimeTimer(triggeringTs)
       }
     }
   }
@@ -111,29 +113,32 @@ class RowTimeSortProcessFunction(
     timestamp: Long,
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
+
     
     // gets all rows for the triggering timestamps
-    val inputs: JList[Row] = dataState.get(timestamp)
+    val inputs = dataState.get(timestamp)
 
     if (null != inputs) {
-
+      
       // sort rows on secondary fields if necessary
       if (rowComparator.isDefined) {
         Collections.sort(inputs, rowComparator.get)
       }
-
-      // emit rows in order
+    
+      //we need to build the output and emit the events in order
       var i = 0
       while (i < inputs.size) {
-        outputC.row = inputs.get(i)
-        out.collect(outputC)
+        if (i >= offset ) {
+          outputC.row = inputs.get(i)  
+          out.collect(outputC)
+        }
         i += 1
       }
-    
-      // remove emitted rows from state
-      dataState.remove(timestamp)
-      lastTriggeringTsState.update(timestamp)
     }
+    
+    // remove emitted rows from state
+    lastTriggeringTsState.update(timestamp)    
+    dataState.remove(timestamp)
   }
   
 }
