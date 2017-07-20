@@ -79,9 +79,20 @@ public class BlobCache extends TimerTask implements BlobService {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Job reference counters with a time-to-live (TTL).
+	 */
 	private static class RefCount {
+		/**
+		 * Number of references to a job.
+		 */
 		public int references = 0;
-		public long keepUntil = Long.MAX_VALUE;
+		
+		/**
+		 * Timestamp in milliseconds when any job data should be cleaned up (no cleanup for
+		 * non-positive values).
+		 */
+		public long keepUntil = -1;
 	}
 
 	/** Map to store the number of references to a specific job */
@@ -428,7 +439,7 @@ public class BlobCache extends TimerTask implements BlobService {
 				Map.Entry<JobID, RefCount> entry = entryIter.next();
 				RefCount ref = entry.getValue();
 
-				if (ref.references <= 0 && System.currentTimeMillis() >= ref.keepUntil) {
+				if (ref.references <= 0 && ref.keepUntil > 0 && System.currentTimeMillis() >= ref.keepUntil) {
 					JobID jobId = entry.getKey();
 
 					final File localFile =
