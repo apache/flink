@@ -39,6 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -391,8 +392,17 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis);
 			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis);
 
+			UUID uuid;
+
+			try {
+				uuid = UUID.fromString(backendId);
+			} catch (Exception ex) {
+				// compatibility with old format pre FLINK-6964:
+				uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
+			}
+
 			return new IncrementalKeyedStateHandle(
-				UUID.fromString(backendId),
+				uuid,
 				keyGroupRange,
 				checkpointId,
 				sharedStates,
