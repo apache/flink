@@ -378,12 +378,6 @@ class TestingCluster(
   def requestCheckpoint(jobId: JobID, options : CheckpointOptions): String = {
     val jobManagerGateway = getLeaderGateway(timeout)
 
-    // wait until the cluster is ready to take a checkpoint.
-    val allRunning = jobManagerGateway.ask(
-      TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobId), timeout)
-
-    Await.ready(allRunning, timeout)
-
     // trigger checkpoint
     val result = Await.result(
       jobManagerGateway.ask(CheckpointRequest(jobId, options), timeout), timeout)
@@ -395,16 +389,9 @@ class TestingCluster(
         // failed because tasks were not ready.This would not be required if
         // TestingJobManagerMessages.WaitForAllVerticesToBeRunning(...) works
         // properly.
-        if (fail.cause != null) {
-          val innerCause = fail.cause.getCause
-          if (innerCause != null
-            && innerCause.getMessage.contains("tasks not ready")) {
-            // retry if the tasks are not ready yet.
-            Thread.sleep(50)
-            return requestCheckpoint(jobId, options)
-          }
-        }
-        throw new IOException(fail.cause)
+        LOG.info("Test checkpoint attempt failed. Retry ...", fail.cause)
+        Thread.sleep(50)
+        requestCheckpoint(jobId, options)
       }
       case _ => throw new IllegalStateException("Trigger checkpoint failed")
     }
