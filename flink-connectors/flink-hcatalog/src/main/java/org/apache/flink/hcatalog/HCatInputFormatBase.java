@@ -40,6 +40,8 @@ import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.common.HCatUtil;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
@@ -269,12 +271,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 			throws IOException {
 		configuration.setInt("mapreduce.input.fileinputformat.split.minsize", minNumSplits);
 
-		JobContext jobContext = null;
-		try {
-			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		JobContext jobContext = new JobContextImpl(configuration, new JobID());
 
 		List<InputSplit> splits;
 		try {
@@ -297,12 +294,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
-		TaskAttemptContext context = null;
-		try {
-			context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		TaskAttemptContext context = new TaskAttemptContextImpl(configuration, new TaskAttemptID());
 
 		try {
 			this.recordReader = this.hCatInputFormat

@@ -40,6 +40,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
@@ -115,12 +117,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			return null;
 		}
 
-		JobContext jobContext;
-		try {
-			jobContext = HadoopUtils.instantiateJobContext(configuration, null);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		JobContext jobContext = new JobContextImpl(configuration, null);
 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
@@ -149,12 +146,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			throws IOException {
 		configuration.setInt("mapreduce.input.fileinputformat.split.minsize", minNumSplits);
 
-		JobContext jobContext;
-		try {
-			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		JobContext jobContext = new JobContextImpl(configuration, new JobID());
 
 		jobContext.getCredentials().addAll(this.credentials);
 		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
@@ -187,12 +179,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		// enforce sequential open() calls
 		synchronized (OPEN_MUTEX) {
 
-			TaskAttemptContext context;
-			try {
-				context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			TaskAttemptContext context = new TaskAttemptContextImpl(configuration, new TaskAttemptID());
 
 			try {
 				this.recordReader = this.mapreduceInputFormat
