@@ -102,6 +102,9 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	/** Store for arbitrary blobs */
 	private final BlobStoreService blobStoreService;
 
+	/** Store for submitted JobGraph */
+	private final SubmittedJobGraphStore submittedJobGraphStore;
+
 	public ZooKeeperHaServices(
 			CuratorFramework client,
 			Executor executor,
@@ -113,6 +116,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 		this.runningJobsRegistry = new ZooKeeperRunningJobsRegistry(client, configuration);
 
 		this.blobStoreService = checkNotNull(blobStoreService);
+		try {
+			this.submittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executor);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,7 +159,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
-		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executor);
+		return this.submittedJobGraphStore;
 	}
 
 	@Override
@@ -210,6 +218,12 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 			blobStoreService.deleteAll(jobID);
 		} catch (Throwable t) {
 			exception = t;
+		}
+
+		try {
+			submittedJobGraphStore.removeJobGraph(jobID);
+		} catch (Throwable t) {
+			exception = ExceptionUtils.firstOrSuppressed(exception, t);
 		}
 
 		if (exception != null) {
