@@ -116,21 +116,21 @@ The first query is a simple `GROUP-BY COUNT` aggregation query. It groups the `c
 <img alt="Continuous Non-Windowed Query" src="{{ site.baseurl }}/fig/table-streaming/query-groupBy-cnt.png" width="90%">
 </center>
 
-The input table `clicks` is shown on the left-hand side. Initially, the table consists of six rows. Evaluating the query (shown in the middle) on these six records yields a result table which is shown on the right-hand side at the top. When the `clicks` table is updated by appending an additional row (originating from the stream of click events), the query updates the current result table and increases the appropriate count. The updated result table is show on the right-hand side in the middle (the updated row is highlighted). Finally, another row is added and the result is shown on the right bottom of the figure.
+When the query is started, the `clicks` table (left-hand side) is empty. The query starts to compute the result table, when the first row is inserted into the `clicks` table. After the first row `[Mary, ./home]` was inserted, the result table (right-hand side, top) consists of a single row `[Mary, 1]`. When the second row `[Bob, ./cart]` is inserted into the `clicks` table, the query updates the result table and inserts a new row `[Bob, 1]`. The third row `[Mary, ./prod?id=1]` yields an update of an already computed result row such that `[Mary, 1]` is updated to `[Mary, 2]`. Finally, the query inserts a third row `[Liz, 1]` into the result table, when the fourth row is appended to the `clicks` table.
 
-The second query is similar to the first one but groups the `clicks` table in addition to the `user` attribute also on an [hourly tumbling window](./sql.html#group-windows) before it counts the number of URLs. Again, the figure shows the input and output at different points in time to visualize the changing nature of dynamic tables.
+The second query is similar to the first one but groups the `clicks` table in addition to the `user` attribute also on an [hourly tumbling window](./sql.html#group-windows) before it counts the number of URLs (time-based computations such as windows are based on special [time attributes](#time-attributes), which are discussed below.). Again, the figure shows the input and output at different points in time to visualize the changing nature of dynamic tables.
 
 <center>
 <img alt="Continuous Group-Window Query" src="{{ site.baseurl }}/fig/table-streaming/query-groupBy-window-cnt.png" width="100%">
 </center>
 
-The input table `clicks` is shown on the left. The query continuously computes results every hour and updates the result table. The clicks table contains four rows with timestamps (`cTime`) between `12:00:00` and `12:59:59`. The query computes two results rows from this input (one for each `user`) and appends them to the result table. For the next window between `13:00:00` and `13:59:59`, the `clicks` table contains three rows, which results in another two rows being appended to the result table. As more records arrive over time, the result table is appropriately updated.
-
-**Note:** Time-based computations such as windows are based on special [Time Attributes](#time-attributes), which are discussed below.
+As before, the input table `clicks` is shown on the left. The query continuously computes results every hour and updates the result table. The clicks table contains four rows with timestamps (`cTime`) between `12:00:00` and `12:59:59`. The query computes two results rows from this input (one for each `user`) and appends them to the result table. For the next window between `13:00:00` and `13:59:59`, the `clicks` table contains three rows, which results in another two rows being appended to the result table. The result table is updated, as more rows are appended to `clicks` over time.
 
 #### Update and Append Queries
 
-Although the two example queries appear to be quite similar (both compute a grouped count aggregate), they differ in one important aspect. The first query must update previously emitted results, i.e., the changelog stream that defines the result table contains `INSERT` and `UPDATE` changes. In contrast, the second query only appends to the result table, i.e., the changelog stream of the result table consists only of `INSERT` changes.
+Although the two example queries appear to be quite similar (both compute a grouped count aggregate), they differ in one important aspect: 
+- The first query updates previously emitted results, i.e., the changelog stream that defines the result table contains `INSERT` and `UPDATE` changes. 
+- The second query only appends to the result table, i.e., the changelog stream of the result table only consists of `INSERT` changes.
 
 Whether a query produces an append-only table or an updated table has some implications:
 - Queries that produce update changes usually have to maintain more state (see the following section).
@@ -167,7 +167,7 @@ When converting a dynamic table into a stream or writing it to an external syste
 
 * **Append-only stream:** A dynamic table that is only modified by `INSERT` changes can be  converted into a stream by emitting the inserted rows. 
 
-* **Retract stream:** A retract stream is a stream with two types of messages, *add messages* and *retract messages*. A dynamic table is converted into an retract stream by encoding an `INSERT` change as add message, a `DELETE` change as retract message, and an `UPDATE` change as a retract message for the updated row and an add message for the updating row. The following figure visualizes the conversion of a dynamic table into a retract stream.
+* **Retract stream:** A retract stream is a stream with two types of messages, *add messages* and *retract messages*. A dynamic table is converted into an retract stream by encoding an `INSERT` change as add message, a `DELETE` change as retract message, and an `UPDATE` change as a retract message for the updated (previous) row and an add message for the updating (new) row. The following figure visualizes the conversion of a dynamic table into a retract stream.
 
 <center>
 <img alt="Dynamic tables" src="{{ site.baseurl }}/fig/table-streaming/undo-redo-mode.png" width="85%">
