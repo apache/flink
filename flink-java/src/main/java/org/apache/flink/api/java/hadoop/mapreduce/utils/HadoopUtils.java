@@ -22,12 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.JobID;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
 
-import java.lang.reflect.Constructor;
 import java.util.Map;
 
 /**
@@ -52,46 +47,6 @@ public final class HadoopUtils {
 			if (hadoopConfig.get(e.getKey()) == null) {
 				hadoopConfig.set(e.getKey(), e.getValue());
 			}
-		}
-	}
-
-	public static JobContext instantiateJobContext(Configuration configuration, JobID jobId) throws Exception {
-		try {
-			Class<?> clazz;
-			// for Hadoop 1.xx
-			if (JobContext.class.isInterface()) {
-				clazz = Class.forName("org.apache.hadoop.mapreduce.task.JobContextImpl", true, Thread.currentThread().getContextClassLoader());
-			}
-			// for Hadoop 2.xx
-			else {
-				clazz = Class.forName("org.apache.hadoop.mapreduce.JobContext", true, Thread.currentThread().getContextClassLoader());
-			}
-			Constructor<?> constructor = clazz.getConstructor(Configuration.class, JobID.class);
-			JobContext context = (JobContext) constructor.newInstance(configuration, jobId);
-
-			return context;
-		} catch (Exception e) {
-			throw new Exception("Could not create instance of JobContext.");
-		}
-	}
-
-	public static TaskAttemptContext instantiateTaskAttemptContext(Configuration configuration,  TaskAttemptID taskAttemptID) throws Exception {
-		try {
-			Class<?> clazz;
-			// for Hadoop 1.xx
-			if (JobContext.class.isInterface()) {
-				clazz = Class.forName("org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl");
-			}
-			// for Hadoop 2.xx
-			else {
-				clazz = Class.forName("org.apache.hadoop.mapreduce.TaskAttemptContext");
-			}
-			Constructor<?> constructor = clazz.getConstructor(Configuration.class, TaskAttemptID.class);
-			TaskAttemptContext context = (TaskAttemptContext) constructor.newInstance(configuration, taskAttemptID);
-
-			return context;
-		} catch (Exception e) {
-			throw new Exception("Could not create instance of TaskAttemptContext.");
 		}
 	}
 
