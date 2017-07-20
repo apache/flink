@@ -143,9 +143,7 @@ public class BlobCache extends TimerTask implements BlobService {
 		// Initializing the clean up task
 		this.cleanupTimer = new Timer(true);
 
-		cleanupInterval = blobClientConfig.getLong(
-			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
+		cleanupInterval = blobClientConfig.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
 		this.cleanupTimer.schedule(this, cleanupInterval, cleanupInterval);
 
 		// Add shutdown hook to delete storage directory

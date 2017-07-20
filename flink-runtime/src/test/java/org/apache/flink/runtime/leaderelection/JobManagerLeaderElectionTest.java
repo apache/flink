@@ -27,6 +27,7 @@ import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -176,7 +177,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		SubmittedJobGraphStore submittedJobGraphStore = new StandaloneSubmittedJobGraphStore();
 		CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
 
-		configuration.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+		configuration.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 		BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore());
 		return Props.create(

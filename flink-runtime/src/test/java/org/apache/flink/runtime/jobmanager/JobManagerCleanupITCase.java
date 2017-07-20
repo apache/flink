@@ -148,7 +148,7 @@ public class JobManagerCleanupITCase {
 						config.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "1 s");
 						// BLOBs are deleted from BlobCache between 1s and 2s after last reference
 						// -> the BlobCache may still have the BLOB or not (let's test both cases randomly)
-						config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+						config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 						cluster = new TestingCluster(config);
 						cluster.start();

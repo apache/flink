@@ -75,7 +75,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getAbsolutePath());
-		config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3_600L);
+		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
 
 		try {

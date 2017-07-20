@@ -78,7 +78,7 @@ public class BlobLibraryCacheManagerTest {
 			Configuration config = new Configuration();
 			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 				temporaryFolder.newFolder().getAbsolutePath());
-			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -211,7 +211,7 @@ public class BlobLibraryCacheManagerTest {
 			Configuration config = new Configuration();
 			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 				temporaryFolder.newFolder().getAbsolutePath());
-			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -325,7 +325,7 @@ public class BlobLibraryCacheManagerTest {
 			Configuration config = new Configuration();
 			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 				temporaryFolder.newFolder().getAbsolutePath());
-			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -433,7 +433,7 @@ public class BlobLibraryCacheManagerTest {
 			Configuration config = new Configuration();
 			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 				temporaryFolder.newFolder().getAbsolutePath());
-			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1_000_000L);
+			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
 
 
 			server = new BlobServer(config, new VoidBlobStore());
