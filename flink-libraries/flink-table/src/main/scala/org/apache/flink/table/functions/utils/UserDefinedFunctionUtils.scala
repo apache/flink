@@ -314,7 +314,28 @@ object UserDefinedFunctionUtils {
       aggregateFunction: AggregateFunction[_, _],
       extractedType: TypeInformation[_] = null)
     : TypeInformation[_] = {
-    getParameterTypeOfAggregateFunction(aggregateFunction, "getResultType", 0, extractedType)
+
+    val resultType = aggregateFunction.getResultType
+    if (resultType != null) {
+      resultType
+    } else if (extractedType != null) {
+      extractedType
+    } else {
+      try {
+        TypeExtractor
+          .createTypeInfo(aggregateFunction,
+            classOf[AggregateFunction[_, _]],
+            aggregateFunction.getClass,
+            0)
+          .asInstanceOf[TypeInformation[_]]
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new TableException(
+            s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
+              s"You can override AggregateFunction.getResultType() to specify the type.",
+            ite)
+      }
+    }
   }
 
   /**
@@ -325,40 +346,25 @@ object UserDefinedFunctionUtils {
     aggregateFunction: AggregateFunction[_, _],
     extractedType: TypeInformation[_] = null)
   : TypeInformation[_] = {
-    getParameterTypeOfAggregateFunction(aggregateFunction, "getAccumulatorType", 1, extractedType)
-  }
 
-  private def getParameterTypeOfAggregateFunction(
-    aggregateFunction: AggregateFunction[_, _],
-    getTypeMethod: String,
-    parameterTypePos: Int,
-    extractedType: TypeInformation[_] = null)
-  : TypeInformation[_] = {
-
-    val resultType = try {
-      val method: Method = aggregateFunction.getClass.getMethod(getTypeMethod)
-      method.invoke(aggregateFunction).asInstanceOf[TypeInformation[_]]
-    } catch {
-      case _: NoSuchMethodException => null
-      case ite: Throwable => throw new TableException("Unexpected exception:", ite)
-    }
-    if (resultType != null) {
-      resultType
+    val accType = aggregateFunction.getAccumulatorType
+    if (accType != null) {
+      accType
     } else if (extractedType != null) {
       extractedType
     } else {
       try {
         TypeExtractor
-        .createTypeInfo(aggregateFunction,
-                        classOf[AggregateFunction[_, _]],
-                        aggregateFunction.getClass,
-                        parameterTypePos)
-        .asInstanceOf[TypeInformation[_]]
+          .createTypeInfo(aggregateFunction,
+            classOf[AggregateFunction[_, _]],
+            aggregateFunction.getClass,
+            1)
+          .asInstanceOf[TypeInformation[_]]
       } catch {
         case ite: InvalidTypesException =>
           throw new TableException(
             s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              s"You can override AggregateFunction.$getTypeMethod() to specify the type.",
+              s"You can override AggregateFunction.getAccumulatorType() to specify the type.",
             ite)
       }
     }

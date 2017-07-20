@@ -80,11 +80,11 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
     acc.f1 = 0L
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[IntegralAvgAccumulator] = {
     new TupleTypeInfo(
       new IntegralAvgAccumulator().getClass,
       BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO).asInstanceOf[TypeInformation[IntegralAvgAccumulator]]
   }
 
   /**
@@ -175,11 +175,11 @@ abstract class BigIntegralAvgAggFunction[T]
     acc.f1 = 0
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[BigIntegralAvgAccumulator] = {
     new TupleTypeInfo(
       new BigIntegralAvgAccumulator().getClass,
       BasicTypeInfo.BIG_INT_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO).asInstanceOf[TypeInformation[BigIntegralAvgAccumulator]]
   }
 
   /**
@@ -255,11 +255,11 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T, FloatingAv
     acc.f1 = 0L
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[FloatingAvgAccumulator] = {
     new TupleTypeInfo(
       new FloatingAvgAccumulator().getClass,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO).asInstanceOf[TypeInformation[FloatingAvgAccumulator]]
   }
 
   /**
@@ -339,10 +339,10 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal, DecimalAvgAccu
     acc.f1 = 0L
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[DecimalAvgAccumulator] = {
     new TupleTypeInfo(
       new DecimalAvgAccumulator().getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO).asInstanceOf[TypeInformation[DecimalAvgAccumulator]]
   }
 }

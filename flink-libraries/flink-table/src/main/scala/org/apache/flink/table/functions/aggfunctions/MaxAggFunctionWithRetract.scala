@@ -133,11 +133,12 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
     acc.f1.clear()
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[MaxWithRetractAccumulator[T]] = {
     new TupleTypeInfo(
       new MaxWithRetractAccumulator[T].getClass,
       getValueTypeInfo,
       new MapTypeInfo(getValueTypeInfo, BasicTypeInfo.LONG_TYPE_INFO))
+        .asInstanceOf[TypeInformation[MaxWithRetractAccumulator[T]]]
   }
 
   def getInitValue: T

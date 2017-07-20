@@ -153,5 +153,5 @@ class MyAgg2 extends AggregateFunction[Long, Row] {
 
   override def getValue(accumulator: Row): Long = 1L
 
-  def getAccumulatorType: TypeInformation[_] = new RowTypeInfo(Types.LONG, Types.INT)
+  override def getAccumulatorType: TypeInformation[Row] = new RowTypeInfo(Types.LONG, Types.INT)
 }

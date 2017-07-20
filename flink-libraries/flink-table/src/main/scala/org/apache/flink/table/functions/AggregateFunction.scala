@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.functions
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+
 /**
   * Base class for User-Defined Aggregates.
   *
@@ -72,7 +74,7 @@ package org.apache.flink.table.functions
   *                     custom merge method.
   * @param its          an [[java.lang.Iterable]] pointed to a group of accumulators that will be
   *                     merged.
-
+  *
   * def merge(accumulator: ACC, its: java.lang.Iterable[ACC]): Unit
   * }}}
   *
@@ -82,7 +84,7 @@ package org.apache.flink.table.functions
   * dataset grouping aggregate.
   *
   * @param accumulator  the accumulator which needs to be reset
-
+  *
   * def resetAccumulator(accumulator: ACC): Unit
   * }}}
   *
@@ -93,7 +95,7 @@ package org.apache.flink.table.functions
   * inferred from the instance returned by createAccumulator method.
   *
   * @return  the type information for the accumulator.
-
+  *
   * def getAccumulatorType: TypeInformation[_]
   * }}}
   *
@@ -108,7 +110,6 @@ package org.apache.flink.table.functions
   *
   * def getResultType: TypeInformation[_]
   * }}}
-  *
   *
   * @tparam T   the type of the aggregation result
   * @tparam ACC base class for aggregate Accumulator. The accumulator is used to keep the aggregated
@@ -136,8 +137,26 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     */
   def getValue(accumulator: ACC): T
 
-  /**
-    * whether this aggregate only used in OVER clause
+    /**
+    * Returns true if this AggregateFunction can only be applied in an OVER window.
+    *
+    * @return true if the AggregateFunction requires an OVER window, false otherwise.
     */
   def requiresOver: Boolean = false
+
+  /**
+    * Returns the TypeInformation for the result of the AggregateFunction.
+    *
+    * @return The TypeInformation of the result of the AggregateFunction or null if the result type
+    *         should be automatically inferred.
+    */
+  def getResultType: TypeInformation[T] = null
+
+  /**
+    * Returns the TypeInformation for the accumulator of the AggregateFunction.
+    *
+    * @return The TypeInformation of the accumulator of the AggregateFunction or null if the
+    *         accumulator type should be automatically inferred.
+    */
+  def getAccumulatorType: TypeInformation[ACC] = null
 }

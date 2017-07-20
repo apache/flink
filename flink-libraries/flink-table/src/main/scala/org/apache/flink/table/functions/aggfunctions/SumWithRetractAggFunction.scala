@@ -84,11 +84,11 @@ abstract class SumWithRetractAggFunction[T: Numeric]
     acc.f1 = 0L
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[SumWithRetractAccumulator[T]] = {
     new TupleTypeInfo(
       (new SumWithRetractAccumulator).getClass,
       getValueTypeInfo,
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO).asInstanceOf[TypeInformation[SumWithRetractAccumulator[T]]]
   }
 
   def getValueTypeInfo: TypeInformation[_]
@@ -191,10 +191,10 @@ class DecimalSumWithRetractAggFunction
     acc.f1 = 0L
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  override def getAccumulatorType(): TypeInformation[DecimalSumWithRetractAccumulator] = {
     new TupleTypeInfo(
       (new DecimalSumWithRetractAccumulator).getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO).asInstanceOf[TypeInformation[DecimalSumWithRetractAccumulator]]
   }
 }
