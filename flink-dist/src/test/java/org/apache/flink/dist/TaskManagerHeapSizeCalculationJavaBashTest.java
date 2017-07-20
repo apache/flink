@@ -181,7 +181,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		// note: we are testing with integers only here to avoid overly complicated checks for
 		// overflowing or negative Long values - this should be enough for any practical scenario
 		// though
-		long min = TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue() + ran.nextInt(Integer.MAX_VALUE);
+		long min = (long) TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue() + ran.nextInt(Integer.MAX_VALUE);
 		long max = ran.nextInt(Integer.MAX_VALUE) + min;
 
 		int javaMemMB = Math.max((int) (max >> 20), ran.nextInt(Integer.MAX_VALUE)) + 1;
