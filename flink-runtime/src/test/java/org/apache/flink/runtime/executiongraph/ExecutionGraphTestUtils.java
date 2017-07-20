@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -189,6 +190,35 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
+	/**
+	 * Turns a newly scheduled execution graph into a state where all vertices run.
+	 * This waits until all executions have reached state 'DEPLOYING' and then switches them to running.
+	 */
+	public static void waitUntilDeployedAndSwitchToRunning(ExecutionGraph eg, long timeout) throws TimeoutException {
+		// wait until everything is running
+		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
+			final Execution exec = ev.getCurrentExecutionAttempt();
+			waitUntilExecutionState(exec, ExecutionState.DEPLOYING, timeout);
+		}
+
+		// Note: As ugly as it is, we need this minor sleep, because between switching
+		// to 'DEPLOYED' and when the 'switchToRunning()' may be called lies a race check
+		// against concurrent modifications (cancel / fail). We can only switch this to running
+		// once that check is passed. For the actual runtime, this switch is triggered by a callback
+		// from the TaskManager, which comes strictly after that. For tests, we use mock TaskManagers
+		// which cannot easily tell us when that condition has happened, unfortunately.
+		try {
+			Thread.sleep(2);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+
+		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
+			final Execution exec = ev.getCurrentExecutionAttempt();
+			exec.switchToRunning();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  state modifications
 	// ------------------------------------------------------------------------
@@ -254,9 +284,7 @@ public class ExecutionGraphTestUtils {
 	 * restart strategy.
 	 */
 	public static ExecutionGraph createSimpleTestGraph(RestartStrategy restartStrategy) throws Exception {
-		JobVertex vertex = new JobVertex("vertex");
-		vertex.setInvokableClass(NoOpInvokable.class);
-		vertex.setParallelism(10);
+		JobVertex vertex = createNoOpVertex(10);
 
 		return createSimpleTestGraph(new JobID(), restartStrategy, vertex);
 	}
@@ -294,6 +322,16 @@ public class ExecutionGraphTestUtils {
 			RestartStrategy restartStrategy,
 			JobVertex... vertices) throws Exception {
 
+		return createExecutionGraph(jid, slotProvider, restartStrategy, TestingUtils.defaultExecutor(), vertices);
+	}
+
+	public static ExecutionGraph createExecutionGraph(
+			JobID jid,
+			SlotProvider slotProvider,
+			RestartStrategy restartStrategy,
+			ScheduledExecutorService executor,
+			JobVertex... vertices) throws Exception {
+
 		checkNotNull(jid);
 		checkNotNull(restartStrategy);
 		checkNotNull(vertices);
@@ -302,16 +340,23 @@ public class ExecutionGraphTestUtils {
 				null,
 				new JobGraph(jid, "test job", vertices),
 				new Configuration(),
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+				executor,
+				executor,
 				slotProvider,
 				ExecutionGraphTestUtils.class.getClassLoader(),
-				mock(CheckpointRecoveryFactory.class),
+				new StandaloneCheckpointRecoveryFactory(),
 				Time.seconds(10),
 				restartStrategy,
 				new UnregisteredMetricsGroup(),
 				1,
 				TEST_LOGGER);
+	}
+
+	public static JobVertex createNoOpVertex(int parallelism) {
+		JobVertex vertex = new JobVertex("vertex");
+		vertex.setInvokableClass(NoOpInvokable.class);
+		vertex.setParallelism(parallelism);
+		return vertex;
 	}
 
 	// ------------------------------------------------------------------------

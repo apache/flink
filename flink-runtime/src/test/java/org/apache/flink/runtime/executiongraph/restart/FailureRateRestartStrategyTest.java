@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -32,9 +33,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Unit test for the {@link FixedDelayRestartStrategy}.
+ * Unit test for the {@link FailureRateRestartStrategy}.
  */
-public class FixedDelayRestartStrategyTest {
+public class FailureRateRestartStrategyTest {
 
 	public final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 
@@ -48,30 +49,46 @@ public class FixedDelayRestartStrategyTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testNumberOfRestarts() throws Exception {
-		final int numberRestarts = 10;
+	public void testManyFailuresWithinRate() throws Exception {
+		final int numAttempts = 10;
+		final int intervalMillis = 1;
 
-		final FixedDelayRestartStrategy strategy =
-				new FixedDelayRestartStrategy(numberRestarts, 0L);
+		final FailureRateRestartStrategy restartStrategy =
+				new FailureRateRestartStrategy(1, Time.milliseconds(intervalMillis), Time.milliseconds(0));
 
-		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
-			// two calls to 'canRestart()' to make sure this is not used to maintain the counter
-			assertTrue(strategy.canRestart());
-			assertTrue(strategy.canRestart());
-
-			strategy.restart(new NoOpRestarter(), executor);
+		for (int attempsLeft = numAttempts; attempsLeft > 0; --attempsLeft) {
+			assertTrue(restartStrategy.canRestart());
+			restartStrategy.restart(new NoOpRestarter(), executor);
+			sleepGuaranteed(2 * intervalMillis);
 		}
 
-		assertFalse(strategy.canRestart());
+		assertTrue(restartStrategy.canRestart());
+	}
+
+	@Test
+	public void testFailuresExceedingRate() throws Exception {
+		final int numFailures = 3;
+		final int intervalMillis = 10_000;
+
+		final FailureRateRestartStrategy restartStrategy =
+				new FailureRateRestartStrategy(numFailures, Time.milliseconds(intervalMillis), Time.milliseconds(0));
+
+		for (int failuresLeft = numFailures; failuresLeft > 0; --failuresLeft) {
+			assertTrue(restartStrategy.canRestart());
+			restartStrategy.restart(new NoOpRestarter(), executor);
+		}
+
+		// now the rate should be exceeded
+		assertFalse(restartStrategy.canRestart());
 	}
 
 	@Test
 	public void testDelay() throws Exception {
-		final long restartDelay = 10;
+		final long restartDelay = 2;
 		final int numberRestarts = 10;
 
-		final FixedDelayRestartStrategy strategy =
-				new FixedDelayRestartStrategy(numberRestarts, restartDelay);
+		final FailureRateRestartStrategy strategy =
+			new FailureRateRestartStrategy(numberRestarts + 1, Time.milliseconds(1), Time.milliseconds(restartDelay));
 
 		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
 			assertTrue(strategy.canRestart());
@@ -86,7 +103,26 @@ public class FixedDelayRestartStrategyTest {
 			final long elapsed = System.nanoTime() - time;
 			assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
 		}
-
-		assertFalse(strategy.canRestart());
 	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * This method makes sure that the actual interval and is not spuriously waking up.
+	 */
+	private static void sleepGuaranteed(long millis) throws InterruptedException {
+		final long deadline = System.nanoTime() + millis * 1_000_000;
+
+		long nanosToSleep;
+		while ((nanosToSleep = deadline - System.nanoTime()) > 0) {
+			long millisToSleep = nanosToSleep / 1_000_000;
+			if (nanosToSleep % 1_000_000 != 0) {
+				millisToSleep++;
+			}
+
+			Thread.sleep(millisToSleep);
+		}
+	}
+	
+	
 }
