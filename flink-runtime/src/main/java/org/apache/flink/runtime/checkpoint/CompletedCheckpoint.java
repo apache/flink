@@ -224,7 +224,9 @@ public class CompletedCheckpoint implements Serializable {
 
 			// discard private state objects
 			try {
-				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+				Collection<OperatorState> values = operatorStates.values();
+				LOG.trace("About to discard operator states {}.", values);
+				StateUtil.bestEffortDiscardAllStateObjects(values);
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
