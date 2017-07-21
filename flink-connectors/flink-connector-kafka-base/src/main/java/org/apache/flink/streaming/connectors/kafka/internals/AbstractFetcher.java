@@ -108,7 +108,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/** Expose current processing/in-flight record offset. */
 	private volatile long inFlightRecordOffset = -1;
-	
+
 	// ------------------------------------------------------------------------
 
 	protected AbstractFetcher(
