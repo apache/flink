@@ -325,7 +325,16 @@ object UserDefinedFunctionUtils {
     } else if (extractedType != null) {
       extractedType
     } else {
-      extractTypeFromAggregateFunction(aggregateFunction, 0)
+      try {
+        extractTypeFromAggregateFunction(aggregateFunction, 0)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new TableException(
+            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
+              "You can override AggregateFunction.getResultType() to specify the type.",
+            ite
+          )
+      }
     }
   }
 
@@ -348,7 +357,16 @@ object UserDefinedFunctionUtils {
     } else if (extractedType != null) {
       extractedType
     } else {
-      extractTypeFromAggregateFunction(aggregateFunction, 1)
+      try {
+        extractTypeFromAggregateFunction(aggregateFunction, 1)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new TableException(
+            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
+              "You can override AggregateFunction.getAccumulatorType() to specify the type.",
+            ite
+          )
+      }
     }
   }
 
@@ -360,23 +378,16 @@ object UserDefinedFunctionUtils {
     *
     * @return The extracted type.
     */
+  @throws(classOf[InvalidTypesException])
   private def extractTypeFromAggregateFunction(
       aggregateFunction: AggregateFunction[_, _],
       parameterTypePos: Int): TypeInformation[_] = {
-    try {
-      TypeExtractor
-        .createTypeInfo(aggregateFunction,
-          classOf[AggregateFunction[_, _]],
-          aggregateFunction.getClass,
-          parameterTypePos)
-        .asInstanceOf[TypeInformation[_]]
-    } catch {
-      case ite: InvalidTypesException =>
-        throw new TableException(
-          s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
-            s"You can override AggregateFunction.getResultType() to specify the type.",
-          ite)
-    }
+
+    TypeExtractor.createTypeInfo(
+      aggregateFunction,
+      classOf[AggregateFunction[_, _]],
+      aggregateFunction.getClass,
+      parameterTypePos).asInstanceOf[TypeInformation[_]]
   }
 
   /**
