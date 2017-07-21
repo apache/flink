@@ -78,9 +78,9 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T])
 
   override def getAccumulatorType: TypeInformation[MaxAccumulator[T]] = {
     new TupleTypeInfo(
-      new MaxAccumulator[T].getClass,
+      classOf[MaxAccumulator[T]],
       getValueTypeInfo,
-      BasicTypeInfo.BOOLEAN_TYPE_INFO).asInstanceOf[TypeInformation[MaxAccumulator[T]]]
+      BasicTypeInfo.BOOLEAN_TYPE_INFO)
   }
 
   def getInitValue: T

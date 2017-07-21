@@ -30,9 +30,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
   *
   *  There are a few other methods that can be optional to have:
   *  - retract,
-  *  - merge,
-  *  - resetAccumulator, and
-  *  - getAccumulatorType.
+  *  - merge, and
+  *  - resetAccumulator
   *
   * All these methods muse be declared publicly, not static and named exactly as the names
   * mentioned above. The methods createAccumulator and getValue are defined in the
@@ -89,33 +88,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
   * }}}
   *
   *
-  * {{{
-  * Returns the [[org.apache.flink.api.common.typeinfo.TypeInformation]] of the accumulator. This
-  * function is optional and can be implemented if the accumulator type cannot be automatically
-  * inferred from the instance returned by createAccumulator method.
-  *
-  * @return  the type information for the accumulator.
-  *
-  * def getAccumulatorType: TypeInformation[_]
-  * }}}
-  *
-  *
-  * {{{
-  * Returns the [[org.apache.flink.api.common.typeinfo.TypeInformation]] of the return value. This
-  * function is optional and needed in case Flink's type extraction facilities are not sufficient
-  * to extract the TypeInformation. Flink's type extraction facilities can handle basic types or
-  * simple POJOs but might be wrong for more complex, custom, or composite types.
-  *
-  * @return  the type information for the return value.
-  *
-  * def getResultType: TypeInformation[_]
-  * }}}
-  *
   * @tparam T   the type of the aggregation result
-  * @tparam ACC base class for aggregate Accumulator. The accumulator is used to keep the aggregated
-  *             values which are needed to compute an aggregation result. AggregateFunction
-  *             represents its state using accumulator, thereby the state of the AggregateFunction
-  *             must be put into the accumulator.
+  * @tparam ACC the type of the aggregation accumulator. The accumulator is used to keep the
+  *             aggregated values which are needed to compute an aggregation result.
+  *             AggregateFunction represents its state using accumulator, thereby the state of the
+  *             AggregateFunction must be put into the accumulator.
   */
 abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
   /**
@@ -145,17 +122,17 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
   def requiresOver: Boolean = false
 
   /**
-    * Returns the TypeInformation for the result of the AggregateFunction.
+    * Returns the TypeInformation of the AggregateFunction's result.
     *
-    * @return The TypeInformation of the result of the AggregateFunction or null if the result type
+    * @return The TypeInformation of the AggregateFunction's result or null if the result type
     *         should be automatically inferred.
     */
   def getResultType: TypeInformation[T] = null
 
   /**
-    * Returns the TypeInformation for the accumulator of the AggregateFunction.
+    * Returns the TypeInformation of the AggregateFunction's accumulator.
     *
-    * @return The TypeInformation of the accumulator of the AggregateFunction or null if the
+    * @return The TypeInformation of the AggregateFunction's accumulator or null if the
     *         accumulator type should be automatically inferred.
     */
   def getAccumulatorType: TypeInformation[ACC] = null

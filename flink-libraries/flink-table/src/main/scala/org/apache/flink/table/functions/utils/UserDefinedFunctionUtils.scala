@@ -307,8 +307,12 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal method of AggregateFunction#getResultType() that does some pre-checking and uses
-    * [[TypeExtractor]] as default return type inference.
+    * Tries to infer the TypeInformation of an AggregateFunction's return type.
+    *
+    * @param aggregateFunction The AggregateFunction for which the return type is inferred.
+    * @param extractedType The implicitly inferred type of the result type.
+    *
+    * @return The inferred result type of the AggregateFunction.
     */
   def getResultTypeOfAggregateFunction(
       aggregateFunction: AggregateFunction[_, _],
@@ -321,26 +325,17 @@ object UserDefinedFunctionUtils {
     } else if (extractedType != null) {
       extractedType
     } else {
-      try {
-        TypeExtractor
-          .createTypeInfo(aggregateFunction,
-            classOf[AggregateFunction[_, _]],
-            aggregateFunction.getClass,
-            0)
-          .asInstanceOf[TypeInformation[_]]
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new TableException(
-            s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              s"You can override AggregateFunction.getResultType() to specify the type.",
-            ite)
-      }
+      extractTypeFromAggregateFunction(aggregateFunction, 0)
     }
   }
 
   /**
-    * Internal method of AggregateFunction#getAccumulatorType() that does some pre-checking
-    * and uses [[TypeExtractor]] as default return type inference.
+    * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
+    *
+    * @param aggregateFunction The AggregateFunction for which the accumulator type is inferred.
+    * @param extractedType The implicitly inferred type of the accumulator type.
+    *
+    * @return The inferred accumulator type of the AggregateFunction.
     */
   def getAccumulatorTypeOfAggregateFunction(
     aggregateFunction: AggregateFunction[_, _],
@@ -353,20 +348,34 @@ object UserDefinedFunctionUtils {
     } else if (extractedType != null) {
       extractedType
     } else {
-      try {
-        TypeExtractor
-          .createTypeInfo(aggregateFunction,
-            classOf[AggregateFunction[_, _]],
-            aggregateFunction.getClass,
-            1)
-          .asInstanceOf[TypeInformation[_]]
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new TableException(
-            s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              s"You can override AggregateFunction.getAccumulatorType() to specify the type.",
-            ite)
-      }
+      extractTypeFromAggregateFunction(aggregateFunction, 1)
+    }
+  }
+
+  /**
+    * Internal method to extract a type from an AggregateFunction's type parameters.
+    *
+    * @param aggregateFunction The AggregateFunction for which the type is extracted.
+    * @param parameterTypePos The position of the type parameter for which the type is extracted.
+    *
+    * @return The extracted type.
+    */
+  private def extractTypeFromAggregateFunction(
+      aggregateFunction: AggregateFunction[_, _],
+      parameterTypePos: Int): TypeInformation[_] = {
+    try {
+      TypeExtractor
+        .createTypeInfo(aggregateFunction,
+          classOf[AggregateFunction[_, _]],
+          aggregateFunction.getClass,
+          parameterTypePos)
+        .asInstanceOf[TypeInformation[_]]
+    } catch {
+      case ite: InvalidTypesException =>
+        throw new TableException(
+          s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
+            s"You can override AggregateFunction.getResultType() to specify the type.",
+          ite)
     }
   }
 
