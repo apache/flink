@@ -187,7 +187,6 @@ high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.storageDir: hdfs:///flink/recovery
 high-availability.zookeeper.path.root: /flink
-high-availability.zookeeper.path.cluster-id: /cluster_one # important: customize per cluster
 yarn.application-attempts: 10</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
