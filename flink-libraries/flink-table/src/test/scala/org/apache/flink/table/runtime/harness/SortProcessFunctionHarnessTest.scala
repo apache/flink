@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.harness
 
+import java.util.Comparator
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -33,10 +34,11 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.table.runtime.aggregate.{CollectionRowComparator, ProcTimeSortProcessFunction, RowTimeSortProcessFunction}
-import org.apache.flink.table.runtime.harness.SortProcessFunctionHarnessTest.TupleRowSelector
+import org.apache.flink.table.runtime.harness.SortProcessFunctionHarnessTest._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 import org.junit.Test
+import org.apache.flink.table.runtime.aggregate.ProcTimeIdentitySortProcessFunctionOffsetFetch
 
 class SortProcessFunctionHarnessTest {
   
@@ -72,6 +74,8 @@ class SortProcessFunctionHarnessTest {
     
     val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
       new ProcTimeSortProcessFunction(
+          0,
+          -1,
         inputCRowType,
         collectionRowComparator))
   
@@ -141,6 +145,320 @@ class SortProcessFunctionHarnessTest {
   }
   
   @Test
+  def testSortProcTimeOffsetHarnessPartitioned(): Unit = {
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
+     LONG_TYPE_INFO), Array("count"))
+    val indexes = Array(1,2)
+      
+    val fieldComps = Array[TypeComparator[AnyRef]](
+      LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
+      INT_TYPE_INFO.createComparator(false, null).asInstanceOf[TypeComparator[AnyRef]] )
+    val booleanOrders = Array(true, false)    
+    
+
+    val rowComp = new RowComparator(
+      rT.getTotalFields,
+      indexes,
+      fieldComps,
+      new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
+      booleanOrders)
+    
+    val collectionRowComparator = new CollectionRowComparator(rowComp)
+    
+    val inputCRowType = CRowTypeInfo(rT)
+    
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new ProcTimeSortProcessFunction(
+        2,  
+        -1,
+        inputCRowType,
+        collectionRowComparator))
+  
+   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,CRow,CRow](
+      processFunction, 
+      new TupleRowSelector(0), 
+      BasicTypeInfo.INT_TYPE_INFO)
+    
+   testHarness.open();
+
+   testHarness.setProcessingTime(3)
+
+      // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), true), 1001))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2003))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2004))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1005)
+    
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 13L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2007))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 13L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2007))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 13L: JLong, 4: JInt, "aaa", 11L: JLong), true), 2008))
+    
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1007)
+    
+        
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+    //update
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong),true), 4))
+    //update
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 13L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+      
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, result, new RowResultSortComparator(6))
+    
+    testHarness.close()
+        
+  }
+  
+  @Test
+  def testSortProcTimeOffsetFetchHarnessPartitioned(): Unit = {
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
+     LONG_TYPE_INFO), Array("count"))
+    val indexes = Array(1,2)
+      
+    val fieldComps = Array[TypeComparator[AnyRef]](
+      LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
+      INT_TYPE_INFO.createComparator(false, null).asInstanceOf[TypeComparator[AnyRef]] )
+    val booleanOrders = Array(true, false)    
+    
+
+    val rowComp = new RowComparator(
+      rT.getTotalFields,
+      indexes,
+      fieldComps,
+      new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
+      booleanOrders)
+    
+    val collectionRowComparator = new CollectionRowComparator(rowComp)
+    
+    val inputCRowType = CRowTypeInfo(rT)
+    
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new ProcTimeSortProcessFunction(
+        2,
+        2,
+        inputCRowType,
+        collectionRowComparator))
+  
+   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,CRow,CRow](
+      processFunction, 
+      new TupleRowSelector(0), 
+      BasicTypeInfo.INT_TYPE_INFO)
+    
+   testHarness.open();
+
+   testHarness.setProcessingTime(3)
+
+      // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), true), 1001))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2003))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2004))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1005)
+    
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 8L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2007))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2007))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 9L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+    
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1007)
+    
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+    //update
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
+    //update
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+      
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, result, new RowResultSortComparator(6))
+    
+    testHarness.close()
+        
+  }
+  
+  @Test
+  def testSortProcTimeOffsetHarnessIdentity(): Unit = {
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val inputCRowType = CRowTypeInfo(rT)
+    
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new ProcTimeIdentitySortProcessFunctionOffsetFetch(
+        2,  
+        -1,
+        inputCRowType))
+  
+    val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,CRow,CRow](
+      processFunction, 
+      new TupleRowSelector(0), 
+      BasicTypeInfo.INT_TYPE_INFO)
+    
+    testHarness.open();
+
+    testHarness.setProcessingTime(3)
+
+      // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), true), 1001))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2003))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2004))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1005)
+    
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+    //output is the last 3 elements (first 2 are skipped)
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong),true), 4))
+      
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, result, new RowResultSortComparator(6))
+    
+    testHarness.close()
+        
+  }
+  
+  
+  @Test
+  def testSortProcTimeOffsetFetchHarnessIdentity(): Unit = {
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val inputCRowType = CRowTypeInfo(rT)
+    
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new ProcTimeIdentitySortProcessFunctionOffsetFetch(
+        0,
+        3,
+        inputCRowType))
+  
+    val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,CRow,CRow](
+      processFunction, 
+      new TupleRowSelector(0), 
+      BasicTypeInfo.INT_TYPE_INFO)
+    
+    testHarness.open();
+
+    testHarness.setProcessingTime(3)
+
+      // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), true), 1001))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2003))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2004))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1005)
+    
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+    //output is the first 3 elements received
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 4))
+      
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, result, new RowResultSortComparator(6))
+    
+    testHarness.close()
+        
+  }
+  
+  @Test
   def testSortRowTimeHarnessPartitioned(): Unit = {
     
     val rT =  new RowTypeInfo(Array[TypeInformation[_]](
@@ -171,6 +489,8 @@ class SortProcessFunctionHarnessTest {
     
     val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
       new RowTimeSortProcessFunction(
+        0,
+        -1,
         inputCRowType,
         Some(collectionRowComparator)))
   
@@ -259,6 +579,176 @@ class SortProcessFunctionHarnessTest {
     testHarness.close()
         
   }
+  
+  
+  @Test
+  def testSortRowTimeOffsetHarnessPartitioned(): Unit = {
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
+     LONG_TYPE_INFO), Array("count"))
+    val indexes = Array(1,2)
+      
+    val fieldComps = Array[TypeComparator[AnyRef]](
+      LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
+      INT_TYPE_INFO.createComparator(false, null).asInstanceOf[TypeComparator[AnyRef]] )
+    val booleanOrders = Array(true, false)    
+    
+
+    val rowComp = new RowComparator(
+      rT.getTotalFields,
+      indexes,
+      fieldComps,
+      new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
+      booleanOrders)
+    
+    val collectionRowComparator = Some(new CollectionRowComparator(rowComp))
+    
+    val inputCRowType = CRowTypeInfo(rT)
+    
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new RowTimeSortProcessFunction(
+        2,
+        -1,
+        inputCRowType,
+        collectionRowComparator))
+  
+   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,CRow,CRow](
+      processFunction, 
+      new TupleRowSelector(0), 
+      BasicTypeInfo.INT_TYPE_INFO)
+    
+   testHarness.open();
+
+   testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime)
+   testHarness.processWatermark(3)
+
+      // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), true), 1001))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2002))
+
+    //move the timestamp to ensure the execution
+    testHarness.processWatermark(2007)
+    
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+    expectedOutput.add(new Watermark(3))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 2002))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 2002))
+    expectedOutput.add(new Watermark(2007))
+    
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, result, new RowResultSortComparator(6))
+        
+    testHarness.close()
+        
+  }
+  
+  @Test
+  def testSortRowTimeOffsetFetchHarnessPartitioned(): Unit = {
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
+     LONG_TYPE_INFO), Array("count"))
+    val indexes = Array(1,2)
+      
+    val fieldComps = Array[TypeComparator[AnyRef]](
+      LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
+      INT_TYPE_INFO.createComparator(false, null).asInstanceOf[TypeComparator[AnyRef]] )
+    val booleanOrders = Array(true, false)    
+    
+
+    val rowComp = new RowComparator(
+      rT.getTotalFields,
+      indexes,
+      fieldComps,
+      new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
+      booleanOrders)
+    
+    val collectionRowComparator = Some(new CollectionRowComparator(rowComp))
+    
+    val inputCRowType = CRowTypeInfo(rT)
+    
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new RowTimeSortProcessFunction(
+        0,
+        3,
+        inputCRowType,
+        collectionRowComparator))
+  
+   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,CRow,CRow](
+      processFunction, 
+      new TupleRowSelector(0), 
+      BasicTypeInfo.INT_TYPE_INFO)
+    
+   testHarness.open();
+
+   testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime)
+   testHarness.processWatermark(3)
+
+      // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), true), 1001))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 11L: JLong), true), 2002))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2002))
+
+    //move the timestamp to ensure the execution
+    testHarness.processWatermark(2007)
+    
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+    expectedOutput.add(new Watermark(3))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong),true), 1001))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong),true), 2002))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 11L: JLong),true), 2002))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 2002))
+    expectedOutput.add(new Watermark(2007))
+    
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, result, new RowResultSortComparator(6))
+        
+    testHarness.close()
+        
+  }
+  
 }
 
 object SortProcessFunctionHarnessTest {
@@ -271,5 +761,24 @@ object SortProcessFunctionHarnessTest {
     override def getKey(value: CRow): Integer = {
       value.row.getField(selectorField).asInstanceOf[Integer]
     }
+  }
+  
+   
+  /**
+   * Return 0 for equal Rows and non zero for different rows
+   */
+  class RowResultSortComparator(indexCounter: Int) extends Comparator[Object] with Serializable {
+
+    override def compare(o1: Object, o2: Object):Int = {
+
+      if (o1.isInstanceOf[Watermark] || o2.isInstanceOf[Watermark]) {
+        // watermark is not expected
+         -1
+       } else {
+        val row1 = o1.asInstanceOf[StreamRecord[CRow]].getValue
+        val row2 = o2.asInstanceOf[StreamRecord[CRow]].getValue
+        row1.toString.compareTo(row2.toString)
+      }
+   }
   }
 }

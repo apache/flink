@@ -31,10 +31,16 @@ import java.util.Collections
 /**
  * ProcessFunction to sort on processing time and additional attributes.
  *
+ * @param offset Is used to indicate the number of elements to be skipped in the current context
+ * (0 offset allows to execute only fetch)
+ * @param fetch Is used to indicate the number of elements to be outputted in the current context
+ * (-1 fetch allows to emit unlimited number of elements)
  * @param inputRowType The data type of the input data.
  * @param rowComparator A comparator to sort rows.
  */
 class ProcTimeSortProcessFunction(
+    private val offset: Int,
+    private val fetch: Int,
     private val inputRowType: CRowTypeInfo,
     private val rowComparator: CollectionRowComparator)
   extends ProcessFunction[CRow, CRow] {
@@ -43,6 +49,7 @@ class ProcTimeSortProcessFunction(
 
   private var bufferedEvents: ListState[Row] = _
   private val sortBuffer: ArrayList[Row] = new ArrayList[Row]
+  private val adjustedFetchLimit = offset + fetch
   
   private var outputC: CRow = _
   
@@ -89,8 +96,11 @@ class ProcTimeSortProcessFunction(
     // Emit the rows in order
     var i = 0
     while (i < sortBuffer.size) {
-      outputC.row = sortBuffer.get(i)
-      out.collect(outputC)
+      // display only elements beyond the offset limit
+      if (i >= offset && (fetch == -1 || i < adjustedFetchLimit)) {
+        outputC.row = sortBuffer.get(i)   
+        out.collect(outputC)
+      }
       i += 1
     }
     

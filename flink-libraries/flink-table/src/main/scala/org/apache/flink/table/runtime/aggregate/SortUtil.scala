@@ -77,6 +77,8 @@ object SortUtil {
     val inputCRowType = CRowTypeInfo(inputTypeInfo)
  
     new RowTimeSortProcessFunction(
+      0,
+      -1,
       inputCRowType,
       collectionRowComparator)
 
@@ -115,8 +117,9 @@ object SortUtil {
       None
     }
     
-    new RowTimeSortProcessFunctionOffset(
+    new RowTimeSortProcessFunction(
       offsetInt,
+      -1,
       inputCRowType,
       collectionRowComparator)
 
@@ -163,7 +166,7 @@ object SortUtil {
       None
     }
     
-    new RowTimeSortProcessFunctionOffsetFetch(
+    new RowTimeSortProcessFunction(
       offsetInt,
       fetchInt,
       inputCRowType,
@@ -196,6 +199,8 @@ object SortUtil {
     val inputCRowType = CRowTypeInfo(inputTypeInfo)
     
     new ProcTimeSortProcessFunction(
+      0,   //no offset
+      -1,  //full fetch
       inputCRowType,
       collectionRowComparator)
 
@@ -229,10 +234,11 @@ object SortUtil {
 
     val collectionRowComparator = new CollectionRowComparator(rowComp)
     
-    new ProcTimeSortProcessFunctionOffset(
-      offsetInt,
-      inputCRowType,
-      collectionRowComparator)
+    new ProcTimeSortProcessFunction(
+        offsetInt,
+        -1,  //unlimited fetch
+        inputCRowType,
+        collectionRowComparator)
 
   }
   
@@ -251,10 +257,10 @@ object SortUtil {
     
     val offsetInt = sortOffset.asInstanceOf[RexLiteral].getValue.asInstanceOf[JBigDecimal].intValue
     
-    new ProcTimeIdentitySortProcessFunctionOffset(
+    new ProcTimeIdentitySortProcessFunctionOffsetFetch(
       offsetInt,
+      -1, //unlimited fetch
       inputCRowType)
-
   }
   
   /**
@@ -292,11 +298,11 @@ object SortUtil {
 
     val collectionRowComparator = new CollectionRowComparator(rowComp)
     
-    new ProcTimeSortProcessFunctionOffsetFetch(
-      offsetInt,
-      fetchInt,
-      inputCRowType,
-      collectionRowComparator)
+      new ProcTimeSortProcessFunction(
+        offsetInt,
+        fetchInt,
+        inputCRowType,
+        collectionRowComparator)
 
   }
   

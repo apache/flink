@@ -91,17 +91,17 @@ class ProcTimeIdentitySortProcessFunctionOffsetFetch(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     
-    var iElements = 0
+    var i = 0
     //we need to build the output and emit the events in order
     val iter =  stateEventsBuffer.get.iterator()
-    iElements = 0
+    i = 0
     while (iter.hasNext()) {
       // display only elements beyond the offset limit
       outputC.row = iter.next()
-      if (iElements >= offset && iElements < adjustedFetchLimit) {
+      if (i >= offset && (fetch == -1 || i < adjustedFetchLimit)) {
         out.collect(outputC)
       }
-      iElements += 1
+      i += 1
     }
     stateEventsBuffer.clear()
     

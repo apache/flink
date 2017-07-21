@@ -33,12 +33,18 @@ import java.util.Collections
 import java.util.{List => JList, ArrayList => JArrayList}
 
 /**
- * ProcessFunction to sort on event-time and possibly addtional secondary sort attributes.
+ * ProcessFunction to sort on event-time and possibly additional secondary sort attributes.
  *
+ * @param offset Is used to indicate the number of elements to be skipped in the current context
+ * (0 offset allows to execute only fetch)
+ * @param fetch Is used to indicate the number of elements to be outputted in the current context
+ * (-1 allows to fetch unlimited number of items)
  * @param inputRowType The data type of the input data.
  * @param rowComparator A comparator to sort rows.
  */
 class RowTimeSortProcessFunction(
+    private val offset: Int,
+    private val fetch: Int,
     private val inputRowType: CRowTypeInfo,
     private val rowComparator: Option[CollectionRowComparator])
   extends ProcessFunction[CRow, CRow] {
@@ -50,6 +56,7 @@ class RowTimeSortProcessFunction(
 
   // the state keep the last triggering timestamp. Used to filter late events.
   private var lastTriggeringTsState: ValueState[Long] = _
+  private val adjustedFetchLimit = offset + fetch
 
   private var outputC: CRow = _
   
@@ -122,14 +129,16 @@ class RowTimeSortProcessFunction(
         Collections.sort(inputs, rowComparator.get)
       }
 
-      // emit rows in order
+      //we need to build the output and emit the events in order
       var i = 0
       while (i < inputs.size) {
-        outputC.row = inputs.get(i)
-        out.collect(outputC)
+        if (i >= offset && (fetch == -1 || i < adjustedFetchLimit)) {
+          outputC.row = inputs.get(i)  
+          out.collect(outputC)
+        }
         i += 1
       }
-    
+      
       // remove emitted rows from state
       dataState.remove(timestamp)
       lastTriggeringTsState.update(timestamp)
