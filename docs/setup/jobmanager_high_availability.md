@@ -74,15 +74,15 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
-- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all cluster namespace nodes are placed.
+- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all cluster nodes are placed.
 
   <pre>high-availability.zookeeper.path.root: /flink
 
-- **ZooKeeper namespace** (recommended): The *namespace ZooKeeper node*, under which all required coordination data for a cluster is placed.
+- **ZooKeeper cluster-id** (recommended): The *cluster-id ZooKeeper node*, under which all required coordination data for a cluster is placed.
 
-  <pre>high-availability.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre>
+  <pre>high-availability.zookeeper.path.cluster-id: /default_ns # important: customize per cluster</pre>
 
-  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration.
+  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate cluster-ids for each cluster. By default, the Yarn cluster and the Yarn session automatically generate cluster-ids based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a cluster-id with the -z CLI option, in turn, overrides manual configuration.
 
 - **Storage directory** (required): JobManager metadata is persisted in the file system *storageDir* and only a pointer to this state is stored in ZooKeeper.
 
@@ -102,7 +102,7 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
 high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
-high-availability.zookeeper.path.namespace: /cluster_one # important: customize per cluster
+high-availability.zookeeper.path.cluster-id: /cluster_one # important: customize per cluster
 high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
 
 2. **Configure masters** in `conf/masters`:
@@ -187,7 +187,7 @@ high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.storageDir: hdfs:///flink/recovery
 high-availability.zookeeper.path.root: /flink
-high-availability.zookeeper.path.namespace: /cluster_one # important: customize per cluster
+high-availability.zookeeper.path.cluster-id: /cluster_one # important: customize per cluster
 yarn.application-attempts: 10</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
