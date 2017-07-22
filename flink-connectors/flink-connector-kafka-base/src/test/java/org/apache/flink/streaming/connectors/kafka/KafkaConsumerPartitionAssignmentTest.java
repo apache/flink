@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -50,14 +49,13 @@ public class KafkaConsumerPartitionAssignmentTest {
 					new KafkaTopicPartition("test-topic", 1));
 
 			for (int i = 0; i < inPartitions.size(); i++) {
-				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
-				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-					subscribedPartitionsToStartOffsets,
-					inPartitions,
-					i,
-					inPartitions.size(),
-					StartupMode.GROUP_OFFSETS,
-					null);
+				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets =
+					FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+						inPartitions,
+						i,
+						inPartitions.size(),
+						StartupMode.GROUP_OFFSETS,
+						null);
 
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
 
@@ -90,14 +88,13 @@ public class KafkaConsumerPartitionAssignmentTest {
 			final int maxPartitionsPerConsumer = partitions.size() / numConsumers + 1;
 
 			for (int i = 0; i < numConsumers; i++) {
-				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
-				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-					subscribedPartitionsToStartOffsets,
-					partitions,
-					i,
-					numConsumers,
-					StartupMode.GROUP_OFFSETS,
-					null);
+				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets =
+					FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+						partitions,
+						i,
+						numConsumers,
+						StartupMode.GROUP_OFFSETS,
+						null);
 
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
 
@@ -134,14 +131,13 @@ public class KafkaConsumerPartitionAssignmentTest {
 			final int numConsumers = 2 * inPartitions.size() + 3;
 
 			for (int i = 0; i < numConsumers; i++) {
-				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
-				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-					subscribedPartitionsToStartOffsets,
-					inPartitions,
-					i,
-					numConsumers,
-					StartupMode.GROUP_OFFSETS,
-					null);
+				Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets =
+					FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+						inPartitions,
+						i,
+						numConsumers,
+						StartupMode.GROUP_OFFSETS,
+						null);
 
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
 
@@ -166,24 +162,22 @@ public class KafkaConsumerPartitionAssignmentTest {
 	public void testAssignEmptyPartitions() {
 		try {
 			List<KafkaTopicPartition> ep = new ArrayList<>();
-			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = new HashMap<>();
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets,
-				ep,
-				2,
-				4,
-				StartupMode.GROUP_OFFSETS,
-				null);
+			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					ep,
+					2,
+					4,
+					StartupMode.GROUP_OFFSETS,
+					null);
 			assertTrue(subscribedPartitionsToStartOffsets.entrySet().isEmpty());
 
-			subscribedPartitionsToStartOffsets = new HashMap<>();
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets,
-				ep,
-				0,
-				1,
-				StartupMode.GROUP_OFFSETS,
-				null);
+			subscribedPartitionsToStartOffsets =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					ep,
+					0,
+					1,
+					StartupMode.GROUP_OFFSETS,
+					null);
 			assertTrue(subscribedPartitionsToStartOffsets.entrySet().isEmpty());
 		}
 		catch (Exception e) {
@@ -214,33 +208,29 @@ public class KafkaConsumerPartitionAssignmentTest {
 			final int minNewPartitionsPerConsumer = newPartitions.size() / numConsumers;
 			final int maxNewPartitionsPerConsumer = newPartitions.size() / numConsumers + 1;
 
-			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets1 = new HashMap<>();
-			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets2 = new HashMap<>();
-			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets3 = new HashMap<>();
+			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets1 =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					initialPartitions,
+					0,
+					numConsumers,
+					StartupMode.GROUP_OFFSETS,
+					null);
 
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets1,
-				initialPartitions,
-				0,
-				numConsumers,
-				StartupMode.GROUP_OFFSETS,
-				null);
+			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets2 =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					initialPartitions,
+					1,
+					numConsumers,
+					StartupMode.GROUP_OFFSETS,
+					null);
 
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets2,
-				initialPartitions,
-				1,
-				numConsumers,
-				StartupMode.GROUP_OFFSETS,
-				null);
-
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets3,
-				initialPartitions,
-				2,
-				numConsumers,
-				StartupMode.GROUP_OFFSETS,
-				null);
+			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets3 =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					initialPartitions,
+					2,
+					numConsumers,
+					StartupMode.GROUP_OFFSETS,
+					null);
 
 			List<KafkaTopicPartition> subscribedPartitions1 = new ArrayList<>(subscribedPartitionsToStartOffsets1.keySet());
 			List<KafkaTopicPartition> subscribedPartitions2 = new ArrayList<>(subscribedPartitionsToStartOffsets2.keySet());
@@ -273,33 +263,29 @@ public class KafkaConsumerPartitionAssignmentTest {
 
 			// grow the set of partitions and distribute anew
 
-			subscribedPartitionsToStartOffsets1 = new HashMap<>();
-			subscribedPartitionsToStartOffsets2 = new HashMap<>();
-			subscribedPartitionsToStartOffsets3 = new HashMap<>();
+			subscribedPartitionsToStartOffsets1 =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					newPartitions,
+					0,
+					numConsumers,
+					StartupMode.GROUP_OFFSETS,
+					null);
 
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets1,
-				newPartitions,
-				0,
-				numConsumers,
-				StartupMode.GROUP_OFFSETS,
-				null);
+			subscribedPartitionsToStartOffsets2 =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					newPartitions,
+					1,
+					numConsumers,
+					StartupMode.GROUP_OFFSETS,
+					null);
 
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets2,
-				newPartitions,
-				1,
-				numConsumers,
-				StartupMode.GROUP_OFFSETS,
-				null);
-
-			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
-				subscribedPartitionsToStartOffsets3,
-				newPartitions,
-				2,
-				numConsumers,
-				StartupMode.GROUP_OFFSETS,
-				null);
+			subscribedPartitionsToStartOffsets3 =
+				FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
+					newPartitions,
+					2,
+					numConsumers,
+					StartupMode.GROUP_OFFSETS,
+					null);
 
 			List<KafkaTopicPartition> subscribedPartitions1New = new ArrayList<>(subscribedPartitionsToStartOffsets1.keySet());
 			List<KafkaTopicPartition> subscribedPartitions2New = new ArrayList<>(subscribedPartitionsToStartOffsets2.keySet());
