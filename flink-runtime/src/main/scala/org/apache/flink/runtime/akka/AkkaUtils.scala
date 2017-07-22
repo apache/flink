@@ -203,7 +203,7 @@ object AkkaUtils {
     val config =
       s"""
         |akka {
-        | daemonic = on
+        | daemonic = off
         |
         | loggers = ["akka.event.slf4j.Slf4jLogger"]
         | logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
