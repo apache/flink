@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.FailureRateRestartStrategy;
@@ -618,14 +619,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 
 		@Override
-		public void restart(final ExecutionGraph executionGraph) {
+		public void restart(final RestartCallback restartCallback) {
 			Futures.future(new Callable<Object>() {
 				@Override
 				public Object call() throws Exception {
 					try {
 
 						Await.ready(doRestart.future(), timeout);
-						executionGraph.restart();
+						restartCallback.onRestart();
 					} catch (Exception e) {
 						exception = e;
 					}

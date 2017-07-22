@@ -29,6 +29,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
+import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -256,7 +257,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	static class TestingRestartStrategy implements RestartStrategy {
 
 		private boolean restartable = true;
-		private ExecutionGraph executionGraph = null;
+		private RestartCallback restartCallback = null;
 
 		@Override
 		public boolean canRestart() {
@@ -264,8 +265,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		}
 
 		@Override
-		public void restart(ExecutionGraph executionGraph) {
-			this.executionGraph = executionGraph;
+		public void restart(RestartCallback restartCallback) {
+			this.restartCallback = restartCallback;
 		}
 
 		public void setRestartable(boolean restartable) {
@@ -273,7 +274,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		}
 
 		public void restartExecutionGraph() {
-			executionGraph.restart();
+			restartCallback.onRestart();
 		}
 	}
 

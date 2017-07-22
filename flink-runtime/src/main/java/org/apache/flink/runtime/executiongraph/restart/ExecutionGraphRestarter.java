@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,7 @@ import java.util.concurrent.Callable;
 
 class ExecutionGraphRestarter {
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphRestarter.class);
-	public static Callable<Object> restartWithDelay(final ExecutionGraph executionGraph, final long delayBetweenRestartAttemptsInMillis) {
+	public static Callable<Object> restartWithDelay(final RestartCallback restartCallback, final long delayBetweenRestartAttemptsInMillis) {
 		return new Callable<Object>() {
 			@Override
 			public Object call() throws Exception {
@@ -37,7 +36,7 @@ class ExecutionGraphRestarter {
 				} catch(InterruptedException e) {
 					// should only happen on shutdown
 				}
-				executionGraph.restart();
+				restartCallback.onRestart();
 				return null;
 			}
 		};

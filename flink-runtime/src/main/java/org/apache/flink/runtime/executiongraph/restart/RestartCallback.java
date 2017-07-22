@@ -19,43 +19,33 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Testing restart strategy which promise to restart {@link ExecutionGraph} after the infinite time delay.
- * Actually {@link ExecutionGraph} will never be restarted. No additional threads will be used.
- */
-public class InfiniteDelayRestartStrategy implements RestartStrategy {
-	private static final Logger LOG = LoggerFactory.getLogger(InfiniteDelayRestartStrategy.class);
+import java.util.concurrent.Executor;
 
-	private final int maxRestartAttempts;
-	private int restartAttemptCounter;
+public class RestartCallback {
+	private static final Logger LOG = LoggerFactory.getLogger(RestartCallback.class);
 
-	public InfiniteDelayRestartStrategy() {
-		this(-1);
+	private final ExecutionGraph executionGraph;
+	private final long expectedGlobalModVersion;
+
+	public RestartCallback(ExecutionGraph executionGraph, long expectedGlobalModVersion) {
+		this.executionGraph = executionGraph;
+		this.expectedGlobalModVersion = expectedGlobalModVersion;
 	}
 
-	public InfiniteDelayRestartStrategy(int maxRestartAttempts) {
-		this.maxRestartAttempts = maxRestartAttempts;
-		restartAttemptCounter = 0;
-	}
-
-	@Override
-	public boolean canRestart() {
-		if (maxRestartAttempts >= 0) {
-			return restartAttemptCounter < maxRestartAttempts;
+	public void onRestart() {
+		long currentModVersion = executionGraph.getGlobalModVersion();
+		if (currentModVersion == expectedGlobalModVersion) {
+			executionGraph.restart();
 		} else {
-			return true;
+			LOG.warn("Restart will be ignored for current version[" + currentModVersion + "] != expectedVersion[" + expectedGlobalModVersion + "]");
 		}
 	}
 
-	@Override
-	public void restart(RestartCallback restartCallback) {
-		LOG.info("Delaying retry of job execution forever");
-
-		if (maxRestartAttempts >= 0) {
-			restartAttemptCounter++;
-		}
+	public Executor getFutureExecutor() {
+		return executionGraph.getFutureExecutor();
 	}
 }
