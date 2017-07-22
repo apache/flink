@@ -55,6 +55,10 @@ public class PatternStream<T> {
 
 	private AfterMatchSkipStrategy skipStrategy;
 
+	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
+		this(inputStream, pattern, new AfterMatchSkipStrategy());
+	}
+
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern, final AfterMatchSkipStrategy skipStrategy) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;

@@ -71,7 +71,7 @@ public class NFACompiler {
 		Pattern<T, ?> pattern,
 		TypeSerializer<T> inputTypeSerializer,
 		boolean timeoutHandling) {
-		return compile(pattern, inputTypeSerializer, timeoutHandling);
+		return compile(pattern, inputTypeSerializer, timeoutHandling, new AfterMatchSkipStrategy());
 	}
 
 	/**

@@ -43,7 +43,7 @@ public class CEP {
 		return new PatternStream<>(input, pattern, skipStrategy);
 	}
 
-	/***
+	/**
 	 * Set the pattern's skip strategy after match.
 	 * @param afterMatchSkipStrategy the skip strategy to use.
 	 */
