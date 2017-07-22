@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -43,7 +46,7 @@ public class FixedDelayRestartStrategyTest {
 			.thenReturn(ExecutionContext$.MODULE$.fromExecutor(MoreExecutors.directExecutor()));
 
 		while(fixedDelayRestartStrategy.canRestart()) {
-			fixedDelayRestartStrategy.restart(executionGraph);
+			fixedDelayRestartStrategy.restart(executionGraph, new ScheduledExecutorServiceAdapter((ScheduledExecutorService)executionGraph.getFutureExecutor()));
 		}
 
 		Mockito.verify(executionGraph, Mockito.times(numberRestarts)).restart();

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
 /**
@@ -33,9 +34,9 @@ public interface RestartStrategy {
 	boolean canRestart();
 
 	/**
-	 * Restarts the given {@link ExecutionGraph}.
-	 *
+	 * Schedule the restart call of {@link ExecutionGraph} with the given {@link ScheduledExecutor}.
 	 * @param executionGraph The ExecutionGraph to be restarted
+	 * @param executorService The ScheduledExecutorService to schedule the restart call
 	 */
-	void restart(ExecutionGraph executionGraph);
+	void restart(ExecutionGraph executionGraph, ScheduledExecutor executorService);
 }

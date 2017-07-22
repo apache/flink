@@ -25,6 +25,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -264,7 +265,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		}
 
 		@Override
-		public void restart(ExecutionGraph executionGraph) {
+		public void restart(ExecutionGraph executionGraph, ScheduledExecutor scheduledExecutor) {
 			this.executionGraph = executionGraph;
 		}
 
