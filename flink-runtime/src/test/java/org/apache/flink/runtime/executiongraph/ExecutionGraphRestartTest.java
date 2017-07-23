@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -63,11 +64,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Test;
 
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -531,8 +529,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendWhileRestarting() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
-		Deadline deadline = timeout.fromNow();
+		final Time timeout = Time.of(1, TimeUnit.MINUTES);
 
 		Instance instance = ExecutionGraphTestUtils.getInstance(
 			new ActorTaskManagerGateway(
@@ -571,7 +568,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		instance.markDead();
 
-		Await.ready(controllableRestartStrategy.getReachedCanRestart(), deadline.timeLeft());
+		controllableRestartStrategy.getReachedCanRestart().await(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 		assertEquals(JobStatus.RESTARTING, eg.getState());
 
@@ -581,7 +578,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		controllableRestartStrategy.unlockRestart();
 
-		Await.ready(controllableRestartStrategy.getRestartDone(), deadline.timeLeft());
+		controllableRestartStrategy.getRestartDone().await(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 	}
@@ -795,37 +792,37 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static class ControllableRestartStrategy implements RestartStrategy {
 
-		private Promise<Boolean> reachedCanRestart = new Promise.DefaultPromise<>();
-		private Promise<Boolean> doRestart = new Promise.DefaultPromise<>();
-		private Promise<Boolean> restartDone = new Promise.DefaultPromise<>();
+		private final OneShotLatch reachedCanRestart = new OneShotLatch();
+		private final OneShotLatch doRestart = new OneShotLatch();
+		private final OneShotLatch restartDone = new OneShotLatch();
 
-		private volatile Exception exception = null;
+		private final Time timeout;
 
-		private FiniteDuration timeout;
+		private volatile Exception exception;
 
-		public ControllableRestartStrategy(FiniteDuration timeout) {
+		public ControllableRestartStrategy(Time timeout) {
 			this.timeout = timeout;
 		}
 
 		public void unlockRestart() {
-			doRestart.success(true);
+			doRestart.trigger();
 		}
 
 		public Exception getException() {
 			return exception;
 		}
 
-		public Future<Boolean> getReachedCanRestart() {
-			return reachedCanRestart.future();
+		public OneShotLatch getReachedCanRestart() {
+			return reachedCanRestart;
 		}
 
-		public Future<Boolean> getRestartDone() {
-			return restartDone.future();
+		public OneShotLatch getRestartDone() {
+			return restartDone;
 		}
 
 		@Override
 		public boolean canRestart() {
-			reachedCanRestart.success(true);
+			reachedCanRestart.trigger();
 			return true;
 		}
 
@@ -835,13 +832,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				@Override
 				public void run() {
 					try {
-						Await.ready(doRestart.future(), timeout);
+						doRestart.await(timeout.getSize(), timeout.getUnit());
 						restarter.triggerFullRecovery();
 					} catch (Exception e) {
 						exception = e;
 					}
 
-					restartDone.success(true);
+					restartDone.trigger();
 				}
 			});
 		}
