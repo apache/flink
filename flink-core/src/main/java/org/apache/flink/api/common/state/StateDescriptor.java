@@ -128,7 +128,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param type The class of the type of values in the state.
 	 * @param defaultValue The default value that will be set when requesting state without setting
-	 *                     a value before.   
+	 *                     a value before.
 	 */
 	protected StateDescriptor(String name, Class<T> type, T defaultValue) {
 		this.name = requireNonNull(name, "name must not be null");
@@ -137,7 +137,12 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 		try {
 			this.typeInfo = TypeExtractor.createTypeInfo(type);
 		} catch (Exception e) {
-			throw new RuntimeException("Cannot create full type information based on the given class. If the type has generics, please", e);
+			throw new RuntimeException(
+					"Could not create the type information for '" + type.getName() + "'. " +
+					"The most common reason is failure to infer the generic type information, due to Java's type erasure. " +
+					"In that case, please pass a 'TypeHint' instead of a class to describe the type. " +
+					"For example, to describe 'Tuple2<String, String>' as a generic type, use " +
+					"'new PravegaDeserializationSchema<>(new TypeHint<Tuple2<String, String>>(){}, serializer);'", e);
 		}
 
 		this.defaultValue = defaultValue;
