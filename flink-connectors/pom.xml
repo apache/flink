@@ -54,6 +54,7 @@ under the License.
 		<module>flink-connector-nifi</module>
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-filesystem</module>
+		<module>flink-parquet</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
