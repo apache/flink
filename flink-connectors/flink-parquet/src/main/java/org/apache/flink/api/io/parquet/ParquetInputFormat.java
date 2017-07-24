@@ -20,14 +20,12 @@ package org.apache.flink.api.io.parquet;
 
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -47,6 +45,7 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The base InputFormat class to read from Parquet files.
@@ -176,19 +175,16 @@ public abstract class ParquetInputFormat<T> extends FileInputFormat<T> {
 		MessageType parquetSchema = fileMetaData.getSchema();
 
 		ParquetSchemaConverter schemaConverter = new ParquetSchemaConverter();
-		Tuple2<String[], TypeInformation<?>[]> fieldNamesAndTypes =
+		Map<String, TypeInformation<?>> fieldName2TypeInfoMap =
 				schemaConverter.convertToTypeInformation(parquetSchema);
-		String[] parquetFieldNames = fieldNamesAndTypes.f0;
-		TypeInformation<?>[] parquetFieldTypes = fieldNamesAndTypes.f1;
 
 		for (int i = 0; i < fieldNames.length; ++i) {
 			String fieldName = fieldNames[i];
 			TypeInformation<?> fieldType = fieldTypes[i];
-			int index = ArrayUtils.indexOf(parquetFieldNames, fieldName);
-			if (index < 0) {
+			if (!fieldName2TypeInfoMap.containsKey(fieldName)) {
 				throw new IllegalArgumentException(fieldName + " can not be found in parquet schema");
 			}
-			TypeInformation<?> parquetFieldType = parquetFieldTypes[index];
+			TypeInformation<?> parquetFieldType = fieldName2TypeInfoMap.get(fieldName);
 			if (!fieldType.equals(parquetFieldType)) {
 				throw new IllegalArgumentException(parquetFieldType + " can not be convert to " + fieldType);
 			}

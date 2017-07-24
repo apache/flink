@@ -34,6 +34,10 @@ under the License.
 
     <packaging>jar</packaging>
 
+    <properties>
+        <parquet.version>1.8.2</parquet.version>
+    </properties>
+
     <dependencies>
 
         <!-- core dependencies -->
@@ -54,13 +58,13 @@ under the License.
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-column</artifactId>
-            <version>1.8.2</version>
+            <version>${parquet.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-hadoop</artifactId>
-            <version>1.8.2</version>
+            <version>${parquet.version}</version>
         </dependency>
 
         <!-- test dependencies -->

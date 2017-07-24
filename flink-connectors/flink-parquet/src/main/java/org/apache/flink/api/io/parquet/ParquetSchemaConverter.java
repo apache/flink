@@ -21,7 +21,6 @@ package org.apache.flink.api.io.parquet;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
@@ -29,7 +28,9 @@ import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A {@link ParquetSchemaConverter} is used to convert Parquet {@link MessageType} to
@@ -40,25 +41,21 @@ public class ParquetSchemaConverter {
 	/**
 	 * Converts Parquet {@link MessageType} to Flink field-name and {@link TypeInformation}.
 	 */
-	public Tuple2<String[], TypeInformation<?>[]> convertToTypeInformation(MessageType parquetSchema) {
+	public Map<String, TypeInformation<?>> convertToTypeInformation(MessageType parquetSchema) {
 		List<Type> types = parquetSchema.asGroupType().getFields();
-		int len = types.size();
-		String[] fieldNames = new String[len];
-		TypeInformation<?>[] fieldTypes = new TypeInformation<?>[len];
-
-		for (int i = 0; i < len; ++i) {
-			Type type = types.get(i);
-			fieldNames[i] = type.getName();
+		Map<String, TypeInformation<?>> result = new HashMap<>();
+		for (Type type : types) {
+			String name = type.getName();
 			switch (type.getRepetition()) {
 				case OPTIONAL:
 				case REQUIRED:
-					fieldTypes[i] = convertType(type);
+					result.put(name, convertType(type));
 					break;
 				case REPEATED:
 					throw new UnsupportedOperationException(type + " is not supported");
 			}
 		}
-		return new Tuple2<>(fieldNames, fieldTypes);
+		return result;
 	}
 
 	/**

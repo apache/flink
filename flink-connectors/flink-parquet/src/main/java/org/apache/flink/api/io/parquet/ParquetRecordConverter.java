@@ -247,7 +247,8 @@ public class ParquetRecordConverter extends GroupConverter {
 
 		@Override
 		protected void validatePrimitiveType(PrimitiveType type) {
-			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT32);
+			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT32 &&
+					(type.getOriginalType() == null || type.getOriginalType() == OriginalType.INT_32));
 		}
 
 		@Override
@@ -265,7 +266,8 @@ public class ParquetRecordConverter extends GroupConverter {
 
 		@Override
 		protected void validatePrimitiveType(PrimitiveType type) {
-			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT64);
+			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT64 &&
+					(type.getOriginalType() == null || type.getOriginalType() == OriginalType.INT_64));
 		}
 
 		@Override
@@ -369,7 +371,8 @@ public class ParquetRecordConverter extends GroupConverter {
 
 		@Override
 		protected void validatePrimitiveType(PrimitiveType type) {
-			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.BINARY);
+			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.BINARY &&
+					(type.getOriginalType() == null || type.getOriginalType() == OriginalType.BSON));
 		}
 
 		@Override
