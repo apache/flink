@@ -359,6 +359,8 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 			case DUP2_X2:
 				if (isTagged(value) && tagged(value).isInput() && tagged(value).isCallByValue()) {
 					return tagged(value).copy();
+				} else {
+					return super.copyOperation(insn, value);
 				}
 			default:
 				return super.copyOperation(insn, value);
@@ -489,13 +491,13 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 	@Override
 	public BasicValue naryOperation(AbstractInsnNode insn, List rawValues) throws AnalyzerException {
 		final List<BasicValue> values = (List<BasicValue>) rawValues;
-		boolean isStatic = false;
+		boolean isStatic;
 		switch (insn.getOpcode()) {
 			case INVOKESTATIC:
-				isStatic = true;
 			case INVOKESPECIAL:
 			case INVOKEVIRTUAL:
 			case INVOKEINTERFACE:
+				isStatic = insn.getOpcode() == INVOKESTATIC;
 				final MethodInsnNode method = (MethodInsnNode) insn;
 				String methodOwner = method.owner;
 
