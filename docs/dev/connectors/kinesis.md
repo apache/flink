@@ -250,8 +250,8 @@ of this API, the consumer will retry if Kinesis complains that the data size / t
 up to a default of 3 attempts. Users can either try to slow down other non-Flink consuming applications, or adjust the throughput
 of the consumer by setting the `ConsumerConfigConstants.SHARD_GETRECORDS_MAX` and
 `ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS` keys in the supplied configuration properties. Setting the former
-adjusts the maximum number of records each consuming thread tries to fetch from shards on each call (default is 100), while
-the latter modifies the sleep interval between each fetch (there will be no sleep by default). The retry behaviour of the
+adjusts the maximum number of records each consuming thread tries to fetch from shards on each call (default is 10,000), while
+the latter modifies the sleep interval between each fetch (default is 200). The retry behaviour of the
 consumer when calling this API can also be modified by using the other keys prefixed by `ConsumerConfigConstants.SHARD_GETRECORDS_*`.
 
 ## Kinesis Producer
