@@ -38,12 +38,14 @@ class TimeIndicatorRelDataType(
     case that: TimeIndicatorRelDataType =>
       super.equals(that) &&
         isEventTime == that.isEventTime
-    case that: BasicSqlType =>
-      super.equals(that)
     case _ => false
   }
 
   override def hashCode(): Int = {
     super.hashCode() + 42 // we change the hash code to differentiate from regular timestamps
+  }
+
+  override def toString: String = {
+    s"TIME ATTRIBUTE(${if (isEventTime) "ROWTIME" else "PROCTIME"})"
   }
 }
