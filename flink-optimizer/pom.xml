@@ -99,7 +99,7 @@ under the License.
 				<configuration>
 					<configLocation>/tools/maven/checkstyle.xml</configLocation>
 					<suppressionsLocation>/tools/maven/suppressions-optimizer.xml</suppressionsLocation>
-					<includeTestSourceDirectory>false</includeTestSourceDirectory>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
 					<logViolationsToConsole>true</logViolationsToConsole>
 					<failOnViolation>true</failOnViolation>
 				</configuration>
