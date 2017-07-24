@@ -82,7 +82,13 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
   <pre>high-availability.zookeeper.path.cluster-id: /default_ns # important: customize per cluster</pre>
 
-  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate cluster-ids for each cluster. By default, the Yarn cluster and the Yarn session automatically generate cluster-ids based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a cluster-id with the -z CLI option, in turn, overrides manual configuration.
+  **Important**: You should not set this value manually when runnig a YARN
+  cluster, a per-job YARN session, or on another cluster manager. In those
+  cases a cluster-id is automatically being generated based on the application
+  id. Manually setting a cluster-id overrides this behaviour in YARN.
+  Specifying a cluster-id with the -z CLI option, in turn, overrides manual
+  configuration. If you are running multiple Flink HA clusters on bare metal,
+  you have to manually configure separate cluster-ids for each cluster.
 
 - **Storage directory** (required): JobManager metadata is persisted in the file system *storageDir* and only a pointer to this state is stored in ZooKeeper.
 
