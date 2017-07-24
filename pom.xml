@@ -95,7 +95,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
-		<java.version>1.7</java.version>
+		<java.version>1.8</java.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -748,7 +748,7 @@ under the License.
 		<profile>
 			<id>release</id>
 			<properties>
-				<java.version>1.7</java.version>
+				<java.version>1.8</java.version>
 			</properties>
 			<build>
 				<plugins>
