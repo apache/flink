@@ -57,7 +57,10 @@ under the License.
 		files="(.*)api[/\\]common[/\\]typeutils[/\\](.*)"
 		checks="NewlineAtEndOfFile|RegexpSingleline|TodoComment|RedundantImport|ImportOrder|RedundantModifier|JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|PackageName|TypeNameCheck|ConstantNameCheck|StaticVariableNameCheck|MemberNameCheck|MethodNameCheck|ParameterName|LocalFinalVariableName|LocalVariableName|LeftCurly|UpperEll|FallThrough|reliefPattern|SimplifyBooleanExpression|EmptyStatement|ModifierOrder|EmptyLineSeparator|WhitespaceAround|WhitespaceAfter|NoWhitespaceAfter|NoWhitespaceBefore|OperatorWrap|ParenPad"/>
 	<suppress
-		files="(.*)api[/\\]common[/\\](cache|distributions|restartstrategy|time|typeinfo)[/\\](.*)"
+		files="(.*)api[/\\]common[/\\](typeinfo)[/\\](.*)"
+		checks="NewlineAtEndOfFile|RegexpSingleline|TodoComment|RedundantImport|ImportOrder|RedundantModifier|JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|PackageName|TypeNameCheck|ConstantNameCheck|StaticVariableNameCheck|MemberNameCheck|MethodNameCheck|ParameterName|LocalFinalVariableName|LocalVariableName|LeftCurly|UpperEll|FallThrough|reliefPattern|SimplifyBooleanExpression|EmptyStatement|ModifierOrder|EmptyLineSeparator|WhitespaceAround|WhitespaceAfter|NoWhitespaceAfter|NoWhitespaceBefore|OperatorWrap|ParenPad"/>
+	<suppress
+		files="(.*)api[/\\]common[/\\](cache|distributions|restartstrategy|time)[/\\](.*)"
 		checks="NewlineAtEndOfFile|RegexpSingleline|TodoComment|RedundantImport|ImportOrder|RedundantModifier|JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|PackageName|TypeNameCheck|ConstantNameCheck|StaticVariableNameCheck|MemberNameCheck|MethodNameCheck|ParameterName|LocalFinalVariableName|LocalVariableName|LeftCurly|UpperEll|FallThrough|reliefPattern|SimplifyBooleanExpression|EmptyStatement|ModifierOrder|EmptyLineSeparator|WhitespaceAround|WhitespaceAfter|NoWhitespaceAfter|NoWhitespaceBefore|OperatorWrap|ParenPad"/>
 	<suppress
 		files="(.*)api[/\\]common[/\\]([^/\\]*\.java)"
@@ -83,4 +86,44 @@ under the License.
 	<suppress
 		files="(.*)util[/\\](.*)"
 		checks="NewlineAtEndOfFile|RegexpSingleline|TodoComment|RedundantImport|ImportOrder|RedundantModifier|JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|PackageName|TypeNameCheck|ConstantNameCheck|StaticVariableNameCheck|MemberNameCheck|MethodNameCheck|ParameterName|LocalFinalVariableName|LocalVariableName|LeftCurly|UpperEll|FallThrough|reliefPattern|SimplifyBooleanExpression|EmptyStatement|ModifierOrder|EmptyLineSeparator|WhitespaceAround|WhitespaceAfter|NoWhitespaceAfter|NoWhitespaceBefore|OperatorWrap|ParenPad"/>
+	<suppress
+		files="(.*)testutils[/\\](.*)"
+		checks="NewlineAtEndOfFile|RegexpSingleline|TodoComment|RedundantImport|ImportOrder|RedundantModifier|JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|PackageName|TypeNameCheck|ConstantNameCheck|StaticVariableNameCheck|MemberNameCheck|MethodNameCheck|ParameterName|LocalFinalVariableName|LocalVariableName|LeftCurly|UpperEll|FallThrough|reliefPattern|SimplifyBooleanExpression|EmptyStatement|ModifierOrder|EmptyLineSeparator|WhitespaceAround|WhitespaceAfter|NoWhitespaceAfter|NoWhitespaceBefore|OperatorWrap|ParenPad"/>
+
+	<suppress
+		files="(.*)test[/\\](.*)api[/\\]java[/\\]typeutils[/\\]runtime[/\\](.*)"
+		checks="AvoidStarImport|NeedBraces"/>
+	<suppress
+		files="(.*)test[/\\](.*)api[/\\]java[/\\]typeutils[/\\]([^/\\]*\.java)"
+		checks="AvoidStarImport|UnusedImports"/>
+	<suppress
+		files="(.*)test[/\\](.*)api[/\\]common[/\\]io[/\\](.*)"
+		checks="NeedBraces"/>
+	<suppress
+		files="(.*)test[/\\](.*)api[/\\]common[/\\]operators[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)test[/\\](.*)api[/\\]common[/\\]typeutils[/\\](.*)"
+		checks="AvoidStarImport|ArrayTypeStyle|Regexp"/>
+	<suppress
+		files="(.*)test[/\\](.*)api[/\\]common[/\\](typeinfo)[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)test[/\\](.*)configuration[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)test[/\\](.*)core[/\\]fs[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)test[/\\](.*)core[/\\]io[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)test[/\\](.*)core[/\\]memory[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)test[/\\](.*)types[/\\](.*)"
+		checks="AvoidStarImport|NeedBraces"/>
+	<suppress
+		files="(.*)test[/\\](.*)util[/\\](.*)"
+		checks="UnusedImports|AvoidStarImport"/>
 </suppressions>
