@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -36,7 +35,6 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -60,9 +58,7 @@ import java.util.Set;
 
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIn.isIn;
-import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
@@ -554,7 +550,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 	@Test
 	public void testScaleDown() throws Exception {
-		testRescaling(5, 10, 2, 1);
+		testRescaling(5, 10, 2, 100);
 	}
 
 	/**
@@ -569,6 +565,10 @@ public class FlinkKafkaConsumerBaseTest {
 		final int numPartitions,
 		final int restoredParallelism,
 		final int restoredNumPartitions) throws Exception {
+
+		Preconditions.checkArgument(
+			restoredNumPartitions >= numPartitions,
+			"invalid test case for Kafka repartitioning; Kafka only allows increasing partitions.");
 
 		List<KafkaTopicPartition> mockFetchedPartitionsOnStartup = new ArrayList<>();
 		for (int i = 0; i < numPartitions; i++) {
@@ -605,7 +605,8 @@ public class FlinkKafkaConsumerBaseTest {
 			globalSubscribedPartitions.putAll(subscribedPartitions);
 		}
 
-
+		// any new partitions after the restore should not have been picked up;
+		// global number of subscribed partitions should still equal the original number during the fresh run
 		assertThat(globalSubscribedPartitions.values(), hasSize(numPartitions));
 		assertThat(mockFetchedPartitionsOnStartup, everyItem(isIn(globalSubscribedPartitions.keySet())));
 
@@ -846,6 +847,7 @@ public class FlinkKafkaConsumerBaseTest {
 			this.isAutoCommitEnabled = isAutoCommitEnabled;
 		}
 	}
+
 	private static final class TestingListState<T> implements ListState<T> {
 
 		private final List<T> list = new ArrayList<>();
