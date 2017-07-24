@@ -35,10 +35,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<properties>
-		<checkstyle.skip>true</checkstyle.skip>
-	</properties>
-
 	<dependencies>
 
 		<!-- core dependencies -->

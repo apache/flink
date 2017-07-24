@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
