@@ -198,7 +198,7 @@ public abstract class AbstractPartitionDiscoverer {
 		if (isUndiscoveredPartition(partition)) {
 			topicsToLargestDiscoveredPartitionId.put(partition.getTopic(), partition.getPartition());
 
-			return shouldAssignToThisSubtask(partition, indexOfThisSubtask, numParallelSubtasks);
+			return KafkaTopicPartitionAssigner.assign(partition, numParallelSubtasks) == indexOfThisSubtask;
 		}
 
 		return false;

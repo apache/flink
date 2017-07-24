@@ -72,6 +72,11 @@ public class AbstractPartitionDiscovererTest {
 			new KafkaTopicPartition(TEST_TOPIC, 2),
 			new KafkaTopicPartition(TEST_TOPIC, 3));
 
+		int numSubtasks = mockGetAllPartitionsForTopicsReturn.size();
+
+		// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+		int numConsumers = KafkaTopicPartitionAssigner.assign(mockGetAllPartitionsForTopicsReturn.get(0), numSubtasks);
+
 		for (int subtaskIndex = 0; subtaskIndex < mockGetAllPartitionsForTopicsReturn.size(); subtaskIndex++) {
 			TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
 					topicsDescriptor,
@@ -85,7 +90,7 @@ public class AbstractPartitionDiscovererTest {
 			assertEquals(1, initialDiscovery.size());
 			assertTrue(contains(mockGetAllPartitionsForTopicsReturn, initialDiscovery.get(0).getPartition()));
 			assertEquals(
-				getExpectedSubtaskIndex(initialDiscovery.get(0), mockGetAllPartitionsForTopicsReturn.size()),
+				getExpectedSubtaskIndex(initialDiscovery.get(0), numConsumers, numSubtasks),
 				subtaskIndex);
 
 			// subsequent discoveries should not find anything
@@ -114,6 +119,9 @@ public class AbstractPartitionDiscovererTest {
 			final int minPartitionsPerConsumer = mockGetAllPartitionsForTopicsReturn.size() / numConsumers;
 			final int maxPartitionsPerConsumer = mockGetAllPartitionsForTopicsReturn.size() / numConsumers + 1;
 
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(mockGetAllPartitionsForTopicsReturn.get(0), numConsumers);
+
 			for (int subtaskIndex = 0; subtaskIndex < numConsumers; subtaskIndex++) {
 				TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
 						topicsDescriptor,
@@ -130,7 +138,7 @@ public class AbstractPartitionDiscovererTest {
 				for (KafkaTopicPartition p : initialDiscovery) {
 					// check that the element was actually contained
 					assertTrue(allPartitions.remove(p));
-					assertEquals(getExpectedSubtaskIndex(p, numConsumers), subtaskIndex);
+					assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), subtaskIndex);
 				}
 
 				// subsequent discoveries should not find anything
@@ -163,6 +171,9 @@ public class AbstractPartitionDiscovererTest {
 
 			final int numConsumers = 2 * mockGetAllPartitionsForTopicsReturn.size() + 3;
 
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(mockGetAllPartitionsForTopicsReturn.get(0), numConsumers);
+
 			for (int subtaskIndex = 0; subtaskIndex < numConsumers; subtaskIndex++) {
 				TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
 						topicsDescriptor,
@@ -178,7 +189,7 @@ public class AbstractPartitionDiscovererTest {
 				for (KafkaTopicPartition p : initialDiscovery) {
 					// check that the element was actually contained
 					assertTrue(allPartitions.remove(p));
-					assertEquals(getExpectedSubtaskIndex(p, numConsumers), subtaskIndex);
+					assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), subtaskIndex);
 				}
 
 				// subsequent discoveries should not find anything
@@ -222,6 +233,9 @@ public class AbstractPartitionDiscovererTest {
 			final int minNewPartitionsPerConsumer = allPartitions.size() / numConsumers;
 			final int maxNewPartitionsPerConsumer = allPartitions.size() / numConsumers + 1;
 
+			// get the start index; the assertions below will fail if the assignment logic does not meet correct contracts
+			int startIndex = KafkaTopicPartitionAssigner.assign(allPartitions.get(0), numConsumers);
+
 			TestPartitionDiscoverer partitionDiscovererSubtask0 = new TestPartitionDiscoverer(
 					topicsDescriptor,
 					0,
@@ -260,19 +274,19 @@ public class AbstractPartitionDiscovererTest {
 			for (KafkaTopicPartition p : initialDiscoverySubtask0) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 0);
 			}
 
 			for (KafkaTopicPartition p : initialDiscoverySubtask1) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 1);
 			}
 
 			for (KafkaTopicPartition p : initialDiscoverySubtask2) {
 				// check that the element was actually contained
 				assertTrue(allInitialPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 2);
 			}
 
 			// all partitions must have been assigned
@@ -299,32 +313,32 @@ public class AbstractPartitionDiscovererTest {
 
 			for (KafkaTopicPartition p : initialDiscoverySubtask0) {
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 0);
 			}
 
 			for (KafkaTopicPartition p : initialDiscoverySubtask1) {
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 1);
 			}
 
 			for (KafkaTopicPartition p : initialDiscoverySubtask2) {
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 2);
 			}
 
 			for (KafkaTopicPartition p : secondDiscoverySubtask0) {
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 0);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 0);
 			}
 
 			for (KafkaTopicPartition p : secondDiscoverySubtask1) {
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 1);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 1);
 			}
 
 			for (KafkaTopicPartition p : secondDiscoverySubtask2) {
 				assertTrue(allNewPartitions.remove(p));
-				assertEquals(getExpectedSubtaskIndex(p, numConsumers), 2);
+				assertEquals(getExpectedSubtaskIndex(p, startIndex, numConsumers), 2);
 			}
 
 			// all partitions must have been assigned
@@ -370,7 +384,7 @@ public class AbstractPartitionDiscovererTest {
 					subtaskIndex,
 					numSubtasks,
 					createMockGetAllTopicsSequenceFromFixedReturn(Arrays.asList("test-topic", "test-topic2")),
-					createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturn));
+					createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockGetAllPartitionsForTopicsReturnOutOfOrder));
 			partitionDiscovererOutOfOrder.open();
 
 			List<KafkaTopicPartition> discoveredPartitions = partitionDiscoverer.discoverPartitions();
@@ -487,7 +501,15 @@ public class AbstractPartitionDiscovererTest {
 		return clone;
 	}
 
-	private static int getExpectedSubtaskIndex(KafkaTopicPartition partition, int numTasks) {
-		return Math.abs(partition.hashCode() % numTasks);
+	/**
+	 * Utility method that determines the expected subtask index a partition should be assigned to,
+	 * depending on the start index and using the partition id as the offset from that start index
+	 * in clockwise direction.
+	 *
+	 * <p>The expectation is based on the distribution contract of
+	 * {@link KafkaTopicPartitionAssigner#assign(KafkaTopicPartition, int)}.
+	 */
+	private static int getExpectedSubtaskIndex(KafkaTopicPartition partition, int startIndex, int numSubtasks) {
+		return (startIndex + partition.getPartition()) % numSubtasks;
 	}
 }
