@@ -119,7 +119,7 @@ Now you can import the project into Eclipse via `File -> Import... -> Existing P
 
 ### Requirements
 
-The only requirements are working __Maven 3.0.4__ (or higher) and __Java 7.x__ (or higher) installations.
+The only requirements are working __Maven 3.0.4__ (or higher) and __Java 8.x__ (or higher) installations.
 
 
 ### Create Project
