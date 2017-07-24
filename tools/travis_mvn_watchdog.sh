@@ -402,12 +402,18 @@ cd ../../
 # only run end-to-end tests in misc because we only have flink-dist here
 case $TEST in
 	(misc)
-        echo "Running automated end-to-end tests"
+		if [ $EXIT_CODE == 0 ]; then
+			echo "Running automated end-to-end tests"
 
-        test-infra/end-to-end-test/test_batch_wordcount.sh build-target cluster
-        EXIT_CODE=$(($EXIT_CODE+$?))
-        test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
-        EXIT_CODE=$(($EXIT_CODE+$?))
+			test-infra/end-to-end-test/test_batch_wordcount.sh build-target cluster
+			EXIT_CODE=$(($EXIT_CODE+$?))
+			test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
+			EXIT_CODE=$(($EXIT_CODE+$?))
+		else
+			echo "=============================================================================="
+			echo "Previous build failure detected, skipping end-to-end tests."
+			echo "=============================================================================="
+		fi
 	;;
 esac
 
