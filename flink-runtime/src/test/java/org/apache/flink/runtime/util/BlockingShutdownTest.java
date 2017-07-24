@@ -46,9 +46,6 @@ public class BlockingShutdownTest {
 		// this test works only on linux
 		assumeTrue(OperatingSystem.isLinux());
 
-		// this test leaves remaining processes if not executed with Java 8
-		CommonTestUtils.assumeJava8();
-
 		final File markerFile = new File(
 				EnvironmentInformation.getTemporaryFileDirectory(), UUID.randomUUID() + ".marker");
 
