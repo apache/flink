@@ -131,9 +131,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	@BeforeClass
 	public static void startCassandra() throws IOException {
 
-		// check if we should run this test, current Cassandra version requires Java >= 1.8
-		org.apache.flink.core.testutils.CommonTestUtils.assumeJava8();
-
 		// generate temporary files
 		tmpDir = CommonTestUtils.createTempDirectory();
 		ClassLoader classLoader = CassandraConnectorITCase.class.getClassLoader();

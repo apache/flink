@@ -18,9 +18,6 @@
 
 package org.apache.flink.core.testutils;
 
-import org.junit.Assume;
-import org.junit.internal.AssumptionViolatedException;
-
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,8 +33,6 @@ import java.security.Permissions;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Map;
-
-import static org.junit.Assert.fail;
 
 /**
  * This class contains reusable utility methods for unit tests.
@@ -115,31 +110,6 @@ public class CommonTestUtils {
 					lock.wait();
 				}
 			} catch (InterruptedException ignored) {}
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Preconditions on the test environment
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Checks whether this code runs in a Java 8 (Java 1.8) JVM. If not, this throws a
-	 * {@link AssumptionViolatedException}, which causes JUnit to skip the test that
-	 * called this method.
-	 */
-	public static void assumeJava8() {
-		try {
-			String javaVersionString = System.getProperty("java.runtime.version").substring(0, 3);
-			float javaVersion = Float.parseFloat(javaVersionString);
-			Assume.assumeTrue(javaVersion >= 1.8f);
-		}
-		catch (AssumptionViolatedException e) {
-			System.out.println("Skipping CassandraConnectorITCase, because the JDK is < Java 8+");
-			throw e;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Cannot determine Java version: " + e.getMessage());
 		}
 	}
 

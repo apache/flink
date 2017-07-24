@@ -83,9 +83,6 @@ public class JvmExitOnFatalErrorTest {
 		// this test works only on linux
 		assumeTrue(OperatingSystem.isLinux());
 
-		// this test leaves remaining processes if not executed with Java 8
-		CommonTestUtils.assumeJava8();
-
 		// to check what went wrong (when the test hangs) uncomment this line 
 //		ProcessEntryPoint.main(new String[0]);
 
