@@ -51,7 +51,7 @@ public class TaggedValue extends BasicValue {
 	}
 
 	/**
-	 * Inputs types.
+	 * Distinguishes between inputs in case of two input operators.
 	 */
 	public enum Input {
 		INPUT_1(0), INPUT_2(1);
