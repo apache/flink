@@ -141,8 +141,8 @@ public class KvStateServer {
 				.option(ChannelOption.ALLOCATOR, bufferPool)
 				// Child channel options
 				.childOption(ChannelOption.ALLOCATOR, bufferPool)
-				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK)
 				.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, HIGH_WATER_MARK)
+				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK)
 				// See initializer for pipeline details
 				.childHandler(new KvStateServerChannelInitializer(serverHandler));
 	}
