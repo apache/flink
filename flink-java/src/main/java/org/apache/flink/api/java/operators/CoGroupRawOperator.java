@@ -96,9 +96,12 @@ public class CoGroupRawOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2,
 			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
 
-			CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> po = new CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>>(
-							function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(),
-									getResultType()), logicalKeyPositions1, logicalKeyPositions2, name);
+			CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> po = new CoGroupRawOperatorBase<>(
+				function,
+				new BinaryOperatorInformation<>(getInput1Type(), getInput2Type(), getResultType()),
+				logicalKeyPositions1,
+				logicalKeyPositions2,
+				name);
 
 			// set inputs
 			po.setFirstInput(input1);
