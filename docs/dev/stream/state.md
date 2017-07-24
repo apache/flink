@@ -373,8 +373,7 @@ public class BufferingSink
         ListStateDescriptor<Tuple2<String, Integer>> descriptor =
             new ListStateDescriptor<>(
                 "buffered-elements",
-                TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}),
-                Tuple2.of(0L, 0L));
+                TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}));
 
         checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 
