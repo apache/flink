@@ -57,6 +57,7 @@ under the License.
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
+		<module>flink-java8</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
@@ -828,40 +829,6 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
-			</build>
-		</profile>
-		<profile>
-			<id>jdk8</id>
-			<!-- do not activate automatically to prevent 1.8 target while Java 7 is the supported -->
-			<properties>
-				<java.version>1.8</java.version>
-			</properties>
-			<modules>
-				<module>flink-java8</module>
-			</modules>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-						<configuration>
-							<quiet>true</quiet>
-						</configuration>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-								<configuration>
-									<additionalparam>-Xdoclint:none</additionalparam>
-									<detectOfflineLinks>false</detectOfflineLinks>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 	</profiles>
