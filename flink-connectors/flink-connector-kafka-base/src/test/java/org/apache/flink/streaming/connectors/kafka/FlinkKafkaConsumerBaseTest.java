@@ -137,15 +137,16 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	/**
-	 * Tests that no checkpoints happen when the fetcher is not running.
+	 * Tests that when taking a checkpoint when the fetcher is not running yet,
+	 * the checkpoint correctly contains the restored state instead.
 	 */
 	@Test
 	public void checkRestoredCheckpointWhenFetcherNotReady() throws Exception {
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 
-		TestingListState<Serializable> listState = new TestingListState<>();
-		listState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), 16768L));
-		listState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
+		TestingListState<Serializable> restoredListState = new TestingListState<>();
+		restoredListState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), 16768L));
+		restoredListState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
@@ -156,7 +157,7 @@ public class FlinkKafkaConsumerBaseTest {
 		// mock old 1.2 state (empty)
 		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
 		// mock 1.3 state
-		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(restoredListState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -171,54 +172,22 @@ public class FlinkKafkaConsumerBaseTest {
 
 		// ensure that the list was cleared and refilled. while this is an implementation detail, we use it here
 		// to figure out that snapshotState() actually did something.
-		Assert.assertTrue(listState.isClearCalled());
+		Assert.assertTrue(restoredListState.isClearCalled());
 
 		Set<Serializable> expected = new HashSet<>();
 
-		for (Serializable serializable : listState.get()) {
+		for (Serializable serializable : restoredListState.get()) {
 			expected.add(serializable);
 		}
 
 		int counter = 0;
 
-		for (Serializable serializable : listState.get()) {
+		for (Serializable serializable : restoredListState.get()) {
 			assertTrue(expected.contains(serializable));
 			counter++;
 		}
 
 		assertEquals(expected.size(), counter);
-	}
-
-	/**
-	 * Tests that no checkpoints happen when the fetcher is not running.
-	 */
-	@Test
-	public void checkRestoredNullCheckpointWhenFetcherNotReady() throws Exception {
-		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
-		StreamingRuntimeContext runtimeContext = mock(StreamingRuntimeContext.class);
-		when(runtimeContext.getIndexOfThisSubtask()).thenReturn(0);
-		when(runtimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
-		consumer.setRuntimeContext(runtimeContext);
-
-		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
-		TestingListState<Serializable> listState = new TestingListState<>();
-		// mock old 1.2 state (empty)
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
-		// mock 1.3 state
-		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
-
-		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
-
-		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
-		when(initializationContext.isRestored()).thenReturn(false);
-
-		consumer.initializeState(initializationContext);
-
-		consumer.open(new Configuration());
-
-		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(17, 17));
-
-		assertFalse(listState.get().iterator().hasNext());
 	}
 
 	@Test
