@@ -138,6 +138,17 @@ class ScalarOperatorsTest extends ExpressionTestBase {
 
   @Test
   def testOtherExpressions(): Unit = {
+
+    // nested field null type
+    testSqlApi("CASE WHEN f13.f1 IS NULL THEN 'a' ELSE 'b' END", "a")
+    testSqlApi("CASE WHEN f13.f1 IS NOT NULL THEN 'a' ELSE 'b' END", "b")
+    testAllApis('f13.isNull, "f13.isNull", "f13 IS NULL", "false")
+    testAllApis('f13.isNotNull, "f13.isNotNull", "f13 IS NOT NULL", "true")
+    testAllApis('f13.get("f0").isNull, "f13.get('f0').isNull", "f13.f0 IS NULL", "false")
+    testAllApis('f13.get("f0").isNotNull, "f13.get('f0').isNotNull", "f13.f0 IS NOT NULL", "true")
+    testAllApis('f13.get("f1").isNull, "f13.get('f1').isNull", "f13.f1 IS NULL", "true")
+    testAllApis('f13.get("f1").isNotNull, "f13.get('f1').isNotNull", "f13.f1 IS NOT NULL", "false")
+
     // boolean literals
     testAllApis(
       true,
@@ -239,7 +250,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(13)
+    val testData = new Row(14)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -253,6 +264,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testData.setField(10, "String")
     testData.setField(11, false)
     testData.setField(12, null)
+    testData.setField(13, Row.of("foo", null))
     testData
   }
 
@@ -270,7 +282,8 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       Types.INT,
       Types.STRING,
       Types.BOOLEAN,
-      Types.BOOLEAN
+      Types.BOOLEAN,
+      Types.ROW(Types.STRING, Types.STRING)
       ).asInstanceOf[TypeInformation[Any]]
   }
 
