@@ -141,7 +141,7 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
 	public String toString() {
 		return "KeyGroupsStateHandle{" +
 				"groupRangeOffsets=" + groupRangeOffsets +
-				", data=" + stateHandle +
+				", stateHandle=" + stateHandle +
 				'}';
 	}
 }
