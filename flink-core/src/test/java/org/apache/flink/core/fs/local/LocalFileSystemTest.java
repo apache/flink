@@ -34,10 +34,12 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
@@ -311,5 +313,16 @@ public class LocalFileSystemTest {
 		assertTrue(dstFile.delete());
 		assertTrue(fs.rename(new Path(srcFolder.toURI()), new Path(dstFolder.toURI())));
 		assertTrue(new File(dstFolder, srcFile.getName()).exists());
+	}
+
+	@Test
+	public void testKind() {
+		final FileSystem fs = FileSystem.getLocalFileSystem();
+
+		if (OperatingSystem.isWindows()) {
+			assertEquals(FileSystemKind.CONSISTENT_FILESYSTEM, fs.getKind());
+		} else {
+			assertEquals(FileSystemKind.POSIX_COMPLIANT, fs.getKind());
+		}
 	}
 }
