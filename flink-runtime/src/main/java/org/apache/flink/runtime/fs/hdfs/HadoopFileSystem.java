@@ -487,8 +487,8 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 
 	/**
 	 * Gets the kind of the file system from its scheme.
-	 * 
-	 * <p>Implementation node: Initially, especially within the Flink 1.3.x line
+	 *
+	 * <p>Implementation note: Initially, especially within the Flink 1.3.x line
 	 * (in order to not break backwards compatibility), we must only label file systems
 	 * as 'inconsistent' or as 'not proper filesystems' if we are sure about it.
 	 * Otherwise, we cause regression for example in the performance and cleanup handling
