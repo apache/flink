@@ -16,31 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.drivers;
+package org.apache.flink.graph.asm.result;
 
-import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
-
-import java.io.PrintStream;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import org.apache.flink.graph.asm.translate.TranslateFunction;
+import org.apache.flink.util.Collector;
 
 /**
- * Base class for example drivers.
+ * A transformable result can transform its ID type.
  *
  * @param <K> graph ID type
- * @param <VV> vertex value type
- * @param <EV> edge value type
  */
-public abstract class DriverBase<K, VV, EV>
-extends ParameterizedBase
-implements Driver<K, VV, EV> {
+public interface TranslatableResult<K> {
 
-	protected LongParameter parallelism = new LongParameter(this, "__parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
-
-	@Override
-	public void printAnalytics(PrintStream out) {
-		// analytics are optionally executed by drivers overriding this method
-	}
+	/**
+	 * Output the result after transforming the vertex ID type.
+	 *
+	 * @param translator translates type {@code K} to type {@code T}
+	 * @param reuse reusable value
+	 * @param out output collector
+	 * @param <T> ID output type
+	 * @return reusable result
+	 * @throws Exception on error
+	 */
+	<T> TranslatableResult<T> translate(TranslateFunction<K, T> translator, TranslatableResult<T> reuse, Collector<TranslatableResult<T>> out) throws Exception;
 }

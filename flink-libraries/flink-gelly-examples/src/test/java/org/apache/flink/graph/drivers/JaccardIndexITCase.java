@@ -59,28 +59,7 @@ extends CopyableValueDriverBaseITCase {
 
 	@Test
 	public void testHashWithSmallRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0000164757052eebL;
-				break;
-
-			case "long":
-				checksum = 0x000016337a6a7270L;
-				break;
-
-			case "string":
-				checksum = 0x00001622a522a290L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedChecksum(parameters(7, "hash"), 11388, checksum);
+		expectedChecksum(parameters(7, "hash"), 11388, 0x0000164757052eebL);
 	}
 
 	@Test
@@ -88,30 +67,10 @@ extends CopyableValueDriverBaseITCase {
 		// computation is too large for collection mode
 		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
 
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0021ce158d811c4eL;
-				break;
-
-			case "long":
-				checksum = 0x0021d20fb3904720L;
-				break;
-
-			case "string":
-				checksum = 0x0021cd8fafec1524L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedChecksum(parameters(12, "hash"), 4432058, checksum);
+		expectedChecksum(parameters(12, "hash"), 4432058, 0x0021ce158d811c4eL);
 	}
 
 	@Test

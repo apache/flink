@@ -30,7 +30,7 @@ import static org.apache.flink.graph.generator.HypercubeGraph.MINIMUM_DIMENSIONS
  * Generate a {@link org.apache.flink.graph.generator.HypercubeGraph}.
  */
 public class HypercubeGraph
-extends GeneratedGraph<LongValue> {
+extends GeneratedGraph {
 
 	private LongParameter dimensions = new LongParameter(this, "dimensions")
 		.setMinimumValue(MINIMUM_DIMENSIONS)
@@ -38,7 +38,7 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + dimensions + ")";
+		return getName() + " (" + dimensions + ")";
 	}
 
 	@Override
@@ -47,7 +47,7 @@ extends GeneratedGraph<LongValue> {
 	}
 
 	@Override
-	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
+	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
 		return new org.apache.flink.graph.generator.HypercubeGraph(env, dimensions.getValue())
 			.setParallelism(parallelism.getValue().intValue())
 			.generate();

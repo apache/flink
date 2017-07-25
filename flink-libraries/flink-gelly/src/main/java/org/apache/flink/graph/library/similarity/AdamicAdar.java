@@ -34,6 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.BinaryResult.MirrorResult;
 import org.apache.flink.graph.asm.result.BinaryResultBase;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
@@ -82,6 +83,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private float minimumRatio = 0.0f;
 
+	private boolean mirrorResults;
+
 	/**
 	 * Filter out Adamic-Adar scores less than the given minimum.
 	 *
@@ -106,6 +109,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		Preconditions.checkArgument(ratio >= 0, "Minimum ratio must be non-negative");
 
 		this.minimumRatio = ratio;
+
+		return this;
+	}
+
+	/**
+	 * By default only one result is output for each pair of vertices. When
+	 * mirroring a second result with the vertex order flipped is output for
+	 * each pair of vertices.
+	 *
+	 * @param mirrorResults whether output results should be mirrored
+	 * @return this
+	 */
+	public AdamicAdar<K, VV, EV> setMirrorResults(boolean mirrorResults) {
+		this.mirrorResults = mirrorResults;
 
 		return this;
 	}
@@ -194,7 +211,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.withBroadcastSet(sumOfScoresAndNumberOfNeighborPairs, SUM_OF_SCORES_AND_NUMBER_OF_NEIGHBOR_PAIRS);
 		}
 
-		return scores;
+		if (mirrorResults) {
+			return scores
+				.flatMap(new MirrorResult<K, Result<K>>())
+					.name("Mirror results");
+		} else {
+			return scores;
+		}
 	}
 
 	/**
@@ -411,7 +434,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends BinaryResultBase<T>
-	implements PrintableResult {
+	implements PrintableResult, Comparable<Result<T>> {
 		private FloatValue adamicAdarScore = new FloatValue();
 
 		/**
@@ -451,6 +474,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return "Vertex IDs: (" + getVertexId0()
 				+ ", " + getVertexId1()
 				+ "), adamic-adar score: " + adamicAdarScore;
+		}
+
+		@Override
+		public int compareTo(Result<T> o) {
+			return Float.compare(adamicAdarScore.getValue(), o.adamicAdarScore.getValue());
 		}
 
 		// ----------------------------------------------------------------------------------------

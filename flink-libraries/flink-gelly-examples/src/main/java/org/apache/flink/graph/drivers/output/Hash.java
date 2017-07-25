@@ -39,12 +39,14 @@ extends OutputBase<T> {
 		ChecksumHashCode<T> checksumHashCode = new ChecksumHashCode<T>().run(data);
 
 		if (printExecutionPlan.getValue()) {
-			System.out.println(data.getExecutionEnvironment().getExecutionPlan());
+			out.println();
+			out.println(data.getExecutionEnvironment().getExecutionPlan());
 		}
 
 		ChecksumHashCode.Checksum checksum = checksumHashCode
 			.execute(executionName);
 
+		out.println();
 		out.println(checksum);
 	}
 }

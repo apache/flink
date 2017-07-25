@@ -39,7 +39,7 @@ import org.apache.commons.math3.random.JDKRandomGenerator;
  * @see org.apache.flink.graph.generator.RMatGraph
  */
 public class RMatGraph
-extends GeneratedMultiGraph<LongValue> {
+extends GeneratedMultiGraph {
 
 	// generate graph with 2^scale vertices
 	private LongParameter scale = new LongParameter(this, "scale")
@@ -79,8 +79,7 @@ extends GeneratedMultiGraph<LongValue> {
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() +
-			" (s" + scale + "e" + edgeFactor + getSimplifyShortString() + ")";
+		return getName() + " (s" + scale + "e" + edgeFactor + getSimplifyShortString() + ")";
 	}
 
 	@Override

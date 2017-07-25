@@ -56,29 +56,8 @@ extends CopyableValueDriverBaseITCase {
 
 	@Test
 	public void testHashWithSmallDirectedRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0000003621c62ca1L;
-				break;
-
-			case "long":
-				checksum = 0x0000003b74c6719bL;
-				break;
-
-			case "string":
-				checksum = 0x0000003ab67abea8L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
 		String expected = "\n" +
-			new Checksum(117, checksum) + "\n" +
+			new Checksum(117, 0x0000003621c62ca1L) + "\n\n" +
 			"triplet count: 29286, triangle count: 11466, global clustering coefficient: 0.39151813[0-9]+\n" +
 			"vertex count: 117, average clustering coefficient: 0.45125697[0-9]+\n";
 
@@ -87,39 +66,14 @@ extends CopyableValueDriverBaseITCase {
 
 	@Test
 	public void testHashWithSmallUndirectedRMatGraph() throws Exception {
-		long directedChecksum;
-		long undirectedChecksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				directedChecksum = 0x0000003875b38c43L;
-				undirectedChecksum = 0x0000003c20344c75L;
-				break;
-
-			case "long":
-				directedChecksum = 0x0000003671970c59L;
-				undirectedChecksum = 0x0000003939645d8cL;
-				break;
-
-			case "string":
-				directedChecksum = 0x0000003be109a770L;
-				undirectedChecksum = 0x0000003b8c98d14aL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		String expected = "\n" +
+		String expected = "\n\n" +
 			"triplet count: 29286, triangle count: 11466, global clustering coefficient: 0.39151813[0-9]+\n" +
 			"vertex count: 117, average clustering coefficient: 0.57438679[0-9]+\n";
 
 		expectedOutput(parameters(7, "directed", "undirected", "hash"),
-			"\n" + new Checksum(117, directedChecksum) + expected);
+			"\n" + new Checksum(117, 0x0000003875b38c43L) + expected);
 		expectedOutput(parameters(7, "undirected", "undirected", "hash"),
-			"\n" + new Checksum(117, undirectedChecksum) + expected);
+			"\n" + new Checksum(117, 0x0000003c20344c75L) + expected);
 	}
 
 	@Test
@@ -127,31 +81,11 @@ extends CopyableValueDriverBaseITCase {
 		// computation is too large for collection mode
 		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
-
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0000067a9d18e7f3L;
-				break;
-
-			case "long":
-				checksum = 0x00000694a90ee6d4L;
-				break;
-
-			case "string":
-				checksum = 0x000006893e3b314fL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
 
 		String expected = "\n" +
-			new Checksum(3349, checksum) + "\n" +
+			new Checksum(3349, 0x0000067a9d18e7f3L) + "\n\n" +
 			"triplet count: 9276207, triangle count: 1439454, global clustering coefficient: 0.15517700[0-9]+\n" +
 			"vertex count: 3349, average clustering coefficient: 0.24571815[0-9]+\n";
 
@@ -163,40 +97,16 @@ extends CopyableValueDriverBaseITCase {
 		// computation is too large for collection mode
 		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
 
-		long directedChecksum;
-		long undirectedChecksum;
-		switch (idType) {
-			case "byte":
-				return;
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
 
-			case "short":
-			case "char":
-			case "integer":
-				directedChecksum = 0x00000681fad1587eL;
-				undirectedChecksum = 0x0000068713b3b7f1L;
-				break;
-
-			case "long":
-				directedChecksum = 0x000006928a6301b1L;
-				undirectedChecksum = 0x000006a399edf0e6L;
-				break;
-
-			case "string":
-				directedChecksum = 0x000006749670a2f7L;
-				undirectedChecksum = 0x0000067f19c6c4d5L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		String expected = "\n" +
+		String expected = "\n\n" +
 			"triplet count: 9276207, triangle count: 1439454, global clustering coefficient: 0.15517700[0-9]+\n" +
 			"vertex count: 3349, average clustering coefficient: 0.33029442[0-9]+\n";
 
 		expectedOutput(parameters(12, "directed", "undirected", "hash"),
-			"\n" + new Checksum(3349, directedChecksum) + expected);
+			"\n" + new Checksum(3349, 0x00000681fad1587eL) + expected);
 		expectedOutput(parameters(12, "undirected", "undirected", "hash"),
-			"\n" + new Checksum(3349, undirectedChecksum) + expected);
+			"\n" + new Checksum(3349, 0x0000068713b3b7f1L) + expected);
 	}
 }

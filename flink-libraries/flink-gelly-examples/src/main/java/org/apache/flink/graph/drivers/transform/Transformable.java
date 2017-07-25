@@ -17,16 +17,20 @@
  * under the License.
  */
 
-package org.apache.flink.graph.drivers.output;
+package org.apache.flink.graph.drivers.transform;
 
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
+import java.util.List;
 
 /**
- * Base class for outputs.
- *
- * @param <T> result Type
+ * A transformable input or algorithm returns a list of {@link Transform} to be
+ * applied before and after execution of the algorithm.
  */
-public abstract class OutputBase<T>
-extends ParameterizedBase
-implements Output<T> {
+public interface Transformable {
+
+	/**
+	 * Get the list of transforms.
+	 *
+	 * @return the list of transforms
+	 */
+	List<Transform> getTransformers();
 }

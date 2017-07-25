@@ -61,7 +61,8 @@ extends MultipleProgramsTestBase {
 		List<Object[]> executionModes = new ArrayList<>();
 
 		for (String idType : new String[] {"byte", "nativeByte", "short", "nativeShort", "char", "nativeChar",
-								"integer", "nativeInteger", "long", "nativeLong", "string", "nativeString"}) {
+				"integer", "nativeInteger", "long", "nativeLong", "float", "nativeFloat", "double", "nativeDouble",
+				"string", "nativeString"}) {
 			for (TestExecutionMode executionMode : TestExecutionMode.values()) {
 				executionModes.add(new Object[] {idType, executionMode});
 			}

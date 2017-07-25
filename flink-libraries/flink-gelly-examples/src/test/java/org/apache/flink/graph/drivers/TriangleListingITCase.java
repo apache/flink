@@ -40,7 +40,7 @@ extends CopyableValueDriverBaseITCase {
 
 	private String[] parameters(int scale, String order, String output) {
 		String[] parameters =  new String[] {
-			"--algorithm", "TriangleListing", "--order", order,
+			"--algorithm", "TriangleListing", "--order", order, "--permute_results",
 			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", order,
 			"--output", output};
 
@@ -63,29 +63,8 @@ extends CopyableValueDriverBaseITCase {
 
 	@Test
 	public void testHashWithSmallDirectedRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x00000784d2c336cdL;
-				break;
-
-			case "long":
-				checksum = 0x0000078e5ebf2927L;
-				break;
-
-			case "string":
-				checksum = 0x0000077eddf67481L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
 		String expected = "\n" +
-			new Checksum(3822, checksum) + "\n" +
+			new Checksum(22932, 0x00002cdfb573650dL) + "\n\n" +
 			"Triadic census:\n" +
 			"  003: 178,989\n" +
 			"  012: 47,736\n" +
@@ -109,29 +88,8 @@ extends CopyableValueDriverBaseITCase {
 
 	@Test
 	public void testHashWithSmallUndirectedRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0000075b6b9a0ad0L;
-				break;
-
-			case "long":
-				checksum = 0x00000761619e7f3cL;
-				break;
-
-			case "string":
-				checksum = 0x0000079b15eb30acL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
 		String expected = "\n" +
-			new Checksum(3822, checksum) + "\n" +
+			new Checksum(22932, 0x00002c7fb95ec78eL) + "\n\n" +
 			"Triadic census:\n" +
 			"  03: 178,989\n" +
 			"  12: 59,499\n" +
@@ -146,31 +104,11 @@ extends CopyableValueDriverBaseITCase {
 		// computation is too large for collection mode
 		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
-
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0003a986d6bedc53L;
-				break;
-
-			case "long":
-				checksum = 0x0003a8d91c92b884L;
-				break;
-
-			case "string":
-				checksum = 0x0003a88fffc33f27L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
 
 		String expected = "\n" +
-			new Checksum(479818, checksum) + "\n" +
+			new Checksum(2878908, 0x0015f77b8984c7caL) + "\n\n" +
 			"Triadic census:\n" +
 			"  003: 6,101,196,568\n" +
 			"  012: 132,051,207\n" +
@@ -197,31 +135,11 @@ extends CopyableValueDriverBaseITCase {
 		// computation is too large for collection mode
 		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
-
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0003a95630aae344L;
-				break;
-
-			case "long":
-				checksum = 0x0003a9b1e055d59dL;
-				break;
-
-			case "string":
-				checksum = 0x0003aa1e3d8f2c6bL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
 
 		String expected = "\n" +
-			new Checksum(479818, checksum) + "\n" +
+			new Checksum(2878908, 0x0015f51b1336df61L) + "\n\n" +
 			"Triadic census:\n" +
 			"  03: 6,101,196,568\n" +
 			"  12: 145,166,335\n" +
@@ -236,24 +154,7 @@ extends CopyableValueDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "integer":
-			case "long":
-				checksum = 0x00000764227995aaL;
-				break;
-
-			case "string":
-				checksum = 0x000007643d93c30aL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedOutputChecksum(parameters(7, "directed", "print"), new Checksum(3822, checksum));
+		expectedOutputChecksum(parameters(7, "directed", "print"), new Checksum(22932, 0x00002ce58634cf58L));
 	}
 
 	@Test
@@ -261,23 +162,6 @@ extends CopyableValueDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "integer":
-			case "long":
-				checksum = 0x0000077d1582e206L;
-				break;
-
-			case "string":
-				checksum = 0x0000077a49cb5268L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedOutputChecksum(parameters(7, "undirected", "print"), new Checksum(3822, checksum));
+		expectedOutputChecksum(parameters(7, "undirected", "print"), new Checksum(22932, 0x00002d208304e7c4L));
 	}
 }

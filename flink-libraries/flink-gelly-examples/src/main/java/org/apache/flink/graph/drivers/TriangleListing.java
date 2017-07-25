@@ -53,6 +53,8 @@ extends DriverBase<K, VV, EV> {
 
 	private BooleanParameter computeTriadicCensus = new BooleanParameter(this, "triadic_census");
 
+	private BooleanParameter permuteResults = new BooleanParameter(this, "permute_results");
+
 	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> triadicCensus;
 
 	@Override
@@ -86,6 +88,7 @@ extends DriverBase<K, VV, EV> {
 				@SuppressWarnings("unchecked")
 				DataSet<PrintableResult> directedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
 					.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<K, VV, EV>()
+						.setPermuteResults(permuteResults.getValue())
 						.setSortTriangleVertices(sortTriangleVertices.getValue())
 						.setParallelism(parallelism));
 				return directedResult;
@@ -100,6 +103,7 @@ extends DriverBase<K, VV, EV> {
 				@SuppressWarnings("unchecked")
 				DataSet<PrintableResult> undirectedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
 					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<K, VV, EV>()
+						.setPermuteResults(permuteResults.getValue())
 						.setSortTriangleVertices(sortTriangleVertices.getValue())
 						.setParallelism(parallelism));
 				return undirectedResult;
