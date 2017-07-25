@@ -28,6 +28,7 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.sca.CodeAnalyzerException;
 import org.apache.flink.api.java.sca.UdfAnalyzer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,7 @@ public final class UdfOperatorUtils {
 		if (mode != CodeAnalysisMode.DISABLE
 				&& !udf.getClass().isAnnotationPresent(FunctionAnnotation.SkipCodeAnalysis.class)) {
 			final String operatorName = operator.getName() != null ? operator.getName()
-					: udfBaseClass.getSimpleName() + " at "+defaultName;
+					: udfBaseClass.getSimpleName() + " at " + defaultName;
 			try {
 				final UdfAnalyzer analyzer = new UdfAnalyzer(udfBaseClass, udf.getClass(), operatorName, operator.getInputType(), null,
 						operator.getResultType(), key, null, mode == CodeAnalysisMode.OPTIMIZE);
