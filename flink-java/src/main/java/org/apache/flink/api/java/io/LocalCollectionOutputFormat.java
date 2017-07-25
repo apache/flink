@@ -18,13 +18,6 @@
 
 package org.apache.flink.api.java.io;
 
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -33,15 +26,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- *  An output format that writes record into collection
+ *  An output format that adds records to a collection.
  */
 @PublicEvolving
 public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implements InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
 
-	private static Map<Integer,Collection<?>> RESULT_HOLDER = new HashMap<Integer, Collection<?>>();
+	private static final Map<Integer, Collection<?>> RESULT_HOLDER = new HashMap<Integer, Collection<?>>();
 
 	private transient ArrayList<T> taskResult;
 
@@ -67,7 +66,6 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implemen
 	@Override
 	public void configure(Configuration parameters) {}
 
-
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
 		this.taskResult = new ArrayList<T>();
@@ -79,7 +77,6 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implemen
 		recordCopy = this.typeSerializer.copy(record, recordCopy);
 		this.taskResult.add(recordCopy);
 	}
-
 
 	@Override
 	public void close() throws IOException {
@@ -93,6 +90,6 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implemen
 	@Override
 	@SuppressWarnings("unchecked")
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-		this.typeSerializer = (TypeSerializer<T>)type.createSerializer(executionConfig);
+		this.typeSerializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
 	}
 }

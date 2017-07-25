@@ -18,12 +18,16 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.PrintStream;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
 
+import java.io.PrintStream;
+
+/**
+ * Output format that prints results into either stdout or stderr.
+ * @param <T>
+ */
 @PublicEvolving
 public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 
@@ -37,19 +41,19 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 	private boolean target;
 
 	private transient PrintStream stream;
-	
+
 	private transient String prefix;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Instantiates a printing output format that prints to standard out.
 	 */
 	public PrintingOutputFormat() {}
-	
+
 	/**
 	 * Instantiates a printing output format that prints to standard out.
-	 * 
+	 *
 	 * @param stdErr True, if the format should print to standard error instead of standard out.
 	 */
 	public PrintingOutputFormat(boolean stdErr) {
@@ -65,19 +69,17 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 		this(stdErr);
 		this.sinkIdentifier = sinkIdentifier;
 	}
-	
+
 	public void setTargetToStandardOut() {
 		this.target = STD_OUT;
 	}
-	
+
 	public void setTargetToStandardErr() {
 		this.target = STD_ERR;
 	}
-	
-	
+
 	@Override
 	public void configure(Configuration parameters) {}
-
 
 	@Override
 	public void open(int taskNumber, int numTasks) {
@@ -116,9 +118,9 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 		this.prefix = null;
 		this.sinkIdentifier = null;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "Print to " + (target == STD_OUT ? "System.out" : "System.err");
