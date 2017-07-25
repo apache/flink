@@ -175,9 +175,6 @@ make_source_release() {
   #change version in all pom files
   find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
 
-  #change version in quickstart archetypes
-  find . -name 'pom.xml' -type f -exec perl -pi -e 's#<flink.version>'$OLD_VERSION'</flink.version>#<flink.version>'$NEW_VERSION'</flink.version>#' {} \;
-
   #change version of documentation
   cd docs
   perl -pi -e "s#^version: .*#version: ${NEW_VERSION}#" _config.yml
