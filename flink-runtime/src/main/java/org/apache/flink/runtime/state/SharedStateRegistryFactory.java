@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,33 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.checkpointing;
+package org.apache.flink.runtime.state;
 
-import java.io.IOException;
+import java.util.concurrent.Executor;
 
-public class IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
+/**
+ * Simple factory to produce {@link SharedStateRegistry} objects.
+ */
+public interface SharedStateRegistryFactory {
 
-	public IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase() throws IOException {
-		super(StateBackendEnum.ROCKSDB_INCREMENTAL);
-	}
-
-	@Override
-	protected int numElementsPerKey() {
-		return 3000;
-	}
-
-	@Override
-	protected int windowSize() {
-		return 1000;
-	}
-
-	@Override
-	protected int windowSlide() {
-		return 100;
-	}
-
-	@Override
-	protected int numKeys() {
-		return 100;
-	}
+	/**
+	 * Factory method for {@link SharedStateRegistry}.
+	 *
+	 * @param deleteExecutor executor used to run (async) deletes.
+	 * @return a SharedStateRegistry object
+	 */
+	SharedStateRegistry create(Executor deleteExecutor);
 }

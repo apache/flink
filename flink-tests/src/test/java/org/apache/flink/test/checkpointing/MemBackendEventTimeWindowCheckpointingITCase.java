@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import java.io.IOException;
+
 public class MemBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public MemBackendEventTimeWindowCheckpointingITCase() {
+	public MemBackendEventTimeWindowCheckpointingITCase() throws IOException {
 		super(StateBackendEnum.MEM);
 	}
 }

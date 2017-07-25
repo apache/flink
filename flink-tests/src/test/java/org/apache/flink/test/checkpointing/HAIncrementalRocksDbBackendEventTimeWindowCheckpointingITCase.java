@@ -20,10 +20,13 @@ package org.apache.flink.test.checkpointing;
 
 import java.io.IOException;
 
-public class IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
+/**
+ * Integration tests for incremental RocksDB backend.
+ */
+public class HAIncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase() throws IOException {
-		super(StateBackendEnum.ROCKSDB_INCREMENTAL);
+	public HAIncrementalRocksDbBackendEventTimeWindowCheckpointingITCase() throws IOException {
+		super(StateBackendEnum.ROCKSDB_INCREMENTAL_ZK);
 	}
 
 	@Override

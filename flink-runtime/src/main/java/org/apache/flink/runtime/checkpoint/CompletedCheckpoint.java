@@ -209,6 +209,8 @@ public class CompletedCheckpoint implements Serializable {
 
 	private void doDiscard() throws Exception {
 
+		LOG.trace("Executing discard procedure for {}.", this);
+
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;
@@ -225,7 +227,6 @@ public class CompletedCheckpoint implements Serializable {
 			// discard private state objects
 			try {
 				Collection<OperatorState> values = operatorStates.values();
-				LOG.trace("About to discard operator states {}.", values);
 				StateUtil.bestEffortDiscardAllStateObjects(values);
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);

@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import java.io.IOException;
+
 public class RocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public RocksDbBackendEventTimeWindowCheckpointingITCase() {
+	public RocksDbBackendEventTimeWindowCheckpointingITCase() throws IOException {
 		super(StateBackendEnum.ROCKSDB_FULLY_ASYNC);
 	}
 

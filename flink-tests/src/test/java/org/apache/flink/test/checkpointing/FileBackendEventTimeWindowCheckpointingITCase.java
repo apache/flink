@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import java.io.IOException;
+
 public class FileBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public FileBackendEventTimeWindowCheckpointingITCase() {
+	public FileBackendEventTimeWindowCheckpointingITCase() throws IOException {
 		super(StateBackendEnum.FILE);
 	}
 }
