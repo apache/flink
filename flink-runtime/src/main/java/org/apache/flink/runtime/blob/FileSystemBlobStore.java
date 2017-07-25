@@ -64,25 +64,26 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Put ------------------------------------------------------------------
 
 	@Override
-	public void put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
-		put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
+	public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+		return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
-	private void put(File fromFile, String toBlobPath) throws IOException {
+	private boolean put(File fromFile, String toBlobPath) throws IOException {
 		try (OutputStream os = fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
 			Files.copy(fromFile, os);
 		}
+		return true;
 	}
 
 	// - Get ------------------------------------------------------------------
 
 	@Override
-	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
-		get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile, blobKey);
+	public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+		return get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile, blobKey);
 	}
 
-	private void get(String fromBlobPath, File toFile, BlobKey blobKey) throws IOException {
+	private boolean get(String fromBlobPath, File toFile, BlobKey blobKey) throws IOException {
 		checkNotNull(fromBlobPath, "Blob path");
 		checkNotNull(toFile, "File");
 		checkNotNull(blobKey, "Blob key");
@@ -127,6 +128,8 @@ public class FileSystemBlobStore implements BlobStoreService {
 				} catch (Throwable ignored) {}
 			}
 		}
+
+		return true; // success is always true here
 	}
 
 	// - Delete ---------------------------------------------------------------
