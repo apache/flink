@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.InputFormat;
@@ -29,6 +28,8 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -95,7 +96,7 @@ public class JobTaskVertexTest {
 				// all good
 			}
 			
-			OutputFormatVertex copy = SerializationUtils.clone(of);
+			OutputFormatVertex copy = InstantiationUtil.clone(of);
 			try {
 				copy.initializeOnMaster(cl);
 				fail("Did not throw expected exception.");
