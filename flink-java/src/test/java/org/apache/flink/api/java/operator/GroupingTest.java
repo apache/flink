@@ -631,7 +631,7 @@ public class GroupingTest {
 	}
 
 	/**
-	 * Another custom data type, for testing purposes.
+	 * Custom non-nested data type, for testing purposes.
 	 */
 	public static class CustomType2 implements Serializable {
 

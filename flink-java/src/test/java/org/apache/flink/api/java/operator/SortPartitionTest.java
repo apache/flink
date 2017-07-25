@@ -287,13 +287,4 @@ public class SortPartitionTest {
 		}
 	}
 
-	/**
-	 * Another custom data type, for testing purposes.
-	 */
-	public static class CustomType2 implements Serializable {
-
-		public int myInt;
-		public int[] myIntArray;
-
-	}
 }
