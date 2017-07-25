@@ -21,10 +21,12 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Locale;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,6 +37,11 @@ public class HadoopFileSystem extends FileSystem {
 
 	/** The wrapped Hadoop File System. */
 	private final org.apache.hadoop.fs.FileSystem fs;
+
+	/* This field caches the file system kind. It is lazily set because the file system
+	* URL is lazily initialized. */
+	private FileSystemKind fsKind;
+
 
 	/**
 	 * Wraps the given Hadoop File System object as a Flink File System object.
@@ -168,4 +175,44 @@ public class HadoopFileSystem extends FileSystem {
 	public boolean isDistributedFS() {
 		return true;
 	}
+
+	@Override
+	public FileSystemKind getKind() {
+		if (fsKind == null) {
+			fsKind = getKindForScheme(this.fs.getUri().getScheme());
+		}
+		return fsKind;
+	}
+
+	/**
+	 * Gets the kind of the file system from its scheme.
+	 *
+	 * <p>Implementation note: Initially, especially within the Flink 1.3.x line
+	 * (in order to not break backwards compatibility), we must only label file systems
+	 * as 'inconsistent' or as 'not proper filesystems' if we are sure about it.
+	 * Otherwise, we cause regression for example in the performance and cleanup handling
+	 * of checkpoints.
+	 * For that reason, we initially mark some filesystems as 'eventually consistent' or
+	 * as 'object stores', and leave the others as 'consistent file systems'.
+	 */
+	static FileSystemKind getKindForScheme(String scheme) {
+		scheme = scheme.toLowerCase(Locale.US);
+
+		if (scheme.startsWith("s3") || scheme.startsWith("emr")) {
+			// the Amazon S3 storage
+			return FileSystemKind.OBJECT_STORE;
+		}
+		else if (scheme.startsWith("http") || scheme.startsWith("ftp")) {
+			// file servers instead of file systems
+			// they might actually be consistent, but we have no hard guarantees
+			// currently to rely on that
+			return FileSystemKind.OBJECT_STORE;
+		}
+		else {
+			// the remainder should include hdfs, kosmos, ceph, ...
+			// this also includes federated HDFS (viewfs).
+			return FileSystemKind.FILE_SYSTEM;
+		}
+	}
+
 }
