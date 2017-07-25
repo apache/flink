@@ -95,6 +95,7 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 	public String toString() {
 		return "ByteStreamStateHandle{" +
 			"handleName='" + handleName + '\'' +
+			", dataBytes=" + data.length +
 			'}';
 	}
 

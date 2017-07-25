@@ -209,6 +209,8 @@ public class CompletedCheckpoint implements Serializable {
 
 	private void doDiscard() throws Exception {
 
+		LOG.trace("Executing discard procedure for {}.", this);
+
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;

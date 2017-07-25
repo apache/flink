@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -779,9 +780,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private String createOperatorIdentifier(StreamOperator<?> operator, int vertexId) {
+
+		TaskInfo taskInfo = getEnvironment().getTaskInfo();
 		return operator.getClass().getSimpleName() +
-				"_" + vertexId +
-				"_" + getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+			"_" + operator.getOperatorID() +
+			"_(" + taskInfo.getIndexOfThisSubtask() + "/" + taskInfo.getNumberOfParallelSubtasks() + ")";
 	}
 
 	/**
@@ -892,18 +895,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING,
 						CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
 
+					TaskStateSnapshot acknowledgedState = hasState ? taskOperatorSubtaskStates : null;
+
 					// we signal stateless tasks by reporting null, so that there are no attempts to assign empty state
 					// to stateless tasks on restore. This enables simple job modifications that only concern
 					// stateless without the need to assign them uids to match their (always empty) states.
 					owner.getEnvironment().acknowledgeCheckpoint(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetrics,
-						hasState ? taskOperatorSubtaskStates : null);
+						acknowledgedState);
 
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
-							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
-					}
+					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
+						owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
+
+					LOG.trace("{} - reported the following states in snapshot for checkpoint {}: {}.",
+						owner.getName(), checkpointMetaData.getCheckpointId(), acknowledgedState);
+
 				} else {
 					LOG.debug("{} - asynchronous part of checkpoint {} could not be completed because it was closed before.",
 						owner.getName(),
