@@ -633,6 +633,11 @@ public abstract class FileSystem {
 	 */
 	public abstract boolean isDistributedFS();
 
+	/**
+	 * Gets a description of the characteristics of this file system.
+	 */
+	public abstract FileSystemKind getKind();
+
 	// ------------------------------------------------------------------------
 	//  output directory initialization
 	// ------------------------------------------------------------------------
