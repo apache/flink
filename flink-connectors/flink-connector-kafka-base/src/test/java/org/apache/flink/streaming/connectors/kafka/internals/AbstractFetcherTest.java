@@ -79,6 +79,52 @@ public class AbstractFetcherTest {
 	}
 
 	@Test
+	public void testInFlightRecordOnEmitRecord() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 1), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 2), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+
+		TestSourceContext<TestFetcherRecord> sourceContext = new TestSourceContext<>();
+
+		TestFetcher<TestFetcherRecord> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			null, /* periodic watermark assigner */
+			null, /* punctuated watermark assigner */
+			mock(TestProcessingTimeService.class),
+			0);
+
+		assertEquals(fetcher.getInFlightRecordOffset(), -1);
+		assertEquals(fetcher.getInFlightRecordPartition(), -1);
+
+		final KafkaTopicPartitionState<Object> partition1StateHolder = fetcher.subscribedPartitionStates().get(0);
+		final KafkaTopicPartitionState<Object> partition2StateHolder = fetcher.subscribedPartitionStates().get(0);
+
+		// test emitRecord by passing in the TestFetcherRecord instance which allows TestSourceContext collect method
+		// to perform additional in-flight validation.
+		fetcher.emitRecord(new TestFetcherRecord(fetcher, 1L, 1L), partition1StateHolder, 1L);
+		assertEquals(1L, fetcher.getInFlightRecordOffset());
+		assertEquals(partition1StateHolder.getPartition(), fetcher.getInFlightRecordPartition());
+
+		fetcher.emitRecord(new TestFetcherRecord(fetcher, 2L, 1L), partition2StateHolder, 1L);
+		assertEquals(1L, fetcher.getInFlightRecordOffset());
+		assertEquals(partition2StateHolder.getPartition(), fetcher.getInFlightRecordPartition());
+
+		fetcher.emitRecord(new TestFetcherRecord(fetcher, 1L, 2L), partition1StateHolder, 2L);
+		assertEquals(2L, fetcher.getInFlightRecordOffset());
+		assertEquals(partition1StateHolder.getPartition(), fetcher.getInFlightRecordPartition());
+
+		fetcher.emitRecord(new TestFetcherRecord(fetcher, 2L, 2L), partition2StateHolder, 2L);
+		assertEquals(2L, fetcher.getInFlightRecordOffset());
+		assertEquals(partition2StateHolder.getPartition(), fetcher.getInFlightRecordPartition());
+
+		fetcher.emitRecordWithTimestamp(new TestFetcherRecord(fetcher, 1L, 3L), partition1StateHolder, 3L, 0L);
+		assertEquals(3L, fetcher.getInFlightRecordOffset());
+		assertEquals(partition1StateHolder.getPartition(), fetcher.getInFlightRecordPartition());
+	}
+
+	@Test
 	public void testSkipCorruptedRecordWithPunctuatedWatermarks() throws Exception {
 		final String testTopic = "test topic name";
 		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
@@ -367,6 +413,19 @@ public class AbstractFetcherTest {
 	}
 
 	// ------------------------------------------------------------------------
+	private static final class TestFetcherRecord {
+		public final TestFetcher<TestFetcherRecord> fetcher;
+		public final long inflightPartition;
+		public final long inflightOffset;
+
+		protected TestFetcherRecord(TestFetcher<TestFetcherRecord> fetcher, long inflightPartition, long inflightOffset) {
+			this.fetcher = fetcher;
+			this.inflightPartition = inflightPartition;
+			this.inflightOffset = inflightOffset;
+		}
+	}
+
+	// ------------------------------------------------------------------------
 
 	private static final class TestSourceContext<T> implements SourceContext<T> {
 
@@ -425,6 +484,56 @@ public class AbstractFetcherTest {
 				return wm;
 			}
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	private static final class TestInFlightSourceContext<T extends TestFetcherRecord> implements SourceContext<T> {
+
+		private final Object checkpointLock = new Object();
+		private final Object watermarkLock = new Object();
+
+		private volatile StreamRecord<T> latestElement;
+		private volatile Watermark currentWatermark;
+
+		@Override
+		public void collect(T element) {
+			this.latestElement = new StreamRecord<>(element);
+			assertEquals(element.inflightPartition, element.fetcher.getInFlightRecordPartition());
+			assertEquals(element.inflightOffset, element.fetcher.getInFlightRecordOffset());
+		}
+
+		@Override
+		public void collectWithTimestamp(T element, long timestamp) {
+			this.latestElement = new StreamRecord<>(element, timestamp);
+			assertEquals(element.inflightPartition, element.fetcher.getInFlightRecordPartition());
+			assertEquals(element.inflightOffset, element.fetcher.getInFlightRecordOffset());
+		}
+
+		@Override
+		public void emitWatermark(Watermark mark) {
+			synchronized (watermarkLock) {
+				currentWatermark = mark;
+				watermarkLock.notifyAll();
+			}
+		}
+
+		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Object getCheckpointLock() {
+			return checkpointLock;
+		}
+
+		@Override
+		public void close() {}
+
+		public StreamRecord<T> getLatestElement() {
+			return latestElement;
+		}
+
 	}
 
 	// ------------------------------------------------------------------------
