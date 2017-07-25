@@ -335,11 +335,6 @@ echo "RUNNING '${MVN_COMPILE}'."
 # the exit code. This is important for Travis' build life-cycle (success/failure).
 ( $MVN_COMPILE & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
 
-echo "Trying to KILL watchdog (${WD_PID})."
-
-# Make sure to kill the watchdog in any case after $MVN has completed
-( kill $WD_PID 2>&1 ) > /dev/null
-
 EXIT_CODE=$(<$MVN_EXIT)
 
 echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
@@ -357,11 +352,6 @@ if [ $EXIT_CODE == 0 ]; then
 	# the exit code. This is important for Travis' build life-cycle (success/failure).
 	( $MVN_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
 
-	echo "Trying to KILL watchdog (${WD_PID})."
-
-	# Make sure to kill the watchdog in any case after $MVN has completed
-	( kill $WD_PID 2>&1 ) > /dev/null
-
 	EXIT_CODE=$(<$MVN_EXIT)
 
 	echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
@@ -375,6 +365,10 @@ else
 fi
 
 # Post
+
+# Make sure to kill the watchdog in any case after $MVN_COMPILE and $MVN_TEST have completed
+echo "Trying to KILL watchdog (${WD_PID})."
+( kill $WD_PID 2>&1 ) > /dev/null
 
 # only misc builds flink-dist and flink-yarn-tests
 case $TEST in
