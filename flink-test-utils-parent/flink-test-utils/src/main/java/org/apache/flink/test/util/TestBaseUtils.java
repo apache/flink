@@ -614,7 +614,7 @@ public class TestBaseUtils extends TestLogger {
 			is = connection.getInputStream();
 		}
 
-		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+		return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
 	}
 
 	/**
