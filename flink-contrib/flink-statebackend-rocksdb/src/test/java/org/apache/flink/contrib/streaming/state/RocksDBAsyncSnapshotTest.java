@@ -168,16 +168,16 @@ public class RocksDBAsyncSnapshotTest {
 					throw new RuntimeException(e);
 				}
 
-				boolean hasKeyedManagedKeyedState = false;
+				boolean hasManagedKeyedState = false;
 				for (Map.Entry<OperatorID, OperatorSubtaskState> entry : checkpointStateHandles.getSubtaskStateMappings()) {
 					OperatorSubtaskState state = entry.getValue();
 					if (state != null) {
-						hasKeyedManagedKeyedState |= state.getManagedKeyedState() != null;
+						hasManagedKeyedState |= state.getManagedKeyedState() != null;
 					}
 				}
 
 				// should be one k/v state
-				assertTrue(hasKeyedManagedKeyedState);
+				assertTrue(hasManagedKeyedState);
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();

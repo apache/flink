@@ -43,15 +43,18 @@ import java.util.List;
  * This class encapsulates the state for one parallel instance of an operator. The complete state of a (logical)
  * operator (e.g. a flatmap operator) consists of the union of all {@link OperatorSubtaskState}s from all
  * parallel tasks that physically execute parallelized, physical instances of the operator.
+ *
  * <p>The full state of the logical operator is represented by {@link OperatorState} which consists of
  * {@link OperatorSubtaskState}s.
+ *
  * <p>Typically, we expect all collections in this class to be of size 0 or 1, because there up to one state handle
  * produced per state type (e.g. managed-keyed, raw-operator, ...). In particular, this holds when taking a snapshot.
  * The purpose of having the state handles in collections is that this class is also reused in restoring state.
  * Under normal circumstances, the expected size of each collection is still 0 or 1, except for scale-down. In
  * scale-down, one operator subtask can become responsible for the state of multiple previous subtasks. The collections
  * can then store all the state handles that are relevant to build up the new subtask state.
- * <p>There is no collection for legacy state because it is nor rescalable.
+ *
+ * <p>There is no collection for legacy state because it is not rescalable.
  */
 public class OperatorSubtaskState implements CompositeStateHandle {
 
@@ -268,7 +271,6 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public boolean equals(Object o) {
