@@ -29,11 +29,13 @@ import java.io.IOException;
 public class VoidBlobStore implements BlobStoreService {
 
 	@Override
-	public void put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+	public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+		return false;
 	}
 
 	@Override
-	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+	public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+		return false;
 	}
 
 	@Override

@@ -281,17 +281,18 @@ public class PermanentBlobCache extends TimerTask implements PermanentBlobServic
 		File incomingFile = createTemporaryFilename();
 		try {
 			try {
-				blobView.get(jobId, blobKey, incomingFile);
+				if (blobView.get(jobId, blobKey, incomingFile)) {
+					// now move the temp file to our local cache atomically
+					readWriteLock.writeLock().lock();
+					try {
+						BlobUtils.moveTempFileToStore(
+							incomingFile, jobId, blobKey, localFile, LOG, null);
+					} finally {
+						readWriteLock.writeLock().unlock();
+					}
 
-				readWriteLock.writeLock().lock();
-				try {
-					BlobUtils.moveTempFileToStore(
-						incomingFile, jobId, blobKey, localFile, LOG, null);
-				} finally {
-					readWriteLock.writeLock().unlock();
+					return localFile;
 				}
-
-				return localFile;
 			} catch (Exception e) {
 				LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
 			}
