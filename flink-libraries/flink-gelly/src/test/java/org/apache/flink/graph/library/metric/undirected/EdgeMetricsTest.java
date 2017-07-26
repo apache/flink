@@ -32,12 +32,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link EdgeMetrics}.
  */
-public class EdgeMetricsTest
-extends AsmTestBase {
+public class EdgeMetricsTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		Result expectedResult = new Result(2, 6, 1, 3);
 
 		Result edgeMetrics = new EdgeMetrics<IntValue, NullValue, NullValue>()
@@ -48,8 +46,7 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
+	public void testWithCompleteGraph() throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
 		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
@@ -65,22 +62,20 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
+	public void testWithEmptyGraph() throws Exception {
 		Result expectedResult;
 
 		expectedResult = new Result(0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
-			.run(emptyGraph)
+			.run(emptyGraphWithVertices)
 			.execute();
 
 		assertEquals(withoutZeroDegreeVertices, expectedResult);
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithRMatGraph() throws Exception {
 		Result expectedResult = new Result(107817, 315537, 820, 3822);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()

@@ -32,12 +32,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link CompleteGraph}.
  */
-public class CompleteGraphTest
-extends GraphGeneratorTestBase {
+public class CompleteGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		int vertexCount = 4;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
@@ -50,8 +48,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
@@ -72,8 +69,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, 10)

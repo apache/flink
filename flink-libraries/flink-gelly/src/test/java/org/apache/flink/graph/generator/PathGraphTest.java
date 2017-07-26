@@ -32,12 +32,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link PathGraph}.
  */
-public class PathGraphTest
-extends GraphGeneratorTestBase {
+public class PathGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, 10)
 			.generate();
 
@@ -49,8 +47,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 100;
 
 		Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, vertexCount)
@@ -71,8 +68,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, 100)

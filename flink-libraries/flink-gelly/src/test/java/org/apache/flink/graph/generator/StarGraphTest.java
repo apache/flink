@@ -32,12 +32,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link StarGraph}.
  */
-public class StarGraphTest
-extends GraphGeneratorTestBase {
+public class StarGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		int vertexCount = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
@@ -51,8 +49,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 100;
 
 		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
@@ -73,8 +70,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, 100)

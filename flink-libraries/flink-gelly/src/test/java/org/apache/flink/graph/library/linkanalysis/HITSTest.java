@@ -20,6 +20,7 @@ package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.Collect;
 import org.apache.flink.graph.library.linkanalysis.HITS.Result;
@@ -39,8 +40,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link HITS}.
  */
-public class HITSTest
-extends AsmTestBase {
+public class HITSTest extends AsmTestBase {
 
 	/*
 	 * This test result can be verified with the following Python script.
@@ -58,8 +58,7 @@ extends AsmTestBase {
 		print('{}: {}, {}'.format(key, hits[0][key]/hubbiness_norm, hits[1][key]/authority_norm))
 	 */
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		DataSet<Result<IntValue>> hits = new HITS<IntValue, NullValue, NullValue>(20)
 			.run(directedSimpleGraph);
 
@@ -78,22 +77,45 @@ extends AsmTestBase {
 		}
 	}
 
-	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
-		double expectedScore = 1.0 / Math.sqrt(completeGraphVertexCount);
+	/**
+	 * Validate a test where each result has the same values.
+	 *
+	 * @param graph input graph
+	 * @param count number of results
+	 * @param score result hub and authority score
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T> void validateUniformResult(Graph<T, NullValue, NullValue> graph, long count, double score) throws Exception {
+		DataSet<Result<T>> hits = new HITS<T, NullValue, NullValue>(0.000001)
+			.run(graph);
 
-		DataSet<Result<LongValue>> hits = new HITS<LongValue, NullValue, NullValue>(0.000001)
-			.run(completeGraph);
+		List<Result<T>> results = hits.collect();
 
-		List<Result<LongValue>> results = hits.collect();
+		assertEquals(count, results.size());
 
-		assertEquals(completeGraphVertexCount, results.size());
-
-		for (Result<LongValue> result : results) {
-			assertEquals(expectedScore, result.getHubScore().getValue(), 0.000001);
-			assertEquals(expectedScore, result.getAuthorityScore().getValue(), 0.000001);
+		for (Result<T> result : results) {
+			assertEquals(score, result.getHubScore().getValue(), 0.000001);
+			assertEquals(score, result.getAuthorityScore().getValue(), 0.000001);
 		}
+	}
+
+	@Test
+	public void testWithCompleteGraph() throws Exception {
+		validateUniformResult(completeGraph, completeGraphVertexCount, 1.0 / Math.sqrt(completeGraphVertexCount));
+	}
+
+	@Test
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		// this HITS implementation does not currently produce scores for
+		// 0-degree vertices as this exclusion does not affect the scores of
+		// other vertices in the graph
+		validateUniformResult(emptyGraphWithVertices, 0, Double.NaN);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validateUniformResult(emptyGraphWithoutVertices, 0, Double.NaN);
 	}
 
 	/*
@@ -112,8 +134,7 @@ extends AsmTestBase {
 		print('{}: {}, {}'.format(key, hits[0][str(key)]/hubbiness_norm, hits[1][str(key)]/authority_norm))
 	 */
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithRMatGraph() throws Exception {
 		DataSet<Result<LongValue>> hits = directedRMatGraph(10, 16)
 			.run(new HITS<LongValue, NullValue, NullValue>(0.000001));
 

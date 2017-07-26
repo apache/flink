@@ -330,6 +330,7 @@ The algorithm takes a simple directed graph as input and outputs a `DataSet` of 
 hub score, and authority score. Termination is configured by the number of iterations and/or a convergence threshold on
 the iteration sum of the change in scores over all vertices.
 
+* `setIncludeZeroDegreeVertices`: whether to include zero-degree vertices in the iterative computation
 * `setParallelism`: override the operator parallelism
 
 ### PageRank

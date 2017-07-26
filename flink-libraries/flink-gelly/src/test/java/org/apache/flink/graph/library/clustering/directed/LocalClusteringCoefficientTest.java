@@ -19,10 +19,12 @@
 package org.apache.flink.graph.library.clustering.directed;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -37,12 +39,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link LocalClusteringCoefficient}.
  */
-public class LocalClusteringCoefficientTest
-extends AsmTestBase {
+public class LocalClusteringCoefficientTest extends AsmTestBase {
 
 	@Test
-	public void testSimpleGraph()
-			throws Exception {
+	public void testSimpleGraph() throws Exception {
 		String expectedResult =
 			"(0,2,1)\n" +
 			"(1,3,2)\n" +
@@ -57,28 +57,51 @@ extends AsmTestBase {
 		TestBaseUtils.compareResultAsText(cc.collect(), expectedResult);
 	}
 
-	@Test
-	public void testCompleteGraph()
-			throws Exception {
-		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedTriangleCount = 2 * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
+	/**
+	 * Validate a test where each result has the same values.
+	 *
+	 * @param graph input graph
+	 * @param count number of results
+	 * @param degree result degree
+	 * @param triangleCount result triangle count
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T extends Comparable<T> & CopyableValue<T>> void validateUniformResult(
+			Graph<T, NullValue, NullValue> graph, long count, long degree, long triangleCount) throws Exception {
+		DataSet<Result<T>> cc = graph
+			.run(new LocalClusteringCoefficient<T, NullValue, NullValue>());
 
-		DataSet<Result<LongValue>> cc = completeGraph
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+		List<Result<T>> results = cc.collect();
 
-		List<Result<LongValue>> results = cc.collect();
+		assertEquals(count, results.size());
 
-		assertEquals(completeGraphVertexCount, results.size());
-
-		for (Result<LongValue> result : results) {
-			assertEquals(expectedDegree, result.getDegree().getValue());
-			assertEquals(expectedTriangleCount, result.getTriangleCount().getValue());
+		for (Result<T> result : results) {
+			assertEquals(degree, result.getDegree().getValue());
+			assertEquals(triangleCount, result.getTriangleCount().getValue());
 		}
 	}
 
 	@Test
-	public void testRMatGraph()
-			throws Exception {
+	public void testCompleteGraph() throws Exception {
+		long degree = completeGraphVertexCount - 1;
+		long triangleCount = 2 * CombinatoricsUtils.binomialCoefficient((int) degree, 2);
+
+		validateUniformResult(completeGraph, completeGraphVertexCount, degree, triangleCount);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validateUniformResult(emptyGraphWithVertices, emptyGraphVertexCount, 0, 0);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validateUniformResult(emptyGraphWithoutVertices, 0, 0, 0);
+	}
+
+	@Test
+	public void testRMatGraph() throws Exception {
 		DataSet<Result<LongValue>> cc = directedRMatGraph(10, 16)
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 

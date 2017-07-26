@@ -37,8 +37,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link EdgeDegreesPair}.
  */
-public class EdgeDegreesPairTest
-extends AsmTestBase {
+public class EdgeDegreesPairTest extends AsmTestBase {
 
 	@Test
 	public void testWithSimpleGraph()
@@ -59,8 +58,23 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = emptyGraphWithVertices
+			.run(new EdgeDegreesPair<LongValue, NullValue, NullValue>());
+
+		assertEquals(0, degreesPair.collect().size());
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = emptyGraphWithoutVertices
+			.run(new EdgeDegreesPair<LongValue, NullValue, NullValue>());
+
+		assertEquals(0, degreesPair.collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
 		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = directedRMatGraph(10, 16)
 			.run(new EdgeDegreesPair<LongValue, NullValue, NullValue>());
 

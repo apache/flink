@@ -18,12 +18,11 @@
 
 package org.apache.flink.graph.generator;
 
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -39,7 +38,7 @@ import java.util.Collections;
 public class EmptyGraph
 extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
-	public static final int MINIMUM_VERTEX_COUNT = 1;
+	public static final int MINIMUM_VERTEX_COUNT = 0;
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
@@ -64,14 +63,20 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
 		// Vertices
-		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		DataSet<Vertex<LongValue, NullValue>> vertices;
+
+		if (vertexCount > 0) {
+			vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		} else {
+			vertices = env
+				.fromCollection(Collections.<Vertex<LongValue, NullValue>>emptyList(), TypeInformation.of(new TypeHint<Vertex<LongValue, NullValue>>(){}))
+					.setParallelism(parallelism)
+					.name("Empty vertex set");
+		}
 
 		// Edges
-		TypeInformation<Edge<LongValue, NullValue>> typeInformation = new TupleTypeInfo<>(
-			ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.NULL_VALUE_TYPE_INFO);
-
 		DataSource<Edge<LongValue, NullValue>> edges = env
-			.fromCollection(Collections.<Edge<LongValue, NullValue>>emptyList(), typeInformation)
+			.fromCollection(Collections.<Edge<LongValue, NullValue>>emptyList(), TypeInformation.of(new TypeHint<Edge<LongValue, NullValue>>(){}))
 				.setParallelism(parallelism)
 				.name("Empty edge set");
 
