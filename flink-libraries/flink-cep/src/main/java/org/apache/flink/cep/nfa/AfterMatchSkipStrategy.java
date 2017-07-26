@@ -19,9 +19,13 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -33,56 +37,55 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.List;
 
 
 /**
  * Indicate the skip strategy after a match process.
  * <p>There're four kinds of strategies:
- * SKIP_PAST_LAST_ROW,
- * SKIP_TO_NEXT_ROW,
- * SKIP_TO_FIRST_<code>RPV</code> and
- * SKIP_TO_LAST_<code>RPV</code>
+ * SKIP_PAST_LAST_EVENT,
+ * SKIP_TO_NEXT_EVENT,
+ * SKIP_TO_FIRST_<code>PATTERN</code> and
+ * SKIP_TO_LAST_<code>PATTERN</code>
  * </p>
  */
 public class AfterMatchSkipStrategy implements Serializable {
 
 	// default strategy
-	SkipStrategy strategy = SkipStrategy.SKIP_TO_NEXT_ROW;
+	SkipStrategy strategy = SkipStrategy.SKIP_TO_NEXT_EVENT;
 
 	// fields
-	String rpv = null;
+	String patternName = null;
 
 	public AfterMatchSkipStrategy(){
-		this(SkipStrategy.SKIP_TO_NEXT_ROW, null);
+		this(SkipStrategy.SKIP_TO_NEXT_EVENT, null);
 	}
 
 	public AfterMatchSkipStrategy(SkipStrategy strategy) {
 		this(strategy, null);
 	}
 
-	public AfterMatchSkipStrategy(SkipStrategy strategy, String rpv) {
-		if (strategy == SkipStrategy.SKIP_TO_FIRST || strategy == SkipStrategy.SKIP_TO_LAST) {
-			if (rpv == null) {
-				throw new IllegalArgumentException("the rpv field can not be empty when SkipStrategy is " + strategy);
-			}
+	public AfterMatchSkipStrategy(SkipStrategy strategy, String patternName) {
+		if (patternName == null && (strategy == SkipStrategy.SKIP_TO_FIRST || strategy == SkipStrategy.SKIP_TO_LAST)) {
+			throw new IllegalArgumentException("the patternName field can not be empty when SkipStrategy is " + strategy);
 		}
 		this.strategy = strategy;
-		this.rpv = rpv;
+		this.patternName = patternName;
 	}
 
 	public SkipStrategy getStrategy() {
 		return strategy;
 	}
 
-	public String getRpv() {
-		return rpv;
+	public String getPatternName() {
+		return patternName;
 	}
 
 	@Override
 	public String toString() {
 		return "AfterMatchStrategy{" +
 			"strategy=" + strategy +
-			", rpv=" + rpv +
+			", patternName=" + patternName +
 			'}';
 	}
 
@@ -90,8 +93,8 @@ public class AfterMatchSkipStrategy implements Serializable {
 	 * Skip Strategy Enum.
 	 */
 	public enum SkipStrategy{
-		SKIP_TO_NEXT_ROW,
-		SKIP_PAST_LAST_ROW,
+		SKIP_TO_NEXT_EVENT,
+		SKIP_PAST_LAST_EVENT,
 		SKIP_TO_FIRST,
 		SKIP_TO_LAST
 	}
@@ -189,7 +192,7 @@ public class AfterMatchSkipStrategy implements Serializable {
 		@Override
 		public void serialize(AfterMatchSkipStrategy record, DataOutputView target) throws IOException {
 			enumSerializer.serialize(record.getStrategy(), target);
-			stringSerializer.serialize(record.getRpv(), target);
+			stringSerializer.serialize(record.getPatternName(), target);
 		}
 
 		@Override
@@ -235,7 +238,39 @@ public class AfterMatchSkipStrategy implements Serializable {
 
 		@Override
 		public CompatibilityResult<AfterMatchSkipStrategy> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			return CompatibilityResult.compatible();
+			if (configSnapshot instanceof AfterMatchSkipStrategyConfigSnapshot) {
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
+					((AfterMatchSkipStrategyConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+
+				CompatibilityResult<SkipStrategy> skipStrategyCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+					serializersAndConfigs.get(0).f0,
+					UnloadableDummyTypeSerializer.class,
+					serializersAndConfigs.get(0).f1,
+					enumSerializer
+				);
+
+				CompatibilityResult<String> patternNameCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+					serializersAndConfigs.get(1).f0,
+					UnloadableDummyTypeSerializer.class,
+					serializersAndConfigs.get(1).f1,
+					stringSerializer
+				);
+				if (!skipStrategyCompatibilityResult.isRequiresMigration() &&
+					!patternNameCompatibilityResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else {
+					if (skipStrategyCompatibilityResult.getConvertDeserializer() != null &&
+						patternNameCompatibilityResult.getConvertDeserializer() != null) {
+						return CompatibilityResult.requiresMigration(
+							new AfterMatchSkipStrategySerializer(
+								new TypeDeserializerAdapter<>(skipStrategyCompatibilityResult.getConvertDeserializer()),
+								new TypeDeserializerAdapter<>(patternNameCompatibilityResult.getConvertDeserializer())
+							)
+						);
+					}
+				}
+			}
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 }

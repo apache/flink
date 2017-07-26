@@ -19,6 +19,7 @@
 package org.apache.flink.cep.pattern;
 
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.Quantifier.Times;
@@ -70,6 +71,8 @@ public class Pattern<T, F extends T> {
 	 */
 	private Times times;
 
+	private AfterMatchSkipStrategy skipStrategy = new AfterMatchSkipStrategy();
+
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
@@ -82,6 +85,17 @@ public class Pattern<T, F extends T> {
 		this.name = name;
 		this.previous = previous;
 		this.quantifier = Quantifier.one(consumingStrategy);
+	}
+
+	protected Pattern(
+		final String name,
+		final Pattern<T, ? extends T> previous,
+		final ConsumingStrategy consumingStrategy,
+		final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		this.name = name;
+		this.previous = previous;
+		this.quantifier = Quantifier.one(consumingStrategy);
+		this.skipStrategy = afterMatchSkipStrategy;
 	}
 
 	public Pattern<T, ? extends T> getPrevious() {
@@ -491,5 +505,22 @@ public class Pattern<T, F extends T> {
 			throw new MalformedPatternException("Already applied quantifier to this Pattern. " +
 					"Current quantifier is: " + quantifier);
 		}
+	}
+
+	/**
+	 * Set the pattern's skip strategy after match.
+	 * @param afterMatchSkipStrategy the skip strategy to use.
+	 */
+	public Pattern<T, F> setAfterMatchSkipStrategy(AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		this.skipStrategy = afterMatchSkipStrategy;
+		return this;
+	}
+
+	/**
+	 * Get the pattern's skip strategy after match.
+	 * @return
+	 */
+	public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
+		return skipStrategy;
 	}
 }

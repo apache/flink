@@ -29,10 +29,8 @@ import org.apache.flink.types.{Either => FEither}
 import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
 import java.lang.{Long => JLong}
 
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy
 import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
-
 import scala.collection.Map
 
 /**
@@ -51,8 +49,6 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   def getPattern: Pattern[T, T] = Pattern(jPatternStream.getPattern.asInstanceOf[JPattern[T, T]])
 
   def getInputStream: DataStream[T] = asScalaStream(jPatternStream.getInputStream())
-
-  def getSkipStrategy: AfterMatchSkipStrategy = jPatternStream.getSkipStrategy()
 
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the

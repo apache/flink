@@ -83,9 +83,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(3);
-
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_NEXT_ROW));
+		}).times(3).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_NEXT_EVENT));
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
@@ -124,9 +122,8 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(3);
+		}).times(3).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_PAST_LAST_EVENT));
 
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_PAST_LAST_ROW));
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
@@ -172,9 +169,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("b");
 			}
-		}).times(2);
-
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
+		}).times(2).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
 			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST, "end"));
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
@@ -225,9 +220,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("b");
 			}
-		}).times(2);
-
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
+		}).times(2).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
 			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "end"));
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -282,9 +275,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		});
-
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
+		}).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
 			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "middle"));
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -336,9 +327,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		});
-
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
+		}).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
 			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "start"));
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -390,9 +379,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		});
-
-		CEP.setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
+		}).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
 			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST, "middle"));
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {

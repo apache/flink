@@ -163,9 +163,9 @@ public class NFA<T> implements Serializable {
 	private AfterMatchSkipStrategy skipStrategy;
 
 	/**
-	 * Keep the start state.
+	 * Keep the start computation state.
 	 */
-	private State<T> startState;
+	private ComputationState<T> startComputationState;
 
 	public NFA(
 		final TypeSerializer<T> eventSerializer,
@@ -204,8 +204,8 @@ public class NFA<T> implements Serializable {
 		states.add(state);
 
 		if (state.isStart()) {
-			startState = state;
-			computationStates.add(ComputationState.createStartState(this, state));
+			startComputationState = ComputationState.createStartState(this, state);
+			computationStates.add(startComputationState);
 		}
 	}
 
@@ -303,8 +303,8 @@ public class NFA<T> implements Serializable {
 					if (skipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST ||
 						skipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST) {
 						// check whether is empty.
-						if (matchedPattern.get(skipStrategy.getRpv()) == null) {
-							throw new RuntimeException("the pattern \"" + skipStrategy.getRpv() + "\" is empty, "
+						if (matchedPattern.get(skipStrategy.getPatternName()) == null) {
+							throw new RuntimeException("the pattern \"" + skipStrategy.getPatternName() + "\" is empty, "
 								+ "will abort the match process. Please rewrite your pattern query");
 						}
 					}
@@ -581,29 +581,29 @@ public class NFA<T> implements Serializable {
 					}
 
 					switch (skipStrategy.getStrategy()) {
-						case SKIP_PAST_LAST_ROW:
+						case SKIP_PAST_LAST_EVENT:
 							if (nextState.isFinal()) {
-								resultingComputationStates.add(createStartComputationState(computationState, outgoingEdges));
+								resultingComputationStates.add(createStartComputationState(computationState, event));
 							}
 							break;
 						case SKIP_TO_FIRST:
-							if (nextState.getName().equals(skipStrategy.getRpv()) &&
+							if (nextState.getName().equals(skipStrategy.getPatternName()) &&
 								!nextState.getName().equals(currentState.getName())) {
-								ComputationState<T> startComputationState = createStartComputationState(computationState, outgoingEdges);
+								ComputationState<T> startComputationState = createStartComputationState(computationState, event);
 								if (callLevel > 0) {
 									throw new RuntimeException("infinite loop! Will abort the match process, please rewrite your pattern query");
 								}
 								// feed current matched event to the state.
 								Collection<ComputationState<T>> computationStates = computeNextStates(startComputationState, event, timestamp, callLevel++);
 								resultingComputationStates.addAll(computationStates);
-							} else if (previousState == null && currentState.getName().equals(skipStrategy.getRpv())) {
+							} else if (previousState == null && currentState.getName().equals(skipStrategy.getPatternName())) {
 								throw new RuntimeException("infinite loop! Will abort the match process, please rewrite your pattern query");
 							}
 							break;
 						case SKIP_TO_LAST:
-							if (currentState.getName().equals(skipStrategy.getRpv()) &&
+							if (currentState.getName().equals(skipStrategy.getPatternName()) &&
 								!nextState.getName().equals(currentState.getName())) {
-								ComputationState<T> startComputationState = createStartComputationState(computationState, outgoingEdges);
+								ComputationState<T> startComputationState = createStartComputationState(computationState, event);
 								if (callLevel > 0) {
 									throw new RuntimeException("infinite loop! Will abort the match process, please rewrite your pattern query");
 								}
@@ -618,8 +618,8 @@ public class NFA<T> implements Serializable {
 		}
 
 		if (computationState.isStartState() &&
-			skipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_NEXT_ROW) {
-			resultingComputationStates.add(createStartComputationState(computationState, outgoingEdges));
+			skipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_NEXT_EVENT) {
+			resultingComputationStates.add(createStartComputationState(computationState, event));
 		}
 
 		if (computationState.getEvent() != null) {
@@ -773,18 +773,18 @@ public class NFA<T> implements Serializable {
 
 	/**
 	 * create a new start computation state based on given state and edges.
-	 * @param currentComputationState
-	 * @param outgoingEdges
+	 * @param currentComputationState current computation state
+	 * @param event current processing event.
 	 * @return
 	 */
 	private ComputationState<T> createStartComputationState(
-		final ComputationState<T> currentComputationState, final OutgoingEdges<T> outgoingEdges) {
+		final ComputationState<T> currentComputationState, final T event) {
+		final OutgoingEdges<T> outgoingEdges = createDecisionGraph(startComputationState, event);
 		int totalBranches = calculateIncreasingSelfState(
 			outgoingEdges.getTotalIgnoreBranches(),
 			outgoingEdges.getTotalTakeBranches());
-
 		DeweyNumber startVersion = currentComputationState.getVersion().increase(totalBranches);
-		return ComputationState.createStartState(this, startState, startVersion);
+		return ComputationState.createStartState(this, startComputationState.getState(), startVersion);
 	}
 
 	//////////////////////			Fault-Tolerance / Migration			//////////////////////
@@ -900,7 +900,7 @@ public class NFA<T> implements Serializable {
 
 		for (State<T> state : convertedStates.values()) {
 			if (state.isStart()) {
-				this.startState = state;
+				this.startComputationState = ComputationState.createStartState(this, state);
 			}
 		}
 

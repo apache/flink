@@ -29,7 +29,6 @@ import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.PatternStream;
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -53,29 +52,14 @@ public class CEPOperatorUtils {
 	 * @return Data stream containing fully matched event sequences stored in a {@link Map}. The
 	 * events are indexed by their associated names of the pattern.
 	 */
-	public static <K, T> SingleOutputStreamOperator<Map<String, List<T>>> createPatternStream(
-		DataStream<T> inputStream, Pattern<T, ?> pattern) {
-		return createPatternStream(inputStream, pattern, new AfterMatchSkipStrategy());
-	}
-
-	/**
-	 * Creates a data stream containing the fully matching event patterns of the NFA computation.
-	 *
-	 * @param <K> Type of the key
-	 * @param skipStrategy The skip strategy after per match.
-	 * @return Data stream containing fully matched event sequences stored in a {@link Map}. The
-	 * events are indexed by their associated names of the pattern.
-	 */
-	public static <K, T> SingleOutputStreamOperator<Map<String, List<T>>> createPatternStream(
-		DataStream<T> inputStream, Pattern<T, ?> pattern, AfterMatchSkipStrategy skipStrategy) {
-
+	public static <K, T> SingleOutputStreamOperator<Map<String, List<T>>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
 		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
-		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false, skipStrategy);
+		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false);
 
 		final SingleOutputStreamOperator<Map<String, List<T>>> patternStream;
 
@@ -125,21 +109,6 @@ public class CEPOperatorUtils {
 	 */
 	public static <K, T> SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> createTimeoutPatternStream(
 		DataStream<T> inputStream, Pattern<T, ?> pattern) {
-		return createTimeoutPatternStream(inputStream, pattern, new AfterMatchSkipStrategy());
-	}
-
-	/**
-	 * Creates a data stream containing fully matching event patterns or partially matching event
-	 * patterns which have timed out. The former are wrapped in a Either.Right and the latter in a
-	 * Either.Left type.
-	 *
-	 * @param <K> Type of the key
-	 * @param skipStrategy The skip strategy after per match.
-	 * @return Data stream containing fully matched and partially matched event sequences wrapped in
-	 * a {@link Either} instance.
-	 */
-	public static <K, T> SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> createTimeoutPatternStream(
-		DataStream<T> inputStream, Pattern<T, ?> pattern, AfterMatchSkipStrategy skipStrategy) {
 
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
@@ -147,7 +116,7 @@ public class CEPOperatorUtils {
 		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
-		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true, skipStrategy);
+		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true);
 
 		final SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream;
 

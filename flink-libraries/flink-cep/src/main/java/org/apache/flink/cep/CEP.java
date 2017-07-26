@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep;
 
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
@@ -28,9 +27,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  * <p>Methods which transform a {@link DataStream} into a {@link PatternStream} to do CEP.
  */
 public class CEP {
-
-	private static AfterMatchSkipStrategy skipStrategy = new AfterMatchSkipStrategy();
-
 	/**
 	 * Creates a {@link PatternStream} from an input data stream and a pattern.
 	 *
@@ -40,14 +36,6 @@ public class CEP {
 	 * @return Resulting pattern stream
 	 */
 	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern) {
-		return new PatternStream<>(input, pattern, skipStrategy);
-	}
-
-	/**
-	 * Set the pattern's skip strategy after match.
-	 * @param afterMatchSkipStrategy the skip strategy to use.
-	 */
-	public static void setAfterMatchSkipStrategy(AfterMatchSkipStrategy afterMatchSkipStrategy) {
-		skipStrategy = afterMatchSkipStrategy;
+		return new PatternStream<>(input, pattern);
 	}
 }
