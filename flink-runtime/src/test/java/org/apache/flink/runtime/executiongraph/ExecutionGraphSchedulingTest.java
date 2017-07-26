@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import avro.shaded.com.google.common.collect.Lists;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -46,23 +43,20 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 
 import org.junit.After;
 import org.junit.Test;
 
-import org.mockito.cglib.proxy.NoOp;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.verification.Timeout;
@@ -593,76 +587,74 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			target1.setInvokableClass(NoOpInvokable.class);
 			target2.setInvokableClass(NoOpInvokable.class);
 
+			// construct a simple graph as below (DistributionPattern's POINTWISE)
+			//
+			// source1 (parallelism 2) ---+-> target1 (parallelism1)
+			//                           /
+			//                          /
+			// source2 (parallelism 4) +--->target2 (parallelism2)
 			target1.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
 			target1.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
 			target2.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
 
 			final JobGraph jobGraph = new JobGraph(jobId, "test", source1, source2, target1, target2);
 
-			ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(4);
+			// build scheduler and add 4 instances, every instance with 1 slot.
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
+			for (int i = 0; i < 4; i++) {
+				scheduler.newInstanceAvailable(
+					ExecutionGraphTestUtils.getInstance(
+						new ActorTaskManagerGateway(
+							new ExecutionGraphTestUtils.SimpleActorGateway(
+								TestingUtils.directExecutionContext()))));
+			}
 
-			final TaskManagerGateway gatewaySource = createTaskManager();
-			final TaskManagerGateway gatewayTarget = createTaskManager();
-
-
-			final SimpleSlot slot1 = createSlot(gatewaySource, jobId);
-			final SimpleSlot slot2 = createSlot(gatewayTarget, jobId);
-			final SimpleSlot slot3 = createSlot(gatewayTarget, jobId);
-			final SimpleSlot slot4 = createSlot(gatewayTarget, jobId);
-
-			final FlinkCompletableFuture<SimpleSlot> futureSlot1 = FlinkCompletableFuture.completed(slot1);
-			final FlinkCompletableFuture<SimpleSlot> futureSlot2 = FlinkCompletableFuture.completed(slot2);
-			final FlinkCompletableFuture<SimpleSlot> futureSlot3 = FlinkCompletableFuture.completed(slot3);
-			final FlinkCompletableFuture<SimpleSlot> futureSlot4 = FlinkCompletableFuture.completed(slot4);
-
-			slotProvider.addSlot(source1.getID(), 0, futureSlot1);
-			slotProvider.addSlot(source1.getID(), 1, futureSlot2);
-			slotProvider.addSlot(source2.getID(), 0, futureSlot1);
-			slotProvider.addSlot(source2.getID(), 1, futureSlot2);
-			slotProvider.addSlot(source2.getID(), 2, futureSlot3);
-			slotProvider.addSlot(source2.getID(), 3, futureSlot4);
-			slotProvider.addSlot(target1.getID(), 0, futureSlot1);
-			slotProvider.addSlot(target2.getID(), 0, futureSlot1);
-			slotProvider.addSlot(target2.getID(), 1, futureSlot2);
-
-			ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
+			ExecutionGraph eg = createExecutionGraph(jobGraph, scheduler);
 
 			// allocate the slots
 			for (ExecutionJobVertex ejv : eg.getVerticesTopologically()) {
-				ejv.allocateResourcesForAll(slotProvider, false);
+				ejv.allocateResourcesForAll(scheduler, false);
 			}
 
 			Map<JobVertexID, ExecutionJobVertex> ejvMap = eg.getAllVertices();
 
+			// source1 & source2 should have no one preferred location based on inputs
 			assertTrue(!ejvMap.get(source1Id).getTaskVertices()[0].getPreferredLocationsBasedOnInputs().iterator().hasNext());
 			assertTrue(!ejvMap.get(source2Id).getTaskVertices()[0].getPreferredLocationsBasedOnInputs().iterator().hasNext());
 
+			// target1 should have 2 preferred locations
 			Set<TaskManagerLocation> target1PreferredSet = new HashSet<>();
 			for(TaskManagerLocation tmLocation: ejvMap.get(target1Id).getTaskVertices()[0].getPreferredLocationsBasedOnInputs()) {
 				target1PreferredSet.add(tmLocation);
 			}
-
+			// target1's preferred locations should be the same as source1's slot locations
 			assertTrue(target1PreferredSet.size() == 2);
-			assertTrue(target1PreferredSet.contains(futureSlot1.get().getTaskManagerLocation()));
-			assertTrue(target1PreferredSet.contains(futureSlot2.get().getTaskManagerLocation()));
+			assertTrue(target1PreferredSet.contains(ejvMap.get(source1Id).getTaskVertices()[0].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
+			assertTrue(target1PreferredSet.contains(ejvMap.get(source1Id).getTaskVertices()[1].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
 
+			// target2's 1th sub vertex should have 2 preferred inputs
 			Set<TaskManagerLocation> target2Vertex1PreferredSet = new HashSet<>();
 			for(TaskManagerLocation tmLocation: ejvMap.get(target2Id).getTaskVertices()[0].getPreferredLocationsBasedOnInputs()) {
 				target2Vertex1PreferredSet.add(tmLocation);
 			}
-
 			assertTrue(target2Vertex1PreferredSet.size() == 2);
-			assertTrue(target2Vertex1PreferredSet.contains(futureSlot1.get().getTaskManagerLocation()));
-			assertTrue(target2Vertex1PreferredSet.contains(futureSlot2.get().getTaskManagerLocation()));
 
+			// target2's 2th sub vertex should have 2 preferred inputs
 			Set<TaskManagerLocation> target2Vertex2PreferredSet = new HashSet<>();
 			for(TaskManagerLocation tmLocation: ejvMap.get(target2Id).getTaskVertices()[1].getPreferredLocationsBasedOnInputs()) {
 				target2Vertex2PreferredSet.add(tmLocation);
 			}
-
 			assertTrue(target2Vertex2PreferredSet.size() == 2);
-			assertTrue(target2Vertex2PreferredSet.contains(futureSlot3.get().getTaskManagerLocation()));
-			assertTrue(target2Vertex2PreferredSet.contains(futureSlot4.get().getTaskManagerLocation()));
+
+			// target2's preferred locations should be the same as source2's slot locations
+			Set<TaskManagerLocation> target2VertexPreferredSet = new HashSet<>();
+			target2VertexPreferredSet.addAll(target2Vertex1PreferredSet);
+			target2VertexPreferredSet.addAll(target2Vertex2PreferredSet);
+
+			assertTrue(target2VertexPreferredSet.contains(ejvMap.get(source2Id).getTaskVertices()[0].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
+			assertTrue(target2VertexPreferredSet.contains(ejvMap.get(source2Id).getTaskVertices()[1].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
+			assertTrue(target2VertexPreferredSet.contains(ejvMap.get(source2Id).getTaskVertices()[2].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
+			assertTrue(target2VertexPreferredSet.contains(ejvMap.get(source2Id).getTaskVertices()[3].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
