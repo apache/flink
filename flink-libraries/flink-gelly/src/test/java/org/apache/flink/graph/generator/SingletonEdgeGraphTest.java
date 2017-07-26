@@ -30,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link SingletonEdgeGraph}.
  */
-public class SingletonEdgeGraphTest
-extends GraphGeneratorTestBase {
+public class SingletonEdgeGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		int vertexPairCount = 5;
 
 		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
@@ -48,8 +46,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexPairCount = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
@@ -70,8 +67,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, 10)

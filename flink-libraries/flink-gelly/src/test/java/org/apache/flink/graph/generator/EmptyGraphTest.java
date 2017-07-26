@@ -30,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link EmptyGraph}.
  */
-public class EmptyGraphTest
-extends GraphGeneratorTestBase {
+public class EmptyGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 10)
 			.generate();
 
@@ -46,8 +44,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 100;
 
 		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount)
@@ -64,8 +61,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 100)

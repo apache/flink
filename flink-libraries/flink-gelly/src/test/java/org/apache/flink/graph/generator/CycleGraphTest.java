@@ -30,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link CycleGraph}.
  */
-public class CycleGraphTest
-extends GraphGeneratorTestBase {
+public class CycleGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 10)
 			.generate();
 
@@ -47,8 +45,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 100;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, vertexCount)
@@ -69,8 +66,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 100)

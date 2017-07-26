@@ -30,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link CirculantGraph}.
  */
-public class CirculantGraphTest
-extends GraphGeneratorTestBase {
+public class CirculantGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
 			.addRange(4, 3)
 			.generate();
@@ -50,8 +48,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 10;
 		int offset = 4;
 		int length = 2;
@@ -71,8 +68,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)

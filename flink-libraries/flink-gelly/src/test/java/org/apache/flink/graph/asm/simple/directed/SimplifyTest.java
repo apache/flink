@@ -62,8 +62,7 @@ public class SimplifyTest {
 	}
 
 	@Test
-	public void test()
-			throws Exception {
+	public void test() throws Exception {
 		String expectedResult =
 			"(0,1,(null))\n" +
 			"(0,2,(null))\n" +
