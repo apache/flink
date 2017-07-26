@@ -656,7 +656,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			assertTrue(target2VertexPreferredSet.contains(ejvMap.get(source2Id).getTaskVertices()[2].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
 			assertTrue(target2VertexPreferredSet.contains(ejvMap.get(source2Id).getTaskVertices()[3].getCurrentExecutionAttempt().getAssignedFutureResource().getTaskManagerLocation()));
 		} catch (Exception e) {
-			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
