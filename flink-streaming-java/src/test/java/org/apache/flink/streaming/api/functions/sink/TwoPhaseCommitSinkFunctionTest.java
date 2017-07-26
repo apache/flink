@@ -17,18 +17,12 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.KeyedStateStore;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StateInitializationContextImpl;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
 
@@ -37,100 +31,87 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Serializable;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link TwoPhaseCommitSinkFunction}.
  */
-public class TwoPhaseCommitSinkFunctionTests {
+public class TwoPhaseCommitSinkFunctionTest {
+	@Test
+	public void testNotifyOfCompletedCheckpoint() throws Exception {
+		File tmpDirectory = Files.createTempDirectory(this.getClass().getSimpleName() + "_tmp").toFile();
+		File targetDirectory = Files.createTempDirectory(this.getClass().getSimpleName() + "_target").toFile();
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestHarness(tmpDirectory, targetDirectory);
+
+		testHarness.setup();
+		testHarness.open();
+		testHarness.processElement("42", 0);
+		testHarness.snapshot(0, 1);
+		testHarness.processElement("43", 2);
+		testHarness.snapshot(1, 3);
+		testHarness.processElement("44", 4);
+		testHarness.snapshot(2, 5);
+		testHarness.notifyOfCompletedCheckpoint(1);
+
+		assertExactlyOnceForDirectory(targetDirectory, Arrays.asList("42", "43"));
+		assertEquals(2, tmpDirectory.listFiles().length); // one for checkpointId 2 and second for the currentTransaction
+		testHarness.close();
+	}
+
+	public OneInputStreamOperatorTestHarness<String, Object> createTestHarness(File tmpDirectory, File targetDirectory) throws Exception {
+		tmpDirectory.deleteOnExit();
+		targetDirectory.deleteOnExit();
+		FileBasedSinkFunction sinkFunction = new FileBasedSinkFunction(tmpDirectory, targetDirectory);
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sinkFunction), StringSerializer.INSTANCE);
+	}
+
 	@Test
 	public void testFailBeforeNotify() throws Exception {
 		File tmpDirectory = Files.createTempDirectory(this.getClass().getSimpleName() + "_tmp").toFile();
-		tmpDirectory.deleteOnExit();
 		File targetDirectory = Files.createTempDirectory(this.getClass().getSimpleName() + "_target").toFile();
-		targetDirectory.deleteOnExit();
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestHarness(tmpDirectory, targetDirectory);
 
-		FileBasedSinkFunction sinkFunction = new FileBasedSinkFunction(tmpDirectory, targetDirectory);
-
-		MemoryStateBackend backend = new MemoryStateBackend();
-		StateInitializationContextImpl initializationContext = getInitializationContext(
-			"failBeforeNotify",
-			backend,
-			true);
-
-		sinkFunction.setRuntimeContext(getRuntimeContext());
-		sinkFunction.open(new Configuration());
-		sinkFunction.initializeState(initializationContext);
-		sinkFunction.invoke("42");
-		sinkFunction.snapshotState(getSnapshotContext(0));
-		sinkFunction.invoke("43");
-		sinkFunction.snapshotState(getSnapshotContext(1));
+		testHarness.setup();
+		testHarness.open();
+		testHarness.processElement("42", 0);
+		testHarness.snapshot(0, 1);
+		testHarness.processElement("43", 2);
+		OperatorStateHandles snapshot = testHarness.snapshot(1, 3);
 
 		assertTrue(tmpDirectory.setWritable(false));
 		try {
-			sinkFunction.invoke("44");
-			sinkFunction.snapshotState(getSnapshotContext(2));
+			testHarness.processElement("44", 4);
+			testHarness.snapshot(2, 5);
 		}
-		catch (FileNotFoundException ex) {
+		catch (Exception ex) {
+			if (!(ex.getCause() instanceof FileNotFoundException)) {
+				throw ex;
+			}
 			// ignore
 		}
-		sinkFunction.close();
+		testHarness.close();
 
 		assertTrue(tmpDirectory.setWritable(true));
 
-		sinkFunction = new FileBasedSinkFunction(tmpDirectory, targetDirectory);
-		sinkFunction.setRuntimeContext(getRuntimeContext());
-		sinkFunction.open(new Configuration());
-		sinkFunction.initializeState(initializationContext);
-		sinkFunction.close();
+		testHarness = createTestHarness(tmpDirectory, targetDirectory);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.close();
 
 		assertExactlyOnceForDirectory(targetDirectory, Arrays.asList("42", "43"));
 		assertEquals(0, tmpDirectory.listFiles().length);
-	}
-
-	private StateInitializationContextImpl getInitializationContext(String operatorIdentifier, MemoryStateBackend backend, boolean restored) throws Exception {
-		Environment env = new DummyEnvironment(operatorIdentifier, 1, 0);
-		return new StateInitializationContextImpl(
-			restored,
-			backend.createOperatorStateBackend(env, operatorIdentifier),
-			mock(KeyedStateStore.class),
-			new ArrayList<KeyedStateHandle>(),
-			new ArrayList<OperatorStateHandle>(),
-			new CloseableRegistry());
-	}
-
-	private RuntimeContext getRuntimeContext() {
-		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
-		when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing
-		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
-		return mockRuntimeContext;
-	}
-
-	private FunctionSnapshotContext getSnapshotContext(final int checkpointId) {
-		return new FunctionSnapshotContext() {
-			@Override
-			public long getCheckpointId() {
-				return checkpointId;
-			}
-
-			@Override
-			public long getCheckpointTimestamp() {
-				return checkpointId;
-			}
-		};
 	}
 
 	private void assertExactlyOnceForDirectory(File targetDirectory, List<String> expectedValues) throws IOException {
@@ -148,7 +129,9 @@ public class TwoPhaseCommitSinkFunctionTests {
 		private final File targetDirectory;
 
 		public FileBasedSinkFunction(File tmpDirectory, File targetDirectory) {
-			super(FileTransaction.class);
+			super(
+				TypeInformation.of(FileTransaction.class),
+				TypeInformation.of(new TypeHint<Map<Long, FileTransaction>>() {}));
 
 			if (!tmpDirectory.isDirectory() || !targetDirectory.isDirectory()) {
 				throw new IllegalArgumentException();
@@ -193,11 +176,16 @@ public class TwoPhaseCommitSinkFunctionTests {
 			}
 			transaction.tmpFile.delete();
 		}
+
+		@Override
+		protected void recoverAndAbort(FileTransaction transaction) {
+			transaction.tmpFile.delete();
+		}
 	}
 
-	private static class FileTransaction implements Serializable {
+	private static class FileTransaction {
 		private final File tmpFile;
-		private final transient BufferedWriter writer;
+		private final transient Writer writer;
 
 		public FileTransaction(File tmpFile) throws IOException {
 			this.tmpFile = tmpFile;

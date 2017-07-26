@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -33,11 +32,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -51,39 +48,52 @@ import static java.util.Objects.requireNonNull;
  * @param <TXN> Transaction to store all of the information required to handle a transaction (must be Serializable)
  */
 @PublicEvolving
-public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
+public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		extends RichSinkFunction<IN>
 		implements CheckpointedFunction, CheckpointListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwoPhaseCommitSinkFunction.class);
 
-	protected final ListStateDescriptor<TransactionAndCheckpoint<TXN>> pendingCommitTransactionsDescriptor;
+	protected final ListStateDescriptor<Map<Long, TXN>> pendingCommitTransactionsDescriptor;
 	protected final ListStateDescriptor<TXN> pendingTransactionsDescriptor;
 
-	protected final List<TransactionAndCheckpoint<TXN>> pendingCommitTransactions = new ArrayList<>();
+	protected final LinkedHashMap<Long, TXN> pendingCommitTransactions = new LinkedHashMap<>();
 
 	@Nullable
 	protected TXN currentTransaction;
 	protected ListState<TXN> pendingTransactionsState;
-	protected ListState<TransactionAndCheckpoint<TXN>> pendingCommitTransactionsState;
+	protected ListState<Map<Long, TXN>> pendingCommitTransactionsState;
 
-	public TwoPhaseCommitSinkFunction(Class<TXN> txnClass) {
-		this(
-			TypeInformation.of(txnClass),
-			TypeInformation.of(new TypeHint<TransactionAndCheckpoint<TXN>>() {}));
-	}
-
+	/**
+	 * Use default {@link ListStateDescriptor} for internal state serialization. Helpful utilities for using this
+	 * constructor are {@link TypeInformation#of(Class)}, {@link org.apache.flink.api.common.typeinfo.TypeHint} and
+	 * {@link TypeInformation#of(TypeHint)}. Example:
+	 * <pre>
+	 * {@code
+	 * TwoPhaseCommitSinkFunction(
+	 *     TypeInformation.of(TXN.class),
+	 *     TypeInformation.of(new TypeHint<TransactionAndCheckpoint<TXN>>() {}));
+	 * }
+	 * </pre>
+	 * @param txnTypeInformation {@link TypeInformation} for transaction POJO.
+	 * @param checkpointToTxnTypeInformation {@link TypeInformation} for mapping between checkpointId and transaction.
+	 */
 	public TwoPhaseCommitSinkFunction(
 			TypeInformation<TXN> txnTypeInformation,
-			TypeInformation<TransactionAndCheckpoint<TXN>> txnAndCheckpointTypeInformation) {
-		this(
-			new ListStateDescriptor<>("pendingTransactions", txnTypeInformation),
-			new ListStateDescriptor<>("pendingCommitTransactions", txnAndCheckpointTypeInformation));
+			TypeInformation<Map<Long, TXN>> checkpointToTxnTypeInformation) {
+		this(new ListStateDescriptor<>("pendingTransactions", txnTypeInformation),
+			new ListStateDescriptor<>("pendingCommitTransactions", checkpointToTxnTypeInformation));
 	}
 
+	/**
+	 * Instantiate {@link TwoPhaseCommitSinkFunction} with custom state descriptors.
+	 *
+	 * @param pendingTransactionsDescriptor descriptor for transaction POJO.
+	 * @param pendingCommitTransactionsDescriptor descriptor for mapping between checkpointId and transaction POJO.
+	 */
 	public TwoPhaseCommitSinkFunction(
 			ListStateDescriptor<TXN> pendingTransactionsDescriptor,
-			ListStateDescriptor<TransactionAndCheckpoint<TXN>> pendingCommitTransactionsDescriptor) {
+			ListStateDescriptor<Map<Long, TXN>> pendingCommitTransactionsDescriptor) {
 		this.pendingTransactionsDescriptor = requireNonNull(pendingTransactionsDescriptor, "pendingTransactionsDescriptor is null");
 		this.pendingCommitTransactionsDescriptor = requireNonNull(pendingCommitTransactionsDescriptor, "pendingCommitTransactionsDescriptor is null");
 	}
@@ -114,14 +124,15 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
 
 	/**
 	 * Commit a pre-committed transaction. If this method fail, Flink application will be
-	 * restarted and {@link TwoPhaseCommitSinkFunction#recoverAndCommit(Serializable)} will be called again for the
+	 * restarted and {@link TwoPhaseCommitSinkFunction#recoverAndCommit(Object)} will be called again for the
 	 * same transaction.
 	 */
 	protected abstract void commit(TXN transaction);
 
 	/**
-	 * Invoked on recovered transactions after a failure. Must eventually succeed. If it fails, Flink application will
-	 * be restarted and it will be invoked again. If it does not succeed it means a data loss will occur.
+	 * Invoked on recovered transactions after a failure. User implementation must ensure that this call will eventually
+	 * succeed. If it fails, Flink application will be restarted and it will be invoked again. If it does not succeed
+	 * a data loss will occur.
 	 */
 	protected void recoverAndCommit(TXN transaction) {
 		commit(transaction);
@@ -169,7 +180,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
 		//
 		//      In both cases, the prior checkpoint never reach a committed state, but
 		//      this checkpoint is always expected to subsume the prior one and cover all
-		//      changes since the last successful one As a consequence, we need to commit
+		//      changes since the last successful one. As a consequence, we need to commit
 		//      all pending transactions.
 		//
 		//  (3) Multiple transactions are pending, but the checkpoint complete notification
@@ -181,29 +192,25 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
 		// ==> There should never be a case where we have no pending transaction here
 		//
 
-		Iterator<TransactionAndCheckpoint<TXN>> pendingTransactionsIterator = pendingCommitTransactions.iterator();
+		Iterator<Map.Entry<Long, TXN>> pendingTransactionsIterator = pendingCommitTransactions.entrySet().iterator();
 		checkState(pendingTransactionsIterator.hasNext(), "checkpoint completed, but no transaction pending");
 
-		List<TransactionAndCheckpoint<TXN>> remainingTransactions = new ArrayList<>();
-
-		for (TransactionAndCheckpoint<TXN> pendingTransaction : pendingCommitTransactions) {
-			if (pendingTransaction.checkpointId > checkpointId) {
-				remainingTransactions.add(pendingTransaction);
+		while (pendingTransactionsIterator.hasNext()) {
+			Map.Entry<Long, TXN> entry = pendingTransactionsIterator.next();
+			Long pendingTransactionCheckpointId = entry.getKey();
+			TXN pendingTransaction = entry.getValue();
+			if (pendingTransactionCheckpointId > checkpointId) {
 				continue;
 			}
 
 			LOG.info("{} - checkpoint {} complete, committing completed checkpoint transaction {}",
 				name(), checkpointId, pendingTransaction);
 
-			// If this fails, there is actually a data loss
-			commit(pendingTransaction.transaction);
+			commit(pendingTransaction);
 
 			LOG.debug("{} - committed checkpoint transaction {}", name(), pendingTransaction);
-		}
 
-		pendingCommitTransactions.clear();
-		for (TransactionAndCheckpoint<TXN> remainingTransaction : remainingTransactions) {
-			pendingCommitTransactions.add(remainingTransaction);
+			pendingTransactionsIterator.remove();
 		}
 	}
 
@@ -218,16 +225,14 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
 		LOG.debug("{} - checkpoint {} triggered, flushing transaction '{}'", name(), context.getCheckpointId(), currentTransaction);
 
 		preCommit(currentTransaction);
-		pendingCommitTransactions.add(new TransactionAndCheckpoint<>(currentTransaction, checkpointId));
+		pendingCommitTransactions.put(checkpointId, currentTransaction);
 		LOG.debug("{} - stored pending transactions {}", name(), pendingCommitTransactions);
 
 		currentTransaction = beginTransaction();
 		LOG.debug("{} - started new transaction '{}'", name(), currentTransaction);
 
 		pendingCommitTransactionsState.clear();
-		for (TransactionAndCheckpoint<TXN> pendingCommitTransaction : pendingCommitTransactions) {
-			pendingCommitTransactionsState.add(pendingCommitTransaction);
-		}
+		pendingCommitTransactionsState.add(pendingCommitTransactions);
 
 		pendingTransactionsState.clear();
 		// in case of failure we might not be able to abort currentTransaction. Let's store it into the state
@@ -258,25 +263,24 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
 		if (context.isRestored()) {
 			LOG.info("{} - restoring state (subtaskIndex={}).", name(), subtaskIndex);
 
-			for (TransactionAndCheckpoint<TXN> recoveredTransaction : pendingCommitTransactionsState.get()) {
-				recoverAndCommit(recoveredTransaction.transaction);
-				LOG.debug("{} committed recovered transaction {} (subtaskIndex={})", name(), recoveredTransaction, subtaskIndex);
+			for (Map<Long, TXN> pendingCommitTransactionsMaps : pendingCommitTransactionsState.get()) {
+				for (TXN recoveredTransaction : pendingCommitTransactionsMaps.values()) {
+					// If this fails, there is actually a data loss
+					recoverAndCommit(recoveredTransaction);
+					LOG.info("{} committed recovered transaction {} (subtaskIndex={})", name(), recoveredTransaction, subtaskIndex);
+				}
 			}
 
 			// Explicitly abort transactions that could be not closed cleanly
 			for (TXN pendingTransaction : pendingTransactionsState.get()) {
 				recoverAndAbort(pendingTransaction);
-				LOG.debug("{} aborted recovered transaction {} (subtaskIndex={})", name(), pendingTransaction, subtaskIndex);
+				LOG.info("{} aborted recovered transaction {} (subtaskIndex={})", name(), pendingTransaction, subtaskIndex);
 			}
 		} else {
 			LOG.info("{} - no state to restore {} (subtaskIndex={}).", name(), subtaskIndex);
 		}
 		this.pendingCommitTransactions.clear();
-	}
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
 		currentTransaction = beginTransaction();
 		LOG.debug("{} - started new transaction '{}'", name(), currentTransaction);
 	}
@@ -292,46 +296,11 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN extends Serializable>
 	}
 
 	private String name() {
-		return this.getClass().getSimpleName();
-	}
-
-	/**
-	 * Mapping between transaction and a checkpoint.
-	 */
-	protected static class TransactionAndCheckpoint<TXN> implements Serializable {
-		public final TXN transaction;
-		public final long checkpointId;
-
-		public TransactionAndCheckpoint(TXN transaction, long checkpointId) {
-			this.transaction = requireNonNull(transaction, "transaction is null");
-			this.checkpointId = checkpointId;
-		}
-
-		@Override
-		public String toString() {
-			return transaction.toString();
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(transaction, checkpointId);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-
-			if (o == this) {
-				return true;
-			}
-			if (!(o instanceof TransactionAndCheckpoint)) {
-				return false;
-			}
-
-			TransactionAndCheckpoint<TXN> other = (TransactionAndCheckpoint<TXN>) o;
-
-			return Objects.equals(transaction, other.transaction) &&
-				Objects.equals(checkpointId, other.checkpointId);
-		}
+		return String.format(
+			"%s %s/%s",
+			this.getClass().getSimpleName(),
+			getRuntimeContext().getIndexOfThisSubtask(),
+			getRuntimeContext().getNumberOfParallelSubtasks());
 	}
 
 	private static void checkState(boolean condition, String message, Object... args) {
