@@ -207,6 +207,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public void shutDown() throws Exception {
 		Exception exception = null;
 
+		try {
+			super.shutDown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
 		taskManagerHeartbeatManager.stop();
 
 		jobManagerHeartbeatManager.stop();
@@ -219,12 +225,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		try {
 			leaderElectionService.stop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
-			super.shutDown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
