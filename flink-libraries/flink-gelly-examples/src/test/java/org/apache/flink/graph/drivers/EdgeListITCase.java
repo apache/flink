@@ -31,8 +31,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link EdgeList}.
  */
 @RunWith(Parameterized.class)
-public class EdgeListITCase
-extends NonTransformableDriverBaseITCase {
+public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 
 	public EdgeListITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);

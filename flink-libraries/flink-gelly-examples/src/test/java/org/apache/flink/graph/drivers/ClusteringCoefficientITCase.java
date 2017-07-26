@@ -21,7 +21,6 @@ package org.apache.flink.graph.drivers;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 
-import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -30,8 +29,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link ClusteringCoefficient}.
  */
 @RunWith(Parameterized.class)
-public class ClusteringCoefficientITCase
-extends CopyableValueDriverBaseITCase {
+public class ClusteringCoefficientITCase extends CopyableValueDriverBaseITCase {
 
 	public ClusteringCoefficientITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -55,58 +53,24 @@ extends CopyableValueDriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithSmallDirectedRMatGraph() throws Exception {
+	public void testHashWithDirectedRMatGraph() throws Exception {
 		String expected = "\n" +
-			new Checksum(117, 0x0000003621c62ca1L) + "\n\n" +
-			"triplet count: 29286, triangle count: 11466, global clustering coefficient: 0.39151813[0-9]+\n" +
-			"vertex count: 117, average clustering coefficient: 0.45125697[0-9]+\n";
+			new Checksum(233, 0x00000075d99a55b6L) + "\n\n" +
+			"triplet count: 97315, triangle count: 30705, global clustering coefficient: 0.31552175[0-9]+\n" +
+			"vertex count: 233, average clustering coefficient: 0.41178524[0-9]+\n";
 
-		expectedOutput(parameters(7, "directed", "directed", "hash"), expected);
+		expectedOutput(parameters(8, "directed", "directed", "hash"), expected);
 	}
 
 	@Test
-	public void testHashWithSmallUndirectedRMatGraph() throws Exception {
+	public void testHashWithUndirectedRMatGraph() throws Exception {
 		String expected = "\n\n" +
-			"triplet count: 29286, triangle count: 11466, global clustering coefficient: 0.39151813[0-9]+\n" +
-			"vertex count: 117, average clustering coefficient: 0.57438679[0-9]+\n";
+			"triplet count: 97315, triangle count: 30705, global clustering coefficient: 0.31552175[0-9]+\n" +
+			"vertex count: 233, average clustering coefficient: 0.50945459[0-9]+\n";
 
-		expectedOutput(parameters(7, "directed", "undirected", "hash"),
-			"\n" + new Checksum(117, 0x0000003875b38c43L) + expected);
-		expectedOutput(parameters(7, "undirected", "undirected", "hash"),
-			"\n" + new Checksum(117, 0x0000003c20344c75L) + expected);
-	}
-
-	@Test
-	public void testHashWithLargeDirectedRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		// skip 'byte' which cannot store vertex IDs for scale > 8
-		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
-
-		String expected = "\n" +
-			new Checksum(3349, 0x0000067a9d18e7f3L) + "\n\n" +
-			"triplet count: 9276207, triangle count: 1439454, global clustering coefficient: 0.15517700[0-9]+\n" +
-			"vertex count: 3349, average clustering coefficient: 0.24571815[0-9]+\n";
-
-		expectedOutput(parameters(12, "directed", "directed", "hash"), expected);
-	}
-
-	@Test
-	public void testHashWithLargeUndirectedRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		// skip 'byte' which cannot store vertex IDs for scale > 8
-		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
-
-		String expected = "\n\n" +
-			"triplet count: 9276207, triangle count: 1439454, global clustering coefficient: 0.15517700[0-9]+\n" +
-			"vertex count: 3349, average clustering coefficient: 0.33029442[0-9]+\n";
-
-		expectedOutput(parameters(12, "directed", "undirected", "hash"),
-			"\n" + new Checksum(3349, 0x00000681fad1587eL) + expected);
-		expectedOutput(parameters(12, "undirected", "undirected", "hash"),
-			"\n" + new Checksum(3349, 0x0000068713b3b7f1L) + expected);
+		expectedOutput(parameters(8, "directed", "undirected", "hash"),
+			"\n" + new Checksum(233, 0x00000076635e00e2L) + expected);
+		expectedOutput(parameters(8, "undirected", "undirected", "hash"),
+			"\n" + new Checksum(233, 0x000000743ef6d14bL) + expected);
 	}
 }

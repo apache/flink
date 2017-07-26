@@ -30,8 +30,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link AdamicAdar}.
  */
 @RunWith(Parameterized.class)
-public class AdamicAdarITCase
-extends CopyableValueDriverBaseITCase {
+public class AdamicAdarITCase extends CopyableValueDriverBaseITCase {
 
 	public AdamicAdarITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -61,8 +60,6 @@ extends CopyableValueDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedCount(
-			parameters(7, "print"),
-			11388);
+		expectedCount(parameters(8, "print"), 39276);
 	}
 }

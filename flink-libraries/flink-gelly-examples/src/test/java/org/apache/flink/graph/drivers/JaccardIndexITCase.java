@@ -31,8 +31,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link JaccardIndex}.
  */
 @RunWith(Parameterized.class)
-public class JaccardIndexITCase
-extends CopyableValueDriverBaseITCase {
+public class JaccardIndexITCase extends CopyableValueDriverBaseITCase {
 
 	public JaccardIndexITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -58,26 +57,15 @@ extends CopyableValueDriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithSmallRMatGraph() throws Exception {
-		expectedChecksum(parameters(7, "hash"), 11388, 0x0000164757052eebL);
+	public void testHashWithRMatGraph() throws Exception {
+		expectedChecksum(parameters(8, "hash"), 39276, 0x00004caba2e663d5L);
 	}
 
 	@Test
-	public void testHashWithLargeRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		// skip 'byte' which cannot store vertex IDs for scale > 8
-		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
-
-		expectedChecksum(parameters(12, "hash"), 4432058, 0x0021ce158d811c4eL);
-	}
-
-	@Test
-	public void testPrintWithSmallRMatGraph() throws Exception {
+	public void testPrintWithRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(parameters(7, "print"), new Checksum(11388, 0x0000163b17088256L));
+		expectedOutputChecksum(parameters(8, "print"), new Checksum(39276, 0x00004c5a726220c0L));
 	}
 }

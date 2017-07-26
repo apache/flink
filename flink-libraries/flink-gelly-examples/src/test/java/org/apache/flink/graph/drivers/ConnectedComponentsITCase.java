@@ -30,8 +30,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link ConnectedComponents}.
  */
 @RunWith(Parameterized.class)
-public class ConnectedComponentsITCase
-extends NonTransformableDriverBaseITCase {
+public class ConnectedComponentsITCase extends NonTransformableDriverBaseITCase {
 
 	public ConnectedComponentsITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -56,23 +55,12 @@ extends NonTransformableDriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithSmallRMatGraph() throws Exception {
+	public void testHashWithRMatGraph() throws Exception {
 		expectedChecksum(parameters(7, "hash"), 106, 0x0000000000033e88L);
 	}
 
 	@Test
-	public void testHashWithLargeRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		// skip 'byte' which cannot store vertex IDs for scale > 8
-		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
-
-		expectedChecksum(parameters(15, "hash"), 25572, 0x00000003094ffba2L);
-	}
-
-	@Test
-	public void testPrintWithSmallRMatGraph() throws Exception {
+	public void testPrintWithRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
