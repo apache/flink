@@ -235,15 +235,20 @@ trait ImplicitExpressionOperations {
   def desc = Desc(expr)
 
   /**
-    * Returns true if given subquery has elements from expression.
+    * Returns true if an expression exists in a given list of expressions. This is a shorthand
+    * for multiple OR conditions.
+    *
+    * e.g. "42".in(1, 2, 3) leads to false.
     */
-  def in(subquery: Expression*) = In(expr, subquery)
+  def in(elements: Expression*) = In(expr, elements)
 
   /**
-    * Returns true if given table has elements from expression.
+    * Returns true if an expression exists in a given table sub-query. The sub-query table
+    * must consist of one column. This column must have the same data type as expression.
+    *
+    * Note: This operation is not supported in a streaming environment yet.
     */
-  def in(table: Table) = InSub(expr, table)
-
+  def in(table: Table) = In(expr, Seq(TableReference(table.toString, table)))
 
   /**
     * Returns the start time (inclusive) of a window when applied on a window reference.

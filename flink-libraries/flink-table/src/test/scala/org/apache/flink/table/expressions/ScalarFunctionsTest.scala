@@ -1726,43 +1726,4 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f21 IS NOT FALSE",
       "true")
   }
-
-  @Test
-  def testInExpressions(): Unit = {
-    testTableApi(
-      'f2.in(1,2,42),
-      "f2.in(1,2,42)",
-      "true"
-    )
-
-    testTableApi(
-      'f2.in(BigDecimal(42.0), BigDecimal(2.00), BigDecimal(3.01)),
-      "f2.in(42.0, 2.00, 3.01)",
-      "true"
-    )
-
-    testTableApi(
-      'f0.in("This is a test String.", "Hello world", "Comment#1"),
-      "f0.in('This is a test String.', 'Hello world', 'Comment#1')",
-      "true"
-    )
-
-    testTableApi(
-      'f16.in("1996-11-10".toDate),
-      "f16.in('1996-11-10'.toDate)",
-      "true"
-    )
-
-    testTableApi(
-      'f17.in("06:55:44".toTime),
-      "f17.in('06:55:44'.toTime)",
-      "true"
-    )
-
-    testTableApi(
-      'f18.in("1996-11-10 06:55:44.333".toTimestamp),
-      "f18.in('1996-11-10 06:55:44.333'.toTimestamp)",
-      "true"
-    )
-  }
 }

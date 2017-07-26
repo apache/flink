@@ -179,9 +179,6 @@ object ProjectionTranslator {
         val newArgs = e.productIterator.map {
           case arg: Expression =>
             replaceAggregationsAndProperties(arg, tableEnv, aggNames, propNames, projectedNames)
-          case array: mutable.WrappedArray[Expression] =>
-            array.map(
-              replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames, projectedNames))
         }
         e.makeCopy(newArgs.toArray)
     }

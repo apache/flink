@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.expressions.utils
 
+import java.sql.Date
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
@@ -27,7 +29,7 @@ import org.apache.flink.types.Row
 class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   def testData: Row = {
-    val testData = new Row(14)
+    val testData = new Row(18)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -42,6 +44,10 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(11, false)
     testData.setField(12, null)
     testData.setField(13, Row.of("foo", null))
+    testData.setField(14, null)
+    testData.setField(15, Date.valueOf("1996-11-10"))
+    testData.setField(16, BigDecimal("0.00000000").bigDecimal)
+    testData.setField(17, BigDecimal("10.0").bigDecimal)
     testData
   }
 
@@ -60,7 +66,11 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
       Types.STRING,
       Types.BOOLEAN,
       Types.BOOLEAN,
-      Types.ROW(Types.STRING, Types.STRING)
+      Types.ROW(Types.STRING, Types.STRING),
+      Types.STRING,
+      Types.SQL_DATE,
+      Types.DECIMAL,
+      Types.DECIMAL
       ).asInstanceOf[TypeInformation[Any]]
   }
 

@@ -53,6 +53,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     // resolve references and function calls
     val exprResolved = expressionPostOrderTransform {
       case u @ UnresolvedFieldReference(name) =>
+        // try resolve a field
         resolveReference(tableEnv, name).getOrElse(u)
       case c @ Call(name, children) if c.childrenValid =>
         tableEnv.getFunctionCatalog.lookupFunction(name, children)
@@ -96,14 +97,19 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     * nodes of this LogicalPlan.
     */
   def resolveReference(tableEnv: TableEnvironment, name: String): Option[NamedExpression] = {
+    // try to resolve a field
     val childrenOutput = children.flatMap(_.output)
-    val candidates = childrenOutput.filter(_.name.equalsIgnoreCase(name))
-    if (candidates.length > 1) {
+    val fieldCandidates = childrenOutput.filter(_.name.equalsIgnoreCase(name))
+    if (fieldCandidates.length > 1) {
       failValidation(s"Reference $name is ambiguous.")
-    } else if (candidates.isEmpty) {
-      None
-    } else {
-      Some(candidates.head.withName(name))
+    } else if (fieldCandidates.nonEmpty) {
+      return Some(fieldCandidates.head.withName(name))
+    }
+
+    // try to resolve a table
+    tableEnv.scanInternal(Array(name)) match {
+      case Some(table) => Some(TableReference(name, table))
+      case None => None
     }
   }
 
