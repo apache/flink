@@ -24,6 +24,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
@@ -35,14 +36,12 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.codegen.calls.{BuiltInMethods, FunctionGenerator}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
+import org.apache.flink.table.codegen.calls.{BuiltInMethods, FunctionGenerator}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.functions.{FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
-import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -687,7 +686,7 @@ abstract class CodeGenerator(
           generateNonNullLiteral(resultType, decimal.intValue().toString)
         } else {
           throw new CodeGenException(
-            s"Decimal '${decimal}' can not be converted to interval of months.")
+            s"Decimal '$decimal' can not be converted to interval of months.")
         }
 
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
@@ -696,7 +695,7 @@ abstract class CodeGenerator(
           generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
         } else {
           throw new CodeGenException(
-            s"Decimal '${decimal}' can not be converted to interval of milliseconds.")
+            s"Decimal '$decimal' can not be converted to interval of milliseconds.")
         }
 
       case t@_ =>
@@ -718,6 +717,7 @@ abstract class CodeGenerator(
     throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
+
     // special case: time materialization
     if (call.getOperator == TimeMaterializationSqlFunction) {
       return generateRecordTimestamp(
@@ -725,8 +725,21 @@ abstract class CodeGenerator(
       )
     }
 
-    val operands = call.getOperands.map(_.accept(this))
     val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
+
+    // convert operands and help giving untyped NULL literals a type
+    val operands = call.getOperands.zipWithIndex.map {
+
+      // this helps e.g. for AS(null)
+      // we might need to extend this logic in case some rules do not create typed NULLs
+      case (operandLiteral: RexLiteral, 0) if
+          operandLiteral.getType.getSqlTypeName == SqlTypeName.NULL &&
+          call.getOperator.getReturnTypeInference == ReturnTypes.ARG0 =>
+        generateNullLiteral(resultType)
+
+      case (o@_, _) =>
+        o.accept(this)
+    }
 
     call.getOperator match {
       // arithmetic
@@ -805,15 +818,6 @@ abstract class CodeGenerator(
         val operand = operands.head
         requireTimeInterval(operand)
         generateUnaryIntervalPlusMinus(plus = true, nullCheck, operand)
-
-      case IN =>
-        val left = operands.head
-        val right = operands.tail
-        val addReusableCodeCallback = (declaration: String, initialization: String) => {
-          reusableMemberStatements.add(declaration)
-          reusableInitStatements.add(initialization)
-        }
-        generateIn(nullCheck, left, right, addReusableCodeCallback)        
         
       // comparison
       case EQUALS =>
@@ -904,6 +908,11 @@ abstract class CodeGenerator(
         val operand = operands.head
         requireBoolean(operand)
         generateIsNotFalse(operand)
+
+      case IN =>
+        val left = operands.head
+        val right = operands.tail
+        generateIn(this, left, right)
 
       // casting
       case CAST | REINTERPRET =>
@@ -1464,7 +1473,6 @@ abstract class CodeGenerator(
     fieldTerm
   }
 
-
   /**
     * Adds a reusable constructor statement with the given parameter types.
     *
@@ -1593,6 +1601,44 @@ abstract class CodeGenerator(
         |}
         |""".stripMargin
     reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable [[java.util.HashSet]] to the member area of the generated [[Function]].
+    *
+    * @param elements elements to be added to the set (including null)
+    * @return member variable term
+    */
+  def addReusableSet(elements: Seq[GeneratedExpression]): String = {
+    val fieldTerm = newName("set")
+
+    val field =
+      s"""
+        |transient java.util.Set $fieldTerm = null;
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val init =
+      s"""
+        |$fieldTerm = new java.util.HashSet();
+        |""".stripMargin
+    reusableInitStatements.add(init)
+
+    elements.foreach { element =>
+      val content =
+        s"""
+          |${element.code}
+          |if (${element.nullTerm}) {
+          |  $fieldTerm.add(null);
+          |} else {
+          |  $fieldTerm.add(${element.resultTerm});
+          |}
+          |""".stripMargin
+
+      reusableInitStatements.add(content)
+    }
+
     fieldTerm
   }
 }

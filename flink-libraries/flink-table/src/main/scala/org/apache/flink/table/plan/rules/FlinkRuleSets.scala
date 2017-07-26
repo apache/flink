@@ -29,9 +29,17 @@ import org.apache.flink.table.plan.nodes.logical._
 object FlinkRuleSets {
 
   /**
-    * Convert a logical table scan to a relational expression.
+    * Convert sub-queries before query decorrelation.
     */
-  val TABLE_CONV_RULES: RuleSet = RuleSets.ofList(
+  val TABLE_SUBQUERY_RULES: RuleSet = RuleSets.ofList(
+    SubQueryRemoveRule.FILTER,
+    SubQueryRemoveRule.PROJECT,
+    SubQueryRemoveRule.JOIN)
+
+  /**
+    * Convert table references before query decorrelation.
+    */
+  val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
     TableScanRule.INSTANCE,
     EnumerableToLogicalTableScan.INSTANCE)
 
@@ -103,7 +111,7 @@ object FlinkRuleSets {
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
 
-    // Unnest rule
+    // unnest rule
     LogicalUnnestRule.INSTANCE,
 
     // translate to flink logical rel nodes

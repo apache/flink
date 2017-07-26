@@ -298,6 +298,8 @@ object WindowJoinUtil {
           timePred.leftInputOnLeftSide
         case (SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
           !timePred.leftInputOnLeftSide
+        case _ =>
+          return None
       }
 
     // reduce predicate to constants to compute bounds

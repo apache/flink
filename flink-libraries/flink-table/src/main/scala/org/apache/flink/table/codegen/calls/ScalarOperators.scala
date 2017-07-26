@@ -28,7 +28,7 @@ import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCoercion}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 object ScalarOperators {
@@ -83,70 +83,91 @@ object ScalarOperators {
   }
 
   def generateIn(
-      nullCheck: Boolean,
+      codeGenerator: CodeGenerator,
       needle: GeneratedExpression,
-      haystack: scala.collection.mutable.Buffer[GeneratedExpression],
-      addReusableCodeCallback: (String, String) => Any)
+      haystack: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val isNull = newName("isNull")
 
-    //Return more common numeric type
-    val topNumericalType: Option[TypeInformation[_]] = {
-      if (isDecimal(needle.resultType) || isDecimal(haystack.head.resultType)) {
-        Some(BIG_DEC_TYPE_INFO)
-      } else if (isNumeric(needle.resultType) || isNumeric(haystack.head.resultType)) {
-        Some(DOUBLE_TYPE_INFO)
-      } else {
-        None
+    // determine common numeric type
+    val widerType = TypeCoercion.widerTypeOf(needle.resultType, haystack.head.resultType)
+
+    // we need to normalize the values for the hash set
+    // decimals are converted to a normalized string
+    val castNumeric = widerType match {
+
+      case Some(t) => (value: GeneratedExpression) =>
+        val casted = numericCasting(value.resultType, t)(value.resultTerm)
+        if (isDecimal(t)) {
+          s"$casted.stripTrailingZeros().toEngineeringString()"
+        } else {
+          casted
+        }
+
+      case None => (value: GeneratedExpression) =>
+        if (isDecimal(value.resultType)) {
+          s"${value.resultTerm}.stripTrailingZeros().toEngineeringString()"
+        } else {
+          value.resultTerm
+        }
+    }
+
+    // add elements to hash set if they are constant
+    if (haystack.forall(_.literal)) {
+      val elements = haystack.map { element =>
+        element.copy(
+            castNumeric(element), // cast element to wider type
+            element.nullTerm,
+            element.code,
+            widerType.getOrElse(needle.resultType))
       }
-     }
+      val setTerm = codeGenerator.addReusableSet(elements)
 
-    val castNumeric = if (topNumericalType.isEmpty) {
-      (value: GeneratedExpression) => value.resultTerm
-     } else {
-      (value: GeneratedExpression) =>
-        numericCasting(value.resultType, topNumericalType.get)(value.resultTerm)
-    }
+      val castedNeedle = needle.copy(
+        castNumeric(needle), // cast needle to wider type
+        needle.nullTerm,
+        needle.code,
+        widerType.getOrElse(needle.resultType))
 
-    val valuesInitialization = "//literals were initialized in constructor\n"
+      val resultTerm = newName("result")
+      val nullTerm = newName("isNull")
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(BOOLEAN_TYPE_INFO)
+      val defaultValue = primitiveDefaultValue(BOOLEAN_TYPE_INFO)
 
-    val hashSetVariable = newName("set")
-
-    addReusableCodeCallback(
-      s"""
-         |private java.util.Set $hashSetVariable = new java.util.HashSet();
-         """.stripMargin,
+      val operatorCode = if (codeGenerator.nullCheck) {
         s"""
-           |${haystack.map(_.code).mkString("")}
-           |
-           |${haystack.map(element =>
-            s"$hashSetVariable.add(${castNumeric(element)});").mkString("\n")
-            }
-           |""".stripMargin
-    )
-     
-    val comparison = s"$resultTerm = $hashSetVariable.contains(${castNumeric(needle)});"
+          |${castedNeedle.code}
+          |$resultTypeTerm $resultTerm;
+          |boolean $nullTerm;
+          |if (!${castedNeedle.nullTerm}) {
+          |  $resultTerm = $setTerm.contains(${castedNeedle.resultTerm});
+          |  $nullTerm = !$resultTerm && $setTerm.contains(null);
+          |}
+          |else {
+          |  $resultTerm = $defaultValue;
+          |  $nullTerm = true;
+          |}
+          |""".stripMargin
+      }
+      else {
+        s"""
+          |${castedNeedle.code}
+          |$resultTypeTerm $resultTerm = $setTerm.contains(${castedNeedle.resultTerm});
+          |""".stripMargin
+      }
 
-    val code = if (nullCheck) {
-      s"""
-         |$valuesInitialization
-         |boolean $isNull = ${needle.nullTerm};
-         |boolean $resultTerm;
-         |if ($isNull) {
-         |  $resultTerm = false;
-         |} else {
-         |  $comparison
-         |}
-         |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, operatorCode, BOOLEAN_TYPE_INFO)
     } else {
-      s"""
-         |$valuesInitialization
-         |boolean $resultTerm;
-         |$comparison
-         |""".stripMargin
+      // we use a chain of ORs for a set that contains non-constant elements
+      haystack
+        .map(generateEquals(codeGenerator.nullCheck, needle, _))
+        .reduce( (left, right) =>
+          generateOr(
+            nullCheck = true,
+            left,
+            right
+          )
+        )
     }
-    GeneratedExpression(resultTerm, GeneratedExpression.NEVER_NULL, code, BOOLEAN_TYPE_INFO)
   }  
   
   def generateEquals(
@@ -1152,17 +1173,12 @@ object ScalarOperators {
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     // no casting necessary
     if (operandType == resultType) {
-      if (isDecimal(operandType)) {
-        (operandTerm) => s"$operandTerm.stripTrailingZeros()"
-      } else {
-        (operandTerm) => s"$operandTerm"
-      }
+      (operandTerm) => s"$operandTerm"
     }
     // result type is decimal but numeric operand is not
     else if (isDecimal(resultType) && !isDecimal(operandType) && isNumeric(operandType)) {
       (operandTerm) =>
-        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)" +
-          s".stripTrailingZeros()"
+        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)"
     }
     // numeric result type is not decimal but operand is
     else if (isNumeric(resultType) && !isDecimal(resultType) && isDecimal(operandType) ) {

@@ -17,9 +17,9 @@
  */
 package org.apache.flink.api.scala.util
 
-import java.sql.{Date, Time, Timestamp}
 import org.apache.flink.api.scala._
 import org.apache.hadoop.io.IntWritable
+
 import scala.collection.mutable
 import scala.util.Random
 
@@ -32,65 +32,6 @@ import scala.util.Random
  * #################################################################################################
  */
 object CollectionDataSets {
-  def get5TupleDataSetOfDateTimeTimestamp(env: ExecutionEnvironment)
-                            : DataSet[(Int, Date, Time, Timestamp, String)] = {
-    val data = new mutable.MutableList[(Int, Date, Time, Timestamp, String)]
-    data.+=((1, Date.valueOf("1984-07-05"), Time.valueOf("05:40:33"),
-             Timestamp.valueOf("1984-07-05 05:40:33.333"), "Hi"))
-    data.+=((2, Date.valueOf("1984-07-05"), Time.valueOf("06:55:44"),
-             Timestamp.valueOf("1984-07-05 06:55:44.333"), "Hello"))
-    data.+=((3, Date.valueOf("1984-07-05"), Time.valueOf("07:12:00"),
-             Timestamp.valueOf("1984-07-05 07:12:00.333"), "Hello world"))
-    data.+=((4, Date.valueOf("1984-07-05"), Time.valueOf("08:15:10"),
-             Timestamp.valueOf("1984-07-05 08:15:10.105"), "Hello world, how are you?"))
-    data.+=((5, Date.valueOf("1984-07-05"), Time.valueOf("22:00:00"),
-             Timestamp.valueOf("1984-07-05 22:00:00.105"), "I am fine."))
-    data.+=((6, Date.valueOf("1984-07-05"), Time.valueOf("23:01:01"),
-             Timestamp.valueOf("1984-07-05 23:01:01.105"), "Luke Skywalker"))
-    data.+=((7, Date.valueOf("1984-07-05"), Time.valueOf("00:10:10"),
-             Timestamp.valueOf("1984-07-05 00:10:10.55"), "Comment#1"))
-    data.+=((8, Date.valueOf("1972-02-22"), Time.valueOf("05:40:33"),
-             Timestamp.valueOf("1972-02-22 05:40:33.55"), "Comment#2"))
-    data.+=((9, Date.valueOf("1972-02-22"), Time.valueOf("06:55:44"),
-             Timestamp.valueOf("1972-02-22 06:55:44.55"), "Comment#3"))
-    data.+=((10, Date.valueOf("1972-02-22"), Time.valueOf("07:12:00"),
-             Timestamp.valueOf("1972-02-22 07:12:00.333"), "Comment#4"))
-    data.+=((11, Date.valueOf("1972-02-22"), Time.valueOf("08:15:10"),
-             Timestamp.valueOf("1972-02-22 08:15:10.333"), "Comment#5"))
-    data.+=((12, Date.valueOf("1972-02-22"), Time.valueOf("22:00:00"),
-             Timestamp.valueOf("1972-02-22 22:00:00.333"), "Comment#6"))
-    data.+=((13, Date.valueOf("1972-02-22"), Time.valueOf("23:01:01"),
-             Timestamp.valueOf("1972-02-22 23:01:01.105"), "Comment#7"))
-    data.+=((14, Date.valueOf("1938-04-22"), Time.valueOf("00:10:10"),
-             Timestamp.valueOf("1938-04-22 00:10:10.105"), "Comment#8"))
-    data.+=((15, Date.valueOf("1938-04-22"), Time.valueOf("05:40:33"),
-             Timestamp.valueOf("1938-04-22 05:40:33.105"), "Comment#9"))
-    data.+=((16, Date.valueOf("1938-04-22"), Time.valueOf("06:55:44"),
-             Timestamp.valueOf("1938-04-22 06:55:44.55"), "Comment#10"))
-    data.+=((17, Date.valueOf("1938-04-22"), Time.valueOf("07:12:00"),
-             Timestamp.valueOf("1938-04-22 07:12:00.55"), "Comment#11"))
-    data.+=((18, Date.valueOf("1938-04-22"), Time.valueOf("08:15:10"),
-             Timestamp.valueOf("1938-04-22 08:15:10.55"), "Comment#12"))
-    data.+=((19, Date.valueOf("1938-04-22"), Time.valueOf("22:00:00"),
-             Timestamp.valueOf("1938-04-22 22:00:00.333"), "Comment#13"))
-    data.+=((20, Date.valueOf("1938-04-22"), Time.valueOf("23:01:01"),
-             Timestamp.valueOf("1938-04-22 23:01:01.333"), "Comment#14"))
-    data.+=((21, Date.valueOf("1938-04-22"), Time.valueOf("00:10:10"),
-             Timestamp.valueOf("1938-04-22 00:10:10.333"), "Comment#15"))
-    Random.shuffle(data)
-    env.fromCollection(Random.shuffle(data))
-  }
-
-  def getSmall3TupleDataSetOfDateTimeTimestamp(env: ExecutionEnvironment)
-                                    : DataSet[(Int, Timestamp, String)] = {
-    val data = new mutable.MutableList[(Int, Timestamp, String)]
-    data.+=((1, Timestamp.valueOf("1984-07-05 23:01:01.105"), "Hi"))
-    data.+=((2, Timestamp.valueOf("1972-02-22 07:12:00.333"), "Hello"))
-    data.+=((3, Timestamp.valueOf("1938-04-22 06:55:44.55"), "Hello world"))
-    env.fromCollection(Random.shuffle(data))
-  }
-
-
   def get3TupleDataSet(env: ExecutionEnvironment): DataSet[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
@@ -159,15 +100,6 @@ object CollectionDataSets {
     data.+=(((1, 1), "one"))
     data.+=(((2, 2), "two"))
     data.+=(((3, 3), "three"))
-    env.fromCollection(Random.shuffle(data))
-  }
-
-  def getSmall2NestedTupleDataSet(env: ExecutionEnvironment)
-  : DataSet[((Int, Int), String, (Int, Int))] = {
-    val data = new mutable.MutableList[((Int, Int), String, (Int, Int))]
-    data.+=(((1, 1), "one", (2, 2)))
-    data.+=(((2, 2), "two", (3, 3)))
-    data.+=(((3, 3), "three", (3, 3)))
     env.fromCollection(Random.shuffle(data))
   }
 
