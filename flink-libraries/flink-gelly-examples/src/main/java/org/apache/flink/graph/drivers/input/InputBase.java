@@ -36,7 +36,9 @@ extends ParameterizedBase
 implements Input<K, VV, EV> {
 
 	protected LongParameter parallelism = new LongParameter(this, "__parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
+		.setDefaultValue(PARALLELISM_DEFAULT)
+		.setMinimumValue(1)
+		.setMaximumValue(Integer.MAX_VALUE);
 
 	@Override
 	public String getName() {

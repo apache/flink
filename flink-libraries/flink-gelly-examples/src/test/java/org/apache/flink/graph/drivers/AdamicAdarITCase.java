@@ -62,4 +62,12 @@ public class AdamicAdarITCase extends CopyableValueDriverBaseITCase {
 
 		expectedCount(parameters(8, "print"), 39276);
 	}
+
+	@Test
+	public void testParallelism() throws Exception {
+		TestUtils.verifyParallelism(parameters(8, "print"),
+			"FlatMap \\(Mirror results\\)",
+			"GroupReduce \\(Compute scores\\)",
+			"GroupReduce \\(Generate group pairs\\)");
+	}
 }

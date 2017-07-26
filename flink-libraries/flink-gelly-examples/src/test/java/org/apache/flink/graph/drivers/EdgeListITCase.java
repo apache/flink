@@ -56,11 +56,15 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 			ProgramParametrizationException.class);
 	}
 
+	// CirculantGraph
+
+	private String[] getCirculantGraphParamters(String output) {
+		return parameters("CirculantGraph", output, "--vertex_count", "42", "--range0", "13:4");
+	}
+
 	@Test
 	public void testHashWithCirculantGraph() throws Exception {
-		expectedChecksum(
-			parameters("CirculantGraph", "hash", "--vertex_count", "42", "--range0", "13:4"),
-			168, 0x000000000001ae80);
+		expectedChecksum(getCirculantGraphParamters("hash"), 168, 0x000000000001ae80);
 	}
 
 	@Test
@@ -68,16 +72,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("CirculantGraph", "print", "--vertex_count", "42", "--range0", "13:4"),
-			new Checksum(168, 0x0000004bdcc52cbcL));
+		expectedOutputChecksum(getCirculantGraphParamters("print"), new Checksum(168, 0x0000004bdcc52cbcL));
+	}
+
+	@Test
+	public void testParallelismWithCirculantGraph() throws Exception {
+		TestUtils.verifyParallelism(getCirculantGraphParamters("print"));
+	}
+
+	// CompleteGraph
+
+	private String[] getCompleteGraphParamters(String output) {
+		return parameters("CompleteGraph", output, "--vertex_count", "42");
 	}
 
 	@Test
 	public void testHashWithCompleteGraph() throws Exception {
-		expectedChecksum(
-			parameters("CompleteGraph", "hash", "--vertex_count", "42"),
-			1722, 0x0000000000113ca0L);
+		expectedChecksum(getCompleteGraphParamters("hash"), 1722, 0x0000000000113ca0L);
 	}
 
 	@Test
@@ -85,16 +96,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("CompleteGraph", "print", "--vertex_count", "42"),
-			new Checksum(1722, 0x0000031109a0c398L));
+		expectedOutputChecksum(getCompleteGraphParamters("print"), new Checksum(1722, 0x0000031109a0c398L));
+	}
+
+	@Test
+	public void testParallelismWithCompleteGraph() throws Exception {
+		TestUtils.verifyParallelism(getCompleteGraphParamters("print"));
+	}
+
+	// CycleGraph
+
+	private String[] getCycleGraphParamters(String output) {
+		return parameters("CycleGraph", output, "--vertex_count", "42");
 	}
 
 	@Test
 	public void testHashWithCycleGraph() throws Exception {
-		expectedChecksum(
-			parameters("CycleGraph", "hash", "--vertex_count", "42"),
-			84, 0x000000000000d740L);
+		expectedChecksum(getCycleGraphParamters("hash"), 84, 0x000000000000d740L);
 	}
 
 	@Test
@@ -102,16 +120,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("CycleGraph", "print", "--vertex_count", "42"),
-			new Checksum(84, 0x000000272a136fcaL));
+		expectedOutputChecksum(getCycleGraphParamters("print"), new Checksum(84, 0x000000272a136fcaL));
+	}
+
+	@Test
+	public void testParallelismWithCycleGraph() throws Exception {
+		TestUtils.verifyParallelism(getCycleGraphParamters("print"));
+	}
+
+	// EchoGraph
+
+	private String[] getEchoGraphParamters(String output) {
+		return parameters("EchoGraph", output, "--vertex_count", "42", "--vertex_degree", "13");
 	}
 
 	@Test
 	public void testHashWithEchoGraph() throws Exception {
-		expectedChecksum(
-			parameters("EchoGraph", "hash", "--vertex_count", "42", "--vertex_degree", "13"),
-			546, 0x0000000000057720L);
+		expectedChecksum(getEchoGraphParamters("hash"), 546, 0x0000000000057720L);
 	}
 
 	@Test
@@ -119,23 +144,44 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("EchoGraph", "print", "--vertex_count", "42", "--vertex_degree", "13"),
-			new Checksum(546, 0x000000f7190b8fcaL));
+		expectedOutputChecksum(getEchoGraphParamters("print"), new Checksum(546, 0x000000f7190b8fcaL));
+	}
+
+	@Test
+	public void testParallelismWithEchoGraph() throws Exception {
+		TestUtils.verifyParallelism(getEchoGraphParamters("print"));
+	}
+
+	// EmptyGraph
+
+	private String[] getEmptyGraphParamters(String output) {
+		return parameters("EmptyGraph", output, "--vertex_count", "42");
 	}
 
 	@Test
 	public void testHashWithEmptyGraph() throws Exception {
-		expectedChecksum(
-			parameters("EmptyGraph", "hash", "--vertex_count", "42"),
-			0, 0x0000000000000000L);
+		expectedChecksum(getEmptyGraphParamters("hash"), 0, 0x0000000000000000L);
+	}
+
+	@Test
+	public void testPrintWithEmptyGraph() throws Exception {
+		expectedOutputChecksum(getEmptyGraphParamters("print"), new Checksum(0, 0x0000000000000000L));
+	}
+
+	@Test
+	public void testParallelismWithEmptyGraph() throws Exception {
+		TestUtils.verifyParallelism(getEmptyGraphParamters("print"));
+	}
+
+	// GridGraph
+
+	private String[] getGridGraphParamters(String output) {
+		return parameters("GridGraph", output, "--dim0", "2:true", "--dim1", "3:false", "--dim2", "5:true");
 	}
 
 	@Test
 	public void testHashWithGridGraph() throws Exception {
-		expectedChecksum(
-			parameters("GridGraph", "hash", "--dim0", "2:true", "--dim1", "3:false", "--dim2", "5:true"),
-			130, 0x000000000000eba0L);
+		expectedChecksum(getGridGraphParamters("hash"), 130, 0x000000000000eba0L);
 	}
 
 	@Test
@@ -143,16 +189,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("GridGraph", "print", "--dim0", "2:true", "--dim1", "3:false", "--dim2", "5:true"),
-			new Checksum(130, 0x00000033237d24eeL));
+		expectedOutputChecksum(getGridGraphParamters("print"), new Checksum(130, 0x00000033237d24eeL));
+	}
+
+	@Test
+	public void testParallelismWithGridGraph() throws Exception {
+		TestUtils.verifyParallelism(getGridGraphParamters("print"));
+	}
+
+	// HypercubeGraph
+
+	private String[] getHypercubeGraphParamters(String output) {
+		return parameters("HypercubeGraph", output, "--dimensions", "7");
 	}
 
 	@Test
 	public void testHashWithHypercubeGraph() throws Exception {
-		expectedChecksum(
-			parameters("HypercubeGraph", "hash", "--dimensions", "7"),
-			896, 0x00000000001bc800L);
+		expectedChecksum(getHypercubeGraphParamters("hash"), 896, 0x00000000001bc800L);
 	}
 
 	@Test
@@ -160,16 +213,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("HypercubeGraph", "print", "--dimensions", "7"),
-			new Checksum(896, 0x000001f243ee33b2L));
+		expectedOutputChecksum(getHypercubeGraphParamters("print"), new Checksum(896, 0x000001f243ee33b2L));
+	}
+
+	@Test
+	public void testParallelismWithHypercubeGraph() throws Exception {
+		TestUtils.verifyParallelism(getHypercubeGraphParamters("print"));
+	}
+
+	// PathGraph
+
+	private String[] getPathGraphParamters(String output) {
+		return parameters("PathGraph", output, "--vertex_count", "42");
 	}
 
 	@Test
 	public void testHashWithPathGraph() throws Exception {
-		expectedChecksum(
-			parameters("PathGraph", "hash", "--vertex_count", "42"),
-			82, 0x000000000000d220L);
+		expectedChecksum(getPathGraphParamters("hash"), 82, 0x000000000000d220L);
 	}
 
 	@Test
@@ -177,16 +237,27 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("PathGraph", "print", "--vertex_count", "42"),
-			new Checksum(82, 0x000000269be2d4c2L));
+		expectedOutputChecksum(getPathGraphParamters("print"), new Checksum(82, 0x000000269be2d4c2L));
+	}
+
+	@Test
+	public void testParallelismWithPathGraph() throws Exception {
+		TestUtils.verifyParallelism(getPathGraphParamters("print"));
+	}
+
+	// RMatGraph
+
+	private String[] getRMatGraphParamters(String output, String simplify) {
+		if (simplify == null) {
+			return parameters("RMatGraph", output, "--scale", "7");
+		} else {
+			return parameters("RMatGraph", output, "--scale", "7","--simplify", simplify);
+		}
 	}
 
 	@Test
 	public void testHashWithRMatGraph() throws Exception {
-		expectedChecksum(
-			parameters("RMatGraph", "hash", "--scale", "7"),
-			2048, 0x00000000001ee529);
+		expectedChecksum(getRMatGraphParamters("hash", null), 2048, 0x00000000001ee529);
 	}
 
 	@Test
@@ -194,16 +265,17 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("RMatGraph", "print", "--scale", "7"),
-			new Checksum(2048, 0x000002f737939f05L));
+		expectedOutputChecksum(getRMatGraphParamters("print", null), new Checksum(2048, 0x000002f737939f05L));
+	}
+
+	@Test
+	public void testParallelismWithRMatGraph() throws Exception {
+		TestUtils.verifyParallelism(getRMatGraphParamters("print", null));
 	}
 
 	@Test
 	public void testHashWithDirectedRMatGraph() throws Exception {
-		expectedChecksum(
-			parameters("RMatGraph", "hash", "--scale", "7", "--simplify", "directed"),
-			1168, 0x00000000001579bdL);
+		expectedChecksum(getRMatGraphParamters("hash", "directed"), 1168, 0x00000000001579bdL);
 	}
 
 	@Test
@@ -211,16 +283,17 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("RMatGraph", "print", "--scale", "7", "--simplify", "directed"),
-			new Checksum(1168, 0x0000020e35b0f35dL));
+		expectedOutputChecksum(getRMatGraphParamters("print", "directed"), new Checksum(1168, 0x0000020e35b0f35dL));
+	}
+
+	@Test
+	public void testParallelismWithDirectedRMatGraph() throws Exception {
+		TestUtils.verifyParallelism(getRMatGraphParamters("print", "directed"));
 	}
 
 	@Test
 	public void testHashWithUndirectedRMatGraph() throws Exception {
-		expectedChecksum(
-			parameters("RMatGraph", "hash", "--scale", "7", "--simplify", "undirected"),
-			1854, 0x0000000000242920L);
+		expectedChecksum(getRMatGraphParamters("hash", "undirected"), 1854, 0x0000000000242920L);
 	}
 
 	@Test
@@ -228,16 +301,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("RMatGraph", "print", "--scale", "7", "--simplify", "undirected"),
-			new Checksum(1854, 0x0000036fe5802162L));
+		expectedOutputChecksum(getRMatGraphParamters("print", "undirected"), new Checksum(1854, 0x0000036fe5802162L));
+	}
+
+	@Test
+	public void testParallelismWithUndirectedRMatGraph() throws Exception {
+		TestUtils.verifyParallelism(getRMatGraphParamters("print", "undirected"));
+	}
+
+	// SingletonEdgeGraph
+
+	private String[] getSingletonEdgeGraphParamters(String output) {
+		return parameters("SingletonEdgeGraph", output, "--vertex_pair_count", "42");
 	}
 
 	@Test
 	public void testHashWithSingletonEdgeGraph() throws Exception {
-		expectedChecksum(
-			parameters("SingletonEdgeGraph", "hash", "--vertex_pair_count", "42"),
-			84, 0x000000000001b3c0L);
+		expectedChecksum(getSingletonEdgeGraphParamters("hash"), 84, 0x000000000001b3c0L);
 	}
 
 	@Test
@@ -245,16 +325,23 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("SingletonEdgeGraph", "print", "--vertex_pair_count", "42"),
-			new Checksum(84, 0x0000002e59e10d9aL));
+		expectedOutputChecksum(getSingletonEdgeGraphParamters("print"), new Checksum(84, 0x0000002e59e10d9aL));
+	}
+
+	@Test
+	public void testParallelismWithSingletonEdgeGraph() throws Exception {
+		TestUtils.verifyParallelism(getSingletonEdgeGraphParamters("print"));
+	}
+
+	// StarGraph
+
+	private String[] getStarGraphParamters(String output) {
+		return parameters("StarGraph", output, "--vertex_count", "42");
 	}
 
 	@Test
 	public void testHashWithStarGraph() throws Exception {
-		expectedChecksum(
-			parameters("StarGraph", "hash", "--vertex_count", "42"),
-			82, 0x0000000000006ba0L);
+		expectedChecksum(getStarGraphParamters("hash"), 82, 0x0000000000006ba0L);
 	}
 
 	@Test
@@ -262,8 +349,11 @@ public class EdgeListITCase extends NonTransformableDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(
-			parameters("StarGraph", "print", "--vertex_count", "42"),
-			new Checksum(82, 0x00000011ec3faee8L));
+		expectedOutputChecksum(getStarGraphParamters("print"), new Checksum(82, 0x00000011ec3faee8L));
+	}
+
+	@Test
+	public void testParallelismWithStarGraph() throws Exception {
+		TestUtils.verifyParallelism(getStarGraphParamters("print"));
 	}
 }
