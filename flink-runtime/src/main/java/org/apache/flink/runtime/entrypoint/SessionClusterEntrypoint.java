@@ -60,6 +60,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			this);
 
 		dispatcher = createDispatcher(
+			configuration,
 			rpcService,
 			highAvailabilityServices,
 			blobServer,
@@ -106,6 +107,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	}
 
 	protected Dispatcher createDispatcher(
+		Configuration configuration,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		BlobServer blobServer,
@@ -117,6 +119,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		return new StandaloneDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME,
+			configuration,
 			highAvailabilityServices,
 			blobServer,
 			heartbeatServices,
