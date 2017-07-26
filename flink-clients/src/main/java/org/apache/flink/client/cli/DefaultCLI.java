@@ -83,6 +83,6 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 			List<URL> userJarFiles) throws UnsupportedOperationException {
 
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
-		return descriptor.deploySession();
+		return descriptor.deploySessionCluster();
 	}
 }

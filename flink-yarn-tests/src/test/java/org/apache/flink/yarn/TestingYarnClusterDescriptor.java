@@ -61,7 +61,7 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 	}
 
 	@Override
-	public YarnClusterClient deployJob(JobGraph jobGraph) {
+	public YarnClusterClient deployJobCluster(JobGraph jobGraph) {
 		throw new UnsupportedOperationException("Cannot deploy a per-job cluster yet.");
 	}
 

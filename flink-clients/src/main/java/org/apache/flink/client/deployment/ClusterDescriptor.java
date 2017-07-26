@@ -45,12 +45,13 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 	 * @return Client for the cluster
 	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */
-	ClientType deploySession() throws UnsupportedOperationException;
+	ClientType deploySessionCluster() throws UnsupportedOperationException;
 
 	/**
 	 * Deploys a per-job cluster with the given job on the cluster.
 	 *
 	 * @return Cluster client to talk to the Flink cluster
+	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClientType deployJob(final JobGraph jobGraph);
+	ClientType deployJobCluster(final JobGraph jobGraph) throws ClusterDeploymentException;
 }
