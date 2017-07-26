@@ -133,7 +133,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile ExecutionState state = CREATED;
 
-	private volatile Future<SimpleSlot> assignedFutureResource;     // once assigned, never changes until the execution is archived
+	private volatile SimpleSlot assignedFutureResource;     // once assigned, never changes until the execution is archived
 
 	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
 
@@ -231,7 +231,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return assignedResource;
 	}
 
-	public  Future<SimpleSlot> getAssignedFutureResource() {
+	public void setAssignedFutureResource(SimpleSlot slot) {
+		assignedFutureResource = slot;
+	}
+
+	public  SimpleSlot getAssignedFutureResource() {
 		return assignedFutureResource;
 	}
 
@@ -372,8 +376,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					new ScheduledUnit(this, sharingGroup) :
 					new ScheduledUnit(this, sharingGroup, locationConstraint);
 
-			assignedFutureResource = slotProvider.allocateSlot(toSchedule, queued);
-			return assignedFutureResource;
+			return slotProvider.allocateSlot(toSchedule, queued);
 		}
 		else {
 			// call race, already deployed, or already done
