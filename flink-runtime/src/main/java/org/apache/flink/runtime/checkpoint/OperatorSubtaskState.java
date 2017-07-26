@@ -47,7 +47,7 @@ import java.util.List;
  * <p>The full state of the logical operator is represented by {@link OperatorState} which consists of
  * {@link OperatorSubtaskState}s.
  *
- * <p>Typically, we expect all collections in this class to be of size 0 or 1, because there up to one state handle
+ * <p>Typically, we expect all collections in this class to be of size 0 or 1, because there is up to one state handle
  * produced per state type (e.g. managed-keyed, raw-operator, ...). In particular, this holds when taking a snapshot.
  * The purpose of having the state handles in collections is that this class is also reused in restoring state.
  * Under normal circumstances, the expected size of each collection is still 0 or 1, except for scale-down. In
@@ -106,16 +106,11 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	@VisibleForTesting
 	public OperatorSubtaskState(StreamStateHandle legacyOperatorState) {
 
-		this.legacyOperatorState = legacyOperatorState;
-		this.managedOperatorState = Collections.emptyList();
-		this.rawOperatorState = Collections.emptyList();
-		this.managedKeyedState = Collections.emptyList();
-		this.rawKeyedState = Collections.emptyList();
-		try {
-			this.stateSize = getSizeNullSafe(legacyOperatorState);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get state size.", e);
-		}
+		this(legacyOperatorState,
+			Collections.<OperatorStateHandle>emptyList(),
+			Collections.<OperatorStateHandle>emptyList(),
+			Collections.<KeyedStateHandle>emptyList(),
+			Collections.<KeyedStateHandle>emptyList());
 	}
 
 	/**

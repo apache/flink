@@ -3672,17 +3672,4 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			"The latest completed (proper) checkpoint should have been added to the completed checkpoint store.",
 			completedCheckpointStore.getLatestCheckpoint().getCheckpointID() == checkpointIDCounter.getLast());
 	}
-
-//	private static final class SpyInjectingOperatorState extends OperatorState {
-//
-//		private static final long serialVersionUID = -4004437428483663815L;
-//
-//		public SpyInjectingOperatorState(OperatorID taskID, int parallelism, int maxParallelism) {
-//			super(taskID, parallelism, maxParallelism);
-//		}
-//
-//		public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
-//			super.putState(subtaskIndex, (subtaskState != null) ? spy(subtaskState) : null);
-//		}
-//	}
 }

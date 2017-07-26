@@ -892,7 +892,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING,
 						CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
 
-					// we signal a stateless task by reporting null, so that there are no attempts to assign empty state
+					// we signal stateless tasks by reporting null, so that there are no attempts to assign empty state
 					// to stateless tasks on restore. This enables simple job modifications that only concern
 					// stateless without the need to assign them uids to match their (always empty) states.
 					owner.getEnvironment().acknowledgeCheckpoint(

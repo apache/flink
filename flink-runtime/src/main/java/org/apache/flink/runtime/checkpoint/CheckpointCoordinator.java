@@ -42,7 +42,6 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -1018,7 +1017,7 @@ public class CheckpointCoordinator {
 	 * Restores the latest checkpointed state.
 	 *
 	 * @param tasks Map of job vertices to restore. State for these vertices is
-	 * restored via {@link Execution#setInitialState(TaskStateHandles)}.
+	 * restored via {@link Execution#setInitialState(TaskStateSnapshot)}.
 	 * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to
 	 * restore from.
 	 * @param allowNonRestoredState Allow checkpoint state that cannot be mapped
@@ -1104,7 +1103,7 @@ public class CheckpointCoordinator {
 	 *                         mapped to any job vertex in tasks.
 	 * @param tasks            Map of job vertices to restore. State for these 
 	 *                         vertices is restored via 
-	 *                         {@link Execution#setInitialState(TaskStateHandles)}.
+	 *                         {@link Execution#setInitialState(TaskStateSnapshot)}.
 	 * @param userClassLoader  The class loader to resolve serialized classes in 
 	 *                         legacy savepoint versions. 
 	 */

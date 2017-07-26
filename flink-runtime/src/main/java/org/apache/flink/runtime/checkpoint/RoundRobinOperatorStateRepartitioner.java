@@ -89,7 +89,7 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 
 		for (OperatorStateHandle psh : previousParallelSubtaskStates) {
 
-			if(psh == null) {
+			if (psh == null) {
 				continue;
 			}
 
