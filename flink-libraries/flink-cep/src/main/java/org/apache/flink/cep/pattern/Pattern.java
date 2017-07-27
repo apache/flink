@@ -346,7 +346,7 @@ public class Pattern<T, F extends T> {
 	 */
 	public Pattern<T, F> greedy() {
 		checkIfNoNotPattern();
-		checkIfNoFollowedByAny();
+		checkIfNoGroupPattern();
 		this.quantifier.greedy();
 		return this;
 	}
@@ -524,9 +524,9 @@ public class Pattern<T, F extends T> {
 		}
 	}
 
-	private void checkIfNoFollowedByAny() {
-		if (quantifier.getConsumingStrategy() == ConsumingStrategy.SKIP_TILL_ANY) {
-			throw new MalformedPatternException("Option not applicable to FollowedByAny pattern");
+	private void checkIfNoGroupPattern() {
+		if (this instanceof GroupPattern) {
+			throw new MalformedPatternException("Option not applicable to group pattern");
 		}
 	}
 }

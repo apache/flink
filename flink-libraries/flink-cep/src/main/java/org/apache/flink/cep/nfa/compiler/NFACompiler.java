@@ -34,14 +34,13 @@ import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
+import org.apache.flink.cep.pattern.conditions.OrCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Predicate;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import javax.annotation.Nullable;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -118,6 +117,7 @@ public class NFACompiler {
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
 		private Pattern<T, ?> followingPattern;
+		private IterativeCondition<T> followingTakeCondition;
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
@@ -528,18 +528,23 @@ public class NFACompiler {
 			}
 
 			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal,
-				currentPattern.getQuantifier().isGreedy());
+				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY));
 			// if event is accepted then all notPatterns previous to the optional states are no longer valid
 			final State<T> sink = copyWithoutTransitiveNots(sinkState);
 			singletonState.addTake(sink, takeCondition);
 
+			// if no element accepted the previous nots are still valid.
+			IterativeCondition<T> proceedCondition = getTrueFunction();
+
 			// for the first state of a group pattern, its PROCEED edge should point to the following state of
 			// that group pattern and the edge will be added at the end of creating the NFA for that group pattern
 			if (isOptional && !headOfGroup(currentPattern)) {
-				// if no element accepted the previous nots are still valid.
-				IterativeCondition<T> proceedCondition = getTrueFunction();
-				if (currentPattern.getQuantifier().isGreedy()) {
-					proceedCondition = getGreedyCondition(proceedCondition, Lists.newArrayList(takeCondition));
+				if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+					proceedCondition = getGreedyCondition(
+						proceedCondition,
+						takeCondition,
+						ignoreCondition,
+						followingTakeCondition);
 				}
 				singletonState.addProceed(proceedState, proceedCondition);
 			}
@@ -548,15 +553,20 @@ public class NFACompiler {
 				final State<T> ignoreState;
 				if (isOptional) {
 					ignoreState = createState(currentPattern.getName(), State.StateType.Normal,
-						currentPattern.getQuantifier().isGreedy());
+						currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY));
 					ignoreState.addTake(sink, takeCondition);
 					ignoreState.addIgnore(ignoreCondition);
 					addStopStates(ignoreState);
+					if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+						ignoreState.addProceed(proceedState, proceedCondition);
+					}
 				} else {
 					ignoreState = singletonState;
 				}
 				singletonState.addIgnore(ignoreState, ignoreCondition);
 			}
+
+			followingTakeCondition = getFollowingTakeCondition(followingTakeCondition, takeCondition, isOptional);
 			return singletonState;
 		}
 
@@ -579,25 +589,24 @@ public class NFACompiler {
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
 			GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
+			IterativeCondition<T> oldFollowingTakeCondition = followingTakeCondition;
 
 			State<T> lastSink = sinkState;
 			currentGroupPattern = groupPattern;
 			currentPattern = groupPattern.getRawPattern();
+			followingTakeCondition = null;
 			lastSink = createMiddleStates(lastSink);
 			lastSink = convertPattern(lastSink);
 			if (isOptional) {
-				if (currentGroupPattern.getQuantifier().isGreedy()) {
-					List<IterativeCondition<T>> takeConditions = lastSink.getConditions(StateTransitionAction.TAKE);
-					proceedCondition = getGreedyCondition(proceedCondition, Lists.newArrayList(takeConditions));
-				}
 				// for the first state of a group pattern, its PROCEED edge should point to
 				// the following state of that group pattern
 				lastSink.addProceed(proceedState, proceedCondition);
 			}
-
 			currentPattern = oldCurrentPattern;
 			followingPattern = oldFollowingPattern;
 			currentGroupPattern = oldGroupPattern;
+			followingTakeCondition = getFollowingTakeCondition(
+				oldFollowingTakeCondition, followingTakeCondition, isOptional);
 			return lastSink;
 		}
 
@@ -616,25 +625,23 @@ public class NFACompiler {
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
 			GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
+			IterativeCondition<T> oldFollowingTakeCondition = followingTakeCondition;
 
 			final State<T> dummyState = createState(currentPattern.getName(), State.StateType.Normal,
-				currentPattern.getQuantifier().isGreedy());
+				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY));
 			State<T> lastSink = dummyState;
 			currentGroupPattern = groupPattern;
 			currentPattern = groupPattern.getRawPattern();
+			followingTakeCondition = null;
 			lastSink = createMiddleStates(lastSink);
 			lastSink = convertPattern(lastSink);
-
-			if (currentGroupPattern.getQuantifier().isGreedy()) {
-				List<IterativeCondition<T>> takeConditions = lastSink.getConditions(StateTransitionAction.TAKE);
-				proceedCondition = getGreedyCondition(proceedCondition, Lists.newArrayList(takeConditions));
-			}
 			lastSink.addProceed(sinkState, proceedCondition);
 			dummyState.addProceed(lastSink, proceedCondition);
-
 			currentPattern = oldCurrentPattern;
 			followingPattern = oldFollowingPattern;
 			currentGroupPattern = oldGroupPattern;
+			followingTakeCondition = getFollowingTakeCondition(
+				oldFollowingTakeCondition, followingTakeCondition, true);
 			return lastSink;
 		}
 
@@ -663,11 +670,15 @@ public class NFACompiler {
 				true);
 
 			IterativeCondition<T> proceedCondition = getTrueFunction();
-			if (currentPattern.getQuantifier().isGreedy()) {
-				proceedCondition = getGreedyCondition(proceedCondition, Lists.newArrayList(takeCondition));
+			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+				proceedCondition = getGreedyCondition(
+					proceedCondition,
+					takeCondition,
+					ignoreCondition,
+					followingTakeCondition);;
 			}
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal,
-				currentPattern.getQuantifier().isGreedy());
+				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY));
 			loopingState.addProceed(sinkState, proceedCondition);
 			loopingState.addTake(takeCondition);
 
@@ -675,13 +686,18 @@ public class NFACompiler {
 
 			if (ignoreCondition != null) {
 				final State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal,
-					currentPattern.getQuantifier().isGreedy());
+					currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY));
 				ignoreState.addTake(loopingState, takeCondition);
 				ignoreState.addIgnore(ignoreCondition);
 				loopingState.addIgnore(ignoreState, ignoreCondition);
+				if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+					ignoreState.addProceed(sinkState, proceedCondition);
+				}
 
 				addStopStateToLooping(ignoreState);
 			}
+
+			followingTakeCondition = getFollowingTakeCondition(followingTakeCondition, takeCondition, true);
 			return loopingState;
 		}
 
@@ -709,12 +725,42 @@ public class NFACompiler {
 
 		private IterativeCondition<T> getGreedyCondition(
 			IterativeCondition<T> condition,
-			List<IterativeCondition<T>> takeConditions) {
+			IterativeCondition<T> takeCondition,
+			IterativeCondition<T> ignoreCondition,
+			IterativeCondition<T> followingTakeCondition) {
 			IterativeCondition<T> greedyCondition = condition;
-			for (IterativeCondition<T> takeCondition : takeConditions) {
-				greedyCondition = new AndCondition<>(greedyCondition, new NotCondition<>(takeCondition));
+
+			greedyCondition = new AndCondition<>(greedyCondition, new NotCondition<>(takeCondition));
+
+			if (followingTakeCondition != null) {
+				greedyCondition = new AndCondition<>(greedyCondition, followingTakeCondition);
+			}
+
+			// proceed iff one of the following conditions holds:
+			// 1) greedyCondition is true or
+			// 2) both the takeCondition and ignoreCondition is false
+			if (ignoreCondition != null) {
+				greedyCondition = new OrCondition<>(
+					greedyCondition,
+					new NotCondition<>(new OrCondition<>(takeCondition, ignoreCondition)));
+			} else {
+				greedyCondition = new OrCondition<>(
+					greedyCondition,
+					new NotCondition<>(takeCondition));
 			}
 			return greedyCondition;
+		}
+
+		private IterativeCondition<T> getFollowingTakeCondition(
+			IterativeCondition<T> followingTakeCondition,
+			IterativeCondition<T> currentTakeCondition,
+			boolean isOptional) {
+
+			IterativeCondition<T> newFollowingTakeCondition = currentTakeCondition;
+			if (isOptional && followingTakeCondition != null) {
+				newFollowingTakeCondition = new OrCondition<>(newFollowingTakeCondition, followingTakeCondition);
+			}
+			return newFollowingTakeCondition;
 		}
 
 		/**

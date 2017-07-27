@@ -43,8 +43,6 @@ public class Quantifier {
 
 	private ConsumingStrategy innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_NEXT;
 
-	private boolean greedy = false;
-
 	private Quantifier(
 			final ConsumingStrategy consumingStrategy,
 			final QuantifierProperty first,
@@ -108,11 +106,12 @@ public class Quantifier {
 	}
 
 	public void greedy() {
-		greedy = true;
-	}
+		checkPattern(!(innerConsumingStrategy == ConsumingStrategy.SKIP_TILL_ANY),
+			"Option not applicable to FollowedByAny pattern");
+		checkPattern(!hasProperty(Quantifier.QuantifierProperty.SINGLE),
+			"Option not applicable to singleton quantifier");
 
-	public boolean isGreedy() {
-		return greedy;
+		properties.add(QuantifierProperty.GREEDY);
 	}
 
 	@Override
@@ -140,7 +139,8 @@ public class Quantifier {
 		SINGLE,
 		LOOPING,
 		TIMES,
-		OPTIONAL
+		OPTIONAL,
+		GREEDY
 	}
 
 	/**
