@@ -531,12 +531,14 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		this.offsetCommitCallback = new KafkaCommitCallback() {
 			@Override
-			public void onComplete(Exception exception) {
-				if (exception == null) {
-					successfulCommits.inc();
-				} else {
-					failedCommits.inc();
-				}
+			public void onSuccess() {
+				successfulCommits.inc();
+			}
+
+			@Override
+			public void onException(Throwable cause) {
+				LOG.error("Async Kafka commit failed.", cause);
+				failedCommits.inc();
 			}
 		};
 

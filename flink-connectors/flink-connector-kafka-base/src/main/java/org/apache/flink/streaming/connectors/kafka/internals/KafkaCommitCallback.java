@@ -26,9 +26,14 @@ public interface KafkaCommitCallback {
 
 	/**
 	 * A callback method the user can implement to provide asynchronous handling of commit request completion.
-	 * This method will be called when the commit request sent to the server has been acknowledged.
-	 *
-	 * @param exception The exception thrown during processing of the request, or null if the commit completed successfully
+	 * This method will be called when the commit request sent to the server has been acknowledged without error.
 	 */
-	void onComplete(Exception exception);
+	void onSuccess();
+
+	/**
+	 * A callback method the user can implement to provide asynchronous handling of commit request failure.
+	 * This method will be called when the commit request failed.
+	 * @param cause Kafka commit failure cause returned by kafka client
+	 */
+	void onException(Throwable cause);
 }

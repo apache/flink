@@ -501,10 +501,12 @@ public class KafkaConsumerThread extends Thread {
 
 			if (ex != null) {
 				log.warn("Committing offsets to Kafka failed. This does not compromise Flink's checkpoints.", ex);
+				if (callerCommitCallback != null) {
+					callerCommitCallback.onException(ex);
+				}
 			}
-
-			if (callerCommitCallback != null) {
-				callerCommitCallback.onComplete(ex);
+			else if (callerCommitCallback != null) {
+				callerCommitCallback.onSuccess();
 			}
 		}
 	}

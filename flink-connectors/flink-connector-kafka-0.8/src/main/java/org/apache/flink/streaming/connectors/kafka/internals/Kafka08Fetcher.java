@@ -353,13 +353,13 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				// the ZK handler takes care of incrementing the offsets by 1 before committing
 				zkHandler.prepareAndCommitOffsets(offsets);
 				if (commitCallback != null) {
-					commitCallback.onComplete(null);
+					commitCallback.onSuccess();
 				}
 			}
 			catch (Exception e) {
 				if (running) {
 					if (commitCallback != null) {
-						commitCallback.onComplete(e);
+						commitCallback.onException(e);
 					}
 					throw e;
 				} else {
