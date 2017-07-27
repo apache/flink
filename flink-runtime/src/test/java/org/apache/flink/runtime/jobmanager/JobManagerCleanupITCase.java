@@ -52,6 +52,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT;
 import static org.junit.Assert.assertArrayEquals;
@@ -278,8 +279,9 @@ public class JobManagerCleanupITCase {
 	private static void waitForEmptyBlobDir(File blobDir, FiniteDuration remaining)
 		throws InterruptedException {
 		long deadline = System.currentTimeMillis() + remaining.toMillis();
+		String[] blobDirContents;
 		do {
-			String[] blobDirContents = blobDir.list(new FilenameFilter() {
+			blobDirContents = blobDir.list(new FilenameFilter() {
 				@Override
 				public boolean accept(File dir, String name) {
 					return name.startsWith("job_");
@@ -291,6 +293,6 @@ public class JobManagerCleanupITCase {
 			Thread.sleep(100);
 		} while (System.currentTimeMillis() < deadline);
 
-		fail("Timeout while waiting for " + blobDir.getAbsolutePath() + " to become empty.");
+		fail("Timeout while waiting for " + blobDir.getAbsolutePath() + " to become empty. Current contents: " + Arrays.toString(blobDirContents));
 	}
 }
