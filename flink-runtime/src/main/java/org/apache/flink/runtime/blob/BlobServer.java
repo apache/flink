@@ -78,7 +78,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	private final ServerSocket serverSocket;
 
 	/** The SSL server context if ssl is enabled for the connections */
-	private SSLContext serverSSLContext = null;
+	private final SSLContext serverSSLContext;
 
 	/** Blob Server configuration */
 	private final Configuration blobServiceConfiguration;
@@ -178,6 +178,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			} catch (Exception e) {
 				throw new IOException("Failed to initialize SSLContext for the blob server", e);
 			}
+		} else {
+			serverSSLContext = null;
 		}
 
 		//  ----------------------- start the server -------------------
