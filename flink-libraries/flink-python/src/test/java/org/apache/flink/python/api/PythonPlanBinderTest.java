@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
  * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
@@ -20,7 +20,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.api.streaming.data.PythonStreamer;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,50 +57,81 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 		return files;
 	}
 
-	private static boolean isPython2Supported() throws IOException {
+	/**
+	 * Finds the python binary for the given version.
+	 *
+	 * @param possibleBinaries
+	 * 		binaries to test for
+	 * @param expectedVersionPrefix
+	 * 		expected output prefix for <tt>&lt;binary&gt; -V</tt>, e.g. <tt>"Python 2."</tt>
+	 *
+	 * @return python binary or <tt>null</tt> if not supported
+	 *
+	 * @throws IOException
+	 * 		if the process to test for the binaries failed to exit properly
+	 */
+	private static String getPythonPath(String[] possibleBinaries, String expectedVersionPrefix)
+		throws IOException {
 		Process process = null;
+		for (String python : possibleBinaries) {
+			try {
+				process = new ProcessBuilder(python, "-V").redirectErrorStream(true).start();
+				BufferedReader stdInput = new BufferedReader(new
+					InputStreamReader(process.getInputStream()));
 
-		try {
-			process = Runtime.getRuntime().exec("python");
-			return true;
-		} catch (IOException ex) {
-			return false;
-		} finally {
-			if (process != null) {
-				PythonStreamer.destroyProcess(process);
+				if (stdInput.readLine().startsWith(expectedVersionPrefix)) {
+					return python;
+				}
+			} catch (IOException ignored) {
+			} finally {
+				if (process != null) {
+					PythonStreamer.destroyProcess(process);
+				}
 			}
 		}
+		return null;
 	}
 
-	private static boolean isPython3Supported() throws IOException {
-		Process process = null;
+	/**
+	 * Finds the binary that executes python2 programs.
+	 *
+	 * @return python2 binary or <tt>null</tt> if not supported
+	 *
+	 * @throws IOException
+	 * 		if the process to test for the binaries failed to exit properly
+	 */
+	private static String getPython2Path() throws IOException {
+		return getPythonPath(new String[] {"python2", "python"}, "Python 2.");
+	}
 
-		try {
-			process = Runtime.getRuntime().exec("python3");
-			return true;
-		} catch (IOException ex) {
-			return false;
-		} finally {
-			if (process != null) {
-				PythonStreamer.destroyProcess(process);
-			}
-		}
+	/**
+	 * Finds the binary that executes python3 programs.
+	 *
+	 * @return python3 binary or <tt>null</tt> if not supported
+	 *
+	 * @throws IOException
+	 * 		if the process to test for the binaries failed to exit properly
+	 */
+	private static String getPython3Path() throws IOException {
+		return getPythonPath(new String[] {"python3", "python"}, "Python 3.");
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
 		String utils = findUtilsFile();
-		if (isPython2Supported()) {
+		String python2 = getPython2Path();
+		if (python2 != null) {
 			for (String file : findTestFiles()) {
 				Configuration configuration = new Configuration();
-				config.setString(PythonOptions.PYTHON_BINARY_PATH, "python");
+				configuration.setString(PythonOptions.PYTHON_BINARY_PATH, python2);
 				new PythonPlanBinder(configuration).runPlan(new String[]{file, utils});
 			}
 		}
-		if (isPython3Supported()) {
+		String python3 = getPython3Path();
+		if (python3 != null) {
 			for (String file : findTestFiles()) {
 				Configuration configuration = new Configuration();
-				config.setString(PythonOptions.PYTHON_BINARY_PATH, "python3");
+				configuration.setString(PythonOptions.PYTHON_BINARY_PATH, python3);
 				new PythonPlanBinder(configuration).runPlan(new String[]{file, utils});
 			}
 		}
