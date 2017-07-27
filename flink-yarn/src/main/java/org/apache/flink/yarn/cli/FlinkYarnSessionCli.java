@@ -573,9 +573,9 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			configurationDirectory,
 			applicationName,
 			cmdLine);
-		
+
 		final ClusterSpecification clusterSpecification = createClusterSpecification(config, cmdLine);
-		
+
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
 		try {

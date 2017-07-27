@@ -207,6 +207,15 @@ public class CliFrontend {
 		return copiedConfiguration;
 	}
 
+	/**
+	 * Returns the configuration directory for the CLI frontend.
+	 *
+	 * @return Configuration directory
+	 */
+	public String getConfigurationDirectory() {
+		return configurationDirectory;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Execute Actions
 	// --------------------------------------------------------------------------------------------

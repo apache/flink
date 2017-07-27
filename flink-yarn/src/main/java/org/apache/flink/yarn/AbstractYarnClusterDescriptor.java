@@ -154,12 +154,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
-
-		// tries to load the config through the environment, if it fails it can still be set through the setters
-		try {
-		} catch (Exception e) {
-			LOG.debug("Config couldn't be loaded from environment variable.", e);
-		}
 	}
 
 	/**

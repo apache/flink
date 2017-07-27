@@ -59,7 +59,10 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 	}
 
 	@Override
-	public StandaloneClusterClient retrieveCluster(CommandLine commandLine, Configuration config, String configurationDirectory) {
+	public StandaloneClusterClient retrieveCluster(
+			CommandLine commandLine,
+			Configuration config,
+			String configurationDirectory) {
 
 		if (commandLine.hasOption(CliFrontendParser.ADDRESS_OPTION.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(CliFrontendParser.ADDRESS_OPTION.getOpt());
@@ -78,10 +81,11 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 
 	@Override
 	public StandaloneClusterClient createCluster(
-		String applicationName,
-		CommandLine commandLine,
-		Configuration config,
-		String configurationDirectory, List<URL> userJarFiles) throws UnsupportedOperationException {
+			String applicationName,
+			CommandLine commandLine,
+			Configuration config,
+			String configurationDirectory,
+			List<URL> userJarFiles) throws UnsupportedOperationException {
 
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
 		ClusterSpecification clusterSpecification = ClusterSpecification.fromConfiguration(config);

@@ -137,8 +137,6 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	protected static File tempConfPathForSecureRun = null;
 
-	protected static org.apache.flink.configuration.Configuration flinkConfiguration = new org.apache.flink.configuration.Configuration();
-
 	static {
 		YARN_CONFIGURATION = new YarnConfiguration();
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);

@@ -25,7 +25,6 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.cli.CommandLine;
@@ -70,7 +69,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(
 			new Configuration(),
-			tmpFolder.getAbsolutePath(),
+			tmp.getRoot().getAbsolutePath(),
 			null,
 			cmd);
 
@@ -85,12 +84,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	@Test
 	public void testNotEnoughTaskSlots() throws Exception {
-
-		File confFile = tmp.newFile("flink-conf.yaml");
 		File jarFile = tmp.newFile("test.jar");
-		CliFrontend cliFrontend = new CliFrontend(tmp.getRoot().getAbsolutePath());
-
-		final Configuration configuration = cliFrontend.getConfiguration();
 
 		String[] params =
 			new String[] {"-yn", "2", "-ys", "3", "-p", "7", jarFile.getAbsolutePath()};
@@ -121,7 +115,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		RunOptions runOptions = CliFrontendParser.parseRunCommand(params);
 
 		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
-		
+
 		final Configuration configuration = new Configuration();
 
 		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor(
@@ -129,7 +123,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 			tmp.getRoot().getAbsolutePath(),
 			"",
 			runOptions.getCommandLine());
-			
+
 		final ClusterSpecification clusterSpecification = yarnCLI.createClusterSpecification(
 			configuration,
 			runOptions.getCommandLine());
@@ -149,6 +143,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	@Test
 	public void testZookeeperNamespaceProperty() throws Exception {
+
 		File confFile = tmp.newFile("flink-conf.yaml");
 		File jarFile = tmp.newFile("test.jar");
 		CliFrontend cliFrontend = new CliFrontend(tmp.getRoot().getAbsolutePath());

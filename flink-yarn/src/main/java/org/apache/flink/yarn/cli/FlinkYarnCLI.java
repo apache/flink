@@ -212,18 +212,20 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	@Override
 	public YarnClusterClientV2 retrieveCluster(
-		CommandLine cmdLine,
-		Configuration config, String configurationDirectory) throws UnsupportedOperationException {
+			CommandLine cmdLine,
+			Configuration config,
+			String configurationDirectory) throws UnsupportedOperationException {
 
 		throw new UnsupportedOperationException("Not support retrieveCluster since Flip-6.");
 	}
 
 	@Override
 	public YarnClusterClientV2 createCluster(
-		String applicationName,
-		CommandLine cmdLine,
-		Configuration config,
-		String configurationDirectory, List<URL> userJarFiles) throws Exception {
+			String applicationName,
+			CommandLine cmdLine,
+			Configuration config,
+			String configurationDirectory,
+			List<URL> userJarFiles) throws Exception {
 		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
 
 		YarnClusterDescriptorV2 yarnClusterDescriptor = createDescriptor(config, applicationName, cmdLine);

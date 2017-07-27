@@ -250,7 +250,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
-		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
+		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor,
+		// because we have a reference to the ClusterDescriptor's configuration which we modify continuously
 		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
