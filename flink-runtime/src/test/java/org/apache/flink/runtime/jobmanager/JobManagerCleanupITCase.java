@@ -128,7 +128,7 @@ public class JobManagerCleanupITCase {
 		final File blobBaseDir = tmpFolder.newFolder();
 
 		new JavaTestKit(system) {{
-			new Within(duration("15 seconds")) {
+			new Within(duration("30 seconds")) {
 				@Override
 				protected void run() {
 					// Setup
