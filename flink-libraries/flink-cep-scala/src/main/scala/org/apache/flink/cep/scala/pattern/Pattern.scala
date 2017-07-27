@@ -18,6 +18,7 @@
 package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.cep
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy
 import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JContext}
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, SimpleCondition}
 import org.apache.flink.cep.pattern.{MalformedPatternException, Quantifier, Pattern => JPattern}
@@ -452,6 +453,20 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   def next(pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](jPattern.next(pattern.wrappedPattern))
 
+  /**
+    * Set after match skip strategy.
+    * @param strategy the strategy to set
+    * @return the pattern itself
+    */
+  def setAfterMatchSkipStrategy(strategy: AfterMatchSkipStrategy): Pattern[T, F] =
+    Pattern(jPattern.setAfterMatchSkipStrategy(strategy))
+
+  /**
+    * Get after match skip strategy.
+    * @return current after match skip strategy
+    */
+  def getAfterMatchSkipStrategy(): AfterMatchSkipStrategy =
+    jPattern.getAfterMatchSkipStrategy
 }
 
 object Pattern {
@@ -485,4 +500,5 @@ object Pattern {
     */
   def begin[T, F <: T](pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](JPattern.begin(pattern.wrappedPattern))
+
 }
