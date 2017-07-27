@@ -44,6 +44,7 @@ import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 
 import com.google.common.collect.Lists;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,6 +62,7 @@ import java.util.Queue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.validateMockitoUsage;
 
 /**
  * Tests for {@link KeyedCEPPatternOperator} and {@link TimeoutKeyedCEPPatternOperator}.
@@ -69,6 +71,11 @@ public class CEPOperatorTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@After
+	public void validate() {
+		validateMockitoUsage();
+	}
 
 	@Test
 	public void testKeyedCEPOperatorWatermarkForwarding() throws Exception {
@@ -471,7 +478,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(endEvent, 4L));
 
 			// verify the number of invocations NFA is updated
-			Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
+			Mockito.verify(nfaOperatorStateSpy, Mockito.times(2)).update(Mockito.any());
 
 			// get and verify the output
 			Queue<Object> result = harness.getOutput();
@@ -518,7 +525,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(endEvent, 4L));
 
 			// verify the number of invocations NFA is updated
-			Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
+			Mockito.verify(nfaOperatorStateSpy, Mockito.times(2)).update(Mockito.any());
 
 			// get and verify the output
 			Queue<Object> result = harness.getOutput();
