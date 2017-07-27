@@ -289,7 +289,7 @@ public class NFA<T> implements Serializable {
 									newComputationState.getPreviousState().getName()),
 							newComputationState.getEvent(),
 							newComputationState.getTimestamp(),
-							computationState.getCounter());
+							newComputationState.getCounter());
 				} else if (newComputationState.isStopState()) {
 					//reached stop state. release entry for the stop state
 					shouldDiscardPath = true;
@@ -298,7 +298,7 @@ public class NFA<T> implements Serializable {
 									newComputationState.getPreviousState().getName()),
 							newComputationState.getEvent(),
 							newComputationState.getTimestamp(),
-							computationState.getCounter());
+							newComputationState.getCounter());
 				} else {
 					// add new computation state; it will be processed once the next event arrives
 					statesToRetain.add(newComputationState);
