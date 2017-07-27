@@ -53,7 +53,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
-
 import org.junit.After;
 import org.junit.Test;
 
