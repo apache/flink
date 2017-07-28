@@ -132,7 +132,12 @@ public class JobRetrievalITCase extends TestLogger {
 		}
 	}
 
-	private static class SemaphoreInvokable extends AbstractInvokable {
+	/**
+	 * Invokable that waits on {@link #lock} to be released and finishes afterwards.
+	 *
+	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
+	 */
+	public static class SemaphoreInvokable extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
