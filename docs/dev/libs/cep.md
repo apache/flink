@@ -1164,15 +1164,18 @@ pattern.within(Time.seconds(10))
 
 After specifying the pattern sequence you are looking for, it is time to apply it to your input stream to detect
 potential matches. In order to run a stream of events against your pattern sequence, you have to create a `PatternStream`.
-Given an input stream `input` and a pattern `pattern`, you create the `PatternStream` by calling:
+Given an input stream `input`, a pattern `pattern` and an optional comparator `comparator` which is used to
+sort events with the same timestamp in case of EventTime or that arrived at the same moment, you create the
+`PatternStream` by calling:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<Event> input = ...
 Pattern<Event, ?> pattern = ...
+EventComparator<Event> comparator = ... // optional
 
-PatternStream<Event> patternStream = CEP.pattern(input, pattern);
+PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 {% endhighlight %}
 </div>
 
@@ -1180,8 +1183,9 @@ PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 {% highlight scala %}
 val input : DataStream[Event] = ...
 val pattern : Pattern[Event, _] = ...
+var comparator : EventComparator[Event] = ... // optional
 
-val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
+val patternStream: PatternStream[Event] = CEP.pattern(input, pattern, comparator)
 {% endhighlight %}
 </div>
 </div>
