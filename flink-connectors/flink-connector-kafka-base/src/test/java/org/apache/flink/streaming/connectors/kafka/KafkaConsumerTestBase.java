@@ -1609,8 +1609,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 					env1.execute("Metrics test job");
 				} catch (Throwable t) {
-					LOG.warn("Got exception during execution", t);
 					if (!(t instanceof JobCancellationException)) { // we'll cancel the job
+						LOG.warn("Got exception during execution", t);
 						error.f0 = t;
 					}
 				}
