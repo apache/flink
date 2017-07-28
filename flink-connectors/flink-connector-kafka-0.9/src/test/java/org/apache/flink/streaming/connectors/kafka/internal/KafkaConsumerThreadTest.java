@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
@@ -492,7 +493,7 @@ public class KafkaConsumerThreadTest {
 		// pause just before the reassignment so we can inject the wakeup
 		testThread.waitPartitionReassignmentInvoked();
 
-		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>());
+		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 		verify(mockConsumer, times(1)).wakeup();
 
 		testThread.startPartitionReassignment();
@@ -578,7 +579,7 @@ public class KafkaConsumerThreadTest {
 		// pause just before the reassignment so we can inject the wakeup
 		testThread.waitPartitionReassignmentInvoked();
 
-		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>());
+		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 
 		// make sure the consumer was actually woken up
 		verify(mockConsumer, times(1)).wakeup();
@@ -664,7 +665,7 @@ public class KafkaConsumerThreadTest {
 		// wait until the reassignment has started
 		midAssignmentLatch.await();
 
-		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>());
+		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 
 		// the wakeup in the setOffsetsToCommit() call should have been buffered, and not called on the consumer
 		verify(mockConsumer, never()).wakeup();

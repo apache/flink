@@ -36,6 +36,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -97,8 +99,8 @@ public class KafkaConsumerThread extends Thread {
 	private boolean hasAssignedPartitions;
 
 	/**
-	 * Flag to indicate whether an external operation ({@link #setOffsetsToCommit(Map)} or {@link #shutdown()})
-	 * had attempted to wakeup the consumer while it was isolated for partition reassignment.
+	 * Flag to indicate whether an external operation ({@link #setOffsetsToCommit(Map, KafkaCommitCallback)}
+	 * or {@link #shutdown()}) had attempted to wakeup the consumer while it was isolated for partition reassignment.
 	 */
 	private volatile boolean hasBufferedWakeup;
 
@@ -109,7 +111,8 @@ public class KafkaConsumerThread extends Thread {
 	private volatile boolean commitInProgress;
 
 	/** User callback to be invoked when commits completed. */
-	private volatile KafkaCommitCallback callerCommitCallback;
+	private volatile KafkaCommitCallback offsetCommitCallback;
+
 	public KafkaConsumerThread(
 			Logger log,
 			Handover handover,
@@ -314,30 +317,19 @@ public class KafkaConsumerThread extends Thread {
 	 * superseded by newer ones.
 	 *
 	 * @param offsetsToCommit The offsets to commit
+	 * @param commitCallback callback when Kafka commit completes
 	 */
-	public void setOffsetsToCommit(Map<TopicPartition, OffsetAndMetadata> offsetsToCommit) {
-		setOffsetsToCommit(offsetsToCommit, null);
-	}
+	void setOffsetsToCommit(
+			Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
+			@Nonnull KafkaCommitCallback commitCallback) {
 
-	/**
-	 * Tells this thread to commit a set of offsets. This method does not block, the committing
-	 * operation will happen asynchronously.
-	 *
-	 * <p>Only one commit operation may be pending at any time. If the committing takes longer than
-	 * the frequency with which this method is called, then some commits may be skipped due to being
-	 * superseded by newer ones.
-	 *
-	 * @param offsetsToCommit The offsets to commit
-	 * @param commitCallback callback when kafka commit completes
-	 */
-	public void setOffsetsToCommit(Map<TopicPartition, OffsetAndMetadata> offsetsToCommit, KafkaCommitCallback commitCallback) {
 		// record the work to be committed by the main consumer thread and make sure the consumer notices that
 		if (nextOffsetsToCommit.getAndSet(offsetsToCommit) != null) {
 			log.warn("Committing offsets to Kafka takes longer than the checkpoint interval. " +
 					"Skipping commit of previous offsets because newer complete checkpoint offsets are available. " +
 					"This does not compromise Flink's checkpoint integrity.");
 		}
-		this.callerCommitCallback = commitCallback;
+		this.offsetCommitCallback = commitCallback;
 
 		// if the consumer is blocked in a poll() or handover operation, wake it up to commit soon
 		handover.wakeupProducer();
@@ -501,12 +493,9 @@ public class KafkaConsumerThread extends Thread {
 
 			if (ex != null) {
 				log.warn("Committing offsets to Kafka failed. This does not compromise Flink's checkpoints.", ex);
-				if (callerCommitCallback != null) {
-					callerCommitCallback.onException(ex);
-				}
-			}
-			else if (callerCommitCallback != null) {
-				callerCommitCallback.onSuccess();
+				offsetCommitCallback.onException(ex);
+			} else {
+				offsetCommitCallback.onSuccess();
 			}
 		}
 	}
