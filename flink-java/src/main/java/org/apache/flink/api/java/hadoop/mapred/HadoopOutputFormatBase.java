@@ -30,10 +30,12 @@ import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.JobContext;
+import org.apache.hadoop.mapred.JobContextImpl;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
+import org.apache.hadoop.mapred.TaskAttemptContextImpl;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -126,20 +128,11 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			this.jobConf.set("mapreduce.task.attempt.id", taskAttemptID.toString());
 			this.jobConf.setInt("mapreduce.task.partition", taskNumber + 1);
 
-			try {
-				this.context = HadoopUtils.instantiateTaskAttemptContext(this.jobConf, taskAttemptID);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			this.context = new TaskAttemptContextImpl(this.jobConf, taskAttemptID);
 
 			this.outputCommitter = this.jobConf.getOutputCommitter();
 
-			JobContext jobContext;
-			try {
-				jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			JobContext jobContext = new JobContextImpl(this.jobConf, new JobID());
 
 			this.outputCommitter.setupJob(jobContext);
 
@@ -168,7 +161,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	public void finalizeGlobal(int parallelism) throws IOException {
 
 		try {
-			JobContext jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
+			JobContext jobContext = new JobContextImpl(this.jobConf, new JobID());
 			OutputCommitter outputCommitter = this.jobConf.getOutputCommitter();
 
 			// finalize HDFS output format
