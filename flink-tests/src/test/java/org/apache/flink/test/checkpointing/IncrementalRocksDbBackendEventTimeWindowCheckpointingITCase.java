@@ -18,13 +18,41 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TestName;
+
 /**
  * Integration tests for incremental RocksDB backend.
  */
 public class IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
+	@Rule
+	public TestName name = new TestName();
+
 	public IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase() {
 		super(StateBackendEnum.ROCKSDB_INCREMENTAL);
+	}
+
+	/**
+	 * Prints a message when starting a test method to avoid Travis' <tt>"Maven produced no output
+	 * for xxx seconds."</tt> messages.
+	 */
+	@Before
+	public void printMethodStart() {
+		System.out.println(
+			"Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+	}
+
+	/**
+	 * Prints a message when finishing a test method to avoid Travis' <tt>"Maven produced no output
+	 * for xxx seconds."</tt> messages.
+	 */
+	@After
+	public void printProgress() {
+		System.out.println(
+			"Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
 	}
 
 	@Override
