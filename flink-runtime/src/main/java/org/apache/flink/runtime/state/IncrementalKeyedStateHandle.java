@@ -212,7 +212,7 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 		// register again with a different registry. The implication is that ownership is transferred to this new
 		// registry. This should only happen in case of a restart, when the CheckpointCoordinator creates a new
 		// SharedStateRegistry for the current attempt and the old registry becomes meaningless. We also assume that
-		// an old registry object from a previous run is due to GC and will never be used for registration again.
+		// an old registry object from a previous run is due to be GCed and will never be used for registration again.
 		Preconditions.checkState(
 			sharedStateRegistry != stateRegistry,
 			"The state handle has already registered its shared states to the given registry.");

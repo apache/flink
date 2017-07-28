@@ -1051,8 +1051,8 @@ public class CheckpointCoordinator {
 			}
 
 			// We create a new shared state registry object, so that all pending async disposal requests from previous
-			// runs will go against the old object (were they can do nor harm). The old registry is first closed, so
-			// that pending unregistration is ignored. This must happen under the checkpoint lock.
+			// runs will go against the old object (were they can do no harm).
+			// This must happen under the checkpoint lock.
 			sharedStateRegistry.close();
 			sharedStateRegistry = sharedStateRegistryFactory.create(executor);
 

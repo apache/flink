@@ -197,7 +197,6 @@ public class IncrementalKeyedStateHandleTest {
 
 		SharedStateRegistry stateRegistryA = spy(new SharedStateRegistry());
 
-		// Create two state handles with overlapping shared state
 		IncrementalKeyedStateHandle stateHandleX = create(new Random(1));
 		IncrementalKeyedStateHandle stateHandleY = create(new Random(2));
 		IncrementalKeyedStateHandle stateHandleZ = create(new Random(3));
@@ -231,7 +230,7 @@ public class IncrementalKeyedStateHandleTest {
 		} catch (IllegalStateException ignore) {
 		}
 
-		// All state should still get dicarded
+		// All state should still get discarded
 		stateHandleY.discardState();
 		verify(stateHandleY.getMetaStateHandle(), times(1)).discardState();
 		for (StreamStateHandle stateHandle : stateHandleY.getSharedState().values()) {
