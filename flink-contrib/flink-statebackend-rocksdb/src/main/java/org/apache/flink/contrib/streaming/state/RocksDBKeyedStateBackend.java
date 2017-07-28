@@ -135,6 +135,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBKeyedStateBackend.class);
 
+	/** The name of the merge operator in RocksDB. Do not change except you know exactly what you do. */
+	public static final String MERGE_OPERATOR_NAME = "stringappendtest";
+
 	private final String operatorIdentifier;
 
 	/** The column family options from the options factory. */
@@ -220,7 +223,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 
-		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
+		// ensure that we use the right merge operator, because other code relies on this
+		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions)
+			.setMergeOperatorName(MERGE_OPERATOR_NAME);
+
 		this.dbOptions = Preconditions.checkNotNull(dbOptions);
 
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
