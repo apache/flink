@@ -27,6 +27,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -42,6 +43,7 @@ import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitModes;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
@@ -183,6 +185,24 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	/** Flag indicating whether the consumer is still running. */
 	private volatile boolean running = true;
+
+	// ------------------------------------------------------------------------
+	//  internal metrics
+	// ------------------------------------------------------------------------
+
+	/** Counter for successful Kafka offset commits. */
+	private transient Counter successfulCommits;
+
+	/** Counter for failed Kafka offset commits. */
+	private transient Counter failedCommits;
+
+	/** Callback interface that will be invoked upon async Kafka commit completion.
+	 *  Please be aware that default callback implementation in base class does not
+	 *  provide any guarantees on thread-safety. This is sufficient for now because current
+	 *  supported Kafka connectors guarantee no more than 1 concurrent async pending offset
+	 *  commit.
+	 */
+	private transient KafkaCommitCallback offsetCommitCallback;
 
 	// ------------------------------------------------------------------------
 
@@ -505,6 +525,23 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new Exception("The partitions were not set for the consumer");
 		}
 
+		// initialize commit metrics and default offset callback method
+		this.successfulCommits = this.getRuntimeContext().getMetricGroup().counter("commitsSucceeded");
+		this.failedCommits =  this.getRuntimeContext().getMetricGroup().counter("commitsFailed");
+
+		this.offsetCommitCallback = new KafkaCommitCallback() {
+			@Override
+			public void onSuccess() {
+				successfulCommits.inc();
+			}
+
+			@Override
+			public void onException(Throwable cause) {
+				LOG.error("Async Kafka commit failed.", cause);
+				failedCommits.inc();
+			}
+		};
+
 		// mark the subtask as temporarily idle if there are no initial seed partitions;
 		// once this subtask discovers some partitions and starts collecting records, the subtask's
 		// status will automatically be triggered back to be active.
@@ -785,7 +822,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					LOG.debug("Checkpoint state was empty.");
 					return;
 				}
-				fetcher.commitInternalOffsetsToKafka(offsets);
+
+				fetcher.commitInternalOffsetsToKafka(offsets, offsetCommitCallback);
 			} catch (Exception e) {
 				if (running) {
 					throw e;

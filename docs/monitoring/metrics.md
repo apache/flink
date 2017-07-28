@@ -896,6 +896,30 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
+#### Connectors:
+
+##### Kafka Connectors
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 30%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>commitsSucceeded</td>
+      <td>Kafka offset commit success count if Kafka commit is turned on and checkpointing is enabled.</td>
+    </tr>
+    <tr>
+       <th rowspan="1">Operator</th>
+       <td>commitsFailed</td>
+       <td>Kafka offset commit failure count if Kafka commit is turned on and checkpointing is enabled.</td>
+    </tr>
+  </tbody>
+</table>
 
 ### Latency tracking
 
