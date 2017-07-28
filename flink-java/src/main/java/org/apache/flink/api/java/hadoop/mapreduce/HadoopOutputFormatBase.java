@@ -35,6 +35,8 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 
@@ -125,9 +127,9 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			this.configuration.setInt("mapreduce.task.partition", taskNumber + 1);
 
 			try {
-				this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
+				this.context = new TaskAttemptContextImpl(this.configuration, taskAttemptID);
 				this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(this.context);
-				this.outputCommitter.setupJob(HadoopUtils.instantiateJobContext(this.configuration, new JobID()));
+				this.outputCommitter.setupJob(new JobContextImpl(this.configuration, new JobID()));
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -196,8 +198,8 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 					+ Integer.toString(1)
 					+ "_0");
 
-			jobContext = HadoopUtils.instantiateJobContext(this.configuration, new JobID());
-			taskContext = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
+			jobContext = new JobContextImpl(this.configuration, new JobID());
+			taskContext = new TaskAttemptContextImpl(this.configuration, taskAttemptID);
 			this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(taskContext);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
