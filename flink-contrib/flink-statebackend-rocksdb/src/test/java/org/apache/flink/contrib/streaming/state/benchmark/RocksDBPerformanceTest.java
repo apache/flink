@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.benchmark;
 
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.core.memory.MemoryUtils;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
@@ -37,8 +38,6 @@ import sun.misc.Unsafe;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-
-import static org.apache.flink.contrib.streaming.state.PredefinedOptions.MERGE_OPERATOR_NAME;
 
 /**
  * Test that validates that the performance of RocksDB is as expected.
@@ -76,7 +75,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setCreateIfMissing(true)
-					.setMergeOperatorName(MERGE_OPERATOR_NAME);
+					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
 			final WriteOptions write_options = new WriteOptions()
 					.setSync(false)
@@ -153,7 +152,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setCreateIfMissing(true)
-					.setMergeOperatorName(MERGE_OPERATOR_NAME);
+					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
 			final WriteOptions write_options = new WriteOptions()
 					.setSync(false)

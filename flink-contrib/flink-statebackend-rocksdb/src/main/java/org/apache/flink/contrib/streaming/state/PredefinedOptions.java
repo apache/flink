@@ -51,8 +51,7 @@ public enum PredefinedOptions {
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions()
-					.setMergeOperatorName(MERGE_OPERATOR_NAME);
+			return new ColumnFamilyOptions();
 		}
 
 	},
@@ -91,7 +90,6 @@ public enum PredefinedOptions {
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
 			return new ColumnFamilyOptions()
-					.setMergeOperatorName(MERGE_OPERATOR_NAME)
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
 		}
@@ -143,7 +141,6 @@ public enum PredefinedOptions {
 			final long writeBufferSize = 64 * 1024 * 1024;
 
 			return new ColumnFamilyOptions()
-					.setMergeOperatorName(MERGE_OPERATOR_NAME)
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true)
 					.setTargetFileSizeBase(targetFileSize)
@@ -189,15 +186,11 @@ public enum PredefinedOptions {
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions()
-					.setMergeOperatorName(MERGE_OPERATOR_NAME);
+			return new ColumnFamilyOptions();
 		}
 	};
 
 	// ------------------------------------------------------------------------
-
-	// The name of the merge operator in RocksDB. Do not change except you know exactly what you do.
-	public static final String MERGE_OPERATOR_NAME = "stringappendtest";
 
 	/**
 	 * Creates the {@link DBOptions}for this pre-defined setting.

@@ -73,7 +73,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	/** The number of (re)tries for loading the RocksDB JNI library. */
 	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
-
 	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
