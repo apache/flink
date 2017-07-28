@@ -163,7 +163,14 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
-	private static class SpeedTestProducer extends AbstractInvokable {
+	/**
+	 * Invokable that produces records and allows slowdown via {@link #IS_SLOW_EVERY_NUM_RECORDS}
+	 * and {@link #IS_SLOW_SENDER_CONFIG_KEY} and creates records of different data sizes via {@link
+	 * #DATA_VOLUME_GB_CONFIG_KEY}.
+	 *
+	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
+	 */
+	public static class SpeedTestProducer extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -198,7 +205,12 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		}
 	}
 
-	private static class SpeedTestForwarder extends AbstractInvokable {
+	/**
+	 * Invokable that forwards incoming records.
+	 *
+	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
+	 */
+	public static class SpeedTestForwarder extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -222,7 +234,13 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		}
 	}
 
-	private static class SpeedTestConsumer extends AbstractInvokable {
+	/**
+	 * Invokable that consumes incoming records and allows slowdown via {@link
+	 * #IS_SLOW_EVERY_NUM_RECORDS}.
+	 *
+	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
+	 */
+	public static class SpeedTestConsumer extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -247,7 +265,12 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		}
 	}
 
-	private static class SpeedTestRecord implements IOReadableWritable {
+	/**
+	 * Record type for the speed test.
+	 *
+	 * <p>NOTE: needs to be <tt>public</tt> to allow deserialization!
+	 */
+	public static class SpeedTestRecord implements IOReadableWritable {
 
 		private static final int RECORD_SIZE = 128;
 
