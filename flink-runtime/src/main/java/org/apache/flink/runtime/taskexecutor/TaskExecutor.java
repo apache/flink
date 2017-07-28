@@ -1124,9 +1124,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 *
 	 * @param t The exception describing the fatal error
 	 */
-	void onFatalError(Throwable t) {
+	void onFatalError(final Throwable t) {
 		log.error("Fatal error occurred.", t);
-		fatalErrorHandler.onFatalError(t);
+		// this could potentially be a blocking call -> call asynchronously:
+		getRpcService().execute(new Runnable() {
+			@Override
+			public void run() {
+				fatalErrorHandler.onFatalError(t);
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------
