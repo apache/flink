@@ -649,7 +649,8 @@ public class MiniCluster {
 
 			try {
 				synchronized (lock) {
-					if (taskManagers[index] != null) {
+					// note: if not running (after shutdown) taskManagers may be null!
+					if (running && taskManagers[index] != null) {
 						taskManagers[index].shutDown();
 					}
 				}
