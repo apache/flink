@@ -18,12 +18,10 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -119,8 +117,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String configurationDirectory;
 
-	private Path flinkConfigurationPath;
-
 	private Path flinkJarPath;
 
 	private String dynamicPropertiesEncoded;
@@ -128,7 +124,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	/** Lazily initialized list of files to ship. */
 	protected List<File> shipFiles = new LinkedList<>();
 
-	private org.apache.flink.configuration.Configuration flinkConfiguration;
+	private final org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
 
@@ -142,7 +138,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
-	public AbstractYarnClusterDescriptor() {
+	public AbstractYarnClusterDescriptor(
+		org.apache.flink.configuration.Configuration flinkConfiguration,
+		String configurationDirectory) {
 		// for unit tests only
 		if (System.getenv("IN_TESTS") != null) {
 			try {
@@ -152,33 +150,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		// tries to load the config through the environment, if it fails it can still be set through the setters
-		try {
-			this.configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-			this.flinkConfiguration = GlobalConfiguration.loadConfiguration(configurationDirectory);
+		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
+		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
-			File confFile = new File(configurationDirectory + File.separator + GlobalConfiguration.FLINK_CONF_FILENAME);
-			if (!confFile.exists()) {
-				throw new RuntimeException("Unable to locate configuration file in " + confFile);
-			}
-			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
-
-			userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
-		} catch (Exception e) {
-			LOG.debug("Config couldn't be loaded from environment variable.", e);
-		}
+		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 	}
 
 	/**
 	 * The class to bootstrap the application master of the Yarn cluster (runs main method).
 	 */
 	protected abstract Class<?> getApplicationMasterClass();
-
-	public void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf) {
-		this.flinkConfiguration = conf;
-
-		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
-	}
 
 	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
 		return flinkConfiguration;
@@ -193,14 +174,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new IllegalArgumentException("The passed jar path ('" + localJarPath + "') does not end with the 'jar' extension");
 		}
 		this.flinkJarPath = localJarPath;
-	}
-
-	public void setConfigurationFilePath(Path confPath) {
-		flinkConfigurationPath = confPath;
-	}
-
-	public void setConfigurationDirectory(String configurationDirectory) {
-		this.configurationDirectory = configurationDirectory;
 	}
 
 	public void addShipFiles(List<File> shipFiles) {
@@ -267,9 +240,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 		if (this.configurationDirectory == null) {
 			throw new YarnDeploymentException("Configuration directory not set");
-		}
-		if (this.flinkConfigurationPath == null) {
-			throw new YarnDeploymentException("Configuration path not set");
 		}
 		if (this.flinkConfiguration == null) {
 			throw new YarnDeploymentException("Flink configuration object has not been set");
@@ -734,12 +704,30 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
-		LocalResource flinkConf = Records.newRecord(LocalResource.class);
-		Path remotePathJar =
-			Utils.setupLocalResource(fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
-		Path remotePathConf =
-			Utils.setupLocalResource(fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
+		Path remotePathJar = Utils.setupLocalResource(
+			fs,
+			appId.toString(),
+			flinkJarPath,
+			appMasterJar,
+			fs.getHomeDirectory());
+
 		localResources.put("flink.jar", appMasterJar);
+
+		// Upload the flink configuration
+		LocalResource flinkConf = Records.newRecord(LocalResource.class);
+
+		// write out configuration file
+		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+		tmpConfigurationFile.deleteOnExit();
+		BootstrapTools.writeConfiguration(flinkConfiguration, tmpConfigurationFile);
+
+		Path remotePathConf = Utils.setupLocalResource(
+			fs,
+			appId.toString(),
+			new Path(tmpConfigurationFile.getAbsolutePath()),
+			flinkConf,
+			fs.getHomeDirectory());
+
 		localResources.put("flink-conf.yaml", flinkConf);
 
 		paths.add(remotePathJar);
