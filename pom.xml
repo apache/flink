@@ -57,6 +57,7 @@ under the License.
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
+		<module>flink-java8</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
@@ -95,7 +96,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
-		<java.version>1.7</java.version>
+		<java.version>1.8</java.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -748,7 +749,7 @@ under the License.
 		<profile>
 			<id>release</id>
 			<properties>
-				<java.version>1.7</java.version>
+				<java.version>1.8</java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -826,40 +827,6 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
-			</build>
-		</profile>
-		<profile>
-			<id>jdk8</id>
-			<!-- do not activate automatically to prevent 1.8 target while Java 7 is the supported -->
-			<properties>
-				<java.version>1.8</java.version>
-			</properties>
-			<modules>
-				<module>flink-java8</module>
-			</modules>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-						<configuration>
-							<quiet>true</quiet>
-						</configuration>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-								<configuration>
-									<additionalparam>-Xdoclint:none</additionalparam>
-									<detectOfflineLinks>false</detectOfflineLinks>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 	</profiles>
