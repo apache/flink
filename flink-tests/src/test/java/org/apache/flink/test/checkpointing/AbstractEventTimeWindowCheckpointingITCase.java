@@ -31,6 +31,8 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -62,6 +64,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
@@ -139,7 +144,18 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
 		}
 
-		cluster = new LocalFlinkMiniCluster(config, false);
+		// purposefully delay in the executor to tease out races
+		final ScheduledExecutorService executor = Executors.newScheduledThreadPool(10);
+		HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+			config,
+			new Executor() {
+				@Override
+				public void execute(Runnable command) {
+					executor.schedule(command, 500, MILLISECONDS);
+				}
+			});
+
+		cluster = new LocalFlinkMiniCluster(config, haServices, false);
 		cluster.start();
 
 		env = new TestStreamEnvironment(cluster, PARALLELISM);
