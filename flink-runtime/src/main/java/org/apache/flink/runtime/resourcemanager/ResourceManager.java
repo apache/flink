@@ -204,7 +204,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@Override
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {
 		Exception exception = null;
 
 		taskManagerHeartbeatManager.stop();
@@ -229,13 +229,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
+		clearState();
+
 		try {
-			super.shutDown();
+			super.postStop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
-
-		clearState();
 
 		if (exception != null) {
 			ExceptionUtils.rethrowException(exception, "Error while shutting the ResourceManager down.");

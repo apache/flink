@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
+import org.apache.flink.runtime.rpc.akka.messages.Shutdown;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -82,10 +83,15 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	/** Throwable which might have been thrown by the postStop method */
+	private Throwable shutdownThrowable;
+
 	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Void> terminationFuture) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 		this.terminationFuture = checkNotNull(terminationFuture);
+
+		this.shutdownThrowable = null;
 	}
 
 	@Override
@@ -96,7 +102,12 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 		// we would complete the future and let the actor system restart the actor with a completed
 		// future.
 		// Complete the termination future so that others know that we've stopped.
-		terminationFuture.complete(null);
+
+		if (shutdownThrowable != null) {
+			terminationFuture.completeExceptionally(shutdownThrowable);
+		} else {
+			terminationFuture.complete(null);
+		}
 	}
 
 	@Override
@@ -134,6 +145,8 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				handleCallAsync((CallAsync) message);
 			} else if (message instanceof RpcInvocation) {
 				handleRpcInvocation((RpcInvocation) message);
+			} else if (message instanceof Shutdown) {
+				triggerShutdown();
 			} else {
 				LOG.warn(
 					"Received message of unknown type {} with value {}. Dropping this message!",
@@ -290,6 +303,17 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 						getContext().dispatcher(), ActorRef.noSender());
 			}
 		}
+	}
+
+	private void triggerShutdown() {
+		try {
+			rpcEndpoint.postStop();
+		} catch (Throwable throwable) {
+			shutdownThrowable = throwable;
+		}
+
+		// now stop the actor which will stop processing of any further messages
+		getContext().system().stop(getSelf());
 	}
 
 	/**

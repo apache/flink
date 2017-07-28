@@ -101,7 +101,7 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 	//------------------------------------------------------
 
 	@Override
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {
 		Exception exception = null;
 		// stop all currently running JobManagerRunners
 		for (JobManagerRunner jobManagerRunner : jobManagerRunners.values()) {
@@ -117,7 +117,7 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 		}
 
 		try {
-			super.shutDown();
+			super.postStop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}

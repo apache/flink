@@ -25,7 +25,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Cancellable;
 import akka.actor.Identify;
-import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
@@ -43,6 +42,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.SelfGateway;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.akka.messages.Shutdown;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -257,8 +257,8 @@ public class AkkaRpcService implements RpcService {
 
 			if (fromThisService) {
 				ActorRef selfActorRef = akkaClient.getRpcEndpoint();
-				LOG.info("Stopping RPC endpoint {}.", selfActorRef.path());
-				selfActorRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+				LOG.info("Trigger shut down of RPC endpoint {}.", selfActorRef.path());
+				selfActorRef.tell(Shutdown.getInstance(), ActorRef.noSender());
 			} else {
 				LOG.debug("RPC endpoint {} already stopped or from different RPC service");
 			}

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.Is;
@@ -232,6 +233,43 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that exception thrown in the postStop method are returned by the termination
+	 * future.
+	 */
+	@Test
+	public void testPostStopExceptionPropagation() throws Exception {
+		FailingPostStopEndpoint rpcEndpoint = new FailingPostStopEndpoint(akkaRpcService, "FailingPostStopEndpoint");
+		rpcEndpoint.start();
+
+		rpcEndpoint.shutDown();
+
+		Future<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
+
+		try {
+			terminationFuture.get();
+		} catch (ExecutionException e) {
+			assertTrue(e.getCause() instanceof FailingPostStopEndpoint.PostStopException);
+		}
+	}
+
+	/**
+	 * Checks that the postStop callback is executed within the main thread.
+	 */
+	@Test
+	public void testPostStopExecutedByMainThread() throws Exception {
+		SimpleRpcEndpoint simpleRpcEndpoint = new SimpleRpcEndpoint(akkaRpcService, "SimpleRpcEndpoint");
+		simpleRpcEndpoint.start();
+
+		simpleRpcEndpoint.shutDown();
+
+		Future<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+
+		// check that we executed the postStop method in the main thread, otherwise an exception
+		// would be thrown here.
+		terminationFuture.get();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------
@@ -303,6 +341,43 @@ public class AkkaRpcActorTest extends TestLogger {
 			}.start();
 
 			return future;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static class SimpleRpcEndpoint extends RpcEndpoint<RpcGateway> {
+
+		protected SimpleRpcEndpoint(RpcService rpcService, String endpointId) {
+			super(rpcService, endpointId);
+		}
+
+		@Override
+		public void postStop() {
+			validateRunsInMainThread();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static class FailingPostStopEndpoint extends RpcEndpoint<RpcGateway> {
+
+		protected FailingPostStopEndpoint(RpcService rpcService, String endpointId) {
+			super(rpcService, endpointId);
+		}
+
+		@Override
+		public void postStop() throws Exception {
+			throw new PostStopException("Test exception.");
+		}
+
+		private static class PostStopException extends FlinkException {
+
+			private static final long serialVersionUID = 6701096588415871592L;
+
+			public PostStopException(String message) {
+				super(message);
+			}
 		}
 	}
 }

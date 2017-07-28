@@ -248,7 +248,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * Called to shut down the TaskManager. The method closes all TaskManager services.
 	 */
 	@Override
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {
 		log.info("Stopping TaskManager {}.", getAddress());
 
 		Exception exception = null;
@@ -272,7 +272,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		fileCache.shutdown();
 
 		try {
-			super.shutDown();
+			super.postStop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
