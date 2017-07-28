@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -74,6 +75,8 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
+	private final Configuration dynamicProperties;
+
 	private MesosConfiguration schedulerConfiguration;
 
 	private MesosServices mesosServices;
@@ -82,8 +85,10 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
 	private ContainerSpecification taskManagerContainerSpec;
 
-	public MesosJobClusterEntrypoint(Configuration config) {
+	public MesosJobClusterEntrypoint(Configuration config, Configuration dynamicProperties) {
 		super(config);
+
+		this.dynamicProperties = Preconditions.checkNotNull(dynamicProperties);
 	}
 
 	@Override
@@ -100,7 +105,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
 		// TM configuration
 		taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, GlobalConfiguration.getDynamicProperties());
+		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, dynamicProperties);
 	}
 
 	@Override
@@ -195,9 +200,10 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			return;
 		}
 
-		Configuration configuration = MesosEntrypointUtils.loadConfiguration(cmd);
+		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+		Configuration configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
-		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration);
+		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration, dynamicProperties);
 
 		clusterEntrypoint.startCluster();
 	}

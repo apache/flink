@@ -19,12 +19,10 @@
 package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.mesos.util.MesosConfiguration;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
@@ -34,7 +32,6 @@ import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 
@@ -48,25 +45,6 @@ import scala.concurrent.duration.FiniteDuration;
  * Utils for Mesos entrpoints.
  */
 public class MesosEntrypointUtils {
-
-	/**
-	 * Loads the global configuration and adds the dynamic properties parsed from
-	 * the given command line.
-	 *
-	 * @param cmd command line to parse for dynamic properties
-	 * @return Global configuration with dynamic properties set
-	 * @deprecated replace once FLINK-7269 has been merged
-	 */
-	@Deprecated
-	public static Configuration loadConfiguration(CommandLine cmd) {
-
-		// merge the dynamic properties from the command-line
-		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-		GlobalConfiguration.setDynamicProperties(dynamicProperties);
-		Configuration config = GlobalConfiguration.loadConfiguration();
-
-		return config;
-	}
 
 	/**
 	 * Loads and validates the Mesos scheduler configuration.

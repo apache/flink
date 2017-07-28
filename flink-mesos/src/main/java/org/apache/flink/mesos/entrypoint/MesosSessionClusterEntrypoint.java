@@ -41,6 +41,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesCo
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -64,6 +65,8 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
+	private final Configuration dynamicProperties;
+
 	private MesosConfiguration mesosConfig;
 
 	private MesosServices mesosServices;
@@ -72,8 +75,10 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 	private ContainerSpecification taskManagerContainerSpec;
 
-	public MesosSessionClusterEntrypoint(Configuration config) {
+	public MesosSessionClusterEntrypoint(Configuration config, Configuration dynamicProperties) {
 		super(config);
+
+		this.dynamicProperties = Preconditions.checkNotNull(dynamicProperties);
 	}
 
 	@Override
@@ -90,7 +95,7 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 		// TM configuration
 		taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, GlobalConfiguration.getDynamicProperties());
+		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, dynamicProperties);
 	}
 
 	@Override
@@ -169,9 +174,10 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			return;
 		}
 
-		Configuration configuration = MesosEntrypointUtils.loadConfiguration(cmd);
+		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+		Configuration configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
-		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration);
+		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration, dynamicProperties);
 
 		clusterEntrypoint.startCluster();
 	}
