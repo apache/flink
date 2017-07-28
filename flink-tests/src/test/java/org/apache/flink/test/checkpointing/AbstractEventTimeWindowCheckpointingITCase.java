@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
@@ -47,19 +48,22 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
-import org.junit.AfterClass;
+
+import org.apache.curator.test.TestingServer;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -84,22 +88,35 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	private static TestStreamEnvironment env;
 
+	private static TestingServer zkServer;
+
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private StateBackendEnum stateBackendEnum;
 	private AbstractStateBackend stateBackend;
 
-	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
+	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) throws IOException {
 		this.stateBackendEnum = stateBackendEnum;
 	}
 
 	enum StateBackendEnum {
-		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, MEM_ASYNC, FILE_ASYNC
+		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, ROCKSDB_INCREMENTAL_ZK, MEM_ASYNC, FILE_ASYNC
 	}
 
-	@BeforeClass
-	public static void startTestCluster() {
+	@Before
+	public void startTestCluster() throws Exception {
+
+		// Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
+		if (ROCKSDB_INCREMENTAL_ZK.equals(stateBackendEnum)) {
+			zkServer = new TestingServer();
+			zkServer.start();
+		}
+
+		TemporaryFolder temporaryFolder = new TemporaryFolder();
+		temporaryFolder.create();
+		final File haDir = temporaryFolder.newFolder();
+
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
@@ -107,21 +124,17 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
 		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
 
+		if (zkServer != null) {
+			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+		}
+
 		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 
 		env = new TestStreamEnvironment(cluster, PARALLELISM);
-	}
 
-	@AfterClass
-	public static void stopTestCluster() {
-		if (cluster != null) {
-			cluster.stop();
-		}
-	}
-
-	@Before
-	public void initStateBackend() throws IOException {
 		switch (stateBackendEnum) {
 			case MEM:
 				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
@@ -146,7 +159,8 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 				this.stateBackend = rdb;
 				break;
 			}
-			case ROCKSDB_INCREMENTAL: {
+			case ROCKSDB_INCREMENTAL:
+			case ROCKSDB_INCREMENTAL_ZK: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
 				String backups = tempFolder.newFolder().getAbsolutePath();
 				// we use the fs backend with small threshold here to test the behaviour with file
@@ -160,7 +174,21 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 				this.stateBackend = rdb;
 				break;
 			}
+			default:
+				throw new IllegalStateException("No backend selected.");
+		}
+	}
 
+	@After
+	public void stopTestCluster() throws IOException {
+		if (cluster != null) {
+			cluster.stop();
+			cluster = null;
+		}
+
+		if (zkServer != null) {
+			zkServer.stop();
+			zkServer = null;
 		}
 	}
 
@@ -172,7 +200,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		final int WINDOW_SIZE = windowSize();
 		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
-		
+
 		try {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -506,7 +534,6 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		}
 	}
 
-
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -667,7 +694,6 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 			assertEquals("Window start: " + value.f1 + " end: " + value.f2, expectedSum, value.f3.value);
 
-
 			Integer curr = windowCounts.get(value.f0);
 			if (curr != null) {
 				windowCounts.put(value.f0, curr + 1);
@@ -753,7 +779,6 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			else {
 				windowCounts.put(value.f0, 1);
 			}
-
 
 			// verify the contents of that window, the contents should be:
 			// (key + num windows so far)
