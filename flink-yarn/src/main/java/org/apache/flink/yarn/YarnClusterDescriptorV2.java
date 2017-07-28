@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the new application master for a job under flip-6.
@@ -35,7 +36,7 @@ public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
 
 	@Override
 	protected Class<?> getApplicationMasterClass() {
-		return YarnFlinkApplicationMasterRunner.class;
+		return YarnSessionClusterEntrypoint.class;
 	}
 
 	@Override

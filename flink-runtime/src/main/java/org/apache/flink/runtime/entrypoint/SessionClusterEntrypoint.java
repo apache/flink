@@ -41,6 +41,10 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 	private Dispatcher dispatcher;
 
+	public SessionClusterEntrypoint(Configuration configuration) {
+		super(configuration);
+	}
+
 	@Override
 	protected void startClusterComponents(
 			Configuration configuration,

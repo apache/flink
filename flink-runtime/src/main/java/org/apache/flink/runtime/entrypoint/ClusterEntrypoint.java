@@ -38,6 +38,7 @@ import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -66,6 +67,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	/** The lock to guard startup / shutdown / manipulation methods. */
 	private final Object lock = new Object();
 
+	private final Configuration configuration;
+
 	@GuardedBy("lock")
 	private MetricRegistry metricRegistry = null;
 
@@ -81,10 +84,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	@GuardedBy("lock")
 	private RpcService commonRpcService = null;
 
-	protected void startCluster(String[] args) {
-		final ClusterConfiguration clusterConfiguration = parseArguments(args);
+	protected ClusterEntrypoint(Configuration configuration) {
+		this.configuration = Preconditions.checkNotNull(configuration);
+	}
 
-		final Configuration configuration = loadConfiguration(clusterConfiguration);
+	protected void startCluster() {
+		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
 			SecurityContext securityContext = installSecurityContext(configuration);
@@ -110,19 +115,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		}
 	}
 
-	protected ClusterConfiguration parseArguments(String[] args) {
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
-
-		final String configDir = parameterTool.get("configDir", "");
-
-		return new ClusterConfiguration(configDir);
-	}
-
-	protected Configuration loadConfiguration(ClusterConfiguration clusterConfiguration) {
-		return GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir());
-	}
-
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
+		LOG.info("Install security context.");
+
 		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(configuration));
 
 		return SecurityUtils.getInstalledContext();
@@ -244,4 +239,16 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry) throws Exception;
+
+	protected static ClusterConfiguration parseArguments(String[] args) {
+		ParameterTool parameterTool = ParameterTool.fromArgs(args);
+
+		final String configDir = parameterTool.get("configDir", "");
+
+		return new ClusterConfiguration(configDir);
+	}
+
+	protected static Configuration loadConfiguration(ClusterConfiguration clusterConfiguration) {
+		return GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir());
+	}
 }
