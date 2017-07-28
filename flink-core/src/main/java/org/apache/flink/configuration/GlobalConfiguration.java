@@ -46,24 +46,6 @@ public final class GlobalConfiguration {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static Configuration dynamicProperties = null;
-
-	/**
-	 * Set the process-wide dynamic properties to be merged with the loaded configuration.
-     */
-	public static void setDynamicProperties(Configuration dynamicProperties) {
-		GlobalConfiguration.dynamicProperties = new Configuration(dynamicProperties);
-	}
-
-	/**
-	 * Get the dynamic properties.
-     */
-	public static Configuration getDynamicProperties() {
-		return GlobalConfiguration.dynamicProperties;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
 	/**
 	 * Loads the global configuration from the environment. Fails if an error occurs during loading. Returns an
 	 * empty configuration object if the environment variable is not set. In production this variable is set but
@@ -109,13 +91,7 @@ public final class GlobalConfiguration {
 					"' (" + confDirFile.getAbsolutePath() + ") does not exist.");
 		}
 
-		Configuration conf = loadYAMLResource(yamlConfigFile);
-
-		if(dynamicProperties != null) {
-			conf.addAll(dynamicProperties);
-		}
-
-		return conf;
+		return loadYAMLResource(yamlConfigFile);
 	}
 
 	/**
