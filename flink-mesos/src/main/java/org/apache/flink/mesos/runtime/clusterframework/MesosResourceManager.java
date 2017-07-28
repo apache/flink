@@ -63,6 +63,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.actor.Kill;
+import akka.pattern.Patterns;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskScheduler;
 import com.netflix.fenzo.VirtualMachineLease;
@@ -78,8 +80,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * The Mesos implementation of the resource manager.
@@ -309,6 +315,114 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				launchCoordinator.tell(new LaunchCoordinator.Assign(toAssign), selfActor);
 			}
 		}
+	}
+
+	@Override
+	public void shutDown() throws Exception {
+		// shut down all components
+		Future<Boolean> stopTaskMonitorFuture = null;
+		Future<Boolean> stopConnectionMonitorFuture = null;
+		Future<Boolean> stopLaunchCoordinatorFuture = null;
+		Future<Boolean> stopReconciliationCoordinatorFuture = null;
+
+		FiniteDuration stopTimeout = null;
+
+		Exception exception = null;
+
+		if (taskMonitor != null) {
+			stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+			stopTaskMonitorFuture = Patterns.gracefulStop(taskMonitor, stopTimeout);
+		}
+
+		if (stopTaskMonitorFuture != null) {
+			boolean stopped = false;
+
+			try {
+				stopped = Await.result(stopTaskMonitorFuture, stopTimeout);
+			} catch (Exception ex) {
+				exception = new Exception("TaskMonitor actor did not properly stop.", ex);
+			}
+
+			if (!stopped) {
+				// the taskMonitor actor did not stop in time, let's kill him
+				taskMonitor.tell(Kill.getInstance(), ActorRef.noSender());
+			}
+		}
+
+		if (connectionMonitor != null) {
+			stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+			stopConnectionMonitorFuture = Patterns.gracefulStop(connectionMonitor, stopTimeout);
+		}
+
+		if (stopConnectionMonitorFuture != null) {
+			boolean stopped = false;
+
+			try {
+				stopped = Await.result(stopConnectionMonitorFuture, stopTimeout);
+			} catch (Exception ex) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new Exception("ConnectionMonitor actor did not properly stop.", ex),
+					exception
+				);
+			}
+
+			if (!stopped) {
+				// the connectionMonitor actor did not stop in time, let's kill him
+				connectionMonitor.tell(Kill.getInstance(), ActorRef.noSender());
+			}
+		}
+
+		if (launchCoordinator != null) {
+			stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+			stopLaunchCoordinatorFuture = Patterns.gracefulStop(launchCoordinator, stopTimeout);
+		}
+
+		if (stopLaunchCoordinatorFuture != null) {
+			boolean stopped = false;
+
+			try {
+				stopped = Await.result(stopLaunchCoordinatorFuture, stopTimeout);
+			} catch (Exception ex) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new Exception("LaunchCoordinator actor did not properly stop.", ex),
+					exception
+				);
+			}
+
+			if (!stopped) {
+				// the launchCoordinator actor did not stop in time, let's kill him
+				launchCoordinator.tell(Kill.getInstance(), ActorRef.noSender());
+			}
+		}
+
+		if (reconciliationCoordinator != null) {
+			stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+			stopReconciliationCoordinatorFuture = Patterns.gracefulStop(reconciliationCoordinator, stopTimeout);
+		}
+
+		if (stopReconciliationCoordinatorFuture != null) {
+			boolean stopped = false;
+
+			try {
+				stopped = Await.result(stopReconciliationCoordinatorFuture, stopTimeout);
+			} catch (Exception ex) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new Exception("ReconciliationCoordinator actor did not properly stop.", ex),
+					exception
+				);
+			}
+
+			if (!stopped) {
+				// the reconciliationCoordinator actor did not stop in time, let's kill him
+				reconciliationCoordinator.tell(Kill.getInstance(), ActorRef.noSender());
+			}
+		}
+
+		if (exception != null) {
+			throw new ResourceManagerException("Error while shutting down Mesos resource manager", exception);
+		}
+
+		super.shutDown();
 	}
 
 	@Override
