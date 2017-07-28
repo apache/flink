@@ -41,6 +41,7 @@ import org.apache.flink.shaded.guava18.com.google.common.base.Predicate;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -675,7 +676,7 @@ public class NFACompiler {
 					proceedCondition,
 					takeCondition,
 					ignoreCondition,
-					followingTakeCondition);;
+					followingTakeCondition);
 			}
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal,
 				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY));
