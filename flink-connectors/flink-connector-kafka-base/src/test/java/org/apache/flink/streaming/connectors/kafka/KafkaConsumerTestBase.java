@@ -1660,10 +1660,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		} finally {
 			// cancel
 			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+			// wait for the job to finish (it should due to the cancel command above)
+			jobThread.join();
 		}
-
-		// wait for the job to finish (it should due to the cancel command above)
-		jobThread.join();
 
 		if (error.f0 != null) {
 			throw error.f0;
