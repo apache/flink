@@ -19,6 +19,8 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -59,6 +61,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,9 +99,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
+	private static final String BUFFERED_EVENTS_STATE_NAME = "bufferedEventsStateName";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
 	private transient MapState<Long, List<IN>> elementQueueState;
+
+	private transient ListState<IN> bufferedEvents;
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
@@ -115,12 +122,15 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 */
 	private final boolean migratingFromOldKeyedOperator;
 
+	private final Comparator<IN> comparator;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
 			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
-			final boolean migratingFromOldKeyedOperator) {
+			final boolean migratingFromOldKeyedOperator,
+			final Comparator<IN> comparator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
@@ -128,6 +138,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 
 		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
+		this.comparator = comparator;
 	}
 
 	@Override
@@ -150,6 +161,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 					)
 			);
 		}
+
+		if (bufferedEvents == null) {
+			bufferedEvents = getRuntimeContext().getListState(
+				new ListStateDescriptor<>(
+						BUFFERED_EVENTS_STATE_NAME,
+						inputSerializer));
+		}
 	}
 
 	@Override
@@ -165,10 +183,14 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (isProcessingTime) {
-			// there can be no out of order elements in processing time
-			NFA<IN> nfa = getNFA();
-			processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
-			updateNFA(nfa);
+			if (comparator == null) {
+				// there can be no out of order elements in processing time
+				NFA<IN> nfa = getNFA();
+				processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
+				updateNFA(nfa);
+			} else {
+				bufferEvent(element.getValue());
+			}
 
 		} else {
 
@@ -215,6 +237,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 	}
 
+	private void bufferEvent(IN event) throws Exception {
+		long currentTime = timerService.currentProcessingTime();
+
+		// buffer the event incoming event
+		bufferedEvents.add(event);
+
+		// register a timer for the next millisecond to sort and emit buffered data
+		timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
+	}
+
 	@Override
 	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
 
@@ -232,7 +264,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
-			for (IN element: elementQueueState.get(timestamp)) {
+			for (IN element: sort(elementQueueState.get(timestamp))) {
 				processEvent(nfa, element, timestamp);
 			}
 			elementQueueState.remove(timestamp);
@@ -257,7 +289,32 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	@Override
 	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-		// not used
+		NFA<IN> nfa = getNFA();
+
+		// emit the events in order
+		for (IN event : sort(bufferedEvents.get())) {
+			processEvent(nfa, event, getProcessingTimeService().getCurrentProcessingTime());
+		}
+
+		// remove all buffered rows
+		bufferedEvents.clear();
+
+		updateNFA(nfa);
+	}
+
+	private Iterable<IN> sort(Iterable<IN> iter) {
+		if (comparator == null) {
+			return iter;
+		} else {
+			// insert all events into the sort buffer
+			List<IN> sortBuffer = new ArrayList<>();
+			for (IN event : iter) {
+				sortBuffer.add(event);
+			}
+			// sort the events
+			Collections.sort(sortBuffer, comparator);
+			return sortBuffer;
+		}
 	}
 
 	private void updateLastSeenWatermark(long timestamp) {
