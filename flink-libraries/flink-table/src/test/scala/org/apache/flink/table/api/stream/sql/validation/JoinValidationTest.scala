@@ -30,16 +30,6 @@ class JoinValidationTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c.rowtime, 'proctime.proctime)
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
-  /** There should exist time conditions **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinUnExistTimeCondition() = {
-    val sql =
-      """
-        |SELECT t2.a
-        |FROM MyTable t1 JOIN MyTable2 t2 ON t1.a = t2.a""".stripMargin
-    streamUtil.verifySql(sql, "n/a")
-  }
-
   /** There should exist exactly two time conditions **/
   @Test(expected = classOf[TableException])
   def testWindowJoinSingleTimeCondition() = {
@@ -116,6 +106,19 @@ class JoinValidationTest extends TableTestBase {
         |FROM MyTable t1, MyTable2 t2
         |WHERE t1.a = t2.a AND
         |  t1.proctime = t2.proctime - INTERVAL '5' SECOND
+        | """.stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Validates that no rowtime attribute is in the output schema **/
+  @Test(expected = classOf[TableException])
+  def testNoRowtimeAttributeInResultForNonWindowInnerJoin(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a
         | """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
