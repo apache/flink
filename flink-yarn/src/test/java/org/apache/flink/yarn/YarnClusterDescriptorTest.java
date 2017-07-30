@@ -134,7 +134,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			"-Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME; // if set
 		final String log4j =
 			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
-		final String mainClass = clusterDescriptor.getApplicationMasterClass().getName();
+		final String mainClass = clusterDescriptor.getYarnSessionClusterEntrypoint();
 		final String args = "";
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
@@ -149,6 +149,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					false,
 					false,
 					false,
@@ -162,6 +163,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					false,
 					false,
 					true,
@@ -176,6 +178,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					false,
 					false,
@@ -189,6 +192,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					false,
 					true,
@@ -203,6 +207,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					false,
 					true,
 					false,
@@ -216,6 +221,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					false,
 					true,
 					true,
@@ -230,6 +236,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					false,
@@ -243,6 +250,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					true,
@@ -260,6 +268,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					false,
@@ -273,6 +282,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					true,
@@ -289,6 +299,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					false,
@@ -302,6 +313,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					true,
@@ -319,6 +331,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					true,
@@ -336,6 +349,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(
+					mainClass,
 					true,
 					true,
 					true,
