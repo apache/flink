@@ -37,7 +37,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
     new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
-  def testProcTimeNonWindow(): Unit = {
+  def testNonWindow(): Unit = {
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
@@ -97,7 +97,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
   }
 
   @Test
-  def testProcTimeNonWindowWithRetract(): Unit = {
+  def testNonWindowWithRetract(): Unit = {
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(

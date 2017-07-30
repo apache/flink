@@ -17,12 +17,15 @@
  */
 package org.apache.flink.table.plan.util
 
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.plan.nodes.datastream._
 
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConversions._
+import scala.collection.mutable
 
 object UpdatingPlanChecker {
 
@@ -37,8 +40,7 @@ object UpdatingPlanChecker {
   /** Extracts the unique keys of the table produced by the plan. */
   def getUniqueKeyFields(plan: RelNode): Option[Array[String]] = {
     val keyExtractor = new UniqueKeyExtractor
-    keyExtractor.go(plan)
-    keyExtractor.keys
+    keyExtractor.visit(plan).map(_.map(_._1).toArray)
   }
 
   private class AppendOnlyValidator extends RelVisitor {
@@ -56,16 +58,20 @@ object UpdatingPlanChecker {
   }
 
   /** Identifies unique key fields in the output of a RelNode. */
-  private class UniqueKeyExtractor extends RelVisitor {
+  private class UniqueKeyExtractor {
 
-    var keys: Option[Array[String]] = None
-
-    override def visit(node: RelNode, ordinal: Int, parent: RelNode): Unit = {
+    // visit() function will return a tuple, the first element is the name of a key field, the
+    // second is a group name that is shared by all equivalent key fields. The group names are
+    // used to identify same keys, for example: select('pk as pk1, 'pk as pk2), both pk1 and pk2
+    // belong to the same group, i.e., pk1. Here we use the lexicographic smallest attribute as
+    // the common group id. A node can have keys if it generates the keys by itself or it
+    // forwards keys from its input(s).
+    def visit(node: RelNode): Option[List[(String, String)]] = {
       node match {
         case c: DataStreamCalc =>
-          super.visit(node, ordinal, parent)
+          val inputKeys = visit(node.getInput(0))
           // check if input has keys
-          if (keys.isDefined) {
+          if (inputKeys.isDefined) {
             // track keys forward
             val inNames = c.getInput.getRowType.getFieldNames
             val inOutNames = c.getProgram.getNamedProjects.asScala
@@ -91,23 +97,36 @@ object UpdatingPlanChecker {
               .map(io => (inNames.get(io._1), io._2))
 
             // filter by input keys
-            val outKeys = inOutNames.filter(io => keys.get.contains(io._1)).map(_._2)
+            val inputKeysAndOutput = inOutNames
+              .filter(io => inputKeys.get.map(e => e._1).contains(io._1))
+
+            val inputKeysMap = inputKeys.get.toMap
+            val inOutGroups = inputKeysAndOutput
+              .map(e => (inputKeysMap(e._1), e._2)).sorted.reverse.toMap
+
+            // get output keys
+            val outputKeys = inputKeysAndOutput
+              .map(io => (io._2, inOutGroups(inputKeysMap(io._1))))
+
             // check if all keys have been preserved
-            if (outKeys.nonEmpty && outKeys.length == keys.get.length) {
+            if (outputKeys.map(_._2).distinct.length == inputKeys.get.map(_._2).distinct.length) {
               // all key have been preserved (but possibly renamed)
-              keys = Some(outKeys.toArray)
+              Some(outputKeys.toList)
             } else {
               // some (or all) keys have been removed. Keys are no longer unique and removed
-              keys = None
+              None
             }
+          } else {
+            None
           }
+
         case _: DataStreamOverAggregate =>
-          super.visit(node, ordinal, parent)
-        // keys are always forwarded by Over aggregate
+          // keys are always forwarded by Over aggregate
+          visit(node.getInput(0))
         case a: DataStreamGroupAggregate =>
           // get grouping keys
           val groupKeys = a.getRowType.getFieldNames.asScala.take(a.getGroupings.length)
-          keys = Some(groupKeys.toArray)
+          Some(groupKeys.map(e => (e, e)).toList)
         case w: DataStreamGroupWindowAggregate =>
           // get grouping keys
           val groupKeys =
@@ -116,14 +135,122 @@ object UpdatingPlanChecker {
           val windowStartEnd = w.getWindowProperties.map(_.name)
           // we have only a unique key if at least one window property is selected
           if (windowStartEnd.nonEmpty) {
-            keys = Some(groupKeys ++ windowStartEnd)
+            val smallestAttribute = windowStartEnd.min
+            Some((groupKeys.map(e => (e, e)) ++ windowStartEnd.map((_, smallestAttribute))).toList)
+          } else {
+            None
+          }
+
+        case j: DataStreamJoin =>
+          val joinType = j.getJoinType
+          joinType match {
+            case JoinRelType.INNER => {
+              // get key(s) for inner join
+              val lInKeys = visit(j.getLeft)
+              val rInKeys = visit(j.getRight)
+              if (lInKeys.isEmpty || rInKeys.isEmpty) {
+                None
+              } else {
+                // Output of inner join must have keys if left and right both contain key(s).
+                // Key groups from both side will be merged by join equi-predicates
+                val lInNames: Seq[String] = j.getLeft.getRowType.getFieldNames
+                val rInNames: Seq[String] = j.getRight.getRowType.getFieldNames
+                val joinNames = j.getRowType.getFieldNames
+
+                // if right field names equal to left field names, calcite will rename right
+                // field names. For example, T1(pk, a) join T2(pk, b), calcite will rename T2(pk, b)
+                // to T2(pk0, b).
+                val rInNamesToJoinNamesMap = rInNames
+                  .zip(joinNames.subList(lInNames.size, joinNames.length))
+                  .toMap
+
+                val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
+                  .map(lInNames.get(_))
+                val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
+                  .map(rInNames.get(_))
+                  .map(rInNamesToJoinNamesMap(_))
+
+                val inKeys: List[(String, String)] = lInKeys.get ++ rInKeys.get
+                    .map(e => (rInNamesToJoinNamesMap(e._1), rInNamesToJoinNamesMap(e._2)))
+
+                getOutputKeysForInnerJoin(
+                  joinNames,
+                  inKeys,
+                  lJoinKeys.zip(rJoinKeys).toList
+                )
+              }
+            }
+            case _ => throw new UnsupportedOperationException(
+              s"An Unsupported JoinType [ $joinType ]")
           }
         case _: DataStreamRel =>
-          // anything else does not forward keys or might duplicate key, so we can stop
-          keys = None
+          // anything else does not forward keys, so we can stop
+          None
       }
     }
 
-  }
+    /**
+      * Get output keys for non-window inner join according to it's inputs.
+      *
+      * @param inNames  Field names of join
+      * @param inKeys   Input keys of join
+      * @param joinKeys JoinKeys of inner join
+      * @return Return output keys of inner join
+      */
+    def getOutputKeysForInnerJoin(
+        inNames: Seq[String],
+        inKeys: List[(String, String)],
+        joinKeys: List[(String, String)])
+    : Option[List[(String, String)]] = {
 
+      val nameToGroups = mutable.HashMap.empty[String,String]
+
+      // merge two groups
+      def merge(nameA: String, nameB: String): Unit = {
+        val ga: String = findGroup(nameA)
+        val gb: String = findGroup(nameB)
+        if (!ga.equals(gb)) {
+          if(ga.compare(gb) < 0) {
+            nameToGroups += (gb -> ga)
+          } else {
+            nameToGroups += (ga -> gb)
+          }
+        }
+      }
+
+      def findGroup(x: String): String = {
+        // find the group of x
+        var r: String = x
+        while (!nameToGroups(r).equals(r)) {
+          r = nameToGroups(r)
+        }
+
+        // point all name to the group name directly
+        var a: String = x
+        var b: String = null
+        while (!nameToGroups(a).equals(r)) {
+          b = nameToGroups(a)
+          nameToGroups += (a -> r)
+          a = b
+        }
+        r
+      }
+
+      // init groups
+      inNames.foreach(e => nameToGroups += (e -> e))
+      inKeys.foreach(e => nameToGroups += (e._1 -> e._2))
+      // merge groups
+      joinKeys.foreach(e => merge(e._1, e._2))
+      // make sure all name point to the group name directly
+      inNames.foreach(findGroup(_))
+
+      val outputGroups = inKeys.map(e => nameToGroups(e._1)).distinct
+      Some(
+        inNames
+          .filter(e => outputGroups.contains(nameToGroups(e)))
+          .map(e => (e, nameToGroups(e)))
+          .toList
+      )
+    }
+  }
 }
