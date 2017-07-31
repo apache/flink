@@ -24,6 +24,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.junit.Test;
 import org.mockito.internal.util.reflection.Whitebox;
 
@@ -35,6 +39,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import static org.apache.flink.api.java.io.AvroOutputFormat.Codec;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -148,6 +153,44 @@ public class AvroOutputFormatTest {
 		outputFormat.open(1, 1);
 		for (int i = 0; i < 100; i++) {
 			outputFormat.writeRecord(new User("testUser", 1, "blue"));
+		}
+		outputFormat.close();
+	}
+
+	@Test
+	public void testGenericRecord() throws IOException {
+		final Path outputPath = new Path(File.createTempFile("avro-output-file", "generic.avro").getAbsolutePath());
+		final AvroOutputFormat<GenericRecord> outputFormat = new AvroOutputFormat<>(outputPath, GenericRecord.class);
+		Schema schema = new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"user\", \"fields\": [{\"name\":\"user_name\", \"type\":\"string\"}, {\"name\":\"favorite_number\", \"type\":\"int\"}, {\"name\":\"favorite_color\", \"type\":\"string\"}]}");
+		outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+		outputFormat.setSchema(schema);
+		output(outputFormat, schema);
+
+		GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
+		DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(new File(outputPath.getPath()), reader);
+
+		while (dataFileReader.hasNext()) {
+			GenericRecord record = dataFileReader.next();
+			assertEquals(record.get("user_name").toString(), "testUser");
+			assertEquals(record.get("favorite_number"), 1);
+			assertEquals(record.get("favorite_color").toString(), "blue");
+		}
+
+		//cleanup
+		FileSystem fs = FileSystem.getLocalFileSystem();
+		fs.delete(outputPath, false);
+
+	}
+
+	private void output(final AvroOutputFormat<GenericRecord> outputFormat, Schema schema) throws IOException {
+		outputFormat.configure(new Configuration());
+		outputFormat.open(1, 1);
+		for (int i = 0; i < 100; i++) {
+			GenericRecord record = new GenericData.Record(schema);
+			record.put("user_name", "testUser");
+			record.put("favorite_number", 1);
+			record.put("favorite_color", "blue");
+			outputFormat.writeRecord(record);
 		}
 		outputFormat.close();
 	}
