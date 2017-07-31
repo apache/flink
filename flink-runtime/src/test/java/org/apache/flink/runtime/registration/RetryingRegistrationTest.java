@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,7 +69,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			assertNotNull(future);
 
 			// multiple accesses return the same future
@@ -98,7 +99,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		TestRetryingRegistration registration = new TestRetryingRegistration(rpc, "testaddress", UUID.randomUUID());
 		registration.startRegistration();
 
-		Future<?> future = registration.getFuture();
+		CompletableFuture<?> future = registration.getFuture();
 		assertTrue(future.isDone());
 
 		try {
@@ -166,7 +167,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			long started = System.nanoTime();
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 					future.get(10L, TimeUnit.SECONDS);
 
@@ -209,7 +210,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			long started = System.nanoTime();
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 					future.get(10L, TimeUnit.SECONDS);
 
@@ -254,7 +255,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			long started = System.nanoTime();
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 					future.get(10, TimeUnit.SECONDS);
 
@@ -337,9 +338,9 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 
 		@Override
-		protected Future<RegistrationResponse> invokeRegistration(
+		protected CompletableFuture<RegistrationResponse> invokeRegistration(
 				TestRegistrationGateway gateway, UUID leaderId, long timeoutMillis) {
-			return gateway.registrationCall(leaderId, timeoutMillis);
+			return FutureUtils.toJava(gateway.registrationCall(leaderId, timeoutMillis));
 		}
 	}
 }

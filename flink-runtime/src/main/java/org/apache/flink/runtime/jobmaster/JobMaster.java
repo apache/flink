@@ -38,6 +38,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -106,6 +107,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
@@ -1044,18 +1046,19 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					getTargetAddress(), getTargetLeaderId())
 			{
 				@Override
-				protected Future<RegistrationResponse> invokeRegistration(
+				protected CompletableFuture<RegistrationResponse> invokeRegistration(
 						ResourceManagerGateway gateway, UUID leaderId, long timeoutMillis) throws Exception
 				{
 					Time timeout = Time.milliseconds(timeoutMillis);
 
-					return gateway.registerJobManager(
-						leaderId,
-						jobManagerLeaderID,
-						jobManagerResourceID,
-						jobManagerRpcAddress,
-						jobID,
-						timeout);
+					return FutureUtils.toJava(
+						gateway.registerJobManager(
+							leaderId,
+							jobManagerLeaderID,
+							jobManagerResourceID,
+							jobManagerRpcAddress,
+							jobID,
+							timeout));
 				}
 			};
 		}
