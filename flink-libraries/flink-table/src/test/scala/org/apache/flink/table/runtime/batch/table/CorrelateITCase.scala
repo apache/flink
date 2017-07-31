@@ -25,11 +25,18 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{Func1, Func13, Func18, RichFunc2}
+import org.apache.flink.table.expressions.utils.{Func1, Func18, RichFunc2}
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils._
-import org.apache.flink.table.utils._
+import org.apache.flink.table.utils.TableFunc0
+import org.apache.flink.table.utils.TableFunc1
+import org.apache.flink.table.utils.TableFunc2
+import org.apache.flink.table.utils.TableFunc3
+import org.apache.flink.table.utils.VarArgsFunc0
+import org.apache.flink.table.utils.HierarchyTableFunction
+import org.apache.flink.table.utils.PojoTableFunc
+import org.apache.flink.table.utils.RichTableFunc1
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
