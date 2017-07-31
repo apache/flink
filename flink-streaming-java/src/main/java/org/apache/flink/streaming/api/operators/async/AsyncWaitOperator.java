@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -217,12 +216,11 @@ public class AsyncWaitOperator<IN, OUT>
 
 			// Cancel the timer once we've completed the stream record buffer entry. This will remove
 			// the register trigger task
-			streamRecordBufferEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<Collection<OUT>>>() {
-				@Override
-				public void accept(StreamElementQueueEntry<Collection<OUT>> value) {
+			streamRecordBufferEntry.onComplete(
+				(StreamElementQueueEntry<Collection<OUT>> value) -> {
 					timerFuture.cancel(true);
-				}
-			}, executor);
+				},
+				executor);
 		}
 
 		addAsyncBufferEntry(streamRecordBufferEntry);
