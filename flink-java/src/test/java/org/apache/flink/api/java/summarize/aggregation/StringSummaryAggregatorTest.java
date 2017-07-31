@@ -19,10 +19,13 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.StringColumnSummary;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-
+/**
+ * Tests for {@link StringSummaryAggregator}.
+ */
 public class StringSummaryAggregatorTest {
 
 	@Test
@@ -64,12 +67,12 @@ public class StringSummaryAggregatorTest {
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating and combining
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
 	 * a bunch of different ways.
 	 */
 	protected StringColumnSummary summarize(String... values) {
 
-		return new AggregateCombineHarness<String,StringColumnSummary,StringSummaryAggregator>(){
+		return new AggregateCombineHarness<String, StringColumnSummary, StringSummaryAggregator>(){
 
 			@Override
 			protected void compareResults(StringColumnSummary result1, StringColumnSummary result2) {
