@@ -151,20 +151,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Edge<K, LongValue>> edgeSourceDegree = input
 			.run(new EdgeSourceDegrees<K, VV, EV>()
 				.setParallelism(parallelism))
-			.map(new ExtractSourceDegree<K, EV>())
+			.map(new ExtractSourceDegree<>())
 				.setParallelism(parallelism)
 				.name("Extract source degree");
 
 		// vertices with zero in-edges
 		DataSet<Tuple2<K, DoubleValue>> sourceVertices = vertexDegree
-			.flatMap(new InitializeSourceVertices<K>())
+			.flatMap(new InitializeSourceVertices<>())
 			.withBroadcastSet(vertexCount, VERTEX_COUNT)
 				.setParallelism(parallelism)
 				.name("Initialize source vertex scores");
 
 		// s, initial pagerank(s)
 		DataSet<Tuple2<K, DoubleValue>> initialScores = vertexDegree
-			.map(new InitializeVertexScores<K>())
+			.map(new InitializeVertexScores<>())
 			.withBroadcastSet(vertexCount, VERTEX_COUNT)
 				.setParallelism(parallelism)
 				.name("Initialize scores");
@@ -178,18 +178,18 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.coGroup(edgeSourceDegree)
 			.where(0)
 			.equalTo(0)
-			.with(new SendScore<K>())
+			.with(new SendScore<>())
 				.setParallelism(parallelism)
 				.name("Send score")
 			.groupBy(0)
-			.reduce(new SumScore<K>())
+			.reduce(new SumScore<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
 		// ignored ID, total pagerank
 		DataSet<Tuple2<K, DoubleValue>> sumOfScores = vertexScores
-			.reduce(new SumVertexScores<K>())
+			.reduce(new SumVertexScores<>())
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -198,7 +198,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.union(sourceVertices)
 				.setParallelism(parallelism)
 				.name("Union with source vertices")
-			.map(new AdjustScores<K>(dampingFactor))
+			.map(new AdjustScores<>(dampingFactor))
 				.withBroadcastSet(sumOfScores, SUM_OF_SCORES)
 				.withBroadcastSet(vertexCount, VERTEX_COUNT)
 					.setParallelism(parallelism)
@@ -211,7 +211,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.join(adjustedScores)
 				.where(0)
 				.equalTo(0)
-				.with(new ChangeInScores<K>())
+				.with(new ChangeInScores<>())
 					.setParallelism(parallelism)
 					.name("Change in scores");
 
@@ -222,7 +222,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		return iterative
 			.closeWith(passThrough)
-			.map(new TranslateResult<K>())
+			.map(new TranslateResult<>())
 				.setParallelism(parallelism)
 				.name("Map result");
 	}

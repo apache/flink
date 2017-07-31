@@ -48,7 +48,7 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 	 * @param data The data set to be broadcasted.
 	 */
 	public void addBroadcastSet(String name, DataSet<?> data) {
-		this.bcVars.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVars.add(new Tuple2<>(name, data));
 	}
 
 	/**

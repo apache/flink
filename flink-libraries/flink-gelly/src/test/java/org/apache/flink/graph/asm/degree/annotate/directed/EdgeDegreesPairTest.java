@@ -53,7 +53,7 @@ extends AsmTestBase {
 			"(5,3,((null),(1,1,0),(4,2,2)))";
 
 		DataSet<Edge<IntValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = directedSimpleGraph
-			.run(new EdgeDegreesPair<IntValue, NullValue, NullValue>());
+			.run(new EdgeDegreesPair<>());
 
 		TestBaseUtils.compareResultAsText(degreesPair.collect(), expectedResult);
 	}
@@ -62,7 +62,7 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 			throws Exception {
 		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = directedRMatGraph(10, 16)
-			.run(new EdgeDegreesPair<LongValue, NullValue, NullValue>());
+			.run(new EdgeDegreesPair<>());
 
 		Checksum checksum = new ChecksumHashCode<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>>()
 			.run(degreesPair)

@@ -26,7 +26,6 @@ import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoeff
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.types.NullValue;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
@@ -53,7 +52,7 @@ extends AsmTestBase {
 			"(5,1,0)";
 
 		DataSet<Result<IntValue>> cc = undirectedSimpleGraph
-			.run(new LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
+			.run(new LocalClusteringCoefficient<>());
 
 		TestBaseUtils.compareResultAsText(cc.collect(), expectedResult);
 	}
@@ -65,7 +64,7 @@ extends AsmTestBase {
 		long expectedTriangleCount = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 
 		DataSet<Result<LongValue>> cc = completeGraph
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+			.run(new LocalClusteringCoefficient<>());
 
 		List<Result<LongValue>> results = cc.collect();
 
@@ -81,7 +80,7 @@ extends AsmTestBase {
 	public void testRMatGraph()
 			throws Exception {
 		DataSet<Result<LongValue>> cc = undirectedRMatGraph(10, 16)
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+			.run(new LocalClusteringCoefficient<>());
 
 		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
 			.run(cc)

@@ -60,7 +60,7 @@ public class GSACompilerTest extends CompilerTestBase {
 		// compose test program
 
 		DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<>(
-			1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<Long, NullValue>());
+			1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<>());
 
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new InitVertices(), env);
 
@@ -68,7 +68,7 @@ public class GSACompilerTest extends CompilerTestBase {
 			new GatherNeighborIds(), new SelectMinId(),
 			new UpdateComponentId(), 100).getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		Plan p = env.createProgramPlan("GSA Connected Components");
 		OptimizedPlan op = compileNoStats(p);

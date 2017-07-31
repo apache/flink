@@ -128,7 +128,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KT, Tuple2<EV, EV>>> newEdges = edges.join(edges)
 			.where(1)
 			.equalTo(1)
-			.with(new ProjectionTopSimple<KT, KB, EV>())
+			.with(new ProjectionTopSimple<>())
 				.name("Simple top projection");
 
 		return Graph.fromDataSet(topVertices, newEdges, context);
@@ -172,7 +172,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KB, Tuple2<EV, EV>>> newEdges =  edges.join(edges)
 			.where(0)
 			.equalTo(0)
-			.with(new ProjectionBottomSimple<KT, KB, EV>())
+			.with(new ProjectionBottomSimple<>())
 			.name("Simple bottom projection");
 
 		return Graph.fromDataSet(bottomVertices, newEdges, context);
@@ -218,7 +218,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KT, Projection<KB, VVB, VVT, EV>>> newEdges = edgesWithVertices.join(edgesWithVertices)
 			.where(1)
 			.equalTo(1)
-			.with(new ProjectionTopFull<KT, KB, EV, VVT, VVB>())
+			.with(new ProjectionTopFull<>())
 				.name("Full top projection");
 
 		return Graph.fromDataSet(topVertices, newEdges, context);
@@ -284,7 +284,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KB, Projection<KT, VVT, VVB, EV>>> newEdges = edgesWithVertices.join(edgesWithVertices)
 			.where(0)
 			.equalTo(0)
-			.with(new ProjectionBottomFull<KT, KB, EV, VVT, VVB>())
+			.with(new ProjectionBottomFull<>())
 				.name("Full bottom projection");
 
 		return Graph.fromDataSet(bottomVertices, newEdges, context);

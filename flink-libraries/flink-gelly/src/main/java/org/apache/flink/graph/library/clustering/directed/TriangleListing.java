@@ -84,11 +84,11 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		// u, v, bitmask where u < v
 		DataSet<Tuple3<K, K, ByteValue>> filteredByID = input
 			.getEdges()
-			.map(new OrderByID<K, EV>())
+			.map(new OrderByID<>())
 				.setParallelism(parallelism)
 				.name("Order by ID")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<>())
 				.setParallelism(parallelism)
 				.name("Flatten by ID");
 
@@ -99,11 +99,11 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 
 		// u, v, bitmask where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple3<K, K, ByteValue>> filteredByDegree = pairDegrees
-			.map(new OrderByDegree<K, EV>())
+			.map(new OrderByDegree<>())
 				.setParallelism(parallelism)
 				.name("Order by degree")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<>())
 				.setParallelism(parallelism)
 				.name("Flatten by degree");
 
@@ -111,7 +111,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		DataSet<Tuple4<K, K, K, ByteValue>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateTriplets<K>())
+			.reduceGroup(new GenerateTriplets<>())
 				.name("Generate triplets");
 
 		// u, v, w, bitmask where (u, v), (u, w), and (v, w) are edges in graph
@@ -119,16 +119,16 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
-			.with(new ProjectTriangles<K>())
+			.with(new ProjectTriangles<>())
 				.name("Triangle listing");
 
 		if (permuteResults) {
 			triangles = triangles
-				.flatMap(new PermuteResult<K>())
+				.flatMap(new PermuteResult<>())
 					.name("Permute triangle vertices");
 		} else if (sortTriangleVertices.get()) {
 			triangles = triangles
-				.map(new SortTriangleVertices<K>())
+				.map(new SortTriangleVertices<>())
 					.name("Sort triangle vertices");
 		}
 

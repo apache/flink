@@ -91,7 +91,7 @@ public class GraphGeneratorUtils {
 	 */
 	public static <K, EV> DataSet<Vertex<K, NullValue>> vertexSet(DataSet<Edge<K, EV>> edges, int parallelism) {
 		DataSet<Vertex<K, NullValue>> vertexSet = edges
-			.flatMap(new EmitSrcAndTarget<K, EV>())
+			.flatMap(new EmitSrcAndTarget<>())
 				.setParallelism(parallelism)
 				.name("Emit source and target labels");
 

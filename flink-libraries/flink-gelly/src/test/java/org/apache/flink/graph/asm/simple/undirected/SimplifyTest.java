@@ -71,7 +71,7 @@ public class SimplifyTest {
 			"(2,0,(null))";
 
 		Graph<IntValue, NullValue, NullValue> simpleGraph = graph
-			.run(new Simplify<IntValue, NullValue, NullValue>(false));
+			.run(new Simplify<>(false));
 
 		TestBaseUtils.compareResultAsText(simpleGraph.getEdges().collect(), expectedResult);
 	}
@@ -84,7 +84,7 @@ public class SimplifyTest {
 			"(1,0,(null))";
 
 		Graph<IntValue, NullValue, NullValue> simpleGraph = graph
-			.run(new Simplify<IntValue, NullValue, NullValue>(true));
+			.run(new Simplify<>(true));
 
 		TestBaseUtils.compareResultAsText(simpleGraph.getEdges().collect(), expectedResult);
 	}

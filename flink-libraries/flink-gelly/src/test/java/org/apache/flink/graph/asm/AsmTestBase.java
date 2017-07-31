@@ -120,7 +120,7 @@ public class AsmTestBase {
 
 		return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
 			.generate()
-			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<>());
 	}
 
 	/**
@@ -149,6 +149,6 @@ public class AsmTestBase {
 
 		return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
 			.generate()
-			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<>(false));
 	}
 }

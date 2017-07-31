@@ -84,14 +84,14 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 		// t
 		DataSet<Vertex<K, LongValue>> targetIds = input
 			.getEdges()
-			.map(new MapEdgeToTargetId<K, EV>())
+			.map(new MapEdgeToTargetId<>())
 				.setParallelism(parallelism)
 				.name("Edge to target ID");
 
 		// t, d(t)
 		DataSet<Vertex<K, LongValue>> targetDegree = targetIds
 			.groupBy(0)
-			.reduce(new DegreeCount<K>())
+			.reduce(new DegreeCount<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Degree count");
@@ -101,7 +101,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 				.leftOuterJoin(targetDegree)
 				.where(0)
 				.equalTo(0)
-				.with(new JoinVertexWithVertexDegree<K, VV>())
+				.with(new JoinVertexWithVertexDegree<>())
 					.setParallelism(parallelism)
 					.name("Zero degree vertices");
 		}
