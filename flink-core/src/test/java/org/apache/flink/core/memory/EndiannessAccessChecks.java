@@ -28,35 +28,17 @@ public class EndiannessAccessChecks {
 	
 	@Test
 	public void testHeapSegment() {
-		try {
-			testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
 	}
 
 	@Test
 	public void testHybridOnHeapSegment() {
-		try {
-			testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(new byte[11111]));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(new byte[11111]));
 	}
 
 	@Test
 	public void testHybridOffHeapSegment() {
-		try {
-			testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(ByteBuffer.allocateDirect(11111)));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(ByteBuffer.allocateDirect(11111)));
 	}
 	
 	private void testBigAndLittleEndianAccessUnaligned(MemorySegment segment) {
