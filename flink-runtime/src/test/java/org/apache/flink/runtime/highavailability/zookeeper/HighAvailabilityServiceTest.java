@@ -33,6 +33,11 @@ import org.apache.flink.runtime.jobmanager.JobInfo;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.zookeeper.KeeperException;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
 
 import org.junit.After;
 import org.junit.Before;
@@ -42,7 +47,7 @@ import org.junit.Test;
 import org.junit.Assert;
 import org.junit.rules.ExpectedException;
 
-public class HighAvailabilityServiceTest {
+public class HighAvailabilityServiceTest extends TestLogger {
 	private TestingServer testingServer;
 	private HighAvailabilityServices zkHaService;
 	private SubmittedJobGraphStore submittedJobGraphStore;
@@ -94,7 +99,7 @@ public class HighAvailabilityServiceTest {
 	 * Tests for that the function of cleanupData(JobID) in SubmittedJobGraph
 	 */
 	@Test
-	public void testCleanSubmittedJobGraphStore() throws Exception {
+	public void testCleanSubmittedJobGraphStore() throws Throwable {
 		SubmittedJobGraph jobGraph1 = new SubmittedJobGraph(
 						new JobGraph("testSubmittedJob1"),
 						new JobInfo(ActorRef.noSender(), ListeningBehaviour.DETACHED, 0, Integer.MAX_VALUE));
@@ -108,8 +113,21 @@ public class HighAvailabilityServiceTest {
 
 		SubmittedJobGraph recoverJobGraph2 = submittedJobGraphStore.recoverJobGraph(jobGraph2.getJobId());
 		Assert.assertEquals(recoverJobGraph2.getJobId(), jobGraph2.getJobId());
+		thrown.expect(new ExceptionCauseMatcher());
 		thrown.expectMessage("Could not retrieve the submitted job graph state handle for /" +
 			jobGraph1.getJobId().toString() + "from the submitted job graph store");
 		submittedJobGraphStore.recoverJobGraph(jobGraph1.getJobId());
+	}
+
+	private class ExceptionCauseMatcher extends TypeSafeMatcher<Exception> {
+
+		@Override
+		protected boolean matchesSafely(Exception exception) {
+			return exception.getCause().getCause() instanceof KeeperException.NoNodeException;
+		}
+
+		@Override
+		public void describeTo(Description description) {
+		}
 	}
 }
