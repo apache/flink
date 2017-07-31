@@ -980,11 +980,11 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		}
 
 		@Override
-		public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+		public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
 			Iterable<TaskManagerLocation> locationPreferences = 
 					task.getTaskToExecute().getVertex().getPreferredLocations();
 
-			return gateway.allocateSlot(task, ResourceProfile.UNKNOWN, locationPreferences, timeout);
+			return FutureUtils.toJava(gateway.allocateSlot(task, ResourceProfile.UNKNOWN, locationPreferences, timeout));
 		}
 	}
 

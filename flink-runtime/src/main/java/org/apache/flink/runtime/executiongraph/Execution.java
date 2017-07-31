@@ -359,7 +359,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					new ScheduledUnit(this, sharingGroup) :
 					new ScheduledUnit(this, sharingGroup, locationConstraint);
 
-			return FutureUtils.toJava(slotProvider.allocateSlot(toSchedule, queued));
+			return slotProvider.allocateSlot(toSchedule, queued);
 		}
 		else {
 			// call race, already deployed, or already done
