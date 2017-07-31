@@ -157,7 +157,7 @@ public class MemorySegmentFactory {
 	}
 
 	/**
-	 * Sets the factory to the {@link HeapMemorySegment#FACTORY} is no factory has been initialized, yet.
+	 * Sets the factory to the {@link HeapMemorySegment#FACTORY} if no factory has been initialized, yet.
 	 */
 	private static void ensureInitialized() {
 		if (factory == null) {

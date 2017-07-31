@@ -32,7 +32,7 @@ import java.nio.ByteBuffer;
  * This class represents a piece of memory managed by Flink. The memory can be on-heap or off-heap,
  * this is transparently handled by this class.
  * <p>
- * This class specialized byte access and byte copy calls for heap memory, while reusing the
+ * This class specializes byte access and byte copy calls for heap memory, while reusing the
  * multi-byte type accesses and cross-segment operations from the MemorySegment.
  * <p>
  * This class subsumes the functionality of the {@link org.apache.flink.core.memory.HeapMemorySegment}, 
