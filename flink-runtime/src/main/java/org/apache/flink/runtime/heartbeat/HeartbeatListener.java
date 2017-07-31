@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Future;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for the interaction with the {@link HeartbeatManager}. The heartbeat listener is used
@@ -58,5 +59,5 @@ public interface HeartbeatListener<I, O> {
 	 *
 	 * @return Future containing the next payload for heartbeats
 	 */
-	Future<O> retrievePayload();
+	CompletableFuture<O> retrievePayload();
 }
