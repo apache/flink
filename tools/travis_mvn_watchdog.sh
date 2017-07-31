@@ -79,6 +79,7 @@ flink-connectors/flink-jdbc,\
 flink-connectors/flink-connector-cassandra,\
 flink-connectors/flink-connector-elasticsearch,\
 flink-connectors/flink-connector-elasticsearch2,\
+flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
 flink-connectors/flink-connector-kafka-0.8,\
@@ -91,14 +92,6 @@ flink-connectors/flink-connector-twitter"
 
 MODULES_TESTS="\
 flink-tests"
-
-if [[ $PROFILE == *"jdk8"* ]]; then
-	case $TEST in
-		(connectors)
-			MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-elasticsearch5"
-		;;
-	esac
-fi
 
 if [[ $PROFILE == *"include-kinesis"* ]]; then
 	case $TEST in
