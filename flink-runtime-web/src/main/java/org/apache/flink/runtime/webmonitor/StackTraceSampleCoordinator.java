@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -159,13 +158,12 @@ public class StackTraceSampleCoordinator {
 
 			// Trigger all samples
 			for (Execution execution: executions) {
-				final CompletableFuture<StackTraceSampleResponse> stackTraceSampleFuture = FutureUtils.toJava(
-					execution.requestStackTraceSample(
-						sampleId,
-						numSamples,
-						delayBetweenSamples,
-						maxStackTraceDepth,
-						timeout));
+				final CompletableFuture<StackTraceSampleResponse> stackTraceSampleFuture = execution.requestStackTraceSample(
+					sampleId,
+					numSamples,
+					delayBetweenSamples,
+					maxStackTraceDepth,
+					timeout);
 
 				stackTraceSampleFuture.handleAsync(
 					(StackTraceSampleResponse stackTraceSampleResponse, Throwable throwable) -> {

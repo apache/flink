@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -37,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -143,7 +142,7 @@ public class FailoverRegion {
 				if (transitionState(curStatus, JobStatus.CANCELLING)) {
 
 					// we build a future that is complete once all vertices have reached a terminal state
-					final ArrayList<Future<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
+					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
 
 					// cancel all tasks (that still need cancelling)
 					for (ExecutionVertex vertex : connectedExecutionVertexes) {
@@ -151,12 +150,9 @@ public class FailoverRegion {
 					}
 
 					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-					allTerminal.thenAcceptAsync(new AcceptFunction<Void>() {
-						@Override
-						public void accept(Void value) {
-							allVerticesInTerminalState(globalModVersionOfFailover);
-						}
-					}, executor);
+					allTerminal.thenAcceptAsync(
+						(Void value) -> allVerticesInTerminalState(globalModVersionOfFailover),
+						executor);
 
 					break;
 				}

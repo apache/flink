@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
@@ -34,6 +33,7 @@ import org.junit.Test;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.*;
 
@@ -51,12 +51,12 @@ public class ExecutionGraphUtilsTest {
 		final SimpleSlot slot2 = new SimpleSlot(createAllocatedSlot(jid, 1), owner, 1);
 		final SimpleSlot slot3 = new SimpleSlot(createAllocatedSlot(jid, 2), owner, 2);
 
-		final FlinkCompletableFuture<SimpleSlot> incompleteFuture = new FlinkCompletableFuture<>();
+		final CompletableFuture<SimpleSlot> incompleteFuture = new CompletableFuture<>();
 
-		final FlinkCompletableFuture<SimpleSlot> completeFuture = new FlinkCompletableFuture<>();
+		final CompletableFuture<SimpleSlot> completeFuture = new CompletableFuture<>();
 		completeFuture.complete(slot2);
 
-		final FlinkCompletableFuture<SimpleSlot> disposedSlotFuture = new FlinkCompletableFuture<>();
+		final CompletableFuture<SimpleSlot> disposedSlotFuture = new CompletableFuture<>();
 		slot3.releaseSlot();
 		disposedSlotFuture.complete(slot3);
 
@@ -89,16 +89,16 @@ public class ExecutionGraphUtilsTest {
 
 		ExecutionAndSlot[] slots1 = new ExecutionAndSlot[] {
 				null,
-				new ExecutionAndSlot(mockExecution, FlinkCompletableFuture.completed(slot1)),
+				new ExecutionAndSlot(mockExecution, CompletableFuture.completedFuture(slot1)),
 				null,
-				new ExecutionAndSlot(mockExecution, FlinkCompletableFuture.completed(slot2)),
+				new ExecutionAndSlot(mockExecution, CompletableFuture.completedFuture(slot2)),
 				null
 		};
 
 		ExecutionAndSlot[] slots2 = new ExecutionAndSlot[] {
-				new ExecutionAndSlot(mockExecution, FlinkCompletableFuture.completed(slot3)),
-				new ExecutionAndSlot(mockExecution, FlinkCompletableFuture.completed(slot4)),
-				new ExecutionAndSlot(mockExecution, FlinkCompletableFuture.completed(slot5))
+				new ExecutionAndSlot(mockExecution, CompletableFuture.completedFuture(slot3)),
+				new ExecutionAndSlot(mockExecution, CompletableFuture.completedFuture(slot4)),
+				new ExecutionAndSlot(mockExecution, CompletableFuture.completedFuture(slot5))
 		};
 
 		List<ExecutionAndSlot[]> resources = Arrays.asList(null, slots1, new ExecutionAndSlot[0], null, slots2);

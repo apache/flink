@@ -20,9 +20,8 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -37,7 +36,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -314,7 +313,7 @@ public class BlobServerPutTest extends TestLogger {
 		final CountDownLatch countDownLatch = new CountDownLatch(concurrentPutOperations);
 		final byte[] data = new byte[dataSize];
 
-		ArrayList<Future<BlobKey>> allFutures = new ArrayList(concurrentPutOperations);
+		ArrayList<CompletableFuture<BlobKey>> allFutures = new ArrayList(concurrentPutOperations);
 
 		ExecutorService executor = Executors.newFixedThreadPool(concurrentPutOperations);
 
@@ -322,14 +321,15 @@ public class BlobServerPutTest extends TestLogger {
 			final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
 
 			for (int i = 0; i < concurrentPutOperations; i++) {
-				Future<BlobKey> putFuture = FlinkCompletableFuture.supplyAsync(new Callable<BlobKey>() {
-					@Override
-					public BlobKey call() throws Exception {
+				CompletableFuture<BlobKey> putFuture = CompletableFuture.supplyAsync(
+					() -> {
 						try (BlobClient blobClient = blobServer.createClient()) {
 							return blobClient.put(new BlockingInputStream(countDownLatch, data));
+						} catch (IOException e) {
+							throw new FlinkFutureException("Could not upload blob.", e);
 						}
-					}
-				}, executor);
+					},
+					executor);
 
 				allFutures.add(putFuture);
 			}

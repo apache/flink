@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -32,7 +31,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -229,7 +228,7 @@ public class BlobServerDeleteTest extends TestLogger {
 		final int concurrentDeleteOperations = 3;
 		final ExecutorService executor = Executors.newFixedThreadPool(concurrentDeleteOperations);
 
-		final List<Future<Void>> deleteFutures = new ArrayList<>(concurrentDeleteOperations);
+		final List<CompletableFuture<Void>> deleteFutures = new ArrayList<>(concurrentDeleteOperations);
 
 		final byte[] data = {1, 2, 3};
 
@@ -244,21 +243,22 @@ public class BlobServerDeleteTest extends TestLogger {
 			assertTrue(blobServer.getStorageLocation(blobKey).exists());
 
 			for (int i = 0; i < concurrentDeleteOperations; i++) {
-				Future<Void> deleteFuture = FlinkCompletableFuture.supplyAsync(new Callable<Void>() {
-					@Override
-					public Void call() throws Exception {
+				CompletableFuture<Void> deleteFuture = CompletableFuture.supplyAsync(
+					() -> {
 						try (BlobClient blobClient = blobServer.createClient()) {
 							blobClient.delete(blobKey);
+						} catch (IOException e) {
+							throw new FlinkFutureException("Could not delete the given blob key " + blobKey + '.', e);
 						}
 
 						return null;
-					}
-				}, executor);
+					},
+					executor);
 
 				deleteFutures.add(deleteFuture);
 			}
 
-			Future<Void> waitFuture = FutureUtils.waitForAll(deleteFutures);
+			CompletableFuture<Void> waitFuture = FutureUtils.waitForAll(deleteFutures);
 
 			// make sure all delete operation have completed successfully
 			// in case of no lock, one of the delete operations should eventually fail
