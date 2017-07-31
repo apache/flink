@@ -57,7 +57,7 @@ YARN classloading differs between single job deploymens and sessions:
 
 **Mesos**
 
-Mesos setups following [this documentation](../setup/mesos.html) currently behave very much like the a 
+Mesos setups following [this documentation](../ops/deployment/mesos.html) currently behave very much like the a 
 YARN session: The TaskManager and JobManager processes are started with the Flink framework classes in classpath, job
 classes are loaded dynamically when the jobs are submitted.
 

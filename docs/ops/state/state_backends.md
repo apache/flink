@@ -1,6 +1,6 @@
 ---
 title: "State Backends"
-nav-parent_id: setup
+nav-parent_id: ops_state
 nav-pos: 11
 ---
 <!--
@@ -28,7 +28,7 @@ Programs written in the [Data Stream API]({{ site.baseurl }}/dev/datastream_api.
 - Transformation functions may use the key/value state interface to store values
 - Transformation functions may implement the `Checkpointed` interface to make their local variables fault tolerant
 
-See also [Working with State]({{ site.baseurl }}/dev/stream/state.html) in the streaming API guide.
+See also [state section]({{ site.baseurl }}/dev/stream/state/index.html) in the streaming API guide.
 
 When checkpointing is activated, such state is persisted upon checkpoints to guard against data loss and recover consistently.
 How the state is represented internally, and how and where it is persisted upon checkpoints depends on the
@@ -66,7 +66,7 @@ by default. To enable this feature, users can instantiate a `MemoryStateBackend`
 Limitations of the MemoryStateBackend:
 
   - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the MemoryStateBackend.
-  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({{ site.baseurl }}/setup/config.html)).
+  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({{ site.baseurl }}/ops/config.html)).
   - The aggregate state must fit into the JobManager memory.
 
 The MemoryStateBackend is encouraged for:
@@ -119,7 +119,7 @@ This allows keeping very large state, compared to the FsStateBackend that keeps 
 This also means, however, that the maximum throughput that can be achieved will be lower with
 this state backend.
 
-RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({{ site.baseurl }}/monitoring/large_state_tuning.html)). 
+RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
 
 ## Configuring a State Backend
 

@@ -31,6 +31,9 @@ fi
 # Fail the build if any broken links are found
 broken_links_str=$(grep -e 'Found [[:digit:]]\+ broken links' spider.log)
 if [ -n "$broken_links_str" ]; then
-    echo -e "\e[1;31m$broken_links_str\e[0m"
+    grep -B 1 "Remote file does not exist -- broken link!!!" spider.log
+    echo "---------------------------------------------------------------------------"
+    echo -e "$broken_links_str"
+    echo "Search for page containing broken link using 'grep -R BROKEN_PATH DOCS_DIR'"
     exit 1
 fi

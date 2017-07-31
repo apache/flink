@@ -1,6 +1,6 @@
 ---
 title: "Checkpoints"
-nav-parent_id: setup
+nav-parent_id: ops_state
 nav-pos: 7
 ---
 <!--
@@ -32,7 +32,7 @@ Checkpoints make state in Flink fault tolerant by allowing state and the
 corresponding stream positions to be recovered, thereby giving the application
 the same semantics as a failure-free execution.
 
-See [Checkpointing](../dev/stream/checkpointing.html) for how to enable and
+See [Checkpointing](../../dev/stream/state/checkpointing.html) for how to enable and
 configure checkpoints for your program.
 
 ## Externalized Checkpoints
@@ -91,7 +91,7 @@ Externalized checkpoints have a few differences from [savepoints](savepoints.htm
 
 A job may be resumed from an externalized checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
-[savepoint restore guide](cli.html#restore-a-savepoint)). Note that if the
+[savepoint restore guide](../cli.html#restore-a-savepoint)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).

@@ -37,7 +37,7 @@ This would be relevant mostly for users implementing custom `TypeSerializer`s fo
 
 Since Flink 1.3, two additional methods have been added that are related to serializer compatibility
 across savepoint restores. Please see
-[Handling serializer upgrades and compatibility]({{ site.baseurl }}/dev/stream/state.html#handling-serializer-upgrades-and-compatibility)
+[Handling serializer upgrades and compatibility]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#handling-serializer-upgrades-and-compatibility)
 for further details on how to implement these methods.
 
 ### `ProcessFunction` is always a `RichFunction`
@@ -75,7 +75,7 @@ For other custom projects, make sure to add logger dependencies. For example, in
 
 ## Migrating from Flink 1.1 to Flink 1.2
 
-As mentioned in the [State documentation]({{ site.baseurl }}/dev/stream/state.html), Flink has two types of state:
+As mentioned in the [State documentation]({{ site.baseurl }}/dev/stream/state/state.html), Flink has two types of state:
 **keyed** and **non-keyed** state (also called **operator** state). Both types are available to
 both operators and user-defined functions. This document will guide you through the process of migrating your Flink 1.1
 function code to Flink 1.2 and will present some important internal changes introduced in Flink 1.2 that concern the
@@ -89,7 +89,7 @@ The migration process will serve two goals:
 Flink 1.1 predecessor.
 
 After following the steps in this guide, you will be able to migrate your running job from Flink 1.1 to Flink 1.2
-simply by taking a [savepoint]({{ site.baseurl }}/setup/savepoints.html) with your Flink 1.1 job and giving it to
+simply by taking a [savepoint]({{ site.baseurl }}/ops/state/savepoints.html) with your Flink 1.1 job and giving it to
 your Flink 1.2 job as a starting point. This will allow the Flink 1.2 job to resume execution from where its
 Flink 1.1 predecessor left off.
 
@@ -203,7 +203,7 @@ contains elements `(test1, 2)` and `(test2, 2)`, when increasing the parallelism
 while `(test2, 2)` will go to task 1.
 
 More details on the principles behind rescaling of both keyed state and non-keyed state can be found in
-the [State documentation]({{ site.baseurl }}/dev/stream/state.html).
+the [State documentation]({{ site.baseurl }}/dev/stream/state/index.html).
 
 ##### ListCheckpointed
 

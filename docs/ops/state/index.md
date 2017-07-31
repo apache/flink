@@ -1,8 +1,8 @@
 ---
-title: "Clusters & Deployment"
-nav-id: deployment
-nav-parent_id: setup
-nav-pos: 5
+nav-title: 'State & Fault Tolerance'
+nav-id: ops_state
+nav-parent_id: ops
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

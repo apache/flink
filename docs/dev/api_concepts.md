@@ -100,7 +100,7 @@ will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from your program, and invoke it through the
-[command line]({{ site.baseurl }}/setup/cli.html), the Flink cluster manager
+[command line]({{ site.baseurl }}/ops/cli.html), the Flink cluster manager
 will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -169,7 +169,7 @@ will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from your program, and invoke it through the
-[command line]({{ site.baseurl }}/apis/cli.html), the Flink cluster manager
+[command line]({{ site.baseurl }}/ops/cli.html), the Flink cluster manager
 will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
