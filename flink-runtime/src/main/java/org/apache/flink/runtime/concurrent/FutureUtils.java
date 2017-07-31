@@ -60,9 +60,7 @@ public class FutureUtils {
 		try {
 			operationResultFuture = operation.call();
 		} catch (Exception e) {
-			java.util.concurrent.CompletableFuture<T> exceptionResult = new java.util.concurrent.CompletableFuture<>();
-			exceptionResult.completeExceptionally(new RetryException("Could not execute the provided operation.", e));
-			return exceptionResult;
+			return FutureUtils.completedExceptionally(new RetryException("Could not execute the provided operation.", e));
 		}
 
 		return operationResultFuture.handleAsync(
@@ -71,10 +69,8 @@ public class FutureUtils {
 					if (retries > 0) {
 						return retry(operation, retries - 1, executor);
 					} else {
-						java.util.concurrent.CompletableFuture<T> exceptionResult = new java.util.concurrent.CompletableFuture<>();
-						exceptionResult.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
+						return FutureUtils.<T>completedExceptionally(new RetryException("Could not complete the operation. Number of retries " +
 							"has been exhausted.", throwable));
-						return exceptionResult;
 					}
 				} else {
 					return java.util.concurrent.CompletableFuture.completedFuture(t);

@@ -55,6 +55,7 @@ import org.mockito.Matchers;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -113,7 +114,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			when(simpleSlot.getRoot()).thenReturn(rootSlot);
 			when(simpleSlot.getAllocatedSlot()).thenReturn(mockAllocatedSlot);
 
-			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 			future.complete(simpleSlot);
 			when(scheduler.allocateSlot(any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 

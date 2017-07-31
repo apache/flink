@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -31,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -197,7 +196,7 @@ public class SchedulerIsolatedTasksTest {
 			final int totalSlots = scheduler.getNumberOfAvailableSlots();
 
 			// all slots we ever got.
-			List<Future<SimpleSlot>> allAllocatedSlots = new ArrayList<>();
+			List<CompletableFuture<SimpleSlot>> allAllocatedSlots = new ArrayList<>();
 
 			// slots that need to be released
 			final Set<SimpleSlot> toRelease = new HashSet<SimpleSlot>();
@@ -236,16 +235,15 @@ public class SchedulerIsolatedTasksTest {
 			disposeThread.start();
 
 			for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
-				Future<SimpleSlot> future = scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), true);
-				future.thenAcceptAsync(new AcceptFunction<SimpleSlot>() {
-					@Override
-					public void accept(SimpleSlot slot) {
+				CompletableFuture<SimpleSlot> future = scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), true);
+				future.thenAcceptAsync(
+					(SimpleSlot slot) -> {
 						synchronized (toRelease) {
 							toRelease.add(slot);
 							toRelease.notifyAll();
 						}
-					}
-				}, TestingUtils.defaultExecutionContext());
+					},
+					TestingUtils.defaultExecutionContext());
 				allAllocatedSlots.add(future);
 			}
 
@@ -254,7 +252,7 @@ public class SchedulerIsolatedTasksTest {
 			assertFalse("The slot releasing thread caused an error.", errored.get());
 
 			List<SimpleSlot> slotsAfter = new ArrayList<SimpleSlot>();
-			for (Future<SimpleSlot> future : allAllocatedSlots) {
+			for (CompletableFuture<SimpleSlot> future : allAllocatedSlots) {
 				slotsAfter.add(future.get());
 			}
 

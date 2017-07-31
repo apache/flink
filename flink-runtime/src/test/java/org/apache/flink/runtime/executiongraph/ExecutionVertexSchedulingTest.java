@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.Instance;
@@ -32,6 +31,8 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
 import org.mockito.Matchers;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
@@ -59,7 +60,7 @@ public class ExecutionVertexSchedulingTest {
 			assertTrue(slot.isReleased());
 
 			Scheduler scheduler = mock(Scheduler.class);
-			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 			future.complete(slot);
 			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
@@ -90,7 +91,7 @@ public class ExecutionVertexSchedulingTest {
 			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
-			final FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			final CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 
 			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
@@ -125,7 +126,7 @@ public class ExecutionVertexSchedulingTest {
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			Scheduler scheduler = mock(Scheduler.class);
-			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 			future.complete(slot);
 			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 

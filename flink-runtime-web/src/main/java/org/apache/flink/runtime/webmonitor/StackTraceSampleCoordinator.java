@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -125,18 +126,14 @@ public class StackTraceSampleCoordinator {
 				executions[i] = execution;
 				triggerIds[i] = execution.getAttemptId();
 			} else {
-				CompletableFuture<StackTraceSample> result = new CompletableFuture();
-				result.completeExceptionally(new IllegalStateException("Task " + tasksToSample[i]
+				return FutureUtils.completedExceptionally(new IllegalStateException("Task " + tasksToSample[i]
 					.getTaskNameWithSubtaskIndex() + " is not running."));
-				return result;
 			}
 		}
 
 		synchronized (lock) {
 			if (isShutDown) {
-				CompletableFuture<StackTraceSample> result = new CompletableFuture();
-				result.completeExceptionally(new IllegalStateException("Shut down"));
-				return result;
+				return FutureUtils.completedExceptionally(new IllegalStateException("Shut down"));
 			}
 
 			final int sampleId = sampleIdCounter++;
