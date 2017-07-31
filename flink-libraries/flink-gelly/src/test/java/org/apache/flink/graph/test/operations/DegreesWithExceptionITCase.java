@@ -20,14 +20,12 @@ package org.apache.flink.graph.test.operations;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -77,7 +75,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
 
 		try {
-			graph.outDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
+			graph.outDegrees().output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("graph.outDegrees() did not fail.");
@@ -100,7 +98,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
 
 		try {
-			graph.inDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
+			graph.inDegrees().output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("graph.inDegrees() did not fail.");
@@ -123,7 +121,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
 
 		try {
-			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
+			graph.getDegrees().output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("graph.getDegrees() did not fail.");
@@ -146,7 +144,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
 
 		try {
-			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
+			graph.getDegrees().output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("graph.getDegrees() did not fail.");
@@ -169,7 +167,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 				TestGraphUtils.getLongLongEdgeInvalidSrcTrgData(env), env);
 
 		try {
-			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
+			graph.getDegrees().output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("graph.getDegrees() did not fail.");

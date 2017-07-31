@@ -42,7 +42,7 @@ extends AsmTestBase {
 	public void testSimpleGraph()
 			throws Exception {
 		DataSet<Result<IntValue>> ji = undirectedSimpleGraph
-			.run(new JaccardIndex<IntValue, NullValue, NullValue>());
+			.run(new JaccardIndex<>());
 
 		String expectedResult =
 			"(0,1,1,4)\n" +

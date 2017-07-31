@@ -91,7 +91,7 @@ public class SpargelTranslationTest {
 		result = graph.runScatterGatherIteration(new MessageFunctionNoEdgeValue(), new UpdateFunction(),
 			NUM_ITERATIONS, parameters).getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		// ------------- validate the java program ----------------
 
@@ -154,7 +154,7 @@ public class SpargelTranslationTest {
 		result = graph.runScatterGatherIteration(new MessageFunctionNoEdgeValue(), new UpdateFunction(),
 			NUM_ITERATIONS, parameters).getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		// ------------- validate the java program ----------------
 

@@ -41,7 +41,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 		// Edges
 		DataSet<Edge<K, EV>> edges = input
 			.getEdges()
-			.filter(new RemoveSelfLoops<K, EV>())
+			.filter(new RemoveSelfLoops<>())
 				.setParallelism(parallelism)
 				.name("Remove self-loops")
 			.distinct(0, 1)

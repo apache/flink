@@ -58,7 +58,7 @@ public class TypeExtractorTest {
 	public void testMapVerticesType() throws Exception {
 
 		// test type extraction in mapVertices
-		DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices = inputGraph.mapVertices(new VertexMapper<Long>()).getVertices();
+		DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices = inputGraph.mapVertices(new VertexMapper<>()).getVertices();
 		Assert.assertTrue(new TupleTypeInfo(Vertex.class, BasicTypeInfo.LONG_TYPE_INFO,
 			new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
 			.equals(outVertices.getType()));
@@ -68,7 +68,7 @@ public class TypeExtractorTest {
 	public void testMapEdgesType() throws Exception {
 
 		// test type extraction in mapEdges
-		DataSet<Edge<Long, Tuple2<Long, Integer>>> outEdges = inputGraph.mapEdges(new EdgeMapper<Long>()).getEdges();
+		DataSet<Edge<Long, Tuple2<Long, Integer>>> outEdges = inputGraph.mapEdges(new EdgeMapper<>()).getEdges();
 		Assert.assertTrue(new TupleTypeInfo(Edge.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
 			new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
 			.equals(outEdges.getType()));
@@ -76,7 +76,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testFromDataSet() throws Exception {
-		DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices = Graph.fromDataSet(edges, new VertexInitializer<Long>(), env)
+		DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices = Graph.fromDataSet(edges, new VertexInitializer<>(), env)
 			.getVertices();
 		Assert.assertTrue(new TupleTypeInfo(Vertex.class, BasicTypeInfo.LONG_TYPE_INFO,
 			new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
@@ -85,7 +85,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testGroupReduceOnEdges() throws Exception {
-		DataSet<Tuple2<Long, Long>> output = inputGraph.groupReduceOnEdges(new EdgesGroupFunction<Long, Long>(), EdgeDirection.OUT);
+		DataSet<Tuple2<Long, Long>> output = inputGraph.groupReduceOnEdges(new EdgesGroupFunction<>(), EdgeDirection.OUT);
 		Assert.assertTrue((new TupleTypeInfo<Tuple2<Long, Long>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)).equals(output.getType()));
 	}
 
@@ -113,7 +113,7 @@ public class TypeExtractorTest {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<Tuple2<K, EV>> out) throws Exception {
-			out.collect(new Tuple2<K, EV>());
+			out.collect(new Tuple2<>());
 		}
 	}
 

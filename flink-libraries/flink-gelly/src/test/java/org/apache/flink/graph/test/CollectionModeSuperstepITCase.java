@@ -21,7 +21,6 @@ package org.apache.flink.graph.test;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.GatherFunction;
@@ -53,8 +52,9 @@ public class CollectionModeSuperstepITCase extends TestLogger {
 				new MessageFunction(), new UpdateFunction(), 10);
 
 		result.getVertices().map(
-				new VertexToTuple2Map<Long, Long>()).output(
-						new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			new VertexToTuple2Map<>()).output(
+				new DiscardingOutputFormat<>());
+
 		env.execute();
 	}
 

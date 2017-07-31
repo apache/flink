@@ -43,7 +43,7 @@ extends AsmTestBase {
 	public void testWithSimpleDirectedGraph()
 			throws Exception {
 		DataSet<Vertex<IntValue, Degrees>> degrees = directedSimpleGraph
-			.run(new VertexDegrees<IntValue, NullValue, NullValue>());
+			.run(new VertexDegrees<>());
 
 		String expectedResult =
 			"(0,(2,2,0))\n" +
@@ -60,7 +60,7 @@ extends AsmTestBase {
 	public void testWithSimpleUndirectedGraph()
 			throws Exception {
 		DataSet<Vertex<IntValue, Degrees>> degrees = undirectedSimpleGraph
-			.run(new VertexDegrees<IntValue, NullValue, NullValue>());
+			.run(new VertexDegrees<>());
 
 		String expectedResult =
 			"(0,(2,2,2))\n" +
@@ -100,7 +100,7 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 	throws Exception {
 		DataSet<Vertex<LongValue, Degrees>> degrees = directedRMatGraph(10, 16)
-			.run(new VertexDegrees<LongValue, NullValue, NullValue>());
+			.run(new VertexDegrees<>());
 
 		Checksum checksum = new ChecksumHashCode<Vertex<LongValue, Degrees>>()
 			.run(degrees)

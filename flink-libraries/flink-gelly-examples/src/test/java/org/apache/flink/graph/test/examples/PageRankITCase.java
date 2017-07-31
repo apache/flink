@@ -52,7 +52,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
+		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<>(0.85, 3))
 			.collect();
 
 		compareWithDelta(result, 0.01);
@@ -65,7 +65,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
+		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<>(0.85, 3))
 			.collect();
 
 		compareWithDelta(result, 0.01);
@@ -78,7 +78,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
+		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<>(0.85, 3))
 			.collect();
 
 		compareWithDelta(result, 0.01);
@@ -91,7 +91,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
+		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<>(0.85, 3))
 			.collect();
 
 		compareWithDelta(result, 0.01);

@@ -153,7 +153,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, LongValue, FloatValue>> inverseLogDegree = input
 			.run(new VertexDegree<K, VV, EV>()
 				.setParallelism(parallelism))
-			.map(new VertexInverseLogDegree<K>())
+			.map(new VertexInverseLogDegree<>())
 				.setParallelism(parallelism)
 				.name("Vertex score");
 
@@ -172,7 +172,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple4<IntValue, K, K, FloatValue>> groupSpans = sourceInverseLogDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateGroupSpans<K>())
+			.reduceGroup(new GenerateGroupSpans<>())
 				.setParallelism(parallelism)
 				.name("Generate group spans");
 
@@ -181,7 +181,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.rebalance()
 				.setParallelism(parallelism)
 				.name("Rebalance")
-			.flatMap(new GenerateGroups<K>())
+			.flatMap(new GenerateGroups<>())
 				.setParallelism(parallelism)
 				.name("Generate groups");
 
@@ -189,19 +189,19 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, K, FloatValue>> twoPaths = groups
 			.groupBy(0, 1)
 			.sortGroup(2, Order.ASCENDING)
-			.reduceGroup(new GenerateGroupPairs<K>())
+			.reduceGroup(new GenerateGroupPairs<>())
 				.name("Generate group pairs");
 
 		// t, u, adamic-adar score
 		GroupReduceOperator<Tuple3<K, K, FloatValue>, Result<K>> scores = twoPaths
 			.groupBy(0, 1)
-			.reduceGroup(new ComputeScores<K>(minimumScore, minimumRatio))
+			.reduceGroup(new ComputeScores<>(minimumScore, minimumRatio))
 				.name("Compute scores");
 
 		if (minimumRatio > 0.0f) {
 			// total score, number of pairs of neighbors
 			DataSet<Tuple2<FloatValue, LongValue>> sumOfScoresAndNumberOfNeighborPairs = inverseLogDegree
-				.map(new ComputeScoreFromVertex<K>())
+				.map(new ComputeScoreFromVertex<>())
 					.setParallelism(parallelism)
 					.name("Average score")
 				.sum(0)
@@ -213,7 +213,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		if (mirrorResults) {
 			return scores
-				.flatMap(new MirrorResult<K, Result<K>>())
+				.flatMap(new MirrorResult<>())
 					.name("Mirror results");
 		} else {
 			return scores;

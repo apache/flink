@@ -176,9 +176,9 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		DataSet<Tuple2<Vertex<K, VV>, Either<NullValue, Message>>> verticesWithMsgs =
 				iteration.getSolutionSet().join(iteration.getWorkset())
 				.where(0).equalTo(0)
-				.with(new AppendVertexState<K, VV, Message>())
-				.returns(new TupleTypeInfo<Tuple2<Vertex<K, VV>, Either<NullValue, Message>>>(
-						vertexType, nullableMsgTypeInfo));
+				.with(new AppendVertexState<>())
+				.returns(new TupleTypeInfo<>(
+					vertexType, nullableMsgTypeInfo));
 
 		VertexComputeUdf<K, VV, EV, Message> vertexUdf =
 			new VertexComputeUdf<>(computeFunction, intermediateTypeInfo);
@@ -190,11 +190,11 @@ public class VertexCentricIteration<K, VV, EV, Message>
 
 		// compute the solution set delta
 		DataSet<Vertex<K, VV>> solutionSetDelta = superstepComputation.flatMap(
-				new ProjectNewVertexValue<K, VV, Message>()).returns(vertexType);
+			new ProjectNewVertexValue<>()).returns(vertexType);
 
 		// compute the inbox of each vertex for the next superstep (new workset)
 		DataSet<Tuple2<K, Either<NullValue, Message>>> allMessages = superstepComputation.flatMap(
-				new ProjectMessages<K, VV, Message>()).returns(workSetTypeInfo);
+			new ProjectMessages<>()).returns(workSetTypeInfo);
 
 		DataSet<Tuple2<K, Either<NullValue, Message>>> newWorkSet = allMessages;
 
