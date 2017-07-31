@@ -30,14 +30,19 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobScheduli
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.rules.TemporaryFolder;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
 
 public class ZooKeeperRegistryTest extends TestLogger {
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private TestingServer testingServer;
 
@@ -60,6 +65,7 @@ public class ZooKeeperRegistryTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 		configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
 
 		final HighAvailabilityServices zkHaService = new ZooKeeperHaServices(
 				ZooKeeperUtils.startCuratorFramework(configuration),

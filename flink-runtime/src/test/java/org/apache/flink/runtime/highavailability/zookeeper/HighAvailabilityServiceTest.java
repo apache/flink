@@ -46,6 +46,7 @@ import org.junit.Test;
 
 import org.junit.Assert;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 
 public class HighAvailabilityServiceTest extends TestLogger {
 	private TestingServer testingServer;
@@ -54,6 +55,8 @@ public class HighAvailabilityServiceTest extends TestLogger {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Before
 	public void before() throws Exception {
@@ -62,7 +65,7 @@ public class HighAvailabilityServiceTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 		configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "temp");
+		configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
 		zkHaService = new ZooKeeperHaServices(
 						ZooKeeperUtils.startCuratorFramework(configuration),
 						Executors.directExecutor(),
