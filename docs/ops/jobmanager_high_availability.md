@@ -1,8 +1,8 @@
 ---
 title: "JobManager High Availability (HA)"
 nav-title: High Availability (HA)
-nav-parent_id: setup
-nav-pos: 6
+nav-parent_id: ops
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -221,7 +221,7 @@ zookeeper.sasl.login-context-name: Client  # default is "Client". The value need
                                            # configured in "security.kerberos.login.contexts".
 </pre>
 
-For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/setup/config.html).
+For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
 You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
 
 ## Bootstrap ZooKeeper

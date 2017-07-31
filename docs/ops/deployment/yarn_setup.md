@@ -118,7 +118,7 @@ Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` en
 ./bin/yarn-session.sh -n 10 -tm 8192 -s 32
 ~~~
 
-The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide](config.html) if you want to change something.
+The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if you want to change something.
 
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `taskmanager.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelism.default` if the number of slots has been specified.
 
@@ -180,7 +180,7 @@ Use the following command to submit a Flink program to the YARN cluster:
 ./bin/flink
 ~~~
 
-Please refer to the documentation of the [command-line client]({{ site.baseurl }}/setup/cli.html).
+Please refer to the documentation of the [command-line client]({{ site.baseurl }}/ops/cli.html).
 
 The command will show you a help menu like this:
 
@@ -291,7 +291,7 @@ It allows to access log files for running YARN applications and shows diagnostic
 
 ## Build YARN client for a specific Hadoop version
 
-Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions](building.html) for more details.
+Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions]({{ site.baseurl }}/start/building.html) for more details.
 
 ## Running Flink on YARN behind Firewalls
 

@@ -1,9 +1,8 @@
 ---
-title: "Deployment & Operations"
-nav-id: "setup"
-nav-title: '<i class="fa fa-sliders title maindish" aria-hidden="true"></i> Deployment & Operations'
-nav-parent_id: root
-nav-pos: 6
+title: "Clusters & Deployment"
+nav-id: deployment
+nav-parent_id: ops
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

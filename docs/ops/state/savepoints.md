@@ -1,6 +1,6 @@
 ---
 title: "Savepoints"
-nav-parent_id: setup
+nav-parent_id: ops_state
 nav-pos: 8
 ---
 <!--
@@ -30,7 +30,7 @@ under the License.
 Savepoints are externally stored self-contained checkpoints that you can use to stop-and-resume or update your Flink programs. They use Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) to create a (non-incremental) snapshot of the state of your streaming program and write the checkpoint data and meta data out to an external file system.
 
 This page covers all steps involved in triggering, restoring, and disposing savepoints.
-For more details on how Flink handles state and failures in general, check out the [State in Streaming Programs]({{ site.baseurl }}/dev/stream/state.html) page.
+For more details on how Flink handles state and failures in general, check out the [State in Streaming Programs]({{ site.baseurl }}/dev/stream/state/index.html) page.
 
 <div class="alert alert-warning">
 <strong>Attention:</strong> In order to allow upgrades between programs and Flink versions, it is important to check out the following section about <a href="#assigning-operator-ids">assigning IDs to your operators</a>.
@@ -70,7 +70,7 @@ In the above example, the print sink is stateless and hence not part of the save
 
 ## Operations
 
-You can use the [command line client]({{ site.baseurl }}/setup/cli.html#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
+You can use the [command line client]({{ site.baseurl }}/ops/cli.html#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
 
 With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the webui.
 

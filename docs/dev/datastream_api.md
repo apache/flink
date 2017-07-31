@@ -1158,7 +1158,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/setup/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <div class="codetabs" markdown="1">
@@ -1604,7 +1604,7 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 ### Fault Tolerance
 
-[State & Checkpointing]({{ site.baseurl }}/dev/stream/checkpointing.html) describes how to enable and configure Flink's checkpointing mechanism.
+[State & Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) describes how to enable and configure Flink's checkpointing mechanism.
 
 ### Controlling Latency
 

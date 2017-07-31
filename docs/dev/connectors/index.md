@@ -80,5 +80,5 @@ When a Flink application pushes a lot of data to an external data store, this
 can become an I/O bottleneck.
 If the data involved has many fewer reads than writes, a better approach can be
 for an external application to pull from Flink the data it needs.
-The [Queryable State]({{ site.baseurl }}/dev/stream/queryable_state.html) interface
+The [Queryable State]({{ site.baseurl }}/dev/stream/state/queryable_state.html) interface
 enables this by allowing the state being managed by Flink to be queried on demand.

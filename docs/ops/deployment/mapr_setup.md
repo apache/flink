@@ -32,7 +32,7 @@ executions on a [MapR](https://mapr.com/) cluster.
 ## Running Flink on YARN with MapR
 
 The instructions below assume MapR version 5.2.0. They will guide you
-to be able to start submitting [Flink on YARN]({{ site.baseurl }}/setup/yarn_setup.html)
+to be able to start submitting [Flink on YARN]({{ site.baseurl }}/ops/deployment/yarn_setup.html)
 jobs or sessions to a MapR cluster.
 
 ### Building Flink for MapR
