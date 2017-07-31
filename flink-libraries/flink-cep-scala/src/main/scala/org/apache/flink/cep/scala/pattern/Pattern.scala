@@ -305,7 +305,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def notFollowedBy(name : String) {
+  def notFollowedBy(name : String): Pattern[T, T] = {
     Pattern[T, T](jPattern.notFollowedBy(name))
   }
 
