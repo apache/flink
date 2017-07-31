@@ -791,7 +791,7 @@ Thus, in order to infer the metric identifier:
       </td>
     </tr>
     <tr>
-      <td>fullRestarts</td>
+      <td>numFullRestarts</td>
       <td>The total number of full restarts since this job was submitted.</td>
     </tr>
   </tbody>
