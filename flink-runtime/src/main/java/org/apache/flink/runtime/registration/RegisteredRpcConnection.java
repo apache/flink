@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.RpcGateway;
 
 import org.slf4j.Logger;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -88,24 +86,18 @@ public abstract class RegisteredRpcConnection<Gateway extends RpcGateway, Succes
 		pendingRegistration = checkNotNull(generateRegistration());
 		pendingRegistration.startRegistration();
 
-		Future<Tuple2<Gateway, Success>> future = pendingRegistration.getFuture();
+		CompletableFuture<Tuple2<Gateway, Success>> future = pendingRegistration.getFuture();
 
-		Future<Void> registrationSuccessFuture = future.thenAcceptAsync(new AcceptFunction<Tuple2<Gateway, Success>>() {
-			@Override
-			public void accept(Tuple2<Gateway, Success> result) {
-				targetGateway = result.f0;
-				onRegistrationSuccess(result.f1);
-			}
-		}, executor);
-
-		// this future should only ever fail if there is a bug, not if the registration is declined
-		registrationSuccessFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable failure) {
-				onRegistrationFailure(failure);
-				return null;
-			}
-		}, executor);
+		future.whenCompleteAsync(
+			(Tuple2<Gateway, Success> result, Throwable failure) -> {
+				// this future should only ever fail if there is a bug, not if the registration is declined
+				if (failure != null) {
+					onRegistrationFailure(failure);
+				} else {
+					targetGateway = result.f0;
+					onRegistrationSuccess(result.f1);
+				}
+			}, executor);
 	}
 
 	/**
