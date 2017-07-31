@@ -107,7 +107,7 @@ You can scan an entire module by opening the Checkstyle tools window and
 clicking the "Check Module" button. The scan should report no errors.
 
 <span class="label label-info">Note</span> Some modules are not fully covered by checkstyle,
-which include `flink-core`, `flink-java`, `flink-optimizer`, and `flink-runtime`.
+which include `flink-core`, `flink-optimizer`, and `flink-runtime`.
 Nevertheless please make sure that code you add/modify in these modules still conforms to the checkstyle rules.
 
 ## Eclipse
