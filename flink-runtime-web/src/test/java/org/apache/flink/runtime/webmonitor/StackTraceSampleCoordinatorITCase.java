@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -44,9 +43,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.AllVerticesRunning;
@@ -150,7 +151,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 								StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(
 										testActorSystem.dispatcher(), 60000);
 
-								Future<StackTraceSample> sampleFuture = coordinator.triggerStackTraceSample(
+								CompletableFuture<StackTraceSample> sampleFuture = coordinator.triggerStackTraceSample(
 									vertex.getTaskVertices(),
 									// Do this often so we have a good
 									// chance of removing the job during
@@ -164,7 +165,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 								Thread.sleep(sleepTime);
 
 								// Cancel job
-								scala.concurrent.Future<?> removeFuture = jm.ask(
+								Future<?> removeFuture = jm.ask(
 										new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()),
 										remaining());
 
