@@ -35,79 +35,42 @@ public class MemorySegmentUndersizedTest {
 	
 	@Test
 	public void testZeroSizeHeapSegment() {
-		try {
-			MemorySegment segment = new HeapMemorySegment(new byte[0]);
+		MemorySegment segment = new HeapMemorySegment(new byte[0]);
 
-			testZeroSizeBuffer(segment);
-			testSegmentWithSizeLargerZero(segment);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testZeroSizeBuffer(segment);
+		testSegmentWithSizeLargerZero(segment);
 	}
 
 	@Test
 	public void testZeroSizeHeapHybridSegment() {
-		try {
-			MemorySegment segment = new HybridMemorySegment(new byte[0]);
+		MemorySegment segment = new HybridMemorySegment(new byte[0]);
 
-			testZeroSizeBuffer(segment);
-			testSegmentWithSizeLargerZero(segment);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testZeroSizeBuffer(segment);
+		testSegmentWithSizeLargerZero(segment);
 	}
 
 	@Test
 	public void testZeroSizeOffHeapHybridSegment() {
-		try {
-			MemorySegment segment = new HybridMemorySegment(ByteBuffer.allocateDirect(0));
+		MemorySegment segment = new HybridMemorySegment(ByteBuffer.allocateDirect(0));
 
-			testZeroSizeBuffer(segment);
-			testSegmentWithSizeLargerZero(segment);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testZeroSizeBuffer(segment);
+		testSegmentWithSizeLargerZero(segment);
 	}
 
 	@Test
 	public void testSizeOneHeapSegment() {
-		try {
-			testSegmentWithSizeLargerZero(new HeapMemorySegment(new byte[1]));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testSegmentWithSizeLargerZero(new HeapMemorySegment(new byte[1]));
 	}
 
 	@Test
 	public void testSizeOneHeapHybridSegment() {
-		try {
-			testSegmentWithSizeLargerZero(new HybridMemorySegment(new byte[1]));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testSegmentWithSizeLargerZero(new HybridMemorySegment(new byte[1]));
 	}
 
 	@Test
 	public void testSizeOneOffHeapHybridSegment() {
-		try {
-			testSegmentWithSizeLargerZero(new HybridMemorySegment(ByteBuffer.allocateDirect(1)));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testSegmentWithSizeLargerZero(new HybridMemorySegment(ByteBuffer.allocateDirect(1)));
 	}
-
 
 	private static void testZeroSizeBuffer(MemorySegment segment) {
 		// ------ bytes ------
