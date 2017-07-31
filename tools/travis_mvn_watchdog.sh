@@ -397,10 +397,19 @@ cd ../../
 case $TEST in
 	(misc)
 		if [ $EXIT_CODE == 0 ]; then
-			echo "Running automated end-to-end tests"
+			echo "\n=============================================================================="
+			echo "Running end-to-end tests"
+			echo "=============================================================================="
 
+			echo "\n=============================================================================="
+			echo "Running Wordcount end-to-end test"
+			echo "=============================================================================="
 			test-infra/end-to-end-test/test_batch_wordcount.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
+
+			echo "\n=============================================================================="
+			echo "Running Kafka end-to-end test"
+			echo "=============================================================================="
 			test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
