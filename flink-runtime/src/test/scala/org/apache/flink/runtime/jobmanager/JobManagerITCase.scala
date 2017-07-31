@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import java.util.concurrent.CompletableFuture
+
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
@@ -25,7 +27,6 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedCheckpoint}
 import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType
 import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobCheckpointingSettings}
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
@@ -913,7 +914,7 @@ class JobManagerITCase(_system: ActorSystem)
           doThrow(new Exception("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
-          val savepointPathPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
+          val savepointPathPromise = new CompletableFuture[CompletedCheckpoint]()
           doReturn(savepointPathPromise)
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
@@ -982,7 +983,7 @@ class JobManagerITCase(_system: ActorSystem)
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 
-          val savepointPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
+          val savepointPromise = new CompletableFuture[CompletedCheckpoint]()
           doReturn(savepointPromise)
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())

@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -47,6 +45,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
@@ -104,7 +103,7 @@ public class PendingCheckpoint {
 	private final String targetDirectory;
 
 	/** The promise to fulfill once the checkpoint has been completed. */
-	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise;
+	private final CompletableFuture<CompletedCheckpoint> onCompletionPromise;
 
 	/** The executor for potentially blocking I/O operations, like state disposal */
 	private final Executor executor;
@@ -149,7 +148,7 @@ public class PendingCheckpoint {
 		this.operatorStates = new HashMap<>();
 		this.masterState = new ArrayList<>();
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
-		this.onCompletionPromise = new FlinkCompletableFuture<>();
+		this.onCompletionPromise = new CompletableFuture<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -249,7 +248,7 @@ public class PendingCheckpoint {
 	 *
 	 * @return A future to the completed checkpoint
 	 */
-	public Future<CompletedCheckpoint> getCompletionFuture() {
+	public CompletableFuture<CompletedCheckpoint> getCompletionFuture() {
 		return onCompletionPromise;
 	}
 

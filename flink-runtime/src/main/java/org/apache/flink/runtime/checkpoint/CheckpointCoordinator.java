@@ -26,9 +26,6 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointLoader;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -58,6 +55,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -362,7 +360,7 @@ public class CheckpointCoordinator {
 	 *                               configured
 	 * @throws Exception             Failures during triggering are forwarded
 	 */
-	public Future<CompletedCheckpoint> triggerSavepoint(long timestamp, String targetDirectory) throws Exception {
+	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(long timestamp, String targetDirectory) throws Exception {
 		checkNotNull(targetDirectory, "Savepoint target directory");
 
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
@@ -377,29 +375,30 @@ public class CheckpointCoordinator {
 			savepointDirectory,
 			false);
 
-		Future<CompletedCheckpoint> result;
+		CompletableFuture<CompletedCheckpoint> result;
 
 		if (triggerResult.isSuccess()) {
 			result = triggerResult.getPendingCheckpoint().getCompletionFuture();
 		} else {
 			Throwable cause = new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message());
-			result = FlinkCompletableFuture.completedExceptionally(cause);
+			result = new CompletableFuture<>();
+			result.completeExceptionally(cause);
+			return result;
 		}
 
 		// Make sure to remove the created base directory on Exceptions
-		result.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable value) {
-				try {
-					SavepointStore.deleteSavepointDirectory(savepointDirectory);
-				} catch (Throwable t) {
-					LOG.warn("Failed to delete savepoint directory " + savepointDirectory
-						+ " after failed savepoint.", t);
+		result.whenCompleteAsync(
+			(CompletedCheckpoint checkpoint, Throwable throwable) -> {
+				if (throwable != null) {
+					try {
+						SavepointStore.deleteSavepointDirectory(savepointDirectory);
+					} catch (Throwable t) {
+						LOG.warn("Failed to delete savepoint directory " + savepointDirectory
+							+ " after failed savepoint.", t);
+					}
 				}
-
-				return null;
-			}
-		}, executor);
+			},
+			executor);
 
 		return result;
 	}
@@ -427,7 +426,7 @@ public class CheckpointCoordinator {
 	 */
 	@VisibleForTesting
 	@Internal
-	public Future<CompletedCheckpoint> triggerCheckpoint(long timestamp, CheckpointOptions options) throws Exception {
+	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(long timestamp, CheckpointOptions options) throws Exception {
 		switch (options.getCheckpointType()) {
 			case SAVEPOINT:
 				return triggerSavepoint(timestamp, options.getTargetLocation());
@@ -440,7 +439,9 @@ public class CheckpointCoordinator {
 					return triggerResult.getPendingCheckpoint().getCompletionFuture();
 				} else {
 					Throwable cause = new Exception("Failed to trigger checkpoint: " + triggerResult.getFailureReason().message());
-					return FlinkCompletableFuture.completedExceptionally(cause);
+					CompletableFuture<CompletedCheckpoint> failedResult = new CompletableFuture<>();
+					failedResult.completeExceptionally(cause);
+					return failedResult;
 				}
 
 			default:

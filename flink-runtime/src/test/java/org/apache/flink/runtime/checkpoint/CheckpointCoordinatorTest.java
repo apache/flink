@@ -26,7 +26,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -76,6 +75,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1446,7 +1446,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// trigger the first checkpoint. this should succeed
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
-		Future<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
 		assertFalse(savepointFuture.isDone());
 
 		// validate that we have a pending savepoint
@@ -1601,7 +1601,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
 		// Trigger savepoint and checkpoint
-		Future<CompletedCheckpoint> savepointFuture1 = coord.triggerSavepoint(timestamp, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture1 = coord.triggerSavepoint(timestamp, savepointDir);
 		long savepointId1 = counter.getLast();
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
@@ -1626,7 +1626,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		long checkpointId3 = counter.getLast();
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
 
-		Future<CompletedCheckpoint> savepointFuture2 = coord.triggerSavepoint(timestamp + 4, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture2 = coord.triggerSavepoint(timestamp + 4, savepointDir);
 		long savepointId2 = counter.getLast();
 		assertEquals(3, coord.getNumberOfPendingCheckpoints());
 
@@ -1911,7 +1911,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			null,
 			Executors.directExecutor());
 
-		List<Future<CompletedCheckpoint>> savepointFutures = new ArrayList<>();
+		List<CompletableFuture<CompletedCheckpoint>> savepointFutures = new ArrayList<>();
 
 		int numSavepoints = 5;
 
@@ -1923,7 +1923,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		}
 
 		// After triggering multiple savepoints, all should in progress
-		for (Future<CompletedCheckpoint> savepointFuture : savepointFutures) {
+		for (CompletableFuture<CompletedCheckpoint> savepointFuture : savepointFutures) {
 			assertFalse(savepointFuture.isDone());
 		}
 
@@ -1934,7 +1934,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		}
 
 		// After ACKs, all should be completed
-		for (Future<CompletedCheckpoint> savepointFuture : savepointFutures) {
+		for (CompletableFuture<CompletedCheckpoint> savepointFuture : savepointFutures) {
 			assertTrue(savepointFuture.isDone());
 		}
 	}
@@ -1966,10 +1966,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
-		Future<CompletedCheckpoint> savepoint0 = coord.triggerSavepoint(0, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepoint0 = coord.triggerSavepoint(0, savepointDir);
 		assertFalse("Did not trigger savepoint", savepoint0.isDone());
 
-		Future<CompletedCheckpoint> savepoint1 = coord.triggerSavepoint(1, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepoint1 = coord.triggerSavepoint(1, savepointDir);
 		assertFalse("Did not trigger savepoint", savepoint1.isDone());
 	}
 
@@ -3600,7 +3600,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		assertTrue(1 == completedCheckpointStore.getNumberOfRetainedCheckpoints());
 
 		// trigger a savepoint --> this should not have any effect on the CompletedCheckpointStore
-		Future<CompletedCheckpoint> savepointFuture = checkpointCoordinator.triggerSavepoint(savepointTimestamp, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture = checkpointCoordinator.triggerSavepoint(savepointTimestamp, savepointDir);
 
 		checkpointCoordinator.receiveAcknowledgeMessage(
 			new AcknowledgeCheckpoint(
