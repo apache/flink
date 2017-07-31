@@ -21,6 +21,8 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.Preconditions;
 
+import akka.dispatch.OnComplete;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -285,5 +287,83 @@ public class FutureUtils {
 		public int getNumFuturesCompleted() {
 			return numCompleted.get();
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Converting futures
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Converts a Scala {@link scala.concurrent.Future} to a {@link java.util.concurrent.CompletableFuture}.
+	 *
+	 * @param scalaFuture to convert to a Java 8 CompletableFuture
+	 * @param <T> type of the future value
+	 * @return Java 8 CompletableFuture
+	 */
+	public static <T> java.util.concurrent.CompletableFuture<T> toJava(scala.concurrent.Future<T> scalaFuture) {
+		final java.util.concurrent.CompletableFuture<T> result = new java.util.concurrent.CompletableFuture<>();
+
+		scalaFuture.onComplete(new OnComplete<T>() {
+			@Override
+			public void onComplete(Throwable failure, T success) throws Throwable {
+				if (failure != null) {
+					result.completeExceptionally(failure);
+				} else {
+					result.complete(success);
+				}
+			}
+		}, Executors.directExecutionContext());
+
+		return result;
+	}
+
+	/**
+	 * Converts a Flink {@link Future} into a {@link CompletableFuture}.
+	 *
+	 * @param flinkFuture to convert to a Java 8 CompletableFuture
+	 * @param <T> type of the future value
+	 * @return Java 8 CompletableFuture
+	 *
+	 * @deprecated Will be removed once we completely remove Flink's futures
+	 */
+	@Deprecated
+	public static <T> java.util.concurrent.CompletableFuture<T> toJava(Future<T> flinkFuture) {
+		final java.util.concurrent.CompletableFuture<T> result = new java.util.concurrent.CompletableFuture<>();
+
+		flinkFuture.handle(
+			(t, throwable) -> {
+				if (throwable != null) {
+					result.completeExceptionally(throwable);
+				} else {
+					result.complete(t);
+				}
+
+				return null;
+			}
+		);
+
+		return result;
+	}
+
+	/**
+	 * Converts a Java 8 {@link java.util.concurrent.CompletableFuture} into a Flink {@link Future}.
+	 *
+	 * @param javaFuture to convert to a Flink future
+	 * @param <T> type of the future value
+	 * @return Flink future
+	 */
+	public static <T> Future<T> toFlinkFuture(java.util.concurrent.CompletableFuture<T> javaFuture) {
+		FlinkCompletableFuture<T> result = new FlinkCompletableFuture<>();
+
+		javaFuture.whenComplete(
+			(value, throwable) -> {
+				if (throwable == null) {
+					result.complete(value);
+				} else {
+					result.completeExceptionally(throwable);
+				}
+			});
+
+		return result;
 	}
 }
