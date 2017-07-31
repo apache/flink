@@ -20,8 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -29,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -36,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
@@ -51,13 +51,13 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the BackPressureStatsTracker.
  */
-public class BackPressureStatsTrackerTest {
+public class BackPressureStatsTrackerTest extends TestLogger {
 
 	/** Tests simple statistics with fake stack traces. */
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTriggerStackTraceSample() throws Exception {
-		CompletableFuture<StackTraceSample> sampleFuture = new FlinkCompletableFuture<>();
+		CompletableFuture<StackTraceSample> sampleFuture = new CompletableFuture<>();
 
 		StackTraceSampleCoordinator sampleCoordinator = mock(StackTraceSampleCoordinator.class);
 		when(sampleCoordinator.triggerStackTraceSample(
