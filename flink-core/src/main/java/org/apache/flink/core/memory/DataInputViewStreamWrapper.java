@@ -34,7 +34,7 @@ public class DataInputViewStreamWrapper extends DataInputStream implements DataI
 	public DataInputViewStreamWrapper(InputStream in) {
 		super(in);
 	}
-	
+
 	@Override
 	public void skipBytesToRead(int numBytes) throws IOException {
 		if (skipBytes(numBytes) != numBytes){

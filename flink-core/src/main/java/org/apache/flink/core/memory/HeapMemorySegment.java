@@ -30,18 +30,20 @@ import java.util.Objects;
  * This class represents a piece of heap memory managed by Flink.
  * The segment is backed by a byte array and features random put and get methods for the basic types,
  * as well as compare and swap methods.
- * <p>
- * This class specialized byte access and byte copy calls for heap memory, while reusing the
+ *
+ * <p>This class specializes byte access and byte copy calls for heap memory, while reusing the
  * multi-byte type accesses and cross-segment operations from the MemorySegment.
- * <p>
- * Note that memory segments should usually not be allocated manually, but rather through the
+ *
+ * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */
 @Internal
 public final class HeapMemorySegment extends MemorySegment {
 
-	/** An extra reference to the heap memory, so we can let byte array checks fail 
-	 *  by the built-in checks automatically without extra checks */
+	/**
+	 * An extra reference to the heap memory, so we can let byte array checks fail by the built-in
+	 * checks automatically without extra checks.
+	 */
 	private byte[] memory;
 
 	/**
@@ -53,7 +55,7 @@ public final class HeapMemorySegment extends MemorySegment {
 	HeapMemorySegment(byte[] memory) {
 		this(memory, null);
 	}
-	
+
 	/**
 	 * Creates a new memory segment that represents the data in the given byte array.
 	 * The memory segment references the given owner.
@@ -65,7 +67,7 @@ public final class HeapMemorySegment extends MemorySegment {
 		super(Objects.requireNonNull(memory), owner);
 		this.memory = memory;
 	}
-	
+
 	// -------------------------------------------------------------------------
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
@@ -94,11 +96,11 @@ public final class HeapMemorySegment extends MemorySegment {
 	public byte[] getArray() {
 		return this.heapMemory;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//                    Random Access get() and put() methods
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public final byte get(int index) {
 		return this.memory[index];
@@ -198,9 +200,11 @@ public final class HeapMemorySegment extends MemorySegment {
 					"The MemorySegment factory was not initialized for off-heap memory.");
 		}
 
-		/** prevent external instantiation */
+		/**
+		 * Prevent external instantiation.
+		 */
 		HeapMemorySegmentFactory() {}
-	};
+	}
 
 	public static final HeapMemorySegmentFactory FACTORY = new HeapMemorySegmentFactory();
 }
