@@ -685,7 +685,7 @@ public class MemoryManager {
 				hybridSegment.free();
 			}
 			else {
-				throw new IllegalArgumentException("Memory segment is not a " + HeapMemorySegment.class.getSimpleName());
+				throw new IllegalArgumentException("Memory segment is not a " + HybridMemorySegment.class.getSimpleName());
 			}
 		}
 
