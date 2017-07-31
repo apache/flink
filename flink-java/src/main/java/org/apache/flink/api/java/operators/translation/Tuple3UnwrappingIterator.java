@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import java.util.Iterator;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.TraversableOnceException;
+
+import java.util.Iterator;
 
 /**
  * An iterator that reads 3-tuples (groupKey, sortKey, value) and returns only the values (third field).

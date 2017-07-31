@@ -21,16 +21,18 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
+/**
+ * A co group operator that applies the operation only on the unwrapped values on the right.
+ */
 @Internal
 public class PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>
-		extends CoGroupOperatorBase<I1, Tuple2<K, I2>, OUT, CoGroupFunction<I1, Tuple2<K, I2>, OUT>>
-{
+		extends CoGroupOperatorBase<I1, Tuple2<K, I2>, OUT, CoGroupFunction<I1, Tuple2<K, I2>, OUT>> {
 
 	public PlanRightUnwrappingCoGroupOperator(
 			CoGroupFunction<I1, I2, OUT> udf,
@@ -52,7 +54,7 @@ public class PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>
 				name);
 	}
 
-	public static final class TupleRightUnwrappingCoGrouper<I1, I2, OUT, K>
+	private static final class TupleRightUnwrappingCoGrouper<I1, I2, OUT, K>
 			extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
 			implements CoGroupFunction<I1, Tuple2<K, I2>, OUT> {
 
@@ -65,7 +67,6 @@ public class PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>
 
 			this.iter2 = new TupleUnwrappingIterator<I2, K>();
 		}
-
 
 		@Override
 		public void coGroup(
