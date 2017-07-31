@@ -31,8 +31,6 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -53,10 +51,12 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * An {@code ExecutionJobVertex} is part of the {@link ExecutionGraph}, and the peer 
@@ -475,7 +475,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			try {
 				// allocate the next slot (future)
 				final Execution exec = vertices[i].getCurrentExecutionAttempt();
-				final Future<SimpleSlot> future = exec.allocateSlotForExecution(resourceProvider, queued);
+				final CompletableFuture<SimpleSlot> future = exec.allocateSlotForExecution(resourceProvider, queued);
 				slots[i] = new ExecutionAndSlot(exec, future);
 				successful = true;
 			}
@@ -507,17 +507,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * 
 	 * @return A future that is complete once all tasks have canceled.
 	 */
-	public Future<Void> cancelWithFuture() {
+	public CompletableFuture<Void> cancelWithFuture() {
 		// we collect all futures from the task cancellations
-		ArrayList<Future<ExecutionState>> futures = new ArrayList<>(parallelism);
-
-		// cancel each vertex
-		for (ExecutionVertex ev : getTaskVertices()) {
-			futures.add(ev.cancel());
-		}
+		CompletableFuture<ExecutionState>[] futures = Arrays.stream(getTaskVertices())
+			.map(ExecutionVertex::cancel)
+			.<CompletableFuture<ExecutionState>>toArray(CompletableFuture[]::new);
 
 		// return a conjunct future, which is complete once all individual tasks are canceled
-		return FutureUtils.waitForAll(futures);
+		return CompletableFuture.allOf(futures);
 	}
 
 	public void fail(Throwable t) {

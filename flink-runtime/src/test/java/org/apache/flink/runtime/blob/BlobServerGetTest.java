@@ -22,9 +22,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +43,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -173,7 +172,7 @@ public class BlobServerGetTest extends TestLogger {
 		final BlobStore blobStore = mock(BlobStore.class);
 
 		final int numberConcurrentGetOperations = 3;
-		final List<Future<InputStream>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
+		final List<CompletableFuture<InputStream>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
 
 		final byte[] data = {1, 2, 3, 4, 99, 42};
 		final ByteArrayInputStream bais = new ByteArrayInputStream(data);
@@ -200,9 +199,8 @@ public class BlobServerGetTest extends TestLogger {
 
 		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
-				Future<InputStream> getOperation = FlinkCompletableFuture.supplyAsync(new Callable<InputStream>() {
-					@Override
-					public InputStream call() throws Exception {
+				CompletableFuture<InputStream> getOperation = CompletableFuture.supplyAsync(
+					() -> {
 						try (BlobClient blobClient = blobServer.createClient();
 							 InputStream inputStream = blobClient.get(blobKey)) {
 							byte[] buffer = new byte[data.length];
@@ -210,14 +208,16 @@ public class BlobServerGetTest extends TestLogger {
 							IOUtils.readFully(inputStream, buffer);
 
 							return new ByteArrayInputStream(buffer);
+						} catch (IOException e) {
+							throw new FlinkFutureException("Could not read blob for key " + blobKey + '.', e);
 						}
-					}
-				}, executor);
+					},
+					executor);
 
 				getOperations.add(getOperation);
 			}
 
-			Future<Collection<InputStream>> inputStreamsFuture = FutureUtils.combineAll(getOperations);
+			CompletableFuture<Collection<InputStream>> inputStreamsFuture = FutureUtils.combineAll(getOperations);
 
 			Collection<InputStream> inputStreams = inputStreamsFuture.get();
 
