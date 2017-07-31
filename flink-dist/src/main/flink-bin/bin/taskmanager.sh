@@ -42,17 +42,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     # if memory allocation mode is lazy and no other JVM options are set,
     # set the 'Concurrent Mark Sweep GC'
     if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z "${FLINK_ENV_JAVA_OPTS}" ] && [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
-
-        JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-
-        # set the GC to G1 in Java 8 and to CMS in Java 7
-        if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
-            if [ "$JAVA_VERSION" -lt 18 ]; then
-                export JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled"
-            else
-                export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
-            fi
-        fi
+        export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
     fi
 
     if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]] || [[ "${FLINK_TM_HEAP}" -lt "0" ]]; then
