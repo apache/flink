@@ -798,19 +798,12 @@ under the License.
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-						<configuration>
-							<quiet>true</quiet>
-						</configuration>
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
 								<goals>
 									<goal>jar</goal>
 								</goals>
-								<configuration>
-									<additionalparam>-Xdoclint:none</additionalparam>
-									<detectOfflineLinks>false</detectOfflineLinks>
-								</configuration>
 							</execution>
 						</executions>
 					</plugin>
@@ -1239,6 +1232,18 @@ under the License.
 
 		<pluginManagement>
 			<plugins>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+					<configuration>
+						<quiet>true</quiet>
+						<additionalparam>-Xdoclint:none</additionalparam>
+						<detectOfflineLinks>false</detectOfflineLinks>
+					</configuration>
+				</plugin>
+
 
 				<!-- Pin the version of the maven shade plugin -->
 				<plugin>
