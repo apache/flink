@@ -27,9 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -771,55 +768,51 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					reservedSlots.add(offer);
 				}
 
-				Future<Iterable<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
-					getResourceID(),
-					reservedSlots,
-					leaderId,
-					taskManagerConfiguration.getTimeout());
+				CompletableFuture<Iterable<SlotOffer>> acceptedSlotsFuture = FutureUtils.toJava(
+					jobMasterGateway.offerSlots(
+						getResourceID(),
+						reservedSlots,
+						leaderId,
+						taskManagerConfiguration.getTimeout()));
 
-				Future<Void> acceptedSlotsAcceptFuture = acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<SlotOffer>>() {
-					@Override
-					public void accept(Iterable<SlotOffer> acceptedSlots) {
-						// check if the response is still valid
-						if (isJobManagerConnectionValid(jobId, leaderId)) {
-							// mark accepted slots active
-							for (SlotOffer acceptedSlot : acceptedSlots) {
-								reservedSlots.remove(acceptedSlot);
-							}
-
-							final Exception e = new Exception("The slot was rejected by the JobManager.");
-
-							for (SlotOffer rejectedSlot: reservedSlots) {
-								freeSlot(rejectedSlot.getAllocationId(), e);
-							}
-						} else {
-							// discard the response since there is a new leader for the job
-							log.debug("Discard offer slot response since there is a new leader " +
-								"for the job {}.", jobId);
-						}
-					}
-				}, getMainThreadExecutor());
-
-				acceptedSlotsAcceptFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
-					@Override
-					public Void apply(Throwable throwable) {
-						if (throwable instanceof TimeoutException) {
-							log.info("Slot offering to JobManager did not finish in time. Retrying the slot offering.");
-							// We ran into a timeout. Try again.
-							offerSlotsToJobManager(jobId);
-						} else {
-							log.warn("Slot offering to JobManager failed. Freeing the slots " +
+				acceptedSlotsFuture.whenCompleteAsync(
+					(Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
+						if (throwable != null) {
+							if (throwable instanceof TimeoutException) {
+								log.info("Slot offering to JobManager did not finish in time. Retrying the slot offering.");
+								// We ran into a timeout. Try again.
+								offerSlotsToJobManager(jobId);
+							} else {
+								log.warn("Slot offering to JobManager failed. Freeing the slots " +
 									"and returning them to the ResourceManager.", throwable);
 
-							// We encountered an exception. Free the slots and return them to the RM.
-							for (SlotOffer reservedSlot: reservedSlots) {
-								freeSlot(reservedSlot.getAllocationId(), throwable);
+								// We encountered an exception. Free the slots and return them to the RM.
+								for (SlotOffer reservedSlot: reservedSlots) {
+									freeSlot(reservedSlot.getAllocationId(), throwable);
+								}
+							}
+						} else {
+							// check if the response is still valid
+							if (isJobManagerConnectionValid(jobId, leaderId)) {
+								// mark accepted slots active
+								for (SlotOffer acceptedSlot : acceptedSlots) {
+									reservedSlots.remove(acceptedSlot);
+								}
+
+								final Exception e = new Exception("The slot was rejected by the JobManager.");
+
+								for (SlotOffer rejectedSlot : reservedSlots) {
+									freeSlot(rejectedSlot.getAllocationId(), e);
+								}
+							} else {
+								// discard the response since there is a new leader for the job
+								log.debug("Discard offer slot response since there is a new leader " +
+									"for the job {}.", jobId);
 							}
 						}
+					},
+					getMainThreadExecutor());
 
-						return null;
-					}
-				});
 			} else {
 				log.debug("There are no unassigned slots for the job {}.", jobId);
 			}
@@ -992,17 +985,16 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	{
 		final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
-		Future<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(
-				jobMasterLeaderId, taskExecutionState);
+		CompletableFuture<Acknowledge> futureAcknowledge = FutureUtils.toJava(
+			jobMasterGateway.updateTaskExecutionState(jobMasterLeaderId, taskExecutionState));
 
-		futureAcknowledge.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable value) {
-				failTask(executionAttemptID, value);
-
-				return null;
-			}
-		}, getMainThreadExecutor());
+		futureAcknowledge.whenCompleteAsync(
+			(ack, throwable) -> {
+				if (throwable != null) {
+					failTask(executionAttemptID, throwable);
+				}
+			},
+			getMainThreadExecutor());
 	}
 
 	private void unregisterTaskAndNotifyFinalState(
