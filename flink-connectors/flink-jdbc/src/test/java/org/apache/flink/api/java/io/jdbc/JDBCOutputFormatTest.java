@@ -24,6 +24,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
 
 import org.apache.flink.types.Row;
 import org.junit.After;
@@ -80,8 +82,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 	}
 
-
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = RuntimeException.class)
 	public void testIncompatibleTypes() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -98,6 +99,60 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		row.setField(4, "imthewrongtype");
 
 		jdbcOutputFormat.writeRecord(row);
+		jdbcOutputFormat.close();
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testExceptionOnInvalidType() throws IOException {
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
+			.setSqlTypes(new int[] {
+				Types.INTEGER,
+				Types.VARCHAR,
+				Types.VARCHAR,
+				Types.DOUBLE,
+				Types.INTEGER})
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		JDBCTestBase.TestEntry entry = TEST_DATA[0];
+		Row row = new Row(5);
+		row.setField(0, entry.id);
+		row.setField(1, entry.title);
+		row.setField(2, entry.author);
+		row.setField(3, 0L); // use incompatible type (Long instead of Double)
+		row.setField(4, entry.qty);
+		jdbcOutputFormat.writeRecord(row);
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testExceptionOnClose() throws IOException {
+
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
+			.setSqlTypes(new int[] {
+				Types.INTEGER,
+				Types.VARCHAR,
+				Types.VARCHAR,
+				Types.DOUBLE,
+				Types.INTEGER})
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		JDBCTestBase.TestEntry entry = TEST_DATA[0];
+		Row row = new Row(5);
+		row.setField(0, entry.id);
+		row.setField(1, entry.title);
+		row.setField(2, entry.author);
+		row.setField(3, entry.price);
+		row.setField(4, entry.qty);
+		jdbcOutputFormat.writeRecord(row);
+		jdbcOutputFormat.writeRecord(row); // writing the same record twice must yield a unique key violation.
+
 		jdbcOutputFormat.close();
 	}
 
@@ -138,6 +193,19 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				recordCount++;
 			}
 			Assert.assertEquals(TEST_DATA.length, recordCount);
+		}
+	}
+
+	@After
+	public void clearOutputTable() throws Exception {
+		Class.forName(DRIVER_CLASS);
+		try (
+			Connection conn = DriverManager.getConnection(DB_URL);
+			Statement stat = conn.createStatement()) {
+			stat.execute("DELETE FROM " + OUTPUT_TABLE);
+
+			stat.close();
+			conn.close();
 		}
 	}
 }

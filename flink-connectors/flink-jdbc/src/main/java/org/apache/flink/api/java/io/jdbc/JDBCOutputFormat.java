@@ -18,24 +18,25 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.slf4j.LoggerFactory;
+
+import java.sql.PreparedStatement;
+import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.Row;
+
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.types.Row;
-import org.apache.flink.configuration.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * OutputFormat to write tuples into a database.
+ * OutputFormat to write Rows into a JDBC database.
  * The OutputFormat has to be configured using the supplied OutputFormatBuilder.
- * 
- * @see Tuple
+ *
+ * @see Row
  * @see DriverManager
  */
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
@@ -54,9 +55,9 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private PreparedStatement upload;
 	
 	private int batchCount = 0;
-	
-	public int[] typesArray;
-	
+
+	private int[] typesArray;
+
 	public JDBCOutputFormat() {
 	}
 	
@@ -201,12 +202,18 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			}
 			upload.addBatch();
 			batchCount++;
-			if (batchCount >= batchInterval) {
+		} catch (SQLException e) {
+			throw new RuntimeException("Preparation of JDBC statement failed.", e);
+		}
+
+		if (batchCount >= batchInterval) {
+			// execute batch
+			try {
 				upload.executeBatch();
 				batchCount = 0;
+			} catch (SQLException e) {
+				throw new RuntimeException("Execution of JDBC statement failed.", e);
 			}
-		} catch (SQLException | IllegalArgumentException e) {
-			throw new IllegalArgumentException("writeRecord() failed", e);
 		}
 	}
 	
@@ -217,26 +224,32 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
-		try {
-			if (upload != null) {
+		if (upload != null) {
+			// execute last batch
+			try {
 				upload.executeBatch();
+			} catch (SQLException e) {
+				throw new RuntimeException("Execution of JDBC statement failed.", e);
+			}
+			// close the connection
+			try {
 				upload.close();
+			} catch (SQLException e) {
+				LOG.info("JDBC statement could not be closed: " + e.getMessage());
+			} finally {
+				upload = null;
 			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			upload = null;
-			batchCount = 0;
 		}
-		
-		try {
-			if (dbConn != null) {
+		batchCount = 0;
+
+		if (dbConn != null) {
+			try {
 				dbConn.close();
+			} catch (SQLException se) {
+				LOG.info("JDBC connection could not be closed: " + se.getMessage());
+			} finally {
+				dbConn = null;
 			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			dbConn = null;
 		}
 	}
 	
