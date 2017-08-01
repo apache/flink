@@ -37,7 +37,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -84,6 +83,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -1109,15 +1109,14 @@ public class Task implements Runnable, TaskActions {
 		final IntermediateDataSetID intermediateDataSetId,
 		final ResultPartitionID resultPartitionId) {
 
-		org.apache.flink.runtime.concurrent.Future<ExecutionState> futurePartitionState =
+		CompletableFuture<ExecutionState> futurePartitionState =
 			partitionProducerStateChecker.requestPartitionProducerState(
 				jobId,
 				intermediateDataSetId,
 				resultPartitionId);
 
-		futurePartitionState.handleAsync(new BiFunction<ExecutionState, Throwable, Void>() {
-			@Override
-			public Void apply(ExecutionState executionState, Throwable throwable) {
+		futurePartitionState.whenCompleteAsync(
+			(ExecutionState executionState, Throwable throwable) -> {
 				try {
 					if (executionState != null) {
 						onPartitionStateUpdate(
@@ -1141,10 +1140,8 @@ public class Task implements Runnable, TaskActions {
 				} catch (IOException | InterruptedException e) {
 					failExternally(e);
 				}
-
-				return null;
-			}
-		}, executor);
+			},
+			executor);
 	}
 
 	// ------------------------------------------------------------------------

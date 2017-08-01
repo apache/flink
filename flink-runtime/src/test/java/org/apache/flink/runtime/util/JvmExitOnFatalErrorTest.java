@@ -29,7 +29,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -66,6 +65,7 @@ import org.junit.Test;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -247,7 +247,7 @@ public class JvmExitOnFatalErrorTest {
 		private static final class NoOpPartitionProducerStateChecker implements PartitionProducerStateChecker {
 
 			@Override
-			public Future<ExecutionState> requestPartitionProducerState(
+			public CompletableFuture<ExecutionState> requestPartitionProducerState(
 					JobID jobId, IntermediateDataSetID intermediateDataSetId, ResultPartitionID r) {
 				return null;
 			}
