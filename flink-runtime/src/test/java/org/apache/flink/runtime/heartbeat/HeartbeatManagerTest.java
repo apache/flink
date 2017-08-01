@@ -286,10 +286,6 @@ public class HeartbeatManagerTest extends TestLogger {
 			this.payload = payload;
 		}
 
-		public CompletableFuture<ResourceID> getFuture() {
-			return future;
-		}
-
 		CompletableFuture<ResourceID> getTimeoutFuture() {
 			return future;
 		}
