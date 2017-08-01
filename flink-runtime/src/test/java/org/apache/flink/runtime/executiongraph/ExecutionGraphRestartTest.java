@@ -95,6 +95,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private final static int NUM_TASKS = 31;
 
+	/**
+	 * Default timeout for waiting for a job's vertexes to deploy (each; in milliseconds).
+	 */
+	public static final int DEFAULT_WAIT_DEPLOYED_TIMEOUT = 1000;
+
+	/**
+	 * Default timeout for waiting for job status changes (in milliseconds).
+	 */
+	public static final int DEFAULT_STATUS_CHANGED_TIMEOUT = 2000;
+
 	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
 	@After
@@ -589,7 +599,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
 
-		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		waitUntilDeployedAndSwitchToRunning(eg, DEFAULT_WAIT_DEPLOYED_TIMEOUT);
 
 		final ExecutionJobVertex vertex = eg.getVerticesTopologically().iterator().next();
 		final Execution first = vertex.getTaskVertices()[0].getCurrentExecutionAttempt();
@@ -628,11 +638,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		readyLatch.await();
 		failTrigger.trigger();
 
-		waitUntilJobStatus(eg, JobStatus.FAILING, 1000);
+		waitUntilJobStatus(eg, JobStatus.FAILING, DEFAULT_STATUS_CHANGED_TIMEOUT);
 		completeCancellingForAllVertices(eg);
 
-		waitUntilJobStatus(eg, JobStatus.RUNNING, 1000);
-		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		waitUntilJobStatus(eg, JobStatus.RUNNING, DEFAULT_STATUS_CHANGED_TIMEOUT);
+		waitUntilDeployedAndSwitchToRunning(eg, DEFAULT_WAIT_DEPLOYED_TIMEOUT);
 		finishAllVertices(eg);
 
 		eg.waitUntilTerminal();
@@ -653,13 +663,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
 
-		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		waitUntilDeployedAndSwitchToRunning(eg, DEFAULT_WAIT_DEPLOYED_TIMEOUT);
 
 		// fail into 'RESTARTING'
 		eg.failGlobal(new Exception("intended test failure 1"));
 		assertEquals(JobStatus.FAILING, eg.getState());
 		completeCancellingForAllVertices(eg);
-		waitUntilJobStatus(eg, JobStatus.RESTARTING, 1000);
+		waitUntilJobStatus(eg, JobStatus.RESTARTING, DEFAULT_STATUS_CHANGED_TIMEOUT);
 
 		eg.failGlobal(new Exception("intended test failure 2"));
 		assertEquals(JobStatus.RESTARTING, eg.getState());
@@ -667,8 +677,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		// trigger both restart strategies to kick in concurrently
 		restartTrigger.trigger();
 
-		waitUntilJobStatus(eg, JobStatus.RUNNING, 1000);
-		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		waitUntilJobStatus(eg, JobStatus.RUNNING, DEFAULT_STATUS_CHANGED_TIMEOUT);
+		waitUntilDeployedAndSwitchToRunning(eg, DEFAULT_WAIT_DEPLOYED_TIMEOUT);
 		finishAllVertices(eg);
 
 		eg.waitUntilTerminal();
@@ -706,7 +716,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
 
-		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		waitUntilDeployedAndSwitchToRunning(eg, DEFAULT_WAIT_DEPLOYED_TIMEOUT);
 
 		// fail into 'RESTARTING'
 		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().fail(
@@ -716,10 +726,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		completeCancellingForAllVertices(eg);
 
 		// clean termination
-		waitUntilJobStatus(eg, JobStatus.RUNNING, 1000);
-		waitUntilDeployedAndSwitchToRunning(eg, 1000);
+		waitUntilJobStatus(eg, JobStatus.RUNNING, DEFAULT_STATUS_CHANGED_TIMEOUT);
+		waitUntilDeployedAndSwitchToRunning(eg, DEFAULT_WAIT_DEPLOYED_TIMEOUT);
 		finishAllVertices(eg);
-		waitUntilJobStatus(eg, JobStatus.FINISHED, 1000);
+		waitUntilJobStatus(eg, JobStatus.FINISHED, DEFAULT_STATUS_CHANGED_TIMEOUT);
 	}
 
 	@Test
@@ -756,7 +766,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			Thread.sleep(1);
 		}
 
-		waitUntilJobStatus(eg, JobStatus.FAILED, 1000);
+		waitUntilJobStatus(eg, JobStatus.FAILED, DEFAULT_STATUS_CHANGED_TIMEOUT);
 
 		final Throwable t = eg.getFailureCause().getException();
 		if (!(t instanceof NoResourceAvailableException)) {
