@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
+
+import java.util.concurrent.CompletableFuture;
 
 public class NotCancelAckingTaskGateway extends SimpleAckingTaskManagerGateway {
 
 	@Override
-	public org.apache.flink.runtime.concurrent.Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		return new FlinkCompletableFuture<>();
+	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+		return new CompletableFuture<>();
 	}
 }

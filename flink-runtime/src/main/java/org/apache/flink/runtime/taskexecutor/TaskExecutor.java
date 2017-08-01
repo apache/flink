@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -768,12 +767,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					reservedSlots.add(offer);
 				}
 
-				CompletableFuture<Iterable<SlotOffer>> acceptedSlotsFuture = FutureUtils.toJava(
-					jobMasterGateway.offerSlots(
-						getResourceID(),
-						reservedSlots,
-						leaderId,
-						taskManagerConfiguration.getTimeout()));
+				CompletableFuture<Iterable<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
+					getResourceID(),
+					reservedSlots,
+					leaderId,
+					taskManagerConfiguration.getTimeout());
 
 				acceptedSlotsFuture.whenCompleteAsync(
 					(Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
@@ -985,8 +983,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	{
 		final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
-		CompletableFuture<Acknowledge> futureAcknowledge = FutureUtils.toJava(
-			jobMasterGateway.updateTaskExecutionState(jobMasterLeaderId, taskExecutionState));
+		CompletableFuture<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(jobMasterLeaderId, taskExecutionState);
 
 		futureAcknowledge.whenCompleteAsync(
 			(ack, throwable) -> {
@@ -1348,10 +1345,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		@Override
 		public CompletableFuture<SlotReport> retrievePayload() {
-			return FutureUtils.toJava(
-				callAsync(
+			return callAsync(
 					() -> taskSlotTable.createSlotReport(getResourceID()),
-					taskManagerConfiguration.getTimeout()));
+					taskManagerConfiguration.getTimeout());
 		}
 	}
 }

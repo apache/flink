@@ -18,8 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -34,7 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -92,17 +91,20 @@ public class OrderedStreamElementQueueTest extends TestLogger {
 			queue.put(entry);
 		}
 
-		Future<List<AsyncResult>> pollOperation = FlinkFuture.supplyAsync(new Callable<List<AsyncResult>>() {
-			@Override
-			public List<AsyncResult> call() throws Exception {
+		CompletableFuture<List<AsyncResult>> pollOperation = CompletableFuture.supplyAsync(
+			() -> {
 				List<AsyncResult> result = new ArrayList<>(4);
 				while (!queue.isEmpty()) {
-					result.add(queue.poll());
+					try {
+						result.add(queue.poll());
+					} catch (InterruptedException e) {
+						throw new FlinkFutureException(e);
+					}
 				}
 
 				return result;
-			}
-		}, executor);
+			},
+			executor);
 
 		Thread.sleep(10L);
 

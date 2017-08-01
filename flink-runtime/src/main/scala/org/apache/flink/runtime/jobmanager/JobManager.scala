@@ -22,7 +22,7 @@ import java.io.IOException
 import java.net._
 import java.util.UUID
 import java.util.concurrent.{Future => JavaFuture, _}
-import java.util.function.BiFunction
+import java.util.function.{BiFunction, Consumer}
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor._
@@ -1105,17 +1105,18 @@ class JobManager(
 
       val originalSender = new AkkaActorGateway(sender(), leaderSessionID.orNull)
 
-      val sendingFuture = stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
-        override def accept(value: StackTrace): Unit = {
-          originalSender.tell(value)
-        }
-      })
+      val sendingFuture = stackTraceFuture.thenAccept(
+        new Consumer[StackTrace]() {
+          override def accept(value: StackTrace): Unit = {
+            originalSender.tell(value)
+          }
+        })
 
-      sendingFuture.exceptionally(new ApplyFunction[Throwable, Void] {
+      sendingFuture.exceptionally(new java.util.function.Function[Throwable, Void] {
         override def apply(value: Throwable): Void = {
           log.info("Could not send requested stack trace.", value)
 
-          return null
+          null
         }
       })
 

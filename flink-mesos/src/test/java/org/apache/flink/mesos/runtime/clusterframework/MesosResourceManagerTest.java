@@ -40,7 +40,6 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -89,6 +88,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -414,7 +414,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		 * Register a job master with the RM.
 		 */
 		public void registerJobMaster(MockJobMaster jobMaster) throws Exception  {
-			Future<RegistrationResponse> registration = resourceManager.registerJobManager(
+			CompletableFuture<RegistrationResponse> registration = resourceManager.registerJobManager(
 				rmServices.rmLeaderSessionId, jobMaster.leaderSessionID, jobMaster.resourceID, jobMaster.address, jobMaster.jobID);
 			assertTrue(registration.get() instanceof JobMasterRegistrationSuccess);
 		}
@@ -588,7 +588,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
 
 			// send registration message
-			Future<RegistrationResponse> successfulFuture =
+			CompletableFuture<RegistrationResponse> successfulFuture =
 				resourceManager.registerTaskExecutor(rmServices.rmLeaderSessionId, task1Executor.address, task1Executor.resourceID, slotReport);
 			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);

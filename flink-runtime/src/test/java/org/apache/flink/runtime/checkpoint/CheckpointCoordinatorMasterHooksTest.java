@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -339,10 +338,10 @@ public class CheckpointCoordinatorMasterHooksTest {
 		final MasterTriggerRestoreHook<Void> hook = mockGeneric(MasterTriggerRestoreHook.class);
 		when(hook.getIdentifier()).thenReturn(id);
 		when(hook.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class))).thenAnswer(
-				new Answer<Future<Void>>() {
+				new Answer<CompletableFuture<Void>>() {
 
 					@Override
-					public Future<Void> answer(InvocationOnMock invocation) throws Throwable {
+					public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
 						assertEquals(1, cc.getNumberOfPendingCheckpoints());
 
 						long checkpointId = (Long) invocation.getArguments()[0];
