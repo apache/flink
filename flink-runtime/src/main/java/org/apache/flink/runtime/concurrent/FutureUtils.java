@@ -351,7 +351,10 @@ public class FutureUtils {
 	 * @param javaFuture to convert to a Flink future
 	 * @param <T> type of the future value
 	 * @return Flink future
+	 *
+	 * @deprecated Will be removed once we completely remove Flink's futures
 	 */
+	@Deprecated
 	public static <T> Future<T> toFlinkFuture(java.util.concurrent.CompletableFuture<T> javaFuture) {
 		FlinkCompletableFuture<T> result = new FlinkCompletableFuture<>();
 
