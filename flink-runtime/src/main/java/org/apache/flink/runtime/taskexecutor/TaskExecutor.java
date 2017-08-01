@@ -30,7 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -99,7 +99,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -1328,8 +1328,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public CompletableFuture<Void> retrievePayload() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -1355,14 +1355,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		@Override
-		public Future<SlotReport> retrievePayload() {
-			return callAsync(
-				new Callable<SlotReport>() {
-					@Override
-					public SlotReport call() throws Exception {
-						return taskSlotTable.createSlotReport(getResourceID());
-					}
-				}, taskManagerConfiguration.getTimeout());
+		public CompletableFuture<SlotReport> retrievePayload() {
+			return FutureUtils.toJava(
+				callAsync(
+					() -> taskSlotTable.createSlotReport(getResourceID()),
+					taskManagerConfiguration.getTimeout()));
 		}
 	}
 }

@@ -1126,8 +1126,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public CompletableFuture<Void> retrievePayload() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -1153,8 +1153,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public CompletableFuture<Void> retrievePayload() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }
