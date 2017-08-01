@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
@@ -76,12 +75,13 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 	@BeforeClass
 	public static void setup() {
 		testActorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-		networkBufferPool = new NetworkBufferPool(100, 8192, MemoryType.HEAP);
+		networkBufferPool = new NetworkBufferPool(100, 8192);
 	}
 
 	@AfterClass
 	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(testActorSystem);
+		networkBufferPool.destroyAllBufferPools();
 		networkBufferPool.destroy();
 	}
 

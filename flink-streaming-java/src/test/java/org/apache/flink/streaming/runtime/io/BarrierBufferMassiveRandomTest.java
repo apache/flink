@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -49,11 +48,15 @@ public class BarrierBufferMassiveRandomTest {
 	@Test
 	public void testWithTwoChannelsAndRandomBarriers() {
 		IOManager ioMan = null;
+		NetworkBufferPool networkBufferPool1 = null;
+		NetworkBufferPool networkBufferPool2 = null;
 		try {
 			ioMan = new IOManagerAsync();
 
-			BufferPool pool1 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, 100);
-			BufferPool pool2 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, 100);
+			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE);
+			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE);
+			BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
+			BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100);
 
 			RandomGeneratingInputGate myIG = new RandomGeneratingInputGate(
 					new BufferPool[] { pool1, pool2 },
@@ -75,6 +78,14 @@ public class BarrierBufferMassiveRandomTest {
 		finally {
 			if (ioMan != null) {
 				ioMan.shutdown();
+			}
+			if (networkBufferPool1 != null) {
+				networkBufferPool1.destroyAllBufferPools();
+				networkBufferPool1.destroy();
+			}
+			if (networkBufferPool2 != null) {
+				networkBufferPool2.destroyAllBufferPools();
+				networkBufferPool2.destroy();
 			}
 		}
 	}
