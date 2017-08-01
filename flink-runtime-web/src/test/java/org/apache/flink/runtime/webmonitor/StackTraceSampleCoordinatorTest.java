@@ -21,8 +21,6 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -31,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
 import org.junit.AfterClass;
@@ -41,6 +40,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -62,7 +62,7 @@ import static org.mockito.Mockito.when;
 /**
  * Test for the {@link StackTraceSampleCoordinator}.
  */
-public class StackTraceSampleCoordinatorTest {
+public class StackTraceSampleCoordinatorTest extends TestLogger {
 
 	private static ActorSystem system;
 
@@ -99,7 +99,7 @@ public class StackTraceSampleCoordinatorTest {
 		Time delayBetweenSamples = Time.milliseconds(100L);
 		int maxStackTraceDepth = 0;
 
-		Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 				vertices, numSamples, delayBetweenSamples, maxStackTraceDepth);
 
 		// Verify messages have been sent
@@ -169,7 +169,7 @@ public class StackTraceSampleCoordinatorTest {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.DEPLOYING, true)
 		};
 
-		Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 			vertices,
 			1,
 			Time.milliseconds(100L),
@@ -194,7 +194,7 @@ public class StackTraceSampleCoordinatorTest {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, false)
 		};
 
-		Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 			vertices,
 			1,
 			Time.milliseconds(100L),
@@ -227,7 +227,7 @@ public class StackTraceSampleCoordinatorTest {
 					timeout)
 			};
 
-			Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+			CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 				vertices, 1, Time.milliseconds(100L), 0);
 
 			// Wait for the timeout
@@ -273,7 +273,7 @@ public class StackTraceSampleCoordinatorTest {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
 
-		Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 				vertices, 1, Time.milliseconds(100L), 0);
 
 		assertFalse(sampleFuture.isDone());
@@ -295,7 +295,7 @@ public class StackTraceSampleCoordinatorTest {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
 
-		Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 				vertices, 1, Time.milliseconds(100L), 0);
 
 		assertFalse(sampleFuture.isDone());
@@ -316,7 +316,7 @@ public class StackTraceSampleCoordinatorTest {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
 
-		Future<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> sampleFuture = coord.triggerStackTraceSample(
 				vertices, 1, Time.milliseconds(100L), 0);
 
 		assertFalse(sampleFuture.isDone());
@@ -350,7 +350,7 @@ public class StackTraceSampleCoordinatorTest {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
 
-		List<Future<StackTraceSample>> sampleFutures = new ArrayList<>();
+		List<CompletableFuture<StackTraceSample>> sampleFutures = new ArrayList<>();
 
 		// Trigger
 		sampleFutures.add(coord.triggerStackTraceSample(
@@ -359,7 +359,7 @@ public class StackTraceSampleCoordinatorTest {
 		sampleFutures.add(coord.triggerStackTraceSample(
 				vertices, 1, Time.milliseconds(100L), 0));
 
-		for (Future<StackTraceSample> future : sampleFutures) {
+		for (CompletableFuture<StackTraceSample> future : sampleFutures) {
 			assertFalse(future.isDone());
 		}
 
@@ -367,12 +367,12 @@ public class StackTraceSampleCoordinatorTest {
 		coord.shutDown();
 
 		// Verify all completed
-		for (Future<StackTraceSample> future : sampleFutures) {
+		for (CompletableFuture<StackTraceSample> future : sampleFutures) {
 			assertTrue(future.isDone());
 		}
 
 		// Verify new trigger returns failed future
-		Future<StackTraceSample> future = coord.triggerStackTraceSample(
+		CompletableFuture<StackTraceSample> future = coord.triggerStackTraceSample(
 				vertices, 1, Time.milliseconds(100L), 0);
 
 		assertTrue(future.isDone());
@@ -400,7 +400,7 @@ public class StackTraceSampleCoordinatorTest {
 			.thenReturn(
 				sendSuccess ?
 					FlinkCompletableFuture.completed(mock(StackTraceSampleResponse.class)) :
-					FlinkCompletableFuture.<StackTraceSampleResponse>completedExceptionally(new Exception("Send failed")));
+					FlinkCompletableFuture.completedExceptionally(new Exception("Send failed")));
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
@@ -415,7 +415,7 @@ public class StackTraceSampleCoordinatorTest {
 		ScheduledExecutorService scheduledExecutorService,
 		int timeout) {
 
-		final CompletableFuture<StackTraceSampleResponse> future = new FlinkCompletableFuture<>();
+		final FlinkCompletableFuture<StackTraceSampleResponse> future = new FlinkCompletableFuture<>();
 
 		Execution exec = mock(Execution.class);
 		when(exec.getAttemptId()).thenReturn(executionId);
