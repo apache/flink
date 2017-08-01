@@ -275,6 +275,24 @@ public class FutureUtils {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Helper methods
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns an exceptionally completed {@link java.util.concurrent.CompletableFuture}.
+	 *
+	 * @param cause to complete the future with
+	 * @param <T> type of the future
+	 * @return An exceptionally completed CompletableFuture
+	 */
+	public static <T>java.util.concurrent.CompletableFuture<T> completedExceptionally(Throwable cause) {
+		java.util.concurrent.CompletableFuture<T> result = new java.util.concurrent.CompletableFuture<>();
+		result.completeExceptionally(cause);
+
+		return result;
+	}
+
+	// ------------------------------------------------------------------------
 	//  Converting futures
 	// ------------------------------------------------------------------------
 
