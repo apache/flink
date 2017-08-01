@@ -18,7 +18,6 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;

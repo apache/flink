@@ -62,7 +62,6 @@ public class YarnConfigOptions {
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
 	 * the YARN session / job on YARN.
-	 *
 	 * By default, we take the number of of initially requested containers.
 	 */
 	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
@@ -72,7 +71,6 @@ public class YarnConfigOptions {
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
 	 * availability mode. This value is usually limited by YARN.
-	 *
 	 * By default, it's 1 in the standalone case and 2 in the high availability case.
 	 */
 	public static final ConfigOption<String> APPLICATION_ATTEMPTS =
@@ -99,12 +97,10 @@ public class YarnConfigOptions {
 
 	/**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
-	 * JobManager
-	 *
+	 * JobManager.
 	 * The port can either be a port, such as "9123",
 	 * a range of ports: "50100-50200"
-	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
-	 *
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234".
 	 * Setting the port to 0 will let the OS choose an available port.
 	 */
 	public static final ConfigOption<String> APPLICATION_MASTER_PORT =
@@ -117,7 +113,7 @@ public class YarnConfigOptions {
 	public static final ConfigOption<String> APPLICATION_TAGS =
 		key("yarn.tags")
 		.defaultValue("");
-	
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
