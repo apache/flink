@@ -85,7 +85,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param dynamicProperties The given dynamic properties
      */
 	public void setDynamicProperties(Configuration dynamicProperties) {
-		this.addAll(dynamicProperties);
+		addAll(dynamicProperties);
 	}
 
 	/**

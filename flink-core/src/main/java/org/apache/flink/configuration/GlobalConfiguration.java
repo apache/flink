@@ -62,6 +62,17 @@ public final class GlobalConfiguration {
 	}
 
 	/**
+	 * Loads the global configuration with given dynamic properties
+	 * @param dynamicProperties The given dynamic properties
+	 * @return Returns the Configuration
+     */
+	public static Configuration loadConfigurationWithDynamicProperties(Configuration dynamicProperties) {
+		Configuration configuration = loadConfiguration();
+		configuration.setDynamicProperties(dynamicProperties);
+		return configuration;
+	}
+
+	/**
 	 * Loads the configuration files from the specified directory.
 	 * <p>
 	 * YAML files are supported as configuration files.

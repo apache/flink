@@ -75,8 +75,7 @@ public class MesosTaskManagerRunner {
 			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
-			configuration = GlobalConfiguration.loadConfiguration();
-			configuration.setDynamicProperties(dynamicProperties);
+			configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 		}
 		catch (Throwable t) {
 			LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
