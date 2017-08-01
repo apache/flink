@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.Preconditions;
 
 import akka.dispatch.OnComplete;
@@ -50,42 +49,38 @@ public class FutureUtils {
 	 * @param <T> type of the result
 	 * @return Future containing either the result of the operation or a {@link RetryException}
 	 */
-	public static <T> Future<T> retry(
-		final Callable<Future<T>> operation,
+	public static <T> java.util.concurrent.CompletableFuture<T> retry(
+		final Callable<java.util.concurrent.CompletableFuture<T>> operation,
 		final int retries,
 		final Executor executor) {
 
-		Future<T> operationResultFuture;
+		java.util.concurrent.CompletableFuture<T> operationResultFuture;
 
 		try {
 			operationResultFuture = operation.call();
 		} catch (Exception e) {
-			return FlinkCompletableFuture.completedExceptionally(
-				new RetryException("Could not execute the provided operation.", e));
+			java.util.concurrent.CompletableFuture<T> exceptionResult = new java.util.concurrent.CompletableFuture<>();
+			exceptionResult.completeExceptionally(new RetryException("Could not execute the provided operation.", e));
+			return exceptionResult;
 		}
 
-		return operationResultFuture.handleAsync(new BiFunction<T, Throwable, Future<T>>() {
-			@Override
-			public Future<T> apply(T t, Throwable throwable) {
+		return operationResultFuture.handleAsync(
+			(t, throwable) -> {
 				if (throwable != null) {
 					if (retries > 0) {
 						return retry(operation, retries - 1, executor);
 					} else {
-						return FlinkCompletableFuture.completedExceptionally(
-							new RetryException("Could not complete the operation. Number of retries " +
-								"has been exhausted.", throwable));
+						java.util.concurrent.CompletableFuture<T> exceptionResult = new java.util.concurrent.CompletableFuture<>();
+						exceptionResult.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
+							"has been exhausted.", throwable));
+						return exceptionResult;
 					}
 				} else {
-					return FlinkCompletableFuture.completed(t);
+					return java.util.concurrent.CompletableFuture.completedFuture(t);
 				}
-			}
-		}, executor)
-		.thenCompose(new ApplyFunction<Future<T>, Future<T>>() {
-			@Override
-			public Future<T> apply(Future<T> value) {
-				return value;
-			}
-		});
+			},
+			executor)
+		.thenCompose(value -> value);
 	}
 
 	public static class RetryException extends Exception {
@@ -121,17 +116,17 @@ public class FutureUtils {
 	 * @param futures The futures that make up the conjunction. No null entries are allowed.
 	 * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
 	 */
-	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends Future<? extends T>> futures) {
+	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends java.util.concurrent.CompletableFuture<? extends T>> futures) {
 		checkNotNull(futures, "futures");
 
 		final ResultConjunctFuture<T> conjunct = new ResultConjunctFuture<>(futures.size());
 
 		if (futures.isEmpty()) {
-			conjunct.complete(Collections.<T>emptyList());
+			conjunct.complete(Collections.emptyList());
 		}
 		else {
-			for (Future<? extends T> future : futures) {
-				future.handle(conjunct.completionHandler);
+			for (java.util.concurrent.CompletableFuture<? extends T> future : futures) {
+				future.whenComplete(conjunct::handleCompletedFuture);
 			}
 		}
 
@@ -149,7 +144,7 @@ public class FutureUtils {
 	 * @param futures The futures to wait on. No null entries are allowed.
 	 * @return The WaitingFuture that completes once all given futures are complete (or one fails).
 	 */
-	public static ConjunctFuture<Void> waitForAll(Collection<? extends Future<?>> futures) {
+	public static ConjunctFuture<Void> waitForAll(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures) {
 		checkNotNull(futures, "futures");
 
 		return new WaitingConjunctFuture(futures);
@@ -164,25 +159,25 @@ public class FutureUtils {
 	 * {@link Future#thenCombine(Future, BiFunction)}) is that ConjunctFuture also tracks how
 	 * many of the Futures are already complete.
 	 */
-	public interface ConjunctFuture<T> extends CompletableFuture<T> {
+	public abstract static class ConjunctFuture<T> extends java.util.concurrent.CompletableFuture<T> {
 
 		/**
 		 * Gets the total number of Futures in the conjunction.
 		 * @return The total number of Futures in the conjunction.
 		 */
-		int getNumFuturesTotal();
+		public abstract int getNumFuturesTotal();
 
 		/**
 		 * Gets the number of Futures in the conjunction that are already complete.
 		 * @return The number of Futures in the conjunction that are already complete
 		 */
-		int getNumFuturesCompleted();
+		public abstract int getNumFuturesCompleted();
 	}
 
 	/**
 	 * The implementation of the {@link ConjunctFuture} which returns its Futures' result as a collection.
 	 */
-	private static class ResultConjunctFuture<T> extends FlinkCompletableFuture<Collection<T>> implements ConjunctFuture<Collection<T>> {
+	private static class ResultConjunctFuture<T> extends ConjunctFuture<Collection<T>> {
 
 		/** The total number of futures in the conjunction */
 		private final int numTotal;
@@ -199,25 +194,19 @@ public class FutureUtils {
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
-		final BiFunction<T, Throwable, Void> completionHandler = new BiFunction<T, Throwable, Void>() {
+		final void handleCompletedFuture(T value, Throwable throwable) {
+			if (throwable != null) {
+				completeExceptionally(throwable);
+			} else {
+				int index = nextIndex.getAndIncrement();
 
-			@Override
-			public Void apply(T o, Throwable throwable) {
-				if (throwable != null) {
-					completeExceptionally(throwable);
-				} else {
-					int index = nextIndex.getAndIncrement();
+				results[index] = value;
 
-					results[index] = o;
-
-					if (numCompleted.incrementAndGet() == numTotal) {
-						complete(Arrays.asList(results));
-					}
+				if (numCompleted.incrementAndGet() == numTotal) {
+					complete(Arrays.asList(results));
 				}
-
-				return null;
 			}
-		};
+		}
 
 		@SuppressWarnings("unchecked")
 		ResultConjunctFuture(int numTotal) {
@@ -240,7 +229,7 @@ public class FutureUtils {
 	 * Implementation of the {@link ConjunctFuture} interface which waits only for the completion
 	 * of its futures and does not return their values.
 	 */
-	private static final class WaitingConjunctFuture extends FlinkCompletableFuture<Void> implements ConjunctFuture<Void> {
+	private static final class WaitingConjunctFuture extends ConjunctFuture<Void> {
 
 		/** Number of completed futures */
 		private final AtomicInteger numCompleted = new AtomicInteger(0);
@@ -248,23 +237,18 @@ public class FutureUtils {
 		/** Total number of futures to wait on */
 		private final int numTotal;
 
-		/** Handler which increments the atomic completion counter and completes or fails the WaitingFutureImpl */
-		private final BiFunction<Object, Throwable, Void> completionHandler = new BiFunction<Object, Throwable, Void>() {
-			@Override
-			public Void apply(Object o, Throwable throwable) {
-				if (throwable == null) {
-					if (numTotal == numCompleted.incrementAndGet()) {
-						complete(null);
-					}
-				} else {
-					completeExceptionally(throwable);
+		/** Method which increments the atomic completion counter and completes or fails the WaitingFutureImpl */
+		private void handleCompletedFuture(Object ignored, Throwable throwable) {
+			if (throwable == null) {
+				if (numTotal == numCompleted.incrementAndGet()) {
+					complete(null);
 				}
-
-				return null;
+			} else {
+				completeExceptionally(throwable);
 			}
-		};
+		}
 
-		private WaitingConjunctFuture(Collection<? extends Future<?>> futures) {
+		private WaitingConjunctFuture(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures) {
 			Preconditions.checkNotNull(futures, "Futures must not be null.");
 
 			this.numTotal = futures.size();
@@ -272,8 +256,8 @@ public class FutureUtils {
 			if (futures.isEmpty()) {
 				complete(null);
 			} else {
-				for (Future<?> future : futures) {
-					future.handle(completionHandler);
+				for (java.util.concurrent.CompletableFuture<?> future : futures) {
+					future.whenComplete(this::handleCompletedFuture);
 				}
 			}
 		}

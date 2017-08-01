@@ -21,7 +21,6 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -394,13 +393,16 @@ public class StackTraceSampleCoordinatorTest extends TestLogger {
 			boolean sendSuccess) {
 
 		Execution exec = mock(Execution.class);
+		CompletableFuture<StackTraceSampleResponse> failedFuture = new CompletableFuture<>();
+		failedFuture.completeExceptionally(new Exception("Send failed."));
+
 		when(exec.getAttemptId()).thenReturn(executionId);
 		when(exec.getState()).thenReturn(state);
 		when(exec.requestStackTraceSample(anyInt(), anyInt(), any(Time.class), anyInt(), any(Time.class)))
 			.thenReturn(
 				sendSuccess ?
-					FlinkCompletableFuture.completed(mock(StackTraceSampleResponse.class)) :
-					FlinkCompletableFuture.completedExceptionally(new Exception("Send failed")));
+					CompletableFuture.completedFuture(mock(StackTraceSampleResponse.class)) :
+					failedFuture);
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
@@ -415,7 +417,7 @@ public class StackTraceSampleCoordinatorTest extends TestLogger {
 		ScheduledExecutorService scheduledExecutorService,
 		int timeout) {
 
-		final FlinkCompletableFuture<StackTraceSampleResponse> future = new FlinkCompletableFuture<>();
+		final CompletableFuture<StackTraceSampleResponse> future = new CompletableFuture<>();
 
 		Execution exec = mock(Execution.class);
 		when(exec.getAttemptId()).thenReturn(executionId);
