@@ -27,7 +27,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -73,6 +72,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -640,7 +640,7 @@ public class TaskTest extends TestLogger {
 			// PartitionProducerDisposedException
 			Task task = createTask(InvokableBlockingInInvoke.class, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
 
-			FlinkCompletableFuture<ExecutionState> promise = new FlinkCompletableFuture<>();
+			CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
 			task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
@@ -656,7 +656,7 @@ public class TaskTest extends TestLogger {
 			// Any other exception
 			Task task = createTask(InvokableBlockingInInvoke.class, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
 
-			FlinkCompletableFuture<ExecutionState> promise = new FlinkCompletableFuture<>();
+			CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
 			task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
@@ -681,7 +681,7 @@ public class TaskTest extends TestLogger {
 
 				setInputGate(task, inputGate);
 
-				FlinkCompletableFuture<ExecutionState> promise = new FlinkCompletableFuture<>();
+				CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
 				task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
@@ -712,7 +712,7 @@ public class TaskTest extends TestLogger {
 
 				setInputGate(task, inputGate);
 
-				FlinkCompletableFuture<ExecutionState> promise = new FlinkCompletableFuture<>();
+				CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
 				task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
