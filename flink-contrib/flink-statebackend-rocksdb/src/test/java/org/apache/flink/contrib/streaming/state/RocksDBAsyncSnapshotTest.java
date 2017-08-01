@@ -32,8 +32,10 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -74,6 +76,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -81,7 +84,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -137,6 +140,7 @@ public class RocksDBAsyncSnapshotTest {
 		streamConfig.setStateBackend(backend);
 
 		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+		streamConfig.setOperatorID(new OperatorID());
 
 		final OneShotLatch delayCheckpointLatch = new OneShotLatch();
 		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
@@ -152,7 +156,7 @@ public class RocksDBAsyncSnapshotTest {
 			public void acknowledgeCheckpoint(
 					long checkpointId,
 					CheckpointMetrics checkpointMetrics,
-					SubtaskState checkpointStateHandles) {
+					TaskStateSnapshot checkpointStateHandles) {
 
 				super.acknowledgeCheckpoint(checkpointId, checkpointMetrics);
 
@@ -164,8 +168,16 @@ public class RocksDBAsyncSnapshotTest {
 					throw new RuntimeException(e);
 				}
 
+				boolean hasManagedKeyedState = false;
+				for (Map.Entry<OperatorID, OperatorSubtaskState> entry : checkpointStateHandles.getSubtaskStateMappings()) {
+					OperatorSubtaskState state = entry.getValue();
+					if (state != null) {
+						hasManagedKeyedState |= state.getManagedKeyedState() != null;
+					}
+				}
+
 				// should be one k/v state
-				assertNotNull(checkpointStateHandles.getManagedKeyedState());
+				assertTrue(hasManagedKeyedState);
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
@@ -241,6 +253,7 @@ public class RocksDBAsyncSnapshotTest {
 		streamConfig.setStateBackend(backend);
 
 		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+		streamConfig.setOperatorID(new OperatorID());
 
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 				testHarness.jobConfig,

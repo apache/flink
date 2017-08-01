@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 /**
@@ -47,7 +47,7 @@ public interface CheckpointResponder {
 		ExecutionAttemptID executionAttemptID,
 		long checkpointId,
 		CheckpointMetrics checkpointMetrics,
-		SubtaskState subtaskState);
+		TaskStateSnapshot subtaskState);
 
 	/**
 	 * Declines the given checkpoint.

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobgraph.tasks;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.TaskStateHandles;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 
 /**
  * This interface must be implemented by any invokable that has recoverable state and participates
@@ -35,7 +35,7 @@ public interface StatefulTask {
 	 *
 	 * @param taskStateHandles All state handle for the task.
 	 */
-	void setInitialState(TaskStateHandles taskStateHandles) throws Exception;
+	void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception;
 
 	/**
 	 * This method is called to trigger a checkpoint, asynchronously by the checkpoint
@@ -43,8 +43,8 @@ public interface StatefulTask {
 	 * 
 	 * <p>This method is called for tasks that start the checkpoints by injecting the initial barriers,
 	 * i.e., the source tasks. In contrast, checkpoints on downstream operators, which are the result of
-	 * receiving checkpoint barriers, invoke the {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointMetrics)}
-	 * method.
+	 * receiving checkpoint barriers, invoke the
+	 * {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointOptions, CheckpointMetrics)} method.
 	 *
 	 * @param checkpointMetaData Meta data for about this checkpoint
 	 * @param checkpointOptions Options for performing this checkpoint

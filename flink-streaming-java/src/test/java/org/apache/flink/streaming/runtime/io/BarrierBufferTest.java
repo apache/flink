@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.state.TaskStateHandles;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -1484,7 +1484,7 @@ public class BarrierBufferTest {
 		}
 
 		@Override
-		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {
+		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {
 			throw new UnsupportedOperationException("should never be called");
 		}
 

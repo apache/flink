@@ -246,7 +246,9 @@ public class StreamingJobGraphGenerator {
 				operatorHashes = new ArrayList<>();
 				chainedOperatorHashes.put(startNodeId, operatorHashes);
 			}
-			operatorHashes.add(new Tuple2<>(hashes.get(currentNodeId), legacyHashes.get(1).get(currentNodeId)));
+
+			byte[] primaryHashBytes = hashes.get(currentNodeId);
+			operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHashes.get(1).get(currentNodeId)));
 
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
@@ -280,13 +282,16 @@ public class StreamingJobGraphGenerator {
 					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
 				}
 				config.setChainIndex(chainIndex);
-				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
+				StreamNode node = streamGraph.getStreamNode(currentNodeId);
+				config.setOperatorName(node.getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
 			}
+
+			config.setOperatorID(new OperatorID(primaryHashBytes));
+
 			if (chainableOutputs.isEmpty()) {
 				config.setChainEnd();
 			}
-
 			return transitiveOutEdges;
 
 		} else {

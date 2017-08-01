@@ -240,6 +240,18 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	//  task state (de)serialization methods
 	// ------------------------------------------------------------------------
 
+	private static <T> T extractSingleton(Collection<T> collection) {
+		if (collection == null || collection.isEmpty()) {
+			return null;
+		}
+
+		if (collection.size() == 1) {
+			return collection.iterator().next();
+		} else {
+			throw new IllegalStateException("Expected singleton collection, but found size: " + collection.size());
+		}
+	}
+
 	private static void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
 		dos.writeLong(-1);
@@ -252,7 +264,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			serializeStreamStateHandle(nonPartitionableState, dos);
 		}
 
-		OperatorStateHandle operatorStateBackend = subtaskState.getManagedOperatorState();
+		OperatorStateHandle operatorStateBackend = extractSingleton(subtaskState.getManagedOperatorState());
 
 		len = operatorStateBackend != null ? 1 : 0;
 		dos.writeInt(len);
@@ -260,7 +272,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			serializeOperatorStateHandle(operatorStateBackend, dos);
 		}
 
-		OperatorStateHandle operatorStateFromStream = subtaskState.getRawOperatorState();
+		OperatorStateHandle operatorStateFromStream = extractSingleton(subtaskState.getRawOperatorState());
 
 		len = operatorStateFromStream != null ? 1 : 0;
 		dos.writeInt(len);
@@ -268,10 +280,10 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			serializeOperatorStateHandle(operatorStateFromStream, dos);
 		}
 
-		KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
+		KeyedStateHandle keyedStateBackend = extractSingleton(subtaskState.getManagedKeyedState());
 		serializeKeyedStateHandle(keyedStateBackend, dos);
 
-		KeyedStateHandle keyedStateStream = subtaskState.getRawKeyedState();
+		KeyedStateHandle keyedStateStream = extractSingleton(subtaskState.getRawKeyedState());
 		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
