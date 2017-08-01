@@ -21,7 +21,8 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Assert;
 import org.junit.Test;
 

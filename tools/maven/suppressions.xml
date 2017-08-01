@@ -27,4 +27,13 @@ under the License.
 		<suppress files="org[\\/]apache[\\/]flink[\\/]api[\\/]io[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
 		<suppress files="org[\\/]apache[\\/]calcite.*" checks="[a-zA-Z0-9]*"/>
+
+		<!-- Cassandra connectors have to use guava directly -->
+		<suppress
+			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormat.java|CassandraSinkBase.java|CassandraPojoSink.java|CassandraTupleWriteAheadSink.java"
+			checks="IllegalImport"/>
+		<!-- Kinesis producer has to use guava directly -->
+		<suppress
+			files="FlinkKinesisProducer.java"
+			checks="IllegalImport"/>
 </suppressions>
