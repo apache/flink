@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -45,6 +44,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link JobMaster} rpc gateway interface
@@ -68,7 +68,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param taskExecutionState New task execution state for a given task
 	 * @return Future flag of the task execution state update result
 	 */
-	Future<Acknowledge> updateTaskExecutionState(
+	CompletableFuture<Acknowledge> updateTaskExecutionState(
 			final UUID leaderSessionID,
 			final TaskExecutionState taskExecutionState);
 
@@ -81,7 +81,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param executionAttempt The execution attempt id
 	 * @return The future of the input split. If there is no further input split, will return an empty object.
 	 */
-	Future<SerializedInputSplit> requestNextInputSplit(
+	CompletableFuture<SerializedInputSplit> requestNextInputSplit(
 			final UUID leaderSessionID,
 			final JobVertexID vertexID,
 			final ExecutionAttemptID executionAttempt);
@@ -95,7 +95,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param partitionId          The partition ID of the partition to request the state of.
 	 * @return The future of the partition state
 	 */
-	Future<ExecutionState> requestPartitionState(
+	CompletableFuture<ExecutionState> requestPartitionState(
 			final UUID leaderSessionID,
 			final IntermediateDataSetID intermediateResultId,
 			final ResultPartitionID partitionId);
@@ -114,7 +114,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param timeout         before the rpc call fails
 	 * @return Future acknowledge of the schedule or update operation
 	 */
-	Future<Acknowledge> scheduleOrUpdateConsumers(
+	CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(
 			final UUID leaderSessionID,
 			final ResultPartitionID partitionID,
 			@RpcTimeout final Time timeout);
@@ -146,7 +146,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param registrationName Name under which the KvState has been registered.
 	 * @return Future of the requested {@link InternalKvState} location
 	 */
-	Future<KvStateLocation> lookupKvStateLocation(final String registrationName);
+	CompletableFuture<KvStateLocation> lookupKvStateLocation(final String registrationName);
 
 	/**
 	 * @param jobVertexId          JobVertexID the KvState instance belongs to.
@@ -175,7 +175,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	/**
 	 * Request the classloading props of this job.
 	 */
-	Future<ClassloadingProps> requestClassloadingProps();
+	CompletableFuture<ClassloadingProps> requestClassloadingProps();
 
 	/**
 	 * Offer the given slots to the job manager. The response contains the set of accepted slots.
@@ -186,7 +186,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param timeout       for the rpc call
 	 * @return Future set of accepted slots.
 	 */
-	Future<Iterable<SlotOffer>> offerSlots(
+	CompletableFuture<Iterable<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
 			final Iterable<SlotOffer> slots,
 			final UUID leaderId,
@@ -214,7 +214,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param timeout               for the rpc call
 	 * @return Future registration response indicating whether the registration was successful or not
 	 */
-	Future<RegistrationResponse> registerTaskManager(
+	CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
 			final UUID leaderId,

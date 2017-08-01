@@ -25,9 +25,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -50,6 +48,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import scala.Option;
@@ -109,7 +108,7 @@ public class TaskManagerLogHandlerTest {
 		when(taskManager.getId()).thenReturn(tmID);
 		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 		when(taskManager.getTaskManagerGateway()).thenReturn(taskManagerGateway);
-		CompletableFuture<BlobKey> future = new FlinkCompletableFuture<>();
+		CompletableFuture<BlobKey> future = new CompletableFuture<>();
 		future.completeExceptionally(new IOException("failure"));
 		when(taskManagerGateway.requestTaskManagerLog(any(Time.class))).thenReturn(future);
 

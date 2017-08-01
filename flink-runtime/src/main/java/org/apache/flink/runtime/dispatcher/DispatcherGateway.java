@@ -20,13 +20,13 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Gateway for the Dispatcher component.
@@ -40,7 +40,7 @@ public interface DispatcherGateway extends RpcGateway {
 	 * @param timeout RPC timeout
 	 * @return A future acknowledge if the submission succeeded
 	 */
-	Future<Acknowledge> submitJob(
+	CompletableFuture<Acknowledge> submitJob(
 		JobGraph jobGraph,
 		@RpcTimeout Time timeout);
 
@@ -50,6 +50,6 @@ public interface DispatcherGateway extends RpcGateway {
 	 * @param timeout RPC timeout
 	 * @return A future collection of currently submitted jobs
 	 */
-	Future<Collection<JobID>> listJobs(
+	CompletableFuture<Collection<JobID>> listJobs(
 		@RpcTimeout Time timeout);
 }

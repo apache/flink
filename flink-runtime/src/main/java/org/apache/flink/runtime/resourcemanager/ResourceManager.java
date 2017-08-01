@@ -26,7 +26,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
@@ -246,7 +245,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	// ------------------------------------------------------------------------
 
 	@RpcMethod
-	public Future<RegistrationResponse> registerJobManager(
+	public CompletableFuture<RegistrationResponse> registerJobManager(
 			final UUID resourceManagerLeaderId,
 			final UUID jobManagerLeaderId,
 			final ResourceID jobManagerResourceId,
@@ -270,13 +269,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					onFatalErrorAsync(exception);
 
 					log.error("Could not add job {} to job leader id service.", jobId, e);
-					return FutureUtils.toFlinkFuture(FutureUtils.completedExceptionally(exception));
+					return FutureUtils.completedExceptionally(exception);
 				}
 			}
 
 			log.info("Registering job manager {}@{} for job {}.", jobManagerLeaderId, jobManagerAddress, jobId);
 
-			Future<UUID> jobLeaderIdFuture;
+			CompletableFuture<UUID> jobLeaderIdFuture;
 
 			try {
 				jobLeaderIdFuture = jobLeaderIdService.getLeaderId(jobId);
@@ -289,12 +288,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				onFatalErrorAsync(exception);
 
 				log.debug("Could not obtain the job leader id future to verify the correct job leader.");
-				return FutureUtils.toFlinkFuture(FutureUtils.completedExceptionally(exception));
+				return FutureUtils.completedExceptionally(exception);
 			}
 
-			Future<JobMasterGateway> jobMasterGatewayFuture = getRpcService().connect(jobManagerAddress, JobMasterGateway.class);
+			CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = getRpcService().connect(jobManagerAddress, JobMasterGateway.class);
 
-			Future<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(
+			CompletableFuture<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(
 				jobLeaderIdFuture,
 				(JobMasterGateway jobMasterGateway, UUID jobLeaderId) -> {
 					if (isValid(resourceManagerLeaderId)) {
@@ -339,8 +338,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				"{} did not match the expected leader id {}.", jobManagerAddress,
 				resourceManagerLeaderId, leaderSessionId);
 
-			return FutureUtils.toFlinkFuture(CompletableFuture.<RegistrationResponse>completedFuture(
-				new RegistrationResponse.Decline("Resource manager leader id did not match.")));
+			return CompletableFuture.completedFuture(
+				new RegistrationResponse.Decline("Resource manager leader id did not match."));
 		}
 	}
 
@@ -354,14 +353,14 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @return The response by the ResourceManager.
 	 */
 	@RpcMethod
-	public Future<RegistrationResponse> registerTaskExecutor(
+	public CompletableFuture<RegistrationResponse> registerTaskExecutor(
 			final UUID resourceManagerLeaderId,
 			final String taskExecutorAddress,
 			final ResourceID taskExecutorResourceId,
 			final SlotReport slotReport) {
 
 		if (Objects.equals(leaderSessionId, resourceManagerLeaderId)) {
-			Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
+			CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
 
 			return taskExecutorGatewayFuture.handleAsync(
 				(TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
@@ -381,10 +380,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					"not equal the received leader session ID  {}",
 				taskExecutorResourceId, taskExecutorAddress, leaderSessionId, resourceManagerLeaderId);
 
-			return FutureUtils.toFlinkFuture(CompletableFuture.<RegistrationResponse>completedFuture(
+			return CompletableFuture.completedFuture(
 				new RegistrationResponse.Decline("Discard registration because the leader id " +
 					resourceManagerLeaderId + " does not match the expected leader id " +
-					leaderSessionId + '.')));
+					leaderSessionId + '.'));
 		}
 	}
 
@@ -493,8 +492,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		if(infoMessageListeners.containsKey(address)) {
 			log.warn("Receive a duplicate registration from info message listener on ({})", address);
 		} else {
-			CompletableFuture<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = FutureUtils.toJava(
-				getRpcService().connect(address, InfoMessageListenerRpcGateway.class));
+			CompletableFuture<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService()
+				.connect(address, InfoMessageListenerRpcGateway.class);
 
 			infoMessageListenerRpcGatewayFuture.whenCompleteAsync(
 				(InfoMessageListenerRpcGateway gateway, Throwable failure) -> {

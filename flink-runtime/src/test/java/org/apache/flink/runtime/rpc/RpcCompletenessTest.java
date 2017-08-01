@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.ReflectionUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -42,6 +41,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -74,7 +74,7 @@ public class RpcCompletenessTest extends TestLogger {
 
 	private static Logger LOG = LoggerFactory.getLogger(RpcCompletenessTest.class);
 
-	private static final Class<?> futureClass = Future.class;
+	private static final Class<?> futureClass = CompletableFuture.class;
 	private static final Class<?> timeoutClass = Time.class;
 
 	@Test
@@ -195,7 +195,7 @@ public class RpcCompletenessTest extends TestLogger {
 	/**
 	 * Checks whether the gateway method fulfills the gateway method requirements.
 	 * <ul>
-	 *     <li>It checks whether the return type is void or a {@link Future} wrapping the actual result. </li>
+	 *     <li>It checks whether the return type is void or a {@link CompletableFuture} wrapping the actual result. </li>
 	 *     <li>It checks that the method's parameter list contains at most one parameter annotated with {@link RpcTimeout}.</li>
 	 * </ul>
 	 *

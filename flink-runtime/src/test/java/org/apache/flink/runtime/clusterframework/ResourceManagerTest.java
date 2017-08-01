@@ -32,7 +32,6 @@ import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
 import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -71,6 +70,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -524,7 +524,7 @@ public class ResourceManagerTest extends TestLogger {
 
 			final SlotReport slotReport = new SlotReport();
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
-			Future<RegistrationResponse> successfulFuture = resourceManager.registerTaskExecutor(
+			CompletableFuture<RegistrationResponse> successfulFuture = resourceManager.registerTaskExecutor(
 				rmLeaderSessionId,
 				taskManagerAddress,
 				taskManagerResourceID,
@@ -622,7 +622,7 @@ public class ResourceManagerTest extends TestLogger {
 			rmLeaderElectionService.isLeader(rmLeaderId);
 
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
-			Future<RegistrationResponse> successfulFuture = resourceManager.registerJobManager(
+			CompletableFuture<RegistrationResponse> successfulFuture = resourceManager.registerJobManager(
 				rmLeaderId,
 				jmLeaderId,
 				jmResourceId,

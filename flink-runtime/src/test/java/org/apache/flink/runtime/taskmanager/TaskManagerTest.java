@@ -35,8 +35,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -110,6 +108,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
@@ -1612,7 +1611,7 @@ public class TaskManagerTest extends TestLogger {
 
 				Await.result(result, timeout);
 
-				org.apache.flink.runtime.concurrent.Future<Boolean> cancelFuture = TestInvokableRecordCancel.gotCanceled();
+				CompletableFuture<Boolean> cancelFuture = TestInvokableRecordCancel.gotCanceled();
 
 				assertEquals(true, cancelFuture.get());
 			} finally {
@@ -2070,7 +2069,7 @@ public class TaskManagerTest extends TestLogger {
 	public static final class TestInvokableRecordCancel extends AbstractInvokable {
 
 		private static final Object lock = new Object();
-		private static CompletableFuture<Boolean> gotCanceledFuture = new FlinkCompletableFuture<>();
+		private static CompletableFuture<Boolean> gotCanceledFuture = new CompletableFuture<>();
 
 		@Override
 		public void invoke() throws Exception {
@@ -2099,11 +2098,11 @@ public class TaskManagerTest extends TestLogger {
 
 		public static void resetGotCanceledFuture() {
 			synchronized (lock) {
-				gotCanceledFuture = new FlinkCompletableFuture<>();
+				gotCanceledFuture = new CompletableFuture<>();
 			}
 		}
 
-		public static org.apache.flink.runtime.concurrent.Future<Boolean> gotCanceled() {
+		public static CompletableFuture<Boolean> gotCanceled() {
 			synchronized (lock) {
 				return gotCanceledFuture;
 			}

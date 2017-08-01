@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -176,8 +175,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	public void startRegistration() {
 		try {
 			// trigger resolution of the resource manager address to a callable gateway
-			CompletableFuture<Gateway> resourceManagerFuture = FutureUtils.toJava(
-				rpcService.connect(targetAddress, targetType));
+			CompletableFuture<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
 
 			// upon success, start the registration attempts
 			CompletableFuture<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(

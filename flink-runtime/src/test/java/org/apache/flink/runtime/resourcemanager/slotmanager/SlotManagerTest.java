@@ -25,9 +25,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
-import org.apache.flink.runtime.concurrent.*;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -44,7 +44,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Arrays;
 import java.util.UUID;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -114,7 +114,7 @@ public class SlotManagerTest extends TestLogger {
 			any(AllocationID.class),
 			anyString(),
 			eq(leaderId),
-			any(Time.class))).thenReturn(new FlinkCompletableFuture<Acknowledge>());
+			any(Time.class))).thenReturn(new CompletableFuture<>());
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -241,7 +241,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(allocationId),
 				anyString(),
 				eq(leaderId),
-				any(Time.class))).thenReturn(FlinkCompletableFuture.completed(Acknowledge.get()));
+				any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 			final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -280,7 +280,7 @@ public class SlotManagerTest extends TestLogger {
 			any(AllocationID.class),
 			anyString(),
 			eq(leaderId),
-			any(Time.class))).thenReturn(new FlinkCompletableFuture<Acknowledge>());
+			any(Time.class))).thenReturn(new CompletableFuture<>());
 
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
@@ -338,7 +338,7 @@ public class SlotManagerTest extends TestLogger {
 			eq(allocationId),
 			anyString(),
 			eq(leaderId),
-			any(Time.class))).thenReturn(FlinkCompletableFuture.completed(Acknowledge.get()));
+			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -482,7 +482,7 @@ public class SlotManagerTest extends TestLogger {
 			any(AllocationID.class),
 			anyString(),
 			eq(leaderId),
-			any(Time.class))).thenReturn(FlinkCompletableFuture.completed(Acknowledge.get()));
+			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -527,7 +527,7 @@ public class SlotManagerTest extends TestLogger {
 			any(AllocationID.class),
 			anyString(),
 			eq(leaderId),
-			any(Time.class))).thenReturn(FlinkCompletableFuture.completed(Acknowledge.get()));
+			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -747,8 +747,8 @@ public class SlotManagerTest extends TestLogger {
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
-		final FlinkCompletableFuture<Acknowledge> slotRequestFuture1 = new FlinkCompletableFuture<>();
-		final FlinkCompletableFuture<Acknowledge> slotRequestFuture2 = new FlinkCompletableFuture<>();
+		final CompletableFuture<Acknowledge> slotRequestFuture1 = new CompletableFuture<>();
+		final CompletableFuture<Acknowledge> slotRequestFuture2 = new CompletableFuture<>();
 
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		when(taskExecutorGateway.requestSlot(
@@ -826,7 +826,7 @@ public class SlotManagerTest extends TestLogger {
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
-		final FlinkCompletableFuture<Acknowledge> slotRequestFuture1 = new FlinkCompletableFuture<>();
+		final CompletableFuture<Acknowledge> slotRequestFuture1 = new CompletableFuture<>();
 
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		when(taskExecutorGateway.requestSlot(
@@ -835,7 +835,7 @@ public class SlotManagerTest extends TestLogger {
 			eq(allocationId),
 			anyString(),
 			any(UUID.class),
-			any(Time.class))).thenReturn(slotRequestFuture1, FlinkCompletableFuture.completed(Acknowledge.get()));
+			any(Time.class))).thenReturn(slotRequestFuture1, CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -856,24 +856,21 @@ public class SlotManagerTest extends TestLogger {
 
 			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
 
-			Future<Void> registrationFuture = FlinkFuture.supplyAsync(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
+			CompletableFuture<Void> registrationFuture = CompletableFuture.supplyAsync(
+				() -> {
 					slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
 					return null;
-				}
-			}, mainThreadExecutor)
-			.thenAccept(new AcceptFunction<Void>() {
-				@Override
-				public void accept(Void value) {
+				},
+				mainThreadExecutor)
+			.thenAccept(
+				(Object value) -> {
 					try {
 						slotManager.registerSlotRequest(slotRequest);
 					} catch (SlotManagerException e) {
 						throw new RuntimeException("Could not register slots.", e);
 					}
-				}
-			});
+				});
 
 			// check that no exception has been thrown
 			registrationFuture.get();
@@ -891,12 +888,9 @@ public class SlotManagerTest extends TestLogger {
 			final SlotID requestedSlotId = slotIdCaptor.getValue();
 			final SlotID freeSlotId = requestedSlotId.equals(slotId1) ? slotId2 : slotId1;
 
-			Future<Boolean> freeSlotFuture = FlinkFuture.supplyAsync(new Callable<Boolean>() {
-				@Override
-				public Boolean call() throws Exception {
-					return slotManager.getSlot(freeSlotId).isFree();
-				}
-			}, mainThreadExecutor);
+			CompletableFuture<Boolean> freeSlotFuture = CompletableFuture.supplyAsync(
+				() -> slotManager.getSlot(freeSlotId).isFree(),
+				mainThreadExecutor);
 
 			assertTrue(freeSlotFuture.get());
 
@@ -904,15 +898,10 @@ public class SlotManagerTest extends TestLogger {
 			final SlotStatus newSlotStatus2 = new SlotStatus(freeSlotId, resourceProfile);
 			final SlotReport newSlotReport = new SlotReport(Arrays.asList(newSlotStatus1, newSlotStatus2));
 
-			FlinkFuture.supplyAsync(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					// this should update the slot with the pending slot request triggering the reassignment of it
-					slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), newSlotReport);
-
-					return null;
-				}
-			}, mainThreadExecutor);
+			CompletableFuture.supplyAsync(
+				// this should update the slot with the pending slot request triggering the reassignment of it
+				() -> slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), newSlotReport),
+				mainThreadExecutor);
 
 			verify(taskExecutorGateway, timeout(verifyTimeout).times(2)).requestSlot(
 				slotIdCaptor.capture(),
@@ -926,12 +915,9 @@ public class SlotManagerTest extends TestLogger {
 
 			assertEquals(slotId2, requestedSlotId2);
 
-			Future<TaskManagerSlot> requestedSlotFuture = FlinkFuture.supplyAsync(new Callable<TaskManagerSlot>() {
-				@Override
-				public TaskManagerSlot call() throws Exception {
-					return slotManager.getSlot(requestedSlotId2);
-				}
-			}, mainThreadExecutor);
+			CompletableFuture<TaskManagerSlot> requestedSlotFuture = CompletableFuture.supplyAsync(
+				() -> slotManager.getSlot(requestedSlotId2),
+				mainThreadExecutor);
 
 			TaskManagerSlot slot = requestedSlotFuture.get();
 
@@ -967,7 +953,7 @@ public class SlotManagerTest extends TestLogger {
 			eq(allocationId),
 			anyString(),
 			eq(leaderId),
-			any(Time.class))).thenReturn(FlinkCompletableFuture.completed(Acknowledge.get()));
+			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
@@ -987,20 +973,16 @@ public class SlotManagerTest extends TestLogger {
 
 			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
 
-			FlinkFuture.supplyAsync(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					slotManager.registerSlotRequest(slotRequest);
-
-					return null;
-				}
-			}, mainThreadExecutor)
-			.thenAccept(new AcceptFunction<Void>() {
-				@Override
-				public void accept(Void value) {
-					slotManager.registerTaskManager(taskManagerConnection, initialSlotReport);
-				}
-			});
+			CompletableFuture.supplyAsync(
+				() -> {
+					try {
+						return slotManager.registerSlotRequest(slotRequest);
+					} catch (SlotManagerException e) {
+						throw new FlinkFutureException(e);
+					}
+				},
+				mainThreadExecutor)
+			.thenAccept((Object value) -> slotManager.registerTaskManager(taskManagerConnection, initialSlotReport));
 
 			ArgumentCaptor<SlotID> slotIdArgumentCaptor = ArgumentCaptor.forClass(SlotID.class);
 
@@ -1012,44 +994,28 @@ public class SlotManagerTest extends TestLogger {
 				eq(leaderId),
 				any(Time.class));
 
-			Future<Boolean> idleFuture = FlinkFuture.supplyAsync(new Callable<Boolean>() {
-				@Override
-				public Boolean call() throws Exception {
-					return slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID());
-				}
-			}, mainThreadExecutor);
+			CompletableFuture<Boolean> idleFuture = CompletableFuture.supplyAsync(
+				() -> slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID()),
+				mainThreadExecutor);
 
 			// check that the TaskManaer is not idle
 			assertFalse(idleFuture.get());
 
 			final SlotID slotId = slotIdArgumentCaptor.getValue();
 
-			Future<TaskManagerSlot> slotFuture = FlinkFuture.supplyAsync(new Callable<TaskManagerSlot>() {
-				@Override
-				public TaskManagerSlot call() throws Exception {
-					return slotManager.getSlot(slotId);
-				}
-			}, mainThreadExecutor);
+			CompletableFuture<TaskManagerSlot> slotFuture = CompletableFuture.supplyAsync(
+				() -> slotManager.getSlot(slotId),
+				mainThreadExecutor);
 
 			TaskManagerSlot slot = slotFuture.get();
 
 			assertTrue(slot.isAllocated());
 			assertEquals(allocationId, slot.getAllocationId());
 
-			Future<Boolean> idleFuture2 = FlinkFuture.supplyAsync(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					slotManager.freeSlot(slotId, allocationId);
-
-					return null;
-				}
-			}, mainThreadExecutor)
-			.thenApply(new ApplyFunction<Void, Boolean>() {
-				@Override
-				public Boolean apply(Void value) {
-					return slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID());
-				}
-			});
+			CompletableFuture<Boolean> idleFuture2 = CompletableFuture.runAsync(
+				() -> slotManager.freeSlot(slotId, allocationId),
+				mainThreadExecutor)
+			.thenApply((Object value) -> slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID()));
 
 			assertTrue(idleFuture2.get());
 
