@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.core.memory.MemoryType;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
@@ -63,7 +61,7 @@ public class LocalBufferPoolTest {
 
 	@Before
 	public void setupLocalBufferPool() {
-		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize, MemoryType.HEAP);
+		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
 		localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
@@ -77,6 +75,9 @@ public class LocalBufferPoolTest {
 
 		String msg = "Did not return all buffers to memory segment pool after test.";
 		assertEquals(msg, numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments());
+		// no other local buffer pools used than the one above, but call just in case
+		networkBufferPool.destroyAllBufferPools();
+		networkBufferPool.destroy();
 	}
 
 	@AfterClass
@@ -227,7 +228,7 @@ public class LocalBufferPoolTest {
 		// and the twoTimesListener will be added into the registeredListeners
 		// queue of buffer pool again
 		available1.recycle();
-		
+
 		verify(oneTimeListener, times(1)).notifyBufferAvailable(any(Buffer.class));
 		verify(twoTimesListener, times(1)).notifyBufferAvailable(any(Buffer.class));
 

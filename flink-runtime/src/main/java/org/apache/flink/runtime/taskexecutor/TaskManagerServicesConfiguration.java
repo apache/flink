@@ -67,6 +67,8 @@ public class TaskManagerServicesConfiguration {
 	 */
 	private final long configuredMemory;
 
+	private final MemoryType memoryType;
+
 	private final boolean preAllocateMemory;
 
 	private final float memoryFraction;
@@ -80,6 +82,7 @@ public class TaskManagerServicesConfiguration {
 			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
 			long configuredMemory,
+			MemoryType memoryType,
 			boolean preAllocateMemory,
 			float memoryFraction,
 			long timerServiceShutdownTimeout) {
@@ -91,6 +94,7 @@ public class TaskManagerServicesConfiguration {
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
 		this.configuredMemory = configuredMemory;
+		this.memoryType = checkNotNull(memoryType);
 		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
 
@@ -125,6 +129,15 @@ public class TaskManagerServicesConfiguration {
 
 	public float getMemoryFraction() {
 		return memoryFraction;
+	}
+
+	/**
+	 * Returns the memory type to use.
+	 *
+	 * @return on-heap or off-heap memory
+	 */
+	public MemoryType getMemoryType() {
+		return memoryType;
 	}
 
 	/**
@@ -194,6 +207,14 @@ public class TaskManagerServicesConfiguration {
 				"If you leave this config parameter empty, the system automatically " +
 				"pick a fraction of the available memory.");
 
+		// check whether we use heap or off-heap memory
+		final MemoryType memType;
+		if (configuration.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
+			memType = MemoryType.OFF_HEAP;
+		} else {
+			memType = MemoryType.HEAP;
+		}
+
 		boolean preAllocateMemory = configuration.getBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE);
 
 		float memoryFraction = configuration.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
@@ -210,6 +231,7 @@ public class TaskManagerServicesConfiguration {
 			queryableStateConfig,
 			slots,
 			configuredMemory,
+			memType,
 			preAllocateMemory,
 			memoryFraction,
 			timerServiceShutdownTimeout);
@@ -257,14 +279,6 @@ public class TaskManagerServicesConfiguration {
 		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
 			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
 			"Memory segment size must be a power of 2.");
-
-		// check whether we use heap or off-heap memory
-		final MemoryType memType;
-		if (configuration.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
-			memType = MemoryType.OFF_HEAP;
-		} else {
-			memType = MemoryType.HEAP;
-		}
 
 		// network buffer memory fraction
 
@@ -324,7 +338,6 @@ public class TaskManagerServicesConfiguration {
 			networkBufMin,
 			networkBufMax,
 			pageSize,
-			memType,
 			ioMode,
 			initialRequestBackoff,
 			maxRequestBackoff,

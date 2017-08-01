@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 
 import org.junit.After;
 import org.junit.Before;
@@ -55,7 +54,7 @@ public class BufferPoolFactoryTest {
 
 	@Before
 	public void setupNetworkBufferPool() {
-		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize, MemoryType.HEAP);
+		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
 	}
 
 	@After
@@ -245,7 +244,7 @@ public class BufferPoolFactoryTest {
 
 	@Test
 	public void testUniformDistributionBounded3() throws IOException {
-		NetworkBufferPool globalPool = new NetworkBufferPool(3, 128, MemoryType.HEAP);
+		NetworkBufferPool globalPool = new NetworkBufferPool(3, 128);
 		try {
 			BufferPool first = globalPool.createBufferPool(0, 10);
 			assertEquals(3, first.getNumBuffers());
@@ -278,7 +277,7 @@ public class BufferPoolFactoryTest {
 	 */
 	@Test
 	public void testUniformDistributionBounded4() throws IOException {
-		NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, MemoryType.HEAP);
+		NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 		try {
 			BufferPool first = globalPool.createBufferPool(0, 10);
 			assertEquals(10, first.getNumBuffers());
