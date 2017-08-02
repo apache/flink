@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.IOException
 import java.net._
 import java.util.UUID
-import java.util.concurrent.{Future => JavaFuture, _}
+import java.util.concurrent.{TimeUnit, Future => _, TimeoutException => _, _}
 import java.util.function.{BiFunction, Consumer}
 
 import akka.actor.Status.{Failure, Success}
@@ -45,7 +45,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{AcceptFunction, ApplyFunction, Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
