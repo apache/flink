@@ -26,7 +26,6 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -52,7 +51,6 @@ import org.junit.After;
 import org.junit.Test;
 
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.mockito.verification.Timeout;
 
 import java.net.InetAddress;
@@ -436,17 +434,13 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			createSlot(taskManager, jobId, recycler)));
 
 		when(slotProvider.allocateSlot(any(ScheduledUnit.class), anyBoolean())).then(
-			new Answer<Future<SimpleSlot>>() {
-
-				@Override
-				public Future<SimpleSlot> answer(InvocationOnMock invocation) {
+			(InvocationOnMock invocation) -> {
 					if (availableSlots.isEmpty()) {
 						throw new TestRuntimeException();
 					} else {
-						return FlinkCompletableFuture.completed(availableSlots.remove(0));
+						return CompletableFuture.completedFuture(availableSlots.remove(0));
 					}
-				}
-			});
+				});
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
 		final ExecutionJobVertex ejv = eg.getJobVertex(vertex.getID());
@@ -514,17 +508,13 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final SlotProvider slotProvider = mock(SlotProvider.class);
 
 		when(slotProvider.allocateSlot(any(ScheduledUnit.class), anyBoolean())).then(
-			new Answer<Future<SimpleSlot>>() {
-
-				@Override
-				public Future<SimpleSlot> answer(InvocationOnMock invocation) {
+			(InvocationOnMock invocation) -> {
 					if (availableSlots.isEmpty()) {
 						throw new TestRuntimeException();
 					} else {
-						return FlinkCompletableFuture.completed(availableSlots.remove(0));
+						return CompletableFuture.completedFuture(availableSlots.remove(0));
 					}
-				}
-			});
+				});
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
 

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointLoader;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -381,9 +382,7 @@ public class CheckpointCoordinator {
 			result = triggerResult.getPendingCheckpoint().getCompletionFuture();
 		} else {
 			Throwable cause = new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message());
-			result = new CompletableFuture<>();
-			result.completeExceptionally(cause);
-			return result;
+			return FutureUtils.completedExceptionally(cause);
 		}
 
 		// Make sure to remove the created base directory on Exceptions
@@ -439,9 +438,7 @@ public class CheckpointCoordinator {
 					return triggerResult.getPendingCheckpoint().getCompletionFuture();
 				} else {
 					Throwable cause = new Exception("Failed to trigger checkpoint: " + triggerResult.getFailureReason().message());
-					CompletableFuture<CompletedCheckpoint> failedResult = new CompletableFuture<>();
-					failedResult.completeExceptionally(cause);
-					return failedResult;
+					return FutureUtils.completedExceptionally(cause);
 				}
 
 			default:

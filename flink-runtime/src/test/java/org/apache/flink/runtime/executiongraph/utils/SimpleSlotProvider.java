@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -85,9 +86,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			return CompletableFuture.completedFuture(result);
 		}
 		else {
-			CompletableFuture<SimpleSlot> failed = new CompletableFuture<>();
-			failed.completeExceptionally(new NoResourceAvailableException());
-			return failed;
+			return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 		}
 	}
 

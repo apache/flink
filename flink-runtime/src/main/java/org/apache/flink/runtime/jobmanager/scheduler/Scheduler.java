@@ -38,6 +38,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -150,9 +151,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			}
 		}
 		catch (NoResourceAvailableException e) {
-			CompletableFuture<SimpleSlot> notEnoughResources = new CompletableFuture<>();
-			notEnoughResources.completeExceptionally(e);
-			return notEnoughResources;
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 

@@ -688,10 +688,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					maxStrackTraceDepth,
 					timeout));
 		} else {
-			CompletableFuture<StackTraceSampleResponse> result = new CompletableFuture<>();
-			result.completeExceptionally(new Exception("The execution has no slot assigned."));
-
-			return result;
+			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));
 		}
 	}
 
