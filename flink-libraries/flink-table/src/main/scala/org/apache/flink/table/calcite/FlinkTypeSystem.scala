@@ -36,7 +36,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
   override def getDefaultPrecision(typeName: SqlTypeName): Int = typeName match {
 
-    // by default all VARCHARs can have the Java default length
+    // Calcite will limit the length of the VARCHAR field to 65536
     case SqlTypeName.VARCHAR =>
       Int.MaxValue
 

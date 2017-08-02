@@ -219,7 +219,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   override def createSqlType(typeName: SqlTypeName, precision: Int): RelDataType = {
     // it might happen that inferred VARCHAR types overflow as we set them to Int.MaxValue
-    // always set those to default value
+    // Calcite will limit the length of the VARCHAR type to 65536.
     if (typeName == VARCHAR && precision < 0) {
       createSqlType(typeName, getTypeSystem.getDefaultPrecision(typeName))
     } else {
