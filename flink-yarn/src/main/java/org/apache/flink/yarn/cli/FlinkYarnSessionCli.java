@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterClient;
 import org.apache.flink.yarn.YarnClusterDescriptor;
+import org.apache.flink.yarn.YarnClusterDescriptorV2;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -111,6 +112,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option slots;
 	private final Option detached;
 	private final Option zookeeperNamespace;
+	private final Option flip6;
 
 	/**
 	 * @deprecated Streaming mode has been deprecated without replacement. Set the
@@ -156,6 +158,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
+		flip6 = new Option(shortPrefix + "f6", longPrefix + "flip6", false, "Specify this option to start a Flip-6 Yarn session cluster.");
 
 		allOptions = new Options();
 		allOptions.addOption(flinkJar);
@@ -172,6 +175,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		allOptions.addOption(name);
 		allOptions.addOption(applicationId);
 		allOptions.addOption(zookeeperNamespace);
+		allOptions.addOption(flip6);
 	}
 
 	/**
@@ -266,7 +270,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
-			configurationDirectory);
+			configurationDirectory,
+			cmd.hasOption(flip6.getOpt()));
 
 		// Jar Path
 		Path localJarPath;
@@ -552,7 +557,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					: config.getString(HighAvailabilityOptions.HA_CLUSTER_ID, applicationID);
 			config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
 
-			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(config, configurationDirectory);
+			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(
+				config,
+				configurationDirectory,
+				cmdLine.hasOption(flip6.getOpt()));
 			return yarnDescriptor.retrieve(applicationID);
 		} else {
 			throw new UnsupportedOperationException("Could not resume a Yarn cluster.");
@@ -609,7 +617,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 		// Query cluster for metrics
 		if (cmd.hasOption(query.getOpt())) {
-			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(configuration, configurationDirectory);
+			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(
+				configuration,
+				configurationDirectory,
+				cmd.hasOption(flip6.getOpt()));
 			String description;
 			try {
 				description = yarnDescriptor.getClusterDescription();
@@ -622,7 +633,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			return 0;
 		} else if (cmd.hasOption(applicationId.getOpt())) {
 
-			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(configuration, configurationDirectory);
+			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(
+				configuration,
+				configurationDirectory,
+				cmd.hasOption(flip6.getOpt()));
 
 			//configure ZK namespace depending on the value passed
 			String zkNamespace = cmd.hasOption(zookeeperNamespace.getOpt()) ?
@@ -764,7 +778,11 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}
 
-	protected AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory) {
-		return new YarnClusterDescriptor(configuration, configurationDirectory);
+	protected AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory, boolean flip6) {
+		if (flip6) {
+			return new YarnClusterDescriptorV2(configuration, configurationDirectory);
+		} else {
+			return new YarnClusterDescriptor(configuration, configurationDirectory);
+		}
 	}
 }
