@@ -81,6 +81,7 @@ for i in {1..300}; do
   EXPECTED=$(printf "PREFIX:hello\nPREFIX:whats\nPREFIX:up")
 
   if [[ "$DATA_FROM_KAFKA" == "$EXPECTED" ]]; then
+    echo -e "Retrieved data from Kafka: --$DATA_FROM_KAFKA--"
     break
   fi
 
