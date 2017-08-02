@@ -118,6 +118,7 @@ under the License.
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
+		<japicmp.skip>false</japicmp.skip>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -693,6 +694,19 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+		</profile>
+		
+		<profile>
+			<id>skip-japicmp</id>
+			<activation>
+				<property>
+					<name>japicmp.skip</name>
+					<value>true</value>
+				</property>
+			</activation>
+			<properties>
+				<japicmp.skip>true</japicmp.skip>
+			</properties>
 		</profile>
 
 		<profile>
@@ -1388,7 +1402,7 @@ under the License.
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
 						</parameter>
-						<skip>false</skip>
+						<skip>${japicmp.skip}</skip>
 						<dependencies>
 							<dependency>
 								<groupId>org.apache.flink</groupId>
