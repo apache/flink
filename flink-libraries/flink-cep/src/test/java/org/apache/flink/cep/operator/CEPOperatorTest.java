@@ -959,11 +959,11 @@ public class CEPOperatorTest extends TestLogger {
 
 			harness.setProcessingTime(0L);
 
-			harness.processElement(new StreamRecord<>(startEvent1, 1L));
-			harness.processElement(new StreamRecord<>(startEventK2, 1L));
-			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
+			harness.processElement(new StreamRecord<>(startEvent1, 0L));
+			harness.processElement(new StreamRecord<>(startEventK2, 0L));
+			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 0L));
 			harness
-				.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3L));
+				.processElement(new StreamRecord<>(new SubEvent(42, "barfoo", 1.0, 5.0), 0L));
 
 			assertTrue(!operator.hasNonEmptyPQ(42));
 			assertTrue(!operator.hasNonEmptyPQ(43));
@@ -974,8 +974,8 @@ public class CEPOperatorTest extends TestLogger {
 			assertTrue(operator.hasNonEmptyNFA(42));
 			assertTrue(operator.hasNonEmptyNFA(43));
 
-			harness.processElement(new StreamRecord<Event>(middleEvent2, 3L));
-			harness.processElement(new StreamRecord<Event>(middleEvent1, 3L));
+			harness.processElement(new StreamRecord<>(middleEvent2, 3L));
+			harness.processElement(new StreamRecord<>(middleEvent1, 3L));
 			harness.processElement(new StreamRecord<>(startEvent2, 3L));
 
 			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);

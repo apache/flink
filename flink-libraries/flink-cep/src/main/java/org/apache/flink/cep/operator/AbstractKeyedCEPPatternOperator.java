@@ -61,13 +61,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Abstract CEP pattern operator for a keyed input stream. For each key, the operator creates
@@ -264,9 +265,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
-			for (IN element: sort(elementQueueState.get(timestamp))) {
-				processEvent(nfa, element, timestamp);
-			}
+			sort(elementQueueState.get(timestamp)).forEachOrdered(
+				event -> processEvent(nfa, event, timestamp)
+			);
 			elementQueueState.remove(timestamp);
 		}
 
@@ -292,9 +293,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		NFA<IN> nfa = getNFA();
 
 		// emit the events in order
-		for (IN event : sort(bufferedEvents.get())) {
-			processEvent(nfa, event, getProcessingTimeService().getCurrentProcessingTime());
-		}
+		sort(bufferedEvents.get()).forEachOrdered(
+			event -> processEvent(nfa, event, getProcessingTimeService().getCurrentProcessingTime())
+		);
 
 		// remove all buffered rows
 		bufferedEvents.clear();
@@ -302,18 +303,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		updateNFA(nfa);
 	}
 
-	private Iterable<IN> sort(Iterable<IN> iter) {
+	private Stream<IN> sort(Iterable<IN> iter) {
+		Stream<IN> stream = StreamSupport.stream(iter.spliterator(), false);
 		if (comparator == null) {
-			return iter;
+			return stream;
 		} else {
-			// insert all events into the sort buffer
-			List<IN> sortBuffer = new ArrayList<>();
-			for (IN event : iter) {
-				sortBuffer.add(event);
-			}
-			// sort the events
-			Collections.sort(sortBuffer, comparator);
-			return sortBuffer;
+			return stream.sorted(comparator);
 		}
 	}
 
