@@ -158,7 +158,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public byte get(int index) {
+	public final byte get(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos < addressLimit) {
 			return UNSAFE.getByte(heapMemory, pos);
@@ -173,7 +173,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public void put(int index, byte b) {
+	public final void put(int index, byte b) {
 		final long pos = address + index;
 		if (index >= 0 && pos < addressLimit) {
 			UNSAFE.putByte(heapMemory, pos, b);
@@ -188,17 +188,17 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public void get(int index, byte[] dst) {
+	public final void get(int index, byte[] dst) {
 		get(index, dst, 0, dst.length);
 	}
 
 	@Override
-	public void put(int index, byte[] src) {
+	public final void put(int index, byte[] src) {
 		put(index, src, 0, src.length);
 	}
 
 	@Override
-	public void get(int index, byte[] dst, int offset, int length) {
+	public final void get(int index, byte[] dst, int offset, int length) {
 		// check the byte array offset and length and the status
 		if ((offset | length | (offset + length) | (dst.length - (offset + length))) < 0) {
 			throw new IndexOutOfBoundsException();
@@ -219,7 +219,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public void put(int index, byte[] src, int offset, int length) {
+	public final void put(int index, byte[] src, int offset, int length) {
 		// check the byte array offset and length
 		if ((offset | length | (offset + length) | (src.length - (offset + length))) < 0) {
 			throw new IndexOutOfBoundsException();
@@ -241,12 +241,12 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public boolean getBoolean(int index) {
+	public final boolean getBoolean(int index) {
 		return get(index) != 0;
 	}
 
 	@Override
-	public void putBoolean(int index, boolean value) {
+	public final void putBoolean(int index, boolean value) {
 		put(index, (byte) (value ? 1 : 0));
 	}
 
@@ -436,41 +436,4 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		return getAddress(buffer);
 	}
-
-	// -------------------------------------------------------------------------
-	//  Factoring
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Base factory for hybrid memory segments.
-	 */
-	public static final class HybridMemorySegmentFactory implements MemorySegmentFactory.Factory {
-
-		@Override
-		public HybridMemorySegment wrap(byte[] memory) {
-			return new HybridMemorySegment(memory);
-		}
-
-		@Override
-		public HybridMemorySegment allocateUnpooledSegment(int size, Object owner) {
-			return new HybridMemorySegment(new byte[size], owner);
-		}
-
-		@Override
-		public HybridMemorySegment wrapPooledHeapMemory(byte[] memory, Object owner) {
-			return new HybridMemorySegment(memory, owner);
-		}
-
-		@Override
-		public HybridMemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner) {
-			return new HybridMemorySegment(memory, owner);
-		}
-
-		/**
-		 * Prevent external instantiation.
-		 */
-		HybridMemorySegmentFactory() {}
-	}
-
-	public static final HybridMemorySegmentFactory FACTORY = new HybridMemorySegmentFactory();
 }

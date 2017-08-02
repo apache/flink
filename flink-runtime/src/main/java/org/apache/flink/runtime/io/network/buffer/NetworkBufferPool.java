@@ -74,7 +74,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		final long sizeInLong = (long) segmentSize;
 
 		try {
-			this.availableMemorySegments = new ArrayBlockingQueue<MemorySegment>(numberOfSegmentsToAllocate);
+			this.availableMemorySegments = new ArrayBlockingQueue<>(numberOfSegmentsToAllocate);
 		}
 		catch (OutOfMemoryError err) {
 			throw new OutOfMemoryError("Could not allocate buffer queue of length "
