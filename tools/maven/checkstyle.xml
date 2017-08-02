@@ -198,7 +198,7 @@ This file is based on the checkstyle file of Apache Beam.
       <!-- Checks for out of order import statements. -->
       <property name="severity" value="error"/>
       <!-- Flink imports first, then other imports, then javax, java and scala imports, then static imports. -->
-      <property name="groups" value="org.apache.flink,*,javax,java,scala"/>
+      <property name="groups" value="org.apache.flink,org.apache.flink.shaded,*,javax,java,scala"/>
       <property name="separated" value="true"/>
       <property name="sortStaticImportsAlphabetically" value="true"/>
       <property name="option" value="bottom"/>
@@ -212,7 +212,7 @@ This file is based on the checkstyle file of Apache Beam.
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="org.apache.flink.shaded, autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
     </module>
 
     <module name="RedundantModifier">
