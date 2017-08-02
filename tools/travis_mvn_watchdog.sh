@@ -109,23 +109,28 @@ if [[ $PROFILE == *"include-kinesis"* ]]; then
 fi
 
 MVN_COMPILE_MODULES=""
+MVN_COMPILE_OPTIONS=""
 MVN_TEST_MODULES=""
 case $TEST in
 	(core)
 		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
 		MVN_TEST_MODULES="-pl $MODULES_CORE"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(libraries)
 		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
 		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(connectors)
 		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
 		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(tests)
 		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
 		MVN_TEST_MODULES="-pl $MODULES_TESTS"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(misc)
 		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
@@ -145,8 +150,11 @@ esac
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMPILE="mvn -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -DskipTests -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_COMPILE_MODULES clean install"
-MVN_TEST="mvn -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_TEST_MODULES verify"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $MVN_LOGGING_OPTIONS"
+MVN_COMPILE_OPTIONS="$MVN_COMPILE_OPTIONS -DskipTests"
+
+MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES clean install"
+MVN_TEST="mvn -$MVN_COMMON_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
