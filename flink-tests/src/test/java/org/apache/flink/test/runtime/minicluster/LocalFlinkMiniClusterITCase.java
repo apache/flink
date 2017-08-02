@@ -49,7 +49,7 @@ import static org.junit.Assert.fail;
  */
 public class LocalFlinkMiniClusterITCase extends TestLogger {
 
-	private static final String[] ALLOWED_THREAD_PREFIXES = { };
+	private static final String[] ALLOWED_THREAD_PREFIXES = { "initialSeedUniquifierGenerator" };
 
 	@Test
 	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
