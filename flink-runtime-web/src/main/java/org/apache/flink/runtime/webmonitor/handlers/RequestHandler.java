@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.webmonitor.NotFoundException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 
@@ -40,16 +41,16 @@ public interface RequestHandler {
 	 *
 	 * @param pathParams The map of REST path parameters, decoded by the router.
 	 * @param queryParams The map of query parameters.
-	 * @param jobManager The JobManager actor.
+	 * @param jobManagerGateway to talk to the JobManager.
 	 *
 	 * @return The full http response.
 	 *
 	 * @throws Exception Handlers may forward exceptions. Exceptions of type
-	 *         {@link org.apache.flink.runtime.webmonitor.NotFoundException} will cause a HTTP 404
+	 *         {@link NotFoundException} will cause a HTTP 404
 	 *         response with the exception message, other exceptions will cause a HTTP 500 response
 	 *         with the exception stack trace.
 	 */
-	FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception;
+	FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception;
 
 	/**
 	 * Returns an array of REST URL's under which this handler can be registered.

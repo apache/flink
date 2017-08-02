@@ -149,6 +149,13 @@ public class WebOptions {
 			.defaultValue(50)
 			.withDeprecatedKeys("jobmanager.web.backpressure.delay-between-samples");
 
+	/**
+	 * Timeout for asynchronous operations by the WebRuntimeMonitor in milliseconds.
+	 */
+	public static final ConfigOption<Long> TIMEOUT = ConfigOptions
+		.key("web.timeout")
+		.defaultValue(10L * 1000L);
+
 
 	private WebOptions() {
 		throw new IllegalAccessError();

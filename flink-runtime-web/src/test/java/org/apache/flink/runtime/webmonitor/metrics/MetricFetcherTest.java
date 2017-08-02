@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.metrics;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -26,49 +27,39 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
-import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
-import scala.Option;
-import scala.collection.JavaConverters;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.Future$;
-import scala.concurrent.duration.FiniteDuration;
-
-import static org.apache.flink.runtime.metrics.dump.MetricQueryService.METRIC_QUERY_SERVICE_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isA;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Tests for the MetricFetcher.
@@ -78,6 +69,8 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 public class MetricFetcherTest extends TestLogger {
 	@Test
 	public void testUpdate() throws Exception {
+		final Time timeout = Time.seconds(10L);
+
 		// ========= setup TaskManager =================================================================================
 		JobID jobID = new JobID();
 		InstanceID tmID = new InstanceID();
@@ -94,58 +87,40 @@ public class MetricFetcherTest extends TestLogger {
 		JobDetails details = mock(JobDetails.class);
 		when(details.getJobId()).thenReturn(jobID);
 
-		ActorGateway jobManagerGateway = mock(ActorGateway.class);
-		Object registeredTaskManagersAnswer = new JobManagerMessages.RegisteredTaskManagers(
-			JavaConverters.collectionAsScalaIterableConverter(Collections.singletonList(taskManager)).asScala());
+		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 
-		when(jobManagerGateway.ask(isA(RequestJobDetails.class), any(FiniteDuration.class)))
-			.thenReturn(Future$.MODULE$.successful((Object) new MultipleJobsDetails(new JobDetails[0], new JobDetails[0])));
-		when(jobManagerGateway.ask(isA(JobManagerMessages.RequestRegisteredTaskManagers$.class), any(FiniteDuration.class)))
-			.thenReturn(Future$.MODULE$.successful(registeredTaskManagersAnswer));
-		when(jobManagerGateway.path()).thenReturn("/jm/address");
+		when(jobManagerGateway.requestJobDetails(anyBoolean(), anyBoolean(), any(Time.class)))
+			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(new JobDetails[0], new JobDetails[0])));
+		when(jobManagerGateway.requestTaskManagerInstances(any(Time.class)))
+			.thenReturn(CompletableFuture.completedFuture(Collections.singleton(taskManager)));
+		when(jobManagerGateway.getAddress()).thenReturn("/jm/address");
+		when(jobManagerGateway.requestWebPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(0));
 
-		JobManagerRetriever retriever = mock(JobManagerRetriever.class);
-		when(retriever.getJobManagerGatewayAndWebPort())
-			.thenReturn(Option.apply(new scala.Tuple2<ActorGateway, Integer>(jobManagerGateway, 0)));
+		AkkaJobManagerRetriever retriever = mock(AkkaJobManagerRetriever.class);
+		when(retriever.getJobManagerGatewayNow())
+			.thenReturn(Optional.of(jobManagerGateway));
 
 		// ========= setup QueryServices ================================================================================
-		Object requestMetricsAnswer = createRequestDumpAnswer(tmID, jobID);
+		MetricQueryServiceGateway jmQueryService = mock(MetricQueryServiceGateway.class);
+		MetricQueryServiceGateway tmQueryService = mock(MetricQueryServiceGateway.class);
 
-		final ActorRef jmQueryService = mock(ActorRef.class);
-		final ActorRef tmQueryService = mock(ActorRef.class);
+		MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer = createRequestDumpAnswer(tmID, jobID);
 
-		ActorSystem actorSystem = mock(ActorSystem.class);
-		when(actorSystem.actorFor(eq("/jm/" + METRIC_QUERY_SERVICE_NAME))).thenReturn(jmQueryService);
-		when(actorSystem.actorFor(eq("/tm/" + METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString()))).thenReturn(tmQueryService);
+		when(jmQueryService.queryMetrics(any(Time.class)))
+			.thenReturn(CompletableFuture.completedFuture(new MetricDumpSerialization.MetricSerializationResult(new byte[0], 0, 0, 0, 0)));
+		when(tmQueryService.queryMetrics(any(Time.class)))
+			.thenReturn(CompletableFuture.completedFuture(requestMetricsAnswer));
 
-		MetricFetcher.BasicGateway jmQueryServiceGateway = mock(MetricFetcher.BasicGateway.class);
-		when(jmQueryServiceGateway.ask(any(MetricQueryService.getCreateDump().getClass()), any(FiniteDuration.class)))
-			.thenReturn(Future$.MODULE$.successful((Object) new MetricDumpSerialization.MetricSerializationResult(new byte[0], 0, 0, 0, 0)));
-
-		MetricFetcher.BasicGateway tmQueryServiceGateway = mock(MetricFetcher.BasicGateway.class);
-		when(tmQueryServiceGateway.ask(any(MetricQueryService.getCreateDump().getClass()), any(FiniteDuration.class)))
-			.thenReturn(Future$.MODULE$.successful(requestMetricsAnswer));
-
-		whenNew(MetricFetcher.BasicGateway.class)
-			.withArguments(eq(new Object() {
-				@Override
-				public boolean equals(Object o) {
-					return o == jmQueryService;
-				}
-			}))
-			.thenReturn(jmQueryServiceGateway);
-		whenNew(MetricFetcher.BasicGateway.class)
-			.withArguments(eq(new Object() {
-				@Override
-				public boolean equals(Object o) {
-					return o == tmQueryService;
-				}
-			}))
-			.thenReturn(tmQueryServiceGateway);
+		MetricQueryServiceRetriever queryServiceRetriever = mock(MetricQueryServiceRetriever.class);
+		when(queryServiceRetriever.retrieveService(eq("/jm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME))).thenReturn(CompletableFuture.completedFuture(jmQueryService));
+		when(queryServiceRetriever.retrieveService(eq("/tm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString()))).thenReturn(CompletableFuture.completedFuture(tmQueryService));
 
 		// ========= start MetricFetcher testing =======================================================================
-		ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(new CurrentThreadExecutor());
-		MetricFetcher fetcher = new MetricFetcher(actorSystem, retriever, context);
+		MetricFetcher fetcher = new MetricFetcher(
+			retriever,
+			queryServiceRetriever,
+			Executors.directExecutor(),
+			timeout);
 
 		// verify that update fetches metrics and updates the store
 		fetcher.update();
@@ -170,13 +145,7 @@ public class MetricFetcherTest extends TestLogger {
 		}
 	}
 
-	private static class CurrentThreadExecutor implements Executor {
-		public void execute(Runnable r) {
-			r.run();
-		}
-	}
-
-	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(InstanceID tmID, JobID jobID) throws IOException {
+	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(InstanceID tmID, JobID jobID) {
 		Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
 		Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();

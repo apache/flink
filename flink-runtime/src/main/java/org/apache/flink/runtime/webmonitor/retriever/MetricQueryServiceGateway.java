@@ -16,27 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.retriever;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceGateway;
 
-import com.google.common.collect.Lists;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Tests for the TaskManagersHandler.
+ * Gateway to communicate with a QueryService.
+ *
+ * <p>Currently there is only one implementation working with a Akka based
+ * MetricQueryService {@link AkkaQueryServiceGateway}.
  */
-public class TaskManagersHandlerTest {
-	@Test
-	public void testGetPaths() {
-		TaskManagersHandler handler = new TaskManagersHandler(Time.seconds(0L), null);
-		String[] paths = handler.getPaths();
-		Assert.assertEquals(2, paths.length);
-		List<String> pathsList = Lists.newArrayList(paths);
-		Assert.assertTrue(pathsList.contains("/taskmanagers"));
-		Assert.assertTrue(pathsList.contains("/taskmanagers/:taskmanagerid"));
-	}
+public interface MetricQueryServiceGateway {
+
+	CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(Time timeout);
 }

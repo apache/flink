@@ -389,6 +389,8 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 - `web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
 
+- `web.timeout`: Timeout for asynchronous operation executed by the web frontend in milliseconds (DEFAULT: `10000`, 10 s)
+
 ### File Systems
 
 The parameters define the behavior of tasks that create result files.

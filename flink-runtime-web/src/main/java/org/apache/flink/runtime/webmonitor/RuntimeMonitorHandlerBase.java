@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
+import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -29,11 +31,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 
-import scala.Option;
-import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,9 +48,9 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 
 	private final JobManagerRetriever retriever;
 
-	protected final Future<String> localJobManagerAddressFuture;
+	protected final CompletableFuture<String> localJobManagerAddressFuture;
 
-	protected final FiniteDuration timeout;
+	protected final Time timeout;
 
 	/** Whether the web service has https enabled. */
 	protected final boolean httpsEnabled;
@@ -59,8 +59,8 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 
 	public RuntimeMonitorHandlerBase(
 		JobManagerRetriever retriever,
-		Future<String> localJobManagerAddressFuture,
-		FiniteDuration timeout,
+		CompletableFuture<String> localJobManagerAddressFuture,
+		Time timeout,
 		boolean httpsEnabled) {
 
 		this.retriever = checkNotNull(retriever);
@@ -78,17 +78,17 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		if (localJobManagerAddressFuture.isCompleted()) {
+		if (localJobManagerAddressFuture.isDone()) {
 			if (localJobManagerAddress == null) {
-				localJobManagerAddress = Await.result(localJobManagerAddressFuture, timeout);
+				localJobManagerAddress = localJobManagerAddressFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 
-			Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
+			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
 
-			if (jobManager.isDefined()) {
-				Tuple2<ActorGateway, Integer> gatewayPort = jobManager.get();
+			if (optJobManagerGateway.isPresent()) {
+				JobManagerGateway jobManagerGateway = optJobManagerGateway.get();
 				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
-					localJobManagerAddress, gatewayPort);
+					localJobManagerAddress, jobManagerGateway, timeout);
 
 				if (redirectAddress != null) {
 					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path(),
@@ -96,7 +96,7 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 					KeepAliveWrite.flush(ctx, routed.request(), redirect);
 				}
 				else {
-					respondAsLeader(ctx, routed, gatewayPort._1());
+					respondAsLeader(ctx, routed, jobManagerGateway);
 				}
 			} else {
 				KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
@@ -106,5 +106,5 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 		}
 	}
 
-	protected abstract void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager);
+	protected abstract void respondAsLeader(ChannelHandlerContext ctx, Routed routed, JobManagerGateway jobManagerGateway);
 }

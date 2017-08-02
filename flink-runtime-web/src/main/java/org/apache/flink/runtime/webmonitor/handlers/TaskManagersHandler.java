@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
-import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 import org.apache.flink.util.StringUtils;
@@ -32,12 +30,12 @@ import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
 
@@ -51,11 +49,11 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
 
-	private final FiniteDuration timeout;
+	private final Time timeout;
 
 	private final MetricFetcher fetcher;
 
-	public TaskManagersHandler(FiniteDuration timeout, MetricFetcher fetcher) {
+	public TaskManagersHandler(Time timeout, MetricFetcher fetcher) {
 		this.timeout = requireNonNull(timeout);
 		this.fetcher = fetcher;
 	}
@@ -66,9 +64,9 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
 		try {
-			if (jobManager != null) {
+			if (jobManagerGateway != null) {
 				// whether one task manager's metrics are requested, or all task manager, we
 				// return them in an array. This avoids unnecessary code complexity.
 				// If only one task manager is requested, we only fetch one task manager metrics.
@@ -76,20 +74,21 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 				if (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
 					try {
 						InstanceID instanceID = new InstanceID(StringUtils.hexStringToByte(pathParams.get(TASK_MANAGER_ID_KEY)));
-						Future<Object> future = jobManager.ask(new JobManagerMessages.RequestTaskManagerInstance(instanceID), timeout);
-						TaskManagerInstance instance = (TaskManagerInstance) Await.result(future, timeout);
-						if (instance.instance().nonEmpty()) {
-							instances.add(instance.instance().get());
-						}
+						CompletableFuture<Optional<Instance>> tmInstanceFuture = jobManagerGateway.requestTaskManagerInstance(instanceID, timeout);
+
+						Optional<Instance> instance = tmInstanceFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+						instance.ifPresent(instances::add);
 					}
 					// this means the id string was invalid. Keep the list empty.
 					catch (IllegalArgumentException e){
 						// do nothing.
 					}
 				} else {
-					Future<Object> future = jobManager.ask(JobManagerMessages.getRequestRegisteredTaskManagers(), timeout);
-					RegisteredTaskManagers taskManagers = (RegisteredTaskManagers) Await.result(future, timeout);
-					instances.addAll(taskManagers.asJavaCollection());
+					CompletableFuture<Collection<Instance>> tmInstancesFuture = jobManagerGateway.requestTaskManagerInstances(timeout);
+
+					Collection<Instance> tmInstances = tmInstancesFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+					instances.addAll(tmInstances);
 				}
 
 				StringWriter writer = new StringWriter();

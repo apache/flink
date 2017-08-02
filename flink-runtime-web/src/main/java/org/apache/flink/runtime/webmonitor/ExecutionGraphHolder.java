@@ -19,20 +19,19 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.WeakHashMap;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,7 +47,7 @@ public class ExecutionGraphHolder {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphHolder.class);
 
-	private final FiniteDuration timeout;
+	private final Time timeout;
 
 	private final WeakHashMap<JobID, AccessExecutionGraph> cache = new WeakHashMap<>();
 
@@ -56,50 +55,36 @@ public class ExecutionGraphHolder {
 		this(WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
 	}
 
-	public ExecutionGraphHolder(FiniteDuration timeout) {
+	public ExecutionGraphHolder(Time timeout) {
 		this.timeout = checkNotNull(timeout);
 	}
 
 	/**
-	 * Retrieves the execution graph with {@link JobID} jid or null if it cannot be found.
+	 * Retrieves the execution graph with {@link JobID} jid wrapped in {@link Optional} or
+	 * {@link Optional#empty()} if it cannot be found.
 	 *
 	 * @param jid jobID of the execution graph to be retrieved
-	 * @return the retrieved execution graph or null if it is not retrievable
+	 * @return Optional ExecutionGraph if it has been retrievable, empty if there has been no ExecutionGraph
+	 * @throws Exception if the ExecutionGraph retrieval failed.
 	 */
-	public AccessExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
+	public Optional<AccessExecutionGraph> getExecutionGraph(JobID jid, JobManagerGateway jobManagerGateway) throws Exception {
 		AccessExecutionGraph cached = cache.get(jid);
 		if (cached != null) {
 			if (cached.getState() == JobStatus.SUSPENDED) {
 				cache.remove(jid);
 			} else {
-				return cached;
+				return Optional.of(cached);
 			}
 		}
 
-		try {
-			if (jobManager != null) {
-				Future<Object> future = jobManager.ask(new JobManagerMessages.RequestJob(jid), timeout);
-				Object result = Await.result(future, timeout);
+		CompletableFuture<Optional<AccessExecutionGraph>> executionGraphFuture = jobManagerGateway.requestJob(jid, timeout);
 
-				if (result instanceof JobManagerMessages.JobNotFound) {
-					return null;
-				}
-				else if (result instanceof JobManagerMessages.JobFound) {
-					AccessExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
-					cache.put(jid, eg);
-					return eg;
-				}
-				else {
-					throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
-				}
-			}
-			else {
-				LOG.warn("No connection to the leading JobManager.");
-				return null;
-			}
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Error requesting execution graph", e);
-		}
+		Optional<AccessExecutionGraph> result = executionGraphFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		return result.map((executionGraph) -> {
+			cache.put(jid, executionGraph);
+
+			return executionGraph;
+		});
 	}
 }

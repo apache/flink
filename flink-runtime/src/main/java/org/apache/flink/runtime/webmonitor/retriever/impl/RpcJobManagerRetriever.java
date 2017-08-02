@@ -16,33 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Handler to deny access to jar-related REST calls.
+ * JobManagerRetriever implementation for Flip-6 JobManager.
  */
-public class JarAccessDeniedHandler extends AbstractJsonRequestHandler {
+public class RpcJobManagerRetriever extends JobManagerRetriever {
 
-	private static final String ERROR_MESSAGE = "{\"error\": \"Web submission interface is not " +
-			"available for this cluster. To enable it, set the configuration key ' jobmanager.web.submit.enable.'\"}";
+	private final RpcService rpcService;
 
-	@Override
-	public String[] getPaths() {
-		return new String[]{
-			JarListHandler.JAR_LIST_REST_PATH,
-			JarPlanHandler.JAR_PLAN_REST_PATH,
-			JarRunHandler.JAR_RUN_REST_PATH,
-			JarUploadHandler.JAR_UPLOAD_REST_PATH,
-			JarDeleteHandler.JAR_DELETE_REST_PATH
-		};
+	public RpcJobManagerRetriever(
+		RpcService rpcService) {
+
+		this.rpcService = Preconditions.checkNotNull(rpcService);
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		return ERROR_MESSAGE;
+	protected CompletableFuture<JobManagerGateway> createJobManagerGateway(String leaderAddress, UUID leaderId) throws Exception {
+		return rpcService.connect(leaderAddress, JobManagerGateway.class);
 	}
 }

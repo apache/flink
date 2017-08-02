@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+
 import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,7 +32,7 @@ import java.util.List;
 public class JobCancellationHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JobCancellationHandler handler = new JobCancellationHandler();
+		JobCancellationHandler handler = new JobCancellationHandler(TestingUtils.TIMEOUT());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(2, paths.length);
 		List<String> pathsList = Lists.newArrayList(paths);
