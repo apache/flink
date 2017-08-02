@@ -104,7 +104,7 @@ public class TestingRpcService extends AkkaRpcService {
 				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return FutureUtils.completedExceptionally(new Exception("No gateway registered under that name"));
+			return FutureUtils.completedExceptionally(new Exception("No gateway registered under " + address + '.'));
 		}
 	}
 
