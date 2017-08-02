@@ -21,11 +21,20 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.rpc.RpcGateway;
 
+import javax.annotation.Nullable;
+
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -38,21 +47,19 @@ import java.util.concurrent.CompletableFuture;
 public interface JobManagerGateway extends RpcGateway {
 
 	/**
-	 * Requests the class loading properties for the given JobID.
-	 *
-	 * @param jobId for which the class loading properties are requested
-	 * @param timeout for this operation
-	 * @return Future containing the optional class loading properties if they could be retrieved from the JobManager.
-	 */
-	CompletableFuture<Optional<JobManagerMessages.ClassloadingProps>> requestClassloadingProps(JobID jobId, Time timeout);
-
-	/**
 	 * Requests the BlobServer port.
 	 *
 	 * @param timeout for this operation
 	 * @return Future containing the BlobServer port
 	 */
 	CompletableFuture<Integer> requestBlobServerPort(Time timeout);
+
+	/**
+	 * Returns the port of the web runtime monitor serving requests for the JobManager endpoint.
+	 *
+	 * @return Port of the WebRuntimeMonitor responsible for the JobManager endpoint
+	 */
+	CompletableFuture<Integer> requestWebPort(Time timeout);
 
 	/**
 	 * Submits a job to the JobManager.
@@ -63,4 +70,103 @@ public interface JobManagerGateway extends RpcGateway {
 	 * @return Future containing an Acknowledge message if the submission succeeded
 	 */
 	CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, ListeningBehaviour listeningBehaviour, Time timeout);
+
+	/**
+	 * Cancels the given job after taking a savepoint and returning its path.
+	 *
+	 * If the savepointPath is null, then the JobManager will use the default savepoint directory
+	 * to store the savepoint in. After the savepoint has been taken and the job has been canceled
+	 * successfully, the path of the savepoint is returned.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param savepointPath Optional path for the savepoint to be stored under; if null, then the default path is
+	 *                      taken
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the savepoint path of the taken savepoint or an Exception if the operation failed
+	 */
+	CompletableFuture<String> cancelJobWithSavepoint(JobID jobId, @Nullable String savepointPath, Time timeout);
+
+	/**
+	 * Cancels the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing Acknowledge or an Exception if the operation failed
+	 */
+	CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout);
+
+	/**
+	 * Stops the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing Acknowledge or an Exception if the operation failed
+	 */
+	CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout);
+
+	/**
+	 * Requests the class loading properties for the given JobID.
+	 *
+	 * @param jobId for which the class loading properties are requested
+	 * @param timeout for this operation
+	 * @return Future containing the optional class loading properties if they could be retrieved from the JobManager.
+	 */
+	CompletableFuture<Optional<JobManagerMessages.ClassloadingProps>> requestClassloadingProps(JobID jobId, Time timeout);
+
+	/**
+	 * Requests the TaskManager instance registered under the given instanceId from the JobManager.
+	 * If there is no Instance registered, then {@link Optional#empty()} is returned.
+	 *
+	 * @param instanceId for which to retrieve the Instance
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the TaskManager instance registered under instanceId, otherwise {@link Optional#empty()}
+	 */
+	CompletableFuture<Optional<Instance>> requestTaskManagerInstance(InstanceID instanceId, Time timeout);
+
+	/**
+	 * Requests all currently registered TaskManager instances from the JobManager.
+	 *
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the collection of all currently registered TaskManager instances
+	 */
+	CompletableFuture<Collection<Instance>> requestTaskManagerInstances(Time timeout);
+
+	/**
+	 * Requests job details currently being executed by the JobManager.
+	 *
+	 * @param includeRunning true if running jobs shall be included, otherwise false
+	 * @param includeFinished true if finished jobs shall be included, otherwise false
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the job details
+	 */
+	CompletableFuture<MultipleJobsDetails> requestJobDetails(
+		boolean includeRunning,
+		boolean includeFinished,
+		Time timeout);
+
+	/**
+	 * Requests the AccessExecutionGraph for the given jobId. If there is no such graph, then
+	 * {@link Optional#empty()} is returned.
+	 *
+	 * @param jobId identifying the job whose AccessExecutionGraph is requested
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link Optional#empty()}
+	 */
+	CompletableFuture<Optional<AccessExecutionGraph>> requestJob(JobID jobId, Time timeout);
+
+	/**
+	 * Requests the status overview from the JobManager.
+	 *
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the status overview
+	 */
+	CompletableFuture<StatusOverview> requestStatusOverview(Time timeout);
+
+	/**
+	 * Requests the job overview from the JobManager.
+	 *
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the job overview
+	 */
+	CompletableFuture<JobsWithIDsOverview> requestJobsOverview(Time timeout);
 }

@@ -16,27 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.retriever;
 
-import org.apache.flink.api.common.time.Time;
-
-import com.google.common.collect.Lists;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Tests for the TaskManagersHandler.
+ * Retriever for {@link MetricQueryServiceGateway}.
  */
-public class TaskManagersHandlerTest {
-	@Test
-	public void testGetPaths() {
-		TaskManagersHandler handler = new TaskManagersHandler(Time.seconds(0L), null);
-		String[] paths = handler.getPaths();
-		Assert.assertEquals(2, paths.length);
-		List<String> pathsList = Lists.newArrayList(paths);
-		Assert.assertTrue(pathsList.contains("/taskmanagers"));
-		Assert.assertTrue(pathsList.contains("/taskmanagers/:taskmanagerid"));
-	}
+public interface MetricQueryServiceRetriever {
+
+	/**
+	 * Retrieves for the given query service path a {@link MetricQueryServiceGateway}.
+	 *
+	 * @param queryServicePath under which the QueryService can be reached
+	 * @return Future containing the resolved QueryServiceGateway
+	 */
+	CompletableFuture<MetricQueryServiceGateway> retrieveService(String queryServicePath);
 }

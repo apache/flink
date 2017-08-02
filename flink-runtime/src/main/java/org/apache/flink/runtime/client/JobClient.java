@@ -421,7 +421,9 @@ public class JobClient {
 
 		LOG.info("Checking and uploading JAR files");
 
-		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = retrieveBlobServerAddress(jobManagerGateway, timeout);
+		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = retrieveBlobServerAddress(
+			jobManagerGateway,
+			timeout);
 
 		final InetSocketAddress blobServerAddress;
 
@@ -448,7 +450,7 @@ public class JobClient {
 				"JobManager did not respond within " + timeout, e);
 		} catch (Throwable throwable) {
 			Throwable stripped = ExceptionUtils.stripExecutionException(throwable);
-
+			
 			try {
 				ExceptionUtils.tryDeserializeAndThrow(stripped, classLoader);
 			} catch (JobExecutionException jee) {

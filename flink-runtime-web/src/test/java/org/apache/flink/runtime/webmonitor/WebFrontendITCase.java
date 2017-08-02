@@ -158,25 +158,20 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
-	public void getTaskmanagers() {
-		try {
-			String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+	public void getTaskmanagers() throws Exception {
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
 
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode parsed = mapper.readTree(json);
-			ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode parsed = mapper.readTree(json);
+		ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
 
-			assertNotNull(taskManagers);
-			assertEquals(cluster.numTaskManagers(), taskManagers.size());
+		assertNotNull(taskManagers);
+		assertEquals(cluster.numTaskManagers(), taskManagers.size());
 
-			JsonNode taskManager = taskManagers.get(0);
-			assertNotNull(taskManager);
-			assertEquals(NUM_SLOTS, taskManager.get("slotsNumber").asInt());
-			assertTrue(taskManager.get("freeSlots").asInt() <= NUM_SLOTS);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		JsonNode taskManager = taskManagers.get(0);
+		assertNotNull(taskManager);
+		assertEquals(NUM_SLOTS, taskManager.get("slotsNumber").asInt());
+		assertTrue(taskManager.get("freeSlots").asInt() <= NUM_SLOTS);
 	}
 
 	@Test

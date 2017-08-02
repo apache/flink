@@ -19,21 +19,20 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import akka.dispatch.ExecutionContexts$;
-import akka.dispatch.Futures;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Assert;
@@ -45,15 +44,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -62,13 +60,13 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the JobCancellationWithSavepointHandler.
  */
-public class JobCancellationWithSavepointHandlersTest {
+public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 
-	private static final ExecutionContext EC = ExecutionContexts$.MODULE$.fromExecutor(Executors.directExecutor());
+	private static final Executor executor = Executors.directExecutor();
 
 	@Test
 	public void testGetPaths() {
-		JobCancellationWithSavepointHandlers handler = new JobCancellationWithSavepointHandlers(mock(ExecutionGraphHolder.class), EC);
+		JobCancellationWithSavepointHandlers handler = new JobCancellationWithSavepointHandlers(mock(ExecutionGraphHolder.class), executor);
 
 		JobCancellationWithSavepointHandlers.TriggerHandler triggerHandler = handler.getTriggerHandler();
 		String[] triggerPaths = triggerHandler.getPaths();
@@ -94,25 +92,23 @@ public class JobCancellationWithSavepointHandlersTest {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(ActorGateway.class))).thenReturn(graph);
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 		when(coord.getCheckpointTimeout()).thenReturn(timeout);
 
-		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, EC);
+		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
 		JobCancellationWithSavepointHandlers.TriggerHandler handler = handlers.getTriggerHandler();
 
 		Map<String, String> params = new HashMap<>();
 		params.put("jobid", jobId.toString());
 		params.put("targetDirectory", "placeholder");
 
-		ActorGateway jobManager = mock(ActorGateway.class);
+		JobManagerGateway jobManager = mock(JobManagerGateway.class);
+		when(jobManager.cancelJobWithSavepoint(eq(jobId), anyString(), any(Time.class))).thenReturn(CompletableFuture.completedFuture("foobar"));
 
-		Future<Object> future = Futures.successful((Object) new CancellationSuccess(jobId, null));
-		when(jobManager.ask(any(Object.class), any(FiniteDuration.class))).thenReturn(future);
+		handler.handleRequest(params, Collections.emptyMap(), jobManager);
 
-		handler.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
-
-		verify(jobManager).ask(any(CancelJobWithSavepoint.class), eq(FiniteDuration.apply(timeout, "ms")));
+		verify(jobManager).cancelJobWithSavepoint(eq(jobId), anyString(), any(Time.class));
 	}
 
 	/**
@@ -125,36 +121,34 @@ public class JobCancellationWithSavepointHandlersTest {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(ActorGateway.class))).thenReturn(graph);
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 		when(coord.getCheckpointTimeout()).thenReturn(timeout);
 
-		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, EC, "the-default-directory");
+		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor, "the-default-directory");
 		JobCancellationWithSavepointHandlers.TriggerHandler handler = handlers.getTriggerHandler();
 
 		Map<String, String> params = new HashMap<>();
 		params.put("jobid", jobId.toString());
 
-		ActorGateway jobManager = mock(ActorGateway.class);
-
-		Future<Object> future = Futures.successful((Object) new CancellationSuccess(jobId, null));
-		when(jobManager.ask(any(Object.class), any(FiniteDuration.class))).thenReturn(future);
+		JobManagerGateway jobManager = mock(JobManagerGateway.class);
+		when(jobManager.cancelJobWithSavepoint(eq(jobId), anyString(), any(Time.class))).thenReturn(CompletableFuture.completedFuture("foobar"));
 
 		// 1. Use targetDirectory path param
 		params.put("targetDirectory", "custom-directory");
 		handler.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 
-		verify(jobManager).ask(eq(new CancelJobWithSavepoint(jobId, "custom-directory")), eq(FiniteDuration.apply(timeout, "ms")));
+		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class));
 
 		// 2. Use default
 		params.remove("targetDirectory");
 
 		handler.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 
-		verify(jobManager).ask(eq(new CancelJobWithSavepoint(jobId, "the-default-directory")), eq(FiniteDuration.apply(timeout, "ms")));
+		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("the-default-directory"), any(Time.class));
 
 		// 3. Throw Exception
-		handlers = new JobCancellationWithSavepointHandlers(holder, EC, null);
+		handlers = new JobCancellationWithSavepointHandlers(holder, executor, null);
 		handler = handlers.getTriggerHandler();
 
 		try {
@@ -175,10 +169,10 @@ public class JobCancellationWithSavepointHandlersTest {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(ActorGateway.class))).thenReturn(graph);
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 
-		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, EC);
+		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
 		JobCancellationWithSavepointHandlers.TriggerHandler trigger = handlers.getTriggerHandler();
 		JobCancellationWithSavepointHandlers.InProgressHandler progress = handlers.getInProgressHandler();
 
@@ -186,16 +180,16 @@ public class JobCancellationWithSavepointHandlersTest {
 		params.put("jobid", jobId.toString());
 		params.put("targetDirectory", "custom-directory");
 
-		ActorGateway jobManager = mock(ActorGateway.class);
+		JobManagerGateway jobManager = mock(JobManagerGateway.class);
 
 		// Successful
-		Promise<Object> promise = new Promise.DefaultPromise<>();
-		when(jobManager.ask(any(Object.class), any(FiniteDuration.class))).thenReturn(promise);
+		CompletableFuture<String> successfulCancelWithSavepoint = new CompletableFuture<>();
+		when(jobManager.cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class))).thenReturn(successfulCancelWithSavepoint);
 
 		// Trigger
 		FullHttpResponse response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 
-		verify(jobManager).ask(eq(new CancelJobWithSavepoint(jobId, "custom-directory")), any(FiniteDuration.class));
+		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class));
 
 		String location = String.format("/jobs/%s/cancel-with-savepoint/in-progress/1", jobId);
 
@@ -226,7 +220,7 @@ public class JobCancellationWithSavepointHandlersTest {
 		assertEquals(location, root.get("location").asText());
 
 		// Only single actual request
-		verify(jobManager).ask(eq(new CancelJobWithSavepoint(jobId, "custom-directory")), any(FiniteDuration.class));
+		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class));
 
 		// Query progress
 		params.put("requestId", "1");
@@ -243,7 +237,7 @@ public class JobCancellationWithSavepointHandlersTest {
 		assertEquals("1", root.get("request-id").asText());
 
 		// Complete
-		promise.success(new CancellationSuccess(jobId, "_path-savepoint_"));
+		successfulCancelWithSavepoint.complete("_path-savepoint_");
 
 		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 
@@ -301,10 +295,10 @@ public class JobCancellationWithSavepointHandlersTest {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(ActorGateway.class))).thenReturn(graph);
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 
-		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, EC);
+		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
 		JobCancellationWithSavepointHandlers.TriggerHandler trigger = handlers.getTriggerHandler();
 		JobCancellationWithSavepointHandlers.InProgressHandler progress = handlers.getInProgressHandler();
 
@@ -312,15 +306,15 @@ public class JobCancellationWithSavepointHandlersTest {
 		params.put("jobid", jobId.toString());
 		params.put("targetDirectory", "custom-directory");
 
-		ActorGateway jobManager = mock(ActorGateway.class);
+		JobManagerGateway jobManager = mock(JobManagerGateway.class);
 
 		// Successful
-		Future<Object> future = Futures.failed(new Exception("Test Exception"));
-		when(jobManager.ask(any(Object.class), any(FiniteDuration.class))).thenReturn(future);
+		CompletableFuture<String> unsuccessfulCancelWithSavepoint = FutureUtils.completedExceptionally(new Exception("Test Exception"));
+		when(jobManager.cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class))).thenReturn(unsuccessfulCancelWithSavepoint);
 
 		// Trigger
 		trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
-		verify(jobManager).ask(eq(new CancelJobWithSavepoint(jobId, "custom-directory")), any(FiniteDuration.class));
+		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class));
 
 		// Query progress
 		params.put("requestId", "1");

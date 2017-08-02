@@ -62,6 +62,8 @@ object TestingUtils {
 
   val TESTING_TIMEOUT = 1 minute
 
+  val TIMEOUT = Time.minutes(1L)
+
   val DEFAULT_AKKA_ASK_TIMEOUT = "200 s"
 
   def getDefaultTestingActorSystemConfigString: String = {

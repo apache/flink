@@ -18,41 +18,54 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import scala.Tuple2;
+import java.util.concurrent.CompletableFuture;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the HandlerRedirectUtils.
  */
-public class HandlerRedirectUtilsTest {
+public class HandlerRedirectUtilsTest extends TestLogger {
 
 	private static final String localJobManagerAddress = "akka.tcp://flink@127.0.0.1:1234/user/foobar";
-	private static final String remoteURL = "127.0.0.2:1235";
+	private static final String remoteHostname = "127.0.0.2";
+	private static final int webPort = 1235;
+	private static final String remoteURL = remoteHostname + ':' + webPort;
 	private static final String remotePath = "akka.tcp://flink@" + remoteURL + "/user/jobmanager";
 
 	@Test
 	public void testGetRedirectAddressWithLocalAkkaPath() throws Exception {
-		ActorGateway leaderGateway = new DummyActorGateway("akka://flink/user/foobar");
+		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
+		when(jobManagerGateway.getAddress()).thenReturn("akka://flink/user/foobar");
 
-		Tuple2<ActorGateway, Integer> leader = new Tuple2<>(leaderGateway, 1235);
-
-		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(localJobManagerAddress, leader);
+		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(
+			localJobManagerAddress,
+			jobManagerGateway,
+			Time.seconds(3L));
 
 		Assert.assertNull(redirectingAddress);
 	}
 
 	@Test
 	public void testGetRedirectAddressWithRemoteAkkaPath() throws Exception {
-		ActorGateway leaderGateway = new DummyActorGateway(remotePath);
+		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
+		when(jobManagerGateway.getAddress()).thenReturn(remotePath);
+		when(jobManagerGateway.getHostname()).thenReturn(remoteHostname);
+		when(jobManagerGateway.requestWebPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(webPort));
 
-		Tuple2<ActorGateway, Integer> leader = new Tuple2<>(leaderGateway, 1235);
-
-		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(localJobManagerAddress, leader);
+		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(
+			localJobManagerAddress,
+			jobManagerGateway,
+			Time.seconds(3L));
 
 		Assert.assertEquals(remoteURL, redirectingAddress);
 	}
