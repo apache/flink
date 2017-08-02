@@ -37,6 +37,7 @@ import java.util.Objects;
  * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */
+@SuppressWarnings("unused")
 @Internal
 public final class HeapMemorySegment extends MemorySegment {
 
@@ -177,27 +178,42 @@ public final class HeapMemorySegment extends MemorySegment {
 	 * A memory segment factory that produces heap memory segments. Note that this factory does not
 	 * support to allocate off-heap memory.
 	 */
-	public static final class HeapMemorySegmentFactory implements MemorySegmentFactory.Factory {
+	public static final class HeapMemorySegmentFactory  {
 
-		@Override
+		/**
+		 * Creates a new memory segment that targets the given heap memory region.
+		 *
+		 * @param memory The heap memory region.
+		 * @return A new memory segment that targets the given heap memory region.
+		 */
 		public HeapMemorySegment wrap(byte[] memory) {
 			return new HeapMemorySegment(memory);
 		}
 
-		@Override
+		/**
+		 * Allocates some unpooled memory and creates a new memory segment that represents
+		 * that memory.
+		 *
+		 * @param size The size of the memory segment to allocate.
+		 * @param owner The owner to associate with the memory segment.
+		 * @return A new memory segment, backed by unpooled heap memory.
+		 */
 		public HeapMemorySegment allocateUnpooledSegment(int size, Object owner) {
 			return new HeapMemorySegment(new byte[size], owner);
 		}
 
-		@Override
+		/**
+		 * Creates a memory segment that wraps the given byte array.
+		 *
+		 * <p>This method is intended to be used for components which pool memory and create
+		 * memory segments around long-lived memory regions.
+		 *
+		 * @param memory The heap memory to be represented by the memory segment.
+		 * @param owner The owner to associate with the memory segment.
+		 * @return A new memory segment representing the given heap memory.
+		 */
 		public HeapMemorySegment wrapPooledHeapMemory(byte[] memory, Object owner) {
 			return new HeapMemorySegment(memory, owner);
-		}
-
-		@Override
-		public HeapMemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner) {
-			throw new UnsupportedOperationException(
-					"The MemorySegment factory was not initialized for off-heap memory.");
 		}
 
 		/**
