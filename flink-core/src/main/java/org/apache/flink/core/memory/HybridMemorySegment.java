@@ -436,41 +436,4 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		return getAddress(buffer);
 	}
-
-	// -------------------------------------------------------------------------
-	//  Factoring
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Base factory for hybrid memory segments.
-	 */
-	public static final class HybridMemorySegmentFactory implements MemorySegmentFactory.Factory {
-
-		@Override
-		public HybridMemorySegment wrap(byte[] memory) {
-			return new HybridMemorySegment(memory);
-		}
-
-		@Override
-		public HybridMemorySegment allocateUnpooledSegment(int size, Object owner) {
-			return new HybridMemorySegment(new byte[size], owner);
-		}
-
-		@Override
-		public HybridMemorySegment wrapPooledHeapMemory(byte[] memory, Object owner) {
-			return new HybridMemorySegment(memory, owner);
-		}
-
-		@Override
-		public HybridMemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner) {
-			return new HybridMemorySegment(memory, owner);
-		}
-
-		/**
-		 * Prevent external instantiation.
-		 */
-		HybridMemorySegmentFactory() {}
-	}
-
-	public static final HybridMemorySegmentFactory FACTORY = new HybridMemorySegmentFactory();
 }
