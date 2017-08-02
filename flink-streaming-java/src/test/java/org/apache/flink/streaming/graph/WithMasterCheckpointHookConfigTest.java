@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook.Factory;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -36,6 +35,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static java.util.Arrays.asList;
@@ -115,7 +115,7 @@ public class WithMasterCheckpointHookConfigTest {
 		}
 
 		@Override
-		public Future<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) {
+		public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) {
 			throw new UnsupportedOperationException();
 		}
 
