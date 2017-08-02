@@ -76,6 +76,10 @@ public class StateTransition<T> implements Serializable {
 		return newCondition;
 	}
 
+	public void setCondition(IterativeCondition<T> condition) {
+		this.newCondition = condition;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof StateTransition) {
