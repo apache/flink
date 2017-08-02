@@ -220,7 +220,7 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 								}
 							});
 
-						Patterns.pipe(promise.future(), getContext().dispatcher());
+						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
 					} else {
 						// tell the sender the result of the computation
 						getSender().tell(new Status.Success(result), getSelf());
