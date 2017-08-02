@@ -128,6 +128,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile ExecutionState state = CREATED;
 
+	private volatile SimpleSlot assignedFutureResource;     // once assigned, never changes until the execution is archived
+
 	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
 
 	private volatile Throwable failureCause;          // once assigned, never changes
@@ -224,11 +226,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return assignedResource;
 	}
 
+	public void setAssignedFutureResource(SimpleSlot slot) {
+		assignedFutureResource = slot;
+	}
+
+	public  SimpleSlot getAssignedFutureResource() {
+		return assignedFutureResource;
+	}
+
 	@Override
 	public TaskManagerLocation getAssignedResourceLocation() {
 		// returns non-null only when a location is already assigned
 		return assignedResource != null ? assignedResource.getTaskManagerLocation() : null;
 	}
+
 
 	public Throwable getFailureCause() {
 		return failureCause;
