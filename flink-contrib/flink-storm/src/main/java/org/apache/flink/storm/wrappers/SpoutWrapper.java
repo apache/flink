@@ -240,7 +240,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	}
 
 	@Override
-	public void run(final SourceContext<OUT> ctx) throws Exception {
+	public final void run(final SourceContext<OUT> ctx) throws Exception {
 		final GlobalJobParameters config = super.getRuntimeContext().getExecutionConfig()
 				.getGlobalJobParameters();
 		StormConfig stormConfig = new StormConfig();

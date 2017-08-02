@@ -43,7 +43,7 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 	}
 
 	@Override
-	public boolean hasNext() {
+	public final boolean hasNext() {
 		if (first != null) {
 			return true;
 		}
@@ -53,7 +53,7 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 	}
 
 	@Override
-	public Message next() {
+	public final Message next() {
 		if (first != null) {
 			Message toReturn = first;
 			first = null;
@@ -63,7 +63,7 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 	}
 
 	@Override
-	public void remove() {
+	public final void remove() {
 		throw new UnsupportedOperationException();
 	}
 

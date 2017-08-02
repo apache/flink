@@ -218,8 +218,10 @@ This file is based on the checkstyle file of Apache Beam.
     <module name="RedundantModifier">
       <!-- Checks for redundant modifiers on various symbol definitions.
         See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+        
+        We exclude METHOD_DEF to allow final methods in final classes to make them more future-proof.
       -->
-      <property name="tokens" value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
+      <property name="tokens" value="VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
     </module>
 
     <!--
