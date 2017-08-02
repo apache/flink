@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 
 /**
  * Utilities for dealing with the execution graphs and scheduling.

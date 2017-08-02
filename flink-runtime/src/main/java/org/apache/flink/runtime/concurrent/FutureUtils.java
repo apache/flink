@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.Preconditions;
 
 import akka.dispatch.OnComplete;
@@ -27,13 +26,18 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+
+import scala.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A collection of utilities that expand the usage of {@link Future} and {@link CompletableFuture}.
+ * A collection of utilities that expand the usage of {@link CompletableFuture}.
  */
 public class FutureUtils {
 
@@ -50,12 +54,12 @@ public class FutureUtils {
 	 * @param <T> type of the result
 	 * @return Future containing either the result of the operation or a {@link RetryException}
 	 */
-	public static <T> java.util.concurrent.CompletableFuture<T> retry(
-		final Callable<java.util.concurrent.CompletableFuture<T>> operation,
+	public static <T> CompletableFuture<T> retry(
+		final Callable<CompletableFuture<T>> operation,
 		final int retries,
 		final Executor executor) {
 
-		java.util.concurrent.CompletableFuture<T> operationResultFuture;
+		CompletableFuture<T> operationResultFuture;
 
 		try {
 			operationResultFuture = operation.call();
@@ -73,7 +77,7 @@ public class FutureUtils {
 							"has been exhausted.", throwable));
 					}
 				} else {
-					return java.util.concurrent.CompletableFuture.completedFuture(t);
+					return CompletableFuture.completedFuture(t);
 				}
 			},
 			executor)
@@ -113,7 +117,7 @@ public class FutureUtils {
 	 * @param futures The futures that make up the conjunction. No null entries are allowed.
 	 * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
 	 */
-	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends java.util.concurrent.CompletableFuture<? extends T>> futures) {
+	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends CompletableFuture<? extends T>> futures) {
 		checkNotNull(futures, "futures");
 
 		final ResultConjunctFuture<T> conjunct = new ResultConjunctFuture<>(futures.size());
@@ -122,7 +126,7 @@ public class FutureUtils {
 			conjunct.complete(Collections.emptyList());
 		}
 		else {
-			for (java.util.concurrent.CompletableFuture<? extends T> future : futures) {
+			for (CompletableFuture<? extends T> future : futures) {
 				future.whenComplete(conjunct::handleCompletedFuture);
 			}
 		}
@@ -141,7 +145,7 @@ public class FutureUtils {
 	 * @param futures The futures to wait on. No null entries are allowed.
 	 * @return The WaitingFuture that completes once all given futures are complete (or one fails).
 	 */
-	public static ConjunctFuture<Void> waitForAll(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures) {
+	public static ConjunctFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
 		checkNotNull(futures, "futures");
 
 		return new WaitingConjunctFuture(futures);
@@ -153,10 +157,10 @@ public class FutureUtils {
 	 * one of the Futures in the conjunction fails.
 	 * 
 	 * <p>The advantage of using the ConjunctFuture over chaining all the futures (such as via
-	 * {@link Future#thenCombine(Future, BiFunction)}) is that ConjunctFuture also tracks how
-	 * many of the Futures are already complete.
+	 * {@link CompletableFuture#thenCombine(CompletionStage, BiFunction)} )}) is that ConjunctFuture
+	 * also tracks how many of the Futures are already complete.
 	 */
-	public abstract static class ConjunctFuture<T> extends java.util.concurrent.CompletableFuture<T> {
+	public abstract static class ConjunctFuture<T> extends CompletableFuture<T> {
 
 		/**
 		 * Gets the total number of Futures in the conjunction.
@@ -245,7 +249,7 @@ public class FutureUtils {
 			}
 		}
 
-		private WaitingConjunctFuture(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures) {
+		private WaitingConjunctFuture(Collection<? extends CompletableFuture<?>> futures) {
 			Preconditions.checkNotNull(futures, "Futures must not be null.");
 
 			this.numTotal = futures.size();
@@ -275,14 +279,14 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns an exceptionally completed {@link java.util.concurrent.CompletableFuture}.
+	 * Returns an exceptionally completed {@link CompletableFuture}.
 	 *
 	 * @param cause to complete the future with
 	 * @param <T> type of the future
 	 * @return An exceptionally completed CompletableFuture
 	 */
-	public static <T>java.util.concurrent.CompletableFuture<T> completedExceptionally(Throwable cause) {
-		java.util.concurrent.CompletableFuture<T> result = new java.util.concurrent.CompletableFuture<>();
+	public static <T>CompletableFuture<T> completedExceptionally(Throwable cause) {
+		CompletableFuture<T> result = new CompletableFuture<>();
 		result.completeExceptionally(cause);
 
 		return result;
@@ -293,14 +297,14 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Converts a Scala {@link scala.concurrent.Future} to a {@link java.util.concurrent.CompletableFuture}.
+	 * Converts a Scala {@link Future} to a {@link CompletableFuture}.
 	 *
 	 * @param scalaFuture to convert to a Java 8 CompletableFuture
 	 * @param <T> type of the future value
 	 * @return Java 8 CompletableFuture
 	 */
-	public static <T> java.util.concurrent.CompletableFuture<T> toJava(scala.concurrent.Future<T> scalaFuture) {
-		final java.util.concurrent.CompletableFuture<T> result = new java.util.concurrent.CompletableFuture<>();
+	public static <T> CompletableFuture<T> toJava(Future<T> scalaFuture) {
+		final CompletableFuture<T> result = new CompletableFuture<>();
 
 		scalaFuture.onComplete(new OnComplete<T>() {
 			@Override
@@ -312,59 +316,6 @@ public class FutureUtils {
 				}
 			}
 		}, Executors.directExecutionContext());
-
-		return result;
-	}
-
-	/**
-	 * Converts a Flink {@link Future} into a {@link CompletableFuture}.
-	 *
-	 * @param flinkFuture to convert to a Java 8 CompletableFuture
-	 * @param <T> type of the future value
-	 * @return Java 8 CompletableFuture
-	 *
-	 * @deprecated Will be removed once we completely remove Flink's futures
-	 */
-	@Deprecated
-	public static <T> java.util.concurrent.CompletableFuture<T> toJava(Future<T> flinkFuture) {
-		final java.util.concurrent.CompletableFuture<T> result = new java.util.concurrent.CompletableFuture<>();
-
-		flinkFuture.handle(
-			(t, throwable) -> {
-				if (throwable != null) {
-					result.completeExceptionally(throwable);
-				} else {
-					result.complete(t);
-				}
-
-				return null;
-			}
-		);
-
-		return result;
-	}
-
-	/**
-	 * Converts a Java 8 {@link java.util.concurrent.CompletableFuture} into a Flink {@link Future}.
-	 *
-	 * @param javaFuture to convert to a Flink future
-	 * @param <T> type of the future value
-	 * @return Flink future
-	 *
-	 * @deprecated Will be removed once we completely remove Flink's futures
-	 */
-	@Deprecated
-	public static <T> Future<T> toFlinkFuture(java.util.concurrent.CompletableFuture<T> javaFuture) {
-		FlinkCompletableFuture<T> result = new FlinkCompletableFuture<>();
-
-		javaFuture.whenComplete(
-			(value, throwable) -> {
-				if (throwable == null) {
-					result.complete(value);
-				} else {
-					result.completeExceptionally(throwable);
-				}
-			});
 
 		return result;
 	}
