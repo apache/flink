@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -37,9 +38,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -134,16 +133,16 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 
 	@Override
-	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+	public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
 		try {
 			final Object ret = scheduleTask(task, allowQueued);
 
 			if (ret instanceof SimpleSlot) {
-				return FlinkCompletableFuture.completed((SimpleSlot) ret);
+				return CompletableFuture.completedFuture((SimpleSlot) ret);
 			}
-			else if (ret instanceof Future) {
+			else if (ret instanceof CompletableFuture) {
 				@SuppressWarnings("unchecked")
-				Future<SimpleSlot> typed = (Future<SimpleSlot>) ret;
+				CompletableFuture<SimpleSlot> typed = (CompletableFuture<SimpleSlot>) ret;
 				return typed;
 			}
 			else {
@@ -152,12 +151,12 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			}
 		}
 		catch (NoResourceAvailableException e) {
-			return FlinkCompletableFuture.completedExceptionally(e);
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 
 	/**
-	 * Returns either a {@link SimpleSlot}, or a {@link Future}.
+	 * Returns either a {@link SimpleSlot}, or a {@link CompletableFuture}.
 	 */
 	private Object scheduleTask(ScheduledUnit task, boolean queueIfNoResource) throws NoResourceAvailableException {
 		if (task == null) {
@@ -320,7 +319,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				else {
 					// no resource available now, so queue the request
 					if (queueIfNoResource) {
-						CompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+						CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 						this.taskQueue.add(new QueuedTask(task, future));
 						return future;
 					}
