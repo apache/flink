@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.api.java.operators.lambdas;
+package org.apache.flink.test.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -24,19 +24,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda cross functions.
+ * IT cases for lambda join functions.
  */
-public class CrossITCase extends JavaProgramTestBase {
+public class JoinITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "2,hello not\n" +
-			"3,what's not\n" +
-			"3,up not\n" +
-			"2,hello much\n" +
-			"3,what's much\n" +
-			"3,up much\n" +
-			"3,hello really\n" +
-			"4,what's really\n" +
-			"4,up really";
+	private static final String EXPECTED_RESULT = "2,what's really\n" +
+			"2,up really\n" +
+			"1,hello not\n" +
+			"1,hello much\n";
 
 	private String resultPath;
 
@@ -60,8 +55,8 @@ public class CrossITCase extends JavaProgramTestBase {
 				new Tuple2<Integer, String>(1, "much"),
 				new Tuple2<Integer, String>(2, "really")
 				);
-		DataSet<Tuple2<Integer, String>> joined = left.cross(right)
-				.with((t, s) -> new Tuple2<> (t.f0 + s.f0, t.f1 + " " + s.f1));
+		DataSet<Tuple2<Integer, String>> joined = left.join(right).where(0).equalTo(0)
+				.with((t, s) -> new Tuple2<>(t.f0, t.f1 + " " + s.f1));
 		joined.writeAsCsv(resultPath);
 		env.execute();
 	}
@@ -71,3 +66,4 @@ public class CrossITCase extends JavaProgramTestBase {
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
 }
+

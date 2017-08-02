@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.api.java.operators.lambdas;
+package org.apache.flink.test.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda allreduce functions.
+ * IT cases for lambda flatmap functions.
  */
-public class AllGroupReduceITCase extends JavaProgramTestBase {
+public class FlatMapITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "aaabacad\n";
+	private static final String EXPECTED_RESULT = "bb\n" +
+			"bb\n" +
+			"bc\n" +
+			"bd\n";
 
 	private String resultPath;
 
@@ -41,14 +44,8 @@ public class AllGroupReduceITCase extends JavaProgramTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-		DataSet<String> concatDs = stringDs.reduceGroup((values, out) -> {
-			String conc = "";
-			for (String s : values) {
-				conc = conc.concat(s);
-			}
-			out.collect(conc);
-		});
-		concatDs.writeAsText(resultPath);
+		DataSet<String> flatMappedDs = stringDs.flatMap((s, out) -> out.collect(s.replace("a", "b")));
+		flatMappedDs.writeAsText(resultPath);
 		env.execute();
 	}
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.api.java.operators.lambdas;
+package org.apache.flink.test.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -24,12 +24,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda groupreduce functions.
+ * IT cases for lambda cogroup functions.
  */
-public class GroupReduceITCase extends JavaProgramTestBase {
+public class CoGroupITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "abad\n" +
-			"aaac\n";
+	private static final String EXPECTED_RESULT = "6\n3\n";
 
 	private String resultPath;
 
@@ -43,22 +42,28 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Integer, String>> stringDs = env.fromElements(
-				new Tuple2<>(1, "aa"),
-				new Tuple2<>(2, "ab"),
-				new Tuple2<>(1, "ac"),
-				new Tuple2<>(2, "ad")
-				);
-		DataSet<String> concatDs = stringDs
-				.groupBy(0)
-				.reduceGroup((values, out) -> {
-					String conc = "";
-					for (Tuple2<Integer, String> next : values) {
-						conc = conc.concat(next.f1);
-					}
-					out.collect(conc);
-				});
-		concatDs.writeAsText(resultPath);
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+			new Tuple2<Integer, String>(1, "hello"),
+			new Tuple2<Integer, String>(2, "what's"),
+			new Tuple2<Integer, String>(2, "up")
+		);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+			new Tuple2<Integer, String>(1, "not"),
+			new Tuple2<Integer, String>(1, "much"),
+			new Tuple2<Integer, String>(2, "really")
+		);
+		DataSet<Integer> joined = left.coGroup(right).where(0).equalTo(0)
+			.with((values1, values2, out) -> {
+				int sum = 0;
+				for (Tuple2<Integer, String> next : values1) {
+					sum += next.f0;
+				}
+				for (Tuple2<Integer, String> next : values2) {
+					sum += next.f0;
+				}
+				out.collect(sum);
+			});
+		joined.writeAsText(resultPath);
 		env.execute();
 	}
 
