@@ -697,6 +697,10 @@ under the License.
 		</profile>
 		
 		<profile>
+			<!--japicmp 0.7 does not support deactivation from the command
+				line, so we have to use a workaround with profiles instead.
+				This can be removed when upgrading japicmp to 0.10+.
+				-->
 			<id>skip-japicmp</id>
 			<activation>
 				<property>
