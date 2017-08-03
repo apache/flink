@@ -33,7 +33,7 @@ This page provides instructions on how to run Flink in a *fully distributed fash
 
 Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **Cygwin** (for Windows) and expects the cluster to consist of **one master node** and **one or more worker nodes**. Before you start to setup the system, make sure you have the following software installed **on each node**:
 
-- **Java 1.7.x** or higher,
+- **Java 1.8.x** or higher,
 - **ssh** (sshd must be running to use the Flink scripts that manage
   remote components)
 
