@@ -46,7 +46,6 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Preconditions;
 
 import com.google.common.collect.ImmutableSet;
-import kafka.server.KafkaServer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Test;
 
@@ -214,7 +213,8 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 	/**
 	 * This test sets KafkaProducer so that it will not automatically flush the data and
-	 * and fails the broker to check whether FlinkKafkaProducer flushed records manually on snapshotState.
+	 * simulate network failure between Flink and Kafka to check whether FlinkKafkaProducer
+	 * flushed records manually on snapshotState.
 	 */
 	protected void testOneToOneAtLeastOnce(boolean regularSink) throws Exception {
 		final String topic = regularSink ? "oneToOneTopicRegularSink" : "oneToOneTopicCustomOperator";
@@ -243,13 +243,12 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		properties.setProperty("batch.size", "10240000");
 		properties.setProperty("linger.ms", "10000");
 
-		int leaderId = kafkaServer.getLeaderToShutDown(topic);
-		BrokerRestartingMapper.resetState();
+		BrokerRestartingMapper.resetState(kafkaServer::blockProxyTraffic);
 
 		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
 		DataStream<Integer> inputStream = env
 			.fromCollection(getIntegersSequence(numElements))
-			.map(new BrokerRestartingMapper<Integer>(leaderId, failAfterElements));
+			.map(new BrokerRestartingMapper<>(failAfterElements));
 
 		StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, keyedSerializationSchema, properties, new FlinkKafkaPartitioner<Integer>() {
 			@Override
@@ -276,10 +275,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			fail("Job should fail!");
 		}
 		catch (JobExecutionException ex) {
-			assertEquals("Broker was shutdown!", ex.getCause().getMessage());
+			// ignore error, it can be one of many errors so it would be hard to check the exception message/cause
 		}
 
-		kafkaServer.restartBroker(leaderId);
+		kafkaServer.unblockProxyTraffic();
 
 		// assert that before failure we successfully snapshot/flushed all expected elements
 		assertAtLeastOnceForTopic(
@@ -438,22 +437,22 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		public static volatile boolean restartedLeaderBefore;
 		public static volatile boolean hasBeenCheckpointedBeforeFailure;
 		public static volatile int numElementsBeforeSnapshot;
+		public static volatile Runnable shutdownAction;
 
-		private final int shutdownBrokerId;
 		private final int failCount;
 		private int numElementsTotal;
 
 		private boolean failer;
 		private boolean hasBeenCheckpointed;
 
-		public static void resetState() {
+		public static void resetState(Runnable shutdownAction) {
 			restartedLeaderBefore = false;
 			hasBeenCheckpointedBeforeFailure = false;
 			numElementsBeforeSnapshot = 0;
+			BrokerRestartingMapper.shutdownAction = shutdownAction;
 		}
 
-		public BrokerRestartingMapper(int shutdownBrokerId, int failCount) {
-			this.shutdownBrokerId = shutdownBrokerId;
+		public BrokerRestartingMapper(int failCount) {
 			this.failCount = failCount;
 		}
 
@@ -471,31 +470,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 				if (failer && numElementsTotal >= failCount) {
 					// shut down a Kafka broker
-					KafkaServer toShutDown = null;
-					for (KafkaServer server : kafkaServer.getBrokers()) {
-
-						if (kafkaServer.getBrokerId(server) == shutdownBrokerId) {
-							toShutDown = server;
-							break;
-						}
-					}
-
-					if (toShutDown == null) {
-						StringBuilder listOfBrokers = new StringBuilder();
-						for (KafkaServer server : kafkaServer.getBrokers()) {
-							listOfBrokers.append(kafkaServer.getBrokerId(server));
-							listOfBrokers.append(" ; ");
-						}
-
-						throw new Exception("Cannot find broker to shut down: " + shutdownBrokerId
-												+ " ; available brokers: " + listOfBrokers.toString());
-					} else {
-						hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
-						restartedLeaderBefore = true;
-						toShutDown.shutdown();
-						toShutDown.awaitShutdown();
-						throw new Exception("Broker was shutdown!");
-					}
+					hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
+					restartedLeaderBefore = true;
+					shutdownAction.run();
 				}
 			}
 			return value;
