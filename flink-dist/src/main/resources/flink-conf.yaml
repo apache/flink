@@ -118,7 +118,7 @@ jobmanager.web.port: 8081
 # Directory for storing checkpoints in a Flink-supported filesystem
 # Note: State backend must be accessible from the JobManager and all TaskManagers.
 # Use "hdfs://" for HDFS setups, "file://" for UNIX/POSIX-compliant file systems,
-# (or any local file system under Windows), or "S3://" for S3 file system.
+# (or any local file system under Windows), or "s3://" with lower case 's' for S3 file system.
 #
 # state.backend.fs.checkpointdir: hdfs://namenode-host:port/flink-checkpoints
 
