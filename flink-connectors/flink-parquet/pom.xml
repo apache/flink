@@ -30,7 +30,7 @@ under the License.
     </parent>
 
     <artifactId>flink-parquet_${scala.binary.version}</artifactId>
-    <name>flink-avro</name>
+    <name>flink-parquet</name>
 
     <packaging>jar</packaging>
 

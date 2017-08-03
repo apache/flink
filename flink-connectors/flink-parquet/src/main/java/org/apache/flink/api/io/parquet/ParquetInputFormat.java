@@ -71,7 +71,7 @@ public abstract class ParquetInputFormat<T> extends FileInputFormat<T> {
 	private byte[] filterBytes;
 	private transient ParquetRecordReader<Row> recordReader;
 
-	public ParquetInputFormat(Path filePath, TypeInformation<?>[] fieldTypes, String[] fieldNames) {
+	protected ParquetInputFormat(Path filePath, TypeInformation<?>[] fieldTypes, String[] fieldNames) {
 		super(filePath);
 		Preconditions.checkArgument(fieldNames != null && fieldNames.length > 0);
 		Preconditions.checkArgument(fieldTypes != null && fieldTypes.length == fieldNames.length);
@@ -87,7 +87,7 @@ public abstract class ParquetInputFormat<T> extends FileInputFormat<T> {
 		}
 	}
 
-	public FilterPredicate getFilterPredicate() {
+	private FilterPredicate getFilterPredicate() {
 		if (filterBytes != null) {
 			try {
 				return InstantiationUtil.deserializeObject(filterBytes, Thread.currentThread().getContextClassLoader());
@@ -160,7 +160,10 @@ public abstract class ParquetInputFormat<T> extends FileInputFormat<T> {
 	}
 
 	/**
-	 * convert row to T.
+	 * convert the parquet row to specific type T.
+	 * NOTES: `current` is reused in {@link ParquetRecordConverter} to avoid creating row instance for each record,
+	 * so the implementation of this method should copy the values of `current` to `reuse` instead of return
+	 * `current` directly.
 	 */
 	protected abstract T convert(Row current, T reuse);
 

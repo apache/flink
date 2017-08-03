@@ -47,7 +47,7 @@ public class PojoParquetInputFormat<OUT> extends ParquetInputFormat<OUT> {
 	}
 
 	public PojoParquetInputFormat(Path filePath, PojoTypeInfo<OUT> pojoTypeInfo, String[] fieldNames) {
-		super(filePath, extractTypeInfos(pojoTypeInfo, fieldNames), fieldNames);
+		super(filePath, extractTypeInfo(pojoTypeInfo, fieldNames), fieldNames);
 
 		this.pojoSerializer = pojoTypeInfo.createSerializer(new ExecutionConfig());
 		this.pojoTypeClass = pojoTypeInfo.getTypeClass();
@@ -109,7 +109,7 @@ public class PojoParquetInputFormat<OUT> extends ParquetInputFormat<OUT> {
 	/**
 	 * Extracts the {@link TypeInformation}s from {@link PojoTypeInfo} corresponding to the given fieldNames.
 	 */
-	private static <OUT> TypeInformation<?>[] extractTypeInfos(PojoTypeInfo<OUT> pojoTypeInfo, String[] fieldNames) {
+	private static <OUT> TypeInformation<?>[] extractTypeInfo(PojoTypeInfo<OUT> pojoTypeInfo, String[] fieldNames) {
 		Preconditions.checkNotNull(pojoTypeInfo);
 		Preconditions.checkNotNull(fieldNames);
 		Preconditions.checkArgument(pojoTypeInfo.getArity() >= fieldNames.length);

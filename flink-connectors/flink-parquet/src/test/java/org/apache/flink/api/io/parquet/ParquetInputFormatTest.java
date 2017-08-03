@@ -410,7 +410,6 @@ public class ParquetInputFormatTest {
 				FilterApi.gtEq(FilterApi.intColumn("f1"), 100),
 				FilterApi.lt(doubleColumn("f3"), 0.5d));
 		inputFormat.setFilterPredicate(filter);
-		assertEquals(filter, inputFormat.getFilterPredicate());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);

@@ -46,6 +46,9 @@ import java.util.Map;
  */
 public class ParquetRecordConverter extends GroupConverter {
 
+	/**
+	 * currentRow is reused to avoid creating row instance for each record.
+	 */
 	private final Row currentRow;
 	private final List<Converter> fieldConverters;
 

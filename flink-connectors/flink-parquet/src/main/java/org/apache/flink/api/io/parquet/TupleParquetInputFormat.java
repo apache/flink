@@ -35,7 +35,7 @@ public class TupleParquetInputFormat<OUT> extends ParquetInputFormat<OUT> {
 	private final TupleSerializerBase<OUT> tupleSerializer;
 
 	public TupleParquetInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, String[] fieldNames) {
-		super(filePath, extractTypeInfos(tupleTypeInfo), fieldNames);
+		super(filePath, extractTypeInfo(tupleTypeInfo), fieldNames);
 		this.tupleSerializer = (TupleSerializerBase<OUT>) tupleTypeInfo.createSerializer(new ExecutionConfig());
 	}
 
@@ -52,7 +52,7 @@ public class TupleParquetInputFormat<OUT> extends ParquetInputFormat<OUT> {
 		}
 	}
 
-	private static <OUT> TypeInformation<?>[] extractTypeInfos(TupleTypeInfoBase<OUT> tupleTypeInfo) {
+	private static <OUT> TypeInformation<?>[] extractTypeInfo(TupleTypeInfoBase<OUT> tupleTypeInfo) {
 		Preconditions.checkNotNull(tupleTypeInfo);
 
 		TypeInformation<?>[] fieldTypes = new TypeInformation<?>[tupleTypeInfo.getArity()];

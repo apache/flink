@@ -34,12 +34,12 @@ import java.util.Map;
 
 /**
  * A {@link ParquetSchemaConverter} is used to convert Parquet {@link MessageType} to
- * Flink field-names and {@link TypeInformation}s, and vice versa.
+ * Flink field-name and {@link TypeInformation} pairs, and vice versa.
  */
 public class ParquetSchemaConverter {
 
 	/**
-	 * Converts Parquet {@link MessageType} to Flink field-name and {@link TypeInformation}.
+	 * Converts Parquet {@link MessageType} to Flink field-name and {@link TypeInformation} pairs.
 	 */
 	public Map<String, TypeInformation<?>> convertToTypeInformation(MessageType parquetSchema) {
 		List<Type> types = parquetSchema.asGroupType().getFields();
