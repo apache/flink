@@ -314,10 +314,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final Map<StateTable<K, ?, ?>, StateTableSnapshot> cowStateStableSnapshots = new HashedMap(stateTables.size());
 
 		for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
-			metaInfoSnapshots.add(kvState.getValue().getMetaInfo().snapshot());
 			kVStateToId.put(kvState.getKey(), kVStateToId.size());
 			StateTable<K, ?, ?> stateTable = kvState.getValue();
 			if (null != stateTable) {
+				metaInfoSnapshots.add(stateTable.getMetaInfo().snapshot());
 				cowStateStableSnapshots.put(stateTable, stateTable.createSnapshot());
 			}
 		}
