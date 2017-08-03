@@ -28,8 +28,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
@@ -75,6 +73,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
 
 import static org.junit.Assert.assertEquals;
@@ -160,14 +159,9 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(PartitionProducerStateChecker.class),
 			Executors.directExecutor());
 
-		Future<Void> taskRun = FlinkCompletableFuture.supplyAsync(new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				task.run();
-
-				return null;
-			}
-		}, TestingUtils.defaultExecutor());
+		CompletableFuture<Void> taskRun = CompletableFuture.runAsync(
+			() -> task.run(),
+			TestingUtils.defaultExecutor());
 
 		// wait until the stream task started running
 		RUN_LATCH.await();

@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.akka;
 
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -43,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -125,7 +123,7 @@ public class QuarantineMonitorTest extends TestLogger {
 			// start watching the watchee
 			watcher.tell(new Watch(watcheeAddress), ActorRef.noSender());
 
-			Future<String> quarantineFuture = quarantineHandler.getWasQuarantinedByFuture();
+			CompletableFuture<String> quarantineFuture = quarantineHandler.getWasQuarantinedByFuture();
 
 			Assert.assertEquals(actorSystem1Address.toString(), quarantineFuture.get());
 		} finally {
@@ -166,7 +164,7 @@ public class QuarantineMonitorTest extends TestLogger {
 			// start watching the watchee
 			watcher.tell(new Watch(watcheeAddress), ActorRef.noSender());
 
-			Future<String> quarantineFuture = quarantineHandler.getHasQuarantinedFuture();
+			CompletableFuture<String> quarantineFuture = quarantineHandler.getHasQuarantinedFuture();
 
 			Assert.assertEquals(actorSystem1Address.toString(), quarantineFuture.get());
 		} finally {
@@ -182,8 +180,8 @@ public class QuarantineMonitorTest extends TestLogger {
 		private final CompletableFuture<String> hasQuarantinedFuture;
 
 		public TestingQuarantineHandler() {
-			this.wasQuarantinedByFuture = new FlinkCompletableFuture<>();
-			this.hasQuarantinedFuture = new FlinkCompletableFuture<>();
+			this.wasQuarantinedByFuture = new CompletableFuture<>();
+			this.hasQuarantinedFuture = new CompletableFuture<>();
 		}
 
 		@Override
@@ -196,11 +194,11 @@ public class QuarantineMonitorTest extends TestLogger {
 			hasQuarantinedFuture.complete(remoteSystem);
 		}
 
-		public Future<String> getWasQuarantinedByFuture() {
+		public CompletableFuture<String> getWasQuarantinedByFuture() {
 			return wasQuarantinedByFuture;
 		}
 
-		public Future<String> getHasQuarantinedFuture() {
+		public CompletableFuture<String> getHasQuarantinedFuture() {
 			return hasQuarantinedFuture;
 		}
 

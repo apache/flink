@@ -196,10 +196,10 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 
 						switch (fileMode) {
 							case LOG:
-								return FutureUtils.toJava(taskManager.getTaskManagerGateway().requestTaskManagerLog(timeTimeout));
+								return taskManager.getTaskManagerGateway().requestTaskManagerLog(timeTimeout);
 							case STDOUT:
 							default:
-								return FutureUtils.toJava(taskManager.getTaskManagerGateway().requestTaskManagerStdout(timeTimeout));
+								return taskManager.getTaskManagerGateway().requestTaskManagerStdout(timeTimeout);
 						}
 					}
 				);

@@ -418,8 +418,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			final CompletableFuture<Acknowledge> submitResultFuture = FutureUtils.toJava(
-				taskManagerGateway.submitTask(deployment, timeout));
+			final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, timeout);
 
 			submitResultFuture.whenCompleteAsync(
 				(ack, failure) -> {
@@ -454,7 +453,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
 			CompletableFuture<Acknowledge> stopResultFuture = FutureUtils.retry(
-				() -> FutureUtils.toJava(taskManagerGateway.stopTask(attemptId, timeout)),
+				() -> taskManagerGateway.stopTask(attemptId, timeout),
 				NUM_STOP_CALL_TRIES,
 				executor);
 
@@ -679,14 +678,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			return FutureUtils.toJava(
-				taskManagerGateway.requestStackTraceSample(
-					attemptId,
-					sampleId,
-					numSamples,
-					delayBetweenSamples,
-					maxStrackTraceDepth,
-					timeout));
+			return taskManagerGateway.requestStackTraceSample(
+				attemptId,
+				sampleId,
+				numSamples,
+				delayBetweenSamples,
+				maxStrackTraceDepth,
+				timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));
 		}
@@ -1011,7 +1009,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
 			CompletableFuture<Acknowledge> cancelResultFuture = FutureUtils.retry(
-				() -> FutureUtils.toJava(taskManagerGateway.cancelTask(attemptId, timeout)),
+				() -> taskManagerGateway.cancelTask(attemptId, timeout),
 				NUM_CANCEL_CALL_TRIES,
 				executor);
 
@@ -1050,8 +1048,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 			final TaskManagerLocation taskManagerLocation = slot.getTaskManagerLocation();
 
-			CompletableFuture<Acknowledge> updatePartitionsResultFuture = FutureUtils.toJava(
-				taskManagerGateway.updatePartitions(attemptId, partitionInfos, timeout));
+			CompletableFuture<Acknowledge> updatePartitionsResultFuture = taskManagerGateway.updatePartitions(attemptId, partitionInfos, timeout);
 
 			updatePartitionsResultFuture.whenCompleteAsync(
 				(ack, failure) -> {

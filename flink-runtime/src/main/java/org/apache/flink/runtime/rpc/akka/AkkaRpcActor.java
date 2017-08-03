@@ -21,12 +21,8 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
-import akka.dispatch.Futures;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -44,11 +40,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -209,24 +207,20 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 						return;
 					}
 
-					if (result instanceof Future) {
-						final Future<?> future = (Future<?>) result;
+					if (result instanceof CompletableFuture) {
+						final CompletableFuture<?> future = (CompletableFuture<?>) result;
+						Promise.DefaultPromise<Object> promise = new Promise.DefaultPromise<>();
 
-						// pipe result to sender
-						if (future instanceof FlinkFuture) {
-							// FlinkFutures are currently backed by Scala's futures
-							FlinkFuture<?> flinkFuture = (FlinkFuture<?>) future;
-
-							Patterns.pipe(flinkFuture.getScalaFuture(), getContext().dispatcher()).to(getSender());
-						} else {
-							// We have to unpack the Flink future and pack it into a Scala future
-							Patterns.pipe(Futures.future(new Callable<Object>() {
-								@Override
-								public Object call() throws Exception {
-									return future.get();
+						future.whenComplete(
+							(value, throwable) -> {
+								if (throwable != null) {
+									promise.failure(throwable);
+								} else {
+									promise.success(value);
 								}
-							}, getContext().dispatcher()), getContext().dispatcher());
-						}
+							});
+
+						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
 					} else {
 						// tell the sender the result of the computation
 						getSender().tell(new Status.Success(result), getSelf());
