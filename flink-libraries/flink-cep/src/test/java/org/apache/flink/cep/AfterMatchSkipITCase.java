@@ -19,10 +19,10 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
+import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -65,8 +65,24 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 		compareResultsByLinesInMemory(expectedLateEvents, lateEventPath);
 	}
 
+	private PatternSelectFunction<Event, String> newIdSelectFunction(String ... names) {
+		return new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, List<Event>> pattern) {
+				StringBuilder builder = new StringBuilder();
+				for (String name: names) {
+					for (Event e : pattern.get(name)) {
+						builder.append(e.getId()).append(",");
+					}
+				}
+				return builder.toString();
+			}
+		};
+	}
+
 	@Test
-	public void testSkipToNextRow() throws Exception {
+	public void testSkipToNext() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Event> input = env.fromElements(
@@ -77,24 +93,16 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(5, "a", 0.0),
 			new Event(6, "a", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start",
+			new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_NEXT_EVENT))
+			.where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(3).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_NEXT_EVENT));
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("start")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
-		});
+		}).times(3);
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("start"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
@@ -105,7 +113,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testSkipPastLastRow() throws Exception {
+	public void testSkipPastLast() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Event> input = env.fromElements(
@@ -116,25 +124,16 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(5, "a", 0.0),
 			new Event(6, "a", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start",
+			new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_PAST_LAST_EVENT)).where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(3).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(AfterMatchSkipStrategy.SkipStrategy.SKIP_PAST_LAST_EVENT));
+		}).times(3);
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("start")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
-		});
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("start"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
@@ -157,7 +156,10 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(6, "ab", 0.0),
 			new Event(7, "ab", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start",
+			new AfterMatchSkipStrategy(
+				AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST, "end"))
+			.where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -169,23 +171,9 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("b");
 			}
-		}).times(2).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
-			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST, "end"));
+		}).times(2);
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("start")) {
-					builder.append(e.getId()).append(",");
-				}
-				for (Event e : pattern.get("end")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
-		});
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("start", "end"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
@@ -208,7 +196,8 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(6, "ab", 0.0),
 			new Event(7, "ab", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start", new AfterMatchSkipStrategy(
+			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "end")).where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -220,22 +209,8 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("b");
 			}
-		}).times(2).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
-			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "end"));
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("start")) {
-					builder.append(e.getId()).append(",");
-				}
-				for (Event e : pattern.get("end")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
-		});
+		}).times(2);
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("start", "end"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
@@ -245,7 +220,7 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 		env.execute();
 	}
 
-	@Test(expected = JobExecutionException.class)
+	@Test(expected = MalformedPatternException.class)
 	public void testSkipToLastWithEmptyException() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -255,7 +230,8 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(3, "ab", 0.0),
 			new Event(4, "c", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start", new AfterMatchSkipStrategy(
+			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "middle")).where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -275,29 +251,15 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		}).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
-			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "middle"));
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("start")) {
-					builder.append(e.getId()).append(",");
-				}
-				for (Event e : pattern.get("end")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
 		});
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("start", "end"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}
 
-	@Test(expected = JobExecutionException.class)
+	@Test(expected = MalformedPatternException.class)
 	public void testSkipToLastWithInfiniteLoopException() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -307,7 +269,8 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(3, "ab", 0.0),
 			new Event(4, "c", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start", new AfterMatchSkipStrategy(
+			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "start")).where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -327,29 +290,15 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		}).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
-			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST, "start"));
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("start")) {
-					builder.append(e.getId()).append(",");
-				}
-				for (Event e : pattern.get("end")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
 		});
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("start", "end"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}
 
-	@Test(expected = JobExecutionException.class)
+	@Test(expected = MalformedPatternException.class)
 	public void testSkipToFirstWithInfiniteLoopException() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -359,7 +308,8 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			new Event(3, "ab", 0.0),
 			new Event(4, "c", 0.0)
 		);
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start", new AfterMatchSkipStrategy(
+			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST, "middle")).where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -379,26 +329,103 @@ public class AfterMatchSkipITCase extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		}).setAfterMatchSkipStrategy(new AfterMatchSkipStrategy(
-			AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST, "middle"));
-
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
-				for (Event e : pattern.get("middle")) {
-					builder.append(e.getId()).append(",");
-				}
-				for (Event e : pattern.get("end")) {
-					builder.append(e.getId()).append(",");
-				}
-				return builder.toString();
-			}
 		});
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("middle", "end"));
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}
+
+	@Test
+	public void testSkipPastLast2() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "a1", 0.0),
+			new Event(2, "a2", 0.0),
+			new Event(3, "b1", 0.0),
+			new Event(4, "b2", 0.0),
+			new Event(5, "c1", 0.0),
+			new Event(6, "c2", 0.0),
+			new Event(7, "d1", 0.0),
+			new Event(8, "d2", 0.0)
+		);
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", new AfterMatchSkipStrategy(
+			AfterMatchSkipStrategy.SkipStrategy.SKIP_PAST_LAST_EVENT)).where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("a");
+			}
+		}).followedByAny("b").where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			}
+		).followedByAny("c").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("c");
+			}
+		})
+			.followedByAny("d").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("d");
+				}
+			});
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("a", "b", "c", "d"));
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,3,5,7,\n1,3,6,7,\n1,4,5,7,\n1,4,6,7,\n2,3,5,7,\n2,3,6,7,\n2,4,5,7,\n2,4,6,7,";
+
+		env.execute();
+	}
+
+	@Test
+	public void testSkipPastLast3() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "a1", 0.0),
+			new Event(2, "c", 0.0),
+			new Event(3, "a2", 0.0),
+			new Event(4, "b2", 0.0)
+		);
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", new AfterMatchSkipStrategy(
+			AfterMatchSkipStrategy.SkipStrategy.SKIP_PAST_LAST_EVENT)).where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("a");
+			}
+		}).next("b").where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			}
+		);
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(newIdSelectFunction("a", "b"));
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "3,4,";
+
+		env.execute();
+	}
+
 }

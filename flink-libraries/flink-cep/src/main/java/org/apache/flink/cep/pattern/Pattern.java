@@ -71,11 +71,14 @@ public class Pattern<T, F extends T> {
 	 */
 	private Times times;
 
-	private AfterMatchSkipStrategy skipStrategy = new AfterMatchSkipStrategy();
+	private AfterMatchSkipStrategy afterMatchSkipStrategy = new AfterMatchSkipStrategy();
 
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
+		if (previous != null) {
+			this.afterMatchSkipStrategy = previous.afterMatchSkipStrategy;
+		}
 	}
 
 	protected Pattern(
@@ -85,6 +88,18 @@ public class Pattern<T, F extends T> {
 		this.name = name;
 		this.previous = previous;
 		this.quantifier = Quantifier.one(consumingStrategy);
+		if (previous != null) {
+			this.afterMatchSkipStrategy = previous.afterMatchSkipStrategy;
+		}
+	}
+
+	protected Pattern(
+		final String name,
+		final Pattern<T, ? extends T> previous,
+		final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		this.name = name;
+		this.previous = previous;
+		this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 	}
 
 	protected Pattern(
@@ -95,7 +110,7 @@ public class Pattern<T, F extends T> {
 		this.name = name;
 		this.previous = previous;
 		this.quantifier = Quantifier.one(consumingStrategy);
-		this.skipStrategy = afterMatchSkipStrategy;
+		this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 	}
 
 	public Pattern<T, ? extends T> getPrevious() {
@@ -136,6 +151,19 @@ public class Pattern<T, F extends T> {
 	 */
 	public static <X> Pattern<X, X> begin(final String name) {
 		return new Pattern<X, X>(name, null);
+	}
+
+	/**
+	 * Starts a new pattern sequence. The provided name is the one of the initial pattern
+	 * of the new sequence. Furthermore, the base type of the event sequence is set.
+	 *
+	 * @param name The name of starting pattern of the new pattern sequence
+	 * @param afterMatchSkipStrategy The strategy to use after each match.
+	 * @param <X> Base type of the event pattern
+	 * @return The first pattern of a pattern sequence
+	 */
+	public static <X> Pattern<X, X> begin(final String name, final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		return new Pattern<X, X>(name, null, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -255,7 +283,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> next(final String name) {
-		return new Pattern<>(name, this, ConsumingStrategy.STRICT);
+		return new Pattern<>(name, this, ConsumingStrategy.STRICT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -272,7 +300,7 @@ public class Pattern<T, F extends T> {
 					"You can simulate such pattern with two independent patterns, one with and the other without " +
 					"the optional part.");
 		}
-		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT);
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -508,19 +536,10 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Set the pattern's skip strategy after match.
-	 * @param afterMatchSkipStrategy the skip strategy to use.
-	 */
-	public Pattern<T, F> setAfterMatchSkipStrategy(AfterMatchSkipStrategy afterMatchSkipStrategy) {
-		this.skipStrategy = afterMatchSkipStrategy;
-		return this;
-	}
-
-	/**
 	 * Get the pattern's skip strategy after match.
 	 * @return
 	 */
 	public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
-		return skipStrategy;
+		return afterMatchSkipStrategy;
 	}
 }

@@ -454,14 +454,6 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     GroupPattern[T, F](jPattern.next(pattern.wrappedPattern))
 
   /**
-    * Set after match skip strategy.
-    * @param strategy the strategy to set
-    * @return the pattern itself
-    */
-  def setAfterMatchSkipStrategy(strategy: AfterMatchSkipStrategy): Pattern[T, F] =
-    Pattern(jPattern.setAfterMatchSkipStrategy(strategy))
-
-  /**
     * Get after match skip strategy.
     * @return current after match skip strategy
     */
