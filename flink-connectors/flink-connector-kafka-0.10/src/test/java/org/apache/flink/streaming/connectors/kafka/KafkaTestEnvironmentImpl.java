@@ -249,20 +249,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			LOG.info("Starting KafkaServer");
 			brokers = new ArrayList<>(config.getKafkaServersNumber());
 
+			ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
 			for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
-
-				if (config.isSecureMode()) {
-					brokerConnectionString += hostAndPortToUrlString(
-							KafkaTestEnvironment.KAFKA_HOST,
-							brokers.get(i).socketServer().boundPort(
-									ListenerName.forSecurityProtocol(SecurityProtocol.SASL_PLAINTEXT)));
-				} else {
-					brokerConnectionString += hostAndPortToUrlString(
-							KafkaTestEnvironment.KAFKA_HOST,
-							brokers.get(i).socketServer().boundPort(
-									ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT)));
-				}
+				KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
+				brokers.add(kafkaServer);
+				brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
 				brokerConnectionString +=  ",";
 			}
 
