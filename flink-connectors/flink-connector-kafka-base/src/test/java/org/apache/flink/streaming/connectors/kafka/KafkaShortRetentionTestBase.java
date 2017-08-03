@@ -115,7 +115,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	}
 
 	@AfterClass
-	public static void shutDownServices() {
+	public static void shutDownServices() throws Exception {
 		TestStreamEnvironment.unsetAsContext();
 
 		if (flink != null) {

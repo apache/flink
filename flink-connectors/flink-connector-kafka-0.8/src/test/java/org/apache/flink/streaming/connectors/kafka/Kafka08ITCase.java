@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Properties;
@@ -35,6 +36,12 @@ import static org.junit.Assert.fail;
  * IT cases for Kafka 0.8 .
  */
 public class Kafka08ITCase extends KafkaConsumerTestBase {
+
+	@BeforeClass
+	public static void prepare() throws ClassNotFoundException {
+		// Somehow KafkaConsumer 0.8 doesn't handle broker failures if they are behind a proxy
+		prepare(false);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Suite of Tests
