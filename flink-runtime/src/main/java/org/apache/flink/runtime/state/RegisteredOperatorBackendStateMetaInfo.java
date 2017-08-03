@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.state;
 
-import java.util.Objects;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Objects;
 
 /**
  * Compound meta information for a registered state in an operator state backend.
@@ -185,8 +186,8 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 			// need to check for nulls because serializer and config snapshots may be null on restore
 			return name.equals(snapshot.getName())
 				&& assignmentMode.equals(snapshot.getAssignmentMode())
-				&& (Objects.equals(partitionStateSerializer, snapshot.getPartitionStateSerializer()))
-				&& (Objects.equals(partitionStateSerializerConfigSnapshot, snapshot.getPartitionStateSerializerConfigSnapshot()));
+				&& Objects.equals(partitionStateSerializer, snapshot.getPartitionStateSerializer())
+				&& Objects.equals(partitionStateSerializerConfigSnapshot, snapshot.getPartitionStateSerializerConfigSnapshot());
 		}
 
 		@Override
