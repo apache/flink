@@ -268,6 +268,9 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 				stormConfig.putAll(config.toMap());
 			}
 		}
+		if (this.bolt.getComponentConfiguration() != null) {
+			stormConfig.putAll(this.bolt.getComponentConfiguration());
+		}
 
 		this.topologyContext = WrapperSetupHelper.createTopologyContext(
 				getRuntimeContext(), this.bolt, this.name, this.stormTopology, stormConfig);

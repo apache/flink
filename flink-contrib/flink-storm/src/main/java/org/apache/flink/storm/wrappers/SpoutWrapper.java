@@ -252,6 +252,9 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 				stormConfig.putAll(config.toMap());
 			}
 		}
+		if (this.spout.getComponentConfiguration() != null) {
+			stormConfig.putAll(this.spout.getComponentConfiguration());
+		}
 
 		final TopologyContext stormTopologyContext = WrapperSetupHelper.createTopologyContext(
 				(StreamingRuntimeContext) super.getRuntimeContext(), this.spout, this.name,
