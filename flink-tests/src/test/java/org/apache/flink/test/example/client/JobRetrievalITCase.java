@@ -96,7 +96,7 @@ public class JobRetrievalITCase extends TestLogger {
 		});
 
 		final Seq<ActorSystem> actorSystemSeq = cluster.jobManagerActorSystems().get();
-		final ActorSystem actorSystem = actorSystemSeq.last();
+		final ActorSystem actorSystem = actorSystemSeq.apply(actorSystemSeq.length() - 1);
 		JavaTestKit testkit = new JavaTestKit(actorSystem);
 
 		final ActorRef jm = cluster.getJobManagersAsJava().get(0);
