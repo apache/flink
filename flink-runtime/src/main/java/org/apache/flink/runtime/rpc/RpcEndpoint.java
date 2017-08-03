@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ReflectionUtil;
 import org.slf4j.Logger;
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -214,7 +214,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 *
 	 * @return Future which is completed when the rpc endpoint has been terminated.
 	 */
-	public Future<Void> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return ((SelfGateway)self).getTerminationFuture();
 	}
 
@@ -264,7 +264,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param <V> Return type of the callable
 	 * @return Future for the result of the callable.
 	 */
-	protected <V> Future<V> callAsync(Callable<V> callable, Time timeout) {
+	protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Time timeout) {
 		return ((MainThreadExecutable) self).callAsync(callable, timeout);
 	}
 

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -639,14 +638,13 @@ public class SlotManager implements AutoCloseable {
 		}
 
 		// RPC call to the task manager
-		CompletableFuture<Acknowledge> requestFuture = FutureUtils.toJava(
-			gateway.requestSlot(
-				slotId,
-				pendingSlotRequest.getJobId(),
-				allocationId,
-				pendingSlotRequest.getTargetAddress(),
-				leaderId,
-				taskManagerRequestTimeout));
+		CompletableFuture<Acknowledge> requestFuture = gateway.requestSlot(
+			slotId,
+			pendingSlotRequest.getJobId(),
+			allocationId,
+			pendingSlotRequest.getTargetAddress(),
+			leaderId,
+			taskManagerRequestTimeout);
 
 		requestFuture.whenComplete(
 			(Acknowledge acknowledge, Throwable throwable) -> {

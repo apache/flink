@@ -20,10 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -37,7 +34,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -180,7 +178,7 @@ public class JobLeaderIdService {
 		return jobLeaderIdListeners.containsKey(jobId);
 	}
 
-	public Future<UUID> getLeaderId(JobID jobId) throws Exception {
+	public CompletableFuture<UUID> getLeaderId(JobID jobId) throws Exception {
 		if (!jobLeaderIdListeners.containsKey(jobId)) {
 			addJob(jobId);
 		}
@@ -235,7 +233,7 @@ public class JobLeaderIdService {
 			this.listenerJobLeaderIdActions = Preconditions.checkNotNull(listenerJobLeaderIdActions);
 			this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
 
-			leaderIdFuture = new FlinkCompletableFuture<>();
+			leaderIdFuture = new CompletableFuture<>();
 
 			activateTimeout();
 
@@ -243,7 +241,7 @@ public class JobLeaderIdService {
 			leaderRetrievalService.start(this);
 		}
 
-		public Future<UUID> getLeaderIdFuture() {
+		public CompletableFuture<UUID> getLeaderIdFuture() {
 			return leaderIdFuture;
 		}
 
@@ -269,12 +267,12 @@ public class JobLeaderIdService {
 				if (leaderIdFuture.isDone()) {
 					try {
 						previousJobLeaderId = leaderIdFuture.getNow(null);
-					} catch (ExecutionException e) {
+					} catch (CompletionException e) {
 						// this should never happen since we complete this future always properly
 						handleError(e);
 					}
 
-					leaderIdFuture = FlinkCompletableFuture.completed(leaderSessionId);
+					leaderIdFuture = CompletableFuture.completedFuture(leaderSessionId);
 				} else {
 					leaderIdFuture.complete(leaderSessionId);
 				}

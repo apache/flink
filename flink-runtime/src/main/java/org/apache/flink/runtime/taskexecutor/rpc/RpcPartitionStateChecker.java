@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor.rpc;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -46,6 +45,6 @@ public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
 			IntermediateDataSetID resultId,
 			ResultPartitionID partitionId) {
 
-		return FutureUtils.toJava(jobMasterGateway.requestPartitionState(jobMasterLeaderId, resultId, partitionId));
+		return jobMasterGateway.requestPartitionState(jobMasterLeaderId, resultId, partitionId);
 	}
 }

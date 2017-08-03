@@ -20,11 +20,9 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.Preconditions;
 
@@ -36,10 +34,12 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -65,7 +65,7 @@ public class TestingSerialRpcService implements RpcService {
 		executorService = new DirectExecutorService();
 		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 		this.registeredConnections = new ConcurrentHashMap<>(16);
-		this.terminationFuture = new FlinkCompletableFuture<>();
+		this.terminationFuture = new CompletableFuture<>();
 
 		this.scheduledExecutorServiceAdapter = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 	}
@@ -88,13 +88,13 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public <T> Future<T> execute(Callable<T> callable) {
+	public <T> CompletableFuture<T> execute(Callable<T> callable) {
 		try {
 			T result = callable.call();
 
-			return FlinkCompletableFuture.completed(result);
+			return CompletableFuture.completedFuture(result);
 		} catch (Exception e) {
-			return FlinkCompletableFuture.completedExceptionally(e);
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 
@@ -134,7 +134,7 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public Future<Void> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return terminationFuture;
 	}
 
@@ -178,20 +178,19 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
+	public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
 		RpcGateway gateway = registeredConnections.get(address);
 
 		if (gateway != null) {
 			if (clazz.isAssignableFrom(gateway.getClass())) {
 				@SuppressWarnings("unchecked")
 				C typedGateway = (C) gateway;
-				return FlinkCompletableFuture.completed(typedGateway);
+				return CompletableFuture.completedFuture(typedGateway);
 			} else {
-				return FlinkCompletableFuture.completedExceptionally(
-					new Exception("Gateway registered under " + address + " is not of type " + clazz));
+				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
+			return FutureUtils.completedExceptionally(new Exception("No gateway registered under that name"));
 		}
 	}
 
@@ -251,12 +250,12 @@ public class TestingSerialRpcService implements RpcService {
 
 				Class<?> returnType = method.getReturnType();
 
-				if (returnType.equals(Future.class)) {
+				if (returnType.equals(CompletableFuture.class)) {
 					try {
 						Object result = handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
-						return FlinkCompletableFuture.completed(result);
+						return CompletableFuture.completedFuture(result);
 					} catch (Throwable e) {
-						return FlinkCompletableFuture.completedExceptionally(e);
+						return FutureUtils.completedExceptionally(e);
 					}
 				} else {
 					return handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
@@ -290,11 +289,11 @@ public class TestingSerialRpcService implements RpcService {
 		}
 
 		@Override
-		public <V> Future<V> callAsync(Callable<V> callable, Time callTimeout) {
+		public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
 			try {
-				return FlinkCompletableFuture.completed(callable.call());
+				return CompletableFuture.completedFuture(callable.call());
 			} catch (Throwable e) {
-				return FlinkCompletableFuture.completedExceptionally(e);
+				return FutureUtils.completedExceptionally(e);
 			}
 		}
 

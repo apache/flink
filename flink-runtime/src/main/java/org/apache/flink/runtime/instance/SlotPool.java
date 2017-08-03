@@ -25,8 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -263,12 +261,12 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	// ------------------------------------------------------------------------
 
 	@RpcMethod
-	public Future<SimpleSlot> allocateSlot(
+	public CompletableFuture<SimpleSlot> allocateSlot(
 			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences) {
 
-		return FutureUtils.toFlinkFuture(internalAllocateSlot(task, resources, locationPreferences));
+		return internalAllocateSlot(task, resources, locationPreferences);
 	}
 
 	@RpcMethod
@@ -316,11 +314,10 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
-		CompletableFuture<Acknowledge> rmResponse = FutureUtils.toJava(
-			resourceManagerGateway.requestSlot(
-				jobManagerLeaderId, resourceManagerLeaderId,
-				new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
-				resourceManagerRequestsTimeout));
+		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
+			jobManagerLeaderId, resourceManagerLeaderId,
+			new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
+			resourceManagerRequestsTimeout);
 
 		CompletableFuture<Void> slotRequestProcessingFuture = rmResponse.thenAcceptAsync(
 			(Acknowledge value) -> {
@@ -984,7 +981,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 			Iterable<TaskManagerLocation> locationPreferences = 
 					task.getTaskToExecute().getVertex().getPreferredLocations();
 
-			return FutureUtils.toJava(gateway.allocateSlot(task, ResourceProfile.UNKNOWN, locationPreferences, timeout));
+			return gateway.allocateSlot(task, ResourceProfile.UNKNOWN, locationPreferences, timeout);
 		}
 	}
 
