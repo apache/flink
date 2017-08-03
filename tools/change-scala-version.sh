@@ -80,8 +80,8 @@ find "$BASEDIR/flink-quickstart" -name 'pom.xml' -not -path '*target*' -print \
 # fix for flink-dist (bin.xml)
 find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<source>.*flink-dist\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
-find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
-  -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
+  find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
+  -exec bash -c "sed_i 's/\(<include>.*\)'$FROM_SUFFIX'\(.*\)<\/include>/\1'$TO_SUFFIX'\2<\/include>/g' {}" \;
 
 # fix for flink-dist (opt.xml)
 find "$BASEDIR/flink-dist" -name 'opt.xml' -not -path '*target*' -print \
