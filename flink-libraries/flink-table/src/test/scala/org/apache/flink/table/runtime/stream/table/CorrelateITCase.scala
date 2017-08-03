@@ -25,7 +25,11 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func18, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.runtime.utils._
-import org.apache.flink.table.utils._
+import org.apache.flink.table.utils.TableFunc0
+import org.apache.flink.table.utils.TableFunc3
+import org.apache.flink.table.utils.PojoTableFunc
+import org.apache.flink.table.utils.RichTableFunc1
+import org.apache.flink.table.utils.VarArgsFunc0
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.{Before, Test}
