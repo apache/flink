@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime
 
 import java.lang.{Boolean => JBool}
+import java.sql.Timestamp
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable

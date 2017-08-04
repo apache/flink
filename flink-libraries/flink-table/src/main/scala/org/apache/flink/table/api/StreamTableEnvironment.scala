@@ -23,10 +23,8 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelVisitor}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
@@ -38,19 +36,19 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.calcite.RelTimeIndicatorConverter
+import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait, _}
+import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowInputMapRunner, CRowInputScalaTupleOutputMapRunner}
+import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowInputMapRunner, CRowInputScalaTupleOutputMapRunner, WrappingTimestampSetterProcessFunction}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
@@ -270,11 +268,11 @@ abstract class StreamTableEnvironment(
     *                     valid Java class identifier.
     */
   private def getConversionMapperWithChanges[OUT](
-    physicalTypeInfo: TypeInformation[CRow],
-    schema: RowSchema,
-    requestedTypeInfo: TypeInformation[OUT],
-    functionName: String):
-  MapFunction[CRow, OUT] = {
+      physicalTypeInfo: TypeInformation[CRow],
+      schema: RowSchema,
+      requestedTypeInfo: TypeInformation[OUT],
+      functionName: String):
+    MapFunction[CRow, OUT] = {
 
     requestedTypeInfo match {
 
@@ -356,9 +354,7 @@ abstract class StreamTableEnvironment(
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
       fieldIndexes,
-      fieldNames,
-      None,
-      None
+      fieldNames
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -393,12 +389,14 @@ abstract class StreamTableEnvironment(
           s"But is: ${execEnv.getStreamTimeCharacteristic}")
     }
 
+    // adjust field indexes and field names
+    val indexesWithIndicatorFields = adjustFieldIndexes(fieldIndexes, rowtime, proctime)
+    val namesWithIndicatorFields = adjustFieldNames(fieldNames, rowtime, proctime)
+
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
-      fieldIndexes,
-      fieldNames,
-      rowtime,
-      proctime
+      indexesWithIndicatorFields,
+      namesWithIndicatorFields
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -499,6 +497,63 @@ abstract class StreamTableEnvironment(
     }
 
     (rowtime, proctime)
+  }
+
+  /**
+    * Injects markers for time indicator fields into the field indexes.
+    *
+    * @param fieldIndexes The field indexes into which the time indicators markers are injected.
+    * @param rowtime An optional rowtime indicator
+    * @param proctime An optional proctime indicator
+    * @return An adjusted array of field indexes.
+    */
+  private def adjustFieldIndexes(
+    fieldIndexes: Array[Int],
+    rowtime: Option[(Int, String)],
+    proctime: Option[(Int, String)]): Array[Int] = {
+
+    // inject rowtime field
+    val withRowtime = rowtime match {
+      case Some(rt) => fieldIndexes.patch(rt._1, Seq(TimeIndicatorTypeInfo.ROWTIME_MARKER), 0)
+      case _ => fieldIndexes
+    }
+
+    // inject proctime field
+    val withProctime = proctime match {
+      case Some(pt) => withRowtime.patch(pt._1, Seq(TimeIndicatorTypeInfo.PROCTIME_MARKER), 0)
+      case _ => withRowtime
+    }
+
+    withProctime
+  }
+
+  /**
+    * Injects names of time indicator fields into the list of field names.
+    *
+    * @param fieldNames The array of field names into which the time indicator field names are
+    *                   injected.
+    * @param rowtime An optional rowtime indicator
+    * @param proctime An optional proctime indicator
+    * @return An adjusted array of field names.
+    */
+  private def adjustFieldNames(
+    fieldNames: Array[String],
+    rowtime: Option[(Int, String)],
+    proctime: Option[(Int, String)]): Array[String] = {
+
+    // inject rowtime field
+    val withRowtime = rowtime match {
+      case Some(rt) => fieldNames.patch(rt._1, Seq(rowtime.get._2), 0)
+      case _ => fieldNames
+    }
+
+    // inject proctime field
+    val withProctime = proctime match {
+      case Some(pt) => withRowtime.patch(pt._1, Seq(proctime.get._2), 0)
+      case _ => withRowtime
+    }
+
+    withProctime
   }
 
   /**
@@ -632,10 +687,21 @@ abstract class StreamTableEnvironment(
     val relNode = table.getRelNode
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
 
-    // we convert the logical row type to the output row type
-    val convertedOutputType = RelTimeIndicatorConverter.convertOutputType(relNode)
+    // zip original field names with optimized field types
+    val fieldTypes = relNode.getRowType.getFieldList.asScala
+      .zip(dataStreamPlan.getRowType.getFieldList.asScala)
+      // get name of original plan and type of optimized plan
+      .map(x => (x._1.getName, x._2.getType))
+      // add field indexes
+      .zipWithIndex
+      // build new field types
+      .map(x => new RelDataTypeFieldImpl(x._1._1, x._2, x._1._2))
 
-    translate(dataStreamPlan, convertedOutputType, queryConfig, withChangeFlag)
+    // build a record type from list of field types
+    val rowType = new RelRecordType(
+      fieldTypes.toList.asInstanceOf[List[RelDataTypeField]].asJava)
+
+    translate(dataStreamPlan, rowType, queryConfig, withChangeFlag)
   }
 
   /**
@@ -684,12 +750,41 @@ abstract class StreamTableEnvironment(
 
     val rootParallelism = plan.getParallelism
 
-    conversion match {
-      case mapFunction: MapFunction[CRow, A] =>
-        plan.map(mapFunction)
-          .returns(tpe)
-          .name(s"to: ${tpe.getTypeClass.getSimpleName}")
-          .setParallelism(rootParallelism)
+    val rowtimeFields = logicalType.getFieldList.asScala
+      .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
+
+    if (rowtimeFields.isEmpty) {
+      // no rowtime field to set
+      conversion match {
+        case mapFunction: MapFunction[CRow, A] =>
+          plan.map(mapFunction)
+            .returns(tpe)
+            .name(s"to: ${tpe.getTypeClass.getSimpleName}")
+            .setParallelism(rootParallelism)
+      }
+    } else if (rowtimeFields.size == 1) {
+      // set the only rowtime field as event-time timestamp for DataStream
+      val mapFunction = conversion match {
+        case mapFunction: MapFunction[CRow, A] => mapFunction
+        case _ => new MapFunction[CRow, A] {
+          override def map(cRow: CRow): A = cRow.asInstanceOf[A]
+        }
+      }
+
+      plan.process(
+        new WrappingTimestampSetterProcessFunction[A](
+          mapFunction,
+          rowtimeFields.head.getIndex))
+        .returns(tpe)
+        .name(s"to: ${tpe.getTypeClass.getSimpleName}")
+        .setParallelism(rootParallelism)
+
+    } else {
+      throw new TableException(
+        s"Found more than one rowtime field: [${rowtimeFields.map(_.getName).mkString(", ")}] in " +
+          s"the table that should be converted to a DataStream.\n" +
+          s"Please select the rowtime field that should be used as event-time timestamp for the " +
+          s"DataStream by casting all other fields to TIMESTAMP.")
     }
   }
 

@@ -18,42 +18,34 @@
 
 package org.apache.flink.table.runtime
 
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import java.sql.Timestamp
+
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
+import org.apache.flink.util.Collector
 
 /**
-  * MapRunner with [[CRow]] output.
+  * ProcessFunction to copy a timestamp from a [[org.apache.flink.types.Row]] field into the
+  * [[org.apache.flink.streaming.runtime.streamrecord.StreamRecord]].
   */
-class CRowOutputMapRunner(
-    name: String,
-    code: String,
+class TimestampSetterProcessFunction(
+    val rowtimeIdx: Int,
     @transient var returnType: TypeInformation[CRow])
-  extends RichMapFunction[Any, CRow]
-  with ResultTypeQueryable[CRow]
-  with Compiler[MapFunction[Any, Row]] {
+  extends ProcessFunction[CRow, CRow]
+  with ResultTypeQueryable[CRow] {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  override def processElement(
+      in: CRow,
+      ctx: ProcessFunction[CRow, CRow]#Context,
+      out: Collector[CRow]): Unit = {
 
-  private var function: MapFunction[Any, Row] = _
-  private var outCRow: CRow = _
-
-  override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
-    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating MapFunction.")
-    function = clazz.newInstance()
-    outCRow = new CRow(null, true)
-  }
-
-  override def map(in: Any): CRow = {
-    outCRow.row = function.map(in)
-    outCRow
+    val timestamp = SqlFunctions.toLong(in.row.getField(rowtimeIdx).asInstanceOf[Timestamp])
+    out.asInstanceOf[TimestampedCollector[CRow]].setAbsoluteTimestamp(timestamp)
+    out.collect(in)
   }
 
   override def getProducedType: TypeInformation[CRow] = returnType

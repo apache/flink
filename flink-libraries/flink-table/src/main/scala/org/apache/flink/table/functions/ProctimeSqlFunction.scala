@@ -22,12 +22,12 @@ import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 
 /**
-  * Function that materializes a time attribute to the metadata timestamp. After materialization
-  * the result can be used in regular arithmetical calculations.
+  * Function that materializes a processing time attribute.
+  * After materialization the result can be used in regular arithmetical calculations.
   */
-object TimeMaterializationSqlFunction
+object ProctimeSqlFunction
   extends SqlFunction(
-    "TIME_MATERIALIZATION",
+    "PROCTIME",
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
     InferTypes.RETURN_TYPE,

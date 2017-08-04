@@ -17,14 +17,16 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
+import java.sql.Timestamp
 import java.util
 import java.util.{List => JList}
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
@@ -45,6 +47,7 @@ abstract class RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
+    rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
@@ -108,7 +111,7 @@ abstract class RowTimeUnboundedOver(
     // register state-cleanup timer
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
-    val timestamp = ctx.timestamp()
+    val timestamp = SqlFunctions.toLong(input.getField(rowTimeIdx).asInstanceOf[Timestamp])
     val curWatermark = ctx.timerService().currentWatermark()
 
     // discard late record
@@ -158,8 +161,8 @@ abstract class RowTimeUnboundedOver(
       return
     }
 
-    Preconditions.checkArgument(out.isInstanceOf[TimestampedCollector[CRow]])
-    val collector = out.asInstanceOf[TimestampedCollector[CRow]]
+    // remove timestamp set outside of ProcessFunction.
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     val keyIterator = rowMapState.keys.iterator
     if (keyIterator.hasNext) {
@@ -188,10 +191,9 @@ abstract class RowTimeUnboundedOver(
       while (!sortedTimestamps.isEmpty) {
         val curTimestamp = sortedTimestamps.removeFirst()
         val curRowList = rowMapState.get(curTimestamp)
-        collector.setAbsoluteTimestamp(curTimestamp)
 
         // process the same timestamp datas, the mechanism is different according ROWS or RANGE
-        processElementsWithSameTimestamp(curRowList, lastAccumulator, collector)
+        processElementsWithSameTimestamp(curRowList, lastAccumulator, out)
 
         rowMapState.remove(curTimestamp)
       }
@@ -250,11 +252,13 @@ class RowTimeUnboundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
+    rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
+    rowTimeIdx,
     queryConfig) {
 
   override def processElementsWithSameTimestamp(
@@ -266,7 +270,6 @@ class RowTimeUnboundedRowsOver(
     while (i < curRowList.size) {
       val curRow = curRowList.get(i)
 
-      var j = 0
       // copy forwarded fields to output row
       function.setForwardedFields(curRow, output.row)
 
@@ -290,11 +293,13 @@ class RowTimeUnboundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
+    rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
+    rowTimeIdx,
     queryConfig) {
 
   override def processElementsWithSameTimestamp(

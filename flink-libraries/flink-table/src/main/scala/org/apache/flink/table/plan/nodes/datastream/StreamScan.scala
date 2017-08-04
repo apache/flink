@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 import org.apache.flink.table.plan.schema.FlinkTable
-import org.apache.flink.table.runtime.CRowOutputMapRunner
+import org.apache.flink.table.runtime.CRowOutputProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConverters._
@@ -40,29 +41,42 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
     : DataStream[CRow] = {
 
     val inputType = input.getType
-    val internalType = CRowTypeInfo(schema.physicalTypeInfo)
+    val internalType = CRowTypeInfo(schema.typeInfo)
 
     // conversion
     if (needsConversion(input.getType, internalType)) {
 
-      val function = generatedConversionFunction(
+      val generator = new FunctionCodeGenerator(
         config,
-        classOf[MapFunction[Any, Row]],
+        false,
         inputType,
-        schema.physicalTypeInfo,
-        "DataStreamSourceConversion",
-        schema.physicalFieldNames,
+        None,
         Some(flinkTable.fieldIndexes))
 
-      val mapFunc = new CRowOutputMapRunner(
+      val conversion = generator.generateConverterResultExpression(
+        schema.typeInfo,
+        schema.fieldNames)
+
+      val body =
+        s"""
+           |${conversion.code}
+           |${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+
+      val function = generator.generateFunction(
+        "DataStreamSourceConversion",
+        classOf[ProcessFunction[Any, Row]],
+        body,
+        schema.typeInfo)
+
+      val processFunc = new CRowOutputProcessRunner(
         function.name,
         function.code,
         internalType)
 
       val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
-      // TODO we need a ProcessFunction here
-      input.map(mapFunc).name(opName).returns(internalType)
+      input.process(processFunc).name(opName).returns(internalType)
     }
     // no conversion necessary, forward
     else {

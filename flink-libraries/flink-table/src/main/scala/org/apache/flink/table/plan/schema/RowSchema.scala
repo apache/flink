@@ -18,14 +18,10 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelRecordType}
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexShuttle}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.TimeMaterializationSqlFunction
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
@@ -35,127 +31,35 @@ import scala.collection.JavaConversions._
   */
 class RowSchema(private val logicalRowType: RelDataType) {
 
-  private lazy val physicalRowFields: Seq[RelDataTypeField] = logicalRowType.getFieldList filter {
-    field => !FlinkTypeFactory.isTimeIndicatorType(field.getType)
-  }
-
-  private lazy val physicalRowType: RelDataType = new RelRecordType(physicalRowFields)
-
-  private lazy val physicalRowFieldTypes: Seq[TypeInformation[_]] = physicalRowFields map { f =>
-    FlinkTypeFactory.toTypeInfo(f.getType)
-  }
-
-  private lazy val physicalRowFieldNames: Seq[String] = physicalRowFields.map(_.getName)
+  private lazy val physicalRowFieldTypes: Seq[TypeInformation[_]] =
+    logicalRowType.getFieldList map { f => FlinkTypeFactory.toTypeInfo(f.getType) }
 
   private lazy val physicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
-    physicalRowFieldTypes.toArray, physicalRowFieldNames.toArray)
-
-  private lazy val indexMapping: Array[Int] = generateIndexMapping
-
-  private lazy val inputRefUpdater = new RexInputRefUpdater()
-
-  private def generateIndexMapping: Array[Int] = {
-    val mapping = new Array[Int](logicalRowType.getFieldCount)
-    var countTimeIndicators = 0
-    var i = 0
-    while (i < logicalRowType.getFieldCount) {
-      val t = logicalRowType.getFieldList.get(i).getType
-      if (FlinkTypeFactory.isTimeIndicatorType(t)) {
-        countTimeIndicators += 1
-        // no mapping
-        mapping(i) = -1
-      } else {
-        mapping(i) = i - countTimeIndicators
-      }
-      i += 1
-    }
-    mapping
-  }
-
-  private class RexInputRefUpdater extends RexShuttle {
-
-    override def visitInputRef(inputRef: RexInputRef): RexNode = {
-      new RexInputRef(mapIndex(inputRef.getIndex), inputRef.getType)
-    }
-
-    override def visitCall(call: RexCall): RexNode = call.getOperator match {
-      // we leave time indicators unchanged yet
-      // the index becomes invalid but right now we are only
-      // interested in the type of the input reference
-      case TimeMaterializationSqlFunction => call
-      case _ => super.visitCall(call)
-    }
-  }
+    physicalRowFieldTypes.toArray, fieldNames.toArray)
 
   /**
-    * Returns the arity of the logical record.
+    * Returns the arity of the schema.
     */
-  def logicalArity: Int = logicalRowType.getFieldCount
+  def arity: Int = logicalRowType.getFieldCount
 
   /**
-    * Returns the arity of the physical record.
+    * Returns the [[RelDataType]] of the schema
     */
-  def physicalArity: Int = physicalTypeInfo.getArity
+  def relDataType: RelDataType = logicalRowType
 
   /**
-    * Returns a logical [[RelDataType]] including logical fields (i.e. time indicators).
+    * Returns the [[TypeInformation]] of of the schema
     */
-  def logicalType: RelDataType = logicalRowType
+  def typeInfo: TypeInformation[Row] = physicalRowTypeInfo
 
   /**
-    * Returns a physical [[RelDataType]] with no logical fields (i.e. time indicators).
+    * Returns the [[TypeInformation]] of fields of the schema
     */
-  def physicalType: RelDataType = physicalRowType
+  def fieldTypeInfos: Seq[TypeInformation[_]] = physicalRowFieldTypes
 
   /**
-    * Returns a physical [[TypeInformation]] of row with no logical fields (i.e. time indicators).
+    * Returns the fields names
     */
-  def physicalTypeInfo: TypeInformation[Row] = physicalRowTypeInfo
-
-  /**
-    * Returns [[TypeInformation]] of the row's fields with no logical fields (i.e. time indicators).
-    */
-  def physicalFieldTypeInfo: Seq[TypeInformation[_]] = physicalRowFieldTypes
-
-  /**
-    * Returns the logical fields names including logical fields (i.e. time indicators).
-    */
-  def logicalFieldNames: Seq[String] = logicalRowType.getFieldNames
-
-  /**
-    * Returns the physical fields names with no logical fields (i.e. time indicators).
-    */
-  def physicalFieldNames: Seq[String] = physicalRowFieldNames
-
-  /**
-    * Converts logical indices to physical indices based on this schema.
-    */
-  def mapIndex(logicalIndex: Int): Int = {
-    val mappedIndex = indexMapping(logicalIndex)
-    if (mappedIndex < 0) {
-      throw new TableException("Invalid access to a logical field.")
-    } else {
-      mappedIndex
-    }
-  }
-
-  /**
-    * Converts logical indices of a aggregate call to physical ones.
-    */
-  def mapAggregateCall(logicalAggCall: AggregateCall): AggregateCall = {
-    logicalAggCall.copy(
-      logicalAggCall.getArgList.map(mapIndex(_).asInstanceOf[Integer]),
-      if (logicalAggCall.filterArg < 0) {
-        logicalAggCall.filterArg
-      } else {
-        mapIndex(logicalAggCall.filterArg)
-      }
-    )
-  }
-
-  /**
-    * Converts logical field references of a [[RexNode]] to physical ones.
-    */
-  def mapRexNode(logicalRexNode: RexNode): RexNode = logicalRexNode.accept(inputRefUpdater)
+  def fieldNames: Seq[String] = logicalRowType.getFieldNames
 
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
+import java.sql.Timestamp
+
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.common.state.MapState
@@ -28,18 +30,22 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
-
 import java.util.Collections
-import java.util.{List => JList, ArrayList => JArrayList}
+import java.util.{ArrayList => JArrayList, List => JList}
+
+import org.apache.calcite.runtime.SqlFunctions
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 
 /**
  * ProcessFunction to sort on event-time and possibly addtional secondary sort attributes.
  *
   * @param inputRowType The data type of the input data.
+  * @param rowtimeIdx The index of the rowtime field.
   * @param rowComparator A comparator to sort rows.
  */
 class RowTimeSortProcessFunction(
     private val inputRowType: CRowTypeInfo,
+    private val rowtimeIdx: Int,
     private val rowComparator: Option[CollectionRowComparator])
   extends ProcessFunction[CRow, CRow] {
 
@@ -84,7 +90,7 @@ class RowTimeSortProcessFunction(
     val input = inputC.row
     
     // timestamp of the processed row
-    val rowtime = ctx.timestamp
+    val rowtime = SqlFunctions.toLong(input.getField(rowtimeIdx).asInstanceOf[Timestamp])
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
@@ -105,13 +111,15 @@ class RowTimeSortProcessFunction(
       }
     }
   }
-  
-  
+
   override def onTimer(
     timestamp: Long,
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
-    
+
+    // remove timestamp set outside of ProcessFunction.
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
+
     // gets all rows for the triggering timestamps
     val inputs: JList[Row] = dataState.get(timestamp)
 
