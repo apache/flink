@@ -40,7 +40,7 @@ public interface DataOutputView extends DataOutput {
 	 * @throws IOException Thrown, if any I/O related problem occurred such that the view could not
 	 *                     be advanced to the desired position.
 	 */
-	public void skipBytesToWrite(int numBytes) throws IOException;
+	void skipBytesToWrite(int numBytes) throws IOException;
 
 	/**
 	 * Copies {@code numBytes} bytes from the source to this view.
@@ -51,5 +51,5 @@ public interface DataOutputView extends DataOutput {
 	 * @throws IOException Thrown, if any I/O related problem occurred, such that either the input view
 	 *                     could not be read, or the output could not be written.
 	 */
-	public void write(DataInputView source, int numBytes) throws IOException;
+	void write(DataInputView source, int numBytes) throws IOException;
 }

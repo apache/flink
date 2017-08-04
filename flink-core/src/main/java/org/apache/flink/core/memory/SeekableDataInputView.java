@@ -32,5 +32,5 @@ public interface SeekableDataInputView extends DataInputView {
 	 *
 	 * @param position The new read position.
 	 */
-	public void setReadPosition(long position);
+	void setReadPosition(long position);
 }

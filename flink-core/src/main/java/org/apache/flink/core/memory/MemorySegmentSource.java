@@ -31,5 +31,5 @@ public interface MemorySegmentSource {
 	 *
 	 * @return The next memory segment, or null, if none is available.
 	 */
-	public MemorySegment nextSegment();
+	MemorySegment nextSegment();
 }

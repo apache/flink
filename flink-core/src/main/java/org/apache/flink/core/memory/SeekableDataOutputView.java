@@ -32,5 +32,5 @@ public interface SeekableDataOutputView extends DataOutputView {
 	 *
 	 * @param position The new write position.
 	 */
-	public void setWritePosition(long position);
+	void setWritePosition(long position);
 }
