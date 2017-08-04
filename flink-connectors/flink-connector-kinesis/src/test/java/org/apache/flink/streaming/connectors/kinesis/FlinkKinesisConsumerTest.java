@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -46,7 +45,6 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGen
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-import org.apache.flink.util.InstantiationUtil;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
@@ -504,76 +502,6 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.validateProducerConfiguration() tests
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testUnparsableLongForCollectionMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum number of items to pack into a PutRecords request");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "unparsableLong");
-
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForAggregationMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum number of items to pack into an aggregated record");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "unparsableLong");
-
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
-	}
-
-	// ----------------------------------------------------------------------
-	// Tests to verify serializability
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testCreateWithNonSerializableDeserializerFails() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("The provided deserialization schema is not serializable");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		new FlinkKinesisConsumer<>("test-stream", new NonSerializableDeserializationSchema(), testConfig);
-	}
-
-	@Test
-	public void testCreateWithSerializableDeserializer() {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		new FlinkKinesisConsumer<>("test-stream", new SerializableDeserializationSchema(), testConfig);
-	}
-
-	@Test
-	public void testConsumerIsSerializable() {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("test-stream", new SimpleStringSchema(), testConfig);
-		assertTrue(InstantiationUtil.isSerializable(consumer));
 	}
 
 	// ----------------------------------------------------------------------

@@ -26,6 +26,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
 import com.amazonaws.regions.Regions;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -38,6 +39,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for Flink Kinesis connector configuration.
  */
 public class KinesisConfigUtil {
+
+	/** Maximum number of items to pack into an PutRecords request. **/
+	protected static final String COLLECTION_MAX_COUNT = "CollectionMaxCount";
+
+	/** Maximum number of items to pack into an aggregated record. **/
+	protected static final String AGGREGATION_MAX_COUNT = "AggregationMaxCount";
+
+	/** Limits the maximum allowed put rate for a shard, as a percentage of the backend limits.
+	 * The default value is set as 100% in Flink. KPL's default value is 150% but it makes KPL throw
+	 * RateLimitExceededException too frequently and breaks Flink sink as a result.
+	 **/
+	private static final String RATE_LIMIT = "RateLimit";
+
+	/** Default values for RateLimit. **/
+	private static final String DEFAULT_RATE_LIMIT = "100";
+
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
@@ -127,18 +144,39 @@ public class KinesisConfigUtil {
 	}
 
 	/**
+	 * Replace deprecated configuration properties for {@link FlinkKinesisProducer}.
+	 * This should be remove along with deprecated keys
+	 */
+	public static Properties replaceDeprecatedProducerKeys(Properties configProps) {
+		// Replace deprecated key
+		if (configProps.containsKey(ProducerConfigConstants.COLLECTION_MAX_COUNT)) {
+			configProps.setProperty(COLLECTION_MAX_COUNT,
+					configProps.getProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.COLLECTION_MAX_COUNT);
+		}
+		// Replace deprecated key
+		if (configProps.containsKey(ProducerConfigConstants.AGGREGATION_MAX_COUNT)) {
+			configProps.setProperty(AGGREGATION_MAX_COUNT,
+					configProps.getProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.AGGREGATION_MAX_COUNT);
+		}
+		return configProps;
+	}
+
+	/**
 	 * Validate configuration properties for {@link FlinkKinesisProducer}.
 	 */
-	public static void validateProducerConfiguration(Properties config) {
+	public static KinesisProducerConfiguration validateProducerConfiguration(Properties config) {
 		checkNotNull(config, "config can not be null");
 
 		validateAwsConfiguration(config);
 
-		validateOptionalPositiveLongProperty(config, ProducerConfigConstants.COLLECTION_MAX_COUNT,
-			"Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid non-negative long value.");
+		// Override KPL default value if it's not specified by user
+		if (!config.containsKey(RATE_LIMIT)) {
+			config.setProperty(RATE_LIMIT, DEFAULT_RATE_LIMIT);
+		}
 
-		validateOptionalPositiveLongProperty(config, ProducerConfigConstants.AGGREGATION_MAX_COUNT,
-			"Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid non-negative long value.");
+		return KinesisProducerConfiguration.fromProperties(config);
 	}
 
 	/**
