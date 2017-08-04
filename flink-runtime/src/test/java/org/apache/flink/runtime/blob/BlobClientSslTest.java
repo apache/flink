@@ -96,6 +96,9 @@ public class BlobClientSslTest extends BlobClientTest {
 		if (BLOB_SSL_SERVER != null) {
 			BLOB_SSL_SERVER.close();
 		}
+		if (BLOB_NON_SSL_SERVER != null) {
+			BLOB_NON_SSL_SERVER.close();
+		}
 	}
 
 	protected Configuration getBlobClientConfig() {

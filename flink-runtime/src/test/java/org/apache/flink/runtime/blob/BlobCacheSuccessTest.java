@@ -21,6 +21,8 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.util.Preconditions;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -76,6 +78,22 @@ public class BlobCacheSuccessTest {
 	}
 
 	/**
+	 * BlobCache is configured in HA mode and the cache can download files from
+	 * the file system directly and does not need to download BLOBs from the
+	 * BlobServer.
+	 */
+	@Test
+	public void testBlobCacheHa2() throws IOException {
+		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.newFolder().getPath());
+		uploadFileGetTest(config, false, true);
+	}
+
+	/**
 	 * BlobCache is configured in HA mode but the cache itself cannot access the
 	 * file system and thus needs to download BLOBs from the BlobServer.
 	 */
@@ -90,8 +108,24 @@ public class BlobCacheSuccessTest {
 		uploadFileGetTest(config, false, false);
 	}
 
-	private void uploadFileGetTest(final Configuration config, boolean cacheWorksWithoutServer,
-		boolean cacheHasAccessToFs) throws IOException {
+	/**
+	 * Uploads two different BLOBs to the {@link BlobServer} via a {@link BlobClient} and verifies
+	 * we can access the files from a {@link BlobCache}.
+	 *
+	 * @param config
+	 * 		configuration to use for the server and cache (the final cache's configuration will
+	 * 		actually get some modifications)
+	 * @param shutdownServerAfterUpload
+	 * 		whether the server should be shut down after uploading the BLOBs (only useful with HA mode)
+	 * 		- this implies that the cache has access to the shared <tt>HA_STORAGE_PATH</tt>
+	 * @param cacheHasAccessToFs
+	 * 		whether the cache should have access to a shared <tt>HA_STORAGE_PATH</tt> (only useful with
+	 * 		HA mode)
+	 */
+	private void uploadFileGetTest(final Configuration config, boolean shutdownServerAfterUpload,
+			boolean cacheHasAccessToFs) throws IOException {
+		Preconditions.checkArgument(!shutdownServerAfterUpload || cacheHasAccessToFs);
+
 		// First create two BLOBs and upload them to BLOB server
 		final byte[] buf = new byte[128];
 		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
@@ -132,7 +166,7 @@ public class BlobCacheSuccessTest {
 				}
 			}
 
-			if (cacheWorksWithoutServer) {
+			if (shutdownServerAfterUpload) {
 				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
 				blobServer.close();
 				blobServer = null;
