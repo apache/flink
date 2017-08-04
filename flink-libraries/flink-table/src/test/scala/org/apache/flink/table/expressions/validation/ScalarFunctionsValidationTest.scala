@@ -86,4 +86,35 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   def testTimestampAddWithWrongQuantity(): Unit ={
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
+
+  // ----------------------------------------------------------------------------------------------
+  // Sub-query functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test(expected = classOf[ValidationException])
+  def testInValidationExceptionMoreThanOneTypes(): Unit = {
+    testTableApi(
+      'f2.in('f3, 'f4, 4),
+      "f2.in(f3, f4, 4)",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      'f1.in("Hi", "Hello world", "Comment#1"),
+      "true",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def javaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      true,
+      "f1.in('Hi','Hello world','Comment#1')",
+      "true"
+    )
+  }
 }

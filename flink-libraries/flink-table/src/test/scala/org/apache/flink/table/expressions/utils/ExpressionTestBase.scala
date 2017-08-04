@@ -23,6 +23,7 @@ import java.util.concurrent.Future
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
+import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -40,11 +41,11 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, Compiler, GeneratedFunction}
+import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
+import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetScan}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -205,6 +206,11 @@ abstract class ExpressionTestBase {
     val physicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
     val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, physicalProps,
       ImmutableList.of(), ImmutableList.of())
+
+    // throw exception if plan contains more than a calc
+    if (!dataSetCalc.getInput(0).isInstanceOf[DataSetScan]) {
+      fail("Expression is converted into more than a Calc operation. Use a different test method.")
+    }
 
     // extract RexNode
     val calcProgram = dataSetCalc

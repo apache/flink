@@ -276,9 +276,16 @@ abstract class BatchTableEnvironment(
     */
   private[flink] def optimize(relNode: RelNode): RelNode = {
 
-    // 0. convert registered tables
+    // 0. convert sub-queries before query decorrelation
+    val convSubQueryPlan = runHepPlanner(
+      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_SUBQUERY_RULES, relNode, relNode.getTraitSet)
+
+    // 0. convert table references
     val fullRelNode = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_CONV_RULES, relNode, relNode.getTraitSet)
+      HepMatchOrder.BOTTOM_UP,
+      FlinkRuleSets.TABLE_REF_RULES,
+      convSubQueryPlan,
+      relNode.getTraitSet)
 
     // 1. decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(fullRelNode)

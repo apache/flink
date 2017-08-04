@@ -458,11 +458,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   @throws[TableException]
   @varargs
   def scan(tablePath: String*): Table = {
-    scanInternal(tablePath.toArray)
+    scanInternal(tablePath.toArray) match {
+      case Some(table) => table
+      case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
+    }
   }
 
-  @throws[TableException]
-  private def scanInternal(tablePath: Array[String]): Table = {
+  private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
     val schemaPaths = tablePath.slice(0, tablePath.length - 1)
     val schema = getSchema(schemaPaths)
@@ -470,10 +472,10 @@ abstract class TableEnvironment(val config: TableConfig) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
       if (table != null) {
-        return new Table(this, CatalogNode(tablePath, table.getRowType(typeFactory)))
+        return Some(new Table(this, CatalogNode(tablePath, table.getRowType(typeFactory))))
       }
     }
-    throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
+    None
   }
 
   private def getSchema(schemaPath: Array[String]): SchemaPlus = {
