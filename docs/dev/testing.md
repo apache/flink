@@ -1,7 +1,8 @@
 ---
 title: "Testing"
 nav-parent_id: dev
-nav-pos: 110
+nav-id: testing
+nav-pos: 99
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -30,6 +31,7 @@ This page briefly discusses how to test Flink application in the local environme
 ## Unit testing
 
 It is encouraged to test your classes with unit tests as much as possible. For example if one implement following `ReduceFunction`:
+
 ~~~java
 public class SumReduce implements ReduceFunction<Long> {
     @Override
@@ -38,7 +40,9 @@ public class SumReduce implements ReduceFunction<Long> {
     }
 }
 ~~~
+
 it is very easy to unit test it with your favorite framework:
+
 ~~~java
 public class SumReduceTest {
     @Test
@@ -50,11 +54,38 @@ public class SumReduceTest {
 }
 ~~~
 
+Or in scala:
+
+~~~scala
+class SumReduce extends ReduceFunction[Long] {
+    override def reduce(value1: java.lang.Long,
+                        value2: java.lang.Long): java.lang.Long = value1 + value2
+}
+~~~
+
+~~~scala
+class SumReduceTest extends FlatSpec with Matchers {
+    "SumReduce" should "add values" in {
+        val sumReduce: SumReduce = new SumReduce()
+        sumReduce.reduce(40L, 2L) should be (42L)
+    }
+}
+~~~
+
 ## Integration testing
 
 You also can write integration tests that are executed against local Flink mini cluster.
-In order to do so add a test dependency `flink-test-utils`. For example if you want to
-test following `MapFunction`:
+In order to do so add a test dependency `flink-test-utils`.
+
+~~~ xml
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-test-utils{{site.scala_version_suffix}}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+~~~
+
+For example if you want to test the following `MapFunction`:
 
 ~~~java
 public class MultiplyByTwo implements MapFunction<Long, Long> {
@@ -70,7 +101,7 @@ You could write following integration test:
 ~~~java
 public class ExampleIntegrationTest extends StreamingMultipleProgramsTestBase {
     @Test
-    public void testSum() throws Exception {
+    public void testMultiply() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -90,13 +121,69 @@ public class ExampleIntegrationTest extends StreamingMultipleProgramsTestBase {
         public static final List<Long> values = new ArrayList<>();
 
         @Override
-        public void invoke(Long value) throws Exception {
+        public synchronized void invoke(Long value) throws Exception {
             values.add(value);
         }
     }
 }
 ~~~
 
-Static variable in `CollectSink` is required because Flink serializes all operators before distributing them across a cluster.
+or in Scala:
+
+~~~scala
+class MultiplyByTwo extends MapFunction[Long, Long] {
+  override def map(value: java.lang.Long): java.lang.Long = value * 2
+}
+~~~
+
+~~~scala
+class ExampleIntegrationTest extends FlatSpec with Matchers {
+    "MultiplyByTwo" should "multiply it input by two" in {
+        val env: StreamExecutionEnvironment =
+            StreamExecutionEnvironment.getExecutionEnvironment
+        env.setParallelism(1)
+        // values are collected on a static variable
+        CollectSink.values.clear()
+        env
+            .fromElements(1L, 21L, 22L)
+            .map(new MultiplyByTwo())
+            .addSink(new CollectSink())
+            env.execute()
+        CollectSink.values should be (Lists.newArrayList(2L, 42L, 44L))
+    }
+}
+
+object CollectSink {
+    // must be static
+    val values: List[Long] = new ArrayList()
+}
+
+class CollectSink extends SinkFunction[Long] {
+    override def invoke(value: java.lang.Long): Unit = {
+        synchronized {
+            values.add(value)
+        }
+    }
+}
+~~~
+
+Static variable in `CollectSink` is used here because Flink serializes all operators before distributing them across a cluster.
+Communicating with operators instantiated by a local flink mini cluster via static variables is one way around this issue.
 Alternatively in your test sink you could for example write the data to files in a temporary directory.
 Of course you could use your own custom sources and sinks, which can emit watermarks.
+
+## Testing checkpointing and state handling
+
+One way to test state handling is to enable checkpointing in integration tests. You can do that by
+configuring `environment` in the test:
+~~~java
+env.enableCheckpointing(500);
+env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100));
+~~~
+and for example adding to your Flink application an identity mapper operator that will throw and exception
+once every `1000ms`. However writing such test could be tricky because of time dependencies between the actions.
+
+Another approach is to write a unit test using `AbstractStreamOperatorTestHarness` from `flink-streaming-java` module.
+For example how to do that please look at the `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest`
+also in the `flink-streaming-java`. Be aware that `AbstractStreamOperatorTestHarness` is not currently a part of public API
+and can be subject to change.
