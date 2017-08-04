@@ -238,13 +238,16 @@ trait ImplicitExpressionOperations {
     * Returns true if an expression exists in a given list of expressions. This is a shorthand
     * for multiple OR conditions.
     *
+    * If the testing set contains null, the result will be null if the element can not be found
+    * and true if it can be found. If the element is null, the result is always null.
+    *
     * e.g. "42".in(1, 2, 3) leads to false.
     */
   def in(elements: Expression*) = In(expr, elements)
 
   /**
     * Returns true if an expression exists in a given table sub-query. The sub-query table
-    * must consist of one column. This column must have the same data type as expression.
+    * must consist of one column. This column must have the same data type as the expression.
     *
     * Note: This operation is not supported in a streaming environment yet.
     */
