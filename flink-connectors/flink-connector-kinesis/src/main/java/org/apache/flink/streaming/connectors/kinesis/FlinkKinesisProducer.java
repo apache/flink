@@ -169,14 +169,27 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 		producerConfig.setRegion(configProps.getProperty(ProducerConfigConstants.AWS_REGION));
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
-		if (configProps.containsKey(ProducerConfigConstants.COLLECTION_MAX_COUNT)) {
-			producerConfig.setCollectionMaxCount(PropertiesUtil.getLong(configProps,
-					ProducerConfigConstants.COLLECTION_MAX_COUNT, producerConfig.getCollectionMaxCount(), LOG));
-		}
-		if (configProps.containsKey(ProducerConfigConstants.AGGREGATION_MAX_COUNT)) {
-			producerConfig.setAggregationMaxCount(PropertiesUtil.getLong(configProps,
-					ProducerConfigConstants.AGGREGATION_MAX_COUNT, producerConfig.getAggregationMaxCount(), LOG));
-		}
+
+		producerConfig.setAggregationMaxCount(PropertiesUtil.getLong(configProps,
+				ProducerConfigConstants.AGGREGATION_MAX_COUNT, producerConfig.getAggregationMaxCount(), LOG));
+
+		producerConfig.setCollectionMaxCount(PropertiesUtil.getLong(configProps,
+				ProducerConfigConstants.COLLECTION_MAX_COUNT, producerConfig.getCollectionMaxCount(), LOG));
+
+		producerConfig.setMaxConnections(PropertiesUtil.getLong(configProps,
+				ProducerConfigConstants.MAX_CONNECTIONS, producerConfig.getMaxConnections(), LOG));
+
+		producerConfig.setRateLimit(PropertiesUtil.getLong(configProps,
+			ProducerConfigConstants.RATE_LIMIT, producerConfig.getRateLimit(), LOG));
+
+		producerConfig.setRecordMaxBufferedTime(PropertiesUtil.getLong(configProps,
+			ProducerConfigConstants.RECORD_MAX_BUFFERED_TIME, producerConfig.getRecordMaxBufferedTime(), LOG));
+
+		producerConfig.setRecordTtl(PropertiesUtil.getLong(configProps,
+			ProducerConfigConstants.RECORD_TIME_TO_LIVE, producerConfig.getRecordTtl(), LOG));
+
+		producerConfig.setRequestTimeout(PropertiesUtil.getLong(configProps,
+			ProducerConfigConstants.REQUEST_TIMEOUT, producerConfig.getRequestTimeout(), LOG));
 
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {

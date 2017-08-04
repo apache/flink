@@ -273,6 +273,7 @@ Properties producerConfig = new Properties();
 producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
 producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+producerConfig.put(ProducerConfigConstants.RECORD_MAX_BUFFERED_TIME, "10000");
 
 FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), producerConfig);
 kinesis.setFailOnError(true);
@@ -289,6 +290,7 @@ val producerConfig = new Properties();
 producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
 producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+producerConfig.put(ProducerConfigConstants.RECORD_MAX_BUFFERED_TIME, "10000");
 
 val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig);
 kinesis.setFailOnError(true);
