@@ -36,7 +36,10 @@ import org.apache.flink.runtime.util.SerializedThrowable;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -144,8 +147,28 @@ public class JobSubmissionClientActor extends JobClientActor {
 
 				LOG.info("Upload jar files to job manager {}.", jobManager.path());
 
+				final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(jobManagerGateway, timeout);
+				final InetSocketAddress blobServerAddress;
+
 				try {
-					jobGraph.uploadUserJars(jobManagerGateway, timeout, clientConfig);
+					blobServerAddress = blobServerAddressFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				} catch (Exception e) {
+					getSelf().tell(
+						decorateMessage(new JobManagerMessages.JobResultFailure(
+							new SerializedThrowable(
+								new JobSubmissionException(
+									jobGraph.getJobID(),
+									"Could not retrieve BlobServer address.",
+									e)
+							)
+						)),
+						ActorRef.noSender());
+
+					return null;
+				}
+
+				try {
+					jobGraph.uploadUserJars(blobServerAddress, clientConfig);
 				} catch (IOException exception) {
 					getSelf().tell(
 						decorateMessage(new JobManagerMessages.JobResultFailure(
@@ -156,8 +179,9 @@ public class JobSubmissionClientActor extends JobClientActor {
 									exception)
 							)
 						)),
-						ActorRef.noSender()
-					);
+						ActorRef.noSender());
+
+					return null;
 				}
 
 				LOG.info("Submit job to the job manager {}.", jobManager.path());
