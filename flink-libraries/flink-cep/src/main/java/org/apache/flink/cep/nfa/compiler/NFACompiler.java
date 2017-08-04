@@ -435,6 +435,12 @@ public class NFACompiler {
 				untilCondition,
 				true);
 
+			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+				State<T> sinkStateCopy = copy(sinkState);
+				updateWithGreedyCondition(sinkState, takeCondition);
+				originalStateMap.put(sinkState.getName(), sinkStateCopy);
+			}
+
 			for (int i = times.getFrom(); i < times.getTo(); i++) {
 				lastSink = createSingletonState(lastSink, proceedState, takeCondition, innerIgnoreCondition, true);
 				addStopStateToLooping(lastSink);

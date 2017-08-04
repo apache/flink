@@ -971,7 +971,7 @@ public class GreedyITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGreedyTimesRange() {
+	public void testEndWithGreedyTimesRange() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event c = new Event(40, "c", 1.0);
@@ -1012,6 +1012,57 @@ public class GreedyITCase extends TestLogger {
 			Lists.newArrayList(c, a1, a2),
 			Lists.newArrayList(c, a1, a2, a3),
 			Lists.newArrayList(c, a1, a2, a3, a4)
+		));
+	}
+
+	@Test
+	public void testGreedyTimesRange() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event c = new Event(40, "c", 1.0);
+		Event a1 = new Event(41, "a", 2.0);
+		Event a2 = new Event(42, "a", 2.0);
+		Event a3 = new Event(43, "a", 2.0);
+		Event a4 = new Event(44, "a", 2.0);
+		Event d = new Event(45, "d", 2.0);
+
+		inputEvents.add(new StreamRecord<>(c, 1));
+		inputEvents.add(new StreamRecord<>(a1, 2));
+		inputEvents.add(new StreamRecord<>(a2, 3));
+		inputEvents.add(new StreamRecord<>(a3, 4));
+		inputEvents.add(new StreamRecord<>(a4, 5));
+		inputEvents.add(new StreamRecord<>(d, 6));
+
+		// c a{2, 5} d
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).times(2, 5).greedy().followedBy("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("d");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+			Lists.newArrayList(c, a1, a2, a3, a4, d)
 		));
 	}
 }
