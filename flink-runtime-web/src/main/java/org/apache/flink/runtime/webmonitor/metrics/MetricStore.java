@@ -24,8 +24,8 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,8 +48,8 @@ public class MetricStore {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricStore.class);
 
 	final JobManagerMetricStore jobManager = new JobManagerMetricStore();
-	final Map<String, TaskManagerMetricStore> taskManagers = new HashMap<>();
-	final Map<String, JobMetricStore> jobs = new HashMap<>();
+	final Map<String, TaskManagerMetricStore> taskManagers = new ConcurrentHashMap<>();
+	final Map<String, JobMetricStore> jobs = new ConcurrentHashMap<>();
 
 	// -----------------------------------------------------------------------------------------------------------------
 	// Adding metrics
@@ -248,7 +248,7 @@ public class MetricStore {
 	// sub MetricStore classes
 	// -----------------------------------------------------------------------------------------------------------------
 	private abstract static class ComponentMetricStore {
-		public final Map<String, String> metrics = new HashMap<>();
+		public final Map<String, String> metrics = new ConcurrentHashMap<>();
 
 		public String getMetric(String name, String defaultValue) {
 			String value = this.metrics.get(name);
@@ -268,7 +268,7 @@ public class MetricStore {
 	 * Sub-structure containing metrics of a single TaskManager.
 	 */
 	public static class TaskManagerMetricStore extends ComponentMetricStore {
-		public final Set<String> garbageCollectorNames = new HashSet<>();
+		public final Set<String> garbageCollectorNames = new ConcurrentSkipListSet<>();
 
 		public void addGarbageCollectorName(String name) {
 			garbageCollectorNames.add(name);
@@ -279,7 +279,7 @@ public class MetricStore {
 	 * Sub-structure containing metrics of a single Job.
 	 */
 	public static class JobMetricStore extends ComponentMetricStore {
-		private final Map<String, TaskMetricStore> tasks = new HashMap<>();
+		private final Map<String, TaskMetricStore> tasks = new ConcurrentHashMap<>();
 
 		public TaskMetricStore getTaskMetricStore(String taskID) {
 			return tasks.get(taskID);
@@ -290,7 +290,7 @@ public class MetricStore {
 	 * Sub-structure containing metrics of a single Task.
 	 */
 	public static class TaskMetricStore extends ComponentMetricStore {
-		private final Map<Integer, SubtaskMetricStore> subtasks = new HashMap<>();
+		private final Map<Integer, SubtaskMetricStore> subtasks = new ConcurrentHashMap<>();
 
 		public SubtaskMetricStore getSubtaskMetricStore(int subtaskIndex) {
 			return subtasks.get(subtaskIndex);
