@@ -43,7 +43,7 @@ class TableSourceTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         "StreamTableSourceScan(table=[[rowTimeT]], fields=[id, val, name, addTime])",
-        term("select", "TIME_MATERIALIZATION(addTime) AS addTime", "id", "name", "val")
+        term("select", "addTime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
   }
@@ -90,7 +90,7 @@ class TableSourceTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         "StreamTableSourceScan(table=[[procTimeT]], fields=[id, val, name, pTime])",
-        term("select", "TIME_MATERIALIZATION(pTime) AS pTime", "id", "name", "val")
+        term("select", "PROCTIME(pTime) AS pTime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
   }

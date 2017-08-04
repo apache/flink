@@ -17,13 +17,16 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
+import java.sql.Timestamp
 import java.util.{ArrayList => JArrayList, List => JList}
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -44,6 +47,7 @@ class RowTimeBoundedRangeOver(
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
     precedingOffset: Long,
+    rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
@@ -114,7 +118,7 @@ class RowTimeBoundedRangeOver(
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
-    val triggeringTs = ctx.timestamp
+    val triggeringTs = SqlFunctions.toLong(input.getField(rowTimeIdx).asInstanceOf[Timestamp])
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
@@ -165,6 +169,8 @@ class RowTimeBoundedRangeOver(
       }
       return
     }
+
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)

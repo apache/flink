@@ -112,12 +112,6 @@ class DataStreamGroupAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val physicalNamedAggregates = namedAggregates.map { namedAggregate =>
-      new CalcitePair[AggregateCall, String](
-        inputSchema.mapAggregateCall(namedAggregate.left),
-        namedAggregate.right)
-    }
-
     val outRowType = CRowTypeInfo(schema.physicalTypeInfo)
 
     val generator = new AggregationCodeGenerator(
@@ -136,11 +130,9 @@ class DataStreamGroupAggregate(
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"select: ($aggString)"
 
-    val physicalGrouping = groupings.map(inputSchema.mapIndex)
-
     val processFunction = AggregateUtil.createGroupAggregateFunction(
       generator,
-      physicalNamedAggregates,
+      namedAggregates,
       inputSchema.logicalType,
       inputSchema.physicalFieldTypeInfo,
       groupings,
@@ -150,7 +142,7 @@ class DataStreamGroupAggregate(
 
     val result: DataStream[CRow] =
     // grouped / keyed aggregation
-      if (physicalGrouping.nonEmpty) {
+      if (groupings.nonEmpty) {
         inputDS
         .keyBy(groupings: _*)
         .process(processFunction)

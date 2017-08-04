@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.codegen.calls
 
-import java.lang.reflect.Method
-
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
@@ -1025,13 +1023,38 @@ object ScalarOperators {
     }
   }
 
-  def generateConcat(
-      method: Method,
-      operands: Seq[GeneratedExpression]): GeneratedExpression = {
+  def generateConcat(operands: Seq[GeneratedExpression]): GeneratedExpression = {
 
-    generateCallIfArgsNotNull(false, STRING_TYPE_INFO, operands) {
-      (terms) =>s"${qualifyMethod(method)}(${terms.mkString(", ")})"
+    generateCallIfArgsNotNull(true, STRING_TYPE_INFO, operands) {
+      (terms) =>s"${qualifyMethod(BuiltInMethods.CONCAT)}(${terms.mkString(", ")})"
     }
+  }
+
+  def generateConcatWs(operands: Seq[GeneratedExpression]): GeneratedExpression = {
+
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val defaultValue = primitiveDefaultValue(Types.STRING)
+
+    val operatorCode =
+      s"""
+        |${operands.map(_.code).mkString("\n")}
+        |
+        |String $resultTerm;
+        |boolean $nullTerm;
+        |if (${operands.head.nullTerm}) {
+        |  $nullTerm = true;
+        |  $resultTerm = $defaultValue;
+        |} else {
+        |
+        |  ${operands.tail.map(o => s"if (${o.nullTerm}) ${o.resultTerm} = null;").mkString("\n")}
+        |  $nullTerm = false;
+        |  $resultTerm = ${qualifyMethod(BuiltInMethods.CONCAT_WS)}(
+        |    ${operands.map(_.resultTerm).mkString(", ")});
+        |}
+        |""".stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, operatorCode, Types.STRING)
   }
 
   def generateMapGet(

@@ -429,9 +429,8 @@ object WindowJoinUtil {
            |${generator.collectorTerm}.collect(${conversion.resultTerm});
            |""".stripMargin
       case Some(remainCondition) =>
-        // map logical field accesses to physical accesses
-        val physicalCondition = returnType.mapRexNode(remainCondition)
-        val genCond = generator.generateExpression(physicalCondition)
+        // generate code for remaining condition
+        val genCond = generator.generateExpression(remainCondition)
         s"""
            |${genCond.code}
            |if (${genCond.resultTerm}) {

@@ -39,9 +39,7 @@ abstract class PhysicalTableSourceScan(
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     flinkTypeFactory.buildLogicalRowType(
       TableEnvironment.getFieldNames(tableSource),
-      TableEnvironment.getFieldTypes(tableSource.getReturnType),
-      None,
-      None)
+      TableEnvironment.getFieldTypes(tableSource.getReturnType))
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

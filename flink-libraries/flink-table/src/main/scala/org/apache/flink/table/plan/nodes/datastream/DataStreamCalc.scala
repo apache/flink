@@ -110,10 +110,6 @@ class DataStreamCalc(
     // filter out time attributes
     val projection = calcProgram.getProjectList.asScala
       .map(calcProgram.expandLocalRef)
-      // time indicator fields must not be part of the code generation
-      .filter(expr => !FlinkTypeFactory.isTimeIndicatorType(expr.getType))
-      // update indices
-      .map(expr => inputSchema.mapRexNode(expr))
 
     val generator = new FunctionCodeGenerator(config, false, inputSchema.physicalTypeInfo)
 

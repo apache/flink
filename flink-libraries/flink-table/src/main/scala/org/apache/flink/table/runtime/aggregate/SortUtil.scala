@@ -60,6 +60,8 @@ object SortUtil {
     inputTypeInfo: TypeInformation[Row],
     execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
 
+    val rowtimeIdx = collationSort.getFieldCollations.get(0).getFieldIndex
+
     val collectionRowComparator = if (collationSort.getFieldCollations.size() > 1) {
 
       val rowComp = createRowComparator(
@@ -76,6 +78,7 @@ object SortUtil {
  
     new RowTimeSortProcessFunction(
       inputCRowType,
+      rowtimeIdx,
       collectionRowComparator)
 
   }

@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime
 
 import java.lang.{Boolean => JBool}
+import java.sql.Timestamp
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -29,6 +31,9 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.slf4j.LoggerFactory
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.operators.TimestampedCollector
+import org.apache.flink.util.Collector
 
 /**
   * Convert [[CRow]] to a [[JTuple2]]
@@ -89,4 +94,36 @@ class CRowInputScalaTupleOutputMapRunner(
     (in.change, function.map(in.row))
 
   override def getProducedType: TypeInformation[(Boolean, Any)] = returnType
+}
+
+/**
+  * Wraps a ProcessFunction and sets a Timestamp field of a CRow as
+  * [[org.apache.flink.streaming.runtime.streamrecord.StreamRecord]] timestamp.
+  */
+class WrappingTimestampSetterProcessFunction[OUT](
+  function: MapFunction[CRow, OUT],
+  rowtimeIdx: Int)
+  extends ProcessFunction[CRow, OUT] {
+
+  override def open(parameters: Configuration): Unit = {
+    super.open(parameters)
+    function match {
+      case f: RichMapFunction[_, _] =>
+        f.setRuntimeContext(getRuntimeContext)
+        f.open(parameters)
+      case _ =>
+    }
+  }
+
+  override def processElement(
+      in: CRow,
+      ctx: ProcessFunction[CRow, OUT]#Context,
+      out: Collector[OUT]): Unit = {
+
+    val timestamp = SqlFunctions.toLong(in.row.getField(rowtimeIdx).asInstanceOf[Timestamp])
+    out.asInstanceOf[TimestampedCollector[_]].setAbsoluteTimestamp(timestamp)
+
+    out.collect(function.map(in))
+  }
+
 }
