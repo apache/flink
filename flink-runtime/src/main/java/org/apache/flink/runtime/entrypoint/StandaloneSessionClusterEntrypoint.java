@@ -70,7 +70,7 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 			fatalErrorHandler);
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		Configuration configuration = loadConfiguration(parseArguments(args));
 
 		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);
