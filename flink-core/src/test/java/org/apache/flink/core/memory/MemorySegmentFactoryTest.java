@@ -22,7 +22,9 @@ import org.junit.Test;
 
 import java.lang.reflect.Field;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link MemorySegmentFactory} in on/off-heap modes.

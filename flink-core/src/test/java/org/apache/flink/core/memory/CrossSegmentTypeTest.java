@@ -35,7 +35,7 @@ import static org.junit.Assert.fail;
  */
 public class CrossSegmentTypeTest {
 
-	private final int pageSize = 32*1024;
+	private final int pageSize = 32 * 1024;
 
 	// ------------------------------------------------------------------------
 
@@ -89,7 +89,7 @@ public class CrossSegmentTypeTest {
 			int pos2 = random.nextInt(bytes2.length);
 
 			int len = Math.min(Math.min(bytes1.length - pos1, bytes2.length - pos2),
-					random.nextInt(pageSize / 50 ));
+					random.nextInt(pageSize / 50));
 
 			int cmp = seg1.compare(seg2, pos1, pos2, len);
 
@@ -104,7 +104,7 @@ public class CrossSegmentTypeTest {
 
 	@Test
 	public void testSwapBytesMixedSegments() {
-		final int HALF_SIZE = pageSize / 2;
+		final int halfPageSize = pageSize / 2;
 
 		MemorySegment[] segs1 = {
 				new HeapMemorySegment(new byte[pageSize]),
@@ -113,16 +113,16 @@ public class CrossSegmentTypeTest {
 		};
 
 		MemorySegment[] segs2 = {
-				new HeapMemorySegment(new byte[HALF_SIZE]),
-				new HybridMemorySegment(new byte[HALF_SIZE]),
-				new HybridMemorySegment(ByteBuffer.allocateDirect(HALF_SIZE))
+				new HeapMemorySegment(new byte[halfPageSize]),
+				new HybridMemorySegment(new byte[halfPageSize]),
+				new HybridMemorySegment(ByteBuffer.allocateDirect(halfPageSize))
 		};
 
 		Random rnd = new Random();
 
 		for (MemorySegment seg1 : segs1) {
 			for (MemorySegment seg2 : segs2) {
-				testSwap(seg1, seg2, rnd, HALF_SIZE);
+				testSwap(seg1, seg2, rnd, halfPageSize);
 			}
 		}
 	}

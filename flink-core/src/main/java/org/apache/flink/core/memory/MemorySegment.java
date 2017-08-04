@@ -1219,9 +1219,8 @@ public abstract class MemorySegment {
 		final long thisPointer = this.address + offset;
 		final long otherPointer = target.address + targetOffset;
 
-		if ( (numBytes | offset | targetOffset) >= 0 &&
-				thisPointer <= this.addressLimit - numBytes && otherPointer <= target.addressLimit - numBytes)
-		{
+		if ((numBytes | offset | targetOffset) >= 0 &&
+				thisPointer <= this.addressLimit - numBytes && otherPointer <= target.addressLimit - numBytes) {
 			UNSAFE.copyMemory(thisHeapRef, thisPointer, otherHeapRef, otherPointer, numBytes);
 		}
 		else if (this.address > this.addressLimit) {
@@ -1288,7 +1287,7 @@ public abstract class MemorySegment {
 	 * @param len Length of the swapped memory region
 	 */
 	public final void swapBytes(byte[] tempBuffer, MemorySegment seg2, int offset1, int offset2, int len) {
-		if ( (offset1 | offset2 | len | (tempBuffer.length - len) ) >= 0) {
+		if ((offset1 | offset2 | len | (tempBuffer.length - len)) >= 0) {
 			final long thisPos = this.address + offset1;
 			final long otherPos = seg2.address + offset2;
 

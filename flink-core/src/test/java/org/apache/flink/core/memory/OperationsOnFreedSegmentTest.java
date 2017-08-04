@@ -944,8 +944,8 @@ public class OperationsOnFreedSegmentTest {
 
 		for (ByteBuffer bbuf : new ByteBuffer[] {
 				ByteBuffer.allocate(55),
-				ByteBuffer.allocateDirect(55) } )
-		{
+				ByteBuffer.allocateDirect(55) }) {
+
 			try {
 				segment.get(0, bbuf, 17);
 				fail("Should fail with an exception");
@@ -1019,7 +1019,7 @@ public class OperationsOnFreedSegmentTest {
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}
 
 			try {
-				segment.put(Integer.MAX_VALUE,bbuf, 17);
+				segment.put(Integer.MAX_VALUE, bbuf, 17);
 				fail("Should fail with an exception");
 			}
 			catch (IllegalStateException | NullPointerException | IndexOutOfBoundsException ignored) {}

@@ -66,17 +66,17 @@ public class MemorySegmentChecksTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testZeroAddress(){
-		new MockSegment(0L, 4*1024, null);
+		new MockSegment(0L, 4 * 1024, null);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testNegativeAddress(){
-		new MockSegment(-1L, 4*1024, null);
+		new MockSegment(-1L, 4 * 1024, null);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testTooLargeAddress(){
-		new MockSegment(Long.MAX_VALUE - 8*1024, 4*1024, null);
+		new MockSegment(Long.MAX_VALUE - 8 * 1024, 4 * 1024, null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -131,5 +131,5 @@ public class MemorySegmentChecksTest {
 
 		@Override
 		public void put(int offset, ByteBuffer source, int numBytes) {}
-	};
+	}
 }

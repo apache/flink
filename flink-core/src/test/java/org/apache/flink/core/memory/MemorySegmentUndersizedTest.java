@@ -1101,7 +1101,7 @@ public class MemorySegmentUndersizedTest {
 		// ------ ByteBuffer ------
 
 		final ByteBuffer buf = ByteBuffer.allocate(7);
-		final int numBytes = 3; 
+		final int numBytes = 3;
 
 		try {
 			segment.put(0, buf, numBytes);

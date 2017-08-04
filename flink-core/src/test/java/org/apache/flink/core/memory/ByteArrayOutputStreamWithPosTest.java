@@ -104,7 +104,7 @@ public class ByteArrayOutputStreamWithPosTest {
 		stream.write(data);
 		Assert.assertArrayEquals(data, stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		for (int i = 0 ; i < data.length ; i++) {
+		for (int i = 0; i < data.length; i++) {
 			stream.setPosition(i);
 			Assert.assertArrayEquals(Arrays.copyOf(data, i), stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}

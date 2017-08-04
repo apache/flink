@@ -204,7 +204,7 @@ public final class HeapMemorySegment extends MemorySegment {
 		 * Prevent external instantiation.
 		 */
 		HeapMemorySegmentFactory() {}
-	};
+	}
 
 	public static final HeapMemorySegmentFactory FACTORY = new HeapMemorySegmentFactory();
 }
