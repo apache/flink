@@ -63,7 +63,7 @@ public abstract class MemorySegmentTestBase {
 
 	abstract MemorySegment createSegment(int size);
 
-	abstract MemorySegment createSegment(int size, Object owner);
+	abstract MemorySegment createSegment(@SuppressWarnings("SameParameterValue") int size, Object owner);
 
 	// ------------------------------------------------------------------------
 	//  Access to primitives

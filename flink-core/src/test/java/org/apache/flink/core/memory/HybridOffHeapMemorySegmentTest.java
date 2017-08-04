@@ -60,6 +60,7 @@ public class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
 		assertTrue(buffer == seg.getOffHeapBuffer());
 
 		try {
+			//noinspection ResultOfMethodCallIgnored
 			seg.getArray();
 			fail("should throw an exception");
 		}
