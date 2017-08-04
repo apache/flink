@@ -45,7 +45,7 @@ download_url: "http://flink.apache.org/downloads.html"
 
 # Flag whether this is the latest stable version or not. If not, a warning
 # will be printed pointing to the docs of the latest stable version.
-is_latest: true
+is_latest: false
 is_stable: true
 
 previous_docs:
