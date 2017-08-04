@@ -54,6 +54,13 @@ class TableFunc1 extends TableFunction[String] {
       str.split("#").foreach(s => collect(prefix + s))
     }
   }
+
+  def eval(num: Int): Unit = {
+    for (i <- 0 until num) {
+      collect("num_" + i)
+    }
+  }
+
 }
 
 class TableFunc2 extends TableFunction[Row] {

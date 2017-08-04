@@ -66,6 +66,16 @@ class CorrelateITCase(
     val expected2 = "Jack#22,$Jack\n" + "Jack#22,$22\n" + "John#19,$John\n" +
       "John#19,$19\n" + "Anna#44,$Anna\n" + "Anna#44,$44\n"
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+
+    val in2 = testData2(env).toTable(tableEnv).as('a, 'b)
+    // test implicitly converts
+    val result3 = in2.join(func1('a) as 'num).select('b, 'num).toDataSet[Row]
+    val results3 = result3.collect()
+
+    val expected3 = "1,num_0\n" + "2,num_0\n" + "2,num_1\n" +
+      "3,num_0\n" + "3,num_1\n" + "3,num_2\n"
+    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+
   }
 
   @Test
@@ -322,6 +332,16 @@ class CorrelateITCase(
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
+    env.fromCollection(data)
+  }
+
+  private def testData2(
+      env: ExecutionEnvironment)
+  : DataSet[(Byte, Int)] = {
+    val data = new mutable.MutableList[(Byte, Int)]
+    data.+=((1.toByte, 1))
+    data.+=((2.toByte, 2))
+    data.+=((3.toByte, 3))
     env.fromCollection(data)
   }
 }

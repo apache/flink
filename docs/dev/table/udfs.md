@@ -29,11 +29,11 @@ User-defined functions are an important feature, because they significantly exte
 
 Register User-Defined Functions
 -------------------------------
-In most cases, a user-defined function must be registered before it can be used in an query. It is not necessary to register functions for the Scala Table API. 
+In most cases, a user-defined function must be registered before it can be used in an query. It is not necessary to register functions for the Scala Table API.
 
-Functions are registered at the `TableEnvironment` by calling a `registerFunction()` method. When a user-defined function is registered, it is inserted into the function catalog of the `TableEnvironment` such that the Table API or SQL parser can recognize and properly translate it. 
+Functions are registered at the `TableEnvironment` by calling a `registerFunction()` method. When a user-defined function is registered, it is inserted into the function catalog of the `TableEnvironment` such that the Table API or SQL parser can recognize and properly translate it.
 
-Please find detailed examples of how to register and how to call each type of user-defined function 
+Please find detailed examples of how to register and how to call each type of user-defined function
 (`ScalarFunction`, `TableFunction`, and `AggregateFunction`) in the following sub-sessions.
 
 
@@ -265,11 +265,121 @@ class CustomTypeSplit extends TableFunction[Row] {
 
 {% top %}
 
+How to match the eval method
+----------------------------
+User-defined scalar function and User-defined table function can implement (one or more) eval methods. The flink framework uses the reflection mechanism and the implicit type conversion to match the eval method signature. i.e., try to look for methods that are strictly consistent between the input parameter type and the eval method signature type, if have not match any method, try to match the eval method according to whether the parameters can be implicitly converted.
+The implicit type conversion rule is numeric narrowest precedence. The conversion rules are as follows:
+
+<table class="table table-bordered">
+	<tr>
+		<th>From/To</th>
+		<th>BYTE</th>
+		<th>SHORT</th>
+		<th>INT</th>
+		<th>LONG</th>
+		<th>FLOAT</th>
+		<th>DOUBLE</th>
+		<th>STRING</th>
+	</tr>
+	<tr>
+        <td>BYTE</td>
+        <td>-</td>
+        <td>Y</td>
+        <td>Y</td>
+        <td>Y</td>
+        <td>Y</td>
+        <td>Y</td>
+        <td>Y</td>
+	</tr>
+	<tr>
+	    <td>SHORT</td>
+	    <td>N</td>
+	    <td>-</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	</tr>
+	<tr>
+	    <td>INT</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>-</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	</tr>
+	<tr>
+	    <td>LONG</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>-</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	</tr>
+	<tr>
+	    <td>FLOAT</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>-</td>
+	    <td>Y</td>
+	    <td>Y</td>
+	</tr>
+	<tr>
+	    <td>DOUBLE</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>-</td>
+	    <td>Y</td>
+	</tr>
+	<tr>
+	    <td>STRING</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>N</td>
+	    <td>-</td>
+	</tr>
+
+</table>
+
+For example:
+
+<table class="table table-bordered">
+	<tr>
+		<th>eval method definition</th>
+		<th>input data type</th>
+		<th>matched eval method</th>
+	</tr>
+	<tr>
+	    <td>def eval(a: String, b: String): String = {...}<br>def eval(a: Int, b: Int): String = {...}|</td>
+	    <td>STRING,STRING</td>
+	    <td>def eval(a: String, b: String): String = {...}</td>
+	</tr>
+	<tr>
+	<td>def eval(a: String, b: String): String = {...}<br>def eval(a: Int, b: Int): String = {...}|</td>
+	<td>INT, BYTE</td>
+	<td>def eval(a: Int, b: Int): String = {...}</td>
+	</tr>
+</table>
+
+{% top %}
 
 Aggregation Functions
 ---------------------
 
-User-Defined Aggregate Functions (UDAGGs) aggregate a table (one ore more rows with one or more attributes) to a scalar value. 
+User-Defined Aggregate Functions (UDAGGs) aggregate a table (one ore more rows with one or more attributes) to a scalar value.
 
 <center>
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
@@ -277,19 +387,19 @@ User-Defined Aggregate Functions (UDAGGs) aggregate a table (one ore more rows w
 
 The above figure shows an example of an aggregation. Assume you have a table that contains data about beverages. The table consists of three columns, `id`, `name` and `price` and 5 rows. Imagine you need to find the highest price of all beverages in the table, i.e., perform a `max()` aggregation. You would need to check each of the 5 rows and the result would be a single numeric value.
 
-User-defined aggregation functions are implemented by extending the `AggregateFunction` class. An `AggregateFunction` works as follows. First, it needs an `accumulator`, which is the data structure that holds the intermediate result of the aggregation. An empty accumulator is created by calling the `createAccumulator()` method of the `AggregateFunction`. Subsequently, the `accumulate()` method of the function is called for each input row to update the accumulator. Once all rows have been processed, the `getValue()` method of the function is called to compute and return the final result. 
+User-defined aggregation functions are implemented by extending the `AggregateFunction` class. An `AggregateFunction` works as follows. First, it needs an `accumulator`, which is the data structure that holds the intermediate result of the aggregation. An empty accumulator is created by calling the `createAccumulator()` method of the `AggregateFunction`. Subsequently, the `accumulate()` method of the function is called for each input row to update the accumulator. Once all rows have been processed, the `getValue()` method of the function is called to compute and return the final result.
 
 **The following methods are mandatory for each `AggregateFunction`:**
 
 - `createAccumulator()`
-- `accumulate()` 
+- `accumulate()`
 - `getValue()`
 
-Flink’s type extraction facilities can fail to identify complex data types, e.g., if they are not basic types or simple POJOs. So similar to `ScalarFunction` and `TableFunction`, `AggregateFunction` provides methods to specify the `TypeInformation` of the result type (through 
+Flink’s type extraction facilities can fail to identify complex data types, e.g., if they are not basic types or simple POJOs. So similar to `ScalarFunction` and `TableFunction`, `AggregateFunction` provides methods to specify the `TypeInformation` of the result type (through
  `AggregateFunction#getResultType()`) and the type of the accumulator (through `AggregateFunction#getAccumulatorType()`).
- 
-Besides the above methods, there are a few contracted methods that can be 
-optionally implemented. While some of these methods allow the system more efficient query execution, others are mandatory for certain use cases. For instance, the `merge()` method is mandatory if the aggregation function should be applied in the context of a session group window (the accumulators of two session windows need to be joined when a row is observed that "connects" them). 
+
+Besides the above methods, there are a few contracted methods that can be
+optionally implemented. While some of these methods allow the system more efficient query execution, others are mandatory for certain use cases. For instance, the `merge()` method is mandatory if the aggregation function should be applied in the context of a session group window (the accumulators of two session windows need to be joined when a row is observed that "connects" them).
 
 **The following methods of `AggregateFunction` are required depending on the use case:**
 
@@ -297,15 +407,15 @@ optionally implemented. While some of these methods allow the system more effici
 - `merge()` is required for many batch aggreagtions and session window aggregations.
 - `resetAccumulator()` is required for many batch aggregations.
 
-All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a table function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods. 
+All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a table function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods.
 
-Detailed documentation for all methods of `AggregateFunction` is given below. 
+Detailed documentation for all methods of `AggregateFunction` is given below.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 /**
-  * Base class for aggregation functions. 
+  * Base class for aggregation functions.
   *
   * @param <T>   the type of the aggregation result
   * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
@@ -404,7 +514,7 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 /**
-  * Base class for aggregation functions. 
+  * Base class for aggregation functions.
   *
   * @tparam T   the type of the aggregation result
   * @tparam ACC the type of the aggregation accumulator. The accumulator is used to keep the
@@ -453,7 +563,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     *                     merged.
     */
   def merge(accumulator: ACC, its: java.lang.Iterable[ACC]): Unit // OPTIONAL
-  
+
   /**
     * Called every time when an aggregation result should be materialized.
     * The returned value could be either an early and incomplete result
@@ -504,9 +614,9 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
 
 The following example shows how to
 
-- define an `AggregateFunction` that calculates the weighted average on a given column, 
-- register the function in the `TableEnvironment`, and 
-- use the function in a query.  
+- define an `AggregateFunction` that calculates the weighted average on a given column,
+- register the function in the `TableEnvironment`, and
+- use the function in a query.
 
 To calculate an weighted average value, the accumulator needs to store the weighted sum and count of all the data that has been accumulated. In our example we define a class `WeightedAvgAccum` to be the accumulator. Accumulators are automatically backup-ed by Flink's checkpointing mechanism and restored in case of a failure to ensure exactly-once semantics.
 
@@ -551,7 +661,7 @@ public static class WeightedAvg extends AggregateFunction<long, WeightedAvgAccum
         acc.sum -= iValue * iWeight;
         acc.count -= iWeight;
     }
-    
+
     public void merge(WeightedAvgAccum acc, Iterable<WeightedAvgAccum> it) {
         Iterator<WeightedAvgAccum> iter = it.iterator();
         while (iter.hasNext()) {
@@ -560,7 +670,7 @@ public static class WeightedAvg extends AggregateFunction<long, WeightedAvgAccum
             acc.sum += a.sum;
         }
     }
-    
+
     public void resetAccumulator(WeightedAvgAccum acc) {
         acc.count = 0;
         acc.sum = 0L;
@@ -601,7 +711,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
   override def createAccumulator(): WeightedAvgAccum = {
     new WeightedAvgAccum
   }
-  
+
   override def getValue(acc: WeightedAvgAccum): JLong = {
     if (acc.count == 0) {
         null
@@ -609,7 +719,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
         acc.sum / acc.count
     }
   }
-  
+
   def accumulate(acc: WeightedAvgAccum, iValue: JLong, iWeight: JInteger): Unit = {
     acc.sum += iValue * iWeight
     acc.count += iWeight
@@ -619,7 +729,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
     acc.sum -= iValue * iWeight
     acc.count -= iWeight
   }
-    
+
   def merge(acc: WeightedAvgAccum, it: java.lang.Iterable[WeightedAvgAccum]): Unit = {
     val iter = it.iterator()
     while (iter.hasNext) {
@@ -635,7 +745,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
   }
 
   override def getAccumulatorType: TypeInformation[WeightedAvgAccum] = {
-    new TupleTypeInfo(classOf[WeightedAvgAccum], 
+    new TupleTypeInfo(classOf[WeightedAvgAccum],
                       BasicTypeInfo.LONG_TYPE_INFO,
                       BasicTypeInfo.INT_TYPE_INFO)
   }
@@ -661,7 +771,7 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 Best Practices for Implementing UDFs
 ------------------------------------
 
-The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `Types.DATE` and `Types.TIME` can also be represented as `int`. `Types.TIMESTAMP` can be represented as `long`. 
+The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `Types.DATE` and `Types.TIME` can also be represented as `int`. `Types.TIMESTAMP` can be represented as `long`.
 
 We recommended that user-defined functions should be written by Java instead of Scala as Scala types pose a challenge for Flink's type extractor.
 

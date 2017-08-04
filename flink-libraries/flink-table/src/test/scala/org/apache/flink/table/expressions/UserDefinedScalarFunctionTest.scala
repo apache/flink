@@ -201,6 +201,35 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   }
 
   @Test
+  def testImplicitlyConverts(): Unit = {
+
+    testTableApi(
+      Func10('f0), // int convert to long
+      "Func10(f0)",
+      "1970-01-01 00:00:00.042")
+
+    // can implicitly convert:
+    // eval(a: String, b: String)
+    // eval(a: Int, b: Int)
+    // eval(a:Int, str: String)
+    // eval(a: Long, b: String*)
+    // match eval(a: Int, b: Int)
+    testTableApi(
+      Func8('f11, 'f11),
+      "Func8(f11, f11)",
+      "b")
+
+    // can implicitly convert:
+    // eval(a: Int)
+    // eval(a: String)
+    // match eval(a: Int)
+    testTableApi(
+      Func8('f11),
+      "Func8(f11)",
+      "a")
+  }
+
+  @Test
   def testTimeIntervalsOnPrimitives(): Unit = {
     testAllApis(
       Func11('f7, 'f8),
@@ -360,7 +389,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(11)
+    val testData = new Row(12)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -372,6 +401,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(8, 1000L)
     testData.setField(9, Seq("Hello", "World"))
     testData.setField(10, Array[Integer](1, 2, null))
+    testData.setField(11, 22.toByte)
     testData
   }
 
@@ -387,7 +417,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.INTERVAL_MONTHS,
       Types.INTERVAL_MILLIS,
       TypeInformation.of(classOf[Seq[String]]),
-      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
+      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO,
+      Types.BYTE
     ).asInstanceOf[TypeInformation[Any]]
   }
 

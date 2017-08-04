@@ -35,7 +35,7 @@ import scala.collection.mutable
 class CorrelateITCase extends StreamingMultipleProgramsTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
+  val tableEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
 
   @Before
   def clear(): Unit = {
@@ -44,7 +44,7 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testCrossJoin(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
     val pojoFunc0 = new PojoTableFunc()
 
@@ -65,7 +65,7 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testLeftOuterJoin(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = t
@@ -84,7 +84,7 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = t
@@ -103,12 +103,12 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
     val tableFunc1 = new RichTableFunc1
-    tEnv.registerFunction("RichTableFunc1", tableFunc1)
+    tableEnv.registerFunction("RichTableFunc1", tableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> " "))
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTable(tableEnv, 'a, 'b, 'c)
       .join(tableFunc1('c) as 's)
       .select('a, 's)
 
@@ -121,18 +121,40 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  def testCrossJoinImplicitlyConverts(): Unit = {
+
+    val in = testData2(env).toTable(tableEnv).as('a, 'b)
+    val func1 = new TableFunc1
+
+    // test implicitly converts
+    val result = in
+      .join(func1('a) as 'num)
+      .select('b, 'num)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,num_0", "2,num_0", "2,num_1",
+      "3,num_0", "3,num_1", "3,num_2")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testUserDefinedTableFunctionWithUserDefinedScalarFunction(): Unit = {
     val tableFunc1 = new RichTableFunc1
     val richFunc2 = new RichFunc2
-    tEnv.registerFunction("RichTableFunc1", tableFunc1)
-    tEnv.registerFunction("RichFunc2", richFunc2)
+    tableEnv.registerFunction("RichTableFunc1", tableFunc1)
+    tableEnv.registerFunction("RichFunc2", richFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(
       env,
       Map("word_separator" -> "#", "string.value" -> "test"))
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTable(tableEnv, 'a, 'b, 'c)
       .join(tableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
@@ -152,7 +174,7 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
     val config = Map("key1" -> "value1", "key2" -> "value2")
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
@@ -184,10 +206,10 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
     val varArgsFunc0 = new VarArgsFunc0
-    tEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+    tableEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTable(tableEnv, 'a, 'b, 'c)
       .select('c)
       .join(varArgsFunc0("1", "2", 'c))
 
@@ -219,6 +241,17 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
+    env.fromCollection(data)
+  }
+
+  private def testData2(
+      env: StreamExecutionEnvironment)
+  : DataStream[(Byte, Int)] = {
+
+    val data = new mutable.MutableList[(Byte, Int)]
+    data.+=((1.toByte, 1))
+    data.+=((2.toByte, 2))
+    data.+=((3.toByte, 3))
     env.fromCollection(data)
   }
 

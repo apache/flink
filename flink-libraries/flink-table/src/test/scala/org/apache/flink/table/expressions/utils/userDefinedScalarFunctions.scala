@@ -84,12 +84,25 @@ object Func8 extends ScalarFunction {
     "a"
   }
 
+  def eval(a: String, b: String): String = {
+    "c"
+  }
+
   def eval(a: Int, b: Int): String = {
     "b"
   }
 
-  def eval(a: String, b: String): String = {
-    "c"
+  def eval(a: Int, str: String): String = {
+    "abc"
+  }
+
+  def eval(a: String): String = {
+    "d"
+  }
+
+  @varargs
+  def eval(a: Long, b: String*): String = {
+    "f"
   }
 }
 

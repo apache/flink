@@ -40,6 +40,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.util.InstantiationUtil
 
 import scala.collection.mutable
@@ -126,6 +127,14 @@ object UserDefinedFunctionUtils {
   /**
     * Returns user defined method matching the given name and signature.
     *
+    * Matching logic:
+    * 1. finds eval method which match parameters of signature to actual parameters.
+    * 2. if #1 have not match any method, try to match the eval method according to whether the
+    * parameters can be implicitly converted.
+    * 3. if #2 match multiple eval methods, according the numeric narrowest precedence to find
+    * the most appropriate eval method.
+    * 4. if #1 match multiple eval methods non-varArgs is preferentially.
+    *
     * @param function        function instance
     * @param methodName      method name
     * @param methodSignature an array of raw Java classes. We compare the raw Java classes not the
@@ -140,6 +149,7 @@ object UserDefinedFunctionUtils {
 
     val methods = checkAndExtractMethods(function, methodName)
 
+    // 1.finds eval method which match parameters of signature to actual parameters.
     val filtered = methods
       // go over all the methods and filter out matching methods
       .filter {
@@ -162,11 +172,64 @@ object UserDefinedFunctionUtils {
           } || (methodSignature.isEmpty && signatures.length == 1) // empty varargs
     }
 
-    // if there is a fixed method, compiler will call this method preferentially
-    val fixedMethodsCount = filtered.count(!_.isVarArgs)
-    val found = filtered.filter { cur =>
-      fixedMethodsCount > 0 && !cur.isVarArgs ||
-      fixedMethodsCount == 0 && cur.isVarArgs
+    val found = if (filtered.isEmpty) {
+      // 2.can not find match parameters of signature. try to match the eval method according to
+      // whether the parameters can be implicitly converted.
+      val converted = methods
+        .filter {
+          case cur if !cur.isVarArgs =>
+            val signatures = cur.getParameterTypes
+            // match parameters of signature to actual parameters
+            methodSignature.length == signatures.length &&
+              signatures.zipWithIndex.forall { case (clazz, i) =>
+                TypeCoercion.canSafelyCast(
+                  TypeInformation.of(methodSignature(i)),
+                  TypeInformation.of(clazz))
+              }
+          case cur if cur.isVarArgs =>
+            val signatures = cur.getParameterTypes
+            methodSignature.zipWithIndex.forall {
+              // non-varargs
+              case (clazz, i) if i < signatures.length - 1 =>
+                TypeCoercion.canSafelyCast(
+                  TypeInformation.of(clazz),
+                  TypeInformation.of(signatures(i)))
+              // varargs
+              case (clazz, i) if i >= signatures.length - 1 =>
+                TypeCoercion.canSafelyCast(
+                  TypeInformation.of(clazz),
+                  TypeInformation.of(signatures.last.getComponentType))
+            }
+        }
+
+      if (converted.size > 1) {
+        // 3.match multiple eval methods, according the numeric narrowest precedence to find
+        // the most appropriate eval method.
+        var bestMethod = converted(0)
+        (0 until methodSignature.length).foreach { i =>
+          (1 until converted.size).foreach { j =>
+            if ((0 to i).forall { k =>
+              TypeCoercion.canSafelyCast(
+                TypeInformation.of(converted(j).getParameterTypes()(k)),
+                TypeInformation.of(bestMethod.getParameterTypes()(k))
+              )
+            }) {
+              bestMethod = converted(j)
+            }
+          }
+        }
+        Array(bestMethod)
+      } else {
+        // just match to a method
+        converted
+      }
+    } else {
+      if (filtered.size > 1 && filtered.exists(!_.isVarArgs)) {
+        // 4.match multiple eval methods non-varArgs is preferentially.
+        filtered.filter(!_.isVarArgs)
+      } else {
+        filtered
+      }
     }
 
     // check if there is a Scala varargs annotation
