@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
  * Tests for the sanity checks of the memory segments.
  */
 public class MemorySegmentChecksTest {
-	
+
 	@Test(expected = NullPointerException.class)
 	public void testHeapNullBuffer1() {
 		new HeapMemorySegment(null);
@@ -78,9 +78,9 @@ public class MemorySegmentChecksTest {
 	public void testTooLargeAddress(){
 		new MockSegment(Long.MAX_VALUE - 8*1024, 4*1024, null);
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	final class MockSegment extends MemorySegment {
 
 		MockSegment(long offHeapAddress, int size, Object owner) {

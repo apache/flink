@@ -45,7 +45,7 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 	MemorySegment createSegment(int size, Object owner) {
 		return new HybridMemorySegment(new byte[size], owner);
 	}
-	
+
 	@Test
 	public void testHybridHeapSegmentSpecifics() {
 		final byte[] buffer = new byte[411];

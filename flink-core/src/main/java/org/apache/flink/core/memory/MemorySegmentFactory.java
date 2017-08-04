@@ -29,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * for heap data are of the same type. That way, the runtime does not mix the various specializations
  * of the {@link org.apache.flink.core.memory.MemorySegment}. Not mixing them has shown to be beneficial
  * to method specialization by the JIT and to overall performance.
- * 
+ *
  * <p>Note that this factory auto-initialized to use {@link org.apache.flink.core.memory.HeapMemorySegment},
  * if a request to create a segment comes before the initialization.
  */
@@ -71,7 +71,7 @@ public class MemorySegmentFactory {
 	 * <p>
 	 * This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets
 	 * the owner of the memory segment.
-	 * 
+	 *
 	 * @param size The size of the memory segment to allocate.
 	 * @param owner The owner to associate with the memory segment.
 	 * @return A new memory segment, backed by unpooled heap memory.
@@ -86,8 +86,7 @@ public class MemorySegmentFactory {
 	 * <p>
 	 * This method is intended to be used for components which pool memory and create
 	 * memory segments around long-lived memory regions.
-	 *
-	 * 
+	 * *
 	 * @param memory The heap memory to be represented by the memory segment.
 	 * @param owner The owner to associate with the memory segment.
 	 * @return A new memory segment representing the given heap memory.
@@ -99,7 +98,7 @@ public class MemorySegmentFactory {
 
 	/**
 	 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
-	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>. 
+	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
 	 * <p>
 	 * This method is intended to be used for components which pool memory and create
 	 * memory segments around long-lived memory regions.
@@ -140,7 +139,7 @@ public class MemorySegmentFactory {
 
 	/**
 	 * Checks whether this memory segment factory has been initialized (with a type to produce).
-	 * 
+	 *
 	 * @return True, if the factory has been initialized, false otherwise.
 	 */
 	public static boolean isInitialized() {
@@ -149,7 +148,7 @@ public class MemorySegmentFactory {
 
 	/**
 	 * Gets the factory. May return null, if the factory has not been initialized.
-	 * 
+	 *
 	 * @return The factory, or null, if the factory has not been initialized.
 	 */
 	public static Factory getFactory() {
@@ -172,7 +171,7 @@ public class MemorySegmentFactory {
 	// ------------------------------------------------------------------------
 	//  Internal factory
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * A concrete factory for memory segments.
 	 */
@@ -211,7 +210,7 @@ public class MemorySegmentFactory {
 
 		/**
 		 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
-		 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>. 
+		 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
 		 * <p>
 		 * This method is intended to be used for components which pool memory and create
 		 * memory segments around long-lived memory regions.

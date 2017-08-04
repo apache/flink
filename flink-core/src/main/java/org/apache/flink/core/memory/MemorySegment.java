@@ -47,7 +47,7 @@ import java.nio.ByteOrder;
  *         a byte order.</li>
  *     <li>It transparently and efficiently moves data between on-heap and off-heap variants.</li>
  * </ul>
- * 
+ *
  * <i>Comments on the implementation</i>:
  * We make heavy use of operations that are supported by native
  * instructions, to achieve a high efficiency. Multi byte types (int, long, float, double, ...)
@@ -86,7 +86,7 @@ import java.nio.ByteOrder;
  * subclass is loaded, or that the methods that are abstract in this class are used only from one of the
  * subclasses (either the {@link org.apache.flink.core.memory.HeapMemorySegment}, or the 
  * {@link org.apache.flink.core.memory.HybridMemorySegment}).
- * 
+ *
  * That way, all the abstract methods in the MemorySegment base class have only one loaded
  * actual implementation. This is easy for the JIT to recognize through class hierarchy analysis,
  * or by identifying that the invocations are monomorphic (all go to the same concrete
@@ -102,11 +102,11 @@ public abstract class MemorySegment {
 	/** The beginning of the byte array contents, relative to the byte array object */
 	@SuppressWarnings("restriction")
 	protected static final long BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
-	
+
 	/** Constant that flags the byte order. Because this is a boolean constant,
 	 * the JIT compiler can use this well to aggressively eliminate the non-applicable code paths */
 	private static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
-	
+
 	// ------------------------------------------------------------------------
 
 	/** The heap byte array object relative to which we access the memory. Is non-null if the
@@ -122,10 +122,10 @@ public abstract class MemorySegment {
 	/** The address one byte after the last addressable byte.
 	 *  This is address + size while the segment is not disposed */
 	protected final long addressLimit;
-	
+
 	/** The size in bytes of the memory segment */
 	protected final int size;
-	
+
 	/** Optional owner of the memory segment */
 	private final Object owner;
 
@@ -140,7 +140,7 @@ public abstract class MemorySegment {
 		if (buffer == null) {
 			throw new NullPointerException("buffer");
 		}
-		
+
 		this.heapMemory = buffer;
 		this.address = BYTE_ARRAY_BASE_OFFSET;
 		this.size = buffer.length;
@@ -164,14 +164,14 @@ public abstract class MemorySegment {
 			throw new IllegalArgumentException("Segment initialized with too large address: " + offHeapAddress
 					+ " ; Max allowed address is " + (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
 		}
-		
+
 		this.heapMemory = null;
 		this.address = offHeapAddress;
 		this.addressLimit = this.address + size;
 		this.size = size;
 		this.owner = owner;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	// Memory Segment Operations
 	// ------------------------------------------------------------------------
@@ -231,8 +231,8 @@ public abstract class MemorySegment {
 	public Object getOwner() {
 		return owner;
 	}
-	
-	
+
+
 	// ------------------------------------------------------------------------
 	//                    Random Access get() and put() methods
 	// ------------------------------------------------------------------------
@@ -241,13 +241,13 @@ public abstract class MemorySegment {
 	// Notes on the implementation: We try to collapse as many checks as
 	// possible. We need to obey the following rules to make this safe
 	// against segfaults:
-	// 
+	//
 	//  - Grab mutable fields onto the stack before checking and using. This
 	//    guards us against concurrent modifications which invalidate the
 	//    pointers
-	//  - Use subtrations for range checks, as they are tolerant 
+	//  - Use subtrations for range checks, as they are tolerant
 	//------------------------------------------------------------------------
-	
+
 	/**
 	 * Reads the byte at the given position.
 	 *
@@ -277,7 +277,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the first byte will be read.
 	 * @param dst The memory into which the memory will be copied.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large that the data between the 
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large that the data between the
 	 *                                   index and the memory segment end is not enough to fill the destination array.
 	 */
 	public abstract void get(int index, byte[] dst);
@@ -289,7 +289,7 @@ public abstract class MemorySegment {
 	 * @param index The index in the memory segment array, where the data is put.
 	 * @param src The source array to copy the data from.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array 
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array
 	 *                                   size exceed the amount of memory between the index and the memory
 	 *                                   segment's end. 
 	 */
@@ -304,7 +304,7 @@ public abstract class MemorySegment {
 	 * @param offset The copying offset in the destination memory.
 	 * @param length The number of bytes to be copied.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large that the requested number of 
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large that the requested number of
 	 *                                   bytes exceed the amount of memory between the index and the memory
 	 *                                   segment's end.
 	 */
@@ -320,7 +320,7 @@ public abstract class MemorySegment {
 	 * @param offset The offset in the source array where the copying is started.
 	 * @param length The number of bytes to copy.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array 
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array
 	 *                                   portion to copy exceed the amount of memory between the index and the memory
 	 *                                   segment's end.
 	 */
@@ -377,7 +377,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads an character value (16 bit, 2 bytes) from the given position, in little-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getChar(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getChar(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getChar(int)} is the preferable choice.
@@ -398,7 +398,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads an character value (16 bit, 2 bytes) from the given position, in big-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getChar(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getChar(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getChar(int)} is the preferable choice.
@@ -443,7 +443,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given character (16 bit, 2 bytes) to the given position in little-endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putChar(int, char)}. For most cases (such as 
+	 * is possibly slower than {@link #putChar(int, char)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putChar(int, char)} is the preferable choice.
@@ -464,7 +464,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given character (16 bit, 2 bytes) to the given position in big-endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putChar(int, char)}. For most cases (such as 
+	 * is possibly slower than {@link #putChar(int, char)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putChar(int, char)} is the preferable choice.
@@ -509,7 +509,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads an short integer value (16 bit, 2 bytes) from the given position, in little-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getShort(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getShort(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getShort(int)} is the preferable choice.
@@ -530,7 +530,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads an short integer value (16 bit, 2 bytes) from the given position, in big-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getShort(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getShort(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getShort(int)} is the preferable choice.
@@ -575,7 +575,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given short integer value (16 bit, 2 bytes) to the given position in little-endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putShort(int, short)}. For most cases (such as 
+	 * is possibly slower than {@link #putShort(int, short)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putShort(int, short)} is the preferable choice.
@@ -596,7 +596,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given short integer value (16 bit, 2 bytes) to the given position in big-endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putShort(int, short)}. For most cases (such as 
+	 * is possibly slower than {@link #putShort(int, short)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putShort(int, short)} is the preferable choice.
@@ -618,7 +618,7 @@ public abstract class MemorySegment {
 	 * Reads an int value (32bit, 4 bytes) from the given position, in the system's native byte order.
 	 * This method offers the best speed for integer reading and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -645,7 +645,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads an int value (32bit, 4 bytes) from the given position, in little-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getInt(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getInt(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getInt(int)} is the preferable choice.
@@ -667,7 +667,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads an int value (32bit, 4 bytes) from the given position, in big-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getInt(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getInt(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getInt(int)} is the preferable choice.
@@ -690,7 +690,7 @@ public abstract class MemorySegment {
 	 * Writes the given int value (32bit, 4 bytes) to the given position in the system's native
 	 * byte order. This method offers the best speed for integer writing and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -717,7 +717,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given int value (32bit, 4 bytes) to the given position in little endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putInt(int, int)}. For most cases (such as 
+	 * is possibly slower than {@link #putInt(int, int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putInt(int, int)} is the preferable choice.
@@ -739,7 +739,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given int value (32bit, 4 bytes) to the given position in big endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putInt(int, int)}. For most cases (such as 
+	 * is possibly slower than {@link #putInt(int, int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putInt(int, int)} is the preferable choice.
@@ -762,7 +762,7 @@ public abstract class MemorySegment {
 	 * Reads a long value (64bit, 8 bytes) from the given position, in the system's native byte order.
 	 * This method offers the best speed for long integer reading and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -789,7 +789,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads a long integer value (64bit, 8 bytes) from the given position, in little endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getLong(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getLong(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getLong(int)} is the preferable choice.
@@ -811,7 +811,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads a long integer value (64bit, 8 bytes) from the given position, in big endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getLong(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getLong(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getLong(int)} is the preferable choice.
@@ -834,7 +834,7 @@ public abstract class MemorySegment {
 	 * Writes the given long value (64bit, 8 bytes) to the given position in the system's native
 	 * byte order. This method offers the best speed for long integer writing and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -861,7 +861,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given long value (64bit, 8 bytes) to the given position in little endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putLong(int, long)}. For most cases (such as 
+	 * is possibly slower than {@link #putLong(int, long)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putLong(int, long)} is the preferable choice.
@@ -883,7 +883,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given long value (64bit, 8 bytes) to the given position in big endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putLong(int, long)}. For most cases (such as 
+	 * is possibly slower than {@link #putLong(int, long)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putLong(int, long)} is the preferable choice.
@@ -906,7 +906,7 @@ public abstract class MemorySegment {
 	 * Reads a single-precision floating point value (32bit, 4 bytes) from the given position, in the system's
 	 * native byte order. This method offers the best speed for float reading and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -923,7 +923,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads a single-precision floating point value (32bit, 4 bytes) from the given position, in little endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getFloat(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getFloat(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getFloat(int)} is the preferable choice.
@@ -941,7 +941,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads a single-precision floating point value (32bit, 4 bytes) from the given position, in big endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getFloat(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getFloat(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getFloat(int)} is the preferable choice.
@@ -960,7 +960,7 @@ public abstract class MemorySegment {
 	 * Writes the given single-precision float value (32bit, 4 bytes) to the given position in the system's native
 	 * byte order. This method offers the best speed for float writing and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -977,7 +977,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given single-precision float value (32bit, 4 bytes) to the given position in little endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putFloat(int, float)}. For most cases (such as 
+	 * is possibly slower than {@link #putFloat(int, float)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putFloat(int, float)} is the preferable choice.
@@ -995,7 +995,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given single-precision float value (32bit, 4 bytes) to the given position in big endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putFloat(int, float)}. For most cases (such as 
+	 * is possibly slower than {@link #putFloat(int, float)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putFloat(int, float)} is the preferable choice.
@@ -1014,7 +1014,7 @@ public abstract class MemorySegment {
 	 * Reads a double-precision floating point value (64bit, 8 bytes) from the given position, in the system's
 	 * native byte order. This method offers the best speed for double reading and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -1031,7 +1031,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads a double-precision floating point value (64bit, 8 bytes) from the given position, in little endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getDouble(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getDouble(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getDouble(int)} is the preferable choice.
@@ -1049,7 +1049,7 @@ public abstract class MemorySegment {
 	/**
 	 * Reads a double-precision floating point value (64bit, 8 bytes) from the given position, in big endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #getDouble(int)}. For most cases (such as 
+	 * is possibly slower than {@link #getDouble(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #getDouble(int)} is the preferable choice.
@@ -1068,7 +1068,7 @@ public abstract class MemorySegment {
 	 * Writes the given double-precision floating-point value (64bit, 8 bytes) to the given position in the
 	 * system's native byte order. This method offers the best speed for double writing and should be used
 	 * unless a specific byte order is required. In most cases, it suffices to know that the
-	 * byte order in which the value is written is the same as the one in which it is read 
+	 * byte order in which the value is written is the same as the one in which it is read
 	 * (such as transient storage in memory, or serialization for I/O and network), making this
 	 * method the preferable choice.
 	 *
@@ -1085,7 +1085,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given double-precision floating-point value (64bit, 8 bytes) to the given position in little endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putDouble(int, double)}. For most cases (such as 
+	 * is possibly slower than {@link #putDouble(int, double)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putDouble(int, double)} is the preferable choice.
@@ -1103,7 +1103,7 @@ public abstract class MemorySegment {
 	/**
 	 * Writes the given double-precision floating-point value (64bit, 8 bytes) to the given position in big endian
 	 * byte order. This method's speed depends on the system's native byte order, and it
-	 * is possibly slower than {@link #putDouble(int, double)}. For most cases (such as 
+	 * is possibly slower than {@link #putDouble(int, double)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
 	 * it suffices to know that the byte order in which the value is written is the same as the
 	 * one in which it is read, and {@link #putDouble(int, double)} is the preferable choice.
@@ -1130,7 +1130,7 @@ public abstract class MemorySegment {
 	 *
 	 * @param in The DataInput to get the data from.
 	 * @param offset The position in the memory segment to copy the chunk to.
-	 * @param length The number of bytes to get. 
+	 * @param length The number of bytes to get.
 	 *
 	 * @throws IOException Thrown, if the DataInput encountered a problem upon reading,
 	 *                     such as an End-Of-File.
@@ -1265,14 +1265,14 @@ public abstract class MemorySegment {
 		if ( (offset1 | offset2 | len | (tempBuffer.length - len) ) >= 0) {
 			final long thisPos = this.address + offset1;
 			final long otherPos = seg2.address + offset2;
-			
+
 			if (thisPos <= this.addressLimit - len && otherPos <= seg2.addressLimit - len) {
 				// this -> temp buffer
 				UNSAFE.copyMemory(this.heapMemory, thisPos, tempBuffer, BYTE_ARRAY_BASE_OFFSET, len);
-	
+
 				// other -> this
 				UNSAFE.copyMemory(seg2.heapMemory, otherPos, this.heapMemory, thisPos, len);
-	
+
 				// temp buffer -> other
 				UNSAFE.copyMemory(tempBuffer, BYTE_ARRAY_BASE_OFFSET, seg2.heapMemory, otherPos, len);
 				return;
@@ -1284,7 +1284,7 @@ public abstract class MemorySegment {
 				throw new IllegalStateException("other memory segment has been freed.");
 			}
 		}
-		
+
 		// index is in fact invalid
 		throw new IndexOutOfBoundsException(
 					String.format("offset1=%d, offset2=%d, len=%d, bufferSize=%d, address1=%d, address2=%d",

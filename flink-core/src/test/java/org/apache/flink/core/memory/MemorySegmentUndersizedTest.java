@@ -32,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class MemorySegmentUndersizedTest {
-	
+
 	@Test
 	public void testZeroSizeHeapSegment() {
 		MemorySegment segment = new HeapMemorySegment(new byte[0]);
@@ -109,7 +109,7 @@ public class MemorySegmentUndersizedTest {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
 	}
-	
+
 	private static void testSegmentWithSizeLargerZero(MemorySegment segment) {
 
 		// ------ bytes ------
@@ -145,7 +145,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.put(Integer.MAX_VALUE, (byte) 0);
 			fail("IndexOutOfBoundsException expected");
@@ -161,7 +161,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.get(1);
 			fail("IndexOutOfBoundsException expected");
@@ -169,7 +169,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.get(-1);
 			fail("IndexOutOfBoundsException expected");
@@ -193,7 +193,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.get(Integer.MAX_VALUE);
 			fail("IndexOutOfBoundsException expected");
@@ -243,7 +243,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.putBoolean(Integer.MAX_VALUE, true);
 			fail("IndexOutOfBoundsException expected");
@@ -259,7 +259,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.getBoolean(1);
 			fail("IndexOutOfBoundsException expected");
@@ -373,7 +373,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.getChar(1);
 			fail("IndexOutOfBoundsException expected");
@@ -487,7 +487,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.getShort(1);
 			fail("IndexOutOfBoundsException expected");
@@ -971,7 +971,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.getDouble(Integer.MIN_VALUE);
 			fail("IndexOutOfBoundsException expected");
@@ -979,7 +979,6 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
 
 		// ------ byte[] ------
 
@@ -1046,7 +1045,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.get(1, new byte[7]);
 			fail("IndexOutOfBoundsException expected");
@@ -1099,7 +1098,7 @@ public class MemorySegmentUndersizedTest {
 
 		final ByteBuffer buf = ByteBuffer.allocate(7);
 		final int numBytes = 3; 
-		
+
 		try {
 			segment.put(0, buf, numBytes);
 			fail("IndexOutOfBoundsException expected");
@@ -1139,7 +1138,7 @@ public class MemorySegmentUndersizedTest {
 		catch (Exception e) {
 			assertTrue(e instanceof IndexOutOfBoundsException);
 		}
-		
+
 		try {
 			segment.put(Integer.MAX_VALUE, buf, numBytes);
 			fail("IndexOutOfBoundsException expected");
@@ -1215,7 +1214,7 @@ public class MemorySegmentUndersizedTest {
 
 		final DataInput dataInput = new DataInputStream(new ByteArrayInputStream(new byte[20]));
 		final DataOutput dataOutput = new DataOutputStream(new ByteArrayOutputStream());
-		
+
 		try {
 			segment.put(dataInput, 0, numBytes);
 			fail("IndexOutOfBoundsException expected");

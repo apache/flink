@@ -42,12 +42,11 @@ import static org.junit.Assert.*;
  * Tests for the access and transfer methods of the HeapMemorySegment.
  */
 public abstract class MemorySegmentTestBase {
-	
+
 	private final Random random = new Random();
-	
+
 	private final int pageSize;
-	
-	
+
 	public MemorySegmentTestBase(int pageSize) {
 		this.pageSize = pageSize;
 	}
@@ -59,7 +58,7 @@ public abstract class MemorySegmentTestBase {
 	abstract MemorySegment createSegment(int size);
 
 	abstract MemorySegment createSegment(int size, Object owner);
-	
+
 	// ------------------------------------------------------------------------
 	//  Access to primitives
 	// ------------------------------------------------------------------------
@@ -1884,7 +1883,7 @@ public abstract class MemorySegmentTestBase {
 		testByteBufferGet(false);
 		testByteBufferGet(true);
 	}
-	
+
 	private void testByteBufferGet(boolean directBuffer) {
 		MemorySegment seg = createSegment(pageSize);
 		byte[] bytes = new byte[pageSize];
@@ -1926,7 +1925,7 @@ public abstract class MemorySegmentTestBase {
 		ByteBuffer source = directBuffer ?
 			ByteBuffer.allocateDirect(pageSize) :
 			ByteBuffer.allocate(pageSize);
-		
+
 		source.put(bytes);
 		source.clear();
 
@@ -1969,9 +1968,9 @@ public abstract class MemorySegmentTestBase {
 		ByteBuffer target = directBuffer ?
 				ByteBuffer.allocateDirect(pageSize + 49) :
 				ByteBuffer.allocate(pageSize + 49);
-		
+
 		target.position(19).limit(19 + pageSize);
-		
+
 		ByteBuffer slicedTarget = target.slice();
 
 		// transfer the segment in chunks into the byte buffer
@@ -2004,7 +2003,7 @@ public abstract class MemorySegmentTestBase {
 		ByteBuffer source = directBuffer ?
 				ByteBuffer.allocateDirect(pageSize + 49) :
 				ByteBuffer.allocate(pageSize + 49);
-		
+
 		source.put(bytes);
 		source.position(19).limit(19 + pageSize);
 		ByteBuffer slicedSource = source.slice();
@@ -2141,7 +2140,6 @@ public abstract class MemorySegmentTestBase {
 		assertEquals(0, bb.position());
 		assertEquals(bb.capacity(), bb.limit());
 
-
 		int pos = bb.capacity() / 3;
 		int limit = 2 * bb.capacity() / 3;
 		bb.limit(limit);
@@ -2167,7 +2165,7 @@ public abstract class MemorySegmentTestBase {
 		assertEquals(pos, bb.position());
 		assertEquals(limit, bb.limit());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Comparing and swapping
 	// ------------------------------------------------------------------------
@@ -2300,9 +2298,9 @@ public abstract class MemorySegmentTestBase {
 			assertTrue(e instanceof IllegalStateException || e instanceof NullPointerException);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	//  Miscellaneous 
+	//  Miscellaneous
 	// ------------------------------------------------------------------------
 
 	@Test
@@ -2399,11 +2397,11 @@ public abstract class MemorySegmentTestBase {
 		assertTrue(seg.isFreed());
 		assertEquals(SIZE, seg.size());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Parametrization to run with different segment sizes
 	// ------------------------------------------------------------------------
-	
+
 	@Parameterized.Parameters(name = "segment-size = {0}")
 	public static Collection<Object[]> executionModes(){
 		return Arrays.asList(

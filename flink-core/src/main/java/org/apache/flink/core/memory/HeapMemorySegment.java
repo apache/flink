@@ -53,7 +53,7 @@ public final class HeapMemorySegment extends MemorySegment {
 	HeapMemorySegment(byte[] memory) {
 		this(memory, null);
 	}
-	
+
 	/**
 	 * Creates a new memory segment that represents the data in the given byte array.
 	 * The memory segment references the given owner.
@@ -65,7 +65,7 @@ public final class HeapMemorySegment extends MemorySegment {
 		super(Objects.requireNonNull(memory), owner);
 		this.memory = memory;
 	}
-	
+
 	// -------------------------------------------------------------------------
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
@@ -94,11 +94,11 @@ public final class HeapMemorySegment extends MemorySegment {
 	public byte[] getArray() {
 		return this.heapMemory;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//                    Random Access get() and put() methods
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public final byte get(int index) {
 		return this.memory[index];

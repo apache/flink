@@ -43,7 +43,7 @@ import java.nio.ByteBuffer;
  */
 @Internal
 public final class HybridMemorySegment extends MemorySegment {
-	
+
 	/** The direct byte buffer that allocated the off-heap memory. This memory segment holds a reference
 	 * to that buffer, so as long as this memory segment lives, the memory will not be released. */
 	private final ByteBuffer offHeapBuffer;
@@ -61,7 +61,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	HybridMemorySegment(ByteBuffer buffer) {
 		this(buffer, null);
 	}
-	
+
 	/**
 	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
 	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
@@ -105,7 +105,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	// -------------------------------------------------------------------------
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
-	
+
 	public byte[] getArray() {
 		if (heapMemory != null) {
 			return heapMemory;
@@ -153,7 +153,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	// ------------------------------------------------------------------------
 	//  Random Access get() and put() methods
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public byte get(int index) {
 		final long pos = address + index;
@@ -221,7 +221,7 @@ public final class HybridMemorySegment extends MemorySegment {
 		if ((offset | length | (offset + length) | (src.length - (offset + length))) < 0) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		final long pos = address + index;
 
 		if (index >= 0 && pos <= addressLimit - length) {
@@ -263,7 +263,7 @@ public final class HybridMemorySegment extends MemorySegment {
 					offset += 8;
 					length -= 8;
 				}
-		
+
 				while (length > 0) {
 					out.writeByte(get(offset));
 					offset++;
@@ -421,7 +421,7 @@ public final class HybridMemorySegment extends MemorySegment {
 			throw new RuntimeException("Could not access direct byte buffer address.", t);
 		}
 	}
-	
+
 	private static long checkBufferAndGetAddress(ByteBuffer buffer) {
 		if (buffer == null) {
 			throw new NullPointerException("buffer is null");
@@ -440,7 +440,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	 * Base factory for hybrid memory segments.
 	 */
 	public static final class HybridMemorySegmentFactory implements MemorySegmentFactory.Factory {
-		
+
 		@Override
 		public HybridMemorySegment wrap(byte[] memory) {
 			return new HybridMemorySegment(memory);

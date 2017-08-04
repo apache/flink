@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.memory;
-
 
 import org.apache.flink.annotation.Public;
 
@@ -32,13 +30,13 @@ import java.io.IOException;
  */
 @Public
 public interface DataInputView extends DataInput {
-	
+
 	/**
 	 * Skips {@code numBytes} bytes of memory. In contrast to the {@link #skipBytes(int)} method,
 	 * this method always skips the desired number of bytes or throws an {@link java.io.EOFException}.
-	 * 
+	 *
 	 * @param numBytes The number of bytes to skip.
-	 * 
+	 *
 	 * @throws IOException Thrown, if any I/O related problem occurred such that the input could not
 	 *                     be advanced to the desired position.
 	 */

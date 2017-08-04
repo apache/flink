@@ -42,7 +42,7 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 	MemorySegment createSegment(int size, Object owner) {
 		return new HeapMemorySegment(new byte[size], owner);
 	}
-	
+
 	@Test
 	public void testHeapSegmentSpecifics() {
 		final byte[] buffer = new byte[411];
