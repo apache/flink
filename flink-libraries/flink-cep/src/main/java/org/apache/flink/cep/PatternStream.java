@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.Collector;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -54,7 +53,7 @@ public class PatternStream<T> {
 	private final Pattern<T, ?> pattern;
 
 	// comparator to sort events
-	private final Comparator<T> comparator;
+	private final EventComparator<T> comparator;
 
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
 		this.inputStream = inputStream;
@@ -62,7 +61,7 @@ public class PatternStream<T> {
 		this.comparator = null;
 	}
 
-	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern, final Comparator<T> comparator) {
+	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern, final EventComparator<T> comparator) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
 		this.comparator = comparator;
@@ -76,7 +75,7 @@ public class PatternStream<T> {
 		return inputStream;
 	}
 
-	public Comparator<T> getComparator() {
+	public EventComparator<T> getComparator() {
 		return comparator;
 	}
 

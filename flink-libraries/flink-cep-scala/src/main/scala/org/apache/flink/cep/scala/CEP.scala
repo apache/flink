@@ -17,10 +17,8 @@
  */
 package org.apache.flink.cep.scala
 
-import java.util.Comparator
-
 import org.apache.flink.cep.scala.pattern.Pattern
-import org.apache.flink.cep.{CEP => JCEP}
+import org.apache.flink.cep.{EventComparator, CEP => JCEP}
 import org.apache.flink.streaming.api.scala.DataStream
 
 /**
@@ -56,7 +54,7 @@ object CEP {
   def pattern[T](
     input: DataStream[T],
     pattern: Pattern[T, _ <: T],
-    comparator: Comparator[T]): PatternStream[T] = {
+    comparator: EventComparator[T]): PatternStream[T] = {
     wrapPatternStream(JCEP.pattern(input.javaStream, pattern.wrappedPattern, comparator))
   }
 }

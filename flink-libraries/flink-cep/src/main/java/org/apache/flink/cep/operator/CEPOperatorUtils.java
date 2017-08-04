@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
@@ -37,7 +38,6 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.types.Either;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -56,7 +56,7 @@ public class CEPOperatorUtils {
 	public static <K, T> SingleOutputStreamOperator<Map<String, List<T>>> createPatternStream(
 		DataStream<T> inputStream,
 		Pattern<T, ?> pattern,
-		Comparator<T> comparator) {
+		EventComparator<T> comparator) {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
@@ -114,7 +114,7 @@ public class CEPOperatorUtils {
 	 * a {@link Either} instance.
 	 */
 	public static <K, T> SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> createTimeoutPatternStream(
-			DataStream<T> inputStream, Pattern<T, ?> pattern, Comparator<T> comparator) {
+			DataStream<T> inputStream, Pattern<T, ?> pattern, EventComparator<T> comparator) {
 
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 

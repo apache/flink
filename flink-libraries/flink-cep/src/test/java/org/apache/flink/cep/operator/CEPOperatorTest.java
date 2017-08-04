@@ -560,7 +560,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(false);
+		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOperator(false);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		try {
@@ -605,7 +605,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOpearator(false);
+			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOperator(false);
 			harness = getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -755,7 +755,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(true);
+		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOperator(true);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		try {
@@ -783,7 +783,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOpearator(true);
+			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOperator(true);
 			harness = getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -951,7 +951,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearatorWithComparator(true);
+		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOperatorWithComparator(true);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		try {
@@ -965,8 +965,6 @@ public class CEPOperatorTest extends TestLogger {
 			harness
 				.processElement(new StreamRecord<>(new SubEvent(42, "barfoo", 1.0, 5.0), 0L));
 
-			assertTrue(!operator.hasNonEmptyPQ(42));
-			assertTrue(!operator.hasNonEmptyPQ(43));
 			assertTrue(!operator.hasNonEmptyNFA(42));
 			assertTrue(!operator.hasNonEmptyNFA(43));
 
@@ -981,7 +979,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOpearatorWithComparator(true);
+			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOperatorWithComparator(true);
 			harness = getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -1010,7 +1008,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEventK2 = new Event(43, "start", 1.0);
 
-		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearatorWithComparator(false);
+		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOperatorWithComparator(false);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		try {
@@ -1042,7 +1040,7 @@ public class CEPOperatorTest extends TestLogger {
 			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
-			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOpearatorWithComparator(false);
+			KeyedCEPPatternOperator<Event, Integer> operator2 = getKeyedCepOperatorWithComparator(false);
 			harness = getCepTestHarness(operator2);
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -1083,7 +1081,7 @@ public class CEPOperatorTest extends TestLogger {
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
 		return new KeyedOneInputStreamOperatorTestHarness<>(
-			getKeyedCepOpearator(isProcessingTime),
+			getKeyedCepOperator(isProcessingTime),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO);
 	}
@@ -1098,7 +1096,7 @@ public class CEPOperatorTest extends TestLogger {
 			BasicTypeInfo.INT_TYPE_INFO);
 	}
 
-	private KeyedCEPPatternOperator<Event, Integer> getKeyedCepOpearator(
+	private KeyedCEPPatternOperator<Event, Integer> getKeyedCepOperator(
 		boolean isProcessingTime) {
 
 		return new KeyedCEPPatternOperator<>(
@@ -1110,7 +1108,7 @@ public class CEPOperatorTest extends TestLogger {
 			null);
 	}
 
-	private KeyedCEPPatternOperator<Event, Integer> getKeyedCepOpearatorWithComparator(
+	private KeyedCEPPatternOperator<Event, Integer> getKeyedCepOperatorWithComparator(
 		boolean isProcessingTime) {
 
 		return new KeyedCEPPatternOperator<>(
@@ -1119,7 +1117,7 @@ public class CEPOperatorTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			new NFAFactory(),
 			true,
-			new Comparator<Event>() {
+			new org.apache.flink.cep.EventComparator<Event>() {
 				@Override
 				public int compare(Event o1, Event o2) {
 					return Double.compare(o1.getPrice(), o2.getPrice());

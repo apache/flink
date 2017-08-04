@@ -17,10 +17,10 @@
  */
 package org.apache.flink.cep.scala
 
-import java.util.{Comparator, List => JList, Map => JMap}
+import java.util.{List => JList, Map => JMap}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
+import org.apache.flink.cep.{EventComparator, PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.streaming.api.scala.{asScalaStream, _}
 import org.apache.flink.util.Collector
@@ -50,7 +50,7 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
   def getInputStream: DataStream[T] = asScalaStream(jPatternStream.getInputStream)
 
-  def getComparator: Comparator[T] = jPatternStream.getComparator
+  def getComparator: EventComparator[T] = jPatternStream.getComparator
 
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the

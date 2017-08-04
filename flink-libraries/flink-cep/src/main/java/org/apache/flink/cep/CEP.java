@@ -21,8 +21,6 @@ package org.apache.flink.cep;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
-import java.util.Comparator;
-
 /**
  * Utility class for complex event processing.
  *
@@ -50,7 +48,7 @@ public class CEP {
 	 * @param <T> Type of the input events
 	 * @return Resulting pattern stream
 	 */
-	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern, Comparator<T> comparator) {
+	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern, EventComparator<T> comparator) {
 		return new PatternStream<>(input, pattern, comparator);
 	}
 }
