@@ -28,6 +28,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link HeapMemorySegment} in off-heap mode.
+ */
 @RunWith(Parameterized.class)
 public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 

@@ -29,14 +29,14 @@ import java.nio.ByteOrder;
 /**
  * This class represents a piece of memory managed by Flink.
  * The segment may be backed by heap memory (byte array) or by off-heap memory.
- * <p>
- * The methods for individual memory access are specialized in the classes
+ *
+ * <p>The methods for individual memory access are specialized in the classes
  * {@link org.apache.flink.core.memory.HeapMemorySegment} and
  * {@link org.apache.flink.core.memory.HybridMemorySegment}.
  * All methods that operate across two memory segments are implemented in this class,
  * to transparently handle the mixing of memory segment types.
- * <p>
- * This class fulfills conceptually a similar purpose as Java's {@link java.nio.ByteBuffer}.
+ *
+ * <p>This class fulfills conceptually a similar purpose as Java's {@link java.nio.ByteBuffer}.
  * We add this specialized class for various reasons:
  * <ul>
  *     <li>It offers additional binary compare, swap, and copy methods.</li>
@@ -48,19 +48,19 @@ import java.nio.ByteOrder;
  *     <li>It transparently and efficiently moves data between on-heap and off-heap variants.</li>
  * </ul>
  *
- * <i>Comments on the implementation</i>:
+ * <p><i>Comments on the implementation</i>:
  * We make heavy use of operations that are supported by native
  * instructions, to achieve a high efficiency. Multi byte types (int, long, float, double, ...)
  * are read and written with "unsafe" native commands.
- * <p>
- * Below is an example of the code generated for the {@link HeapMemorySegment#putLongBigEndian(int, long)}
+ *
+ * <p>Below is an example of the code generated for the {@link HeapMemorySegment#putLongBigEndian(int, long)}
  * function by the just-in-time compiler. The code is grabbed from an Oracle JVM 7 using the
  * hotspot disassembler library (hsdis32.dll) and the jvm command
  * <i>-XX:+UnlockDiagnosticVMOptions -XX:CompileCommand=print,*MemorySegment.putLongBigEndian</i>.
  * Note that this code realizes both the byte order swapping and the reinterpret cast access to
  * get a long from the byte array.
  *
- * <pre>
+ * <p><pre>
  * [Verified Entry Point]
  *   0x00007fc403e19920: sub    $0x18,%rsp
  *   0x00007fc403e19927: mov    %rbp,0x10(%rsp)    ;*synchronization entry
@@ -78,16 +78,16 @@ import java.nio.ByteOrder;
  *   0x00007fc403e19943: pop    %rbp
  *   0x00007fc403e19944: test   %eax,0x5ba76b6(%rip)        # 0x00007fc4099c1000
  *                                                 ;   {poll_return}
- *   0x00007fc403e1994a: retq 
+ *   0x00007fc403e1994a: retq
  * </pre>
  *
- * <i>Note on efficiency</i>:
+ * <p><i>Note on efficiency</i>:
  * For best efficiency, the code that uses this class should make sure that only one
  * subclass is loaded, or that the methods that are abstract in this class are used only from one of the
- * subclasses (either the {@link org.apache.flink.core.memory.HeapMemorySegment}, or the 
+ * subclasses (either the {@link org.apache.flink.core.memory.HeapMemorySegment}, or the
  * {@link org.apache.flink.core.memory.HybridMemorySegment}).
  *
- * That way, all the abstract methods in the MemorySegment base class have only one loaded
+ * <p>That way, all the abstract methods in the MemorySegment base class have only one loaded
  * actual implementation. This is easy for the JIT to recognize through class hierarchy analysis,
  * or by identifying that the invocations are monomorphic (all go to the same concrete
  * method implementation). Under these conditions, the JIT can perfectly inline methods.
@@ -95,43 +95,62 @@ import java.nio.ByteOrder;
 @Internal
 public abstract class MemorySegment {
 
-	/** The unsafe handle for transparent memory copied (heap / off-heap) */
+	/**
+	 * The unsafe handle for transparent memory copied (heap / off-heap).
+	 */
 	@SuppressWarnings("restriction")
 	protected static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
 
-	/** The beginning of the byte array contents, relative to the byte array object */
+	/**
+	 * The beginning of the byte array contents, relative to the byte array object.
+	 */
 	@SuppressWarnings("restriction")
 	protected static final long BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 
-	/** Constant that flags the byte order. Because this is a boolean constant,
-	 * the JIT compiler can use this well to aggressively eliminate the non-applicable code paths */
+	/**
+	 * Constant that flags the byte order. Because this is a boolean constant, the JIT compiler can
+	 * use this well to aggressively eliminate the non-applicable code paths.
+	 */
 	private static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
 
 	// ------------------------------------------------------------------------
 
-	/** The heap byte array object relative to which we access the memory. Is non-null if the
-	 *  memory is on the heap, and is null, if the memory if off the heap. If we have this buffer, we
-	 *  must never void this reference, or the memory segment will point to undefined addresses 
-	 *  outside the heap and may in out-of-order execution cases cause segmentation faults. */
+	/**
+	 * The heap byte array object relative to which we access the memory.
+	 *
+	 * <p>Is non-<tt>null</tt> if the memory is on the heap, and is <tt>null</tt>, if the memory if
+	 * off the heap. If we have this buffer, we must never void this reference, or the memory
+	 * segment will point to undefined addresses outside the heap and may in out-of-order execution
+	 * cases cause segmentation faults.
+	 */
 	protected final byte[] heapMemory;
 
-	/** The address to the data, relative to the heap memory byte array. If the heap memory byte array
-	 * is null, this becomes an absolute memory address outside the heap. */
+	/**
+	 * The address to the data, relative to the heap memory byte array. If the heap memory byte
+	 * array is <tt>null</tt>, this becomes an absolute memory address outside the heap.
+	 */
 	protected long address;
 
-	/** The address one byte after the last addressable byte.
-	 *  This is address + size while the segment is not disposed */
+	/**
+	 * The address one byte after the last addressable byte, i.e. <tt>address + size</tt> while the
+	 * segment is not disposed.
+	 */
 	protected final long addressLimit;
 
-	/** The size in bytes of the memory segment */
+	/**
+	 * The size in bytes of the memory segment.
+	 */
 	protected final int size;
 
-	/** Optional owner of the memory segment */
+	/**
+	 * Optional owner of the memory segment.
+	 */
 	private final Object owner;
 
 	/**
 	 * Creates a new memory segment that represents the memory of the byte array.
-	 * Since the byte array is backed by on-heap memory, this memory segment holds its
+	 *
+	 * <p>Since the byte array is backed by on-heap memory, this memory segment holds its
 	 * data on heap. The buffer must be at least of size 8 bytes.
 	 *
 	 * @param buffer The byte array whose memory is represented by this memory segment.
@@ -178,6 +197,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Gets the size of the memory segment, in bytes.
+	 *
 	 * @return The size of the memory segment.
 	 */
 	public int size() {
@@ -186,16 +206,19 @@ public abstract class MemorySegment {
 
 	/**
 	 * Checks whether the memory segment was freed.
-	 * @return True, if the memory segment has been freed, false otherwise.
+	 *
+	 * @return <tt>true</tt>, if the memory segment has been freed, <tt>false</tt> otherwise.
 	 */
 	public boolean isFreed() {
 		return address > addressLimit;
 	}
 
 	/**
-	 * Frees this memory segment. After this operation has been called, no further operations are
-	 * possible on the memory segment and will fail. The actual memory (heap or off-heap) will only
-	 * be released after this memory segment object has become garbage collected. 
+	 * Frees this memory segment.
+	 *
+	 * <p>After this operation has been called, no further operations are possible on the memory
+	 * segment and will fail. The actual memory (heap or off-heap) will only be released after this
+	 * memory segment object has become garbage collected.
 	 */
 	public void free() {
 		// this ensures we can place no more data and trigger
@@ -205,8 +228,9 @@ public abstract class MemorySegment {
 
 	/**
 	 * Checks whether this memory segment is backed by off-heap memory.
-	 * @return True, if the memory segment is backed by off-heap memory, false if it is backed
-	 *         by heap memory.
+	 *
+	 * @return <tt>true</tt>, if the memory segment is backed by off-heap memory, <tt>false</tt> if
+	 * it is backed by heap memory.
 	 */
 	public boolean isOffHeap() {
 		return heapMemory == null;
@@ -218,6 +242,7 @@ public abstract class MemorySegment {
 	 *
 	 * @param offset The offset in the memory segment.
 	 * @param length The number of bytes to be wrapped as a buffer.
+	 *
 	 * @return A <tt>ByteBuffer</tt> backed by the specified portion of the memory segment.
 	 * @throws IndexOutOfBoundsException Thrown, if offset is negative or larger than the memory segment size,
 	 *                                   or if the offset plus the length is larger than the segment size.
@@ -226,6 +251,7 @@ public abstract class MemorySegment {
 
 	/**
 	 * Gets the owner of this memory segment. Returns null, if the owner was not set.
+	 *
 	 * @return The owner of the memory segment, or null, if it does not have an owner.
 	 */
 	public Object getOwner() {
@@ -291,13 +317,13 @@ public abstract class MemorySegment {
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or too large such that the array
 	 *                                   size exceed the amount of memory between the index and the memory
-	 *                                   segment's end. 
+	 *                                   segment's end.
 	 */
 	public abstract void put(int index, byte[] src);
 
 	/**
 	 * Bulk get method. Copies length memory from the specified position to the
-	 * destination memory, beginning at the given offset
+	 * destination memory, beginning at the given offset.
 	 *
 	 * @param index The position at which the first byte will be read.
 	 * @param dst The memory into which the memory will be copied.

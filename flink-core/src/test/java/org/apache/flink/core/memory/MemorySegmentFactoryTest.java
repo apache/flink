@@ -24,6 +24,9 @@ import java.lang.reflect.Field;
 
 import static org.junit.Assert.*;
 
+/**
+ * Tests for the {@link MemorySegmentFactory} in on/off-heap modes.
+ */
 public class MemorySegmentFactoryTest {
 
 	@Test

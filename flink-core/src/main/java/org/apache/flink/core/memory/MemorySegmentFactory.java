@@ -36,7 +36,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class MemorySegmentFactory {
 
-	/** The factory to use */
+	/**
+	 * The factory to use.
+	 */
 	private static volatile Factory factory;
 
 	/**
@@ -54,8 +56,8 @@ public class MemorySegmentFactory {
 	/**
 	 * Allocates some unpooled memory and creates a new memory segment that represents
 	 * that memory.
-	 * <p>
-	 * This method is similar to {@link #allocateUnpooledSegment(int, Object)}, but the
+	 *
+	 * <p>This method is similar to {@link #allocateUnpooledSegment(int, Object)}, but the
 	 * memory segment will have null as the owner.
 	 *
 	 * @param size The size of the memory segment to allocate.
@@ -68,8 +70,8 @@ public class MemorySegmentFactory {
 	/**
 	 * Allocates some unpooled memory and creates a new memory segment that represents
 	 * that memory.
-	 * <p>
-	 * This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets
+	 *
+	 * <p>This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets
 	 * the owner of the memory segment.
 	 *
 	 * @param size The size of the memory segment to allocate.
@@ -83,10 +85,10 @@ public class MemorySegmentFactory {
 
 	/**
 	 * Creates a memory segment that wraps the given byte array.
-	 * <p>
-	 * This method is intended to be used for components which pool memory and create
+	 *
+	 * <p>This method is intended to be used for components which pool memory and create
 	 * memory segments around long-lived memory regions.
-	 * *
+	 *
 	 * @param memory The heap memory to be represented by the memory segment.
 	 * @param owner The owner to associate with the memory segment.
 	 * @return A new memory segment representing the given heap memory.
@@ -99,8 +101,8 @@ public class MemorySegmentFactory {
 	/**
 	 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
 	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
-	 * <p>
-	 * This method is intended to be used for components which pool memory and create
+	 *
+	 * <p>This method is intended to be used for components which pool memory and create
 	 * memory segments around long-lived memory regions.
 	 *
 	 * @param memory The byte buffer with the off-heap memory to be represented by the memory segment.
@@ -197,8 +199,8 @@ public class MemorySegmentFactory {
 
 		/**
 		 * Creates a memory segment that wraps the given byte array.
-		 * <p>
-		 * This method is intended to be used for components which pool memory and create
+		 *
+		 * <p>This method is intended to be used for components which pool memory and create
 		 * memory segments around long-lived memory regions.
 		 *
 		 *
@@ -211,8 +213,8 @@ public class MemorySegmentFactory {
 		/**
 		 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
 		 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
-		 * <p>
-		 * This method is intended to be used for components which pool memory and create
+		 *
+		 * <p>This method is intended to be used for components which pool memory and create
 		 * memory segments around long-lived memory regions.
 		 *
 		 * @param memory The byte buffer with the off-heap memory to be represented by the memory segment.

@@ -25,6 +25,10 @@ import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment} and {@link
+ * HybridMemorySegment} (in both heap and off-heap modes).
+ */
 public class EndiannessAccessChecks {
 
 	@Test

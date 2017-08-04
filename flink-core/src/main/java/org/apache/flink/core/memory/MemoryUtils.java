@@ -55,6 +55,6 @@ public class MemoryUtils {
 		}
 	}
 
-	/** Should not be instantiated */
+	/** Should not be instantiated. */
 	private MemoryUtils() {}
 }

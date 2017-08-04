@@ -31,6 +31,10 @@ import java.nio.ByteBuffer;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for undersized {@link HeapMemorySegment} and {@link HybridMemorySegment} (in both heap and
+ * off-heap modes).
+ */
 public class MemorySegmentUndersizedTest {
 
 	@Test

@@ -29,6 +29,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Verifies interoperability between {@link HeapMemorySegment} and {@link HybridMemorySegment} (in
+ * both heap and off-heap modes).
+ */
 public class CrossSegmentTypeTest {
 
 	private final int pageSize = 32*1024;
