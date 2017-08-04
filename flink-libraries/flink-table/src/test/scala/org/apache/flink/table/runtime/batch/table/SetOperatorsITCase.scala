@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{BatchTestData, TableProgramsCollectionTestBase}
+import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -225,64 +223,6 @@ class SetOperatorsITCase(
 
     val results = intersectDs.toDataSet[Row].collect()
     val expected = "2,1,Hi\n" + "3,2,Hello\n" + "4,2,Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testInWithFilter(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = BatchTestData.getSmall2NestedTupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val elements = ds1.where('b === "two").select('a).as("a1")
-    val in = ds1.select("*").where('c.in(elements))
-
-    val results = in.toDataSet[Row].collect()
-    val expected = "(1,1),one,(2,2)\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testInWithFilterJava(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = BatchTestData.getSmall2NestedTupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val elements = ds1.where('b === "two").select('a).as("a1")
-    val in = ds1.select("*").where(s"c.in($elements)")
-
-    val results = in.toDataSet[Row].collect()
-    val expected = "(1,1),one,(2,2)\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testInWithProject(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = BatchTestData.getSmall3TupleTimestampDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val in = ds1.select('b.in(Timestamp.valueOf("1972-02-22 07:12:00.333"))).as("b2")
-
-    val results = in.toDataSet[Row].collect()
-    val expected = "false\nfalse\ntrue\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testInWithProjectJava(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = BatchTestData.getSmall3TupleTimestampDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val in = ds1.select(s"b.in(${ds1.filter('c !== "Hi").select('b)})").as("b2")
-
-    val results = in.toDataSet[Row].collect()
-    val expected = "false\ntrue\ntrue\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

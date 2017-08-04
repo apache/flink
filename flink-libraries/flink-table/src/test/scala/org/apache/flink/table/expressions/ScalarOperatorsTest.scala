@@ -163,13 +163,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     )
 
     testAllApis(
-      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
-      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
-      "f10 IN ('This is a test String.', 'String', 'Hello world', 'Comment#1', NULL)",
-      "true"
-    )
-
-    testAllApis(
       'f15.in("1996-11-10".toDate),
       "f15.in('1996-11-10'.toDate)",
       "f15 IN (DATE '1996-11-10')",
@@ -183,6 +176,13 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "true"
     )
 
+    testAllApis(
+      'f7.in('f16, 'f17),
+      "f7.in(f16, f17)",
+      "f7 IN (f16, f17)",
+      "true"
+    )
+
     // we do not test SQL here as this expression would be converted into values + join operations
     testTableApi(
       'f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21),
@@ -190,11 +190,22 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "false"
     )
 
-    testAllApis(
-      'f7.in('f16, 'f17),
-      "f7.in(f16, f17)",
-      "f7 IN (f16, f17)",
+    testTableApi(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
       "true"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL"),
+      "f10.in('FAIL', 'FAIL')",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL", Null(Types.STRING)),
+      "f10.in('FAIL', 'FAIL', Null(STRING))",
+      "null"
     )
   }
 

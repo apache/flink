@@ -128,9 +128,34 @@ object ScalarOperators {
         needle.code,
         widerType.getOrElse(needle.resultType))
 
-      generateUnaryOperatorIfNotNull(codeGenerator.nullCheck, BOOLEAN_TYPE_INFO, castedNeedle) {
-        (operandTerm) => s"$setTerm.contains($operandTerm)"
+      val resultTerm = newName("result")
+      val nullTerm = newName("isNull")
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(BOOLEAN_TYPE_INFO)
+      val defaultValue = primitiveDefaultValue(BOOLEAN_TYPE_INFO)
+
+      val operatorCode = if (codeGenerator.nullCheck) {
+        s"""
+          |${castedNeedle.code}
+          |$resultTypeTerm $resultTerm;
+          |boolean $nullTerm;
+          |if (!${castedNeedle.nullTerm}) {
+          |  $resultTerm = $setTerm.contains(${castedNeedle.resultTerm});
+          |  $nullTerm = !$resultTerm && $setTerm.contains(null);
+          |}
+          |else {
+          |  $resultTerm = $defaultValue;
+          |  $nullTerm = true;
+          |}
+          |""".stripMargin
       }
+      else {
+        s"""
+          |${castedNeedle.code}
+          |$resultTypeTerm $resultTerm = $setTerm.contains(${castedNeedle.resultTerm});
+          |""".stripMargin
+      }
+
+      GeneratedExpression(resultTerm, nullTerm, operatorCode, BOOLEAN_TYPE_INFO)
     } else {
       // we use a chain of ORs for a set that contains non-constant elements
       haystack

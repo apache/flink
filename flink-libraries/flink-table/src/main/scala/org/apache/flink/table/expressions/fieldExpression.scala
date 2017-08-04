@@ -138,7 +138,7 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
   override def toString: String = s"'$name"
 }
 
-case class TableReference(name: String, table: Table) extends Attribute {
+case class TableReference(name: String, table: Table) extends LeafExpression with NamedExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException(s"Table reference '$name' can not be used solely.")
@@ -146,13 +146,8 @@ case class TableReference(name: String, table: Table) extends Attribute {
   override private[flink] def resultType: TypeInformation[_] =
     throw UnresolvedException(s"Table reference '$name' has no result type.")
 
-  override private[flink] def withName(newName: String): Attribute = {
-    if (newName == name) {
-      this
-    } else {
-      throw new ValidationException(s"Cannot rename table reference '$name'.")
-    }
-  }
+  override private[flink] def toAttribute =
+    throw new UnsupportedOperationException(s"A table reference '$name' can not be an attribute.")
 
   override def toString: String = s"$name"
 }

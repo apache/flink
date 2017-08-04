@@ -22,8 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.runtime.utils.{BatchTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -292,75 +292,6 @@ class SetOperatorsITCase(
 
     val expected = Seq("false", "false", "false", "false", "false", "false", "false",
       "false", "false", "true", "true", "true", "true", "true", "true").mkString("\n")
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testInWithFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-    tEnv.registerTable("T6", ds1)
-
-    val result = tEnv.sql("SELECT a, b, c, d, e FROM T6 WHERE a IN (c, b, 5)")
-
-    val expected = "1,1,0,Hallo,1\n2,2,1,Hallo Welt,2\n2,3,2,Hallo Welt wie,1\n" +
-      "3,4,3,Hallo Welt wie gehts?,2\n5,11,10,GHI,1\n5,12,11,HIJ,3\n5,13,12,IJK,3\n" +
-      "5,14,13,JKL,2\n5,15,14,KLM,2"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testInNestedTuples(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = BatchTestData.getSmall2NestedTupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T7", ds1)
-
-    val result = tEnv.sql("SELECT a, b, c FROM T7 WHERE c IN (a)")
-
-    val expected = "(3,3),three,(3,3)"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testNotIn(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T2", ds1)
-
-    val result = tEnv.sql(
-      "SELECT a, c FROM T2 WHERE b NOT IN (SELECT b FROM T2 WHERE b = 6 OR b = 1)")
-
-    val expected = "10,Comment#4\n11,Comment#5\n12,Comment#6\n" +
-      "13,Comment#7\n14,Comment#8\n15,Comment#9\n" +
-      "2,Hello\n3,Hello world\n4,Hello world, how are you?\n5,I am fine.\n" +
-      "6,Luke Skywalker\n7,Comment#1\n8,Comment#2\n9,Comment#3\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  @Ignore // Calcite bug?
-  def testNotInWithFilter(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val result = tEnv.sql("SELECT d FROM Table5 WHERE d NOT IN (SELECT a FROM Table3) AND d < 5")
-
-    val expected = Seq("4", "4", "4", "4").mkString("\n")
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

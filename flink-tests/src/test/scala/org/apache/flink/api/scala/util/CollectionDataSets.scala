@@ -17,9 +17,9 @@
  */
 package org.apache.flink.api.scala.util
 
-import java.sql.{Date, Time, Timestamp}
 import org.apache.flink.api.scala._
 import org.apache.hadoop.io.IntWritable
+
 import scala.collection.mutable
 import scala.util.Random
 
@@ -32,7 +32,6 @@ import scala.util.Random
  * #################################################################################################
  */
 object CollectionDataSets {
-
   def get3TupleDataSet(env: ExecutionEnvironment): DataSet[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
