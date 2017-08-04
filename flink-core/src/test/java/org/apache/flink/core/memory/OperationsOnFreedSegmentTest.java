@@ -28,7 +28,8 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class OperationsOnFreedSegmentTest {
 
