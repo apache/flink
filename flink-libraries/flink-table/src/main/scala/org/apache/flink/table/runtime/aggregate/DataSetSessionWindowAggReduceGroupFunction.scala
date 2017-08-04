@@ -78,7 +78,10 @@ class DataSetSessionWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(
+      finalRowWindowStartPos,
+      finalRowWindowEndPos,
+      None)
   }
 
   /**

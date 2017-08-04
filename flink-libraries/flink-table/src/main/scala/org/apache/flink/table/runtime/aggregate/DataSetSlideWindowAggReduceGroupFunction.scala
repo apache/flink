@@ -68,7 +68,10 @@ class DataSetSlideWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(
+      finalRowWindowStartPos,
+      finalRowWindowEndPos,
+      None)
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {

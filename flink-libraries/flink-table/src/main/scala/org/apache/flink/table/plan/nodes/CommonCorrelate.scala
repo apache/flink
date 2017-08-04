@@ -53,8 +53,6 @@ trait CommonCorrelate {
     functionClass: Class[T]):
   GeneratedFunction[T, Row] = {
 
-    val physicalRexCall = inputSchema.mapRexNode(rexCall)
-
     val functionGenerator = new FunctionCodeGenerator(
       config,
       false,
@@ -69,7 +67,7 @@ trait CommonCorrelate {
       .addReusableConstructor(classOf[TableFunctionCollector[_]])
       .head
 
-    val call = functionGenerator.generateExpression(physicalRexCall)
+    val call = functionGenerator.generateExpression(rexCall)
     var body =
       s"""
          |${call.resultTerm}.setCollector($collectorTerm);
