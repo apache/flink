@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.util.CommandLineParser;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -245,11 +245,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		MetricRegistry metricRegistry) throws Exception;
 
 	protected static ClusterConfiguration parseArguments(String[] args) {
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
-
-		final String configDir = parameterTool.get("configDir", "");
-
-		return new ClusterConfiguration(configDir);
+		CommandLineParser commandLineParser = CommandLineParser.parse(args);
+		return new ClusterConfiguration(commandLineParser.getConfigDir(""));
 	}
 
 	protected static Configuration loadConfiguration(ClusterConfiguration clusterConfiguration) {
