@@ -82,7 +82,7 @@ Often there is a one-to-one correspondence between the transformations in the pr
 in the dataflow. Sometimes, however, one transformation may consist of multiple transformation operators.
 
 Sources and sinks are documented in the [streaming connectors](../dev/connectors/index.html) and [batch connectors](../dev/batch/connectors.html) docs.
-Transformations are documented in [DataStream transformations](../dev/datastream_api.html#datastream-transformations) and [DataSet transformations](../dev/batch/dataset_transformations.html).
+Transformations are documented in [DataStream operators]({{ site.baseurl }}/dev/stream/operators.html) and [DataSet transformations](../dev/batch/dataset_transformations.html).
 
 {% top %}
 
