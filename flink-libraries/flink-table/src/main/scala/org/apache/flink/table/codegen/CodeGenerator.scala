@@ -1784,21 +1784,27 @@ class CodeGenerator(
     }
 
     val wrappedCode = if (nullCheck && !isReference(fieldType)) {
+      // assumes that fieldType is a boxed primitive.
       s"""
-        |$tmpTypeTerm $tmpTerm = $unboxedFieldCode;
-        |boolean $nullTerm = $tmpTerm == null;
+        |boolean $nullTerm = $fieldTerm == null;
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
         |  $resultTerm = $defaultValue;
         |}
         |else {
-        |  $resultTerm = $tmpTerm;
+        |  $resultTerm = $fieldTerm;
         |}
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
         |boolean $nullTerm = $fieldTerm == null;
+        |$resultTypeTerm $resultTerm;
+        |if ($nullTerm) {
+        |  $resultTerm = $defaultValue;
+        |}
+        |else {
+        |  $resultTerm = $unboxedFieldCode;
+        |}
         |""".stripMargin
     } else {
       s"""
