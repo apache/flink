@@ -322,8 +322,9 @@ public class ClientTest extends TestLogger {
 				getSender().tell(
 						decorateMessage(new JobManagerMessages.ResponseLeaderSessionID(leaderSessionID)),
 						getSelf());
-			}
-			else {
+			} else if (message instanceof JobManagerMessages.RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			} else {
 				getSender().tell(
 						decorateMessage(new Status.Failure(new Exception("Unknown message " + message))),
 						getSelf());

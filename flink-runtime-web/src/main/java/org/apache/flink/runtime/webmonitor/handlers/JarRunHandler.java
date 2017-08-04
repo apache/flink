@@ -31,7 +31,10 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.FiniteDuration;
 
@@ -61,8 +64,18 @@ public class JarRunHandler extends JarActionHandler {
 		try {
 			JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
 			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config);
+
+			final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(jobManager, timeout);
+			final InetSocketAddress blobServerAddress;
+
 			try {
-				graph.f0.uploadUserJars(jobManager, timeout, clientConfig);
+				blobServerAddress = blobServerAddressFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Failed to retrieve BlobServer address.", e);
+			}
+
+			try {
+				graph.f0.uploadUserJars(blobServerAddress, clientConfig);
 			} catch (IOException e) {
 				throw new ProgramInvocationException("Failed to upload jar files to the job manager", e);
 			}
