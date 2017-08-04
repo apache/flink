@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -38,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
@@ -131,7 +131,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 		public FileBasedSinkFunction(File tmpDirectory, File targetDirectory) {
 			super(
 				TypeInformation.of(FileTransaction.class),
-				TypeInformation.of(new TypeHint<Map<Long, FileTransaction>>() {}));
+				TypeInformation.of(new TypeHint<List<Tuple2<Long, FileTransaction>>>() {}));
 
 			if (!tmpDirectory.isDirectory() || !targetDirectory.isDirectory()) {
 				throw new IllegalArgumentException();

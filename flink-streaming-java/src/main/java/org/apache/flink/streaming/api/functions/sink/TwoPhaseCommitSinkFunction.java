@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -32,20 +33,23 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This is a recommended base class for all of the {@link SinkFunction} that intend to implement exactly-once semantic.
  * It does that by implementing two phase commit algorithm on top of the {@link CheckpointedFunction} and
- * {@link CheckpointListener}. User should provide custom TXN (transaction handle) and implement abstract methods
- * handling this transaction handle.
+ * {@link CheckpointListener}. User should provide custom {@code TXN} (transaction handle) and implement abstract
+ * methods handling this transaction handle.
  *
- * @param <IN> Input type for {@link SinkFunction}
- * @param <TXN> Transaction to store all of the information required to handle a transaction (must be Serializable)
+ * @param <IN> Input type for {@link SinkFunction}.
+ * @param <TXN> Transaction to store all of the information required to handle a transaction.
  */
 @PublicEvolving
 public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
@@ -54,7 +58,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwoPhaseCommitSinkFunction.class);
 
-	protected final ListStateDescriptor<Map<Long, TXN>> pendingCommitTransactionsDescriptor;
+	protected final ListStateDescriptor<List<Tuple2<Long, TXN>>> pendingCommitTransactionsDescriptor;
 	protected final ListStateDescriptor<TXN> pendingTransactionsDescriptor;
 
 	protected final LinkedHashMap<Long, TXN> pendingCommitTransactions = new LinkedHashMap<>();
@@ -62,7 +66,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 	@Nullable
 	protected TXN currentTransaction;
 	protected ListState<TXN> pendingTransactionsState;
-	protected ListState<Map<Long, TXN>> pendingCommitTransactionsState;
+	protected ListState<List<Tuple2<Long, TXN>>> pendingCommitTransactionsState;
 
 	/**
 	 * Use default {@link ListStateDescriptor} for internal state serialization. Helpful utilities for using this
@@ -80,7 +84,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 	 */
 	public TwoPhaseCommitSinkFunction(
 			TypeInformation<TXN> txnTypeInformation,
-			TypeInformation<Map<Long, TXN>> checkpointToTxnTypeInformation) {
+			TypeInformation<List<Tuple2<Long, TXN>>> checkpointToTxnTypeInformation) {
 		this(new ListStateDescriptor<>("pendingTransactions", txnTypeInformation),
 			new ListStateDescriptor<>("pendingCommitTransactions", checkpointToTxnTypeInformation));
 	}
@@ -93,7 +97,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 	 */
 	public TwoPhaseCommitSinkFunction(
 			ListStateDescriptor<TXN> pendingTransactionsDescriptor,
-			ListStateDescriptor<Map<Long, TXN>> pendingCommitTransactionsDescriptor) {
+			ListStateDescriptor<List<Tuple2<Long, TXN>>> pendingCommitTransactionsDescriptor) {
 		this.pendingTransactionsDescriptor = requireNonNull(pendingTransactionsDescriptor, "pendingTransactionsDescriptor is null");
 		this.pendingCommitTransactionsDescriptor = requireNonNull(pendingCommitTransactionsDescriptor, "pendingCommitTransactionsDescriptor is null");
 	}
@@ -132,7 +136,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 	/**
 	 * Invoked on recovered transactions after a failure. User implementation must ensure that this call will eventually
 	 * succeed. If it fails, Flink application will be restarted and it will be invoked again. If it does not succeed
-	 * a data loss will occur.
+	 * a data loss will occur. Transactions will be recovered in an order in which they were created.
 	 */
 	protected void recoverAndCommit(TXN transaction) {
 		commit(transaction);
@@ -203,8 +207,8 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 				continue;
 			}
 
-			LOG.info("{} - checkpoint {} complete, committing completed checkpoint transaction {}",
-				name(), checkpointId, pendingTransaction);
+			LOG.info("{} - checkpoint {} complete, committing transaction {} from checkpoint {}",
+				name(), checkpointId, pendingTransaction, pendingTransactionCheckpointId);
 
 			commit(pendingTransaction);
 
@@ -232,7 +236,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		LOG.debug("{} - started new transaction '{}'", name(), currentTransaction);
 
 		pendingCommitTransactionsState.clear();
-		pendingCommitTransactionsState.add(pendingCommitTransactions);
+		pendingCommitTransactionsState.add(toTuple2List(pendingCommitTransactions));
 
 		pendingTransactionsState.clear();
 		// in case of failure we might not be able to abort currentTransaction. Let's store it into the state
@@ -259,25 +263,24 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		pendingTransactionsState = context.getOperatorStateStore().getListState(pendingTransactionsDescriptor);
 		pendingCommitTransactionsState = context.getOperatorStateStore().getListState(pendingCommitTransactionsDescriptor);
 
-		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {
-			LOG.info("{} - restoring state (subtaskIndex={}).", name(), subtaskIndex);
+			LOG.info("{} - restoring state", name());
 
-			for (Map<Long, TXN> pendingCommitTransactionsMaps : pendingCommitTransactionsState.get()) {
-				for (TXN recoveredTransaction : pendingCommitTransactionsMaps.values()) {
+			for (List<Tuple2<Long, TXN>> recoveredTransactions : pendingCommitTransactionsState.get()) {
+				for (Tuple2<Long, TXN> recoveredTransaction : recoveredTransactions) {
 					// If this fails, there is actually a data loss
-					recoverAndCommit(recoveredTransaction);
-					LOG.info("{} committed recovered transaction {} (subtaskIndex={})", name(), recoveredTransaction, subtaskIndex);
+					recoverAndCommit(recoveredTransaction.f1);
+					LOG.info("{} committed recovered transaction {}", name(), recoveredTransaction);
 				}
 			}
 
 			// Explicitly abort transactions that could be not closed cleanly
 			for (TXN pendingTransaction : pendingTransactionsState.get()) {
 				recoverAndAbort(pendingTransaction);
-				LOG.info("{} aborted recovered transaction {} (subtaskIndex={})", name(), pendingTransaction, subtaskIndex);
+				LOG.info("{} aborted recovered transaction {}", name(), pendingTransaction);
 			}
 		} else {
-			LOG.info("{} - no state to restore {} (subtaskIndex={}).", name(), subtaskIndex);
+			LOG.info("{} - no state to restore {}", name());
 		}
 		this.pendingCommitTransactions.clear();
 
@@ -303,9 +306,11 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 			getRuntimeContext().getNumberOfParallelSubtasks());
 	}
 
-	private static void checkState(boolean condition, String message, Object... args) {
-		if (!condition) {
-			throw new IllegalStateException(String.format(message, args));
+	private List<Tuple2<Long, TXN>> toTuple2List(LinkedHashMap<Long, TXN> transactions) {
+		List<Tuple2<Long, TXN>> result = new ArrayList<>();
+		for (Map.Entry<Long, TXN> entry : transactions.entrySet()) {
+			result.add(Tuple2.of(entry.getKey(), entry.getValue()));
 		}
+		return result;
 	}
 }
