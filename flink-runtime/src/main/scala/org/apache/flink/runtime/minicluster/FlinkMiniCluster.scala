@@ -26,10 +26,11 @@ import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
 import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration, JobManagerOptions, TaskManagerOptions}
 import org.apache.flink.core.fs.Path
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.akka.{AkkaJobManagerGateway, AkkaUtils}
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
 import org.apache.flink.runtime.concurrent.{Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader
@@ -582,10 +583,11 @@ abstract class FlinkMiniCluster(
           e)
       }
 
-    JobClient.submitJobDetached(jobManagerGateway,
+    JobClient.submitJobDetached(
+      new AkkaJobManagerGateway(jobManagerGateway),
       configuration,
       jobGraph,
-      timeout,
+      Time.milliseconds(timeout.toMillis),
       userCodeClassLoader)
 
     new JobSubmissionResult(jobGraph.getJobID)

@@ -84,7 +84,7 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.{InstantiationUtil, NetUtils}
+import org.apache.flink.util.{InstantiationUtil, NetUtils, SerializedThrowable}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

@@ -524,8 +524,8 @@ public class JobGraph implements Serializable {
 
 	/**
 	 * Uploads the previously added user JAR files to the job manager through
-	 * the job manager's BLOB server. The respective port is retrieved from the
-	 * JobManager. This function issues a blocking call.
+	 * the job manager's BLOB server. The BLOB servers' address is given as a
+	 * parameter. This function issues a blocking call.
 	 *
 	 * @param blobServerAddress of the blob server to upload the jars to
 	 * @param blobClientConfig the blob client configuration
