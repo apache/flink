@@ -18,7 +18,7 @@
 
 package org.apache.flink.client;
 
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -32,7 +32,6 @@ import static org.junit.Assert.fail;
 public class CliFrontendInfoTest {
 
 	private static PrintStream stdOut;
-	private static PrintStream capture;
 	private static ByteArrayOutputStream buffer;
 
 	@Test
@@ -62,9 +61,7 @@ public class CliFrontendInfoTest {
 
 	@Test
 	public void testShowExecutionPlan() {
-		replaceStdOut();
 		try {
-
 			String[] parameters = new String[] { CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
 			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
@@ -74,14 +71,11 @@ public class CliFrontendInfoTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Program caused an exception: " + e.getMessage());
-		} finally {
-			restoreStdOut();
 		}
 	}
 
 	@Test
 	public void testShowExecutionPlanWithParallelism() {
-		replaceStdOut();
 		try {
 			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
 			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
@@ -92,19 +86,19 @@ public class CliFrontendInfoTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Program caused an exception: " + e.getMessage());
-		} finally {
-			restoreStdOut();
 		}
 	}
 
-	private static void replaceStdOut() {
+	@Before
+	public void replaceStdOut() {
 		stdOut = System.out;
 		buffer = new ByteArrayOutputStream();
-		capture = new PrintStream(buffer);
+		PrintStream capture = new PrintStream(buffer);
 		System.setOut(capture);
 	}
 
-	private static void restoreStdOut() {
+	@After
+	public void restoreStdOut() {
 		System.setOut(stdOut);
 	}
 }

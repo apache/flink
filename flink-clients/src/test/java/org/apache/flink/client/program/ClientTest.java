@@ -83,7 +83,7 @@ public class ClientTest extends TestLogger {
 	private static final String FAIL_MESSAGE = "Invalid program should have thrown ProgramInvocationException.";
 
 	@Before
-	public void setUp() throws Exception {
+	public void setup() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<Long>());

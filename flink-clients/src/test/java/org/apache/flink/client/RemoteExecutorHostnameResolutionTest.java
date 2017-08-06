@@ -45,7 +45,7 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 	private static final int port = 14451;
 
 	@BeforeClass
-	public static void check() {
+	public static void setup() {
 		checkPreconditions();
 	}
 
@@ -67,7 +67,7 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 
 		InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
 		RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
-				Collections.<URL>emptyList(), Collections.<URL>emptyList());
+			Collections.<URL>emptyList(), Collections.<URL>emptyList());
 		try {
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
