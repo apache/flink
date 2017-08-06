@@ -32,7 +32,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph
 import org.apache.flink.runtime.messages.checkpoint.AbstractCheckpointMessage
-import org.apache.flink.runtime.util.SerializedThrowable
+import org.apache.flink.util.SerializedThrowable
 
 import scala.collection.JavaConverters._
 

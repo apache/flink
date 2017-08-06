@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import akka.dispatch.OnComplete;
@@ -29,10 +30,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -290,6 +293,16 @@ public class FutureUtils {
 		result.completeExceptionally(cause);
 
 		return result;
+	}
+
+	/**
+	 * Converts Flink time into a {@link FiniteDuration}.
+	 *
+	 * @param time to convert into a FiniteDuration
+	 * @return FiniteDuration with the length of the given time
+	 */
+	public static FiniteDuration toFiniteDuration(Time time) {
+		return new FiniteDuration(time.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	// ------------------------------------------------------------------------

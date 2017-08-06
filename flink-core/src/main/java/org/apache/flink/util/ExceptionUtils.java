@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -296,6 +297,43 @@ public final class ExceptionUtils {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Unpacks an {@link ExecutionException} and returns its cause. Otherwise the given
+	 * Throwable is returned.
+	 *
+	 * @param throwable to unpack if it is an ExecutionException
+	 * @return Cause of ExecutionException or given Throwable
+	 */
+	public static Throwable stripExecutionException(Throwable throwable) {
+		while (throwable instanceof ExecutionException && throwable.getCause() != null) {
+			throwable = throwable.getCause();
+		}
+
+		return throwable;
+	}
+
+	/**
+	 * Tries to find a {@link SerializedThrowable} as the cause of the given throwable and throws its
+	 * deserialized value. If there is no such throwable, then the original throwable is thrown.
+	 *
+	 * @param throwable to check for a SerializedThrowable
+	 * @param classLoader to be used for the deserialization of the SerializedThrowable
+	 * @throws Throwable either the deserialized throwable or the given throwable
+	 */
+	public static void tryDeserializeAndThrow(Throwable throwable, ClassLoader classLoader) throws Throwable {
+		Throwable current = throwable;
+
+		while (!(current instanceof SerializedThrowable) && current.getCause() != null) {
+			current = current.getCause();
+		}
+
+		if (current instanceof SerializedThrowable) {
+			throw ((SerializedThrowable) current).deserializeError(classLoader);
+		} else {
+			throw throwable;
+		}
 	}
 
 	// ------------------------------------------------------------------------

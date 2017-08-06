@@ -22,8 +22,11 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
+
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -32,7 +35,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.SubmitJobAndWait;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.SerializedThrowable;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -143,11 +146,14 @@ public class JobSubmissionClientActor extends JobClientActor {
 		Futures.future(new Callable<Object>() {
 			@Override
 			public Object call() throws Exception {
-				ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+				final ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+				final AkkaJobManagerGateway akkaJobManagerGateway = new AkkaJobManagerGateway(jobManagerGateway);
 
 				LOG.info("Upload jar files to job manager {}.", jobManager.path());
 
-				final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(jobManagerGateway, timeout);
+				final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(
+					akkaJobManagerGateway,
+					Time.milliseconds(timeout.toMillis()));
 				final InetSocketAddress blobServerAddress;
 
 				try {
