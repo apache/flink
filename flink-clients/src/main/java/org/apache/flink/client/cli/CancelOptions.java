@@ -27,8 +27,6 @@ import static org.apache.flink.client.cli.CliFrontendParser.CANCEL_WITH_SAVEPOIN
  */
 public class CancelOptions extends CommandLineOptions {
 
-	private final String[] args;
-
 	/** Flag indicating whether to cancel with a savepoint. */
 	private final boolean withSavepoint;
 
@@ -37,13 +35,8 @@ public class CancelOptions extends CommandLineOptions {
 
 	public CancelOptions(CommandLine line) {
 		super(line);
-		this.args = line.getArgs();
 		this.withSavepoint = line.hasOption(CANCEL_WITH_SAVEPOINT_OPTION.getOpt());
 		this.targetDirectory = line.getOptionValue(CANCEL_WITH_SAVEPOINT_OPTION.getOpt());
-	}
-
-	public String[] getArgs() {
-		return args == null ? new String[0] : args;
 	}
 
 	public boolean isWithSavepoint() {

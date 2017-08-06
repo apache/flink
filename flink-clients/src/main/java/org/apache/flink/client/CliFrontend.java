@@ -263,7 +263,6 @@ public class CliFrontend {
 
 		ClusterClient client = null;
 		try {
-
 			client = createClient(options, program);
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			client.setDetached(options.getDetachedMode());
@@ -332,7 +331,6 @@ public class CliFrontend {
 		}
 
 		// -------- build the packaged program -------------
-
 		PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
@@ -370,14 +368,10 @@ public class CliFrontend {
 			}
 
 			String description = program.getDescription();
-			if (description != null) {
-				System.out.println();
-				System.out.println(description);
+			if(description == null) {
+				description = "No description provided.";
 			}
-			else {
-				System.out.println();
-				System.out.println("No description provided.");
-			}
+			System.out.println(description);
 			return 0;
 		}
 		catch (Throwable t) {
@@ -540,7 +534,7 @@ public class CliFrontend {
 		String[] stopArgs = options.getArgs();
 		JobID jobId;
 
-		if (stopArgs.length > 0) {
+		if (stopArgs != null && stopArgs.length > 0) {
 			String jobIdString = stopArgs[0];
 			try {
 				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
@@ -608,7 +602,7 @@ public class CliFrontend {
 		// is set:
 		// - cancel -s <jobID> => default target dir (JobID parsed as opt arg)
 		// - cancel -s <targetDir> <jobID> => custom target dir (parsed correctly)
-		if (cleanedArgs.length > 0) {
+		if (cleanedArgs != null && cleanedArgs.length > 0) {
 			String jobIdString = cleanedArgs[0];
 			try {
 				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
@@ -706,7 +700,7 @@ public class CliFrontend {
 			String[] cleanedArgs = options.getArgs();
 			JobID jobId;
 
-			if (cleanedArgs.length >= 1) {
+			if (cleanedArgs != null && cleanedArgs.length >= 1) {
 				String jobIdString = cleanedArgs[0];
 				try {
 					jobId = new JobID(StringUtils.hexStringToByte(jobIdString));

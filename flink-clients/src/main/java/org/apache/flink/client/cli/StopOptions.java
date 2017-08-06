@@ -25,14 +25,7 @@ import org.apache.commons.cli.CommandLine;
  */
 public class StopOptions extends CommandLineOptions {
 
-	private final String[] args;
-
 	public StopOptions(CommandLine line) {
 		super(line);
-		this.args = line.getArgs();
-	}
-
-	public String[] getArgs() {
-		return args == null ? new String[0] : args;
 	}
 }
