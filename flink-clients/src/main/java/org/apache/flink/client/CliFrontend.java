@@ -368,7 +368,7 @@ public class CliFrontend {
 			}
 
 			String description = program.getDescription();
-			if(description == null) {
+			if (description == null) {
 				description = "No description provided.";
 			}
 			System.out.println(description);

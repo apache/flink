@@ -19,13 +19,14 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.client.CliFrontendTestUtils;
-import org.junit.Assert;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
 
 import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -42,7 +43,7 @@ public class PackagedProgramTest {
 	public void testGetPreviewPlan() {
 		try {
 			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
-			Assert.assertNotNull(prog.getPreviewPlan());
+			assertNotNull(prog.getPreviewPlan());
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Test is erroneous: " + e.getMessage());
