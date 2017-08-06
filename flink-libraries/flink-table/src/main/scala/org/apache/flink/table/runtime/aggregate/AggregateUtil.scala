@@ -596,7 +596,7 @@ object AggregateUtil {
     window match {
       case TumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
         // tumbling time window
-        val (startPos, endPos, _) = computeWindowPropertyPos(properties)
+        val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
         if (doAllSupportPartialMerge(aggregates)) {
           // for incremental aggregations
           new DataSetTumbleTimeWindowAggReduceCombineFunction(
@@ -605,6 +605,7 @@ object AggregateUtil {
             asLong(size),
             startPos,
             endPos,
+            timePos,
             keysAndAggregatesArity)
         }
         else {
@@ -614,6 +615,7 @@ object AggregateUtil {
             asLong(size),
             startPos,
             endPos,
+            timePos,
             outputType.getFieldCount)
         }
       case TumblingGroupWindow(_, _, size) =>
@@ -623,17 +625,18 @@ object AggregateUtil {
           asLong(size))
 
       case SessionGroupWindow(_, _, gap) =>
-        val (startPos, endPos, _) = computeWindowPropertyPos(properties)
+        val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
         new DataSetSessionWindowAggReduceGroupFunction(
           genFinalAggFunction,
           keysAndAggregatesArity,
           startPos,
           endPos,
+          timePos,
           asLong(gap),
           isInputCombined)
 
       case SlidingGroupWindow(_, _, size, _) if isTimeInterval(size.resultType) =>
-        val (startPos, endPos, _) = computeWindowPropertyPos(properties)
+        val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
         if (doAllSupportPartialMerge(aggregates)) {
           // for partial aggregations
           new DataSetSlideWindowAggReduceCombineFunction(
@@ -642,6 +645,7 @@ object AggregateUtil {
             keysAndAggregatesArity,
             startPos,
             endPos,
+            timePos,
             asLong(size))
         }
         else {
@@ -651,6 +655,7 @@ object AggregateUtil {
             keysAndAggregatesArity,
             startPos,
             endPos,
+            timePos,
             asLong(size))
         }
 
@@ -658,6 +663,7 @@ object AggregateUtil {
         new DataSetSlideWindowAggReduceGroupFunction(
             genFinalAggFunction,
             keysAndAggregatesArity,
+            None,
             None,
             None,
             asLong(size))
