@@ -67,23 +67,24 @@ class DataSetLogicalWindowAggregateRule
       }
     }
 
+    val timeField = getFieldReference(windowExpr.getOperands.get(0))
     windowExpr.getOperator match {
       case BasicOperatorTable.TUMBLE =>
         val interval = getOperandAsLong(windowExpr, 1)
         val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-        w.on(getFieldReference(windowExpr.getOperands.get(0))).as(WindowReference("w$"))
+        w.on(timeField).as(WindowReference("w$", Some(timeField.resultType)))
 
       case BasicOperatorTable.HOP =>
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         val w = Slide
           .over(Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS))
           .every(Literal(slide, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-        w.on(getFieldReference(windowExpr.getOperands.get(0))).as(WindowReference("w$"))
+        w.on(timeField).as(WindowReference("w$", Some(timeField.resultType)))
 
       case BasicOperatorTable.SESSION =>
         val gap = getOperandAsLong(windowExpr, 1)
         val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-        w.on(getFieldReference(windowExpr.getOperands.get(0))).as(WindowReference("w$"))
+        w.on(timeField).as(WindowReference("w$", Some(timeField.resultType)))
     }
   }
 }

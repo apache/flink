@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.LogicalWindow
@@ -59,23 +59,24 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
       agg: LogicalWindowAggregate): RelNode = {
 
     val w = agg.getWindow
-
-    val isRowtime = ExpressionUtils.isRowtimeAttribute(w.timeAttribute)
-    val isProctime = ExpressionUtils.isProctimeAttribute(w.timeAttribute)
+    val windowType = getWindowType(w)
 
     val startEndProperties = Seq(
       NamedWindowProperty(propertyName(w, "start"), WindowStart(w.aliasAttribute)),
       NamedWindowProperty(propertyName(w, "end"), WindowEnd(w.aliasAttribute)))
 
     // allow rowtime/proctime for rowtime windows and proctime for proctime windows
-    val timeProperties = if (isRowtime) {
-      Seq(
-        NamedWindowProperty(propertyName(w, "rowtime"), RowtimeAttribute(w.aliasAttribute)),
-        NamedWindowProperty(propertyName(w, "proctime"), ProctimeAttribute(w.aliasAttribute)))
-    } else if (isProctime) {
-      Seq(NamedWindowProperty(propertyName(w, "proctime"), ProctimeAttribute(w.aliasAttribute)))
-    } else {
-      Seq()
+    val timeProperties = windowType match {
+      case 'streamRowtime =>
+        Seq(
+          NamedWindowProperty(propertyName(w, "rowtime"), RowtimeAttribute(w.aliasAttribute)),
+          NamedWindowProperty(propertyName(w, "proctime"), ProctimeAttribute(w.aliasAttribute)))
+      case 'streamProctime =>
+        Seq(NamedWindowProperty(propertyName(w, "proctime"), ProctimeAttribute(w.aliasAttribute)))
+      case 'batchRowtime =>
+        Seq(NamedWindowProperty(propertyName(w, "rowtime"), RowtimeAttribute(w.aliasAttribute)))
+      case _ =>
+        throw new TableException("Unknown window type encountered. Please report this bug.")
     }
 
     val properties = startEndProperties ++ timeProperties
@@ -103,6 +104,18 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
     builder.build()
   }
 
+  private def getWindowType(window: LogicalWindow): Symbol = {
+    if (ExpressionUtils.isRowtimeAttribute(window.timeAttribute)) {
+      'streamRowtime
+    } else if (ExpressionUtils.isProctimeAttribute(window.timeAttribute)) {
+      'streamProctime
+    } else if (window.timeAttribute.resultType == Types.SQL_TIMESTAMP) {
+      'batchRowtime
+    } else {
+      throw new TableException("Unknown window type encountered. Please report this bug.")
+    }
+  }
+
   /** Generates a property name for a window. */
   private def propertyName(window: LogicalWindow, name: String): String = {
     window.aliasAttribute.asInstanceOf[WindowReference].name + name
@@ -115,9 +128,7 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
       builder: RelBuilder): RexNode = {
 
     val rexBuilder = builder.getRexBuilder
-
-    val isRowtime = ExpressionUtils.isRowtimeAttribute(window.timeAttribute)
-    val isProctime = ExpressionUtils.isProctimeAttribute(window.timeAttribute)
+    val windowType = getWindowType(window)
 
     node match {
       case c: RexCall if isWindowStart(c) =>
@@ -129,22 +140,25 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
         rexBuilder.makeCast(c.getType, builder.field(propertyName(window, "end")), false)
 
       case c: RexCall if isWindowRowtime(c) =>
-        if (isProctime) {
-          throw ValidationException("A proctime window cannot provide a rowtime attribute.")
-        } else if (isRowtime) {
-          // replace expression by access to window rowtime
-          builder.field(propertyName(window, "rowtime"))
-        } else {
-          throw TableException("Accessing the rowtime attribute of a window is not yet " +
-            "supported in a batch environment.")
+        windowType match {
+          case 'streamRowtime | 'batchRowtime =>
+            // replace expression by access to window rowtime
+            builder.field(propertyName(window, "rowtime"))
+          case 'streamProctime =>
+            throw ValidationException("A proctime window cannot provide a rowtime attribute.")
+          case _ =>
+            throw new TableException("Unknown window type encountered. Please report this bug.")
         }
 
       case c: RexCall if isWindowProctime(c) =>
-        if (isProctime || isRowtime) {
-          // replace expression by access to window proctime
-          builder.field(propertyName(window, "proctime"))
-        } else {
-          throw ValidationException("Proctime is not supported in a batch environment.")
+        windowType match {
+          case 'streamProctime | 'streamRowtime =>
+            // replace expression by access to window proctime
+            builder.field(propertyName(window, "proctime"))
+          case 'batchRowtime =>
+            throw ValidationException("PROCTIME window property is not supported in batch queries.")
+          case _ =>
+            throw new TableException("Unknown window type encountered. Please report this bug.")
         }
 
       case c: RexCall =>

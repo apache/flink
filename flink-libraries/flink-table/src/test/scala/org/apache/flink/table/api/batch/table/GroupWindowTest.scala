@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.api.batch.table
 
+import java.sql.Timestamp
+
 import org.apache.flink.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
@@ -146,6 +148,50 @@ class GroupWindowTest extends TableTestBase {
     util.verifyTable(windowedTable, expected)
   }
 
+  @Test
+  def testLongEventTimeTumblingGroupWindowWithProperties(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('ts, 'int, 'string)
+
+    val windowedTable = table
+      .window(Tumble over 2.hours on 'ts as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'ts, 2.hours)),
+      term("select", "string", "COUNT(int) AS TMP_0",
+        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testTimestampEventTimeTumblingGroupWindowWithProperties(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Timestamp, Int, String)]('ts, 'int, 'string)
+
+    val windowedTable = table
+      .window(Tumble over 2.hours on 'ts as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'ts, 2.hours)),
+      term("select", "string", "COUNT(int) AS TMP_0",
+        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
   //===============================================================================================
   // Sliding Windows
   //===============================================================================================
@@ -268,6 +314,50 @@ class GroupWindowTest extends TableTestBase {
     util.verifyTable(windowedTable, expected)
   }
 
+  @Test
+  def testLongEventTimeSlidingGroupWindowWithProperties(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('ts, 'int, 'string)
+
+    val windowedTable = table
+      .window(Slide over 1.hour every 10.minutes on 'ts as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", SlidingGroupWindow(WindowReference("w"), 'ts, 1.hour, 10.minutes)),
+      term("select", "string", "COUNT(int) AS TMP_0",
+        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testTimestampEventTimeSlidingGroupWindowWithProperties(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Timestamp, Int, String)]('ts, 'int, 'string)
+
+    val windowedTable = table
+      .window(Slide over 1.hour every 10.minutes on 'ts as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", SlidingGroupWindow(WindowReference("w"), 'ts, 1.hour, 10.minutes)),
+      term("select", "string", "COUNT(int) AS TMP_0",
+        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
   //===============================================================================================
   // Session Windows
   //===============================================================================================
@@ -311,6 +401,50 @@ class GroupWindowTest extends TableTestBase {
       term("groupBy", "string"),
       term("window", SessionGroupWindow(WindowReference("w"), 'long, 7.milli)),
       term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testLongEventTimeSessionGroupWindowWithProperties(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('ts, 'int, 'string)
+
+    val windowedTable = table
+      .window(Session withGap 30.minutes on 'ts as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", SessionGroupWindow(WindowReference("w"), 'ts, 30.minutes)),
+      term("select", "string", "COUNT(int) AS TMP_0",
+        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testTimestampEventTimeSessionGroupWindowWithProperties(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Timestamp, Int, String)]('ts, 'int, 'string)
+
+    val windowedTable = table
+      .window(Session withGap 30.minutes on 'ts as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", SessionGroupWindow(WindowReference("w"), 'ts, 30.minutes)),
+      term("select", "string", "COUNT(int) AS TMP_0",
+        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
     )
 
     util.verifyTable(windowedTable, expected)

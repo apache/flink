@@ -418,7 +418,9 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("T1", t1)
 
-    val resultHopStartEndWithHaving = tEnv.sql(sqlQueryHopStartEndWithHaving).toAppendStream[Row]
+    val resultHopStartEndWithHaving = tEnv
+      .sqlQuery(sqlQueryHopStartEndWithHaving)
+      .toAppendStream[Row]
     resultHopStartEndWithHaving.addSink(new StreamITCase.StringSink[Row])
 
     env.execute()

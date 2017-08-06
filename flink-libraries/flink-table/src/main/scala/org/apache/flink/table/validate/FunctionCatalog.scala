@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.validate
 
-import org.apache.calcite.sql.`type`.OperandTypes
+import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeTransforms}
 import org.apache.calcite.sql.fun.{SqlGroupFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlOperator, SqlOperatorTable}
@@ -442,7 +442,13 @@ object BasicOperatorTable {
   val TUMBLE_START: SqlGroupFunction = TUMBLE.auxiliary(SqlKind.TUMBLE_START)
   val TUMBLE_END: SqlGroupFunction = TUMBLE.auxiliary(SqlKind.TUMBLE_END)
   val TUMBLE_ROWTIME: SqlGroupFunction =
-    TUMBLE.auxiliary("TUMBLE_ROWTIME", SqlKind.OTHER_FUNCTION)
+    new SqlGroupFunction(
+      "TUMBLE_ROWTIME",
+      SqlKind.OTHER_FUNCTION,
+      TUMBLE,
+      // ensure that returned rowtime is always NOT_NULLABLE
+      ReturnTypes.cascade(ReturnTypes.ARG0, SqlTypeTransforms.TO_NOT_NULLABLE),
+      TUMBLE.getOperandTypeChecker)
   val TUMBLE_PROCTIME: SqlGroupFunction =
     TUMBLE.auxiliary("TUMBLE_PROCTIME", SqlKind.OTHER_FUNCTION)
 
@@ -461,7 +467,14 @@ object BasicOperatorTable {
   }
   val HOP_START: SqlGroupFunction = HOP.auxiliary(SqlKind.HOP_START)
   val HOP_END: SqlGroupFunction = HOP.auxiliary(SqlKind.HOP_END)
-  val HOP_ROWTIME: SqlGroupFunction = HOP.auxiliary("HOP_ROWTIME", SqlKind.OTHER_FUNCTION)
+  val HOP_ROWTIME: SqlGroupFunction =
+    new SqlGroupFunction(
+      "HOP_ROWTIME",
+      SqlKind.OTHER_FUNCTION,
+      HOP,
+      // ensure that returned rowtime is always NOT_NULLABLE
+      ReturnTypes.cascade(ReturnTypes.ARG0, SqlTypeTransforms.TO_NOT_NULLABLE),
+      HOP.getOperandTypeChecker)
   val HOP_PROCTIME: SqlGroupFunction = HOP.auxiliary("HOP_PROCTIME", SqlKind.OTHER_FUNCTION)
 
   val SESSION: SqlGroupFunction = new SqlGroupFunction(
@@ -478,7 +491,13 @@ object BasicOperatorTable {
   val SESSION_START: SqlGroupFunction = SESSION.auxiliary(SqlKind.SESSION_START)
   val SESSION_END: SqlGroupFunction = SESSION.auxiliary(SqlKind.SESSION_END)
   val SESSION_ROWTIME: SqlGroupFunction =
-    SESSION.auxiliary("SESSION_ROWTIME", SqlKind.OTHER_FUNCTION)
+    new SqlGroupFunction(
+      "SESSION_ROWTIME",
+      SqlKind.OTHER_FUNCTION,
+      SESSION,
+      // ensure that returned rowtime is always NOT_NULLABLE
+      ReturnTypes.cascade(ReturnTypes.ARG0, SqlTypeTransforms.TO_NOT_NULLABLE),
+      SESSION.getOperandTypeChecker)
   val SESSION_PROCTIME: SqlGroupFunction =
     SESSION.auxiliary("SESSION_PROCTIME", SqlKind.OTHER_FUNCTION)
 

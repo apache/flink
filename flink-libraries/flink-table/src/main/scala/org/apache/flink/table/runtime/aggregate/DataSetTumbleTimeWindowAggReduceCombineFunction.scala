@@ -37,6 +37,8 @@ import org.apache.flink.types.Row
   *                               output row
   * @param windowEndPos           The relative window-end field position to the last field of
   *                               output row
+  * @param windowRowtimePos       The relative window-rowtime field position to the last field of
+  *                               output row
   * @param keysAndAggregatesArity The total arity of keys and aggregates
   */
 class DataSetTumbleTimeWindowAggReduceCombineFunction(
@@ -45,12 +47,14 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     windowSize: Long,
     windowStartPos: Option[Int],
     windowEndPos: Option[Int],
+    windowRowtimePos: Option[Int],
     keysAndAggregatesArity: Int)
   extends DataSetTumbleTimeWindowAggReduceGroupFunction(
     genFinalAggregations,
     windowSize,
     windowStartPos,
     windowEndPos,
+    windowRowtimePos,
     keysAndAggregatesArity)
     with CombineFunction[Row, Row] {
 
