@@ -35,42 +35,31 @@ import static org.apache.flink.util.Preconditions.checkState;
  * A buffer pool used to manage a number of {@link Buffer} instances from the
  * {@link NetworkBufferPool}.
  *
- * <p> Buffer requests are mediated to the network buffer pool to ensure dead-lock
- * free operation of the network stack by limiting the number of buffers per
- * local buffer pool. It also implements the default mechanism for buffer
- * recycling, which ensures that every buffer is ultimately returned to the
- * network buffer pool.
+ * <p> Compared with {@link LocalBufferPool}, this is a fixed size (non-rebalancing) buffer pool
+ * type which will not be involved in distributing the left available buffers in network buffer pool.
  *
- * <p> The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
- * will then lazily return the required number of buffers to the {@link NetworkBufferPool} to
- * match its new size.
+ * <p> This buffer pool can be used to manage the floating buffers for input gate.
  */
-class LocalBufferPool implements BufferPool {
-	private static final Logger LOG = LoggerFactory.getLogger(LocalBufferPool.class);
+class FixedBufferPool implements BufferPool {
+	private static final Logger LOG = LoggerFactory.getLogger(FixedBufferPool.class);
 
 	/** Global network buffer pool to get buffers from. */
 	private final NetworkBufferPool networkBufferPool;
 
-	/** The minimum number of required segments for this pool */
+	/** The required number of segments for this pool. */
 	private final int numberOfRequiredMemorySegments;
 
 	/**
 	 * The currently available memory segments. These are segments, which have been requested from
 	 * the network buffer pool and are currently not handed out as Buffer instances.
 	 */
-	private final ArrayDeque<MemorySegment> availableMemorySegments = new ArrayDeque<>();
+	private final Queue<MemorySegment> availableMemorySegments = new ArrayDeque<>();
 
 	/**
 	 * Buffer availability listeners, which need to be notified when a Buffer becomes available.
 	 * Listeners can only be registered at a time/state where no Buffer instance was available.
 	 */
-	private final Queue<EventListener<Buffer>> registeredListeners = new ArrayDeque<>();
-
-	/** Maximum number of network buffers to allocate. */
-	private final int maxNumberOfMemorySegments;
-
-	/** The current size of this pool */
-	private int currentPoolSize;
+	private final Queue<BufferPoolListener> registeredListeners = new ArrayDeque<>();
 
 	/**
 	 * Number of all memory segments, which have been requested from the network buffer pool and are
@@ -83,46 +72,23 @@ class LocalBufferPool implements BufferPool {
 	private BufferPoolOwner owner;
 
 	/**
-	 * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal number of
+	 * Fixed buffer pool based on the given <tt>networkBufferPool</tt> with a number of
 	 * network buffers being available.
 	 *
 	 * @param networkBufferPool
 	 * 		global network buffer pool to get buffers from
 	 * @param numberOfRequiredMemorySegments
-	 * 		minimum number of network buffers
+	 * 		fixed number of network buffers
 	 */
-	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, Integer.MAX_VALUE);
-	}
+	FixedBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
+		checkArgument(numberOfRequiredMemorySegments >= 0,
+			"Required number of memory segments (%s) should not be less than 0.",
+			numberOfRequiredMemorySegments);
 
-	/**
-	 * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal and maximal
-	 * number of network buffers being available.
-	 *
-	 * @param networkBufferPool
-	 * 		global network buffer pool to get buffers from
-	 * @param numberOfRequiredMemorySegments
-	 * 		minimum number of network buffers
-	 * @param maxNumberOfMemorySegments
-	 * 		maximum number of network buffers to allocate
-	 */
-	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments,
-			int maxNumberOfMemorySegments) {
-		checkArgument(maxNumberOfMemorySegments >= numberOfRequiredMemorySegments,
-			"Maximum number of memory segments (%s) should not be smaller than minimum (%s).",
-			maxNumberOfMemorySegments, numberOfRequiredMemorySegments);
-
-		checkArgument(maxNumberOfMemorySegments > 0,
-			"Maximum number of memory segments (%s) should be larger than 0.",
-			maxNumberOfMemorySegments);
-
-		LOG.debug("Using a local buffer pool with {}-{} buffers",
-			numberOfRequiredMemorySegments, maxNumberOfMemorySegments);
+		LOG.debug("Using a fixed buffer pool with {} buffers", numberOfRequiredMemorySegments);
 
 		this.networkBufferPool = networkBufferPool;
 		this.numberOfRequiredMemorySegments = numberOfRequiredMemorySegments;
-		this.currentPoolSize = numberOfRequiredMemorySegments;
-		this.maxNumberOfMemorySegments = maxNumberOfMemorySegments;
 	}
 
 	// ------------------------------------------------------------------------
@@ -148,7 +114,7 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public int getMaxNumberOfMemorySegments() {
-		return maxNumberOfMemorySegments;
+		return numberOfRequiredMemorySegments;
 	}
 
 	@Override
@@ -160,9 +126,7 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public int getNumBuffers() {
-		synchronized (availableMemorySegments) {
-			return currentPoolSize;
-		}
+		return numberOfRequiredMemorySegments;
 	}
 
 	@Override
@@ -182,8 +146,7 @@ class LocalBufferPool implements BufferPool {
 	public Buffer requestBuffer() throws IOException {
 		try {
 			return requestBuffer(false);
-		}
-		catch (InterruptedException e) {
+		} catch (InterruptedException e) {
 			throw new IOException(e);
 		}
 	}
@@ -195,17 +158,14 @@ class LocalBufferPool implements BufferPool {
 
 	private Buffer requestBuffer(boolean isBlocking) throws InterruptedException, IOException {
 		synchronized (availableMemorySegments) {
-			returnExcessMemorySegments();
-
 			boolean askToRecycle = owner != null;
 
-			// fill availableMemorySegments with at least one element, wait if required
 			while (availableMemorySegments.isEmpty()) {
 				if (isDestroyed) {
 					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
 
-				if (numberOfRequestedMemorySegments < currentPoolSize) {
+				if (numberOfRequestedMemorySegments < numberOfRequiredMemorySegments) {
 					final MemorySegment segment = networkBufferPool.requestMemorySegment();
 
 					if (segment != null) {
@@ -222,8 +182,7 @@ class LocalBufferPool implements BufferPool {
 
 				if (isBlocking) {
 					availableMemorySegments.wait(2000);
-				}
-				else {
+				} else {
 					return null;
 				}
 			}
@@ -235,21 +194,20 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void recycle(MemorySegment segment) {
 		synchronized (availableMemorySegments) {
-			if (isDestroyed || numberOfRequestedMemorySegments > currentPoolSize) {
+			if (isDestroyed) {
 				returnMemorySegment(segment);
-			}
-			else {
-				EventListener<Buffer> listener = registeredListeners.poll();
-
+			} else {
+				BufferPoolListener listener = registeredListeners.poll();
 				if (listener == null) {
 					availableMemorySegments.add(segment);
 					availableMemorySegments.notify();
-				}
-				else {
+				} else {
 					try {
-						listener.onEvent(new Buffer(segment, this));
-					}
-					catch (Throwable ignored) {
+						boolean needMoreBuffers = listener.notifyBufferAvailable(new Buffer(segment, this));
+						if (needMoreBuffers) {
+							registeredListeners.add(listener);
+						}
+					} catch (Throwable ignored) {
 						availableMemorySegments.add(segment);
 						availableMemorySegments.notify();
 					}
@@ -270,10 +228,7 @@ class LocalBufferPool implements BufferPool {
 					returnMemorySegment(segment);
 				}
 
-				EventListener<Buffer> listener;
-				while ((listener = registeredListeners.poll()) != null) {
-					listener.onEvent(null);
-				}
+				registeredListeners.clear();
 
 				isDestroyed = true;
 			}
@@ -284,6 +239,11 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public boolean addListener(EventListener<Buffer> listener) {
+		return false;
+	}
+
+	@Override
+	public boolean addBufferPoolListener(BufferPoolListener listener) {
 		synchronized (availableMemorySegments) {
 			if (!availableMemorySegments.isEmpty() || isDestroyed) {
 				return false;
@@ -295,63 +255,26 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public boolean addBufferPoolListener(BufferPoolListener listener) {
-		return false;
-	}
-
-	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
-		synchronized (availableMemorySegments) {
-			checkArgument(numBuffers >= numberOfRequiredMemorySegments,
-					"Buffer pool needs at least %s buffers, but tried to set to %s",
-					numberOfRequiredMemorySegments, numBuffers);
-
-			if (numBuffers > maxNumberOfMemorySegments) {
-				currentPoolSize = maxNumberOfMemorySegments;
-			} else {
-				currentPoolSize = numBuffers;
-			}
-
-			returnExcessMemorySegments();
-
-			// If there is a registered owner and we have still requested more buffers than our
-			// size, trigger a recycle via the owner.
-			if (owner != null && numberOfRequestedMemorySegments > currentPoolSize) {
-				owner.releaseMemory(numberOfRequestedMemorySegments - numBuffers);
-			}
-		}
+		checkArgument(numBuffers == numberOfRequiredMemorySegments,
+			"Buffer pool needs a fixed size of %s buffers, but tried to set to %s",
+			numberOfRequiredMemorySegments, numBuffers);
 	}
 
 	@Override
 	public String toString() {
 		synchronized (availableMemorySegments) {
-			return String.format(
-				"[size: %d, required: %d, requested: %d, available: %d, max: %d, listeners: %d, destroyed: %s]",
-				currentPoolSize, numberOfRequiredMemorySegments, numberOfRequestedMemorySegments,
-				availableMemorySegments.size(), maxNumberOfMemorySegments, registeredListeners.size(), isDestroyed);
+			return String.format("[required: %d, requested: %d, available: %d, listeners: %d, destroyed: %s]",
+				numberOfRequiredMemorySegments, numberOfRequestedMemorySegments,
+				availableMemorySegments.size(), registeredListeners.size(), isDestroyed);
 		}
 	}
 
 	// ------------------------------------------------------------------------
 
 	private void returnMemorySegment(MemorySegment segment) {
-		assert Thread.holdsLock(availableMemorySegments);
-
 		numberOfRequestedMemorySegments--;
 		networkBufferPool.recycle(segment);
-	}
-
-	private void returnExcessMemorySegments() {
-		assert Thread.holdsLock(availableMemorySegments);
-
-		while (numberOfRequestedMemorySegments > currentPoolSize) {
-			MemorySegment segment = availableMemorySegments.poll();
-			if (segment == null) {
-				return;
-			}
-
-			returnMemorySegment(segment);
-		}
 	}
 
 }

@@ -79,4 +79,12 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 * Returns the number of used buffers of this buffer pool.
 	 */
 	int bestEffortGetNumOfUsedBuffers();
+
+	/**
+	 * Adds a buffer availability listener to this buffer pool.
+	 *
+	 * <p> The operation fails with return value <code>false</code>, when there is a buffer available or
+	 * this buffer pool has been destroyed.
+	 */
+	boolean addBufferPoolListener(BufferPoolListener listener);
 }
