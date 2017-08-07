@@ -55,13 +55,12 @@ class JoinTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(1),
-            term("select", "a", "b", "-(proctime, 3600000) AS $f2",
-              "DATETIME_PLUS(proctime, 3600000) AS $f3")
+            term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(proctime, $f2), " +
-              "<=(proctime, $f3))"),
-          term("join", "a, proctime, a0, b, $f2, $f3"),
+            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
+              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+          term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
         term("select", "a", "b")

@@ -49,6 +49,10 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
 
+// This class is copied from Apache Calcite except that it does not
+// automatically name the field using the name of the operators
+// as the Table API rejects special characters like '-' in the field names.
+
 /**
  * PushProjector is a utility class used to perform operations used in push
  * projection rules.
