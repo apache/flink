@@ -219,7 +219,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 							//
 							for (Buffer buf : buffers) {
 								buf.recycle();
-								assertTrue(buf.isRecycled());
+								Assert.assertTrue(buf.isRecycled());
 							}
 
 							// Wait for all buffers to be available. The tasks
