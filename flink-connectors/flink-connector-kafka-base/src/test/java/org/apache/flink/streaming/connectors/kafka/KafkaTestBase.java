@@ -135,7 +135,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
 		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
-		kafkaServer.prepare(NUMBER_OF_KAFKA_SERVERS, secureMode);
+		kafkaServer.prepare(kafkaServer.createConfig().setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS).setSecureMode(secureMode));
 
 		standardProps = kafkaServer.getStandardProperties();
 

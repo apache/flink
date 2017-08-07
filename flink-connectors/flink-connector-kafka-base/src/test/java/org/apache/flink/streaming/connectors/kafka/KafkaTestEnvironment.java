@@ -38,14 +38,55 @@ import java.util.Properties;
  * Abstract class providing a Kafka test environment.
  */
 public abstract class KafkaTestEnvironment {
+	/**
+	 * Configuration class for {@link KafkaTestEnvironment}.
+	 */
+	public static class Config {
+		private int kafkaServersNumber = 1;
+		private Properties kafkaServerProperties = null;
+		private boolean secureMode = false;
+
+		/**
+		 * Please use {@link KafkaTestEnvironment#createConfig()} method.
+		 */
+		private Config() {
+		}
+
+		public int getKafkaServersNumber() {
+			return kafkaServersNumber;
+		}
+
+		public Config setKafkaServersNumber(int kafkaServersNumber) {
+			this.kafkaServersNumber = kafkaServersNumber;
+			return this;
+		}
+
+		public Properties getKafkaServerProperties() {
+			return kafkaServerProperties;
+		}
+
+		public Config setKafkaServerProperties(Properties kafkaServerProperties) {
+			this.kafkaServerProperties = kafkaServerProperties;
+			return this;
+		}
+
+		public boolean isSecureMode() {
+			return secureMode;
+		}
+
+		public Config setSecureMode(boolean secureMode) {
+			this.secureMode = secureMode;
+			return this;
+		}
+	}
 
 	protected static final String KAFKA_HOST = "localhost";
 
-	public abstract void prepare(int numKafkaServers, Properties kafkaServerProperties, boolean secureMode);
-
-	public void prepare(int numberOfKafkaServers, boolean secureMode) {
-		this.prepare(numberOfKafkaServers, null, secureMode);
+	public static Config createConfig() {
+		return new Config();
 	}
+
+	public abstract void prepare(Config config);
 
 	public abstract void shutdown();
 
