@@ -30,9 +30,8 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.google.common.base.Joiner;
-import com.google.common.collect.Sets;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -234,7 +233,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			NodeManager nm = yarnCluster.getNodeManager(nmId);
 			ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
 			for (Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
-				String command = Joiner.on(" ").join(entry.getValue().getLaunchContext().getCommands());
+				String command = StringUtils.join(entry.getValue().getLaunchContext().getCommands(), " ");
 				if (command.contains(YarnTaskManager.class.getSimpleName())) {
 					taskManagerContainer = entry.getKey();
 					nodeManager = nm;
@@ -568,7 +567,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		@SuppressWarnings("unchecked")
 		Set<String> applicationTags = (Set<String>) applicationTagsMethod.invoke(report);
 
-		Assert.assertEquals(applicationTags, Sets.newHashSet("test-tag"));
+		Assert.assertEquals(applicationTags, Collections.singleton("test-tag"));
 	}
 
 	@After
