@@ -64,8 +64,8 @@ case class In(expression: Expression, elements: Seq[Expression]) extends Express
             s"The sub-query table '$name' must not have more than one column.")
         }
         (expression.resultType, tableOutput.head.resultType) match {
-          case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
           case (lType, rType) if lType == rType => ValidationSuccess
+          case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
           case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
             ValidationSuccess
           case (lType, rType) =>
