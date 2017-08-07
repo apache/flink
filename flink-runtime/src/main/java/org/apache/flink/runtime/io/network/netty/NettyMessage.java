@@ -450,12 +450,11 @@ abstract class NettyMessage {
 		}
 
 		static TaskEventRequest readFrom(ByteBuf buffer, ClassLoader classLoader) throws IOException {
-			// TODO Directly deserialize fromNetty's buffer
+			// directly deserialize fromNetty's buffer
 			int length = buffer.readInt();
-			ByteBuffer serializedEvent = ByteBuffer.allocate(length);
-
-			buffer.readBytes(serializedEvent);
-			serializedEvent.flip();
+			ByteBuffer serializedEvent = buffer.nioBuffer(buffer.readerIndex(), length);
+			// assume this event's content is read from the ByteBuf (positions are not shared!)
+			buffer.readerIndex(buffer.readerIndex() + length);
 
 			TaskEvent event =
 				(TaskEvent) EventSerializer.fromSerializedEvent(serializedEvent, classLoader);
