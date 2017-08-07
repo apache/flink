@@ -71,7 +71,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 		// Edges
 		DataSet<Edge<K, EV>> edges = input
 			.getEdges()
-			.flatMap(new SymmetrizeAndRemoveSelfLoops<K, EV>(clipAndFlip))
+			.flatMap(new SymmetrizeAndRemoveSelfLoops<>(clipAndFlip))
 				.setParallelism(parallelism)
 				.name("Remove self-loops")
 			.distinct(0, 1)

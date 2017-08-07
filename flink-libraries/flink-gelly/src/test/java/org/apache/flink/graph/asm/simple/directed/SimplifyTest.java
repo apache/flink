@@ -70,7 +70,7 @@ public class SimplifyTest {
 			"(1,0,(null))";
 
 		Graph<IntValue, NullValue, NullValue> simpleGraph = graph
-			.run(new Simplify<IntValue, NullValue, NullValue>());
+			.run(new Simplify<>());
 
 		TestBaseUtils.compareResultAsText(simpleGraph.getEdges().collect(), expectedResult);
 	}

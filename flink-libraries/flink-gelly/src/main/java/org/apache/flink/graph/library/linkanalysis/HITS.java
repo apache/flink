@@ -129,17 +129,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			throws Exception {
 		DataSet<Tuple2<K, K>> edges = input
 			.getEdges()
-			.map(new ExtractEdgeIDs<K, EV>())
+			.map(new ExtractEdgeIDs<>())
 				.setParallelism(parallelism)
 				.name("Extract edge IDs");
 
 		// ID, hub, authority
 		DataSet<Tuple3<K, DoubleValue, DoubleValue>> initialScores = edges
-			.map(new InitializeScores<K>())
+			.map(new InitializeScores<>())
 				.setParallelism(parallelism)
 				.name("Initial scores")
 			.groupBy(0)
-			.reduce(new SumScores<K>())
+			.reduce(new SumScores<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
@@ -153,18 +153,18 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.coGroup(edges)
 			.where(0)
 			.equalTo(1)
-			.with(new Hubbiness<K>())
+			.with(new Hubbiness<>())
 				.setParallelism(parallelism)
 				.name("Hub")
 			.groupBy(0)
-			.reduce(new SumScore<K>())
+			.reduce(new SumScore<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
 		// sum-of-hubbiness-squared
 		DataSet<DoubleValue> hubbinessSumSquared = hubbiness
-			.map(new Square<K>())
+			.map(new Square<>())
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
@@ -177,18 +177,18 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.coGroup(edges)
 			.where(0)
 			.equalTo(0)
-			.with(new Authority<K>())
+			.with(new Authority<>())
 				.setParallelism(parallelism)
 				.name("Authority")
 			.groupBy(0)
-			.reduce(new SumScore<K>())
+			.reduce(new SumScore<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
 		// sum-of-authority-squared
 		DataSet<DoubleValue> authoritySumSquared = authority
-			.map(new Square<K>())
+			.map(new Square<>())
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
@@ -201,7 +201,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.fullOuterJoin(authority, JoinHint.REPARTITION_SORT_MERGE)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinAndNormalizeHubAndAuthority<K>())
+			.with(new JoinAndNormalizeHubAndAuthority<>())
 			.withBroadcastSet(hubbinessSumSquared, HUBBINESS_SUM_SQUARED)
 			.withBroadcastSet(authoritySumSquared, AUTHORITY_SUM_SQUARED)
 				.setParallelism(parallelism)
@@ -214,7 +214,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.fullOuterJoin(scores, JoinHint.REPARTITION_SORT_MERGE)
 				.where(0)
 				.equalTo(0)
-				.with(new ChangeInScores<K>())
+				.with(new ChangeInScores<>())
 					.setParallelism(parallelism)
 					.name("Change in scores");
 
@@ -225,7 +225,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		return iterative
 			.closeWith(passThrough)
-			.map(new TranslateResult<K>())
+			.map(new TranslateResult<>())
 				.setParallelism(parallelism)
 				.name("Map result");
 	}

@@ -62,7 +62,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 		// compose test program
 		DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
 			new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-			.map(new Tuple2ToVertexMap<Long, Long>());
+			.map(new Tuple2ToVertexMap<>());
 
 		DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 			.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
@@ -75,11 +75,11 @@ public class SpargelCompilerTest extends CompilerTestBase {
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
 		DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
-			new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO),
-			new ConnectedComponents.CCUpdater<Long, Long>(), 100)
+			new ConnectedComponents.CCMessenger<>(BasicTypeInfo.LONG_TYPE_INFO),
+			new ConnectedComponents.CCUpdater<>(), 100)
 			.getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		Plan p = env.createProgramPlan("Spargel Connected Components");
 		OptimizedPlan op = compileNoStats(p);
@@ -136,7 +136,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 
 		DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
 			new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-			.map(new Tuple2ToVertexMap<Long, Long>());
+			.map(new Tuple2ToVertexMap<>());
 
 		DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 			.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
@@ -153,11 +153,11 @@ public class SpargelCompilerTest extends CompilerTestBase {
 		parameters.addBroadcastSetForGatherFunction(broadcastVariableName, bcVar);
 
 		DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
-			new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO),
-			new ConnectedComponents.CCUpdater<Long, Long>(), 100)
+			new ConnectedComponents.CCMessenger<>(BasicTypeInfo.LONG_TYPE_INFO),
+			new ConnectedComponents.CCUpdater<>(), 100)
 			.getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		Plan p = env.createProgramPlan("Spargel Connected Components");
 		OptimizedPlan op = compileNoStats(p);

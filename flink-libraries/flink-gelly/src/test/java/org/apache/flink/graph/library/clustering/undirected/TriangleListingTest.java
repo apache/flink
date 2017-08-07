@@ -95,7 +95,7 @@ extends AsmTestBase {
 		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2) / 3;
 
 		DataSet<Result<LongValue>> tl = completeGraph
-			.run(new TriangleListing<LongValue, NullValue, NullValue>());
+			.run(new TriangleListing<>());
 
 		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
 			.run(tl)

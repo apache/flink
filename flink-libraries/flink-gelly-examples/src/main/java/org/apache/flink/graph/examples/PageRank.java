@@ -65,8 +65,8 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 		parameters.setOptNumVertices(true);
 
-		return networkWithWeights.runScatterGatherIteration(new RankMessenger<K>(),
-				new VertexRankUpdater<K>(beta), maxIterations, parameters)
+		return networkWithWeights.runScatterGatherIteration(new RankMessenger<>(),
+			new VertexRankUpdater<>(beta), maxIterations, parameters)
 				.getVertices();
 	}
 

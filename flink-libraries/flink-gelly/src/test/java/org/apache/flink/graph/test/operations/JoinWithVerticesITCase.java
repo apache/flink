@@ -60,7 +60,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices()
-			.map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
+			.map(new VertexToTuple2Map<>()), new AddValuesMapper());
 
 		DataSet<Vertex<Long, Long>> data = res.getVertices();
 		List<Vertex<Long, Long>> result = data.collect();
@@ -86,7 +86,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices().first(3)
-			.map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
+			.map(new VertexToTuple2Map<>()), new AddValuesMapper());
 
 		DataSet<Vertex<Long, Long>> data = res.getVertices();
 		List<Vertex<Long, Long>> result = data.collect();

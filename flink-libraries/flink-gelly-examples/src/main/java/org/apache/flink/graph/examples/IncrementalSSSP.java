@@ -265,7 +265,7 @@ public class IncrementalSSSP implements ProgramDescription {
 
 	private static Edge<Long, Double> getEdgeToBeRemoved() {
 		if (fileOutput) {
-			return new Edge<Long, Double>(srcEdgeToBeRemoved, trgEdgeToBeRemoved, valEdgeToBeRemoved);
+			return new Edge<>(srcEdgeToBeRemoved, trgEdgeToBeRemoved, valEdgeToBeRemoved);
 		} else {
 			return IncrementalSSSPData.getDefaultEdgeToBeRemoved();
 		}
