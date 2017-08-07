@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -109,6 +111,12 @@ public class CheckpointPropertiesTest {
 		{
 			CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
 			assertTrue(props.isSavepoint());
+
+			CheckpointProperties deserializedCheckpointProperties =
+				InstantiationUtil.deserializeObject(
+					InstantiationUtil.serializeObject(props),
+					getClass().getClassLoader());
+			assertTrue(deserializedCheckpointProperties.isSavepoint());
 		}
 
 	}
