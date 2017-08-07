@@ -36,12 +36,10 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link RMatGraph}.
  */
-public class RMatGraphTest
-extends GraphGeneratorTestBase {
+public class RMatGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		long vertexCount = 100;
 
 		long edgeCount = 1000;
@@ -56,8 +54,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();

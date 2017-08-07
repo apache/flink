@@ -62,8 +62,7 @@ public class SimplifyTest {
 	}
 
 	@Test
-	public void testWithFullFlip()
-			throws Exception {
+	public void testWithFullFlip() throws Exception {
 		String expectedResult =
 			"(0,1,(null))\n" +
 			"(0,2,(null))\n" +
@@ -77,8 +76,7 @@ public class SimplifyTest {
 	}
 
 	@Test
-	public void testWithClipAndFlip()
-			throws Exception {
+	public void testWithClipAndFlip() throws Exception {
 		String expectedResult =
 			"(0,1,(null))\n" +
 			"(1,0,(null))";

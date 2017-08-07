@@ -32,12 +32,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link VertexMetrics}.
  */
-public class VertexMetricsTest
-extends AsmTestBase {
+public class VertexMetricsTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		Result expectedResult = new Result(6, 7, 13, 4, 6);
 
 		Result vertexMetrics = new VertexMetrics<IntValue, NullValue, NullValue>()
@@ -48,8 +46,7 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
+	public void testWithCompleteGraph() throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
 		long expectedEdges = completeGraphVertexCount * expectedDegree / 2;
 		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
@@ -68,15 +65,14 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
+	public void testWithEmptyGraph() throws Exception {
 		Result expectedResult;
 
 		expectedResult = new Result(0, 0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.setIncludeZeroDegreeVertices(false)
-			.run(emptyGraph)
+			.run(emptyGraphWithVertices)
 			.execute();
 
 		assertEquals(expectedResult, withoutZeroDegreeVertices);
@@ -87,7 +83,7 @@ extends AsmTestBase {
 
 		Result withZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.setIncludeZeroDegreeVertices(true)
-			.run(emptyGraph)
+			.run(emptyGraphWithVertices)
 			.execute();
 
 		assertEquals(expectedResult, withZeroDegreeVertices);
@@ -96,8 +92,7 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithRMatGraph() throws Exception {
 		Result expectedResult = new Result(902, 10442, 1003442, 463, 106953);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()

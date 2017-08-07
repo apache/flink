@@ -19,6 +19,7 @@
 package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.Collect;
 import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
@@ -38,8 +39,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link PageRank}.
  */
-public class PageRankTest
-extends AsmTestBase {
+public class PageRankTest extends AsmTestBase {
 
 	private static final double DAMPING_FACTOR = 0.85;
 
@@ -55,8 +55,7 @@ extends AsmTestBase {
 		print('{}: {}'.format(key, pagerank[key]))
 	 */
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		DataSet<Result<IntValue>> pr = new PageRank<IntValue, NullValue, NullValue>(DAMPING_FACTOR, 10)
 			.run(directedSimpleGraph);
 
@@ -74,21 +73,42 @@ extends AsmTestBase {
 		}
 	}
 
-	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
-		double expectedScore = 1.0 / completeGraphVertexCount;
+	/**
+	 * Validate a test where each result has the same values.
+	 *
+	 * @param graph input graph
+	 * @param count number of results
+	 * @param score result PageRank score
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T> void validateUniformResult(Graph<T, NullValue, NullValue> graph, long count, double score) throws Exception {
+		DataSet<Result<T>> pr = new PageRank<T, NullValue, NullValue>(DAMPING_FACTOR, 0.000001)
+			.setIncludeZeroDegreeVertices(true)
+			.run(graph);
 
-		DataSet<Result<LongValue>> pr = new PageRank<LongValue, NullValue, NullValue>(DAMPING_FACTOR, 0.000001)
-			.run(completeGraph);
+		List<Result<T>> results = pr.collect();
 
-		List<Result<LongValue>> results = pr.collect();
+		assertEquals(count, results.size());
 
-		assertEquals(completeGraphVertexCount, results.size());
-
-		for (Result<LongValue> result : results) {
-			assertEquals(expectedScore, result.getPageRankScore().getValue(), 0.000001);
+		for (Result<T> result : results) {
+			assertEquals(score, result.getPageRankScore().getValue(), 0.000001);
 		}
+	}
+
+	@Test
+	public void testWithCompleteGraph() throws Exception {
+		validateUniformResult(completeGraph, completeGraphVertexCount, 1.0 / completeGraphVertexCount);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validateUniformResult(emptyGraphWithVertices, emptyGraphVertexCount, 1.0 / emptyGraphVertexCount);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validateUniformResult(emptyGraphWithoutVertices, 0, Double.NaN);
 	}
 
 	/*
@@ -103,8 +123,7 @@ extends AsmTestBase {
 		print('{}: {}'.format(key, pagerank[str(key)]))
 	 */
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithRMatGraph() throws Exception {
 		DataSet<Result<LongValue>> pr = new PageRank<LongValue, NullValue, NullValue>(DAMPING_FACTOR, 0.000001)
 			.run(directedRMatGraph(10, 16));
 

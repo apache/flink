@@ -20,6 +20,7 @@ package org.apache.flink.graph.generator;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
@@ -97,6 +98,7 @@ public class GraphGeneratorUtils {
 
 		return vertexSet
 			.distinct()
+			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Emit vertex labels");
 	}
