@@ -53,7 +53,7 @@ public class PlanFilterOperator<T> extends FilterOperatorBase<T, FlatMapFunction
 		}
 
 		@Override
-		public void flatMap(T value, Collector<T> out) throws Exception {
+		public final void flatMap(T value, Collector<T> out) throws Exception {
 			if (this.wrappedFunction.filter(value)) {
 				out.collect(value);
 			}
