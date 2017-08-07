@@ -48,7 +48,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowInputMapRunner, CRowInputScalaTupleOutputMapRunner, WrappingTimestampSetterProcessFunction}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
@@ -501,7 +501,6 @@ abstract class StreamTableEnvironment(
 
   /**
     * Injects markers for time indicator fields into the field indexes.
-    * A rowtime indicator is represented as -1, a proctime indicator as -2.
     *
     * @param fieldIndexes The field indexes into which the time indicators markers are injected.
     * @param rowtime An optional rowtime indicator
@@ -514,17 +513,15 @@ abstract class StreamTableEnvironment(
     proctime: Option[(Int, String)]): Array[Int] = {
 
     // inject rowtime field
-    val withRowtime = if (rowtime.isDefined) {
-      fieldIndexes.patch(rowtime.get._1, Seq(-1), 0) // -1 indicates rowtime
-    } else {
-      fieldIndexes
+    val withRowtime = rowtime match {
+      case Some(rt) => fieldIndexes.patch(rt._1, Seq(TimeIndicatorTypeInfo.ROWTIME_MARKER), 0)
+      case _ => fieldIndexes
     }
 
     // inject proctime field
-    val withProctime = if (proctime.isDefined) {
-      withRowtime.patch(proctime.get._1, Seq(-2), 0) // -2 indicates proctime
-    } else {
-      withRowtime
+    val withProctime = proctime match {
+      case Some(pt) => withRowtime.patch(pt._1, Seq(TimeIndicatorTypeInfo.PROCTIME_MARKER), 0)
+      case _ => withRowtime
     }
 
     withProctime
@@ -545,17 +542,15 @@ abstract class StreamTableEnvironment(
     proctime: Option[(Int, String)]): Array[String] = {
 
     // inject rowtime field
-    val withRowtime = if (rowtime.isDefined) {
-      fieldNames.patch(rowtime.get._1, Seq(rowtime.get._2), 0)
-    } else {
-      fieldNames
+    val withRowtime = rowtime match {
+      case Some(rt) => fieldNames.patch(rt._1, Seq(rowtime.get._2), 0)
+      case _ => fieldNames
     }
 
     // inject proctime field
-    val withProctime = if (proctime.isDefined) {
-      withRowtime.patch(proctime.get._1, Seq(proctime.get._2), 0)
-    } else {
-      withRowtime
+    val withProctime = proctime match {
+      case Some(pt) => withRowtime.patch(pt._1, Seq(proctime.get._2), 0)
+      case _ => withRowtime
     }
 
     withProctime
@@ -752,8 +747,7 @@ abstract class StreamTableEnvironment(
       .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
 
     if (rowtimeFields.isEmpty) {
-      // to rowtime field to set
-
+      // no rowtime field to set
       conversion match {
         case mapFunction: MapFunction[CRow, A] =>
           plan.map(mapFunction)
@@ -763,7 +757,6 @@ abstract class StreamTableEnvironment(
       }
     } else if (rowtimeFields.size == 1) {
       // set the only rowtime field as event-time timestamp for DataStream
-
       val mapFunction = conversion match {
         case mapFunction: MapFunction[CRow, A] => mapFunction
         case _ => new MapFunction[CRow, A] {
@@ -784,7 +777,7 @@ abstract class StreamTableEnvironment(
         s"Found more than one rowtime field: [${rowtimeFields.map(_.getName).mkString(", ")}] in " +
           s"the table that should be converted to a DataStream.\n" +
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
-          s"DataStream by casting all other fields to TIMESTAMP or LONG.")
+          s"DataStream by casting all other fields to TIMESTAMP.")
     }
   }
 

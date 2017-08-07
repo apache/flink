@@ -729,15 +729,15 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
-    if (schema.physicalTypeInfo != inputTypeInfo) {
+    if (schema.typeInfo != inputTypeInfo) {
       throw TableException(
         s"The field types of physical and logical row types do not match. " +
-        s"Physical type is [${schema.physicalTypeInfo}], Logical type is [${inputTypeInfo}]. " +
+        s"Physical type is [${schema.typeInfo}], Logical type is [${inputTypeInfo}]. " +
         s"This is a bug and should not happen. Please file an issue.")
     }
 
-    val fieldTypes = schema.physicalFieldTypeInfo
-    val fieldNames = schema.physicalFieldNames
+    val fieldTypes = schema.fieldTypeInfos
+    val fieldNames = schema.fieldNames
 
     // validate requested type
     if (requestedTypeInfo.getArity != fieldTypes.length) {

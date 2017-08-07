@@ -60,7 +60,7 @@ class DataStreamGroupWindowAggregate(
 
   private val LOG = LoggerFactory.getLogger(this.getClass)
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def needsUpdatesAsRetraction = true
 
@@ -86,14 +86,14 @@ class DataStreamGroupWindowAggregate(
   override def toString: String = {
     s"Aggregate(${
       if (!grouping.isEmpty) {
-        s"groupBy: (${groupingToString(inputSchema.logicalType, grouping)}), "
+        s"groupBy: (${groupingToString(inputSchema.relDataType, grouping)}), "
       } else {
         ""
       }
     }window: ($window), " +
       s"select: (${
         aggregationToString(
-          inputSchema.logicalType,
+          inputSchema.relDataType,
           grouping,
           getRowType,
           namedAggregates,
@@ -103,13 +103,13 @@ class DataStreamGroupWindowAggregate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .itemIf("groupBy", groupingToString(inputSchema.logicalType, grouping), !grouping.isEmpty)
+      .itemIf("groupBy", groupingToString(inputSchema.relDataType, grouping), !grouping.isEmpty)
       .item("window", window)
       .item(
         "select", aggregationToString(
-          inputSchema.logicalType,
+          inputSchema.relDataType,
           grouping,
-          schema.logicalType,
+          schema.relDataType,
           namedAggregates,
           namedProperties))
   }
@@ -145,27 +145,27 @@ class DataStreamGroupWindowAggregate(
     val timestampedInput = if (isRowtimeAttribute(window.timeAttribute)) {
       // copy the window rowtime attribute into the StreamRecord timestamp field
       val timeAttribute = window.timeAttribute.asInstanceOf[ResolvedFieldReference].name
-      val timeIdx = inputSchema.logicalFieldNames.indexOf(timeAttribute)
+      val timeIdx = inputSchema.fieldNames.indexOf(timeAttribute)
 
       inputDS
         .process(
-          new TimestampSetterProcessFunction(timeIdx,CRowTypeInfo(inputSchema.physicalTypeInfo)))
+          new TimestampSetterProcessFunction(timeIdx, CRowTypeInfo(inputSchema.typeInfo)))
         .setParallelism(inputDS.getParallelism)
         .name(s"time attribute: ($timeAttribute)")
     } else {
       inputDS
     }
 
-    val outRowType = CRowTypeInfo(schema.physicalTypeInfo)
+    val outRowType = CRowTypeInfo(schema.typeInfo)
 
     val aggString = aggregationToString(
-      inputSchema.logicalType,
+      inputSchema.relDataType,
       grouping,
-      schema.logicalType,
+      schema.relDataType,
       namedAggregates,
       namedProperties)
 
-    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.logicalType, grouping)}), " +
+    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.relDataType, grouping)}), " +
       s"window: ($window), " +
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"window: ($window), select: ($aggString)"
@@ -173,7 +173,7 @@ class DataStreamGroupWindowAggregate(
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputSchema.physicalTypeInfo)
+      inputSchema.typeInfo)
 
     val needMerge = window match {
       case SessionGroupWindow(_, _, _) => true
@@ -185,7 +185,7 @@ class DataStreamGroupWindowAggregate(
         window,
         grouping.length,
         namedAggregates.size,
-        schema.physicalArity,
+        schema.arity,
         namedProperties)
 
       val keyedStream = timestampedInput.keyBy(grouping: _*)
@@ -197,9 +197,9 @@ class DataStreamGroupWindowAggregate(
         AggregateUtil.createDataStreamAggregateFunction(
           generator,
           namedAggregates,
-          inputSchema.physicalType,
-          inputSchema.physicalFieldTypeInfo,
-          schema.physicalType,
+          inputSchema.relDataType,
+          inputSchema.fieldTypeInfos,
+          schema.relDataType,
           grouping,
           needMerge)
 
@@ -211,7 +211,7 @@ class DataStreamGroupWindowAggregate(
     else {
       val windowFunction = AggregateUtil.createAggregationAllWindowFunction(
         window,
-        schema.physicalArity,
+        schema.arity,
         namedProperties)
 
       val windowedStream =
@@ -222,9 +222,9 @@ class DataStreamGroupWindowAggregate(
         AggregateUtil.createDataStreamAggregateFunction(
           generator,
           namedAggregates,
-          inputSchema.physicalType,
-          inputSchema.physicalFieldTypeInfo,
-          schema.physicalType,
+          inputSchema.relDataType,
+          inputSchema.fieldTypeInfos,
+          schema.relDataType,
           Array[Int](),
           needMerge)
 

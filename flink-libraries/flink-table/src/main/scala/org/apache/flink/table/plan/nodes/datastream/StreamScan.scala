@@ -41,7 +41,7 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
     : DataStream[CRow] = {
 
     val inputType = input.getType
-    val internalType = CRowTypeInfo(schema.physicalTypeInfo)
+    val internalType = CRowTypeInfo(schema.typeInfo)
 
     // conversion
     if (needsConversion(input.getType, internalType)) {
@@ -54,8 +54,8 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
         Some(flinkTable.fieldIndexes))
 
       val conversion = generator.generateConverterResultExpression(
-        schema.physicalTypeInfo,
-        schema.physicalFieldNames)
+        schema.typeInfo,
+        schema.fieldNames)
 
       val body =
         s"""
@@ -67,7 +67,7 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
         "DataStreamSourceConversion",
         classOf[ProcessFunction[Any, Row]],
         body,
-        schema.physicalTypeInfo)
+        schema.typeInfo)
 
       val processFunc = new CRowOutputProcessRunner(
         function.name,

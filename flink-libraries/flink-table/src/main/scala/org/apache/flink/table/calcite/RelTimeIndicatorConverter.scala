@@ -27,7 +27,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
-import org.apache.flink.table.functions.ProcTimeMaterializationSqlFunction
+import org.apache.flink.table.functions.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 
@@ -247,7 +247,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
                 rexBuilder.makeAbstractCast(timestamp, expr)
               } else {
                 // generate proctime access
-                rexBuilder.makeCall(ProcTimeMaterializationSqlFunction, expr)
+                rexBuilder.makeCall(ProctimeSqlFunction, expr)
               }
             } else {
               expr
@@ -271,7 +271,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
               } else {
                 // generate proctime access
                 rexBuilder.makeCall(
-                  ProcTimeMaterializationSqlFunction,
+                  ProctimeSqlFunction,
                   new RexInputRef(field.getIndex, field.getType))
               }
             } else {
@@ -323,12 +323,12 @@ object RelTimeIndicatorConverter {
 
     var needsConversion = false
 
-    // materialize remaining proc time indicators
+    // materialize remaining proctime indicators
     val projects = convertedRoot.getRowType.getFieldList.map(field =>
       if (isProctimeIndicatorType(field.getType)) {
         needsConversion = true
         rexBuilder.makeCall(
-          ProcTimeMaterializationSqlFunction,
+          ProctimeSqlFunction,
           new RexInputRef(field.getIndex, field.getType))
       } else {
         new RexInputRef(field.getIndex, field.getType)
@@ -411,7 +411,7 @@ class RexTimeIndicatorMaterializer(
               rexBuilder.makeAbstractCast(timestamp, o)
             } else {
               // generate proctime access
-              rexBuilder.makeCall(ProcTimeMaterializationSqlFunction, o)
+              rexBuilder.makeCall(ProctimeSqlFunction, o)
             }
           } else {
             o

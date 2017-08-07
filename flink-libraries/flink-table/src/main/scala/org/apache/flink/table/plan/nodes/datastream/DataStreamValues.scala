@@ -41,10 +41,10 @@ class DataStreamValues(
     schema: RowSchema,
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     ruleDescription: String)
-  extends Values(cluster, schema.logicalType, tuples, traitSet)
+  extends Values(cluster, schema.relDataType, tuples, traitSet)
   with DataStreamRel {
 
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType() = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamValues(
@@ -62,14 +62,14 @@ class DataStreamValues(
 
     val config = tableEnv.getConfig
 
-    val returnType = CRowTypeInfo(schema.physicalTypeInfo)
+    val returnType = CRowTypeInfo(schema.typeInfo)
     val generator = new InputFormatCodeGenerator(config)
 
     // generate code for every record
     val generatedRecords = getTuples.asScala.map { r =>
       generator.generateResultExpression(
-        schema.physicalTypeInfo,
-        schema.physicalFieldNames,
+        schema.typeInfo,
+        schema.fieldNames,
         r.asScala)
     }
 
@@ -77,7 +77,7 @@ class DataStreamValues(
     val generatedFunction = generator.generateValuesInputFormat(
       ruleDescription,
       generatedRecords.map(_.code),
-      schema.physicalTypeInfo)
+      schema.typeInfo)
 
     val inputFormat = new CRowValuesInputFormat(
       generatedFunction.name,

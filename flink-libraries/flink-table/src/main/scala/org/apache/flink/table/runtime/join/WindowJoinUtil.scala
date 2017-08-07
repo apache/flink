@@ -416,8 +416,8 @@ object WindowJoinUtil {
       Some(rightType))
 
     val conversion = generator.generateConverterResultExpression(
-      returnType.physicalTypeInfo,
-      returnType.physicalType.getFieldNames.asScala)
+      returnType.typeInfo,
+      returnType.fieldNames)
 
     // if other condition is none, then output the result directly
     val body = otherCondition match {
@@ -442,7 +442,7 @@ object WindowJoinUtil {
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       body,
-      returnType.physicalTypeInfo)
+      returnType.typeInfo)
   }
 
 }

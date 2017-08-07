@@ -39,7 +39,7 @@ import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.functions.{FunctionContext, ProcTimeMaterializationSqlFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{FunctionContext, ProctimeSqlFunction, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
@@ -55,10 +55,11 @@ import scala.collection.mutable
   * @param nullableInput input(s) can be null.
   * @param input1 type information about the first input of the Function
   * @param input2 type information about the second input if the Function is binary
-  * @param input1FieldMapping additional mapping information for input1
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
-  * @param input2FieldMapping additional mapping information for input2
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
+  * @param input1FieldMapping additional mapping information for input1.
+  *   POJO types have no deterministic field order and some input fields might not be read.
+  *   The input1FieldMapping is also used to inject time indicator attributes.
+  * @param input2FieldMapping additional mapping information for input2.
+  *   POJO types have no deterministic field order and some input fields might not be read.
   */
 abstract class CodeGenerator(
     config: TableConfig,
@@ -244,20 +245,23 @@ abstract class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
+
     val input1AccessExprs = input1Mapping.map {
-      case -1 => generateStreamRecordTimestampAcccess()
-      case -2 => generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
-      case idx => generateInputAccess(input1, input1Term, idx)
+      case TimeIndicatorTypeInfo.ROWTIME_MARKER =>
+        // attribute is a rowtime indicator. Access event-time timestamp in StreamRecord.
+        generateRowtimeAccess()
+      case TimeIndicatorTypeInfo.PROCTIME_MARKER =>
+        // attribute is proctime indicator.
+        // We use a null literal and generate a timestamp when we need it.
+        generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
+      case idx =>
+        // regular attribute. Access attribute in input data type.
+        generateInputAccess(input1, input1Term, idx)
     }
 
     val input2AccessExprs = input2 match {
       case Some(ti) =>
-        input2Mapping.map {
-          case -1 => generateNullLiteral(TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
-          case -2 => generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
-          case idx => generateInputAccess(ti, input2Term, idx)
-        }.toSeq
-
+        input2Mapping.map(idx => generateInputAccess(ti, input2Term, idx)).toSeq
       case None => Seq() // add nothing
     }
 
@@ -722,10 +726,9 @@ abstract class CodeGenerator(
 
   override def visitCall(call: RexCall): GeneratedExpression = {
     // special case: time materialization
-    if (call.getOperator == ProcTimeMaterializationSqlFunction) {
-      return generateProcTimestamp()
+    if (call.getOperator == ProctimeSqlFunction) {
+      return generateProctimeTimestamp()
     }
-
 
     val operands = call.getOperands.map(_.accept(this))
     val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
@@ -946,7 +949,7 @@ abstract class CodeGenerator(
         generateArrayElement(this, array)
 
       case ScalarSqlFunctions.CONCAT =>
-        generateConcat(operands)
+        generateConcat(this.nullCheck, operands)
 
       case ScalarSqlFunctions.CONCAT_WS =>
         generateConcatWs(operands)
@@ -1106,19 +1109,6 @@ abstract class CodeGenerator(
     }
   }
 
-  private[flink] def generateStreamRecordTimestampAcccess(): GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-
-    val accessCode =
-      s"""
-         |long $resultTerm = $contextTerm.timestamp();
-         |boolean $nullTerm = false;
-       """.stripMargin
-
-    GeneratedExpression(resultTerm, nullTerm, accessCode, TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
-  }
-
   private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1269,7 +1259,25 @@ abstract class CodeGenerator(
     }
   }
 
-  private[flink] def generateProcTimestamp(): GeneratedExpression = {
+  private[flink] def generateRowtimeAccess(): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+
+    val accessCode =
+      s"""
+        |Long $resultTerm = $contextTerm.timestamp();
+        |if ($resultTerm == null) {
+        |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a proper " +
+        |    "TimestampAssigner is defined and the stream environment uses the EventTime time " +
+        |    "characteristic.");
+        |}
+        |boolean $nullTerm = false;
+       """.stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, accessCode, TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+  }
+
+  private[flink] def generateProctimeTimestamp(): GeneratedExpression = {
     val resultTerm = newName("result")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
 

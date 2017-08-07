@@ -77,6 +77,7 @@ class ProcTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
+    // remove timestamp set outside of ProcessFunction.
     out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     val iter =  bufferedEvents.get.iterator()

@@ -52,7 +52,7 @@ class DataStreamCalc(
   with CommonCalc
   with DataStreamRel {
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new DataStreamCalc(
@@ -100,7 +100,7 @@ class DataStreamCalc(
     val condition = if (calcProgram.getCondition != null) {
       val materializedCondition = RelTimeIndicatorConverter.convertExpression(
         calcProgram.expandLocalRef(calcProgram.getCondition),
-        inputSchema.logicalType,
+        inputSchema.relDataType,
         cluster.getRexBuilder)
       Some(materializedCondition)
     } else {
@@ -111,7 +111,7 @@ class DataStreamCalc(
     val projection = calcProgram.getProjectList.asScala
       .map(calcProgram.expandLocalRef)
 
-    val generator = new FunctionCodeGenerator(config, false, inputSchema.physicalTypeInfo)
+    val generator = new FunctionCodeGenerator(config, false, inputSchema.typeInfo)
 
     val genFunction = generateFunction(
       generator,
@@ -128,7 +128,7 @@ class DataStreamCalc(
     val processFunc = new CRowProcessRunner(
       genFunction.name,
       genFunction.code,
-      CRowTypeInfo(schema.physicalTypeInfo))
+      CRowTypeInfo(schema.typeInfo))
 
     inputDataStream
       .process(processFunc)

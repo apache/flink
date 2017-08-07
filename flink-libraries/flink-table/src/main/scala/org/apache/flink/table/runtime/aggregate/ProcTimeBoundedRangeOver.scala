@@ -124,6 +124,7 @@ class ProcTimeBoundedRangeOver(
       return
     }
 
+    // remove timestamp set outside of ProcessFunction.
     out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     // we consider the original timestamp of events

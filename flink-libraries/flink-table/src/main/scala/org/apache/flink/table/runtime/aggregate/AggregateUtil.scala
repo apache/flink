@@ -1147,22 +1147,22 @@ object AggregateUtil {
 
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
-      (p, x) => p match {
+      case (p, (s, e, t, i)) => p match {
         case NamedWindowProperty(_, prop) =>
           prop match {
-            case WindowStart(_) if x._1.isDefined =>
+            case WindowStart(_) if s.isDefined =>
               throw new TableException("Duplicate WindowStart property encountered. This is a bug.")
             case WindowStart(_) =>
-              (Some(x._4), x._2, x._3, x._4 - 1)
-            case WindowEnd(_) if x._2.isDefined =>
+              (Some(i), e, t, i - 1)
+            case WindowEnd(_) if e.isDefined =>
               throw new TableException("Duplicate WindowEnd property encountered. This is a bug.")
             case WindowEnd(_) =>
-              (x._1, Some(x._4), x._3, x._4 - 1)
-            case RowtimeAttribute(_) if x._3.isDefined =>
+              (s, Some(i), t, i - 1)
+            case RowtimeAttribute(_) if t.isDefined =>
               throw new TableException(
                 "Duplicate Window rowtime property encountered. This is a bug.")
             case RowtimeAttribute(_) =>
-              (x._1, x._2, Some(x._4), x._4 - 1)
+              (s, e, Some(i), i - 1)
           }
       }
     }
