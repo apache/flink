@@ -74,7 +74,9 @@ public class BlobServerGetTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -114,7 +116,9 @@ public class BlobServerGetTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -130,9 +134,10 @@ public class BlobServerGetTest extends TestLogger {
 			// issue a GET request that succeeds
 			InputStream is = client.get(key);
 
-			byte[] receiveBuffer = new byte[50000];
-			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
-			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
+			byte[] receiveBuffer = new byte[data.length];
+			int firstChunkLen = 50000;
+			BlobUtils.readFully(is, receiveBuffer, 0, firstChunkLen, null);
+			BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
 
 			// shut down the server
 			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
@@ -140,10 +145,10 @@ public class BlobServerGetTest extends TestLogger {
 			}
 
 			try {
-				byte[] remainder = new byte[data.length - 2*receiveBuffer.length];
-				BlobUtils.readFully(is, remainder, 0, remainder.length, null);
+				BlobUtils.readFully(is, receiveBuffer, 2 * firstChunkLen, data.length - 2 * firstChunkLen, null);
 				// we tolerate that this succeeds, as the receiver socket may have buffered
-				// everything already
+				// everything already, but in this case, also verify the contents
+				assertArrayEquals(data, receiveBuffer);
 			}
 			catch (IOException e) {
 				// expected
@@ -165,9 +170,9 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentGetOperations() throws IOException, ExecutionException, InterruptedException {
-		final Configuration configuration = new Configuration();
 
-		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		final BlobStore blobStore = mock(BlobStore.class);
 
@@ -197,7 +202,7 @@ public class BlobServerGetTest extends TestLogger {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
 				CompletableFuture<InputStream> getOperation = CompletableFuture.supplyAsync(
 					() -> {

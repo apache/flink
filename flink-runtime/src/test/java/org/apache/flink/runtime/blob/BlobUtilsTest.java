@@ -25,12 +25,12 @@ import static org.mockito.Mockito.mock;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import org.junit.rules.TemporaryFolder;
 
 public class BlobUtilsTest {
 
@@ -54,7 +54,7 @@ public class BlobUtilsTest {
 
 	@After
 	public void after() {
-		// Cleanup test directory
+		// Cleanup test directory, ensure it was empty
 		assertTrue(blobUtilsTestDirectory.delete());
 	}
 
