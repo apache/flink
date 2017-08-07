@@ -324,17 +324,18 @@ class ProcTimeWindowInnerJoin(
       }
     }
 
-    // Remove expired records from state
-    var i = removeList.size - 1
-    while (i >= 0) {
-      rowMapState.remove(removeList.get(i))
-      i -= 1
-    }
-    removeList.clear()
-
     // If the state has non-expired timestamps, register a new timer.
     // Otherwise clean the complete state for this input.
     if (validTimestamp) {
+
+      // Remove expired records from state
+      var i = removeList.size - 1
+      while (i >= 0) {
+        rowMapState.remove(removeList.get(i))
+        i -= 1
+      }
+      removeList.clear()
+
       val cleanupTime = curTime + winSize + 1
       ctx.timerService.registerProcessingTimeTimer(cleanupTime)
       timerState.update(cleanupTime)
