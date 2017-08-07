@@ -180,16 +180,16 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 				ProducerConfigConstants.MAX_CONNECTIONS, producerConfig.getMaxConnections(), LOG));
 
 		producerConfig.setRateLimit(PropertiesUtil.getLong(configProps,
-			ProducerConfigConstants.RATE_LIMIT, producerConfig.getRateLimit(), LOG));
+				ProducerConfigConstants.RATE_LIMIT, producerConfig.getRateLimit(), LOG));
 
 		producerConfig.setRecordMaxBufferedTime(PropertiesUtil.getLong(configProps,
-			ProducerConfigConstants.RECORD_MAX_BUFFERED_TIME, producerConfig.getRecordMaxBufferedTime(), LOG));
+				ProducerConfigConstants.RECORD_MAX_BUFFERED_TIME, producerConfig.getRecordMaxBufferedTime(), LOG));
 
 		producerConfig.setRecordTtl(PropertiesUtil.getLong(configProps,
-			ProducerConfigConstants.RECORD_TIME_TO_LIVE, producerConfig.getRecordTtl(), LOG));
+				ProducerConfigConstants.RECORD_TIME_TO_LIVE, producerConfig.getRecordTtl(), LOG));
 
 		producerConfig.setRequestTimeout(PropertiesUtil.getLong(configProps,
-			ProducerConfigConstants.REQUEST_TIMEOUT, producerConfig.getRequestTimeout(), LOG));
+				ProducerConfigConstants.REQUEST_TIMEOUT, producerConfig.getRequestTimeout(), LOG));
 
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {

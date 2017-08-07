@@ -31,7 +31,7 @@ public class ProducerConfigConstants extends AWSConfigConstants {
 	public static final String COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
 
 	/** Maximum number of connections to open to the backend. HTTP requests are
-	 * sent in parallel over multiple connections */
+	 * sent in parallel over multiple connections. */
 	public static final String MAX_CONNECTIONS = "aws.producer.maxConnections";
 
 	/** Limits the maximum allowed put rate for a shard, as a percentage of the backend limits. */
