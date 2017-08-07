@@ -48,34 +48,6 @@ extends ParameterTestBase {
 	// Test configuration
 
 	@Test
-	public void testDefaultValueBelowMinimum() {
-		parameter.setMinimumValue(1);
-
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Default value (0) must be greater than or equal to minimum (1)");
-
-		parameter.setDefaultValue(0);
-	}
-
-	@Test
-	public void testDefaultValueBetweenMinAndMax() {
-		parameter.setMinimumValue(-1);
-		parameter.setMaximumValue(1);
-
-		parameter.setDefaultValue(0);
-	}
-
-	@Test
-	public void testDefaultValueAboveMaximum() {
-		parameter.setMaximumValue(-1);
-
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Default value (0) must be less than or equal to maximum (-1)");
-
-		parameter.setDefaultValue(0);
-	}
-
-	@Test
 	public void testMinimumValueAboveMaximum() {
 		parameter.setMaximumValue(0);
 
@@ -86,31 +58,11 @@ extends ParameterTestBase {
 	}
 
 	@Test
-	public void testMinimumValueAboveDefault() {
-		parameter.setDefaultValue(0);
-
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Minimum value (1) must be less than or equal to default (0)");
-
-		parameter.setMinimumValue(1);
-	}
-
-	@Test
 	public void testMaximumValueBelowMinimum() {
 		parameter.setMinimumValue(0);
 
 		expectedException.expect(ProgramParametrizationException.class);
 		expectedException.expectMessage("Maximum value (-1) must be greater than or equal to minimum (0)");
-
-		parameter.setMaximumValue(-1);
-	}
-
-	@Test
-	public void testMaximumValueBelowDefault() {
-		parameter.setDefaultValue(0);
-
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Maximum value (-1) must be greater than or equal to default (0)");
 
 		parameter.setMaximumValue(-1);
 	}

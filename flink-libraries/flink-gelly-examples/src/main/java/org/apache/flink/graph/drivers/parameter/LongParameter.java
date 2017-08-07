@@ -52,16 +52,6 @@ extends SimpleParameter<Long> {
 	public LongParameter setDefaultValue(long defaultValue) {
 		super.setDefaultValue(defaultValue);
 
-		if (hasMinimumValue) {
-			Util.checkParameter(defaultValue >= minimumValue,
-				"Default value (" + defaultValue + ") must be greater than or equal to minimum (" + minimumValue + ")");
-		}
-
-		if (hasMaximumValue) {
-			Util.checkParameter(defaultValue <= maximumValue,
-				"Default value (" + defaultValue + ") must be less than or equal to maximum (" + maximumValue + ")");
-		}
-
 		return this;
 	}
 
@@ -72,10 +62,7 @@ extends SimpleParameter<Long> {
 	 * @return this
 	 */
 	public LongParameter setMinimumValue(long minimumValue) {
-		if (hasDefaultValue) {
-			Util.checkParameter(minimumValue <= defaultValue,
-				"Minimum value (" + minimumValue + ") must be less than or equal to default (" + defaultValue + ")");
-		} else if (hasMaximumValue) {
+		if (hasMaximumValue) {
 			Util.checkParameter(minimumValue <= maximumValue,
 				"Minimum value (" + minimumValue + ") must be less than or equal to maximum (" + maximumValue + ")");
 		}
@@ -93,10 +80,7 @@ extends SimpleParameter<Long> {
 	 * @return this
 	 */
 	public LongParameter setMaximumValue(long maximumValue) {
-		if (hasDefaultValue) {
-			Util.checkParameter(maximumValue >= defaultValue,
-				"Maximum value (" + maximumValue + ") must be greater than or equal to default (" + defaultValue + ")");
-		} else if (hasMinimumValue) {
+		if (hasMinimumValue) {
 			Util.checkParameter(maximumValue >= minimumValue,
 				"Maximum value (" + maximumValue + ") must be greater than or equal to minimum (" + minimumValue + ")");
 		}
@@ -109,16 +93,21 @@ extends SimpleParameter<Long> {
 
 	@Override
 	public void configure(ParameterTool parameterTool) {
-		value = hasDefaultValue ? parameterTool.getLong(name, defaultValue) : parameterTool.getLong(name);
+		if (hasDefaultValue && !parameterTool.has(name)) {
+			// skip checks for min and max when using default value
+			value = defaultValue;
+		} else {
+			value = parameterTool.getLong(name);
 
-		if (hasMinimumValue) {
-			Util.checkParameter(value >= minimumValue,
-				name + " must be greater than or equal to " + minimumValue);
-		}
+			if (hasMinimumValue) {
+				Util.checkParameter(value >= minimumValue,
+					name + " must be greater than or equal to " + minimumValue);
+			}
 
-		if (hasMaximumValue) {
-			Util.checkParameter(value <= maximumValue,
-				name + " must be less than or equal to " + maximumValue);
+			if (hasMaximumValue) {
+				Util.checkParameter(value <= maximumValue,
+					name + " must be less than or equal to " + maximumValue);
+			}
 		}
 	}
 

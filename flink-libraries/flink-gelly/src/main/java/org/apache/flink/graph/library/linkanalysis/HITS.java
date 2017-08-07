@@ -168,7 +168,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
-			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -192,7 +191,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
-			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 

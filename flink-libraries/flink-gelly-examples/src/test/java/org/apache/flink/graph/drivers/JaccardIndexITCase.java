@@ -68,4 +68,12 @@ public class JaccardIndexITCase extends CopyableValueDriverBaseITCase {
 
 		expectedOutputChecksum(parameters(8, "print"), new Checksum(39276, 0x00004c5a726220c0L));
 	}
+
+	@Test
+	public void testParallelism() throws Exception {
+		TestUtils.verifyParallelism(parameters(8, "print"),
+			"FlatMap \\(Mirror results\\)",
+			"GroupReduce \\(Compute scores\\)",
+			"GroupReduce \\(Generate group pairs\\)");
+	}
 }
