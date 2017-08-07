@@ -65,12 +65,20 @@ function stop_cluster {
     $FLINK_DIR/bin/stop-cluster.sh
   fi
 
-  if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log | grep -v "RetriableCommitFailedException" | grep -iq "error"; then
+  if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
+      | grep -v "RetriableCommitFailedException" \
+      | grep -v "NoAvailableBrokersException" \
+      | grep -v "Async Kafka commit failed" \
+      | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
     PASS=""
   fi
-  if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log | grep -v "RetriableCommitFailedException" | grep -iq "exception"; then
+  if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
+      | grep -v "RetriableCommitFailedException" \
+      | grep -v "NoAvailableBrokersException" \
+      | grep -v "Async Kafka commit failed" \
+      | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
     PASS=""
