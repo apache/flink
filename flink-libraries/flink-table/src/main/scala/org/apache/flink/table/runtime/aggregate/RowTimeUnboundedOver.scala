@@ -161,7 +161,7 @@ abstract class RowTimeUnboundedOver(
       return
     }
 
-    // remove StreamRecord timestamp
+    // remove timestamp set outside of ProcessFunction.
     out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     val keyIterator = rowMapState.keys.iterator

@@ -50,7 +50,7 @@ class DataStreamOverAggregate(
   with DataStreamRel {
   private val LOG = LoggerFactory.getLogger(this.getClass)
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def needsUpdatesAsRetraction = true
 
@@ -78,15 +78,15 @@ class DataStreamOverAggregate(
 
     super.explainTerms(pw)
       .itemIf("partitionBy",
-        partitionToString(schema.logicalType, partitionKeys), partitionKeys.nonEmpty)
+        partitionToString(schema.relDataType, partitionKeys), partitionKeys.nonEmpty)
       .item("orderBy",
-        orderingToString(schema.logicalType, overWindow.orderKeys.getFieldCollations))
+        orderingToString(schema.relDataType, overWindow.orderKeys.getFieldCollations))
       .itemIf("rows", windowRange(logicWindow, overWindow, inputNode), overWindow.isRows)
       .itemIf("range", windowRange(logicWindow, overWindow, inputNode), !overWindow.isRows)
       .item(
         "select", aggregationToString(
-          inputSchema.logicalType,
-          schema.logicalType,
+          inputSchema.relDataType,
+          schema.relDataType,
           namedAggregates))
   }
 
@@ -134,9 +134,9 @@ class DataStreamOverAggregate(
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputSchema.physicalTypeInfo)
+      inputSchema.typeInfo)
 
-    val timeType = schema.logicalType
+    val timeType = schema.relDataType
       .getFieldList
       .get(orderKey.getFieldIndex)
       .getType
@@ -189,14 +189,14 @@ class DataStreamOverAggregate(
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     // get the output types
-    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
 
     val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
       generator,
       namedAggregates,
-      inputSchema.physicalType,
-      inputSchema.physicalTypeInfo,
-      inputSchema.physicalFieldTypeInfo,
+      inputSchema.relDataType,
+      inputSchema.typeInfo,
+      inputSchema.fieldTypeInfos,
       queryConfig,
       rowTimeIdx,
       partitionKeys.nonEmpty,
@@ -237,14 +237,14 @@ class DataStreamOverAggregate(
       getLowerBoundary(logicWindow, overWindow, getInput()) + (if (isRowsClause) 1 else 0)
 
     // get the output types
-    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
 
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,
       namedAggregates,
-      inputSchema.physicalType,
-      inputSchema.physicalTypeInfo,
-      inputSchema.physicalFieldTypeInfo,
+      inputSchema.relDataType,
+      inputSchema.typeInfo,
+      inputSchema.fieldTypeInfos,
       precedingOffset,
       queryConfig,
       isRowsClause,
@@ -285,18 +285,18 @@ class DataStreamOverAggregate(
 
     s"over: (${
       if (!partitionKeys.isEmpty) {
-        s"PARTITION BY: ${partitionToString(inputSchema.logicalType, partitionKeys)}, "
+        s"PARTITION BY: ${partitionToString(inputSchema.relDataType, partitionKeys)}, "
       } else {
         ""
       }
-    }ORDER BY: ${orderingToString(inputSchema.logicalType,
+    }ORDER BY: ${orderingToString(inputSchema.relDataType,
         overWindow.orderKeys.getFieldCollations)}, " +
       s"${if (overWindow.isRows) "ROWS" else "RANGE"}" +
       s"${windowRange(logicWindow, overWindow, inputNode)}, " +
       s"select: (${
         aggregationToString(
-          inputSchema.logicalType,
-          schema.logicalType,
+          inputSchema.relDataType,
+          schema.relDataType,
           namedAggregates)
       }))"
   }

@@ -179,6 +179,7 @@ class RowTimeBoundedRowsOver(
       return
     }
 
+    // remove timestamp set outside of ProcessFunction.
     out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     // gets all window data from state for the calculation

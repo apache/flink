@@ -142,7 +142,7 @@ object SortUtil {
     }
 
     new RowComparator(
-      new RowSchema(inputType).physicalArity,
+      new RowSchema(inputType).arity,
       sortFields.toArray,
       fieldComps.toArray,
       new Array[TypeSerializer[AnyRef]](0), // not required because we only compare objects.

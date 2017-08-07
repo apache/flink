@@ -46,9 +46,9 @@ class CRowOutputProcessRunner(
   private var cRowWrapper: CRowWrappingCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
+    LOG.debug(s"Compiling ProcessFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating MapFunction.")
+    LOG.debug("Instantiating ProcessFunction.")
     function = clazz.newInstance()
 
     this.cRowWrapper = new CRowWrappingCollector()

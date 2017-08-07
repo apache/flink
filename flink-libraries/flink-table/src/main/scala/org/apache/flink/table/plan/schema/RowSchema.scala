@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelRecordType}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -31,57 +31,35 @@ import scala.collection.JavaConversions._
   */
 class RowSchema(private val logicalRowType: RelDataType) {
 
-  private lazy val physicalRowFields: Seq[RelDataTypeField] = logicalRowType.getFieldList
-
-  private lazy val physicalRowType: RelDataType = new RelRecordType(physicalRowFields)
-
-  private lazy val physicalRowFieldTypes: Seq[TypeInformation[_]] = physicalRowFields map { f =>
-    FlinkTypeFactory.toTypeInfo(f.getType)
-  }
-
-  private lazy val physicalRowFieldNames: Seq[String] = physicalRowFields.map(_.getName)
+  private lazy val physicalRowFieldTypes: Seq[TypeInformation[_]] =
+    logicalRowType.getFieldList map { f => FlinkTypeFactory.toTypeInfo(f.getType) }
 
   private lazy val physicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
-    physicalRowFieldTypes.toArray, physicalRowFieldNames.toArray)
+    physicalRowFieldTypes.toArray, fieldNames.toArray)
 
   /**
-    * Returns the arity of the logical record.
+    * Returns the arity of the schema.
     */
-  def logicalArity: Int = logicalRowType.getFieldCount
+  def arity: Int = logicalRowType.getFieldCount
 
   /**
-    * Returns the arity of the physical record.
+    * Returns the [[RelDataType]] of the schema
     */
-  def physicalArity: Int = physicalTypeInfo.getArity
+  def relDataType: RelDataType = logicalRowType
 
   /**
-    * Returns a logical [[RelDataType]] including logical fields (i.e. time indicators).
+    * Returns the [[TypeInformation]] of of the schema
     */
-  def logicalType: RelDataType = logicalRowType
+  def typeInfo: TypeInformation[Row] = physicalRowTypeInfo
 
   /**
-    * Returns a physical [[RelDataType]] with no logical fields (i.e. time indicators).
+    * Returns the [[TypeInformation]] of fields of the schema
     */
-  def physicalType: RelDataType = physicalRowType
+  def fieldTypeInfos: Seq[TypeInformation[_]] = physicalRowFieldTypes
 
   /**
-    * Returns a physical [[TypeInformation]] of row with no logical fields (i.e. time indicators).
+    * Returns the fields names
     */
-  def physicalTypeInfo: TypeInformation[Row] = physicalRowTypeInfo
-
-  /**
-    * Returns [[TypeInformation]] of the row's fields with no logical fields (i.e. time indicators).
-    */
-  def physicalFieldTypeInfo: Seq[TypeInformation[_]] = physicalRowFieldTypes
-
-  /**
-    * Returns the logical fields names including logical fields (i.e. time indicators).
-    */
-  def logicalFieldNames: Seq[String] = logicalRowType.getFieldNames
-
-  /**
-    * Returns the physical fields names with no logical fields (i.e. time indicators).
-    */
-  def physicalFieldNames: Seq[String] = physicalRowFieldNames
+  def fieldNames: Seq[String] = logicalRowType.getFieldNames
 
 }

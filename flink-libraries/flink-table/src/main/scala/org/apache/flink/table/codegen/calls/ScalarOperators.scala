@@ -1023,9 +1023,12 @@ object ScalarOperators {
     }
   }
 
-  def generateConcat(operands: Seq[GeneratedExpression]): GeneratedExpression = {
+  def generateConcat(
+      nullCheck: Boolean,
+      operands: Seq[GeneratedExpression])
+    : GeneratedExpression = {
 
-    generateCallIfArgsNotNull(true, STRING_TYPE_INFO, operands) {
+    generateCallIfArgsNotNull(nullCheck, STRING_TYPE_INFO, operands) {
       (terms) =>s"${qualifyMethod(BuiltInMethods.CONCAT)}(${terms.mkString(", ")})"
     }
   }
@@ -1035,6 +1038,8 @@ object ScalarOperators {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
     val defaultValue = primitiveDefaultValue(Types.STRING)
+
+    val tempTerms = operands.tail.map(_ => newName("temp"))
 
     val operatorCode =
       s"""
@@ -1046,11 +1051,15 @@ object ScalarOperators {
         |  $nullTerm = true;
         |  $resultTerm = $defaultValue;
         |} else {
-        |
-        |  ${operands.tail.map(o => s"if (${o.nullTerm}) ${o.resultTerm} = null;").mkString("\n")}
+        |  ${operands.tail.zip(tempTerms).map {
+                case (o: GeneratedExpression, t: String) =>
+                  s"String $t;\n" +
+                  s"  if (${o.nullTerm}) $t = null; else $t = ${o.resultTerm};"
+              }.mkString("\n")
+            }
         |  $nullTerm = false;
-        |  $resultTerm = ${qualifyMethod(BuiltInMethods.CONCAT_WS)}(
-        |    ${operands.map(_.resultTerm).mkString(", ")});
+        |  $resultTerm = ${qualifyMethod(BuiltInMethods.CONCAT_WS)}
+        |   (${operands.head.resultTerm}, ${tempTerms.mkString(", ")});
         |}
         |""".stripMargin
 

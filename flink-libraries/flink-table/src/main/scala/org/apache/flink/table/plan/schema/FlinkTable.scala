@@ -56,8 +56,8 @@ abstract class FlinkTable[T](
             "must not be greater than number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map {
-          case -1 => TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-          case -2 => TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+          case TimeIndicatorTypeInfo.ROWTIME_MARKER => TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+          case TimeIndicatorTypeInfo.PROCTIME_MARKER => TimeIndicatorTypeInfo.PROCTIME_INDICATOR
           case i => cType.getTypeAt(i).asInstanceOf[TypeInformation[_]]}
       case aType: AtomicType[_] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {

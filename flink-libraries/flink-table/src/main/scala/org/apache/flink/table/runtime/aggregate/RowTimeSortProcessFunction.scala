@@ -117,6 +117,7 @@ class RowTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
+    // remove timestamp set outside of ProcessFunction.
     out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     // gets all rows for the triggering timestamps

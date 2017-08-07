@@ -59,7 +59,7 @@ class DataStreamGroupAggregate(
 
   private val LOG = LoggerFactory.getLogger(this.getClass)
 
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType() = schema.relDataType
 
   override def needsUpdatesAsRetraction = true
 
@@ -83,20 +83,20 @@ class DataStreamGroupAggregate(
   override def toString: String = {
     s"Aggregate(${
       if (!groupings.isEmpty) {
-        s"groupBy: (${groupingToString(inputSchema.logicalType, groupings)}), "
+        s"groupBy: (${groupingToString(inputSchema.relDataType, groupings)}), "
       } else {
         ""
       }
     }select:(${aggregationToString(
-      inputSchema.logicalType, groupings, getRowType, namedAggregates, Nil)}))"
+      inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil)}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("groupBy", groupingToString(
-        inputSchema.logicalType, groupings), !groupings.isEmpty)
+        inputSchema.relDataType, groupings), !groupings.isEmpty)
       .item("select", aggregationToString(
-        inputSchema.logicalType, groupings, getRowType, namedAggregates, Nil))
+        inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil))
   }
 
   override def translateToPlan(
@@ -112,29 +112,29 @@ class DataStreamGroupAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val outRowType = CRowTypeInfo(schema.physicalTypeInfo)
+    val outRowType = CRowTypeInfo(schema.typeInfo)
 
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputSchema.physicalTypeInfo)
+      inputSchema.typeInfo)
 
     val aggString = aggregationToString(
-      inputSchema.logicalType,
+      inputSchema.relDataType,
       groupings,
       getRowType,
       namedAggregates,
       Nil)
 
-    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.logicalType, groupings)}), " +
+    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.relDataType, groupings)}), " +
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"select: ($aggString)"
 
     val processFunction = AggregateUtil.createGroupAggregateFunction(
       generator,
       namedAggregates,
-      inputSchema.logicalType,
-      inputSchema.physicalFieldTypeInfo,
+      inputSchema.relDataType,
+      inputSchema.fieldTypeInfos,
       groupings,
       queryConfig,
       DataStreamRetractionRules.isAccRetract(this),
