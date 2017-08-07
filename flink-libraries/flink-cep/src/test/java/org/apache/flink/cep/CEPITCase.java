@@ -586,4 +586,97 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		env.execute();
 	}
+
+	/**
+	 * Checks that a certain event sequence is recognized.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testSimplePatternEventTimeWithComparator() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		// (Event, timestamp)
+		DataStream<Event> input = env.fromElements(
+			Tuple2.of(new Event(1, "start", 1.0), 5L),
+			Tuple2.of(new Event(2, "middle", 2.0), 1L),
+			Tuple2.of(new Event(3, "end", 3.0), 3L),
+			Tuple2.of(new Event(4, "end", 4.0), 10L),
+			Tuple2.of(new Event(5, "middle", 6.0), 7L),
+			Tuple2.of(new Event(6, "middle", 5.0), 7L),
+			// last element for high final watermark
+			Tuple2.of(new Event(7, "middle", 5.0), 100L)
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+
+			@Override
+			public long extractTimestamp(Tuple2<Event, Long> element, long previousTimestamp) {
+				return element.f1;
+			}
+
+			@Override
+			public Watermark checkAndGetNextWatermark(Tuple2<Event, Long> lastElement, long extractedTimestamp) {
+				return new Watermark(lastElement.f1 - 5);
+			}
+
+		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
+
+			@Override
+			public Event map(Tuple2<Event, Long> value) throws Exception {
+				return value.f0;
+			}
+		});
+
+		EventComparator<Event> comparator = new CustomEventComparator();
+
+		Pattern<Event, ? extends Event> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("middle");
+			}
+		}).followedByAny("end").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
+
+		DataStream<String> result = CEP.pattern(input, pattern, comparator).select(
+			new PatternSelectFunction<Event, String>() {
+
+				@Override
+				public String select(Map<String, List<Event>> pattern) {
+					StringBuilder builder = new StringBuilder();
+
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
+
+					return builder.toString();
+				}
+			}
+		);
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// the expected sequence of matching event ids
+		expected = "1,6,4\n1,5,4";
+
+		env.execute();
+	}
+
+	private static class CustomEventComparator implements EventComparator<Event> {
+		@Override
+		public int compare(Event o1, Event o2) {
+			return Double.compare(o1.getPrice(), o2.getPrice());
+		}
+	}
 }
