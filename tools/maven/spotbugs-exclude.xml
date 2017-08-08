@@ -18,6 +18,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 <FindBugsFilter>
+	<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
+	<Match>
+    	<Package name="~org\.apache\.calcite.*"/>
+  	</Match>
+  	
 	<Match>
 		<Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
 	</Match>

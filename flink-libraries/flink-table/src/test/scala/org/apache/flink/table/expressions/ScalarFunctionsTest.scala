@@ -1664,10 +1664,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
     }
 
-    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER)," +
-      " TIMESTAMP '2016-02-24 12:42:25')", "null")
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
 
     testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+
+    testSqlApi("TIMESTAMPADD(DAY, 1, DATE '2016-06-15')", "2016-06-16")
 
     testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
 

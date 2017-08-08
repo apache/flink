@@ -29,7 +29,6 @@ import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.functions.sql.DateTimeSqlFunction
-import org.apache.flink.table.runtime.functions.DateTimeFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -360,7 +359,7 @@ case class TemporalOverlaps(
     val convLeftT = convertOverlapsEnd(relBuilder, leftP, leftT, leftTemporal.resultType)
     val convRightT = convertOverlapsEnd(relBuilder, rightP, rightT, rightTemporal.resultType)
 
-    // Sort end points into start and end, such that (s0 <= e0) and (s1 <= e1).
+    // sort end points into start and end, such that (s0 <= e0) and (s1 <= e1).
     val (s0, e0) = buildSwap(relBuilder, leftP, convLeftT)
     val (s1, e1) = buildSwap(relBuilder, rightP, convRightT)
 
