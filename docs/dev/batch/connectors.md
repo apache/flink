@@ -58,7 +58,7 @@ In order to use a Hadoop file system with Flink, make sure that
 
 #### Amazon S3
 
-See [Deployment & Operations - Deployment - AWS - S3: Simple Storage Service]({{ site.baseurl }}/setup/aws.html) for available S3 file system implementations, their configuration and required libraries.
+See [Deployment & Operations - Deployment - AWS - S3: Simple Storage Service]({{ site.baseurl }}/ops/deployment/aws.html) for available S3 file system implementations, their configuration and required libraries.
 
 #### Alluxio
 

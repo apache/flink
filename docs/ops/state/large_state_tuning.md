@@ -1,6 +1,6 @@
 ---
 title: "Debugging and Tuning Checkpoints and Large State"
-nav-parent_id: monitoring
+nav-parent_id: ops_state
 nav-pos: 12
 ---
 <!--
@@ -42,7 +42,7 @@ The last section explains some best practices concerning planning how many resou
 ## Monitoring State and Checkpoints
 
 The easiest way to monitor checkpoint behavior is via the UI's checkpoint section. The documentation
-for [checkpoint monitoring](checkpoint_monitoring.html) shows how to access the available checkpoint
+for [checkpoint monitoring](../../monitoring/checkpoint_monitoring.html) shows how to access the available checkpoint
 metrics.
 
 The two numbers that are of particular interest when scaling up checkpoints are:
@@ -85,7 +85,7 @@ To prevent such a situation, applications can define a *minimum duration between
 This duration is the minimum time interval that must pass between the end of the latest checkpoint and the beginning
 of the next. The figure below illustrates how this impacts checkpointing.
 
-<img src="../fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
+<img src="../../fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
 
 *Note:* Applications can be configured (via the `CheckpointConfig`) to allow multiple checkpoints to be in progress at
 the same time. For applications with large state in Flink, this often ties up too many resources into the checkpointing.
@@ -98,7 +98,7 @@ Before Flink 1.3, an increased number of network buffers also caused increased c
 keeping more in-flight data meant that checkpoint barriers got delayed. Since Flink 1.3, the
 number of network buffers used per outgoing/incoming channel is limited and thus network buffers
 may be configured without affecting checkpoint times
-(see [network buffer configuration](../setup/config.html#configuring-the-network-buffers)).
+(see [network buffer configuration](../config.html#configuring-the-network-buffers)).
 
 ## Make state checkpointing Asynchronous where possible
 
@@ -108,7 +108,7 @@ impact.
 
 To get state to be snapshotted asynchronously, applications have to do two things:
 
-  1. Use state that is [managed by Flink](../dev/stream/state.html): Managed state means that Flink provides the data
+  1. Use state that is [managed by Flink](../../dev/stream/state/state.html): Managed state means that Flink provides the data
      structure in which the state is stored. Currently, this is true for *keyed state*, which is abstracted behind the
      interfaces like `ValueState`, `ListState`, `ReducingState`, ...
 
@@ -122,7 +122,7 @@ This is subject to change with the planned introduction of *managed operator sta
 ## Tuning RocksDB
 
 The state storage workhorse of many large scale Flink streaming applications is the *RocksDB State Backend*.
-The backend scales well beyond main memory and reliably stores large [keyed state](../dev/stream/state.html).
+The backend scales well beyond main memory and reliably stores large [keyed state](../../dev/stream/state/state.html).
 
 Unfortunately, RocksDB's performance can vary with configuration, and there is little documentation on how to tune
 RocksDB properly. For example, the default configuration is tailored towards SSDs and performs suboptimal
@@ -191,7 +191,7 @@ This section discusses how to decide how many resources should be used for a Fli
 The basic rules of thumb for capacity planning are:
 
   - Normal operation should have enough capacity to not operate under constant *back pressure*.
-    See [back pressure monitoring](back_pressure.html) for details on how to check whether the application runs under back pressure.
+    See [back pressure monitoring](../../monitoring/back_pressure.html) for details on how to check whether the application runs under back pressure.
 
   - Provision some extra resources on top of the resources needed to run the program back-pressure-free during failure-free time.
     These resources are needed to "catch up" with the input data that accumulated during the time the application

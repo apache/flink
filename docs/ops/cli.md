@@ -1,8 +1,8 @@
 ---
 title:  "Command-Line Interface"
 nav-title: CLI
-nav-parent_id: setup
-nav-pos: 2
+nav-parent_id: ops
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -82,7 +82,7 @@ The command line can be used to
                                ./examples/batch/WordCount.jar \
                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster]({{site.baseurl}}/setup/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/batch/WordCount.jar \
@@ -136,7 +136,7 @@ This allows the job to finish processing all inflight data.
 
 ### Savepoints
 
-[Savepoints]({{site.baseurl}}/setup/savepoints.html) are controlled via the command line client:
+[Savepoints]({{site.baseurl}}/ops/state/savepoints.html) are controlled via the command line client:
 
 #### Trigger a savepoint
 
@@ -146,7 +146,7 @@ This allows the job to finish processing all inflight data.
 
 Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [Savepoints](savepoints.html#configuration)).
+You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
 
 ##### Cancel with a savepoint
 
@@ -156,7 +156,7 @@ You can atomically trigger a savepoint and cancel a job.
 ./bin/flink cancel -s  [savepointDirectory] <jobID>
 {% endhighlight %}
 
-If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints](savepoints.html#configuration)).
+If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
 

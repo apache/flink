@@ -134,7 +134,7 @@ DataStream<String> rawInput = env.addSource(
 
 If a Spout emits a finite number of tuples, `SpoutWrapper` can be configures to terminate automatically by setting `numberOfInvocations` parameter in its constructor.
 This allows the Flink program to shut down automatically after all data is processed.
-Per default the program will run until it is [canceled]({{site.baseurl}}/setup/cli.html) manually.
+Per default the program will run until it is [canceled]({{site.baseurl}}/ops/cli.html) manually.
 
 
 ## Embed Bolts

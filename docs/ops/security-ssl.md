@@ -1,7 +1,7 @@
 ---
 title: "SSL Setup"
-nav-parent_id: setup
-nav-pos: 9
+nav-parent_id: ops
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

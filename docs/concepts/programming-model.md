@@ -171,7 +171,7 @@ This alignment also allows Flink to redistribute the state and adjust the stream
 
 <img src="../fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
 
-For more information, see the documentation on [working with state](../dev/stream/state.html).
+For more information, see the documentation on [state](../dev/stream/state/index.html).
 
 {% top %}
 
@@ -188,7 +188,7 @@ of events that need to be replayed).
 
 The description of the [fault tolerance internals]({{ site.baseurl }}/internals/stream_checkpointing.html) provides
 more information about how Flink manages checkpoints and related topics.
-Details about enabling and configuring checkpointing are in the [checkpointing API docs](../dev/stream/checkpointing.html).
+Details about enabling and configuring checkpointing are in the [checkpointing API docs](../dev/stream/state/checkpointing.html).
 
 
 {% top %}

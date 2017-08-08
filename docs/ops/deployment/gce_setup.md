@@ -72,7 +72,7 @@ bdutil_env.sh.
 
 ## Adapt the Flink config
 
-bdutil's Flink extension handles the configuration for you. You may additionally adjust configuration variables in `extensions/flink/flink_env.sh`. If you want to make further configuration, please take a look at [configuring Flink](config.html). You will have to restart Flink after changing its configuration using `bin/stop-cluster` and `bin/start-cluster`.
+bdutil's Flink extension handles the configuration for you. You may additionally adjust configuration variables in `extensions/flink/flink_env.sh`. If you want to make further configuration, please take a look at [configuring Flink](../config.html). You will have to restart Flink after changing its configuration using `bin/stop-cluster` and `bin/start-cluster`.
 
 ## Bring up a cluster with Flink
 

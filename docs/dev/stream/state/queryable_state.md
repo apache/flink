@@ -1,7 +1,8 @@
 ---
 title: "Queryable State"
-nav-parent_id: streaming
-nav-pos: 61
+nav-parent_id: streaming_state
+nav-pos: 3
+is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -32,7 +33,7 @@ under the License.
 </div>
 
 In a nutshell, this feature allows users to query Flink's managed partitioned state
-(see [Working with State]({{ site.baseurl }}/dev/stream/state.html)) from outside of
+(see [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)) from outside of
 Flink. For some scenarios, queryable state thus eliminates the need for distributed
 operations/transactions with external systems such as key-value stores which are often the
 bottleneck in practice.
@@ -107,7 +108,7 @@ This acts like the Scala API's `flatMapWithState`.
 ### Managed Keyed State
 
 Managed keyed state of an operator
-(see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state.html#using-managed-keyed-state))
+(see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))
 can be made queryable by making the appropriate state descriptor queryable via
 `StateDescriptor#setQueryable(String queryableStateName)`, as in the example below:
 {% highlight java %}
@@ -176,7 +177,7 @@ There are some serialization utils for key/namespace and value serialization inc
 ### Example
 
 The following example extends the `CountWindowAverage` example
-(see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state.html#using-managed-keyed-state))
+(see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))
 by making it queryable and showing how to query this value:
 
 {% highlight java %}
