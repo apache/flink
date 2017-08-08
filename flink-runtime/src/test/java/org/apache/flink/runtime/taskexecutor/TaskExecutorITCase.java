@@ -43,6 +43,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -167,7 +168,7 @@ public class TaskExecutorITCase extends TestLogger {
 			any(Time.class))).thenReturn(mock(CompletableFuture.class, RETURNS_MOCKS));
 
 
-		rpcService.registerGateway(rmAddress, resourceManager.getSelf());
+		rpcService.registerGateway(rmAddress, resourceManager.getSelfGateway(ResourceManagerGateway.class));
 		rpcService.registerGateway(jmAddress, jmGateway);
 
 		final AllocationID allocationId = new AllocationID();
@@ -189,13 +190,14 @@ public class TaskExecutorITCase extends TestLogger {
 				jmLeaderId,
 				jmResourceId,
 				jmAddress,
-				jobId);
+				jobId,
+				Time.milliseconds(0L));
 
 			RegistrationResponse registrationResponse = registrationResponseFuture.get();
 
 			assertTrue(registrationResponse instanceof JobMasterRegistrationSuccess);
 
-			resourceManager.requestSlot(jmLeaderId, rmLeaderId, slotRequest);
+			resourceManager.requestSlot(jmLeaderId, rmLeaderId, slotRequest, Time.milliseconds(0L));
 
 			verify(jmGateway).offerSlots(
 				eq(taskManagerResourceId),

@@ -82,7 +82,7 @@ public class SlotPoolRpcTest {
 		);
 		pool.start(UUID.randomUUID(), "foobar");
 
-		CompletableFuture<SimpleSlot> future = pool.allocateSlot(mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future = pool.allocateSlot(mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, Time.days(1));
 
 		try {
 			future.get(4, TimeUnit.SECONDS);

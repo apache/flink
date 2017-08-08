@@ -33,18 +33,18 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.SelfGateway;
-import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.RpcServer;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.messages.Shutdown;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.Nonnull;
@@ -188,7 +188,7 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
+	public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
 		checkNotNull(rpcEndpoint, "rpc endpoint");
 
 		CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
@@ -225,22 +225,22 @@ public class AkkaRpcService implements RpcService {
 		// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
 		ClassLoader classLoader = getClass().getClassLoader();
 
+		Set<Class<? extends RpcGateway>> implementedRpcGateways = RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass());
+
+		implementedRpcGateways.add(RpcServer.class);
+		implementedRpcGateways.add(AkkaGateway.class);
+
 		@SuppressWarnings("unchecked")
-		C self = (C) Proxy.newProxyInstance(
+		RpcServer server = (RpcServer) Proxy.newProxyInstance(
 			classLoader,
-			new Class<?>[]{
-				rpcEndpoint.getSelfGatewayType(),
-				SelfGateway.class,
-				MainThreadExecutable.class,
-				StartStoppable.class,
-				AkkaGateway.class},
+			implementedRpcGateways.toArray(new Class<?>[implementedRpcGateways.size()]),
 			akkaInvocationHandler);
 
-		return self;
+		return server;
 	}
 
 	@Override
-	public void stopServer(RpcGateway selfGateway) {
+	public void stopServer(RpcServer selfGateway) {
 		if (selfGateway instanceof AkkaGateway) {
 			AkkaGateway akkaClient = (AkkaGateway) selfGateway;
 
@@ -312,7 +312,7 @@ public class AkkaRpcService implements RpcService {
 
 	@Override
 	public <T> CompletableFuture<T> execute(Callable<T> callable) {
-		scala.concurrent.Future<T> scalaFuture = Futures.future(callable, actorSystem.dispatcher());
+		Future<T> scalaFuture = Futures.future(callable, actorSystem.dispatcher());
 
 		return FutureUtils.toJava(scalaFuture);
 	}

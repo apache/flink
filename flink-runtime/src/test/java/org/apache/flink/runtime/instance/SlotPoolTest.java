@@ -101,7 +101,7 @@ public class SlotPoolTest extends TestLogger {
 		slotPool.registerTaskManager(resourceID);
 
 		ScheduledUnit task = mock(ScheduledUnit.class);
-		CompletableFuture<SimpleSlot> future = slotPool.allocateSlot(task, DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future = slotPool.allocateSlot(task, DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 		assertFalse(future.isDone());
 
 		ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
@@ -110,7 +110,7 @@ public class SlotPoolTest extends TestLogger {
 		final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
 		AllocatedSlot allocatedSlot = createAllocatedSlot(resourceID, slotRequest.getAllocationId(), jobId, DEFAULT_TESTING_PROFILE);
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 
 		SimpleSlot slot = future.get(1, TimeUnit.SECONDS);
 		assertTrue(future.isDone());
@@ -126,8 +126,8 @@ public class SlotPoolTest extends TestLogger {
 		ResourceID resourceID = new ResourceID("resource");
 		slotPool.registerTaskManager(resourceID);
 
-		CompletableFuture<SimpleSlot> future1 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
-		CompletableFuture<SimpleSlot> future2 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future1 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
+		CompletableFuture<SimpleSlot> future2 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 
 		assertFalse(future1.isDone());
 		assertFalse(future2.isDone());
@@ -139,7 +139,7 @@ public class SlotPoolTest extends TestLogger {
 		final List<SlotRequest> slotRequests = slotRequestArgumentCaptor.getAllValues();
 
 		AllocatedSlot allocatedSlot = createAllocatedSlot(resourceID, slotRequests.get(0).getAllocationId(), jobId, DEFAULT_TESTING_PROFILE);
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 
 		SimpleSlot slot1 = future1.get(1, TimeUnit.SECONDS);
 		assertTrue(future1.isDone());
@@ -165,7 +165,7 @@ public class SlotPoolTest extends TestLogger {
 		ResourceID resourceID = new ResourceID("resource");
 		slotPool.registerTaskManager(resourceID);
 
-		CompletableFuture<SimpleSlot> future1 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future1 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 		assertFalse(future1.isDone());
 
 		ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
@@ -174,7 +174,7 @@ public class SlotPoolTest extends TestLogger {
 		final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
 		AllocatedSlot allocatedSlot = createAllocatedSlot(resourceID, slotRequest.getAllocationId(), jobId, DEFAULT_TESTING_PROFILE);
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 
 		SimpleSlot slot1 = future1.get(1, TimeUnit.SECONDS);
 		assertTrue(future1.isDone());
@@ -182,7 +182,7 @@ public class SlotPoolTest extends TestLogger {
 		// return this slot to pool
 		slot1.releaseSlot();
 
-		CompletableFuture<SimpleSlot> future2 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future2 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 
 		// second allocation fulfilled by previous slot returning
 		SimpleSlot slot2 = future2.get(1, TimeUnit.SECONDS);
@@ -200,7 +200,7 @@ public class SlotPoolTest extends TestLogger {
 		ResourceID resourceID = new ResourceID("resource");
 		slotPool.registerTaskManager(resourceID);
 
-		CompletableFuture<SimpleSlot> future = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 		assertFalse(future.isDone());
 
 		ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
@@ -210,30 +210,30 @@ public class SlotPoolTest extends TestLogger {
 
 		// slot from unregistered resource
 		AllocatedSlot invalid = createAllocatedSlot(new ResourceID("unregistered"), slotRequest.getAllocationId(), jobId, DEFAULT_TESTING_PROFILE);
-		assertFalse(slotPool.offerSlot(invalid));
+		assertFalse(slotPool.offerSlot(invalid).get());
 
 		AllocatedSlot notRequested = createAllocatedSlot(resourceID, new AllocationID(), jobId, DEFAULT_TESTING_PROFILE);
 
 		// we'll also accept non requested slots
-		assertTrue(slotPool.offerSlot(notRequested));
+		assertTrue(slotPool.offerSlot(notRequested).get());
 
 		AllocatedSlot allocatedSlot = createAllocatedSlot(resourceID, slotRequest.getAllocationId(), jobId, DEFAULT_TESTING_PROFILE);
 
 		// accepted slot
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 		SimpleSlot slot = future.get(1, TimeUnit.SECONDS);
 		assertTrue(future.isDone());
 		assertTrue(slot.isAlive());
 
 		// duplicated offer with using slot
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 		assertTrue(future.isDone());
 		assertTrue(slot.isAlive());
 
 		// duplicated offer with free slot
 		slot.releaseSlot();
 		assertTrue(slot.isReleased());
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 	}
 
 	@Test
@@ -241,17 +241,17 @@ public class SlotPoolTest extends TestLogger {
 		ResourceID resourceID = new ResourceID("resource");
 		slotPool.registerTaskManager(resourceID);
 
-		CompletableFuture<SimpleSlot> future1 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future1 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 
 		ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
 		verify(resourceManagerGateway).requestSlot(any(UUID.class), any(UUID.class), slotRequestArgumentCaptor.capture(), any(Time.class));
 
 		final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
-		CompletableFuture<SimpleSlot> future2 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
+		CompletableFuture<SimpleSlot> future2 = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null, Time.milliseconds(0L));
 
 		AllocatedSlot allocatedSlot = createAllocatedSlot(resourceID, slotRequest.getAllocationId(), jobId, DEFAULT_TESTING_PROFILE);
-		assertTrue(slotPool.offerSlot(allocatedSlot));
+		assertTrue(slotPool.offerSlot(allocatedSlot).get());
 
 		SimpleSlot slot1 = future1.get(1, TimeUnit.SECONDS);
 		assertTrue(future1.isDone());

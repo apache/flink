@@ -112,7 +112,7 @@ public class JobMasterTest extends TestLogger {
 			jobMaster.start(jmLeaderId);
 
 			// register task manager will trigger monitor heartbeat target, schedule heartbeat request at interval time
-			jobMaster.registerTaskManager(taskManagerAddress, taskManagerLocation, jmLeaderId);
+			jobMaster.registerTaskManager(taskManagerAddress, taskManagerLocation, jmLeaderId, Time.milliseconds(0L));
 
 			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
 			verify(scheduledExecutor, times(1)).scheduleAtFixedRate(

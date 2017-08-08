@@ -85,7 +85,7 @@ public class DispatcherTest extends TestLogger {
 
 			dispatcher.start();
 
-			DispatcherGateway dispatcherGateway = dispatcher.getSelf();
+			DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
 			CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, timeout);
 

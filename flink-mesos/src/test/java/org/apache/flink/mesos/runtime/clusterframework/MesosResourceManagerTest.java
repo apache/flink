@@ -122,6 +122,8 @@ public class MesosResourceManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
+	private static final Time timeout = Time.seconds(10L);
+
 	@Before
 	public void setup() {
 		system = AkkaUtils.createLocalActorSystem(flinkConfig);
@@ -415,7 +417,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		 */
 		public void registerJobMaster(MockJobMaster jobMaster) throws Exception  {
 			CompletableFuture<RegistrationResponse> registration = resourceManager.registerJobManager(
-				rmServices.rmLeaderSessionId, jobMaster.leaderSessionID, jobMaster.resourceID, jobMaster.address, jobMaster.jobID);
+				rmServices.rmLeaderSessionId, jobMaster.leaderSessionID, jobMaster.resourceID, jobMaster.address, jobMaster.jobID, timeout);
 			assertTrue(registration.get() instanceof JobMasterRegistrationSuccess);
 		}
 
@@ -589,7 +591,7 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// send registration message
 			CompletableFuture<RegistrationResponse> successfulFuture =
-				resourceManager.registerTaskExecutor(rmServices.rmLeaderSessionId, task1Executor.address, task1Executor.resourceID, slotReport);
+				resourceManager.registerTaskExecutor(rmServices.rmLeaderSessionId, task1Executor.address, task1Executor.resourceID, slotReport, timeout);
 			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 

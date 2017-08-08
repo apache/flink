@@ -52,6 +52,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 	private TestingSerialRpcService rpcService;
 
+	private final Time timeout = Time.milliseconds(0L);
+
 	@Before
 	public void setup() throws Exception {
 		rpcService = new TestingSerialRpcService();
@@ -83,7 +85,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			jmLeaderID,
 			jmResourceId,
 			jobMasterAddress,
-			jobID);
+			jobID,
+			timeout);
 		RegistrationResponse response = successfulFuture.get(5L, TimeUnit.SECONDS);
 		assertTrue(response instanceof JobMasterRegistrationSuccess);
 
@@ -114,7 +117,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			jmLeaderID,
 			jmResourceId,
 			jobMasterAddress,
-			jobID);
+			jobID,
+			timeout);
 		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -146,7 +150,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			differentLeaderSessionID,
 			jmResourceId,
 			jobMasterAddress,
-			jobID);
+			jobID,
+			timeout);
 		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -178,7 +183,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			jmLeaderSessionId,
 			jmResourceId,
 			invalidAddress,
-			jobID);
+			jobID,
+			timeout);
 		assertTrue(invalidAddressFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -210,7 +216,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			jmLeaderSessionId,
 			jmResourceId,
 			jobMasterAddress,
-			unknownJobIDToHAServices);
+			unknownJobIDToHAServices,
+			timeout);
 		RegistrationResponse response = declineFuture.get(5, TimeUnit.SECONDS);
 		assertTrue(response instanceof RegistrationResponse.Decline);
 

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -77,7 +78,7 @@ public interface SlotPoolGateway extends RpcGateway {
 
 	CompletableFuture<Boolean> offerSlot(AllocatedSlot slot);
 
-	CompletableFuture<Iterable<SlotOffer>> offerSlots(Iterable<Tuple2<AllocatedSlot, SlotOffer>> offers);
+	CompletableFuture<Collection<SlotOffer>> offerSlots(Collection<Tuple2<AllocatedSlot, SlotOffer>> offers);
 	
 	void failAllocation(AllocationID allocationID, Exception cause);
 
