@@ -48,6 +48,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * IT case for externalized checkpoints with {@link org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore}
@@ -178,7 +179,10 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 				env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 				env.setParallelism(PARALLELISM);
 
-				env.addSource(new ManualWindowSpeedITCase.InfiniteTupleSource(10_000))
+				// initialize count down latch
+				NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
+
+				env.addSource(new NotifyingInfiniteTupleSource(10_000))
 					.keyBy(0)
 					.timeWindow(Time.seconds(3))
 					.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
@@ -213,6 +217,9 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 				config.addAll(jobGraph.getJobConfiguration());
 				JobSubmissionResult submissionResult = cluster.submitJobDetached(jobGraph);
 
+				// wait until all sources have been started
+				NotifyingInfiniteTupleSource.countDownLatch.await();
+
 				externalCheckpoint =
 					cluster.requestCheckpoint(submissionResult.getJobID(), CheckpointOptions.forFullCheckpoint());
 
@@ -221,6 +228,26 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 		} finally {
 			cluster.stop();
 			cluster.awaitTermination();
+		}
+	}
+
+	public static class NotifyingInfiniteTupleSource extends ManualWindowSpeedITCase.InfiniteTupleSource {
+
+		private static final long serialVersionUID = 8120981235081181746L;
+
+		private static CountDownLatch countDownLatch;
+
+		public NotifyingInfiniteTupleSource(int numKeys) {
+			super(numKeys);
+		}
+
+		@Override
+		public void run(SourceContext<Tuple2<String, Integer>> out) throws Exception {
+			if (countDownLatch != null) {
+				countDownLatch.countDown();
+			}
+
+			super.run(out);
 		}
 	}
 }
