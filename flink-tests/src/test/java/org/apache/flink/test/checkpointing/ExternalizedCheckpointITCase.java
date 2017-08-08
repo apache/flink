@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.ClassRule;
@@ -54,7 +55,7 @@ import java.io.File;
  *
  * <p>This tests considers full and incremental checkpoints and was introduced to guard against problems like FLINK-6964.
  */
-public class ExternalizedCheckpointITCase {
+public class ExternalizedCheckpointITCase extends TestLogger {
 
 	private static final int PARALLELISM = 2;
 	private static final int NUM_TASK_MANAGERS = 2;
@@ -211,9 +212,6 @@ public class ExternalizedCheckpointITCase {
 
 				config.addAll(jobGraph.getJobConfiguration());
 				JobSubmissionResult submissionResult = cluster.submitJobDetached(jobGraph);
-
-				// let the job do some progress
-				Thread.sleep(200);
 
 				externalCheckpoint =
 					cluster.requestCheckpoint(submissionResult.getJobID(), CheckpointOptions.forFullCheckpoint());
