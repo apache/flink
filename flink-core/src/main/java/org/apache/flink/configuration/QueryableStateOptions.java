@@ -35,22 +35,26 @@ public class QueryableStateOptions {
 	/** Flag to indicate whether to start the queryable state server. */
 	public static final ConfigOption<Boolean> SERVER_ENABLE =
 			key("query.server.enable")
-			.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Enable queryable state.");
 
 	/** Port to bind KvState server to (0 => pick random available port). */
 	public static final ConfigOption<Integer> SERVER_PORT =
 			key("query.server.port")
-			.defaultValue(0);
+			.defaultValue(0)
+			.withDescription("Port to bind queryable state server to.");
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =
 			key("query.server.network-threads")
-			.defaultValue(0);
+			.defaultValue(0)
+			.withDescription("Number of network (Netty's event loop) Threads for queryable state server.");
 
 	/** Number of async query threads for the KvStateServerHandler (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_ASYNC_QUERY_THREADS =
 			key("query.server.query-threads")
-			.defaultValue(0);
+			.defaultValue(0)
+			.withDescription("Number of query Threads for queryable state server (Default: `0`, picks number of slots).");
 
 	// ------------------------------------------------------------------------
 	// Client Options
@@ -59,17 +63,20 @@ public class QueryableStateOptions {
 	/** Number of network (event loop) threads for the KvState client (0 => Use number of available cores). */
 	public static final ConfigOption<Integer> CLIENT_NETWORK_THREADS =
 			key("query.client.network-threads")
-			.defaultValue(0);
+			.defaultValue(0)
+			.withDescription("Number of network (Netty's event loop) Threads for queryable state client.");
 
 	/** Number of retries on location lookup failures. */
 	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRIES =
 			key("query.client.lookup.num-retries")
-			.defaultValue(3);
+			.defaultValue(3)
+			.withDescription("Number of retries on KvState lookup failure due to unavailable JobManager.");
 
 	/** Retry delay on location lookup failures (millis). */
 	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRY_DELAY =
 			key("query.client.lookup.retry-delay")
-			.defaultValue(1000);
+			.defaultValue(1000)
+			.withDescription("Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager.");
 
 	// ------------------------------------------------------------------------
 

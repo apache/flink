@@ -42,15 +42,7 @@ The configuration files for the TaskManagers can be different, Flink does not as
 
 - `env.java.home`: The path to the Java installation to use (DEFAULT: system's default Java installation, if found). Needs to be specified if the startup scripts fail to automatically resolve the java home directory. Can be specified to point to a specific java installation or version. If this option is not specified, the startup scripts also evaluate the `$JAVA_HOME` environment variable.
 
-- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts, both JobManager and
-TaskManager, and Flink's YARN client. This can be used to set different garbage collectors or to include remote
-debuggers into the JVMs running Flink's services. Enclosing options in double quotes delays parameter substitution
-allowing access to variables from Flink's startup scripts. Use `env.java.opts.jobmanager` and `env.java.opts.taskmanager`
-for JobManager or TaskManager-specific options, respectively.
-
-- `env.java.opts.jobmanager`: JobManager-specific JVM options. These are used in addition to the regular `env.java.opts`.
-
-- `env.java.opts.taskmanager`: TaskManager-specific JVM options. These are used in addition to the regular `env.java.opts`.
+Environment variables can be set separately for the [JobManager](#env-java-opts-jobmanager) and [TaskManager](#env-java-opts-taskmanager), or for [both](#env-java-opts).
 
 - `jobmanager.rpc.address`: The external address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: localhost). **Note:** The address (host name or IP) should be accessible by all nodes including the client.
 
@@ -237,6 +229,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 - `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file "hdfs-site.xml" (DEFAULT: null).
 
+### Environment Options
+
+{% include generated/environment_options_configuration.html %}
+
 ### JobManager &amp; TaskManager
 
 The following parameters configure Flink's JobManager and TaskManagers.
@@ -369,25 +365,7 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 ### JobManager Web Frontend
 
-- `jobmanager.web.port`: Port of the JobManager's web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
-
-- `jobmanager.web.history`: The number of latest jobs that the JobManager's web front-end in its history (DEFAULT: 5).
-
-- `jobmanager.web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
-
-- `jobmanager.web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
-
-- `jobmanager.web.backpressure.cleanup-interval`: Time after which cached stats are cleaned up if not accessed (DEFAULT: `600000`, 10 mins).
-
-- `jobmanager.web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
-
-- `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
-
-- `jobmanager.web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
-
-- `jobmanager.web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
-
-- `jobmanager.web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
+{% include generated/web_frontend_configuration.html %}
 
 ### File Systems
 
@@ -548,13 +526,11 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Kerberos-based Security
 
-- `security.kerberos.login.use-ticket-cache`: Indicates whether to read from your Kerberos ticket cache (default: `true`).
+{% include generated/kerberos_configuration.html %}
 
-- `security.kerberos.login.keytab`: Absolute path to a Kerberos keytab file that contains the user credentials.
+### Zookeper
 
-- `security.kerberos.login.principal`: Kerberos principal name associated with the keytab.
-
-- `security.kerberos.login.contexts`: A comma-separated list of login contexts to provide the Kerberos credentials to (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for Kafka authentication).
+{% include generated/zoo_keeper_configuration.html %}
 
 ### Environment
 
@@ -566,47 +542,11 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Queryable State
 
-#### Server
-
-- `query.server.enable`: Enable queryable state (Default: `true`).
-
-- `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
-
-- `query.server.network-threads`: Number of network (Netty's event loop) Threads for queryable state server (Default: `0`, picks number of slots).
-
-- `query.server.query-threads`: Number of query Threads for queryable state server (Default: `0`, picks number of slots).
-
-#### Client
-
-- `query.client.network-threads`: Number of network (Netty's event loop) Threads for queryable state client (Default: `0`, picks number of available cores as returned by `Runtime.getRuntime().availableProcessors()`).
-
-- `query.client.lookup.num-retries`: Number of retries on KvState lookup failure due to unavailable JobManager (Default: `3`).
-
-- `query.client.lookup.retry-delay`: Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager (Default: `1000`).
+{% include generated/queryable_state_configuration.html %}
 
 ### Metrics
 
-- `metrics.reporters`: The list of named reporters, i.e. "foo,bar".
-
-- `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
-
-- `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
-
-- `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
-
-- `metrics.scope.jm`: (Default: &lt;host&gt;.jobmanager) Defines the scope format string that is applied to all metrics scoped to a JobManager.
-
-- `metrics.scope.jm.job`: (Default: &lt;host&gt;.jobmanager.&lt;job_name&gt;) Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.
-
-- `metrics.scope.tm`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;) Defines the scope format string that is applied to all metrics scoped to a TaskManager.
-
-- `metrics.scope.tm.job`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;) Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.
-
-- `metrics.scope.task`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;) Defines the scope format string that is applied to all metrics scoped to a task.
-
-- `metrics.scope.operator`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;) Defines the scope format string that is applied to all metrics scoped to an operator.
-
-- `metrics.latency.history-size`: (Default: 128) Defines the number of measured latencies to maintain at each operator
+{% include generated/metric_configuration.html %}
 
 ### History Server
 
@@ -614,17 +554,7 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 - `jobmanager.archive.fs.dir`: Directory to upload information about terminated jobs to. You have to add this directory to the list of monitored directories of the history server via `historyserver.archive.fs.dir`.
 
-- `historyserver.archive.fs.dir`: Comma separated list of directories to fetch archived jobs from. The history server will monitor these directories for archived jobs. You can configure the JobManager to archive jobs to a directory via `jobmanager.archive.fs.dir`.
-
-- `historyserver.archive.fs.refresh-interval`: Interval in milliseconds for refreshing the archived job directories (DEFAULT: `10000`).
-
-- `historyserver.web.tmpdir`: This configuration parameter allows defining the Flink web directory to be used by the history server web interface. The web interface will copy its static files into the directory (DEFAULT: local system temporary directory).
-
-- `historyserver.web.address`: Address of the HistoryServer's web interface (DEFAULT: `anyLocalAddress()`).
-
-- `historyserver.web.port`: Port of the HistoryServers's web interface (DEFAULT: `8082`).
-
-- `historyserver.web.ssl.enabled`: Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true (DEFAULT: `false`).
+{% include generated/history_server_configuration.html %}
 
 ## Background
 

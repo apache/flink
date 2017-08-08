@@ -21,6 +21,9 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "EnvironmentOptions", keyPrefix = "env")
+})
 public class CoreOptions {
 
 	// ------------------------------------------------------------------------
@@ -29,15 +32,25 @@ public class CoreOptions {
 
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
-		.defaultValue("");
+			.defaultValue("")
+			.withDescription("Set custom JVM options. This value is respected by Flink's start scripts, both JobManager" +
+				" and TaskManager, and Flink's YARN client. This can be used to set different garbage collectors or to" +
+				" include remote debuggers into the JVMs running Flink's services. Enclosing options in double quotes" +
+				" delays parameter substitution allowing access to variables from Flink's startup scripts." +
+				"<p>Use `env.java.opts.jobmanager` and `env.java.opts.taskmanager` for JobManager or" +
+				" TaskManager-specific options, respectively. </p>");
 
 	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.jobmanager")
-		.defaultValue("");
+			.defaultValue("")
+			.withDescription("JobManager-specific JVM options. These are used in addition to the regular" +
+				" `" + FLINK_JVM_OPTIONS.key() + "`.");
 
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
-		.defaultValue("");
+			.defaultValue("")
+			.withDescription("TaskManager-specific JVM options. These are used in addition to the regular" +
+				" `" + FLINK_JVM_OPTIONS.key() + "`.");
 
 	// ------------------------------------------------------------------------
 	//  program
