@@ -32,7 +32,7 @@ public class JDBCAppendTableSinkBuilder {
 	private String driverName;
 	private String dbURL;
 	private String query;
-	private int batchInterval = DEFAULT_BATCH_INTERVAL;
+	private int batchSize = DEFAULT_BATCH_INTERVAL;
 	private TypeInformation<?>[] fieldTypes;
 
 	public JDBCAppendTableSinkBuilder setUsername(String username) {
@@ -60,12 +60,12 @@ public class JDBCAppendTableSinkBuilder {
 		return this;
 	}
 
-	public JDBCAppendTableSinkBuilder setBatchInterval(int batchInterval) {
-		this.batchInterval = batchInterval;
+	public JDBCAppendTableSinkBuilder setBatchSize(int batchSize) {
+		this.batchSize = batchSize;
 		return this;
 	}
 
-	public JDBCAppendTableSinkBuilder setFieldTypes(TypeInformation<?>[] fieldTypes) {
+	public JDBCAppendTableSinkBuilder setFieldTypes(TypeInformation<?>... fieldTypes) {
 		this.fieldTypes = fieldTypes;
 		return this;
 	}
@@ -88,7 +88,7 @@ public class JDBCAppendTableSinkBuilder {
 			.setDBUrl(dbURL)
 			.setQuery(query)
 			.setDrivername(driverName)
-			.setBatchInterval(batchInterval)
+			.setBatchInterval(batchSize)
 			.setSqlTypes(types)
 			.finish();
 

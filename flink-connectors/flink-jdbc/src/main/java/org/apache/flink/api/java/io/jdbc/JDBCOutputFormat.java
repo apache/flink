@@ -207,13 +207,21 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		if (batchCount >= batchInterval) {
 			// execute batch
-			try {
-				upload.executeBatch();
-				batchCount = 0;
-			} catch (SQLException e) {
-				throw new RuntimeException("Execution of JDBC statement failed.", e);
-			}
+			flush();
 		}
+	}
+
+	void flush() {
+		try {
+			upload.executeBatch();
+			batchCount = 0;
+		} catch (SQLException e) {
+			throw new RuntimeException("Execution of JDBC statement failed.", e);
+		}
+	}
+
+	int[] getTypesArray() {
+		return typesArray;
 	}
 
 	/**
@@ -224,12 +232,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	@Override
 	public void close() throws IOException {
 		if (upload != null) {
-			// execute last batch
-			try {
-				upload.executeBatch();
-			} catch (SQLException e) {
-				throw new RuntimeException("Execution of JDBC statement failed.", e);
-			}
+			flush();
 			// close the connection
 			try {
 				upload.close();
@@ -239,7 +242,6 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 				upload = null;
 			}
 		}
-		batchCount = 0;
 
 		if (dbConn != null) {
 			try {

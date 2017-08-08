@@ -18,29 +18,22 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 
 /**
  * Test for JDBCAppendTableSink.
@@ -54,26 +47,23 @@ public class JDBCAppendTableSinkTest {
 
 	@Test
 	public void testAppendTableSink() throws IOException {
-			JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
-				.setDrivername("foo")
-				.setDBUrl("bar")
-				.setQuery("insert into %s (id) values (?)")
-				.setFieldTypes(FIELD_TYPES)
-				.build();
+		JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
+			.setDrivername("foo")
+			.setDBUrl("bar")
+			.setQuery("insert into %s (id) values (?)")
+			.setFieldTypes(FIELD_TYPES)
+			.build();
 
-		StreamExecutionEnvironment env =
-		mock(StreamExecutionEnvironment.class);
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return invocationOnMock.getArguments()[0];
-			}
-		}).when(env).clean(any());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		TypeSerializer<Row> ts = ROW_TYPE.createSerializer(mock(ExecutionConfig.class));
-		FromElementsFunction<Row> func = new FromElementsFunction<>(ts, Row.of("foo"));
-		DataStream<Row> ds = new DataStreamSource<>(env, ROW_TYPE, new StreamSource<>(func), false, "foo");
-		DataStreamSink<Row> dsSink = ds.addSink(sink.getSink());
-		assertSame(sink.getSink(), dsSink.getTransformation().getOperator().getUserFunction());
+		DataStream<Row> ds = env.fromCollection(Collections.singleton(Row.of("foo")), ROW_TYPE);
+		sink.emitDataStream(ds);
+
+		Collection<Integer> sinkIds = env.getStreamGraph().getSinkIDs();
+		assertEquals(1, sinkIds.size());
+		int sinkId = sinkIds.iterator().next();
+
+		StreamSink planSink = (StreamSink) env.getStreamGraph().getStreamNode(sinkId).getOperator();
+		assertSame(sink.getSink(), planSink.getUserFunction());
 	}
 }

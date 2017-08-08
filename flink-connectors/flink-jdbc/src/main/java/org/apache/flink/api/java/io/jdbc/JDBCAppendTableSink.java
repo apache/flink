@@ -27,9 +27,14 @@ import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 /**
  * An at-least-once Table sink for JDBC.
+ *
+ * <p>The mechanisms of Flink guarantees delivering messages at-least-once to this sink.
+ * However, one common use case is to run idempotent queries (e.g., <code>REPLACE</code> or
+ * <code>INSERT OVERWRITE</code>) to upsert into the database and achieve exactly-once semantic.</p>
  */
 public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTableSink<Row> {
 	private final JDBCSinkFunction sink;
@@ -72,6 +77,13 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+		int[] types = sink.outputFormat.getTypesArray();
+		Preconditions.checkArgument(fieldTypes.length == types.length);
+		for (int i = 0; i < types.length; ++i) {
+			Preconditions.checkArgument(JDBCTypeUtil.typeInformationToSqlType(fieldTypes[i]) == types[i],
+				"Incompatible types between fields and JDBC format at " + i);
+		}
+
 		JDBCAppendTableSink copy = new JDBCAppendTableSink(sink.outputFormat);
 		copy.fieldNames = fieldNames;
 		copy.fieldTypes = fieldTypes;
