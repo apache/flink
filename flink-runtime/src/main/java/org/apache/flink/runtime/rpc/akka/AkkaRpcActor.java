@@ -66,10 +66,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * stops processing messages. All messages which arrive when the processing is stopped, will be
  * discarded.
  *
- * @param <C> Type of the {@link RpcGateway} associated with the {@link RpcEndpoint}
  * @param <T> Type of the {@link RpcEndpoint}
  */
-class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActor {
+class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
 

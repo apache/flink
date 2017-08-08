@@ -18,17 +18,35 @@
 
 package org.apache.flink.runtime.rpc;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Interface for self gateways
+ * Utility functions for Flink's RPC implementation
  */
-public interface SelfGateway {
-
+public class RpcUtils {
 	/**
-	 * Return a future which is completed when the rpc endpoint has been terminated.
+	 * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.
 	 *
-	 * @return Future indicating when the rpc endpoint has been terminated
+	 * @param clazz from which to extract the implemented RpcGateway interfaces
+	 * @return A set of all implemented RpcGateway interfaces
 	 */
-	CompletableFuture<Void> getTerminationFuture();
+	public static Set<Class<? extends RpcGateway>> extractImplementedRpcGateways(Class<?> clazz) {
+		HashSet<Class<? extends RpcGateway>> interfaces = new HashSet<>();
+
+		while (clazz != null) {
+			for (Class<?> interfaze : clazz.getInterfaces()) {
+				if (RpcGateway.class.isAssignableFrom(interfaze)) {
+					interfaces.add((Class<? extends RpcGateway>)interfaze);
+				}
+			}
+
+			clazz = clazz.getSuperclass();
+		}
+
+		return interfaces;
+	}
+
+	// We don't want this class to be instantiable
+	private RpcUtils() {}
 }

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
 import org.hamcrest.core.Is;
@@ -85,7 +84,7 @@ public class MessageSerializationTest extends TestLogger {
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
 		testEndpoint.start();
 
-		TestGateway testGateway = testEndpoint.getSelf();
+		TestGateway testGateway = testEndpoint.getSelfGateway(TestGateway.class);
 
 		NonSerializableObject expected = new NonSerializableObject(42);
 
@@ -169,7 +168,7 @@ public class MessageSerializationTest extends TestLogger {
 		void foobar(Object object) throws IOException, InterruptedException;
 	}
 
-	private static class TestEndpoint extends RpcEndpoint<TestGateway> {
+	private static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
 		private final LinkedBlockingQueue<Object> queue;
 
@@ -178,7 +177,7 @@ public class MessageSerializationTest extends TestLogger {
 			this.queue = queue;
 		}
 
-		@RpcMethod
+		@Override
 		public void foobar(Object object) throws InterruptedException {
 			queue.put(object);
 		}

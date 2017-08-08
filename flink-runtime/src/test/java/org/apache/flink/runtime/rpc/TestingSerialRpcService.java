@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -30,8 +29,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.BitSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -139,32 +138,32 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public void stopServer(RpcGateway selfGateway) {
+	public void stopServer(RpcServer selfGateway) {
 		registeredConnections.remove(selfGateway.getAddress());
 	}
 
 	@Override
-	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
+	public <S extends RpcEndpoint & RpcGateway> RpcServer startServer(S rpcEndpoint) {
 		final String address = UUID.randomUUID().toString();
 
 		InvocationHandler akkaInvocationHandler = new TestingSerialRpcService.TestingSerialInvocationHandler<>(address, rpcEndpoint);
 		ClassLoader classLoader = getClass().getClassLoader();
 
+		Set<Class<? extends RpcGateway>> implementedRpcGateways = RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass());
+
+		implementedRpcGateways.add(RpcServer.class);
+
+
 		@SuppressWarnings("unchecked")
-		C self = (C) Proxy.newProxyInstance(
+		RpcServer rpcServer = (RpcServer) Proxy.newProxyInstance(
 			classLoader,
-			new Class<?>[]{
-				rpcEndpoint.getSelfGatewayType(),
-				MainThreadExecutable.class,
-				StartStoppable.class,
-				RpcGateway.class
-			},
+			implementedRpcGateways.toArray(new Class<?>[implementedRpcGateways.size()]),
 			akkaInvocationHandler);
 
 		// register self
-		registeredConnections.putIfAbsent(self.getAddress(), self);
+		registeredConnections.putIfAbsent(rpcServer.getAddress(), rpcServer);
 
-		return self;
+		return rpcServer;
 	}
 
 	@Override
@@ -211,7 +210,7 @@ public class TestingSerialRpcService implements RpcService {
 		registeredConnections.clear();
 	}
 
-	private static final class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutable, StartStoppable {
+	private static final class TestingSerialInvocationHandler<T extends RpcEndpoint & RpcGateway> implements InvocationHandler, RpcGateway, MainThreadExecutable, StartStoppable {
 
 		private final T rpcEndpoint;
 
@@ -234,7 +233,9 @@ public class TestingSerialRpcService implements RpcService {
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			Class<?> declaringClass = method.getDeclaringClass();
 			if (declaringClass.equals(MainThreadExecutable.class) ||
-				declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
+				declaringClass.equals(Object.class) ||
+				declaringClass.equals(StartStoppable.class) ||
+				declaringClass.equals(RpcServer.class) ||
 				declaringClass.equals(RpcGateway.class)) {
 				return method.invoke(this, args);
 			} else {
@@ -243,22 +244,17 @@ public class TestingSerialRpcService implements RpcService {
 				Annotation[][] parameterAnnotations = method.getParameterAnnotations();
 				Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
 
-				final Tuple2<Class<?>[], Object[]> filteredArguments = filterArguments(
-					parameterTypes,
-					parameterAnnotations,
-					args);
-
 				Class<?> returnType = method.getReturnType();
 
 				if (returnType.equals(CompletableFuture.class)) {
 					try {
-						Object result = handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
+						Object result = handleRpcInvocationSync(methodName, parameterTypes, args, futureTimeout);
 						return CompletableFuture.completedFuture(result);
 					} catch (Throwable e) {
 						return FutureUtils.completedExceptionally(e);
 					}
 				} else {
-					return handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
+					return handleRpcInvocationSync(methodName, parameterTypes, args, futureTimeout);
 				}
 			}
 		}
@@ -377,61 +373,6 @@ public class TestingSerialRpcService implements RpcService {
 			}
 
 			return defaultTimeout;
-		}
-
-		/**
-		 * Removes all {@link RpcTimeout} annotated parameters from the parameter type and argument
-		 * list.
-		 *
-		 * @param parameterTypes       Array of parameter types
-		 * @param parameterAnnotations Array of parameter annotations
-		 * @param args                 Arary of arguments
-		 * @return Tuple of filtered parameter types and arguments which no longer contain the
-		 * {@link RpcTimeout} annotated parameter types and arguments
-		 */
-		private static Tuple2<Class<?>[], Object[]> filterArguments(
-			Class<?>[] parameterTypes,
-			Annotation[][] parameterAnnotations,
-			Object[] args) {
-
-			Class<?>[] filteredParameterTypes;
-			Object[] filteredArgs;
-
-			if (args == null) {
-				filteredParameterTypes = parameterTypes;
-				filteredArgs = null;
-			} else {
-				Preconditions.checkArgument(parameterTypes.length == parameterAnnotations.length);
-				Preconditions.checkArgument(parameterAnnotations.length == args.length);
-
-				BitSet isRpcTimeoutParameter = new BitSet(parameterTypes.length);
-				int numberRpcParameters = parameterTypes.length;
-
-				for (int i = 0; i < parameterTypes.length; i++) {
-					if (isRpcTimeout(parameterAnnotations[i])) {
-						isRpcTimeoutParameter.set(i);
-						numberRpcParameters--;
-					}
-				}
-
-				if (numberRpcParameters == parameterTypes.length) {
-					filteredParameterTypes = parameterTypes;
-					filteredArgs = args;
-				} else {
-					filteredParameterTypes = new Class<?>[numberRpcParameters];
-					filteredArgs = new Object[numberRpcParameters];
-					int counter = 0;
-
-					for (int i = 0; i < parameterTypes.length; i++) {
-						if (!isRpcTimeoutParameter.get(i)) {
-							filteredParameterTypes[counter] = parameterTypes[i];
-							filteredArgs[counter] = args[i];
-							counter++;
-						}
-					}
-				}
-			}
-			return Tuple2.of(filteredParameterTypes, filteredArgs);
 		}
 
 		/**

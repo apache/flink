@@ -43,6 +43,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -186,7 +187,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param timeout       for the rpc call
 	 * @return Future set of accepted slots.
 	 */
-	CompletableFuture<Iterable<SlotOffer>> offerSlots(
+	CompletableFuture<Collection<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
 			final Iterable<SlotOffer> slots,
 			final UUID leaderId,

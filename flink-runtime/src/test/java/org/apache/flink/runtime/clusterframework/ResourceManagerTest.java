@@ -528,7 +528,8 @@ public class ResourceManagerTest extends TestLogger {
 				rmLeaderSessionId,
 				taskManagerAddress,
 				taskManagerResourceID,
-				slotReport);
+				slotReport,
+				Time.milliseconds(0L));
 			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
@@ -627,7 +628,8 @@ public class ResourceManagerTest extends TestLogger {
 				jmLeaderId,
 				jmResourceId,
 				jobMasterAddress,
-				jobId);
+				jobId,
+				Time.milliseconds(0L));
 			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
 			assertTrue(response instanceof JobMasterRegistrationSuccess);
 
