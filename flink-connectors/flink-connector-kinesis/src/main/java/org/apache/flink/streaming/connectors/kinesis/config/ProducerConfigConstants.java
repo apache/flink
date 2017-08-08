@@ -41,8 +41,6 @@ public class ProducerConfigConstants extends AWSConfigConstants {
 	 **/
 	public static final String RATE_LIMIT = "RateLimit";
 
-	/** Which region to send records to. **/
-	public static final String REGION = "Region";
 
 	// ------------------------------------------------------------------------
 	//  Default values for producer configuration
