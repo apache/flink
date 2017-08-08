@@ -26,6 +26,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
 import com.amazonaws.regions.Regions;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -127,18 +128,36 @@ public class KinesisConfigUtil {
 	}
 
 	/**
+	 * Replace deprecated configuration properties for {@link FlinkKinesisProducer}.
+	 * This should be remove along with deprecated keys
+	 */
+	public static Properties replaceDeprecatedProducerKeys(Properties configProps) {
+		// Replace deprecated key
+		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT)) {
+			configProps.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT,
+					configProps.getProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT);
+		}
+
+		// Replace deprecated key
+		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT)) {
+			configProps.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT,
+					configProps.getProperty(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT);
+		}
+
+		return configProps;
+	}
+
+	/**
 	 * Validate configuration properties for {@link FlinkKinesisProducer}.
 	 */
-	public static void validateProducerConfiguration(Properties config) {
+	public static KinesisProducerConfiguration validateProducerConfiguration(Properties config) {
 		checkNotNull(config, "config can not be null");
 
 		validateAwsConfiguration(config);
 
-		validateOptionalPositiveLongProperty(config, ProducerConfigConstants.COLLECTION_MAX_COUNT,
-			"Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid non-negative long value.");
-
-		validateOptionalPositiveLongProperty(config, ProducerConfigConstants.AGGREGATION_MAX_COUNT,
-			"Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid non-negative long value.");
+		return KinesisProducerConfiguration.fromProperties(config);
 	}
 
 	/**

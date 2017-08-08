@@ -25,7 +25,6 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerial
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
-import org.apache.flink.util.PropertiesUtil;
 
 import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
@@ -56,6 +55,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 	/** Properties to parametrize settings such as AWS service region, access key etc. */
 	private final Properties configProps;
+
+	/** Configuration for KinesisProducer. */
+	private final KinesisProducerConfiguration producerConfig;
 
 	/* Flag controlling the error behavior of the producer */
 	private boolean failOnError = false;
@@ -90,7 +92,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 * This is a constructor supporting Flink's {@see SerializationSchema}.
 	 *
 	 * @param schema Serialization schema for the data type
-	 * @param configProps The properties used to configure AWS credentials and AWS region
+	 * @param configProps The properties used to configure KinesisProducer, including AWS credentials and AWS region
 	 */
 	public FlinkKinesisProducer(final SerializationSchema<OUT> schema, Properties configProps) {
 
@@ -115,13 +117,14 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 * This is a constructor supporting {@see KinesisSerializationSchema}.
 	 *
 	 * @param schema Kinesis serialization schema for the data type
-	 * @param configProps The properties used to configure AWS credentials and AWS region
+	 * @param configProps The properties used to configure KinesisProducer, including AWS credentials and AWS region
 	 */
 	public FlinkKinesisProducer(KinesisSerializationSchema<OUT> schema, Properties configProps) {
-		this.configProps = checkNotNull(configProps, "configProps can not be null");
+		checkNotNull(configProps, "configProps can not be null");
+		this.configProps = KinesisConfigUtil.replaceDeprecatedProducerKeys(configProps);
 
-		// check the configuration properties for any conflicting settings
-		KinesisConfigUtil.validateProducerConfiguration(this.configProps);
+		// check the configuration properties for any invalid settings
+		this.producerConfig = KinesisConfigUtil.validateProducerConfiguration(configProps);
 
 		ClosureCleaner.ensureSerializable(Objects.requireNonNull(schema));
 		this.schema = schema;
@@ -165,31 +168,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		KinesisProducerConfiguration producerConfig = new KinesisProducerConfiguration();
-
-		producerConfig.setRegion(configProps.getProperty(ProducerConfigConstants.AWS_REGION));
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
-
-		producerConfig.setAggregationMaxCount(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.AGGREGATION_MAX_COUNT, producerConfig.getAggregationMaxCount(), LOG));
-
-		producerConfig.setCollectionMaxCount(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.COLLECTION_MAX_COUNT, producerConfig.getCollectionMaxCount(), LOG));
-
-		producerConfig.setMaxConnections(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.MAX_CONNECTIONS, producerConfig.getMaxConnections(), LOG));
-
-		producerConfig.setRateLimit(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.RATE_LIMIT, producerConfig.getRateLimit(), LOG));
-
-		producerConfig.setRecordMaxBufferedTime(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.RECORD_MAX_BUFFERED_TIME, producerConfig.getRecordMaxBufferedTime(), LOG));
-
-		producerConfig.setRecordTtl(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.RECORD_TIME_TO_LIVE, producerConfig.getRecordTtl(), LOG));
-
-		producerConfig.setRequestTimeout(PropertiesUtil.getLong(configProps,
-				ProducerConfigConstants.REQUEST_TIMEOUT, producerConfig.getRequestTimeout(), LOG));
+		// Override KPL default value if it's not specified by user
+		if (!configProps.containsKey(ProducerConfigConstants.RATE_LIMIT)) {
+			producerConfig.setRateLimit(ProducerConfigConstants.DEFAULT_RATE_LIMIT);
+		}
 
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {
