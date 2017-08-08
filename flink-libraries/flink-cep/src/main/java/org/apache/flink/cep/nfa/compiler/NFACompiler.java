@@ -384,7 +384,9 @@ public class NFACompiler {
 		}
 
 		private State<T> copy(final State<T> state) {
-			final State<T> copyOfState = new State<>(state.getName(), state.getStateType());
+			final State<T> copyOfState = createState(
+				NFAStateNameHandler.getOriginalNameFromInternal(state.getName()),
+				state.getStateType());
 			for (StateTransition<T> tStateTransition : state.getStateTransitions()) {
 				copyOfState.addStateTransition(
 					tStateTransition.getAction(),
@@ -436,9 +438,11 @@ public class NFACompiler {
 				true);
 
 			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
-				State<T> sinkStateCopy = copy(sinkState);
+				if (untilCondition != null) {
+					State<T> sinkStateCopy = copy(sinkState);
+					originalStateMap.put(sinkState.getName(), sinkStateCopy);
+				}
 				updateWithGreedyCondition(sinkState, takeCondition);
-				originalStateMap.put(sinkState.getName(), sinkStateCopy);
 			}
 
 			for (int i = times.getFrom(); i < times.getTo(); i++) {
@@ -683,16 +687,16 @@ public class NFACompiler {
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
 
 			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
-				State<T> sinkStateCopy = copy(sinkState);
 				if (untilCondition != null) {
+					State<T> sinkStateCopy = copy(sinkState);
 					loopingState.addProceed(sinkStateCopy, new AndCondition<>(proceedCondition, untilCondition));
+					originalStateMap.put(sinkState.getName(), sinkStateCopy);
 				}
 				loopingState.addProceed(sinkState,
 					untilCondition != null
 						? new AndCondition<>(proceedCondition, new NotCondition<>(untilCondition))
 						: proceedCondition);
 				updateWithGreedyCondition(sinkState, getTakeCondition(currentPattern));
-				originalStateMap.put(sinkState.getName(), sinkStateCopy);
 			} else {
 				loopingState.addProceed(sinkState, proceedCondition);
 			}

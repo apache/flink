@@ -89,56 +89,6 @@ public class GreedyITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGreedyZeroOrMoreConsecutiveEndWithOptional() {
-		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
-
-		Event c = new Event(40, "c", 1.0);
-		Event a1 = new Event(41, "a", 2.0);
-		Event a2 = new Event(42, "a", 2.0);
-		Event a3 = new Event(43, "a", 2.0);
-		Event d = new Event(44, "d", 3.0);
-
-		inputEvents.add(new StreamRecord<>(c, 1));
-		inputEvents.add(new StreamRecord<>(a1, 2));
-		inputEvents.add(new StreamRecord<>(a2, 3));
-		inputEvents.add(new StreamRecord<>(a3, 4));
-		inputEvents.add(new StreamRecord<>(d, 5));
-
-		// c a* d
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("c");
-			}
-		}).followedBy("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("a");
-			}
-		}).oneOrMore().optional().consecutive().greedy().followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("d");
-			}
-		}).optional();
-
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
-
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
-
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
-			Lists.newArrayList(c),
-			Lists.newArrayList(c, a1, a2, a3, d)
-		));
-	}
-
-	@Test
 	public void testGreedyZeroOrMoreInBetween() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
@@ -283,119 +233,7 @@ public class GreedyITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGreedyZeroOrMoreBeforeOptional() {
-		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
-
-		Event c = new Event(40, "c", 1.0);
-		Event a1 = new Event(41, "a", 2.0);
-		Event a2 = new Event(42, "a", 2.0);
-		Event e = new Event(44, "e", 3.0);
-
-		inputEvents.add(new StreamRecord<>(c, 1));
-		inputEvents.add(new StreamRecord<>(a1, 2));
-		inputEvents.add(new StreamRecord<>(a2, 3));
-		inputEvents.add(new StreamRecord<>(new Event(43, "dummy", 2.0), 4));
-		inputEvents.add(new StreamRecord<>(e, 5));
-
-		// c a* d e
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("c");
-			}
-		}).followedBy("middle1").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("a");
-			}
-		}).oneOrMore().optional().greedy().followedBy("middle2").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("d");
-			}
-		}).optional().followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("e");
-			}
-		});
-
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
-
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
-
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
-			Lists.newArrayList(c, a1, a2, e)
-		));
-	}
-
-	@Test
-	public void testGreedyZeroOrMoreBeforeOptional2() {
-		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
-
-		Event c = new Event(40, "c", 1.0);
-		Event a1 = new Event(41, "a", 2.0);
-		Event a2 = new Event(42, "a", 2.0);
-		Event d = new Event(43, "d", 3.0);
-		Event e = new Event(44, "e", 3.0);
-
-		inputEvents.add(new StreamRecord<>(c, 1));
-		inputEvents.add(new StreamRecord<>(a1, 2));
-		inputEvents.add(new StreamRecord<>(a2, 3));
-		inputEvents.add(new StreamRecord<>(d, 4));
-		inputEvents.add(new StreamRecord<>(e, 5));
-
-		// c a* d e
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("c");
-			}
-		}).followedBy("middle1").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("a");
-			}
-		}).oneOrMore().optional().greedy().followedBy("middle2").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("d");
-			}
-		}).optional().followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("e");
-			}
-		});
-
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
-
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
-
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
-			Lists.newArrayList(c, a1, a2, e),
-			Lists.newArrayList(c, a1, a2, d, e)
-		));
-	}
-
-	@Test
-	public void testGreedyUtilZeroOrMoreWithDummyEventsAfterQuantifier() {
+	public void testGreedyUntilZeroOrMoreWithDummyEventsAfterQuantifier() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event c = new Event(40, "c", 1.0);
@@ -452,7 +290,7 @@ public class GreedyITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGreedyUtilWithDummyEventsBeforeQuantifier() {
+	public void testGreedyUntilWithDummyEventsBeforeQuantifier() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event c = new Event(40, "c", 1.0);
@@ -700,7 +538,7 @@ public class GreedyITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGreedyUtilOneOrMoreWithDummyEventsAfterQuantifier() {
+	public void testGreedyUntilOneOrMoreWithDummyEventsAfterQuantifier() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event c = new Event(40, "c", 1.0);
@@ -757,7 +595,7 @@ public class GreedyITCase extends TestLogger {
 	}
 
 	@Test
-	public void testGreedyUtilOneOrMoreWithDummyEventsBeforeQuantifier() {
+	public void testGreedyUntilOneOrMoreWithDummyEventsBeforeQuantifier() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event c = new Event(40, "c", 1.0);

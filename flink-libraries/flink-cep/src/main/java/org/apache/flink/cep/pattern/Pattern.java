@@ -312,6 +312,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> optional() {
+		checkIfPreviousPatternGreedy();
 		quantifier.optional();
 		return this;
 	}
@@ -527,6 +528,12 @@ public class Pattern<T, F extends T> {
 	private void checkIfNoGroupPattern() {
 		if (this instanceof GroupPattern) {
 			throw new MalformedPatternException("Option not applicable to group pattern");
+		}
+	}
+
+	private void checkIfPreviousPatternGreedy() {
+		if (previous != null && previous.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+			throw new MalformedPatternException("Optional pattern cannot be preceded by greedy pattern");
 		}
 	}
 }
