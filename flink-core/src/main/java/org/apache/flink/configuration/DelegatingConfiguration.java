@@ -262,6 +262,11 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public void setDynamicProperties(Configuration dynamicProperties) {
+		this.backingConfig.setDynamicProperties(dynamicProperties);
+	}
+
+	@Override
 	public void addAll(Configuration other) {
 		this.addAll(other, "");
 	}
