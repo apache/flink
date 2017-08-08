@@ -2,7 +2,7 @@
 title: "Windows"
 layout: redirect
 redirect: /dev/stream/windows.html
-permalink: /apis/streaming/windows.html
+permalink: /dev/windows.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

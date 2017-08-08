@@ -1,7 +1,7 @@
 ---
 title: "Asynchronous I/O for External Data Access"
 nav-title: "Async I/O"
-nav-parent_id: streaming
+nav-parent_id: operators
 nav-pos: 60
 ---
 <!--

@@ -1,6 +1,6 @@
 ---
 title: "Windows"
-nav-parent_id: streaming
+nav-parent_id: operators
 nav-id: windows
 nav-pos: 10
 ---
