@@ -33,6 +33,7 @@ import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -97,7 +98,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   }
 
   override def visit(`match`: LogicalMatch): RelNode =
-    throw new TableException("Logical match in a stream environment is not supported yet.")
+    convertMatch(`match`)
 
   override def visit(other: RelNode): RelNode = other match {
 
@@ -243,6 +244,40 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
   private def hasRowtimeAttribute(rowType: RelDataType): Boolean = {
     rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
+  }
+
+  private def convertMatch(`match`: Match): LogicalMatch = {
+    val rowType = `match`.getInput.getRowType
+
+    val measures = `match`.getMeasures.foldLeft(mutable.Map[String, RexNode]()) {
+      case (m, (k, v)) =>
+        m += k -> RelTimeIndicatorConverter.convertExpression(v, rowType, rexBuilder)
+    }
+
+    val outputTypeBuilder = rexBuilder
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .builder()
+    `match`.getRowType.getFieldList.asScala
+      .foreach(x => measures.get(x.getName) match {
+        case Some(measure) => outputTypeBuilder.add(x.getName, measure.getType)
+        case None => outputTypeBuilder.add(x)
+      })
+
+    LogicalMatch.create(
+      `match`.getInput,
+      outputTypeBuilder.build(),
+      `match`.getPattern,
+      `match`.isStrictStart,
+      `match`.isStrictEnd,
+      `match`.getPatternDefinitions,
+      measures,
+      `match`.getAfter,
+      `match`.getSubsets.asInstanceOf[java.util.Map[String, java.util.TreeSet[String]]],
+      `match`.isAllRows,
+      `match`.getPartitionKeys,
+      `match`.getOrderKeys,
+      `match`.getInterval)
   }
 
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {
