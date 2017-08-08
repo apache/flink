@@ -1,4 +1,4 @@
----
+ ---
 title: "State & Fault Tolerance"
 nav-id: streaming_state
 nav-title: "State & Fault Tolerance"
@@ -35,7 +35,7 @@ For example:
   - When training a machine learning model over a stream of data points, the state holds the current version of the model parameters.
   - When historic data needs to be managed, the state allows efficient access to events occured in the past. 
 
-Flink needs to be aware of the state in order to make state fault tolerant using [checkpoints](checkpointing.html) and allow [savepoints]({{ site.baseurl }}/ops/state/savepoints.html) of streaming applications.
+Flink needs to be aware of the state in order to make state fault tolerant using [checkpoints](checkpointing.html) and to allow [savepoints]({{ site.baseurl }}/ops/state/savepoints.html) of streaming applications.
 
 Knowledge about the state also allows for rescaling Flink applications, meaning that Flink takes care of redistributing state across parallel instances.
 

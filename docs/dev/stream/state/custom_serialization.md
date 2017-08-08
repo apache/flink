@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-If your application uses Flink's managed state, it might be necessary to implement a custom serialization logic for special use cases.
+If your application uses Flink's managed state, it might be necessary to implement custom serialization logic for special use cases.
 
 This page is targeted as a guideline for users who require the use of custom serialization for their state, covering how
 to provide a custom serializer and how to handle upgrades to the serializer for compatibility. If you're simply using
@@ -69,7 +69,7 @@ checkpointedState = getRuntimeContext.getListState(descriptor);
 Note that Flink writes state serializers along with the state as metadata. In certain cases on restore (see following
 subsections), the written serializer needs to be deserialized and used. Therefore, it is recommended to avoid using
 anonymous classes as your state serializers. Anonymous classes do not have a guarantee on the generated classname,
-varying across compilers and depends on the order that they are instantiated within the enclosing class, which can 
+which varies across compilers and depends on the order that they are instantiated within the enclosing class, which can 
 easily cause the previously written serializer to be unreadable (since the original class can no longer be found in the
 classpath).
 
