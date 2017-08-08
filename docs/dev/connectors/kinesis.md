@@ -266,7 +266,7 @@ To put data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in
 
 For the monitoring to work, the user accessing the stream needs access to the CloudWatch service.
 
-To initialize `FlinkKinesisProducer`, users are required to pass in `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` via a `Properties` object. Users can also pass in KPL's configurations as optional parameters to customize the KPL underlying `KinesisProducerLibrary`. The full list of configs and explanations can be found [here](https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties).
+To initialize `FlinkKinesisProducer`, users are required to pass in `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` via a `Properties` object. Users can also pass in KPL's configurations as optional parameters to customize the KPL underlying `FlinkKinesisProducer`. The full list of configs and explanations can be found [here](https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
