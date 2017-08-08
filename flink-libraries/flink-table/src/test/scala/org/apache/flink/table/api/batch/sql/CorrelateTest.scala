@@ -43,7 +43,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "func1($cor0.c)"),
         term("function", func1.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "f0 AS s")
@@ -63,7 +63,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "func1($cor0.c, '$')"),
         term("function", func1.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "f0 AS s")
@@ -89,7 +89,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "func1($cor0.c)"),
         term("function", func1.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "LEFT")
       ),
       term("select", "c", "f0 AS s")
@@ -115,8 +115,8 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "func2($cor0.c)"),
         term("function", func2.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, " +
-               "VARCHAR(2147483647) f0, INTEGER f1)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
+               "VARCHAR(65536) f0, INTEGER f1)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "f0 AS name", "f1 AS len")
@@ -142,8 +142,8 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "hierarchy($cor0.c)"),
         term("function", function.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c," +
-               " VARCHAR(2147483647) f0, BOOLEAN f1, INTEGER f2)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
+               " VARCHAR(65536) f0, BOOLEAN f1, INTEGER f2)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "f0 AS name", "f1 AS adult", "f2 AS len")
@@ -169,8 +169,8 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "pojo($cor0.c)"),
         term("function", function.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c," +
-               " INTEGER age, VARCHAR(2147483647) name)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
+               " INTEGER age, VARCHAR(65536) name)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "name", "age")
@@ -197,8 +197,8 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "func2($cor0.c)"),
         term("function", func2.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, " +
-               "VARCHAR(2147483647) f0, INTEGER f1)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
+               "VARCHAR(65536) f0, INTEGER f1)"),
         term("joinType", "INNER"),
         term("condition", ">($1, 2)")
       ),
@@ -226,7 +226,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation", "func1(SUBSTRING($cor0.c, 2))"),
         term("function", func1.getClass.getCanonicalName),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "f0 AS s")

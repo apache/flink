@@ -98,6 +98,8 @@ class ExternalCatalogSchema(
 
   override def contentsHaveChangedSince(lastCheck: Long, now: Long): Boolean = true
 
+  override def snapshot(l: Long): Schema = this
+
   /**
     * Registers sub-Schemas to current schema plus
     *

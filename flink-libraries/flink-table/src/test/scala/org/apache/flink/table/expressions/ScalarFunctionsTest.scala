@@ -1532,7 +1532,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         "'2011-03-10 05:02:02'.toTimestamp, '2011-03-10 05:02:01'.toTimestamp)",
       "(TIMESTAMP '2011-03-10 05:02:02', INTERVAL '0' SECOND) OVERLAPS " +
         "(TIMESTAMP '2011-03-10 05:02:02', TIMESTAMP '2011-03-10 05:02:01')",
-      "false")
+      "true")
 
     testAllApis(
       temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
@@ -1664,7 +1664,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
     }
 
-    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER)," +
+      " TIMESTAMP '2016-02-24 12:42:25')", "null")
 
     testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
 
