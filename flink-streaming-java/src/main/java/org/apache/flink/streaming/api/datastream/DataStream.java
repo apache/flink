@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.MultiPartitioner;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -86,6 +87,7 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.MulticastPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -359,6 +361,19 @@ public class DataStream<T> {
 				new CustomPartitionerWrapper<>(
 						clean(partitioner),
 						clean(keySelector)));
+	}
+
+	/**
+	 * Partitions a DataStream using a custom multi-partitioner.
+	 * This method differs from the {@link DataStream#partitionCustom} that
+	 * this one supports assigning multiple partition targets for a single record and it partitions on the data
+	 * itself rather than the extracted keys.
+	 * @param partitioner
+	 * 		The multi-partitioner to assign partitions for records.
+	 * @return
+	 */
+	public DataStream<T> multicast(MultiPartitioner partitioner) {
+		return setConnectionType(new MulticastPartitionerWrapper<T>(partitioner));
 	}
 
 	/**

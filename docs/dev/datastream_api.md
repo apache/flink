@@ -954,6 +954,18 @@ dataStream.partitionCustom(partitioner, 0);
       </td>
     </tr>
    <tr>
+   <tr>
+      <td><strong>Multicasting</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            Uses a user-defined MultiPartitioner to select multiple target tasks for each element.
+            {% highlight java %}
+dataStream.multicast(multiPartitioner);
+            {% endhighlight %}
+        </p>
+      </td>
+    </tr>
+   <tr>
      <td><strong>Random partitioning</strong><br>DataStream &rarr; DataStream</td>
      <td>
        <p>

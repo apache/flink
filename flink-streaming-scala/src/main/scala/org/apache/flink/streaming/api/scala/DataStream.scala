@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
+import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner, MultiPartitioner}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -434,6 +434,12 @@ class DataStream[T](stream: JavaStream[T]) {
 
     asScalaStream(stream.partitionCustom(partitioner, keyExtractor))
   }
+
+  /**
+    * Sets the partitioning of the DataStream to duplicate each output tuple
+    * to multiple parallel instance of the next component.
+    */
+  def multicast(p: MultiPartitioner[T]): DataStream[T] = asScalaStream(stream.multicast(p))
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
