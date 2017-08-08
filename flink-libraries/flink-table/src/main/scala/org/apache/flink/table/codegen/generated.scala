@@ -92,3 +92,27 @@ case class GeneratedInput[F <: InputFormat[_, _], T <: Any](
   * @param code code of the generated Collector.
   */
 case class GeneratedCollector(name: String, code: String)
+
+/**
+  * Describes a generated [[org.apache.flink.cep.pattern.conditions.IterativeCondition]].
+  *
+  * @param name class name of the generated IterativeCondition.
+  * @param code code of the generated IterativeCondition.
+  */
+case class GeneratedIterativeCondition(name: String, code: String)
+
+/**
+  * Describes a generated [[org.apache.flink.cep.PatternSelectFunction]].
+  *
+  * @param name class name of the generated PatternSelectFunction.
+  * @param code code of the generated PatternSelectFunction.
+  */
+case class GeneratedPatternSelectFunction(name: String, code: String)
+
+/**
+  * Describes a generated [[org.apache.flink.cep.PatternFlatSelectFunction]].
+  *
+  * @param name class name of the generated PatternFlatSelectFunction.
+  * @param code code of the generated PatternFlatSelectFunction.
+  */
+case class GeneratedPatternFlatSelectFunction(name: String, code: String)

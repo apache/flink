@@ -476,6 +476,15 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
 
+    // MATCH_RECOGNIZE
+    SqlStdOperatorTable.FIRST,
+    SqlStdOperatorTable.LAST,
+    SqlStdOperatorTable.PREV,
+    SqlStdOperatorTable.NEXT,
+    SqlStdOperatorTable.CLASSIFIER,
+    SqlStdOperatorTable.MATCH_NUMBER,
+    SqlStdOperatorTable.FINAL,
+    SqlStdOperatorTable.RUNNING,
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
     BasicOperatorTable.HOP,
