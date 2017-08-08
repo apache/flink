@@ -374,7 +374,7 @@ public class TaskManagerServices {
 	 * @param config
 	 * 		configuration object
 	 *
-	 * @return memory to use for network buffers (in bytes)
+	 * @return memory to use for network buffers (in bytes); at least one memory segment
 	 */
 	@SuppressWarnings("deprecation")
 	public static long calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config) {
@@ -403,6 +403,14 @@ public class TaskManagerServices {
 						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
 					"Network buffer memory size too large: " + networkBufBytes + " >= " +
 						totalJavaMemorySize + " (total JVM memory size)");
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(networkBufBytes >= segmentSize,
+					"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
+					"(" + TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
+					"Network buffer memory size too small: " + networkBufBytes + " < " +
+						segmentSize + " (" + TaskManagerOptions.MEMORY_SEGMENT_SIZE.key() + ")");
 		} else {
 			// use old (deprecated) network buffers parameter
 			int numNetworkBuffers = config.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
@@ -415,6 +423,11 @@ public class TaskManagerServices {
 					networkBufBytes, TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
 					"Network buffer memory size too large: " + networkBufBytes + " >= " +
 						totalJavaMemorySize + " (total JVM memory size)");
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(networkBufBytes >= segmentSize,
+					networkBufBytes, TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
+					"Network buffer memory size too small: " + networkBufBytes + " < " +
+						segmentSize + " (" + TaskManagerOptions.MEMORY_SEGMENT_SIZE.key() + ")");
 		}
 
 		return networkBufBytes;

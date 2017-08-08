@@ -142,7 +142,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		// (2) split the remaining Java memory between heap and off-heap
 		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(javaMemorySizeMB, config);
 		// use the cut-off memory for off-heap (that was its intention)
-		final long offHeapSize = javaMemorySizeMB == heapSizeMB ? -1L : containerMemoryMB - heapSizeMB;
+		final long offHeapSizeMB = containerMemoryMB - heapSizeMB;
 
 		// (3) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
@@ -158,6 +158,6 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		// done
 		return new ContaineredTaskManagerParameters(
-			containerMemoryMB, heapSizeMB, offHeapSize, numSlots, envVars);
+			containerMemoryMB, heapSizeMB, offHeapSizeMB, numSlots, envVars);
 	}
 }
