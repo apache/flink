@@ -77,13 +77,13 @@ class SumReduceTest extends FlatSpec with Matchers {
 You also can write integration tests that are executed against local Flink mini cluster.
 In order to do so add a test dependency `flink-test-utils`.
 
-~~~ xml
+{% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-test-utils{{site.scala_version_suffix}}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-test-utils{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 For example if you want to test the following `MapFunction`:
 
@@ -180,7 +180,7 @@ configuring `environment` in the test:
 env.enableCheckpointing(500);
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100));
 ~~~
-and for example adding to your Flink application an identity mapper operator that will throw and exception
+and for example adding to your Flink application an identity mapper operator that will throw an exception
 once every `1000ms`. However writing such test could be tricky because of time dependencies between the actions.
 
 Another approach is to write a unit test using `AbstractStreamOperatorTestHarness` from `flink-streaming-java` module.
