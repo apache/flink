@@ -757,7 +757,15 @@ abstract class CodeGenerator(
         o.accept(this)
     }
 
-    call.getOperator match {
+    generateCallExpression(call.getOperator, operands, resultType)
+  }
+
+  def generateCallExpression(
+      operator: SqlOperator,
+      operands: Seq[GeneratedExpression],
+      resultType: TypeInformation[_])
+    : GeneratedExpression = {
+    operator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
         val left = operands.head
@@ -1193,7 +1201,7 @@ abstract class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
   }
 
-  private def generateFieldAccess(
+  def generateFieldAccess(
       inputType: TypeInformation[_],
       inputTerm: String,
       index: Int)
@@ -1824,6 +1832,14 @@ abstract class CodeGenerator(
         |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
+  }
+
+  def addReusableInitStatement(initStatement: String): Unit = {
+    reusableInitStatements.add(initStatement)
+  }
+
+  def addReusableMemberStatement(memberStatement: String): Unit = {
+    reusableMemberStatements.add(memberStatement)
   }
 
   /**
