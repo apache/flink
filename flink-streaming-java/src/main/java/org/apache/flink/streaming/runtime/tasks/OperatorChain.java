@@ -612,8 +612,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				output.collect(shallowCopy);
 			}
 
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(record);
+			if (outputs.length > 0) {
+				// don't copy for the last output
+				outputs[outputs.length - 1].collect(record);
+			}
 		}
 
 		@Override
@@ -625,8 +627,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				output.collect(outputTag, shallowCopy);
 			}
 
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(outputTag, record);
+			if (outputs.length > 0) {
+				// don't copy for the last output
+				outputs[outputs.length - 1].collect(outputTag, record);
+			}
 		}
 	}
 }

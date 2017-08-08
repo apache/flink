@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.api;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -34,6 +35,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 import org.junit.*;
 
@@ -372,5 +375,19 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		public static void clear() {
 			collections.clear();
 		}
+	}
+
+	@Test
+	public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		DataStream<Integer> input = env.fromElements(1, 2, 3);
+		input.flatMap(new FlatMapFunction<Integer, Integer>() {
+			@Override
+			public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+				out.collect(value << 1);
+			}
+		});
+		env.execute();
 	}
 }
