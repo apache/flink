@@ -19,20 +19,20 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.Executor;
-import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.ProgramExecutor;
+import org.apache.flink.api.common.ProgramExecutorFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 /**
  * A StreamGraphExecutor executes a StreamGraph.
  *
  * <p>The specific implementation (such as the org.apache.flink.client.LocalExecutor
- * and org.apache.flink.client.RemoteExecutor) is created by {@link ExecutorFactory}</p>
+ * and org.apache.flink.client.RemoteExecutor) is created by {@link ProgramExecutorFactory}</p>
  *
  */
 @Internal
-public interface StreamGraphExecutor extends Executor {
+public interface StreamGraphExecutor extends ProgramExecutor {
 
 	/**
 	 * Execute the given program.

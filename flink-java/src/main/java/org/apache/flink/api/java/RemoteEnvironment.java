@@ -20,7 +20,7 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.ExecutorFactory;
+import org.apache.flink.api.common.ProgramExecutorFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -187,7 +187,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 			return executor.getOptimizerPlanAsJSON(p);
 		}
 		else {
-			PlanExecutor le = new ExecutorFactory<>(PlanExecutor.class).createLocalExecutor(null);
+			PlanExecutor le = ProgramExecutorFactory.createLocalExecutor(PlanExecutor.class, null);
 			String plan = le.getOptimizerPlanAsJSON(p);
 
 			le.stop();
@@ -206,7 +206,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	protected PlanExecutor getExecutor() throws Exception {
 		if (executor == null) {
-			executor = new ExecutorFactory<>(PlanExecutor.class).createRemoteExecutor(host, port, clientConfiguration,
+			executor = ProgramExecutorFactory.createRemoteExecutor(PlanExecutor.class, host, port, clientConfiguration,
 				jarFiles, globalClasspaths);
 			executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}

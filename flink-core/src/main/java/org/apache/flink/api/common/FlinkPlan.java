@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.plan;
+package org.apache.flink.api.common;
 
 /**
  * A common interface for compiled Flink plans for both batch and streaming

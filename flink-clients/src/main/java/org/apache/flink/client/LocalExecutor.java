@@ -49,7 +49,7 @@ import java.util.List;
  * the {@link #executeStreamGraph(StreamGraph)} method,
  * this executor still start up and shut down again immediately after the program finished.</p>
  *
- * <p>To use this executor to execute streamGraphs or many dataflow programs that constitute one job together,
+ * <p>To use this executor to execute StreamGraphs or many dataflow programs that constitute one job together,
  * then this executor needs to be explicitly started, to keep running across several executions.</p>
  */
 public class LocalExecutor implements PlanExecutor, StreamGraphExecutor {
@@ -110,7 +110,7 @@ public class LocalExecutor implements PlanExecutor, StreamGraphExecutor {
 
 	@Override
 	public void setPrintStatusDuringExecution(boolean printStatus) {
-		printUpdatesToSysout= printStatus;
+		printUpdatesToSysout = printStatus;
 	}
 
 	@Override

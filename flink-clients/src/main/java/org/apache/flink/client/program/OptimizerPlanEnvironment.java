@@ -23,7 +23,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.FlinkPlan;
+import org.apache.flink.api.common.FlinkPlan;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -37,7 +37,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	private FlinkPlan optimizerPlan;
 
-	private StreamPlanEnvironment streamPlanEnvironment;
+	private final StreamPlanEnvironment streamPlanEnvironment;
 
 	public OptimizerPlanEnvironment(Optimizer compiler) {
 		this.compiler = compiler;

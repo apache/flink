@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.ProgramExecutorFactory;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -174,7 +174,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	private StreamGraphExecutor getStreamExecutor() {
 		if (remoteExecutor == null) {
-			remoteExecutor = new ExecutorFactory<>(StreamGraphExecutor.class).createRemoteExecutor(host, port, clientConfiguration, jarFiles, globalClasspaths);
+			remoteExecutor = ProgramExecutorFactory.createRemoteExecutor(StreamGraphExecutor.class, host, port, clientConfiguration, jarFiles, globalClasspaths);
 			remoteExecutor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		return remoteExecutor;

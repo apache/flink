@@ -25,11 +25,11 @@ import org.apache.flink.annotation.Internal;
  * dataflow plans prior to execution.
  * 
  * <p>The specific implementation (such as the org.apache.flink.client.LocalExecutor
- * and org.apache.flink.client.RemoteExecutor) is created by {@link ExecutorFactory}</p>
+ * and org.apache.flink.client.RemoteExecutor) is created by {@link ProgramExecutorFactory}</p>
  * 
  */
 @Internal
-public interface PlanExecutor extends Executor {
+public interface PlanExecutor extends ProgramExecutor {
 
 	/**
 	 * Execute the given program.

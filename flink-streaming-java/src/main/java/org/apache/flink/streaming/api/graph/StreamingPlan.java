@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.plan;
+package org.apache.flink.streaming.api.graph;
+
+import org.apache.flink.api.common.FlinkPlan;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
- * Abstract class representing Flink Streaming plans
- * 
+ * Abstract class representing Flink Streaming plans.
  */
 public abstract class StreamingPlan implements FlinkPlan {
 

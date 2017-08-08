@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.optimizer.plan.FlinkPlan;
+import org.apache.flink.api.common.FlinkPlan;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.slf4j.Logger;

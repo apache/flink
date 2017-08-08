@@ -21,7 +21,7 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.Internal;
 
 /**
- * A Executor execute a Flink program's job.
+ * A ProgramExecutor execute a Flink program's job.
  *
  * <p>The specific implementation (such as the org.apache.flink.client.LocalExecutor
  * and org.apache.flink.client.RemoteExecutor) determines where and how to run the dataflow.
@@ -29,7 +29,7 @@ import org.apache.flink.annotation.Internal;
  * the full set of all runtime classes.</p>
  */
 @Internal
-public interface Executor {
+public interface ProgramExecutor {
 
 	// ------------------------------------------------------------------------
 	//  Config Options

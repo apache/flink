@@ -26,23 +26,17 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A ExecutorFactory create the specific implementation of {@link Executor}
+ * A ProgramExecutorFactory create the specific implementation of {@link ProgramExecutor}
  * 
  */
 @Internal
-public class ExecutorFactory<T extends Executor> {
+public class ProgramExecutorFactory {
 
 	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
 
-	private Class<T> clazz;
-
-	public ExecutorFactory(Class<T> clazz) {
-		this.clazz = clazz;
-	}
-
 	// ------------------------------------------------------------------------
-	//  Executor Factories
+	//  ProgramExecutor Factories
 	// ------------------------------------------------------------------------
 	
 	/**
@@ -50,8 +44,8 @@ public class ExecutorFactory<T extends Executor> {
 	 * 
 	 * @return A local executor.
 	 */
-	public T createLocalExecutor(Configuration configuration) {
-		Class<? extends T> leClass = loadExecutorClass(LOCAL_EXECUTOR_CLASS);
+	public static <T extends ProgramExecutor> T createLocalExecutor(Class<T> clazz, Configuration configuration) {
+		Class<? extends T> leClass = loadExecutorClass(clazz, LOCAL_EXECUTOR_CLASS);
 		
 		try {
 			return leClass.getConstructor(Configuration.class).newInstance(configuration);
@@ -75,7 +69,7 @@ public class ExecutorFactory<T extends Executor> {
 	 *                 program. Paths must specify a protocol (e.g. file://) and be accessible on all nodes.
 	 * @return A remote executor.
 	 */
-	public T createRemoteExecutor(String hostname, int port, Configuration clientConfiguration,
+	public static <T extends ProgramExecutor> T createRemoteExecutor(Class<T> clazz, String hostname, int port, Configuration clientConfiguration,
 			List<URL> jarFiles, List<URL> globalClasspaths) {
 		if (hostname == null) {
 			throw new IllegalArgumentException("The hostname must not be null.");
@@ -83,8 +77,8 @@ public class ExecutorFactory<T extends Executor> {
 		if (port <= 0 || port > 0xffff) {
 			throw new IllegalArgumentException("The port value is out of range.");
 		}
-		
-		Class<? extends T> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
+
+		Class<? extends T> reClass = loadExecutorClass(clazz, REMOTE_EXECUTOR_CLASS);
 		
 		List<URL> files = (jarFiles == null) ?
 				Collections.<URL>emptyList() : jarFiles;
@@ -105,7 +99,7 @@ public class ExecutorFactory<T extends Executor> {
 		}
 	}
 	
-	private Class<? extends T> loadExecutorClass(String className) {
+	private static <T extends ProgramExecutor> Class<? extends T>  loadExecutorClass(Class<T> clazz, String className) {
 		try {
 			Class<?> leClass = Class.forName(className);
 			return leClass.asSubclass(clazz);

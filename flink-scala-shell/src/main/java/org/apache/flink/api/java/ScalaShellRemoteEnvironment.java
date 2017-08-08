@@ -19,8 +19,8 @@ package org.apache.flink.api.java;
  * limitations under the License.
  */
 
-import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.api.common.ProgramExecutorFactory;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
 
@@ -69,7 +69,8 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
 
-		this.executor = new ExecutorFactory<>(PlanExecutor.class).createRemoteExecutor(
+		this.executor = ProgramExecutorFactory.createRemoteExecutor(
+			PlanExecutor.class,
 			host,
 			port,
 			clientConfiguration,

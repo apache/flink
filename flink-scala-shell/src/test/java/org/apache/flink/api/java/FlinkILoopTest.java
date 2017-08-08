@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.api.common.ExecutorFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.api.common.ProgramExecutorFactory;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +53,7 @@ import static org.junit.Assert.assertTrue;
  * Integration tests for {@link FlinkILoop}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ExecutorFactory.class, ScalaShellRemoteEnvironment.class})
+@PrepareForTest({ProgramExecutorFactory.class, ScalaShellRemoteEnvironment.class})
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
@@ -64,10 +64,9 @@ public class FlinkILoopTest extends TestLogger {
 
 		final TestPlanExecutor testPlanExecutor = new TestPlanExecutor();
 
-		ExecutorFactory<PlanExecutor> executorFactory = BDDMockito.mock(ExecutorFactory.class);
-		PowerMockito.mockStatic(ExecutorFactory.class);
-		PowerMockito.whenNew(ExecutorFactory.class).withAnyArguments().thenReturn(executorFactory);
-		BDDMockito.given(executorFactory.createRemoteExecutor(
+		PowerMockito.mockStatic(ProgramExecutorFactory.class);
+		BDDMockito.given(ProgramExecutorFactory.createRemoteExecutor(
+			Matchers.any(Class.class),
 			Matchers.anyString(),
 			Matchers.anyInt(),
 			Matchers.any(Configuration.class),
@@ -76,11 +75,11 @@ public class FlinkILoopTest extends TestLogger {
 		)).willAnswer(new Answer<PlanExecutor>() {
 			@Override
 			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
-				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
-				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
-				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);
-				testPlanExecutor.setJars((List<String>) invocation.getArguments()[3]);
-				testPlanExecutor.setGlobalClasspaths((List<String>) invocation.getArguments()[4]);
+				testPlanExecutor.setHost((String) invocation.getArguments()[1]);
+				testPlanExecutor.setPort((Integer) invocation.getArguments()[2]);
+				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[3]);
+				testPlanExecutor.setJars((List<String>) invocation.getArguments()[4]);
+				testPlanExecutor.setGlobalClasspaths((List<String>) invocation.getArguments()[5]);
 
 				return testPlanExecutor;
 			}

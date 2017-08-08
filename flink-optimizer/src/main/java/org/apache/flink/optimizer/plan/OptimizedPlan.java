@@ -20,6 +20,7 @@ package org.apache.flink.optimizer.plan;
 
 import java.util.Collection;
 
+import org.apache.flink.api.common.FlinkPlan;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;

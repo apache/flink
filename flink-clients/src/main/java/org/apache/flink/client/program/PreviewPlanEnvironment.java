@@ -38,7 +38,7 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	Plan plan;
 
-	StreamPlanEnvironment streamPlanEnvironment;
+	final StreamPlanEnvironment streamPlanEnvironment;
 
 	public PreviewPlanEnvironment() {
 		this.streamPlanEnvironment = new StreamPlanEnvironment(this);
