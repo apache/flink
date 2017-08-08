@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import com.google.common.collect.Queues;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.util.event.EventListener;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 
 import java.io.IOException;
 import java.util.Queue;

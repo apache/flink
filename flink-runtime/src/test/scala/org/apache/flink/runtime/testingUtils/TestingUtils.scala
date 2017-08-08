@@ -24,7 +24,6 @@ import java.util.concurrent._
 
 import akka.actor.{ActorRef, ActorSystem, Kill, Props}
 import akka.pattern.{Patterns, ask}
-import com.google.common.util.concurrent.MoreExecutors
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.time.Time
@@ -128,7 +127,8 @@ object TestingUtils {
     *
     * @return Direct [[ExecutionContext]] which executes runnables directly
     */
-  def directExecutionContext = ExecutionContext.fromExecutor(MoreExecutors.directExecutor())
+  def directExecutionContext = ExecutionContext
+    .fromExecutor(org.apache.flink.runtime.concurrent.Executors.directExecutor())
 
   /** @return A new [[QueuedActionExecutionContext]] */
   def queuedActionExecutionContext = {

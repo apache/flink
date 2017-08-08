@@ -27,9 +27,10 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
+import org.apache.flink.shaded.guava18.com.google.common.hash.HashFunction;
+import org.apache.flink.shaded.guava18.com.google.common.hash.Hasher;
+import org.apache.flink.shaded.guava18.com.google.common.hash.Hashing;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

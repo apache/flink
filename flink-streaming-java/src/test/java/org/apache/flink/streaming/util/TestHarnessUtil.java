@@ -21,7 +21,8 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.Assert;
 
 import java.util.ArrayList;
