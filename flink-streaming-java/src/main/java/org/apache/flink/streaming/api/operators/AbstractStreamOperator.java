@@ -944,7 +944,16 @@ public abstract class AbstractStreamOperator<OUT>
 		if (timeServiceManager != null) {
 			timeServiceManager.advanceWatermark(mark);
 		}
-		output.emitWatermark(mark);
+		output.emitWatermark(new Watermark(holdBackWatermark(mark.getTimestamp())));
+	}
+
+	/**
+	 * Hold back the watermark.
+	 * @param watermarkTime timestamp of the received watermark
+	 * @return the delayed watermark time
+	 */
+	protected long holdBackWatermark(long watermarkTime) {
+		return watermarkTime;
 	}
 
 	private void checkTimerServiceInitialization() {

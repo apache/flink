@@ -90,6 +90,8 @@ public abstract class ProcessFunction<I, O> extends AbstractRichFunction {
 	 */
 	public abstract class Context {
 
+		private volatile long watermarkDelay = 0L;
+
 		/**
 		 * Timestamp of the element currently being processed or timestamp of a firing timer.
 		 *
@@ -110,6 +112,23 @@ public abstract class ProcessFunction<I, O> extends AbstractRichFunction {
 		 * @param value The record to emit.
 		 */
 		public abstract <X> void output(OutputTag<X> outputTag, X value);
+
+		/**
+		 * Set a time delay for holding back watermarks.
+		 * @param delay the time delay
+		 */
+		public void setWatermarkDelay(long delay) {
+			if (delay >= 0) {
+				this.watermarkDelay = delay;
+			}
+		}
+
+		/**
+		 * Return the time delay for holding back watermarks.
+		 */
+		public long watermarkDelay() {
+			return watermarkDelay;
+		}
 	}
 
 	/**

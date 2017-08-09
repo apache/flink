@@ -73,6 +73,11 @@ public class ProcessOperator<IN, OUT>
 		this.currentWatermark = mark.getTimestamp();
 	}
 
+	@Override
+	protected long holdBackWatermark(long watermarkTime) {
+		return watermarkTime - context.watermarkDelay();
+	}
+
 	private class ContextImpl
 			extends ProcessFunction<IN, OUT>.Context
 			implements TimerService {

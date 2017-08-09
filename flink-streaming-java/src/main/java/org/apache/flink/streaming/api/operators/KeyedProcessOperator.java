@@ -95,6 +95,11 @@ public class KeyedProcessOperator<K, IN, OUT>
 		context.element = null;
 	}
 
+	@Override
+	protected long holdBackWatermark(long watermarkTime) {
+		return watermarkTime - context.watermarkDelay();
+	}
+
 	private class ContextImpl extends ProcessFunction<IN, OUT>.Context {
 
 		private final TimerService timerService;

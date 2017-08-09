@@ -83,6 +83,11 @@ public class CoProcessOperator<IN1, IN2, OUT>
 		currentWatermark = mark.getTimestamp();
 	}
 
+	@Override
+	protected long holdBackWatermark(long watermarkTime) {
+		return watermarkTime - context.watermarkDelay();
+	}
+
 	private class ContextImpl
 			extends CoProcessFunction<IN1, IN2, OUT>.Context
 			implements TimerService {
