@@ -133,6 +133,36 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	/**
+	 * Test per-job yarn cluster and memory calculations for off-heap use (see FLINK-7400).
+	 *
+	 * <p>This also tests the prefixed CliFrontend options for the YARN case
+	 * We also test if the requested parallelism of 2 is passed through.
+	 * The parallelism is requested at the YARN client (-ys).
+	 */
+	@Test
+	public void perJobYarnClusterOffHeap() {
+		LOG.info("Starting perJobYarnCluster()");
+		addTestAppender(JobClient.class, Level.INFO);
+		File exampleJarLocation = new File("target/programs/BatchWordCount.jar");
+		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
+				"-yj", flinkUberjar.getAbsolutePath(), "-yt", flinkLibFolder.getAbsolutePath(),
+				"-yn", "1",
+				"-ys", "2", //test that the job is executed with a DOP of 2
+				"-yjm", "768",
+				"-ytm", "1024",
+				"-yD", "taskmanager.memory.off-heap=true",
+				"-yD", "taskmanager.memory.size=246", // this should fit!
+				"-yD", "taskmanager.memory.preallocate=true", exampleJarLocation.getAbsolutePath()},
+				/* test succeeded after this string */
+			"Job execution complete",
+			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
+			RunTypes.CLI_FRONTEND, 0, true);
+		LOG.info("Finished perJobYarnCluster()");
+	}
+
+	/**
 	 * Test TaskManager failure and also if the vcores are set correctly (see issue FLINK-2213).
 	 */
 	@Test(timeout = 100000) // timeout after 100 seconds
