@@ -382,7 +382,7 @@ public abstract class ClusterClient {
 				// invoke main method
 				prog.invokeInteractiveModeForExecution();
 				if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
-					throw new ProgramMissingJobException();
+					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
 				}
 				if (isDetached()) {
 					// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here

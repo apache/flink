@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime;
 
+import org.apache.flink.util.FlinkException;
+
 /**
  * Indicates that a job is not stoppable.
  */
-public class StoppingException extends Exception {
+public class StoppingException extends FlinkException {
 
 	private static final long serialVersionUID = -721315728140810694L;
 
