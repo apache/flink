@@ -27,7 +27,12 @@ import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * An at-least-once Table sink for JDBC.
@@ -80,11 +85,22 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 		int[] types = sink.outputFormat.getTypesArray();
 		Preconditions.checkArgument(fieldTypes.length == types.length);
 		for (int i = 0; i < types.length; ++i) {
-			Preconditions.checkArgument(JDBCTypeUtil.typeInformationToSqlType(fieldTypes[i]) == types[i],
-				"Incompatible types between fields and JDBC format at " + i);
+			if (JDBCTypeUtil.typeInformationToSqlType(fieldTypes[i]) != types[i]) {
+				String expectedTypes = String.join(",", IntStream.of(types)
+					.mapToObj(JDBCTypeUtil::getTypeName).collect(Collectors.toList()));
+				String msg = String.format("Schema of output table incompatible with JDBCAppendTableSink: " +
+					"expected [%s], actual [%s]", expectedTypes, new RowTypeInfo(fieldTypes).toString());
+				throw new IllegalArgumentException(msg);
+			}
 		}
 
-		JDBCAppendTableSink copy = new JDBCAppendTableSink(sink.outputFormat);
+		JDBCAppendTableSink copy;
+		try {
+			copy = new JDBCAppendTableSink(InstantiationUtil.clone(sink.outputFormat));
+		} catch (IOException | ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+
 		copy.fieldNames = fieldNames;
 		copy.fieldTypes = fieldTypes;
 		return copy;

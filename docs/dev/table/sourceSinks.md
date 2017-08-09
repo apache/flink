@@ -216,7 +216,7 @@ JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
   .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
   .setDBUrl("jdbc:derby:memory:ebookshop")
   .setQuery("INSERT INTO books (id) VALUES (?)")
-  .setFieldTypes(new TypeInformation<?>[] {INT_TYPE_INFO})
+  .setParameterTypes(INT_TYPE_INFO)
   .build();
 {% endhighlight %}
 </div>
@@ -227,7 +227,7 @@ val sink = JDBCAppendTableSink.builder()
   .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
   .setDBUrl("jdbc:derby:memory:ebookshop")
   .setQuery("INSERT INTO books (id) VALUES (?)")
-  .setFieldTypes(Array(INT_TYPE_INFO))
+  .setParameterTypes(INT_TYPE_INFO)
   .build()
 {% endhighlight %}
 </div>

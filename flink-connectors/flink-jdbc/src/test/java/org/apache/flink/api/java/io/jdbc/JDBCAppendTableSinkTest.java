@@ -51,7 +51,7 @@ public class JDBCAppendTableSinkTest {
 			.setDrivername("foo")
 			.setDBUrl("bar")
 			.setQuery("insert into %s (id) values (?)")
-			.setFieldTypes(FIELD_TYPES)
+			.setParameterTypes(FIELD_TYPES)
 			.build();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

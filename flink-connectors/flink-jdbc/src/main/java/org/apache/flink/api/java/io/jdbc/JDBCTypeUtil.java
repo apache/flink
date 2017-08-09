@@ -44,6 +44,7 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INF
 
 class JDBCTypeUtil {
 	private static final Map<BasicTypeInfo<?>, Integer> BASIC_TYPES;
+	private static final Map<Integer, String> SQL_TYPE_NAMES;
 
 	static {
 		HashMap<BasicTypeInfo<?>, Integer> m = new HashMap<>();
@@ -60,6 +61,20 @@ class JDBCTypeUtil {
 		m.put(BIG_INT_TYPE_INFO, Types.DECIMAL);
 		m.put(BIG_DEC_TYPE_INFO, Types.DECIMAL);
 		BASIC_TYPES = Collections.unmodifiableMap(m);
+
+		HashMap<Integer, String> names = new HashMap<>();
+		names.put(Types.VARCHAR, "VARCHAR");
+		names.put(Types.BOOLEAN, "BOOLEAN");
+		names.put(Types.TINYINT, "TINYINT");
+		names.put(Types.SMALLINT, "SMALLINT");
+		names.put(Types.INTEGER, "INTEGER");
+		names.put(Types.BIGINT, "BIGINT");
+		names.put(Types.FLOAT, "FLOAT");
+		names.put(Types.DOUBLE, "DOUBLE");
+		names.put(Types.CHAR, "CHAR");
+		names.put(Types.DATE, "DATE");
+		names.put(Types.DECIMAL, "DECIMAL");
+		SQL_TYPE_NAMES = Collections.unmodifiableMap(names);
 	}
 
 	private JDBCTypeUtil() {
@@ -75,6 +90,10 @@ class JDBCTypeUtil {
 		} else {
 			throw new IllegalArgumentException("Unsupported type " + type);
 		}
+	}
+
+	static String getTypeName(int type) {
+		return SQL_TYPE_NAMES.get(type);
 	}
 
 	private static int basicTypeToSqlType(BasicTypeInfo<?> type) {
