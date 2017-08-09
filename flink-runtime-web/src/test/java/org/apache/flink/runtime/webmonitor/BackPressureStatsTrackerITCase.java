@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -156,10 +157,10 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 
 							// Submit the job and wait until it is running
 							JobClient.submitJobDetached(
-									jm,
+									new AkkaJobManagerGateway(jm),
 									config,
 									jobGraph,
-									deadline,
+									Time.milliseconds(deadline.toMillis()),
 									ClassLoader.getSystemClassLoader());
 
 							jm.tell(new WaitForAllVerticesToBeRunning(jobGraph.getJobID()), testActor);

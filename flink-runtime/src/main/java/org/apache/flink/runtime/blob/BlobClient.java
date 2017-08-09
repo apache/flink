@@ -24,16 +24,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -484,50 +478,6 @@ public final class BlobClient implements Closeable {
 	}
 
 	/**
-	 * Retrieves the {@link BlobServer} address from the JobManager and uploads
-	 * the JAR files to it.
-	 *
-	 * @param jobManager   Server address of the {@link BlobServer}
-	 * @param askTimeout   Ask timeout for blob server address retrieval
-	 * @param clientConfig Any additional configuration for the blob client
-	 * @param jars         List of JAR files to upload
-	 * @throws IOException Thrown if the address retrieval or upload fails
-	 */
-	public static List<BlobKey> uploadJarFiles(
-			ActorGateway jobManager,
-			FiniteDuration askTimeout,
-			Configuration clientConfig,
-			List<Path> jars) throws IOException {
-
-		if (jars.isEmpty()) {
-			return Collections.emptyList();
-		} else {
-			Object msg = JobManagerMessages.getRequestBlobManagerPort();
-			Future<Object> futureBlobPort = jobManager.ask(msg, askTimeout);
-
-			try {
-				// Retrieve address
-				Object result = Await.result(futureBlobPort, askTimeout);
-				if (result instanceof Integer) {
-					int port = (Integer) result;
-					LOG.info("Blob client connecting to " + jobManager.path());
-
-					Option<String> jmHost = jobManager.actor().path().address().host();
-					String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-					InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-
-					// Now, upload
-					return uploadJarFiles(serverAddress, clientConfig, jars);
-				} else {
-					throw new Exception("Expected port number (int) as answer, received " + result);
-				}
-			} catch (Exception e) {
-				throw new IOException("Could not retrieve the JobManager's blob port.", e);
-			}
-		}
-	}
-
-	/**
 	 * Uploads the JAR files to a {@link BlobServer} at the given address.
 	 *
 	 * @param serverAddress Server address of the {@link BlobServer}
@@ -535,8 +485,10 @@ public final class BlobClient implements Closeable {
 	 * @param jars List of JAR files to upload
 	 * @throws IOException Thrown if the upload fails
 	 */
-	public static List<BlobKey> uploadJarFiles(InetSocketAddress serverAddress,
-			Configuration clientConfig, List<Path> jars) throws IOException {
+	public static List<BlobKey> uploadJarFiles(
+			InetSocketAddress serverAddress,
+			Configuration clientConfig,
+			List<Path> jars) throws IOException {
 		if (jars.isEmpty()) {
 			return Collections.emptyList();
 		} else {
