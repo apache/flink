@@ -93,6 +93,15 @@ public class Buffer {
 		return recycler;
 	}
 
+	/**
+	 * Returns the size of this buffer without synchronization.
+	 *
+	 * @return size of this buffer
+	 */
+	public int getSizeUnsafe() {
+		return currentSize;
+	}
+
 	public int getSize() {
 		synchronized (recycleLock) {
 			return currentSize;
