@@ -121,7 +121,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 */
 	public FlinkKinesisProducer(KinesisSerializationSchema<OUT> schema, Properties configProps) {
 		checkNotNull(configProps, "configProps can not be null");
-		this.configProps = KinesisConfigUtil.replaceDeprecatedProducerKeys(configProps);
+		this.configProps = configProps;
 
 		// check the configuration properties for any invalid settings
 		this.producerConfig = KinesisConfigUtil.validateProducerConfiguration(configProps);

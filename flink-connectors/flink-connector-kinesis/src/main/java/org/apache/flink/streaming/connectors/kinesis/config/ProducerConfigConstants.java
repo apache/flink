@@ -23,11 +23,6 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
  * Optional producer specific configuration keys for {@link FlinkKinesisProducer}.
  */
 public class ProducerConfigConstants extends AWSConfigConstants {
-	/** @Deprecated **/
-	public static final String DEPRECATED_COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
-
-	/** @Deprecated **/
-	public static final String DEPRECATED_AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
 
 	/** Maximum number of items to pack into an PutRecords request. **/
 	public static final String COLLECTION_MAX_COUNT = "CollectionMaxCount";
