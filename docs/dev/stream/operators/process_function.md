@@ -1,7 +1,7 @@
 ---
 title: "Process Function (Low-level Operations)"
 nav-title: "Process Function"
-nav-parent_id: operators
+nav-parent_id: streaming_operators
 nav-pos: 35
 ---
 <!--
@@ -38,10 +38,10 @@ all (acyclic) streaming applications:
 The `ProcessFunction` can be thought of as a `FlatMapFunction` with access to keyed state and timers. It handles events
 by being invoked for each event received in the input stream(s).
 
-For fault-tolerant state, the `ProcessFunction` gives access to Flink's [keyed state](state/state.html), accessible via the
+For fault-tolerant state, the `ProcessFunction` gives access to Flink's [keyed state]({{ site.baseurl }}/dev/stream/state/state.html), accessible via the
 `RuntimeContext`, similar to the way other stateful functions can access keyed state.
 
-The timers allow applications to react to changes in processing time and in [event time](../event_time.html).
+The timers allow applications to react to changes in processing time and in [event time]({{ site.baseurl }}/dev/event_time.html).
 Every call to the function `processElement(...)` gets a `Context` object which gives access to the element's
 event time timestamp, and to the *TimerService*. The `TimerService` can be used to register callbacks for future
 event-/processing-time instants. When a timer's particular time is reached, the `onTimer(...)` method is

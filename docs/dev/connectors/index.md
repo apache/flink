@@ -71,7 +71,7 @@ Additional streaming connectors for Flink are being released through [Apache Bah
 Using a connector isn't the only way to get data in and out of Flink.
 One common pattern is to query an external database or web service in a `Map` or `FlatMap`
 in order to enrich the primary datastream.
-Flink offers an API for [Asynchronous I/O]({{ site.baseurl }}/dev/stream/asyncio.html)
+Flink offers an API for [Asynchronous I/O]({{ site.baseurl }}/dev/stream/operators/asyncio.html)
 to make it easier to do this kind of enrichment efficiently and robustly.
 
 ### Queryable State

@@ -1,6 +1,6 @@
 ---
 title: "Windows"
-nav-parent_id: operators
+nav-parent_id: streaming_operators
 nav-id: windows
 nav-pos: 10
 ---
@@ -926,7 +926,7 @@ necessarily the ones that arrive first or last.
 
 When working with *event-time* windowing, it can happen that elements arrive late, *i.e.* the watermark that Flink uses to
 keep track of the progress of event-time is already past the end timestamp of a window to which an element belongs. See
-[event time](./event_time.html) and especially [late elements](./event_time.html#late-elements) for a more thorough
+[event time]({{ site.baseurl }}/dev/event_time.html) and especially [late elements]({{ site.baseurl }}/dev/event_time.html#late-elements) for a more thorough
 discussion of how Flink deals with event time.
 
 By default, late elements are dropped when the watermark is past the end of the window. However,

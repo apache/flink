@@ -38,7 +38,7 @@ to the basic concepts of the Flink API.
 In order to create your own Flink DataStream program, we encourage you to start with
 [anatomy of a Flink Program]({{ site.baseurl }}/dev/api_concepts.html#anatomy-of-a-flink-program)
 and gradually add your own
-[stream transformations]({{ site.baseurl }}/dev/stream/operators.html). The remaining sections act as references for additional
+[stream transformations]({{ site.baseurl }}/dev/stream/operators/index.html). The remaining sections act as references for additional
 operations and advanced features.
 
 
@@ -134,12 +134,6 @@ word count program. If you want to see counts greater than 1, type the same word
 5 seconds (increase the window size from 5 seconds if you cannot type that fast &#9786;).
 
 {% top %}
-
-DataStream Transformations
---------------------------
-
-Moved. Please see [operators]({{ site.baseurl }}/dev/stream/operators.html) for an overview of the
-available stream transformations.
 
 Data Sources
 ------------
@@ -261,6 +255,13 @@ Custom:
 
 </div>
 </div>
+
+{% top %}
+
+DataStream Transformations
+--------------------------
+
+Please see [operators]({{ site.baseurl }}/dev/stream/operators/index.html) for an overview of the available stream transformations.
 
 {% top %}
 
@@ -622,5 +623,15 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.getJava
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}
+
+Where to go next?
+-----------------
+
+* [Operators]({{ site.baseurl }}/dev/stream/operators/index.html): Specification of available streaming operators.
+* [Event Time]({{ site.baseurl }}/dev/event_time.html): Introduction to Flink's notion of time.
+* [State & Fault Tolerance]({{ site.baseurl }}/dev/stream/state/index.html): Explanation of how to develop stateful applications.
+* [Connectors]({{ site.baseurl }}/dev/connectors/index.html): Description of available input and output connectors.
 
 {% top %}

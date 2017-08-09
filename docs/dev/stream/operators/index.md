@@ -1,6 +1,6 @@
 ---
 title: "Operators"
-nav-id: operators
+nav-id: streaming_operators
 nav-show_overview: true
 nav-parent_id: streaming
 nav-pos: 9
@@ -25,9 +25,9 @@ under the License.
 -->
 
 Operators transform one or more DataStreams into a new DataStream. Programs can combine
-multiple transformations into sophisticated topologies.
+multiple transformations into sophisticated dataflow topologies.
 
-This section gives a description of all the available transformations, the effective physical
+This section gives a description of the basic transformations, the effective physical
 partitioning after applying those as well as insights into Flink's operator chaining.
 
 * toc
@@ -757,7 +757,7 @@ initialStream.iterate {
             <p>
                 Extracts timestamps from records in order to work with windows
                 that use event time semantics.
-                See <a href="{{ site.baseurl }}/apis/streaming/event_time.html">Event Time</a>.
+                See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
                 {% highlight scala %}
 stream.assignTimestamps { timestampExtractor }
                 {% endhighlight %}
@@ -774,7 +774,7 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{{ site.baseurl }}/dev/scala_api_extensions.html">Scala API extension</a>.
 
 
 </div>
@@ -1049,7 +1049,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/setup/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <div class="codetabs" markdown="1">
