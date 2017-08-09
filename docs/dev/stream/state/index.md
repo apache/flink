@@ -1,4 +1,4 @@
- ---
+---
 title: "State & Fault Tolerance"
 nav-id: streaming_state
 nav-title: "State & Fault Tolerance"

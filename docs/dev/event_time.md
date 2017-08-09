@@ -3,7 +3,7 @@ title: "Event Time"
 nav-id: event_time
 nav-show_overview: true
 nav-parent_id: streaming
-nav-pos: 20
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

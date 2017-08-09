@@ -1,5 +1,5 @@
 ---
-title: "Debugging and Tuning Checkpoints and Large State"
+title: "Tuning Checkpoints and Large State"
 nav-parent_id: ops_state
 nav-pos: 12
 ---
