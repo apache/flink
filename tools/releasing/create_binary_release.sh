@@ -78,25 +78,25 @@ cd ..
 
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
-  make_binary_release "hadoop2" "" 2.10
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.10"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "2.10"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "2.10"
+  make_binary_release "hadoop2" "" "2.10"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.10"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "2.10"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "2.10"
 
-  make_binary_release "hadoop2" "" 2.11
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "2.11"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "2.11"
+  make_binary_release "hadoop2" "" "2.11"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "2.11"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "2.11"
 elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
 then
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.10"
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
 elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
 then
-  make_binary_release "hadoop2" "" $SCALA_VERSION
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "$SCALA_VERSION"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "$SCALA_VERSION"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "$SCALA_VERSION"
+  make_binary_release "hadoop2" "" "$SCALA_VERSION"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "$SCALA_VERSION"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "$SCALA_VERSION"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "$SCALA_VERSION"
 else
   make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
 fi
