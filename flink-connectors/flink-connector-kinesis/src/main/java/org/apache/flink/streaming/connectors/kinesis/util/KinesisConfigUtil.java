@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
+import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -124,6 +125,26 @@ public class KinesisConfigUtil {
 					ConsumerConfigConstants.MAX_SHARD_GETRECORDS_INTERVAL_MILLIS + " milliseconds."
 			);
 		}
+	}
+
+	/**
+	 * Replace deprecated configuration properties for {@link FlinkKinesisProducer}.
+	 * This should be remove along with deprecated keys
+	 */
+	public static Properties replaceDeprecatedProducerKeys(Properties configProps) {
+		// Replace deprecated key
+		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT)) {
+			configProps.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT,
+					configProps.getProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT);
+		}
+		// Replace deprecated key
+		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT)) {
+			configProps.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT,
+					configProps.getProperty(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT);
+		}
+		return configProps;
 	}
 
 	/**

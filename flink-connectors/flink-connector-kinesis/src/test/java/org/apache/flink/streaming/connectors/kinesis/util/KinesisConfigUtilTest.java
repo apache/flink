@@ -29,6 +29,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.Properties;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * Tests for KinesisConfigUtil.
  */
@@ -48,5 +50,17 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty("RateLimit", "unparsableLong");
 
 		KinesisConfigUtil.validateProducerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testReplaceDeprecatedKeys() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT, "1");
+		testConfig.setProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT, "2");
+		Properties replacedConfig = KinesisConfigUtil.replaceDeprecatedProducerKeys(testConfig);
+
+		assertEquals("1", replacedConfig.getProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT));
+		assertEquals("2", replacedConfig.getProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT));
 	}
 }
