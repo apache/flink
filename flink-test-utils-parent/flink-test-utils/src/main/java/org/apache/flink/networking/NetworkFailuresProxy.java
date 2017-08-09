@@ -53,8 +53,6 @@ public class NetworkFailuresProxy implements AutoCloseable {
 	private final Set<NetworkFailureHandler> networkFailureHandlers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
 	public NetworkFailuresProxy(int localPort, String remoteHost, int remotePort) {
-		LOG.info("Proxying [*:{}] to [{}:{}]", localPort, remoteHost, remotePort);
-
 		// Configure the bootstrap.
 		serverBootstrap = new ServerBootstrap(
 			new NioServerSocketChannelFactory(executor, executor));
@@ -83,6 +81,7 @@ public class NetworkFailuresProxy implements AutoCloseable {
 		});
 		channel = serverBootstrap.bind(new InetSocketAddress(localPort));
 
+		LOG.info("Proxying [*:{}] to [{}:{}]", getLocalPort(), remoteHost, remotePort);
 	}
 
 	/**
