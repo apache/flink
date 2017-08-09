@@ -186,7 +186,8 @@ class DataSetJoin(
            |""".stripMargin
     }
     else {
-      val condition = generator.generateExpression(joinCondition)
+      val nonEquiPredicates = joinInfo.getRemaining(this.cluster.getRexBuilder)
+      val condition = generator.generateExpression(nonEquiPredicates)
       body = s"""
            |${condition.code}
            |if (${condition.resultTerm}) {
