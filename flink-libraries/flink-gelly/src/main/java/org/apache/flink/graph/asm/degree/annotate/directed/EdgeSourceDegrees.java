@@ -52,7 +52,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, Degrees>>> {
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<K, EV, Degrees>())
+			.with(new JoinEdgeWithVertexDegree<>())
 				.setParallelism(parallelism)
 				.name("Edge source degrees");
 	}

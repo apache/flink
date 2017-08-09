@@ -41,7 +41,7 @@ extends AsmTestBase {
 			env);
 
 		Checksum checksum = graph
-			.run(new ChecksumHashCode<Long, Long, Long>())
+			.run(new ChecksumHashCode<>())
 			.execute();
 
 		assertEquals(checksum.getCount(), 12L);

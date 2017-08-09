@@ -364,7 +364,8 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 			// override cluster descriptor to replace the YarnClient
 			protected AbstractYarnClusterDescriptor getClusterDescriptor(
 					Configuration configuration,
-					String configurationDirecotry) {
+					String configurationDirecotry,
+					boolean flip6) {
 				return new TestingYarnClusterDescriptor(configuration, configurationDirecotry);
 			}
 

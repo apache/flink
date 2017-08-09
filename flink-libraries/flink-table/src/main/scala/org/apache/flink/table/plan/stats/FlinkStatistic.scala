@@ -19,9 +19,10 @@
 package org.apache.flink.table.plan.stats
 
 import java.lang.Double
+import java.util
 import java.util.{Collections, List}
 
-import org.apache.calcite.rel.{RelCollation, RelDistribution}
+import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialConstraint}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -66,6 +67,8 @@ class FlinkStatistic(tableStats: Option[TableStats]) extends Statistic {
 
   override def getDistribution: RelDistribution = null
 
+  override def getReferentialConstraints: util.List[RelReferentialConstraint] =
+    Collections.emptyList()
 }
 
 /**

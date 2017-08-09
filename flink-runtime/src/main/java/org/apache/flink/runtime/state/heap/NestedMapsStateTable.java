@@ -101,8 +101,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		try {
 			state[indexToOffset(keyGroupId)] = map;
 		} catch (ArrayIndexOutOfBoundsException e) {
-			throw new IllegalArgumentException("Key group index out of range of key group range [" +
-					keyGroupOffset + ", " + (keyGroupOffset + state.length) + ").");
+			throw new IllegalArgumentException("Key group index " + keyGroupId + " is out of range of key group " +
+				"range [" + keyGroupOffset + ", " + (keyGroupOffset + state.length) + ").");
 		}
 	}
 

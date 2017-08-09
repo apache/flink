@@ -102,23 +102,28 @@ if [[ $PROFILE == *"include-kinesis"* ]]; then
 fi
 
 MVN_COMPILE_MODULES=""
+MVN_COMPILE_OPTIONS=""
 MVN_TEST_MODULES=""
 case $TEST in
 	(core)
 		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
 		MVN_TEST_MODULES="-pl $MODULES_CORE"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true"
 	;;
 	(libraries)
 		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
 		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true"
 	;;
 	(connectors)
 		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
 		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true"
 	;;
 	(tests)
 		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
 		MVN_TEST_MODULES="-pl $MODULES_TESTS"
+		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true"
 	;;
 	(misc)
 		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
@@ -128,6 +133,7 @@ case $TEST in
 		# compile everything since dist needs it anyway
 		MVN_COMPILE_MODULES=""
 		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
+		MVN_COMPILE_OPTIONS="-Dspotbugs"
 	;;
 esac
 
@@ -138,8 +144,11 @@ esac
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMPILE="mvn -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -DskipTests -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_COMPILE_MODULES clean install"
-MVN_TEST="mvn -nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $PROFILE $MVN_LOGGING_OPTIONS $MVN_TEST_MODULES verify"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $MVN_LOGGING_OPTIONS"
+MVN_COMPILE_OPTIONS="$MVN_COMPILE_OPTIONS -DskipTests"
+
+MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES clean install"
+MVN_TEST="mvn $MVN_COMMON_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -283,6 +292,15 @@ check_shaded_artifacts() {
 		echo "=============================================================================="
 		return 1
 	fi
+
+    NETTY=`cat allClasses | grep '^io/netty' | wc -1`
+	if [ $NETTY != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected $NETTY unshaded netty dependencies in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
 	return 0
 }
 
@@ -390,25 +408,25 @@ cd ../../
 case $TEST in
 	(misc)
 		if [ $EXIT_CODE == 0 ]; then
-			echo "\n=============================================================================="
-			echo "Running end-to-end tests"
-			echo "=============================================================================="
+			printf "\n\n==============================================================================\n"
+			printf "Running end-to-end tests\n"
+			printf "==============================================================================\n"
 
-			echo "\n=============================================================================="
-			echo "Running Wordcount end-to-end test"
-			echo "=============================================================================="
+			printf "\n==============================================================================\n"
+			printf "Running Wordcount end-to-end test\n"
+			printf "==============================================================================\n"
 			test-infra/end-to-end-test/test_batch_wordcount.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
 
-			echo "\n=============================================================================="
-			echo "Running Kafka end-to-end test"
-			echo "=============================================================================="
+			printf "\n==============================================================================\n"
+			printf "Running Kafka end-to-end test\n"
+			printf "==============================================================================\n"
 			test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
-			echo "=============================================================================="
-			echo "Previous build failure detected, skipping end-to-end tests."
-			echo "=============================================================================="
+			printf "\n==============================================================================\n"
+			printf "Previous build failure detected, skipping end-to-end tests.\n"
+			printf "==============================================================================\n"
 		fi
 	;;
 esac

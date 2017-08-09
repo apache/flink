@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -84,7 +85,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	private String zookeeperConnectionString;
 	private String brokerConnectionString = "";
 	private Properties standardProps;
-	private Properties additionalServerProperties;
+	private Config config;
 
 	public String getBrokerConnectionString() {
 		return brokerConnectionString;
@@ -206,8 +207,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public void prepare(int numKafkaServers, Properties additionalServerProperties, boolean secureMode) {
-		this.additionalServerProperties = additionalServerProperties;
+	public void prepare(Config config) {
+		this.config = config;
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
 		tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID().toString()));
@@ -224,8 +225,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			fail("cannot create kafka temp dir: " + e.getMessage());
 		}
 
-		tmpKafkaDirs = new ArrayList<>(numKafkaServers);
-		for (int i = 0; i < numKafkaServers; i++) {
+		tmpKafkaDirs = new ArrayList<>(config.getKafkaServersNumber());
+		for (int i = 0; i < config.getKafkaServersNumber(); i++) {
 			File tmpDir = new File(tmpKafkaParent, "server-" + i);
 			assertTrue("cannot create kafka temp dir", tmpDir.mkdir());
 			tmpKafkaDirs.add(tmpDir);
@@ -240,9 +241,9 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			zookeeperConnectionString = zookeeper.getConnectString();
 
 			LOG.info("Starting KafkaServer");
-			brokers = new ArrayList<>(numKafkaServers);
+			brokers = new ArrayList<>(config.getKafkaServersNumber());
 
-			for (int i = 0; i < numKafkaServers; i++) {
+			for (int i = 0; i < config.getKafkaServersNumber(); i++) {
 				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
 				SocketServer socketServer = brokers.get(i).socketServer();
 
@@ -391,8 +392,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		// for CI stability, increase zookeeper session timeout
 		kafkaProperties.put("zookeeper.session.timeout.ms", "30000");
 		kafkaProperties.put("zookeeper.connection.timeout.ms", "30000");
-		if (additionalServerProperties != null) {
-			kafkaProperties.putAll(additionalServerProperties);
+		if (config.getKafkaServerProperties() != null) {
+			kafkaProperties.putAll(config.getKafkaServerProperties());
 		}
 
 		final int numTries = 5;
@@ -400,6 +401,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		for (int i = 1; i <= numTries; i++) {
 			int kafkaPort = NetUtils.getAvailablePort();
 			kafkaProperties.put("port", Integer.toString(kafkaPort));
+
+			if (config.isHideKafkaBehindProxy()) {
+				NetworkFailuresProxy proxy = createProxy(KAFKA_HOST, kafkaPort);
+				kafkaProperties.put("advertised.port", Integer.toString(proxy.getLocalPort()));
+			}
+
 			KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
 			try {

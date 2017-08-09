@@ -809,6 +809,27 @@ Table result = left.minusAll(right);
 {% endhighlight %}
       </td>
     </tr>
+
+    <tr>
+      <td>
+        <strong>In</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+        <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
+{% highlight java %}
+Table left = ds1.toTable(tableEnv, "a, b, c");
+Table right = ds2.toTable(tableEnv, "a");
+
+// using implicit registration
+Table result = left.select("a, b, c").where("a.in(" + right + ")");
+
+// using explicit registration
+tableEnv.registerTable("RightTable", right);
+Table result = left.select("a, b, c").where("a.in(RightTable)");
+{% endhighlight %}
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -910,6 +931,21 @@ val result = left.minus(right);
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
 val result = left.minusAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>In</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+        <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a);
+val result = left.select('a, 'b, 'c).where('a.in(right));
 {% endhighlight %}
       </td>
     </tr>
@@ -1667,6 +1703,28 @@ STRING.similar(STRING)
       </td>
       <td>
         <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.in(ANY, ANY, ...)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if an expression exists in a given list of expressions. This is a shorthand for multiple OR conditions. If the testing set contains null, the result will be null if the element can not be found and true if it can be found. If element is null, the result is always null. E.g. "42.in(1, 2, 3)" leads to false.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.in(TABLE)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
       </td>
     </tr>
 
@@ -2964,6 +3022,28 @@ STRING.similar(STRING)
       </td>
       <td>
         <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.in(ANY, ANY, ...)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if an expression exists in a given list of expressions. This is a shorthand for multiple OR conditions. If the testing set contains null, the result will be null if the element can not be found and true if it can be found. If element is null, the result is always null. E.g. "42".in(1, 2, 3) leads to false.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.in(TABLE)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
       </td>
     </tr>
 

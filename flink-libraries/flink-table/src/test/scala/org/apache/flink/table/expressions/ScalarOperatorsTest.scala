@@ -18,13 +18,9 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{ExpressionTestBase, ScalarOperatorsTestBase, ShouldNotExecuteFunc}
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.types.Row
+import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
 import org.junit.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
@@ -134,6 +130,83 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     // string arithmetic
     testTableApi(42.toExpr + 'f10 + 'f9, "42 + f10 + f9", "42String10")
     testTableApi('f10 + 'f9, "f10 + f9", "String10")
+  }
+
+  @Test
+  def testIn(): Unit = {
+    testAllApis(
+      'f2.in(1, 2, 42),
+      "f2.in(1, 2, 42)",
+      "f2 IN (1, 2, 42)",
+      "true"
+    )
+
+    testAllApis(
+      'f0.in(BigDecimal(42.0), BigDecimal(2.00), BigDecimal(3.01), BigDecimal(1.000000)),
+      "f0.in(42.0p, 2.00p, 3.01p, 1.000000p)",
+      "CAST(f0 AS DECIMAL) IN (42.0, 2.00, 3.01, 1.000000)", // SQL would downcast otherwise
+      "true"
+    )
+
+    testAllApis(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1"),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1')",
+      "f10 IN ('This is a test String.', 'String', 'Hello world', 'Comment#1')",
+      "true"
+    )
+
+    testAllApis(
+      'f14.in("This is a test String.", "Hello world"),
+      "f14.in('This is a test String.', 'Hello world')",
+      "f14 IN ('This is a test String.', 'String', 'Hello world')",
+      "null"
+    )
+
+    testAllApis(
+      'f15.in("1996-11-10".toDate),
+      "f15.in('1996-11-10'.toDate)",
+      "f15 IN (DATE '1996-11-10')",
+      "true"
+    )
+
+    testAllApis(
+      'f15.in("1996-11-10".toDate, "1996-11-11".toDate),
+      "f15.in('1996-11-10'.toDate, '1996-11-11'.toDate)",
+      "f15 IN (DATE '1996-11-10', DATE '1996-11-11')",
+      "true"
+    )
+
+    testAllApis(
+      'f7.in('f16, 'f17),
+      "f7.in(f16, f17)",
+      "f7 IN (f16, f17)",
+      "true"
+    )
+
+    // we do not test SQL here as this expression would be converted into values + join operations
+    testTableApi(
+      'f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21),
+      "f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
+      "true"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL"),
+      "f10.in('FAIL', 'FAIL')",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL", Null(Types.STRING)),
+      "f10.in('FAIL', 'FAIL', Null(STRING))",
+      "null"
+    )
   }
 
   @Test

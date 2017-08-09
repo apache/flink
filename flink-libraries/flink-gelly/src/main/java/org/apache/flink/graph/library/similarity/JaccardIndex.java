@@ -199,7 +199,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple4<IntValue, K, K, IntValue>> groupSpans = neighborDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateGroupSpans<K, EV>(groupSize))
+			.reduceGroup(new GenerateGroupSpans<>(groupSize))
 				.setParallelism(parallelism)
 				.name("Generate group spans");
 
@@ -208,7 +208,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.rebalance()
 				.setParallelism(parallelism)
 				.name("Rebalance")
-			.flatMap(new GenerateGroups<K>())
+			.flatMap(new GenerateGroups<>())
 				.setParallelism(parallelism)
 				.name("Generate groups");
 
@@ -216,20 +216,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, K, IntValue>> twoPaths = groups
 			.groupBy(0, 1)
 			.sortGroup(2, Order.ASCENDING)
-			.reduceGroup(new GenerateGroupPairs<K>(groupSize))
+			.reduceGroup(new GenerateGroupPairs<>(groupSize))
 				.name("Generate group pairs");
 
 		// t, u, intersection, union
 		DataSet<Result<K>> scores = twoPaths
 			.groupBy(0, 1)
-			.reduceGroup(new ComputeScores<K>(unboundedScores,
+			.reduceGroup(new ComputeScores<>(unboundedScores,
 					minimumScoreNumerator, minimumScoreDenominator,
 					maximumScoreNumerator, maximumScoreDenominator))
 				.name("Compute scores");
 
 		if (mirrorResults) {
 			scores = scores
-				.flatMap(new MirrorResult<K, Result<K>>())
+				.flatMap(new MirrorResult<>())
 					.name("Mirror results");
 		}
 

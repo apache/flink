@@ -122,7 +122,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		Boolean valid = graph.validate(new InvalidVertexIdsValidator<>());
 
 		//env.fromElements(result).writeAsText(resultPath);
 
@@ -144,7 +144,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		Boolean valid = graph.validate(new InvalidVertexIdsValidator<>());
 
 		String res = valid.toString(); //env.fromElements(valid);
 		List<String> result = new LinkedList<>();

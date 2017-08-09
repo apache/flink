@@ -72,7 +72,7 @@ public class GSATranslationTest {
 		// ------------ construct the test program ------------------
 
 		DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<>(
-			1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<Long, NullValue>());
+			1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<>());
 
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new InitVertices(), env);
 
@@ -89,7 +89,7 @@ public class GSATranslationTest {
 			new GatherNeighborIds(), new SelectMinId(),
 			new UpdateComponentId(), NUM_ITERATIONS, parameters).getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		// ------------- validate the java program ----------------
 

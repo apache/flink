@@ -162,7 +162,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
           s"${func.functionIdentifier}(TIME_MATERIALIZATION($$0), TIME_MATERIALIZATION($$3), '')"),
         term("function", func),
         term("rowType", "RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, " +
-          "TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(2147483647) s)"),
+          "TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) s)"),
         term("joinType", "INNER")
       ),
       term("select",

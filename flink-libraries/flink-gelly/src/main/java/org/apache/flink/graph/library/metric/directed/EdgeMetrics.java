@@ -92,15 +92,15 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 		// s, d(s), count of (u, v) where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple3<K, Degrees, LongValue>> edgeStats = edgeDegreesPair
-			.flatMap(new EdgeStats<K, EV>())
+			.flatMap(new EdgeStats<>())
 				.setParallelism(parallelism)
 				.name("Edge stats")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceEdgeStats<K>())
+			.reduceGroup(new ReduceEdgeStats<>())
 				.setParallelism(parallelism)
 				.name("Reduce edge stats")
 			.groupBy(0)
-			.reduce(new SumEdgeStats<K>())
+			.reduce(new SumEdgeStats<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum edge stats");

@@ -90,18 +90,21 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	@BeforeClass
 	public static void prepare() throws ClassNotFoundException {
+		prepare(true);
+	}
 
+	public static void prepare(boolean hideKafkaBehindProxy) throws ClassNotFoundException {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
 
-		startClusters(false);
+		startClusters(false, hideKafkaBehindProxy);
 
 		TestStreamEnvironment.setAsContext(flink, PARALLELISM);
 	}
 
 	@AfterClass
-	public static void shutDownServices() {
+	public static void shutDownServices() throws Exception {
 
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Shut down KafkaTestBase ");
@@ -127,7 +130,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		return flinkConfig;
 	}
 
-	protected static void startClusters(boolean secureMode) throws ClassNotFoundException {
+	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws ClassNotFoundException {
 
 		// dynamically load the implementation for the test
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
@@ -135,7 +138,10 @@ public abstract class KafkaTestBase extends TestLogger {
 
 		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
-		kafkaServer.prepare(NUMBER_OF_KAFKA_SERVERS, secureMode);
+		kafkaServer.prepare(kafkaServer.createConfig()
+			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
+			.setSecureMode(secureMode)
+			.setHideKafkaBehindProxy(hideKafkaBehindProxy));
 
 		standardProps = kafkaServer.getStandardProperties();
 
@@ -154,7 +160,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		flink.start();
 	}
 
-	protected static void shutdownClusters() {
+	protected static void shutdownClusters() throws Exception {
 
 		if (flink != null) {
 			flink.shutdown();

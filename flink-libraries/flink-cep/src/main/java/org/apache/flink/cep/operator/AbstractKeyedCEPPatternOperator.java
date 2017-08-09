@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnap
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -64,6 +65,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Abstract CEP pattern operator for a keyed input stream. For each key, the operator creates
@@ -115,12 +118,15 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 */
 	private final boolean migratingFromOldKeyedOperator;
 
+	private final EventComparator<IN> comparator;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
 			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
-			final boolean migratingFromOldKeyedOperator) {
+			final boolean migratingFromOldKeyedOperator,
+			final EventComparator<IN> comparator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
@@ -128,6 +134,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 
 		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
+		this.comparator = comparator;
 	}
 
 	@Override
@@ -165,10 +172,18 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (isProcessingTime) {
-			// there can be no out of order elements in processing time
-			NFA<IN> nfa = getNFA();
-			processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
-			updateNFA(nfa);
+			if (comparator == null) {
+				// there can be no out of order elements in processing time
+				NFA<IN> nfa = getNFA();
+				processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
+				updateNFA(nfa);
+			} else {
+				long currentTime = timerService.currentProcessingTime();
+				bufferEvent(element.getValue(), currentTime);
+
+				// register a timer for the next millisecond to sort and emit buffered data
+				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
+			}
 
 		} else {
 
@@ -186,18 +201,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 				saveRegisterWatermarkTimer();
 
-				List<IN> elementsForTimestamp =  elementQueueState.get(timestamp);
-				if (elementsForTimestamp == null) {
-					elementsForTimestamp = new ArrayList<>();
-				}
-
-				if (getExecutionConfig().isObjectReuseEnabled()) {
-					// copy the StreamRecord so that it cannot be changed
-					elementsForTimestamp.add(inputSerializer.copy(value));
-				} else {
-					elementsForTimestamp.add(element.getValue());
-				}
-				elementQueueState.put(timestamp, elementsForTimestamp);
+				bufferEvent(value, timestamp);
 			}
 		}
 	}
@@ -215,13 +219,29 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 	}
 
+	private void bufferEvent(IN event, long currentTime) throws Exception {
+		List<IN> elementsForTimestamp =  elementQueueState.get(currentTime);
+		if (elementsForTimestamp == null) {
+			elementsForTimestamp = new ArrayList<>();
+		}
+
+		if (getExecutionConfig().isObjectReuseEnabled()) {
+			// copy the StreamRecord so that it cannot be changed
+			elementsForTimestamp.add(inputSerializer.copy(event));
+		} else {
+			elementsForTimestamp.add(event);
+		}
+		elementQueueState.put(currentTime, elementsForTimestamp);
+	}
+
 	@Override
 	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
 
 		// 1) get the queue of pending elements for the key and the corresponding NFA,
-		// 2) process the pending elements in event time order by feeding them in the NFA
+		// 2) process the pending elements in event time order and custom comparator if exists
+		//		by feeding them in the NFA
 		// 3) advance the time to the current watermark, so that expired patterns are discarded.
-		// 4) update the stored state for the key, by only storing the new NFA and priority queue iff they
+		// 4) update the stored state for the key, by only storing the new NFA and MapState iff they
 		//		have state to be used later.
 		// 5) update the last seen watermark.
 
@@ -232,9 +252,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
-			for (IN element: elementQueueState.get(timestamp)) {
-				processEvent(nfa, element, timestamp);
-			}
+			sort(elementQueueState.get(timestamp)).forEachOrdered(
+				event -> processEvent(nfa, event, timestamp)
+			);
 			elementQueueState.remove(timestamp);
 		}
 
@@ -257,7 +277,39 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	@Override
 	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-		// not used
+		// 1) get the queue of pending elements for the key and the corresponding NFA,
+		// 2) process the pending elements in process time order and custom comparator if exists
+		//		by feeding them in the NFA
+		// 3) update the stored state for the key, by only storing the new NFA and MapState iff they
+		//		have state to be used later.
+
+		// STEP 1
+		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+		NFA<IN> nfa = getNFA();
+
+		// STEP 2
+		while (!sortedTimestamps.isEmpty()) {
+			long timestamp = sortedTimestamps.poll();
+			sort(elementQueueState.get(timestamp)).forEachOrdered(
+				event -> processEvent(nfa, event, timestamp)
+			);
+			elementQueueState.remove(timestamp);
+		}
+
+		// STEP 3
+		if (sortedTimestamps.isEmpty()) {
+			elementQueueState.clear();
+		}
+		updateNFA(nfa);
+	}
+
+	private Stream<IN> sort(Iterable<IN> iter) {
+		Stream<IN> stream = StreamSupport.stream(iter.spliterator(), false);
+		if (comparator == null) {
+			return stream;
+		} else {
+			return stream.sorted(comparator);
+		}
 	}
 
 	private void updateLastSeenWatermark(long timestamp) {

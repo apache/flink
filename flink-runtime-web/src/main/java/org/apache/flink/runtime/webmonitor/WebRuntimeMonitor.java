@@ -74,8 +74,9 @@ import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+
 import akka.actor.ActorSystem;
-import io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

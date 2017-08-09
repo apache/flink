@@ -115,15 +115,15 @@ implements Parameter<Ordering> {
 		switch (value) {
 			case DIRECTED:
 				graph = graph
-					.run(new org.apache.flink.graph.asm.simple.directed.Simplify<T, NullValue, NullValue>());
+					.run(new org.apache.flink.graph.asm.simple.directed.Simplify<>());
 				break;
 			case UNDIRECTED:
 				graph = graph
-					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<T, NullValue, NullValue>(false));
+					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<>(false));
 				break;
 			case UNDIRECTED_CLIP_AND_FLIP:
 				graph = graph
-					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<T, NullValue, NullValue>(true));
+					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<>(true));
 				break;
 		}
 

@@ -19,9 +19,7 @@
 package org.apache.flink.graph.generator;
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.types.LongValue;
@@ -66,8 +64,8 @@ extends GraphGeneratorTestBase {
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<>());
+		graph.getEdges().output(new DiscardingOutputFormat<>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

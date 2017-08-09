@@ -20,7 +20,7 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{UnresolvedException, ValidationException}
+import org.apache.flink.table.api.{Table, UnresolvedException, ValidationException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, isTimeIndicatorType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -136,6 +136,20 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
   }
 
   override def toString: String = s"'$name"
+}
+
+case class TableReference(name: String, table: Table) extends LeafExpression with NamedExpression {
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
+    throw new UnsupportedOperationException(s"Table reference '$name' can not be used solely.")
+
+  override private[flink] def resultType: TypeInformation[_] =
+    throw UnresolvedException(s"Table reference '$name' has no result type.")
+
+  override private[flink] def toAttribute =
+    throw new UnsupportedOperationException(s"A table reference '$name' can not be an attribute.")
+
+  override def toString: String = s"$name"
 }
 
 abstract class TimeAttribute(val expression: Expression)

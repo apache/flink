@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
 public interface NettyProtocol {
 

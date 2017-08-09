@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.junit.Rule;
@@ -45,6 +46,8 @@ public class BlobCacheRetriesTest {
 	@Test
 	public void testBlobFetchRetries() throws IOException {
 		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 
 		testBlobFetchRetries(config, new VoidBlobStore());
 	}
@@ -56,9 +59,11 @@ public class BlobCacheRetriesTest {
 	@Test
 	public void testBlobFetchRetriesHa() throws IOException {
 		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-			temporaryFolder.getRoot().getPath());
+			temporaryFolder.newFolder().getPath());
 
 		BlobStoreService blobStoreService = null;
 
@@ -136,6 +141,8 @@ public class BlobCacheRetriesTest {
 	@Test
 	public void testBlobFetchWithTooManyFailures() throws IOException {
 		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 
 		testBlobFetchWithTooManyFailures(config, new VoidBlobStore());
 	}
@@ -147,6 +154,8 @@ public class BlobCacheRetriesTest {
 	@Test
 	public void testBlobFetchWithTooManyFailuresHa() throws IOException {
 		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.getRoot().getPath());

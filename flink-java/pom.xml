@@ -68,13 +68,6 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 			<version>${project.version}</version>

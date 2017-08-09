@@ -497,6 +497,23 @@ FROM (
 {% endhighlight %}
       </td>
     </tr>
+
+    <tr>
+      <td>
+        <strong>In</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+      Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.
+{% highlight sql %}
+SELECT user, amount
+FROM Orders
+WHERE product IN (
+    SELECT product FROM NewProducts
+)
+{% endhighlight %}
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -948,7 +965,7 @@ value IN (value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a value in a list.</p>
+        <p> Returns TRUE if an expression exists in a given list of expressions. This is a shorthand for multiple OR conditions. If the testing set contains NULL, the result will be NULL if the element can not be found and TRUE if it can be found. If the element is NULL, the result is always NULL. E.g. "42 IN (1, 2, 3)" leads to FALSE.</p>
       </td>
     </tr>
 
@@ -974,7 +991,6 @@ EXISTS (sub-query)
       </td>
     </tr>
 
-<!-- NOT SUPPORTED SO FAR
     <tr>
       <td>
         {% highlight text %}
@@ -982,7 +998,7 @@ value IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
       </td>
     </tr>
 
@@ -993,10 +1009,9 @@ value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
       </td>
     </tr>
-    -->
 
   </tbody>
 </table>

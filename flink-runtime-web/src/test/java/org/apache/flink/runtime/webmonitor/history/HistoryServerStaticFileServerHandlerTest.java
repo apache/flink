@@ -21,7 +21,8 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 
-import io.netty.handler.codec.http.router.Router;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

@@ -84,7 +84,7 @@ public class ReduceOnEdgesWithExceptionITCase extends TestLogger {
 			DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
 					graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
 
-			verticesWithAllNeighbors.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			verticesWithAllNeighbors.output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("Expected an exception.");
@@ -110,7 +110,7 @@ public class ReduceOnEdgesWithExceptionITCase extends TestLogger {
 			DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
 					graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
 
-			verticesWithAllNeighbors.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			verticesWithAllNeighbors.output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("Expected an exception.");
