@@ -141,7 +141,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		try {
 			client.send(request);
 		} catch (Exception e) {
-			LOGGER.warn("Failed reporting metrics to Datadog.", e);
+			LOGGER.warn("Failed reporting metrics to Datadog.", e.getMessage());
 		}
 	}
 
