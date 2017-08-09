@@ -231,6 +231,9 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Infinite source which notifies when all of its sub tasks have been started via the count down latch.
+	 */
 	public static class NotifyingInfiniteTupleSource extends ManualWindowSpeedITCase.InfiniteTupleSource {
 
 		private static final long serialVersionUID = 8120981235081181746L;
