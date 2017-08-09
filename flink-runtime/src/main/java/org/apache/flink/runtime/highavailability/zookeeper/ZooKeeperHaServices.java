@@ -110,18 +110,14 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 			CuratorFramework client,
 			Executor executor,
 			Configuration configuration,
-			BlobStoreService blobStoreService) {
+			BlobStoreService blobStoreService) throws IOException {
 		this.client = checkNotNull(client);
 		this.executor = checkNotNull(executor);
 		this.configuration = checkNotNull(configuration);
 		this.runningJobsRegistry = new ZooKeeperRunningJobsRegistry(client, configuration);
 
 		this.blobStoreService = checkNotNull(blobStoreService);
-		try {
-			this.stateStorage = ZooKeeperUtils.createFileSystemStateStorage(configuration, "submittedJobGraph");
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		this.stateStorage = ZooKeeperUtils.createFileSystemStateStorage(configuration, "submittedJobGraph");
 	}
 
 	// ------------------------------------------------------------------------

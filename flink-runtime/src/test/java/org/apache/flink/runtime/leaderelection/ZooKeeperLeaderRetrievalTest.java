@@ -37,8 +37,10 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import org.junit.rules.TemporaryFolder;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -53,6 +55,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 
 public class ZooKeeperLeaderRetrievalTest extends TestLogger{
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private TestingServer testingServer;
 
@@ -67,6 +71,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
 
 		CuratorFramework client = ZooKeeperUtils.startCuratorFramework(config);
 
@@ -79,16 +84,16 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	@After
 	public void after() throws Exception {
-		if(testingServer != null) {
-			testingServer.stop();
-
-			testingServer = null;
-		}
-
 		if (highAvailabilityServices != null) {
 			highAvailabilityServices.closeAndCleanupAllData();
 
 			highAvailabilityServices = null;
+		}
+		
+		if(testingServer != null) {
+			testingServer.stop();
+
+			testingServer = null;
 		}
 	}
 

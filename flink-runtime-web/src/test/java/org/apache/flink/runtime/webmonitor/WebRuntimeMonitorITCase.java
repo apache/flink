@@ -134,7 +134,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		WebRuntimeMonitor[] webMonitor = new WebRuntimeMonitor[2];
 		HighAvailabilityServices highAvailabilityServices = null;
 
-		try (TestingServer zooKeeper = new TestingServer()) {
+		final TestingServer zooKeeper = new TestingServer();
+		try {
 			final Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				zooKeeper.getConnectString(),
 				temporaryFolder.getRoot().getPath());
@@ -276,6 +277,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();
 			}
+
+			zooKeeper.close();
 		}
 	}
 
