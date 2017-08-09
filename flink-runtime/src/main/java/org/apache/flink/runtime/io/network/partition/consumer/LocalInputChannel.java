@@ -195,7 +195,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		long remaining = numBuffersAvailable.decrementAndGet();
 
 		if (remaining >= 0) {
-			numBytesIn.inc(next.getSize());
+			numBytesIn.inc(next.getSizeUnsafe());
 			return new BufferAndAvailability(next, remaining > 0);
 		} else if (subpartitionView.isReleased()) {
 			throw new ProducerFailedException(subpartitionView.getFailureCause());
