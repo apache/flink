@@ -33,6 +33,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -50,12 +51,15 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
+import scala.reflect.ClassTag$;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -417,8 +421,19 @@ public class JobClient {
 		checkNotNull(timeout, "The timeout must not be null.");
 
 		LOG.info("Checking and uploading JAR files");
+
+		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = retrieveBlobServerAddress(jobManagerGateway, timeout);
+
+		final InetSocketAddress blobServerAddress;
+
 		try {
-			jobGraph.uploadUserJars(jobManagerGateway, timeout, config);
+			blobServerAddress = blobServerAddressFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+		} catch (Exception e) {
+			throw new JobSubmissionException(jobGraph.getJobID(), "Could not retrieve BlobServer address.", e);
+		}
+
+		try {
+			jobGraph.uploadUserJars(blobServerAddress, config);
 		}
 		catch (IOException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
@@ -473,4 +488,26 @@ public class JobClient {
 		}
 	}
 
+	/**
+	 * Utility method to retrieve the BlobServer address from the given JobManager gateway.
+	 *
+	 * @param jobManagerGateway to obtain the BlobServer address from
+	 * @param timeout for this operation
+	 * @return CompletableFuture containing the BlobServer address
+	 */
+	public static CompletableFuture<InetSocketAddress> retrieveBlobServerAddress(
+			ActorGateway jobManagerGateway,
+			FiniteDuration timeout) {
+
+		CompletableFuture<Integer> futureBlobPort = FutureUtils.toJava(
+			jobManagerGateway
+				.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout)
+				.mapTo(ClassTag$.MODULE$.apply(Integer.class)));
+
+		final Option<String> jmHost = jobManagerGateway.actor().path().address().host();
+		final String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
+
+		return futureBlobPort.thenApply(
+			(Integer blobPort) -> new InetSocketAddress(jmHostname, blobPort));
+	}
 }
