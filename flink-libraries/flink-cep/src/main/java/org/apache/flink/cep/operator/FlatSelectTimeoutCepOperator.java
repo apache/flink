@@ -47,6 +47,7 @@ import java.util.Map;
 public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 	AbstractKeyedCEPPatternOperator<IN, KEY, OUT1, FlatSelectTimeoutCepOperator.FlatSelectWrapper<IN, OUT1, OUT2>> {
 
+	private static final long serialVersionUID = -6459053031624344987L;
 	private transient TimestampedCollector<OUT1> collector;
 
 	private transient TimestampedSideOutputCollector<OUT2> sideOutputCollector;
@@ -56,6 +57,7 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 	public FlatSelectTimeoutCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
+		long nfaProcessingInterval,
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
@@ -65,6 +67,7 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 		super(
 			inputSerializer,
 			isProcessingTime,
+			nfaProcessingInterval,
 			nfaFactory,
 			comparator,
 			skipStrategy,

@@ -77,6 +77,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
+	private static final String NFA_PROCESSING_TIME_MARKER_STATE_NAME = "processingTimeMarker";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
 	private transient MapState<Long, List<IN>> elementQueueState;
@@ -84,6 +85,10 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
 	private transient InternalTimerService<VoidNamespace> timerService;
+
+	private final long processingTimeInterval;
+
+	private transient ValueState<Long> nextProcessingTime;
 
 	/**
 	 * The last seen watermark. This will be used to
@@ -98,6 +103,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
+			final long processingTimeInterval,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final EventComparator<IN> comparator,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy,
@@ -108,6 +114,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 		this.comparator = comparator;
+		this.processingTimeInterval = processingTimeInterval;
 
 		if (afterMatchSkipStrategy == null) {
 			this.afterMatchSkipStrategy = AfterMatchSkipStrategy.noSkip();
@@ -136,6 +143,14 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 					)
 			);
 		}
+
+		if (nextProcessingTime == null) {
+			nextProcessingTime = getRuntimeContext().getState(new ValueStateDescriptor<Long>(
+				NFA_PROCESSING_TIME_MARKER_STATE_NAME,
+				LongSerializer.INSTANCE,
+				Long.MIN_VALUE
+			));
+		}
 	}
 
 	@Override
@@ -146,6 +161,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 				"watermark-callbacks",
 				VoidNamespaceSerializer.INSTANCE,
 				this);
+
 	}
 
 	@Override
@@ -159,13 +175,10 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			} else {
 				long currentTime = timerService.currentProcessingTime();
 				bufferEvent(element.getValue(), currentTime);
-
-				// register a timer for the next millisecond to sort and emit buffered data
-				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
 			}
-
+			// try to register next processing time timer
+			saveRegisterProcessingTimer();
 		} else {
-
 			long timestamp = element.getTimestamp();
 			IN value = element.getValue();
 
@@ -177,7 +190,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 				// we have an event with a valid timestamp, so
 				// we buffer it until we receive the proper watermark.
-
 				saveRegisterWatermarkTimer();
 
 				bufferEvent(value, timestamp);
@@ -216,20 +228,38 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	@Override
 	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
 
+		boolean isProcessingScheduled = onTimer(timerService.currentWatermark());
+		if (isProcessingScheduled) {
+			saveRegisterWatermarkTimer();
+		}
+
+		// update the last seen watermark.
+		updateLastSeenWatermark(timerService.currentWatermark());
+	}
+
+	@Override
+	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+
+		boolean isProcessingScheduled = onTimer(timerService.currentProcessingTime());
+		if (isProcessingScheduled) {
+			saveRegisterProcessingTimer();
+		}
+	}
+
+	private boolean onTimer(long currentTime) throws Exception {
 		// 1) get the queue of pending elements for the key and the corresponding NFA,
-		// 2) process the pending elements in event time order and custom comparator if exists
+		// 2) process the pending elements in time order and custom comparator if exists
 		//		by feeding them in the NFA
-		// 3) advance the time to the current watermark, so that expired patterns are discarded.
+		// 3) advance the time to the current one, so that expired patterns are discarded.
 		// 4) update the stored state for the key, by only storing the new NFA and MapState iff they
 		//		have state to be used later.
-		// 5) update the last seen watermark.
 
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
 		NFA<IN> nfa = getNFA();
 
 		// STEP 2
-		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
+		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= currentTime) {
 			long timestamp = sortedTimestamps.poll();
 			sort(elementQueueState.get(timestamp)).forEachOrdered(
 				event -> processEvent(nfa, event, timestamp)
@@ -238,7 +268,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		}
 
 		// STEP 3
-		advanceTime(nfa, timerService.currentWatermark());
+		advanceTime(nfa, currentTime);
 
 		// STEP 4
 		if (sortedTimestamps.isEmpty()) {
@@ -246,40 +276,20 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		}
 		updateNFA(nfa);
 
-		if (!sortedTimestamps.isEmpty() || !nfa.isEmpty()) {
-			saveRegisterWatermarkTimer();
-		}
-
-		// STEP 5
-		updateLastSeenWatermark(timerService.currentWatermark());
+		return !sortedTimestamps.isEmpty() || !nfa.isEmpty();
 	}
 
-	@Override
-	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-		// 1) get the queue of pending elements for the key and the corresponding NFA,
-		// 2) process the pending elements in process time order and custom comparator if exists
-		//		by feeding them in the NFA
-		// 3) update the stored state for the key, by only storing the new NFA and MapState iff they
-		//		have state to be used later.
-
-		// STEP 1
-		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFA<IN> nfa = getNFA();
-
-		// STEP 2
-		while (!sortedTimestamps.isEmpty()) {
-			long timestamp = sortedTimestamps.poll();
-			sort(elementQueueState.get(timestamp)).forEachOrdered(
-				event -> processEvent(nfa, event, timestamp)
-			);
-			elementQueueState.remove(timestamp);
+	/**
+	 * Tries to register next processing time timer for current key if there is no timer registered in the future.
+	 */
+	private void saveRegisterProcessingTimer() throws IOException {
+		long currentTime = timerService.currentProcessingTime();
+		//time for which the previous timer was registered
+		long nextProcessingTime = this.nextProcessingTime.value();
+		if (currentTime >= nextProcessingTime) {
+			timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + processingTimeInterval);
+			this.nextProcessingTime.update(currentTime + processingTimeInterval);
 		}
-
-		// STEP 3
-		if (sortedTimestamps.isEmpty()) {
-			elementQueueState.clear();
-		}
-		updateNFA(nfa);
 	}
 
 	private Stream<IN> sort(Iterable<IN> iter) {

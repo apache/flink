@@ -55,20 +55,29 @@ public class CepOperatorTestUtilities {
 			BasicTypeInfo.INT_TYPE_INFO);
 	}
 
-	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOperator(
 		boolean isProcessingTime,
 		NFACompiler.NFAFactory<Event> nfaFactory) {
 
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, null);
+		return getKeyedCepOperator(isProcessingTime, nfaFactory, null);
 	}
 
-	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOperator(
 		boolean isProcessingTime,
 		NFACompiler.NFAFactory<Event> nfaFactory,
 		EventComparator<Event> comparator) {
+		return getKeyedCepOperator(isProcessingTime, nfaFactory, comparator, 100);
+	}
+
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOperator(
+		boolean isProcessingTime,
+		NFACompiler.NFAFactory<Event> nfaFactory,
+		EventComparator<Event> comparator,
+		long nfaProcessingInterval) {
 		return new SelectCepOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
+			nfaProcessingInterval,
 			nfaFactory,
 			comparator,
 			null,

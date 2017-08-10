@@ -46,11 +46,13 @@ import java.util.Map;
 public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 	extends AbstractKeyedCEPPatternOperator<IN, KEY, OUT1, SelectTimeoutCepOperator.SelectWrapper<IN, OUT1, OUT2>> {
 
+	private static final long serialVersionUID = 7343789580169612665L;
 	private OutputTag<OUT2> timedOutOutputTag;
 
 	public SelectTimeoutCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
+		long nfaProcessingInterval,
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		final EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
@@ -60,6 +62,7 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 		super(
 			inputSerializer,
 			isProcessingTime,
+			nfaProcessingInterval,
 			nfaFactory,
 			comparator,
 			skipStrategy,

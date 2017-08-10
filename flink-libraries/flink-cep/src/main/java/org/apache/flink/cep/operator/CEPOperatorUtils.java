@@ -59,24 +59,28 @@ public class CEPOperatorUtils {
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
 			final PatternSelectFunction<IN, OUT> selectFunction,
-			final TypeInformation<OUT> outTypeInfo) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
-			@Override
-			public OneInputStreamOperator<IN, OUT> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				EventComparator<IN> comparator,
-				AfterMatchSkipStrategy skipStrategy) {
-				return new SelectCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					nfaFactory,
-					comparator,
-					skipStrategy,
-					selectFunction
-				);
-			}
+			final TypeInformation<OUT> outTypeInfo,
+			final long nfaProcessingInterval) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator,
+			nfaProcessingInterval, new OperatorBuilder<IN, OUT>() {
+				@Override
+				public OneInputStreamOperator<IN, OUT> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					long nfaProcessingInterval,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					AfterMatchSkipStrategy skipStrategy) {
+					return new SelectCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaProcessingInterval,
+						nfaFactory,
+						comparator,
+						skipStrategy,
+						selectFunction
+					);
+				}
 
 			@Override
 			public String getKeyedOperatorName() {
@@ -106,24 +110,28 @@ public class CEPOperatorUtils {
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
 			final PatternFlatSelectFunction<IN, OUT> selectFunction,
-			final TypeInformation<OUT> outTypeInfo) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
-			@Override
-			public OneInputStreamOperator<IN, OUT> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				EventComparator<IN> comparator,
-				AfterMatchSkipStrategy skipStrategy) {
-				return new FlatSelectCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					nfaFactory,
-					comparator,
-					skipStrategy,
-					selectFunction
-				);
-			}
+			final TypeInformation<OUT> outTypeInfo,
+			final long nfaProcessingInterval) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator,
+			nfaProcessingInterval, new OperatorBuilder<IN, OUT>() {
+				@Override
+				public OneInputStreamOperator<IN, OUT> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					long nfaProcessingInterval,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					AfterMatchSkipStrategy skipStrategy) {
+					return new FlatSelectCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaProcessingInterval,
+						nfaFactory,
+						comparator,
+						skipStrategy,
+						selectFunction
+					);
+				}
 
 			@Override
 			public String getKeyedOperatorName() {
@@ -160,26 +168,30 @@ public class CEPOperatorUtils {
 			final PatternFlatSelectFunction<IN, OUT1> selectFunction,
 			final TypeInformation<OUT1> outTypeInfo,
 			final OutputTag<OUT2> outputTag,
-			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
-			@Override
-			public OneInputStreamOperator<IN, OUT1> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				EventComparator<IN> comparator,
-				AfterMatchSkipStrategy skipStrategy) {
-				return new FlatSelectTimeoutCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					nfaFactory,
-					comparator,
-					skipStrategy,
-					selectFunction,
-					timeoutFunction,
-					outputTag
-				);
-			}
+			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction,
+			final long nfaProcessingInterval) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator,
+			nfaProcessingInterval, new OperatorBuilder<IN, OUT1>() {
+				@Override
+				public OneInputStreamOperator<IN, OUT1> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					long nfaProcessingInterval,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					AfterMatchSkipStrategy skipStrategy) {
+					return new FlatSelectTimeoutCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaProcessingInterval,
+						nfaFactory,
+						comparator,
+						skipStrategy,
+						selectFunction,
+						timeoutFunction,
+						outputTag
+					);
+				}
 
 			@Override
 			public String getKeyedOperatorName() {
@@ -216,26 +228,30 @@ public class CEPOperatorUtils {
 			final PatternSelectFunction<IN, OUT1> selectFunction,
 			final TypeInformation<OUT1> outTypeInfo,
 			final OutputTag<OUT2> outputTag,
-			final PatternTimeoutFunction<IN, OUT2> timeoutFunction) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
-			@Override
-			public OneInputStreamOperator<IN, OUT1> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				EventComparator<IN> comparator,
-				AfterMatchSkipStrategy skipStrategy) {
-				return new SelectTimeoutCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					nfaFactory,
-					comparator,
-					skipStrategy,
-					selectFunction,
-					timeoutFunction,
-					outputTag
-				);
-			}
+			final PatternTimeoutFunction<IN, OUT2> timeoutFunction,
+			final long nfaProcessingInterval) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator,
+			nfaProcessingInterval, new OperatorBuilder<IN, OUT1>() {
+				@Override
+				public OneInputStreamOperator<IN, OUT1> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					long nfaProcessingInterval,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					AfterMatchSkipStrategy skipStrategy) {
+					return new SelectTimeoutCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaProcessingInterval,
+						nfaFactory,
+						comparator,
+						skipStrategy,
+						selectFunction,
+						timeoutFunction,
+						outputTag
+					);
+				}
 
 			@Override
 			public String getKeyedOperatorName() {
@@ -255,6 +271,7 @@ public class CEPOperatorUtils {
 			final TypeInformation<OUT> outTypeInfo,
 			final boolean timeoutHandling,
 			final EventComparator<IN> comparator,
+			final long nfaProcessingInterval,
 			final OperatorBuilder<IN, OUT> operatorBuilder) {
 		final TypeSerializer<IN> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
@@ -275,6 +292,7 @@ public class CEPOperatorUtils {
 				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
+					nfaProcessingInterval,
 					nfaFactory,
 					comparator,
 					pattern.getAfterMatchSkipStrategy()));
@@ -287,6 +305,7 @@ public class CEPOperatorUtils {
 				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
+					nfaProcessingInterval,
 					nfaFactory,
 					comparator,
 					pattern.getAfterMatchSkipStrategy()
@@ -300,6 +319,7 @@ public class CEPOperatorUtils {
 			OneInputStreamOperator<IN, OUT> build(
 			TypeSerializer<IN> inputSerializer,
 			boolean isProcessingTime,
+			long nfaProcessingInterval,
 			NFACompiler.NFAFactory<IN> nfaFactory,
 			EventComparator<IN> comparator,
 			AfterMatchSkipStrategy skipStrategy);

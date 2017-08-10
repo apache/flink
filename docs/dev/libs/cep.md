@@ -1526,6 +1526,34 @@ To guarantee that elements across watermarks are processed in event-time order, 
 *correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last
 seen watermark. Late elements are not further processed.
 
+## Handling Processing Time
+
+While working in Processing Time user can set a `processing-time-interval` configuration parameter on `PatternStream`. This parameter tells
+how often partial-matches are checked for timeout. If one uses a custom `comparator` in Processing Time for elements
+that arrives at the same moment it also specifies for how long events shall be buffered before sorting. 
+The default value for that parameter is 100 ms.
+
+To change the default value you can set it on `PatternStream`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+PatternStream<Event> patternStream = CEP.pattern(input, pattern);
+patternStream.setProcessingTimeInterval(200);
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
+patternStream.setProcessingTimeInterval(200)
+~~~
+
+</div>
+</div>
+
 ## Examples
 
 The following example detects the pattern `start, middle(name = "error") -> end(name = "critical")` on a keyed data

@@ -37,14 +37,17 @@ import java.util.Map;
  */
 public class SelectCepOperator<IN, KEY, OUT>
 	extends AbstractKeyedCEPPatternOperator<IN, KEY, OUT, PatternSelectFunction<IN, OUT>> {
+	private static final long serialVersionUID = 4487469926249382728L;
+
 	public SelectCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
+		long nfaProcessingInterval,
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
 		PatternSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function);
+		super(inputSerializer, isProcessingTime, nfaProcessingInterval, nfaFactory, comparator, skipStrategy, function);
 	}
 
 	@Override

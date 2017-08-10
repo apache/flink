@@ -54,6 +54,8 @@ public class PatternStream<T> {
 	// comparator to sort events
 	private final EventComparator<T> comparator;
 
+	private long processingTimeInterval = 100;
+
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
@@ -76,6 +78,30 @@ public class PatternStream<T> {
 
 	public EventComparator<T> getComparator() {
 		return comparator;
+	}
+
+	/**
+	 * Retrieves current a processing time interval that tells how often time partial-matches are checked for timeout.
+	 * If one is using a custom comparator in Processing Time for elements that arrived at the same moment it also
+	 * specifies for how long events may be buffered before sorting. The default value for that parameter is 100 ms.
+	 *
+	 * <p><b>NOTE:</b> Applies only to ProcessingTime
+	 */
+	public long getProcessingTimeInterval() {
+		return processingTimeInterval;
+	}
+
+	/**
+	 * Sets a processing time interval that tells how often time partial-matches are checked for timeout. If one is
+	 * using a custom comparator in Processing Time for elements that arrived at the same moment it also specifies for
+	 * how long events may be buffered before sorting. The default value for that parameter is 100 ms.
+	 *
+	 * <p><b>NOTE:</b> Applies only to ProcessingTime
+	 *
+	 * @param processingTimeInterval processing time interval in milliseconds
+	 */
+	public void setProcessingTimeInterval(long processingTimeInterval) {
+		this.processingTimeInterval = processingTimeInterval;
 	}
 
 	/**
@@ -129,8 +155,14 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern select
 	 *         function.
 	 */
-	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		return CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator, clean(patternSelectFunction), outTypeInfo);
+	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction,
+			TypeInformation<R> outTypeInfo) {
+		return CEPOperatorUtils.createPatternStream(inputStream,
+			pattern,
+			comparator,
+			clean(patternSelectFunction),
+			outTypeInfo,
+			processingTimeInterval);
 	}
 
 	/**
@@ -217,7 +249,8 @@ public class PatternStream<T> {
 			clean(patternSelectFunction),
 			outTypeInfo,
 			timeoutOutputTag,
-			clean(patternTimeoutFunction));
+			clean(patternTimeoutFunction),
+			processingTimeInterval);
 	}
 
 	/**
@@ -278,7 +311,8 @@ public class PatternStream<T> {
 			clean(patternSelectFunction),
 			rightTypeInfo,
 			outputTag,
-			clean(patternTimeoutFunction));
+			clean(patternTimeoutFunction),
+			processingTimeInterval);
 
 		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
@@ -335,7 +369,8 @@ public class PatternStream<T> {
 			pattern,
 			comparator,
 			clean(patternFlatSelectFunction),
-			outTypeInfo);
+			outTypeInfo,
+			processingTimeInterval);
 	}
 
 	/**
@@ -419,7 +454,8 @@ public class PatternStream<T> {
 			clean(patternFlatSelectFunction),
 			outTypeInfo,
 			timeoutOutputTag,
-			clean(patternFlatTimeoutFunction));
+			clean(patternFlatTimeoutFunction),
+			processingTimeInterval);
 	}
 
 	/**
@@ -481,7 +517,8 @@ public class PatternStream<T> {
 			clean(patternFlatSelectFunction),
 			rightTypeInfo,
 			outputTag,
-			clean(patternFlatTimeoutFunction));
+			clean(patternFlatTimeoutFunction),
+			processingTimeInterval);
 
 		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
@@ -489,6 +526,8 @@ public class PatternStream<T> {
 
 		return mainStream.connect(timedOutStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
 	}
+
+
 
 	/**
 	 * Used for joining results from timeout side-output for API backward compatibility.

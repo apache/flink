@@ -50,6 +50,30 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   def getComparator: EventComparator[T] = jPatternStream.getComparator
 
   /**
+    * Retrieves current a processing time interval that tells how often time partial-matches are
+    * checked for timeout. If one is using a custom comparator in Processing Time for elements that
+    * arrived at the same moment it also specifies for how long events may be buffered before
+    * sorting. The default value for that parameter is 100 ms.
+    *
+    * <p><b>NOTE:</b> Applies only to ProcessingTime
+    */
+  def getProcessingTimeInterval: Long = jPatternStream.getProcessingTimeInterval
+
+  /**
+    * Sets a processing time interval that tells how often time partial-matches are checked for
+    * timeout. If one is using a custom comparator in Processing Time for elements that arrived at
+    * the same moment it also specifies for how long events may be buffered before sorting.
+    * The default value for that parameter is 100 ms.
+    *
+    * <p><b>NOTE:</b> Applies only to ProcessingTime
+    *
+    * @param processingTimeInterval processing time interval in milliseconds
+    */
+  def setProcessingTimeInterval(processingTimeInterval: Long): Unit = {
+    jPatternStream.setProcessingTimeInterval(processingTimeInterval)
+  }
+
+  /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the
     * provided [[PatternSelectFunction]] is called. The pattern select function can produce
     * exactly one resulting element.

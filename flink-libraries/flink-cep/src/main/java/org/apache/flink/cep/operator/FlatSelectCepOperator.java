@@ -42,11 +42,12 @@ public class FlatSelectCepOperator<IN, KEY, OUT>
 	public FlatSelectCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
+		long nfaProcessingInterval,
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
 		PatternFlatSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function);
+		super(inputSerializer, isProcessingTime, nfaProcessingInterval, nfaFactory, comparator, skipStrategy, function);
 	}
 
 	private transient TimestampedCollector<OUT> collector;
