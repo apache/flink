@@ -21,8 +21,8 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -87,7 +87,7 @@ public class WebFrontendITCase extends TestLogger {
 		Files.createFile(logFile.toPath());
 		Files.createFile(outFile.toPath());
 
-		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.getAbsolutePath());
+		config.setString(WebOptions.LOG_PATH, logFile.getAbsolutePath());
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.getAbsolutePath());
 
 		cluster = new LocalFlinkMiniCluster(config, false);

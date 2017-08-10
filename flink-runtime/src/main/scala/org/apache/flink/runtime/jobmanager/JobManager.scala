@@ -170,7 +170,7 @@ class JobManager(
    * to run in the actor system of the associated job manager.
    */
   val webMonitorPort : Int = flinkConfiguration.getInteger(
-    JobManagerOptions.WEB_PORT.key(), -1)
+    WebOptions.PORT, -1)
 
   /** The default directory for savepoints. */
   val defaultSavepointDir: String = flinkConfiguration.getString(CoreOptions.SAVEPOINT_DIRECTORY)
@@ -2216,7 +2216,7 @@ object JobManager {
     : (ActorRef, ActorRef, Option[WebMonitor], Option[ActorRef]) = {
 
     val webMonitor: Option[WebMonitor] =
-      if (configuration.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
+      if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
         LOG.info("Starting JobManager web frontend")
 
         // start the web frontend. we need to load this dynamically
@@ -2234,7 +2234,7 @@ object JobManager {
 
     // Reset the port (necessary in case of automatic port selection)
     webMonitor.foreach{ monitor => configuration.setInteger(
-      JobManagerOptions.WEB_PORT, monitor.getServerPort) }
+      WebOptions.PORT, monitor.getServerPort) }
 
     try {
       // bring up the job manager actor
@@ -2395,7 +2395,7 @@ object JobManager {
     }
 
     if (cliOptions.getWebUIPort() >= 0) {
-      configuration.setInteger(JobManagerOptions.WEB_PORT, cliOptions.getWebUIPort())
+      configuration.setInteger(WebOptions.PORT, cliOptions.getWebUIPort())
     }
 
     if (cliOptions.getHost() != null) {
@@ -2474,7 +2474,7 @@ object JobManager {
 
     val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 
-    val archiveCount = configuration.getInteger(JobManagerOptions.WEB_ARCHIVE_COUNT)
+    val archiveCount = configuration.getInteger(WebOptions.ARCHIVE_COUNT)
 
     val archiveDir = configuration.getString(JobManagerOptions.ARCHIVE_DIR)
 

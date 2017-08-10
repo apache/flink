@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -144,8 +144,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-			config.setInteger(JobManagerOptions.WEB_PORT, 0);
-			config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+			config.setInteger(WebOptions.PORT, 0);
+			config.setString(WebOptions.LOG_PATH, logFile.toString());
 
 			highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
 				config,
@@ -168,7 +168,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			String[] jobManagerAddress = new String[2];
 			for (int i = 0; i < jobManager.length; i++) {
 				Configuration jmConfig = config.clone();
-				jmConfig.setInteger(JobManagerOptions.WEB_PORT,
+				jmConfig.setInteger(WebOptions.PORT,
 						webMonitor[i].getServerPort());
 
 				jobManager[i] = JobManager.startJobManagerActors(
@@ -294,8 +294,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
 			final Configuration config = new Configuration();
-			config.setInteger(JobManagerOptions.WEB_PORT, 0);
-			config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+			config.setInteger(WebOptions.PORT, 0);
+			config.setString(WebOptions.LOG_PATH, logFile.toString());
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeper.getConnectString());
 
@@ -473,8 +473,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		// Web frontend on random port
 		Configuration config = new Configuration();
-		config.setInteger(JobManagerOptions.WEB_PORT, 0);
-		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+		config.setInteger(WebOptions.PORT, 0);
+		config.setString(WebOptions.LOG_PATH, logFile.toString());
 
 		HighAvailabilityServices highAvailabilityServices = flink.highAvailabilityServices();
 
