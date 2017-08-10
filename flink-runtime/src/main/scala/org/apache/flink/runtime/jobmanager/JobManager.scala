@@ -575,11 +575,11 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
           // execute the cancellation asynchronously
+          val origSender = sender
           Future {
             executionGraph.cancel()
+            origSender ! decorateMessage(CancellationSuccess(jobID))
           }(context.dispatcher)
-
-          sender ! decorateMessage(CancellationSuccess(jobID))
         case None =>
           log.info(s"No job found with ID $jobID.")
           sender ! decorateMessage(
