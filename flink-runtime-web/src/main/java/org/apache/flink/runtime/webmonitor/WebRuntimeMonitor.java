@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
@@ -194,13 +194,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem.dispatcher(), 60000);
 
 		// Back pressure stats tracker config
-		int cleanUpInterval = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_CLEANUP_INTERVAL);
+		int cleanUpInterval = config.getInteger(WebOptions.BACKPRESSURE_CLEANUP_INTERVAL);
 
-		int refreshInterval = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_REFRESH_INTERVAL);
+		int refreshInterval = config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL);
 
-		int numSamples = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_NUM_SAMPLES);
+		int numSamples = config.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES);
 
-		int delay = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_DELAY);
+		int delay = config.getInteger(WebOptions.BACKPRESSURE_DELAY);
 
 		Time delayBetweenSamples = Time.milliseconds(delay);
 
@@ -214,7 +214,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(executorService);
 
 		// Config to enable https access to the web-ui
-		boolean enableSSL = config.getBoolean(JobManagerOptions.WEB_SSL_ENABLED) &&	SSLUtils.getSSLEnabled(config);
+		boolean enableSSL = config.getBoolean(WebOptions.SSL_ENABLED) &&	SSLUtils.getSSLEnabled(config);
 
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the web frontend");
@@ -318,7 +318,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// DELETE is the preferred way of stopping a job (Rest-conform)
 		delete(router, new JobStoppingHandler());
 
-		int maxCachedEntries = config.getInteger(JobManagerOptions.WEB_CHECKPOINTS_HISTORY_SIZE);
+		int maxCachedEntries = config.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 		CheckpointStatsCache cache = new CheckpointStatsCache(maxCachedEntries);
 
 		// Register the checkpoint stats handlers
@@ -531,14 +531,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 	}
 
 	private String getBaseDirStr(Configuration configuration) {
-		return configuration.getString(JobManagerOptions.WEB_TMP_DIR);
+		return configuration.getString(WebOptions.TMP_DIR);
 	}
 
 	private File getUploadDir(Configuration configuration) {
-		File baseDir = new File(configuration.getString(JobManagerOptions.WEB_UPLOAD_DIR,
+		File baseDir = new File(configuration.getString(WebOptions.UPLOAD_DIR,
 			getBaseDirStr(configuration)));
 
-		boolean uploadDirSpecified = configuration.contains(JobManagerOptions.WEB_UPLOAD_DIR);
+		boolean uploadDirSpecified = configuration.contains(WebOptions.UPLOAD_DIR);
 		return uploadDirSpecified ? baseDir : new File(baseDir, "flink-web-" + UUID.randomUUID());
 	}
 }

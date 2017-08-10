@@ -367,27 +367,27 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 - `taskmanager.net.transport`: The Netty transport type, either "nio" or "epoll" (DEFAULT: **nio**).
 
-### JobManager Web Frontend
+### Web Frontend
 
-- `jobmanager.web.port`: Port of the JobManager's web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
+- `web.port`: Port of the web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
 
-- `jobmanager.web.history`: The number of latest jobs that the JobManager's web front-end in its history (DEFAULT: 5).
+- `web.history`: The number of latest jobs that the web front-end in its history (DEFAULT: 5).
 
-- `jobmanager.web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
+- `web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
 
-- `jobmanager.web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
+- `web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
 
-- `jobmanager.web.backpressure.cleanup-interval`: Time after which cached stats are cleaned up if not accessed (DEFAULT: `600000`, 10 mins).
+- `web.backpressure.cleanup-interval`: Time after which cached stats are cleaned up if not accessed (DEFAULT: `600000`, 10 mins).
 
-- `jobmanager.web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
+- `web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
 
-- `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
+- `web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
 
-- `jobmanager.web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
+- `web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
 
-- `jobmanager.web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
+- `web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
 
-- `jobmanager.web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
+- `web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
 
 ### File Systems
 

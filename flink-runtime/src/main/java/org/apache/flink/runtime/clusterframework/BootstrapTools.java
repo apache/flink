@@ -30,6 +30,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
@@ -188,7 +189,7 @@ public class BootstrapTools {
 		config.setString(JobManagerOptions.ADDRESS, address.host().get());
 		config.setInteger(JobManagerOptions.PORT, Integer.parseInt(address.port().get().toString()));
 
-		if (config.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
+		if (config.getInteger(WebOptions.PORT.key(), 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
 
 			// start the web frontend. we need to load this dynamically
