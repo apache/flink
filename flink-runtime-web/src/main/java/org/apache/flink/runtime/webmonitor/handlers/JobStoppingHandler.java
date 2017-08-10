@@ -20,11 +20,14 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Request handler for the STOP request.
@@ -36,7 +39,8 @@ public class JobStoppingHandler extends AbstractJsonRequestHandler {
 
 	private final Time timeout;
 
-	public JobStoppingHandler(Time timeout) {
+	public JobStoppingHandler(Executor executor, Time timeout) {
+		super(executor);
 		this.timeout = Preconditions.checkNotNull(timeout);
 	}
 
@@ -46,19 +50,23 @@ public class JobStoppingHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		try {
-			JobID jobId = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
-			if (jobManagerGateway != null) {
-				jobManagerGateway.stopJob(jobId, timeout);
-				return "{}";
-			}
-			else {
-				throw new Exception("No connection to the leading JobManager.");
-			}
-		}
-		catch (Exception e) {
-			throw new Exception("Failed to stop the job with id: "  + pathParams.get("jobid") + e.getMessage(), e);
-		}
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					JobID jobId = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
+					if (jobManagerGateway != null) {
+						jobManagerGateway.stopJob(jobId, timeout);
+						return "{}";
+					}
+					else {
+						throw new Exception("No connection to the leading JobManager.");
+					}
+				}
+				catch (Exception e) {
+					throw new FlinkFutureException("Failed to stop the job with id: "  + pathParams.get("jobid") + '.', e);
+				}
+			},
+			executor);
 	}
 }

@@ -42,7 +42,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 public class JobVertexMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {
-		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(mock(MetricFetcher.class));
+		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(Executors.directExecutor(), mock(MetricFetcher.class));
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/metrics", paths[0]);
@@ -57,7 +57,7 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStore store = MetricStoreTest.setupStore(fetcher.getMetricStore());
 
-		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);
+		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 		pathParams.put(PARAMETER_JOB_ID, "jobid");
@@ -79,7 +79,7 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStore store = fetcher.getMetricStore();
 
-		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);
+		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 

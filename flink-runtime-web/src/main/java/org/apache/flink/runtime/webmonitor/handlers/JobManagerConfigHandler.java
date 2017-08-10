@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Returns the Job Manager's configuration.
@@ -35,7 +39,8 @@ public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 
 	private final Configuration config;
 
-	public JobManagerConfigHandler(Configuration config) {
+	public JobManagerConfigHandler(Executor executor, Configuration config) {
+		super(executor);
 		this.config = config;
 	}
 
@@ -45,31 +50,38 @@ public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					StringWriter writer = new StringWriter();
+					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
-		gen.writeStartArray();
-		for (String key : config.keySet()) {
-			gen.writeStartObject();
-			gen.writeStringField("key", key);
+					gen.writeStartArray();
+					for (String key : config.keySet()) {
+						gen.writeStartObject();
+						gen.writeStringField("key", key);
 
-			// Mask key values which contain sensitive information
-			if (key.toLowerCase().contains("password")) {
-				String value = config.getString(key, null);
-				if (value != null) {
-					value = "******";
+						// Mask key values which contain sensitive information
+						if (key.toLowerCase().contains("password")) {
+							String value = config.getString(key, null);
+							if (value != null) {
+								value = "******";
+							}
+							gen.writeStringField("value", value);
+						} else {
+							gen.writeStringField("value", config.getString(key, null));
+						}
+						gen.writeEndObject();
+					}
+					gen.writeEndArray();
+
+					gen.close();
+					return writer.toString();
+				} catch (IOException e) {
+					throw new FlinkFutureException("Could not write configuration.", e);
 				}
-				gen.writeStringField("value", value);
-			}
-			else {
-				gen.writeStringField("value", config.getString(key, null));
-			}
-			gen.writeEndObject();
-		}
-		gen.writeEndArray();
-
-		gen.close();
-		return writer.toString();
+			},
+			executor);
 	}
 }

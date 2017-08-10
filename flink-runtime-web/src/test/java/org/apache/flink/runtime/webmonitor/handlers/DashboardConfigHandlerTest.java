@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 
@@ -33,7 +34,7 @@ import java.util.TimeZone;
 public class DashboardConfigHandlerTest {
 	@Test
 	public void testGetPaths() {
-		DashboardConfigHandler handler = new DashboardConfigHandler(10000L);
+		DashboardConfigHandler handler = new DashboardConfigHandler(Executors.directExecutor(), 10000L);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/config", paths[0]);

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 
@@ -28,6 +29,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
@@ -43,7 +45,8 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 
 	private final Time timeout;
 
-	public CurrentJobIdsHandler(Time timeout) {
+	public CurrentJobIdsHandler(Executor executor, Time timeout) {
+		super(executor);
 		this.timeout = requireNonNull(timeout);
 	}
 
@@ -53,53 +56,57 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		// we need no parameters, get all requests
-		try {
-			if (jobManagerGateway != null) {
-				CompletableFuture<JobsWithIDsOverview> overviewFuture = jobManagerGateway.requestJobsOverview(timeout);
-				JobsWithIDsOverview overview = overviewFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				// we need no parameters, get all requests
+				try {
+					if (jobManagerGateway != null) {
+						CompletableFuture<JobsWithIDsOverview> overviewFuture = jobManagerGateway.requestJobsOverview(timeout);
+						JobsWithIDsOverview overview = overviewFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+						StringWriter writer = new StringWriter();
+						JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
-				gen.writeStartObject();
+						gen.writeStartObject();
 
-				gen.writeArrayFieldStart("jobs-running");
-				for (JobID jid : overview.getJobsRunningOrPending()) {
-					gen.writeString(jid.toString());
+						gen.writeArrayFieldStart("jobs-running");
+						for (JobID jid : overview.getJobsRunningOrPending()) {
+							gen.writeString(jid.toString());
+						}
+						gen.writeEndArray();
+
+						gen.writeArrayFieldStart("jobs-finished");
+						for (JobID jid : overview.getJobsFinished()) {
+							gen.writeString(jid.toString());
+						}
+						gen.writeEndArray();
+
+						gen.writeArrayFieldStart("jobs-cancelled");
+						for (JobID jid : overview.getJobsCancelled()) {
+							gen.writeString(jid.toString());
+						}
+						gen.writeEndArray();
+
+						gen.writeArrayFieldStart("jobs-failed");
+						for (JobID jid : overview.getJobsFailed()) {
+							gen.writeString(jid.toString());
+						}
+						gen.writeEndArray();
+
+						gen.writeEndObject();
+
+						gen.close();
+						return writer.toString();
+					}
+					else {
+						throw new Exception("No connection to the leading JobManager.");
+					}
 				}
-				gen.writeEndArray();
-
-				gen.writeArrayFieldStart("jobs-finished");
-				for (JobID jid : overview.getJobsFinished()) {
-					gen.writeString(jid.toString());
+				catch (Exception e) {
+					throw new FlinkFutureException("Failed to fetch list of all running jobs.", e);
 				}
-				gen.writeEndArray();
-
-				gen.writeArrayFieldStart("jobs-cancelled");
-				for (JobID jid : overview.getJobsCancelled()) {
-					gen.writeString(jid.toString());
-				}
-				gen.writeEndArray();
-
-				gen.writeArrayFieldStart("jobs-failed");
-				for (JobID jid : overview.getJobsFailed()) {
-					gen.writeString(jid.toString());
-				}
-				gen.writeEndArray();
-
-				gen.writeEndObject();
-
-				gen.close();
-				return writer.toString();
-			}
-			else {
-				throw new Exception("No connection to the leading JobManager.");
-			}
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to fetch list of all running jobs: " + e.getMessage(), e);
-		}
+			},
+			executor);
 	}
 }

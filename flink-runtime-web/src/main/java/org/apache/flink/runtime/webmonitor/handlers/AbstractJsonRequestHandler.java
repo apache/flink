@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -29,6 +30,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for most request handlers. The handlers must produce a JSON response.
@@ -37,18 +40,28 @@ public abstract class AbstractJsonRequestHandler implements RequestHandler {
 
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
+	protected final Executor executor;
+
+	protected AbstractJsonRequestHandler(Executor executor) {
+		this.executor = Preconditions.checkNotNull(executor);
+	}
+
 	@Override
-	public FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		String result = handleJsonRequest(pathParams, queryParams, jobManagerGateway);
-		byte[] bytes = result.getBytes(ENCODING);
+	public CompletableFuture<FullHttpResponse> handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		CompletableFuture<String> resultFuture = handleJsonRequest(pathParams, queryParams, jobManagerGateway);
 
-		DefaultFullHttpResponse response = new DefaultFullHttpResponse(
-				HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
+		return resultFuture.thenApplyAsync(
+			(String result) -> {
+				byte[] bytes = result.getBytes(ENCODING);
 
-		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
-		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+				DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+					HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
 
-		return response;
+				response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ENCODING.name());
+				response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+
+				return response;
+			});
 	}
 
 	/**
@@ -66,9 +79,9 @@ public abstract class AbstractJsonRequestHandler implements RequestHandler {
 	 *         response with the exception message, other exceptions will cause a HTTP 500 response
 	 *         with the exception stack trace.
 	 */
-	public abstract String handleJsonRequest(
+	public abstract CompletableFuture<String> handleJsonRequest(
 			Map<String, String> pathParams,
 			Map<String, String> queryParams,
-			JobManagerGateway jobManagerGateway) throws Exception;
+			JobManagerGateway jobManagerGateway);
 
 }

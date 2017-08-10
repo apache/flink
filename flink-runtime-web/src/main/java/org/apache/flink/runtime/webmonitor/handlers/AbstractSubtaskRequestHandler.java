@@ -18,11 +18,15 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.util.FlinkException;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for request handlers whose response depends on a specific subtask (defined via the
@@ -31,15 +35,15 @@ import java.util.Map;
  */
 public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexRequestHandler {
 
-	public AbstractSubtaskRequestHandler(ExecutionGraphHolder executionGraphHolder) {
-		super(executionGraphHolder);
+	public AbstractSubtaskRequestHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+		super(executionGraphHolder, executor);
 	}
 
 	@Override
-	public final String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public final CompletableFuture<String> handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) {
 		final String subtaskNumberString = params.get("subtasknum");
 		if (subtaskNumberString == null) {
-			throw new RuntimeException("Subtask number parameter missing");
+			return FutureUtils.completedExceptionally(new FlinkException("Subtask number parameter missing"));
 		}
 
 		final int subtask;
@@ -47,16 +51,16 @@ public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexReq
 			subtask = Integer.parseInt(subtaskNumberString);
 		}
 		catch (NumberFormatException e) {
-			throw new RuntimeException("Invalid subtask number parameter");
+			return FutureUtils.completedExceptionally(new FlinkException("Invalid subtask number parameter", e));
 		}
 
 		if (subtask < 0 || subtask >= jobVertex.getParallelism()) {
-			throw new RuntimeException("subtask does not exist: " + subtask);
+			return FutureUtils.completedExceptionally(new FlinkException("subtask does not exist: " + subtask));
 		}
 
 		final AccessExecutionVertex vertex = jobVertex.getTaskVertices()[subtask];
 		return handleRequest(vertex, params);
 	}
 
-	public abstract String handleRequest(AccessExecutionVertex vertex, Map<String, String> params) throws Exception;
+	public abstract CompletableFuture<String> handleRequest(AccessExecutionVertex vertex, Map<String, String> params);
 }

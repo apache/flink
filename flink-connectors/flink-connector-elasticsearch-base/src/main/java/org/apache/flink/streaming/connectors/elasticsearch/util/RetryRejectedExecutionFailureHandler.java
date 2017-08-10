@@ -36,7 +36,7 @@ public class RetryRejectedExecutionFailureHandler implements ActionRequestFailur
 
 	@Override
 	public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
-		if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
+		if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
 			indexer.add(action);
 		} else {
 			// rethrow all other failures

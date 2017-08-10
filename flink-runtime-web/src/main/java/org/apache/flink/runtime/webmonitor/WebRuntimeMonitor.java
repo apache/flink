@@ -232,41 +232,41 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		Router router = new Router();
 		// config how to interact with this web server
-		get(router, new DashboardConfigHandler(cfg.getRefreshInterval()));
+		get(router, new DashboardConfigHandler(executor, cfg.getRefreshInterval()));
 
 		// the overview - how many task managers, slots, free slots, ...
-		get(router, new ClusterOverviewHandler(DEFAULT_REQUEST_TIMEOUT));
+		get(router, new ClusterOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT));
 
 		// job manager configuration
-		get(router, new JobManagerConfigHandler(config));
+		get(router, new JobManagerConfigHandler(executor, config));
 
 		// overview over jobs
-		get(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true));
-		get(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false));
-		get(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true));
+		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, true, true));
+		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, true, false));
+		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, false, true));
 
-		get(router, new CurrentJobIdsHandler(DEFAULT_REQUEST_TIMEOUT));
+		get(router, new CurrentJobIdsHandler(executor, DEFAULT_REQUEST_TIMEOUT));
 
-		get(router, new JobDetailsHandler(currentGraphs, metricFetcher));
+		get(router, new JobDetailsHandler(currentGraphs, executor, metricFetcher));
 
-		get(router, new JobVertexDetailsHandler(currentGraphs, metricFetcher));
-		get(router, new SubtasksTimesHandler(currentGraphs));
-		get(router, new JobVertexTaskManagersHandler(currentGraphs, metricFetcher));
-		get(router, new JobVertexAccumulatorsHandler(currentGraphs));
-		get(router, new JobVertexBackPressureHandler(currentGraphs,	backPressureStatsTracker, refreshInterval));
-		get(router, new JobVertexMetricsHandler(metricFetcher));
-		get(router, new SubtasksAllAccumulatorsHandler(currentGraphs));
-		get(router, new SubtaskCurrentAttemptDetailsHandler(currentGraphs, metricFetcher));
-		get(router, new SubtaskExecutionAttemptDetailsHandler(currentGraphs, metricFetcher));
-		get(router, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs));
+		get(router, new JobVertexDetailsHandler(currentGraphs, executor, metricFetcher));
+		get(router, new SubtasksTimesHandler(currentGraphs, executor));
+		get(router, new JobVertexTaskManagersHandler(currentGraphs, executor, metricFetcher));
+		get(router, new JobVertexAccumulatorsHandler(currentGraphs, executor));
+		get(router, new JobVertexBackPressureHandler(currentGraphs, executor,	backPressureStatsTracker, refreshInterval));
+		get(router, new JobVertexMetricsHandler(executor, metricFetcher));
+		get(router, new SubtasksAllAccumulatorsHandler(currentGraphs, executor));
+		get(router, new SubtaskCurrentAttemptDetailsHandler(currentGraphs, executor, metricFetcher));
+		get(router, new SubtaskExecutionAttemptDetailsHandler(currentGraphs, executor, metricFetcher));
+		get(router, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs, executor));
 
-		get(router, new JobPlanHandler(currentGraphs));
-		get(router, new JobConfigHandler(currentGraphs));
-		get(router, new JobExceptionsHandler(currentGraphs));
-		get(router, new JobAccumulatorsHandler(currentGraphs));
-		get(router, new JobMetricsHandler(metricFetcher));
+		get(router, new JobPlanHandler(currentGraphs, executor));
+		get(router, new JobConfigHandler(currentGraphs, executor));
+		get(router, new JobExceptionsHandler(currentGraphs, executor));
+		get(router, new JobAccumulatorsHandler(currentGraphs, executor));
+		get(router, new JobMetricsHandler(executor, metricFetcher));
 
-		get(router, new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT, metricFetcher));
+		get(router, new TaskManagersHandler(executor, DEFAULT_REQUEST_TIMEOUT, metricFetcher));
 		get(router,
 			new TaskManagerLogHandler(
 				retriever,
@@ -287,7 +287,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				config,
 				enableSSL,
 				blobView));
-		get(router, new TaskManagerMetricsHandler(metricFetcher));
+		get(router, new TaskManagerMetricsHandler(executor, metricFetcher));
 
 		router
 			// log and stdout
@@ -299,48 +299,48 @@ public class WebRuntimeMonitor implements WebMonitor {
 				new StaticFileServerHandler(retriever, jobManagerAddressFuture, timeout, logFiles.stdOutFile,
 					enableSSL));
 
-		get(router, new JobManagerMetricsHandler(metricFetcher));
+		get(router, new JobManagerMetricsHandler(executor, metricFetcher));
 
 		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
-		get(router, new JobCancellationHandler(timeout));
+		get(router, new JobCancellationHandler(executor, timeout));
 		// DELETE is the preferred way of canceling a job (Rest-conform)
-		delete(router, new JobCancellationHandler(timeout));
+		delete(router, new JobCancellationHandler(executor, timeout));
 
 		get(router, triggerHandler);
 		get(router, inProgressHandler);
 
 		// stop a job via GET (for proper integration with YARN this has to be performed via GET)
-		get(router, new JobStoppingHandler(timeout));
+		get(router, new JobStoppingHandler(executor, timeout));
 		// DELETE is the preferred way of stopping a job (Rest-conform)
-		delete(router, new JobStoppingHandler(timeout));
+		delete(router, new JobStoppingHandler(executor, timeout));
 
 		int maxCachedEntries = config.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 		CheckpointStatsCache cache = new CheckpointStatsCache(maxCachedEntries);
 
 		// Register the checkpoint stats handlers
-		get(router, new CheckpointStatsHandler(currentGraphs));
-		get(router, new CheckpointConfigHandler(currentGraphs));
-		get(router, new CheckpointStatsDetailsHandler(currentGraphs, cache));
-		get(router, new CheckpointStatsDetailsSubtasksHandler(currentGraphs, cache));
+		get(router, new CheckpointStatsHandler(currentGraphs, executor));
+		get(router, new CheckpointConfigHandler(currentGraphs, executor));
+		get(router, new CheckpointStatsDetailsHandler(currentGraphs, executor, cache));
+		get(router, new CheckpointStatsDetailsSubtasksHandler(currentGraphs, executor, cache));
 
 		if (webSubmitAllow) {
 			// fetch the list of uploaded jars.
-			get(router, new JarListHandler(uploadDir));
+			get(router, new JarListHandler(executor, uploadDir));
 
 			// get plan for an uploaded jar
-			get(router, new JarPlanHandler(uploadDir));
+			get(router, new JarPlanHandler(executor, uploadDir));
 
 			// run a jar
-			post(router, new JarRunHandler(uploadDir, timeout, config));
+			post(router, new JarRunHandler(executor, uploadDir, timeout, config));
 
 			// upload a jar
-			post(router, new JarUploadHandler(uploadDir));
+			post(router, new JarUploadHandler(executor, uploadDir));
 
 			// delete an uploaded jar from submission interface
-			delete(router, new JarDeleteHandler(uploadDir));
+			delete(router, new JarDeleteHandler(executor, uploadDir));
 		} else {
 			// send an Access Denied message
-			JarAccessDeniedHandler jad = new JarAccessDeniedHandler();
+			JarAccessDeniedHandler jad = new JarAccessDeniedHandler(executor);
 			get(router, jad);
 			post(router, jad);
 			delete(router, jad);

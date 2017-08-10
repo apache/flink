@@ -41,7 +41,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 public class TaskManagerMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {
-		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(mock(MetricFetcher.class));
+		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(Executors.directExecutor(), mock(MetricFetcher.class));
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/taskmanagers/:taskmanagerid/metrics", paths[0]);
@@ -56,7 +56,7 @@ public class TaskManagerMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStore store = MetricStoreTest.setupStore(fetcher.getMetricStore());
 
-		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(fetcher);
+		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 		pathParams.put(TASK_MANAGER_ID_KEY, "tmid");
@@ -75,7 +75,7 @@ public class TaskManagerMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStore store = fetcher.getMetricStore();
 
-		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(fetcher);
+		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 

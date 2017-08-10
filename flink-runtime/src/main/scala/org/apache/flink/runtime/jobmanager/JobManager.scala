@@ -2232,7 +2232,7 @@ object JobManager {
           new AkkaJobManagerRetriever(jobManagerSystem, timeout),
           new AkkaQueryServiceRetriever(jobManagerSystem, timeout),
           timeout,
-          jobManagerSystem.dispatcher)
+          futureExecutor)
 
         Option(webServer)
       }

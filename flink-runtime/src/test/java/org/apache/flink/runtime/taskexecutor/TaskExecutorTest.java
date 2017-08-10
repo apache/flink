@@ -1094,7 +1094,7 @@ public class TaskExecutorTest extends TestLogger {
 
 				fail("The slot request should have failed.");
 			} catch (Exception e) {
-				assertTrue(ExceptionUtils.containsThrowable(e, SlotAllocationException.class));
+				assertTrue(ExceptionUtils.findThrowable(e, SlotAllocationException.class).isPresent());
 			}
 
 			// re-register

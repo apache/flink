@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.Executors;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -33,7 +34,7 @@ import java.util.List;
 public class TaskManagersHandlerTest {
 	@Test
 	public void testGetPaths() {
-		TaskManagersHandler handler = new TaskManagersHandler(Time.seconds(0L), null);
+		TaskManagersHandler handler = new TaskManagersHandler(Executors.directExecutor(), Time.seconds(0L), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(2, paths.length);
 		List<String> pathsList = Lists.newArrayList(paths);

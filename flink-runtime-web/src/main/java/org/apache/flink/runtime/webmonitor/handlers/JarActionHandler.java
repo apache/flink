@@ -46,6 +46,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Abstract handler for fetching plan for a jar or running a jar.
@@ -54,7 +55,8 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
-	public JarActionHandler(File jarDirectory) {
+	public JarActionHandler(Executor executor, File jarDirectory) {
+		super(executor);
 		jarDir = jarDirectory;
 	}
 
