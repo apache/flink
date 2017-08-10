@@ -221,6 +221,8 @@ public abstract class NettyMessage {
 
 		final int sequenceNumber;
 
+		final int backlog;
+
 		// ---- Deserialization -----------------------------------------------
 
 		final boolean isBuffer;
@@ -232,7 +234,8 @@ public abstract class NettyMessage {
 
 		private BufferResponse(
 				ByteBuf retainedSlice, boolean isBuffer, int sequenceNumber,
-				InputChannelID receiverId) {
+				InputChannelID receiverId,
+				int backlog) {
 			// When deserializing we first have to request a buffer from the respective buffer
 			// provider (at the handler) and copy the buffer from Netty's space to ours. Only
 			// retainedSlice is set in this case.
@@ -242,15 +245,17 @@ public abstract class NettyMessage {
 			this.isBuffer = isBuffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
+			this.backlog = backlog;
 		}
 
-		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId) {
+		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId, int backlog) {
 			this.buffer = checkNotNull(buffer);
 			this.retainedSlice = null;
 			this.isBuffer = buffer.isBuffer();
 			this.size = buffer.getSize();
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
+			this.backlog = backlog;
 		}
 
 		boolean isBuffer() {
@@ -280,7 +285,7 @@ public abstract class NettyMessage {
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			checkNotNull(buffer, "No buffer instance to serialize.");
 
-			int length = 16 + 4 + 1 + 4 + buffer.getSize();
+			int length = 16 + 4 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
 			try {
@@ -288,6 +293,7 @@ public abstract class NettyMessage {
 
 				receiverId.writeTo(result);
 				result.writeInt(sequenceNumber);
+				result.writeInt(backlog);
 				result.writeBoolean(buffer.isBuffer());
 				result.writeInt(buffer.getSize());
 				result.writeBytes(buffer.getNioBuffer());
@@ -309,12 +315,13 @@ public abstract class NettyMessage {
 		static BufferResponse readFrom(ByteBuf buffer) {
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 			int sequenceNumber = buffer.readInt();
+			int backlog = buffer.readInt();
 			boolean isBuffer = buffer.readBoolean();
 			int size = buffer.readInt();
 
 			ByteBuf retainedSlice = buffer.readSlice(size).retain();
 
-			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId);
+			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId, backlog);
 		}
 	}
 
