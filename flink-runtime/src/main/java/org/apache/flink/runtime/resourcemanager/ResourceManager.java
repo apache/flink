@@ -899,8 +899,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				clearState();
 
 				slotManager.suspend();
-
-				leaderSessionId = null;
 			}
 		});
 	}

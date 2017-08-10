@@ -48,9 +48,10 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -64,6 +65,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+
 import scala.Option;
 
 import java.util.ArrayList;
@@ -92,6 +95,8 @@ public class ResourceManagerTest extends TestLogger {
 	private static ActorGateway resourceManager;
 
 	private static Configuration config = new Configuration();
+
+	private final Time timeout = Time.seconds(10L);
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
 	private TestingLeaderRetrievalService jobManagerLeaderRetrievalService;
@@ -479,7 +484,7 @@ public class ResourceManagerTest extends TestLogger {
 		final ResourceID resourceManagerResourceID = ResourceID.generate();
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 
-		final TestingSerialRpcService rpcService = new TestingSerialRpcService();
+		final TestingRpcService rpcService = new TestingRpcService();
 		rpcService.registerGateway(taskManagerAddress, taskExecutorGateway);
 
 		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
@@ -519,18 +524,20 @@ public class ResourceManagerTest extends TestLogger {
 
 			resourceManager.start();
 
+			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
 			final UUID rmLeaderSessionId = UUID.randomUUID();
 			rmLeaderElectionService.isLeader(rmLeaderSessionId);
 
 			final SlotReport slotReport = new SlotReport();
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
-			CompletableFuture<RegistrationResponse> successfulFuture = resourceManager.registerTaskExecutor(
+			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerTaskExecutor(
 				rmLeaderSessionId,
 				taskManagerAddress,
 				taskManagerResourceID,
 				slotReport,
-				Time.milliseconds(0L));
-			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
+				timeout);
+			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
 			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
@@ -557,7 +564,7 @@ public class ResourceManagerTest extends TestLogger {
 			// run the timeout runnable to simulate a heartbeat timeout
 			timeoutRunnable.run();
 
-			verify(taskExecutorGateway).disconnectResourceManager(any(TimeoutException.class));
+			verify(taskExecutorGateway, Mockito.timeout(timeout.toMilliseconds())).disconnectResourceManager(any(TimeoutException.class));
 
 		} finally {
 			rpcService.stopService();
@@ -575,7 +582,7 @@ public class ResourceManagerTest extends TestLogger {
 
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 
-		final TestingSerialRpcService rpcService = new TestingSerialRpcService();
+		final TestingRpcService rpcService = new TestingRpcService();
 		rpcService.registerGateway(jobMasterAddress, jobMasterGateway);
 
 		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
@@ -620,17 +627,19 @@ public class ResourceManagerTest extends TestLogger {
 
 			resourceManager.start();
 
+			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
 			rmLeaderElectionService.isLeader(rmLeaderId);
 
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
-			CompletableFuture<RegistrationResponse> successfulFuture = resourceManager.registerJobManager(
+			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
 				rmLeaderId,
 				jmLeaderId,
 				jmResourceId,
 				jobMasterAddress,
 				jobId,
-				Time.milliseconds(0L));
-			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
+				timeout);
+			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			assertTrue(response instanceof JobMasterRegistrationSuccess);
 
 			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
@@ -657,7 +666,7 @@ public class ResourceManagerTest extends TestLogger {
 			// run the timeout runnable to simulate a heartbeat timeout
 			timeoutRunnable.run();
 
-			verify(jobMasterGateway).disconnectResourceManager(eq(jmLeaderId), eq(rmLeaderId), any(TimeoutException.class));
+			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).disconnectResourceManager(eq(jmLeaderId), eq(rmLeaderId), any(TimeoutException.class));
 
 		} finally {
 			rpcService.stopService();

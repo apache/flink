@@ -58,7 +58,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActio
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -205,14 +205,14 @@ public class MesosResourceManagerTest extends TestLogger {
 	static class Context implements AutoCloseable {
 
 		// services
-		TestingSerialRpcService rpcService;
+		TestingRpcService rpcService;
 		TestingFatalErrorHandler fatalErrorHandler;
 		MockMesosResourceManagerRuntimeServices rmServices;
 
 		// RM
 		ResourceManagerConfiguration rmConfiguration;
 		ResourceID rmResourceID;
-		static final String RM_ADDRESS = "/resourceManager";
+		static final String RM_ADDRESS = "resourceManager";
 		TestingMesosResourceManager resourceManager;
 
 		// domain objects for test purposes
@@ -239,7 +239,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		 * Create mock RM dependencies.
 		 */
 		Context() throws Exception {
-			rpcService = new TestingSerialRpcService();
+			rpcService = new TestingRpcService();
 			fatalErrorHandler = new TestingFatalErrorHandler();
 			rmServices = new MockMesosResourceManagerRuntimeServices();
 
@@ -300,6 +300,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			public final TestingLeaderElectionService rmLeaderElectionService;
 			public final JobLeaderIdService jobLeaderIdService;
 			public final SlotManager slotManager;
+			public final CompletableFuture<Boolean> slotManagerStarted;
 			public ResourceManagerActions rmActions;
 
 			public UUID rmLeaderSessionId;
@@ -312,6 +313,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				heartbeatServices = new TestingHeartbeatServices(5L, 5L, scheduledExecutor);
 				metricRegistry = mock(MetricRegistry.class);
 				slotManager = mock(SlotManager.class);
+				slotManagerStarted = new CompletableFuture<>();
 				jobLeaderIdService = new JobLeaderIdService(
 					highAvailabilityServices,
 					rpcService.getScheduledExecutor(),
@@ -321,6 +323,7 @@ public class MesosResourceManagerTest extends TestLogger {
 					@Override
 					public Object answer(InvocationOnMock invocation) throws Throwable {
 						rmActions = invocation.getArgumentAt(2, ResourceManagerActions.class);
+						slotManagerStarted.complete(true);
 						return null;
 					}
 				}).when(slotManager).start(any(UUID.class), any(Executor.class), any(ResourceManagerActions.class));
@@ -426,6 +429,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		 */
 		public MesosWorkerStore.Worker allocateWorker(Protos.TaskID taskID, ResourceProfile resourceProfile) throws Exception {
 			when(rmServices.workerStore.newTaskID()).thenReturn(taskID);
+			rmServices.slotManagerStarted.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			rmServices.rmActions.allocateResource(resourceProfile);
 			MesosWorkerStore.Worker expected = MesosWorkerStore.Worker.newWorker(taskID, resourceProfile);
 
@@ -501,6 +505,7 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// allocate a worker
 			when(rmServices.workerStore.newTaskID()).thenReturn(task1).thenThrow(new AssertionFailedError());
+			rmServices.slotManagerStarted.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			rmServices.rmActions.allocateResource(resourceProfile1);
 
 			// verify that a new worker was persisted, the internal state was updated, the task router was notified,
