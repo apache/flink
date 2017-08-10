@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.common
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -28,10 +28,8 @@ import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 
 import scala.collection.JavaConversions._
 
-class WindowStartEndPropertiesRule
-  extends RelOptRule(
-    WindowStartEndPropertiesRule.WINDOW_EXPRESSION_RULE_PREDICATE,
-    "WindowStartEndPropertiesRule") {
+abstract class WindowStartEndPropertiesRule(ruleName: String, rulePredicate: RelOptRuleOperand)
+  extends RelOptRule(rulePredicate, ruleName) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val project = call.rel(0).asInstanceOf[LogicalProject]
@@ -51,9 +49,9 @@ class WindowStartEndPropertiesRule
 
   override def onMatch(call: RelOptRuleCall): Unit = {
 
-    val project = call.rel(0).asInstanceOf[LogicalProject]
-    val innerProject = call.rel(1).asInstanceOf[LogicalProject]
-    val agg = call.rel(2).asInstanceOf[LogicalWindowAggregate]
+    val project = call.rel(getProjectOperandIndex).asInstanceOf[LogicalProject]
+    val innerProject = call.rel(getInnerProjectOperandIndex).asInstanceOf[LogicalProject]
+    val agg = call.rel(getLogicalWindowAggregateOperandIndex).asInstanceOf[LogicalWindowAggregate]
 
     // Retrieve window start and end properties
     val transformed = call.builder()
@@ -72,10 +70,10 @@ class WindowStartEndPropertiesRule
 
     def replaceGroupAuxiliaries(node: RexNode): RexNode = {
       node match {
-        case c: RexCall if WindowStartEndPropertiesRule.isWindowStart(c) =>
+        case c: RexCall if isWindowStart(c) =>
           // replace expression by access to window start
           rexBuilder.makeCast(c.getType, transformed.field("w$start"), false)
-        case c: RexCall if WindowStartEndPropertiesRule.isWindowEnd(c) =>
+        case c: RexCall if isWindowEnd(c) =>
           // replace expression by access to window end
           rexBuilder.makeCast(c.getType, transformed.field("w$end"), false)
         case c: RexCall =>
@@ -95,15 +93,6 @@ class WindowStartEndPropertiesRule
     val res = transformed.build()
     call.transformTo(res)
   }
-}
-
-object WindowStartEndPropertiesRule {
-  private val WINDOW_EXPRESSION_RULE_PREDICATE =
-    RelOptRule.operand(classOf[LogicalProject],
-      RelOptRule.operand(classOf[LogicalProject],
-        RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none())))
-
-  val INSTANCE = new WindowStartEndPropertiesRule
 
   /** Checks if a RexNode is a window start auxiliary function. */
   private def isWindowStart(node: RexNode): Boolean = {
@@ -113,7 +102,7 @@ object WindowStartEndPropertiesRule {
           case SqlStdOperatorTable.TUMBLE_START |
                SqlStdOperatorTable.HOP_START |
                SqlStdOperatorTable.SESSION_START
-            => true
+          => true
           case _ => false
         }
       case _ => false
@@ -128,10 +117,33 @@ object WindowStartEndPropertiesRule {
           case SqlStdOperatorTable.TUMBLE_END |
                SqlStdOperatorTable.HOP_END |
                SqlStdOperatorTable.SESSION_END
-            => true
+          => true
           case _ => false
         }
       case _ => false
     }
+  }
+
+  private[table] def getProjectOperandIndex: Int
+
+  private[table] def getInnerProjectOperandIndex: Int
+
+  private[table] def getLogicalWindowAggregateOperandIndex: Int
+}
+
+object WindowStartEndPropertiesRule {
+  private val WINDOW_EXPRESSION_RULE_PREDICATE =
+    RelOptRule.operand(classOf[LogicalProject],
+      RelOptRule.operand(classOf[LogicalProject],
+        RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none())))
+
+  private val PROJECT_OPERAND_INDEX = 0
+  private val INNER_PROJECT_OPERAND_INDEX = 1
+  private val LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX = 2
+
+  val INSTANCE = new WindowStartEndPropertiesRule("WindowStartEndPropertiesRule" ,WINDOW_EXPRESSION_RULE_PREDICATE) {
+    override private[table] def getProjectOperandIndex = PROJECT_OPERAND_INDEX
+    override private[table] def getInnerProjectOperandIndex = INNER_PROJECT_OPERAND_INDEX
+    override private[table] def getLogicalWindowAggregateOperandIndex = LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX
   }
 }

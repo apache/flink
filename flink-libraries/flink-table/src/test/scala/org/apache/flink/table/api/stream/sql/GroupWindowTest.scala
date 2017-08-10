@@ -143,4 +143,32 @@ class GroupWindowTest extends TableTestBase {
 
     streamUtil.verifySql(sql, expected)
   }
+
+  @Test
+  def testExpressionOnWindowHavingFunction() = {
+    val sql =
+      "SELECT " +
+        "  COUNT(*), " +
+        "  HOP_START(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE) " +
+        "FROM MyTable " +
+        "GROUP BY HOP(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE) " +
+        "HAVING SUM(a) > 0"
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "rowtime, a")
+          ),
+          term("window", SlidingGroupWindow('w$, 'rowtime, 60000.millis, 900000.millis)),
+          term("select", "COUNT(*) AS EXPR$0", "SUM(a) AS $f1", "start('w$) AS w$start", "end('w$) AS w$end")
+        ),
+        term("select", "EXPR$0", "w$start")
+      )
+
+    streamUtil.verifySql(sql, expected)
+  }
 }
