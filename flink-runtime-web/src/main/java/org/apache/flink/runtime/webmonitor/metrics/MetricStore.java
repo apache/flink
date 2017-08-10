@@ -24,10 +24,10 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_COUNTER;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_GAUGE;
@@ -200,7 +200,7 @@ public class MetricStore {
 	 * @return TaskManagerMetricStore for the given ID, or null if no store for the given argument exists
 	 */
 	public TaskManagerMetricStore getTaskManagerMetricStore(String tmID) {
-		return taskManagers.get(tmID);
+		return tmID == null ? null : taskManagers.get(tmID);
 	}
 
 	/**
@@ -210,7 +210,7 @@ public class MetricStore {
 	 * @return JobMetricStore for the given ID, or null if no store for the given argument exists
 	 */
 	public JobMetricStore getJobMetricStore(String jobID) {
-		return jobs.get(jobID);
+		return jobID == null ? null : jobs.get(jobID);
 	}
 
 	/**
