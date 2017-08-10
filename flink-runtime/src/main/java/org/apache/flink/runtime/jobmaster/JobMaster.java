@@ -36,9 +36,6 @@ import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -104,8 +101,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
@@ -320,13 +318,14 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 * Suspend the job and shutdown all other services including rpc.
 	 */
 	@Override
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {
 		taskManagerHeartbeatManager.stop();
 		resourceManagerHeartbeatManager.stop();
 
 		// make sure there is a graceful exit
-		getSelf().suspendExecution(new Exception("JobManager is shutting down."));
-		super.shutDown();
+		suspendExecution(new Exception("JobManager is shutting down."));
+
+		super.postStop();
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -681,7 +680,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public Future<Iterable<SlotOffer>> offerSlots(
+	public CompletableFuture<Iterable<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
 			final Iterable<SlotOffer> slots,
 			final UUID leaderId) throws Exception {
@@ -733,7 +732,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public Future<RegistrationResponse> registerTaskManager(
+	public CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
 			final UUID leaderId) throws Exception
@@ -752,48 +751,42 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
 				resourceId, libraryCacheManager.getBlobServerPort());
-			return FlinkCompletableFuture.completed(response);
+			return CompletableFuture.completedFuture(response);
 		} else {
-			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
-				@Override
-				public TaskExecutorGateway call() throws Exception {
-					return getRpcService().connect(taskManagerRpcAddress, TaskExecutorGateway.class)
-							.get(rpcTimeout.getSize(), rpcTimeout.getUnit());
-				}
-			}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
-				@Override
-				public RegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
-					if (throwable != null) {
-						return new RegistrationResponse.Decline(throwable.getMessage());
-					}
-
-					if (!JobMaster.this.leaderSessionID.equals(leaderId)) {
-						log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
-										"leader session ID {} did not equal the received leader session ID {}.",
-								taskManagerId, taskManagerRpcAddress,
-								JobMaster.this.leaderSessionID, leaderId);
-						return new RegistrationResponse.Decline("Invalid leader session id");
-					}
-
-					slotPoolGateway.registerTaskManager(taskManagerId);
-					registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
-
-					// monitor the task manager as heartbeat target
-					taskManagerHeartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<Void>() {
-						@Override
-						public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-							// the task manager will not request heartbeat, so this method will never be called currently
+			return getRpcService()
+				.connect(taskManagerRpcAddress, TaskExecutorGateway.class)
+				.handleAsync(
+					(TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
+						if (throwable != null) {
+							return new RegistrationResponse.Decline(throwable.getMessage());
 						}
 
-						@Override
-						public void requestHeartbeat(ResourceID resourceID, Void payload) {
-							taskExecutorGateway.heartbeatFromJobManager(resourceID);
+						if (!Objects.equals(leaderSessionID, leaderId)) {
+							log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
+									"leader session ID {} did not equal the received leader session ID {}.",
+								taskManagerId, taskManagerRpcAddress, leaderSessionID, leaderId);
+							return new RegistrationResponse.Decline("Invalid leader session id");
 						}
-					});
 
-					return new JMTMRegistrationSuccess(resourceId, libraryCacheManager.getBlobServerPort());
-				}
-			}, getMainThreadExecutor());
+						slotPoolGateway.registerTaskManager(taskManagerId);
+						registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
+
+						// monitor the task manager as heartbeat target
+						taskManagerHeartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<Void>() {
+							@Override
+							public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+								// the task manager will not request heartbeat, so this method will never be called currently
+							}
+
+							@Override
+							public void requestHeartbeat(ResourceID resourceID, Void payload) {
+								taskExecutorGateway.heartbeatFromJobManager(resourceID);
+							}
+						});
+
+						return new JMTMRegistrationSuccess(resourceId, libraryCacheManager.getBlobServerPort());
+					},
+					getMainThreadExecutor());
 		}
 	}
 
@@ -1043,7 +1036,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					getTargetAddress(), getTargetLeaderId())
 			{
 				@Override
-				protected Future<RegistrationResponse> invokeRegistration(
+				protected CompletableFuture<RegistrationResponse> invokeRegistration(
 						ResourceManagerGateway gateway, UUID leaderId, long timeoutMillis) throws Exception
 				{
 					Time timeout = Time.milliseconds(timeoutMillis);
@@ -1122,8 +1115,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public CompletableFuture<Void> retrievePayload() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -1149,8 +1142,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public CompletableFuture<Void> retrievePayload() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }

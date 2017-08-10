@@ -298,6 +298,9 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		} catch (Throwable t) {
 			LOG.error("Could not cleanly shut down the Node Manager Client", t);
 		}
+
+		// stop the actor after finishing processing the stop message
+		getContext().system().stop(getSelf());
 	}
 
 	@Override

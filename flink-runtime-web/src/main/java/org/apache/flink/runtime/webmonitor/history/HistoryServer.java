@@ -35,7 +35,8 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import io.netty.handler.codec.http.router.Router;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

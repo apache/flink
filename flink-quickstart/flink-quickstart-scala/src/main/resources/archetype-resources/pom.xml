@@ -45,9 +45,9 @@ under the License.
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<flink.version>1.4-SNAPSHOT</flink.version>
-		<slf4j.version>1.7.7</slf4j.version>
-		<log4j.version>1.2.17</log4j.version>
+		<flink.version>@project.version@</flink.version>
+		<slf4j.version>@slf4j.version@</slf4j.version>
+		<log4j.version>@log4j.version@</log4j.version>
 		<scala.binary.version>@scala.binary.version@</scala.binary.version>
 	</properties>
 
@@ -307,8 +307,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>1.7</source>
-					<target>1.7</target>
+					<source>1.8</source>
+					<target>1.8</target>
 				</configuration>
 			</plugin>
 			<plugin>

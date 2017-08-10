@@ -19,10 +19,10 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
-import org.rocksdb.StringAppendOperator;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
@@ -46,14 +46,12 @@ public enum PredefinedOptions {
 		@Override
 		public DBOptions createDBOptions() {
 			return new DBOptions()
-					.setUseFsync(false)
-					.setDisableDataSync(true);
+					.setUseFsync(false);
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions()
-					.setMergeOperator(new StringAppendOperator());
+			return new ColumnFamilyOptions();
 		}
 
 	},
@@ -86,14 +84,12 @@ public enum PredefinedOptions {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setDisableDataSync(true)
 					.setMaxOpenFiles(-1);
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
 			return new ColumnFamilyOptions()
-					.setMergeOperator(new StringAppendOperator())
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
 		}
@@ -133,7 +129,6 @@ public enum PredefinedOptions {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setDisableDataSync(true)
 					.setMaxOpenFiles(-1);
 		}
 
@@ -146,7 +141,6 @@ public enum PredefinedOptions {
 			final long writeBufferSize = 64 * 1024 * 1024;
 
 			return new ColumnFamilyOptions()
-					.setMergeOperator(new StringAppendOperator())
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true)
 					.setTargetFileSizeBase(targetFileSize)
@@ -158,6 +152,7 @@ public enum PredefinedOptions {
 							new BlockBasedTableConfig()
 									.setBlockCacheSize(blockCacheSize)
 									.setBlockSize(blockSize)
+									.setFilter(new BloomFilter())
 					);
 		}
 	},
@@ -186,14 +181,12 @@ public enum PredefinedOptions {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setDisableDataSync(true)
 					.setMaxOpenFiles(-1);
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions()
-					.setMergeOperator(new StringAppendOperator());
+			return new ColumnFamilyOptions();
 		}
 	};
 

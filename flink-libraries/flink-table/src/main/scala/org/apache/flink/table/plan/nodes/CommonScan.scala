@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.types.Row
 
 /**
@@ -48,7 +48,7 @@ trait CommonScan[T] {
       inputFieldMapping: Option[Array[Int]] = None)
     : GeneratedFunction[F, Row] = {
 
-    val generator = new CodeGenerator(
+    val generator = new FunctionCodeGenerator(
       config,
       false,
       inputType,

@@ -98,7 +98,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		specificProperties.setProperty("log.retention.minutes", "0");
 		specificProperties.setProperty("log.retention.ms", "250");
 		specificProperties.setProperty("log.retention.check.interval.ms", "100");
-		kafkaServer.prepare(1, specificProperties, false);
+		kafkaServer.prepare(kafkaServer.createConfig().setKafkaServerProperties(specificProperties));
 
 		standardProps = kafkaServer.getStandardProperties();
 
@@ -115,7 +115,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	}
 
 	@AfterClass
-	public static void shutDownServices() {
+	public static void shutDownServices() throws Exception {
 		TestStreamEnvironment.unsetAsContext();
 
 		if (flink != null) {

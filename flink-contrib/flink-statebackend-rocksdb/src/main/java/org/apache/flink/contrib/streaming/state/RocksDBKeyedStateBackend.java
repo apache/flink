@@ -126,10 +126,17 @@ import java.util.concurrent.RunnableFuture;
  * streams provided by a {@link org.apache.flink.runtime.state.CheckpointStreamFactory} upon
  * checkpointing. This state backend can store very large state that exceeds memory and spills
  * to disk. Except for the snapshotting, this class should be accessed as if it is not threadsafe.
+ *
+ * <p>This class follows the rules for closing/releasing native RocksDB resources as described in
+ + <a href="https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families">
+ * this document</a>.
  */
 public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBKeyedStateBackend.class);
+
+	/** The name of the merge operator in RocksDB. Do not change except you know exactly what you do. */
+	public static final String MERGE_OPERATOR_NAME = "stringappendtest";
 
 	private final String operatorIdentifier;
 
@@ -160,6 +167,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	protected RocksDB db;
 
 	/**
+	 * We are not using the default column family for Flink state ops, but we still need to remember this handle so that
+	 * we can close it properly when the backend is closed. This is required by RocksDB's native memory management.
+	 */
+	private ColumnFamilyHandle defaultColumnFamily;
+
+	/**
 	 * Information about the k/v states as we create them. This is used to retrieve the
 	 * column family that is used for a state and also for sanity checks when restoring.
 	 */
@@ -185,6 +198,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The identifier of the last completed checkpoint. */
 	private long lastCompletedCheckpointId = -1;
 
+	/** Unique ID of this backend. */
+	private UUID backendUID;
+
 	private static final String SST_FILE_SUFFIX = ".sst";
 
 	public RocksDBKeyedStateBackend(
@@ -207,7 +223,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 
-		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
+		// ensure that we use the right merge operator, because other code relies on this
+		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions)
+			.setMergeOperatorName(MERGE_OPERATOR_NAME);
+
 		this.dbOptions = Preconditions.checkNotNull(dbOptions);
 
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
@@ -233,6 +252,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.kvStateInformation = new HashMap<>();
 		this.restoredKvStateMetaInfos = new HashMap<>();
 		this.materializedSstFiles = new TreeMap<>();
+		this.backendUID = UUID.randomUUID();
+		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
 
 	/**
@@ -249,30 +270,31 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// and access it in a synchronized block that locks on #dbDisposeLock.
 			if (db != null) {
 
-				for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column :
-						kvStateInformation.values()) {
-					try {
-						column.f0.close();
-					} catch (Exception ex) {
-						LOG.info("Exception while closing ColumnFamilyHandle object.", ex);
-					}
+				// RocksDB's native memory management requires that *all* CFs (including default) are closed before the
+				// DB is closed. So we start with the ones created by Flink...
+				for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> columnMetaData :
+					kvStateInformation.values()) {
+
+					IOUtils.closeQuietly(columnMetaData.f0);
 				}
 
-				kvStateInformation.clear();
-				restoredKvStateMetaInfos.clear();
+				// ... close the default CF ...
+				IOUtils.closeQuietly(defaultColumnFamily);
 
-				try {
-					db.close();
-				} catch (Exception ex) {
-					LOG.info("Exception while closing RocksDB object.", ex);
-				}
+				// ... and finally close the DB instance ...
+				IOUtils.closeQuietly(db);
 
+				// invalidate the reference before releasing the lock so that other accesses will not cause crashes
 				db = null;
+
 			}
 		}
 
-		IOUtils.closeQuietly(columnOptions);
+		kvStateInformation.clear();
+		restoredKvStateMetaInfos.clear();
+
 		IOUtils.closeQuietly(dbOptions);
+		IOUtils.closeQuietly(columnOptions);
 
 		try {
 			FileUtils.deleteDirectory(instanceBasePath);
@@ -926,7 +948,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			return new IncrementalKeyedStateHandle(
-				stateBackend.operatorIdentifier,
+				stateBackend.backendUID,
 				stateBackend.keyGroupRange,
 				checkpointId,
 				sstFiles,
@@ -1034,6 +1056,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			List<ColumnFamilyHandle> stateColumnFamilyHandles) throws IOException {
 
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(stateColumnFamilyDescriptors);
+
+		// we add the required descriptor for the default CF in last position.
 		columnFamilyDescriptors.add(
 			new ColumnFamilyDescriptor(
 				"default".getBytes(ConfigConstants.DEFAULT_CHARSET), columnOptions));
@@ -1052,9 +1076,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new IOException("Error while opening RocksDB instance.", e);
 		}
 
+		final int defaultColumnFamilyIndex = columnFamilyHandles.size() - 1;
+
+		// extract the default column family.
+		defaultColumnFamily = columnFamilyHandles.get(defaultColumnFamilyIndex);
+
 		if (stateColumnFamilyHandles != null) {
+			// return all CFs except the default CF which is kept separately because it is not used in Flink operations.
 			stateColumnFamilyHandles.addAll(
-				columnFamilyHandles.subList(0, columnFamilyHandles.size() - 1));
+				columnFamilyHandles.subList(0, defaultColumnFamilyIndex));
 		}
 
 		return db;
@@ -1438,6 +1468,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						}
 					}
 				} else {
+					// pick up again the old backend id, so the we can reference existing state
+					stateBackend.backendUID = restoreStateHandle.getBackendIdentifier();
+
+					LOG.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
+						stateBackend.operatorIdentifier, stateBackend.backendUID);
 
 					// create hard links in the instance directory
 					if (!stateBackend.instanceRocksDBPath.mkdirs()) {

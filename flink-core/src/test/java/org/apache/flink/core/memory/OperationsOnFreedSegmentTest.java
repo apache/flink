@@ -35,147 +35,123 @@ public class OperationsOnFreedSegmentTest {
 	private static final int PAGE_SIZE = (int) ((Math.random() * 10000) + 1000);
 	
 	@Test
-	public void testSingleSegmentOperationsHeapSegment() {
-		try {
-			testOpsOnFreedSegment(new HeapMemorySegment(new byte[PAGE_SIZE]));
-			testOpsOnFreedSegment(new HybridMemorySegment(new byte[PAGE_SIZE]));
-			testOpsOnFreedSegment(new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE)));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public void testSingleSegmentOperationsHeapSegment() throws Exception {
+		testOpsOnFreedSegment(new HeapMemorySegment(new byte[PAGE_SIZE]));
+		testOpsOnFreedSegment(new HybridMemorySegment(new byte[PAGE_SIZE]));
+		testOpsOnFreedSegment(new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE)));
 	}
 
 	@Test
 	public void testCompare() {
-		try {
-			MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
 
-			MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
-			freedHeap.free();
-			freedHybridHeap.free();
-			freedHybridOffHeap.free();
-			
-			MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
-			MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
-			
-			// alive with free
-			for (MemorySegment seg1 : alive) {
-				for (MemorySegment seg2 : free) {
-					testCompare(seg1, seg2);
-				}
-			}
+		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		freedHeap.free();
+		freedHybridHeap.free();
+		freedHybridOffHeap.free();
 
-			// free with alive
-			for (MemorySegment seg1 : free) {
-				for (MemorySegment seg2 : alive) {
-					testCompare(seg1, seg2);
-				}
-			}
+		MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
+		MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
 
-			// free with free
-			for (MemorySegment seg1 : free) {
-				for (MemorySegment seg2 : free) {
-					testCompare(seg1, seg2);
-				}
+		// alive with free
+		for (MemorySegment seg1 : alive) {
+			for (MemorySegment seg2 : free) {
+				testCompare(seg1, seg2);
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		// free with alive
+		for (MemorySegment seg1 : free) {
+			for (MemorySegment seg2 : alive) {
+				testCompare(seg1, seg2);
+			}
+		}
+
+		// free with free
+		for (MemorySegment seg1 : free) {
+			for (MemorySegment seg2 : free) {
+				testCompare(seg1, seg2);
+			}
 		}
 	}
 	
 	@Test
 	public void testCopyTo() {
-		try {
-			MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
 
-			MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
-			freedHeap.free();
-			freedHybridHeap.free();
-			freedHybridOffHeap.free();
+		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		freedHeap.free();
+		freedHybridHeap.free();
+		freedHybridOffHeap.free();
 
-			MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
-			MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
+		MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
+		MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
 
-			// alive with free
-			for (MemorySegment seg1 : alive) {
-				for (MemorySegment seg2 : free) {
-					testCopy(seg1, seg2);
-				}
-			}
-
-			// free with alive
-			for (MemorySegment seg1 : free) {
-				for (MemorySegment seg2 : alive) {
-					testCopy(seg1, seg2);
-				}
-			}
-
-			// free with free
-			for (MemorySegment seg1 : free) {
-				for (MemorySegment seg2 : free) {
-					testCopy(seg1, seg2);
-				}
+		// alive with free
+		for (MemorySegment seg1 : alive) {
+			for (MemorySegment seg2 : free) {
+				testCopy(seg1, seg2);
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		// free with alive
+		for (MemorySegment seg1 : free) {
+			for (MemorySegment seg2 : alive) {
+				testCopy(seg1, seg2);
+			}
+		}
+
+		// free with free
+		for (MemorySegment seg1 : free) {
+			for (MemorySegment seg2 : free) {
+				testCopy(seg1, seg2);
+			}
 		}
 	}
 
 	@Test
 	public void testSwap() {
-		try {
-			MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
 
-			MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-			MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
-			freedHeap.free();
-			freedHybridHeap.free();
-			freedHybridOffHeap.free();
+		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		freedHeap.free();
+		freedHybridHeap.free();
+		freedHybridOffHeap.free();
 
-			MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
-			MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
+		MemorySegment[] alive = { aliveHeap, aliveHybridHeap, aliveHybridOffHeap };
+		MemorySegment[] free = { freedHeap, freedHybridHeap, freedHybridOffHeap };
 
-			// alive with free
-			for (MemorySegment seg1 : alive) {
-				for (MemorySegment seg2 : free) {
-					testSwap(seg1, seg2);
-				}
-			}
-
-			// free with alive
-			for (MemorySegment seg1 : free) {
-				for (MemorySegment seg2 : alive) {
-					testSwap(seg1, seg2);
-				}
-			}
-
-			// free with free
-			for (MemorySegment seg1 : free) {
-				for (MemorySegment seg2 : free) {
-					testSwap(seg1, seg2);
-				}
+		// alive with free
+		for (MemorySegment seg1 : alive) {
+			for (MemorySegment seg2 : free) {
+				testSwap(seg1, seg2);
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		// free with alive
+		for (MemorySegment seg1 : free) {
+			for (MemorySegment seg2 : alive) {
+				testSwap(seg1, seg2);
+			}
+		}
+
+		// free with free
+		for (MemorySegment seg1 : free) {
+			for (MemorySegment seg2 : free) {
+				testSwap(seg1, seg2);
+			}
 		}
 	}
 	

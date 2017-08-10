@@ -42,7 +42,7 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
   def testScalaJavaAPISelectFunForwarding {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val dummyDataStream: DataStream[(Int, Int)] = env.fromElements()
-    val pattern: Pattern[(Int, Int), _] = Pattern.begin[(Int, Int)]("dummy")
+    val pattern: Pattern[(Int, Int), (Int, Int)] = Pattern.begin[(Int, Int)]("dummy")
     val pStream: PatternStream[(Int, Int)] = CEP.pattern(dummyDataStream, pattern)
     val param = Map("begin" -> List((1, 2)))
     val result: DataStream[(Int, Int)] = pStream
@@ -62,7 +62,7 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
   def testScalaJavaAPIFlatSelectFunForwarding {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val dummyDataStream: DataStream[List[Int]] = env.fromElements()
-    val pattern: Pattern[List[Int], _] = Pattern.begin[List[Int]]("dummy")
+    val pattern: Pattern[List[Int], List[Int]] = Pattern.begin[List[Int]]("dummy")
     val pStream: PatternStream[List[Int]] = CEP.pattern(dummyDataStream, pattern)
     val inList = List(1, 2, 3)
     val inParam = Map("begin" -> List(inList))
@@ -88,7 +88,7 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
   def testTimeoutHandling: Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val dummyDataStream: DataStream[String] = env.fromElements()
-    val pattern: Pattern[String, _] = Pattern.begin[String]("dummy")
+    val pattern: Pattern[String, String] = Pattern.begin[String]("dummy")
     val pStream: PatternStream[String] = CEP.pattern(dummyDataStream, pattern)
     val inParam = Map("begin" -> List("barfoo"))
     val outList = new java.util.ArrayList[Either[String, String]]

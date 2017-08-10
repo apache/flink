@@ -20,27 +20,31 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.FloatValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.FloatValueSummaryAggregator}.
+ */
 public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {
 
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating
 	 * and combining a bunch of different ways.
 	 */
 	@Override
 	protected NumericColumnSummary<Float> summarize(Float... values) {
 
 		FloatValue[] floatValues = new FloatValue[values.length];
-		for(int i = 0; i < values.length; i++) {
+		for (int i = 0; i < values.length; i++) {
 			if (values[i] != null) {
 				floatValues[i] = new FloatValue(values[i]);
 			}
 		}
 
-		return new AggregateCombineHarness<FloatValue,NumericColumnSummary<Float>,ValueSummaryAggregator.FloatValueSummaryAggregator>() {
+		return new AggregateCombineHarness<FloatValue, NumericColumnSummary<Float>, ValueSummaryAggregator.FloatValueSummaryAggregator>() {
 
 			@Override
 			protected void compareResults(NumericColumnSummary<Float> result1, NumericColumnSummary<Float> result2) {

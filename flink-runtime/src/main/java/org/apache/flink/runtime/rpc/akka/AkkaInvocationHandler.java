@@ -22,8 +22,7 @@ import akka.actor.ActorRef;
 import akka.pattern.Patterns;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.SelfGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -44,7 +43,9 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.BitSet;
+import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -79,7 +80,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	private final long maximumFramesize;
 
 	// null if gateway; otherwise non-null
-	private final Future<Void> terminationFuture;
+	private final CompletableFuture<Void> terminationFuture;
 
 	AkkaInvocationHandler(
 			String address,
@@ -87,7 +88,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 			ActorRef rpcEndpoint,
 			Time timeout,
 			long maximumFramesize,
-			Future<Void> terminationFuture) {
+			CompletableFuture<Void> terminationFuture) {
 
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
@@ -146,20 +147,19 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 			Class<?> returnType = method.getReturnType();
 
-			if (returnType.equals(Void.TYPE)) {
+			if (Objects.equals(returnType, Void.TYPE)) {
 				rpcEndpoint.tell(rpcInvocation, ActorRef.noSender());
 
 				result = null;
-			} else if (returnType.equals(Future.class)) {
+			} else if (Objects.equals(returnType,CompletableFuture.class)) {
 				// execute an asynchronous call
-				result = new FlinkFuture<>(Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds()));
+				result = FutureUtils.toJava(Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds()));
 			} else {
 				// execute a synchronous call
-				scala.concurrent.Future<?> scalaFuture = Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds());
+				CompletableFuture<?> futureResult = FutureUtils.toJava(
+					Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds()));
 
-				Future<?> futureResult = new FlinkFuture<>(scalaFuture);
-
-				return futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
+				result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
 			}
 		}
 
@@ -191,12 +191,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	}
 
 	@Override
-	public <V> Future<V> callAsync(Callable<V> callable, Time callTimeout) {
+	public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
 		if(isLocal) {
 			@SuppressWarnings("unchecked")
-			scala.concurrent.Future<V> result = (scala.concurrent.Future<V>) Patterns.ask(rpcEndpoint, new CallAsync(callable), callTimeout.toMilliseconds());
+			scala.concurrent.Future<V> resultFuture = (scala.concurrent.Future<V>) Patterns.ask(rpcEndpoint, new CallAsync(callable), callTimeout.toMilliseconds());
 
-			return new FlinkFuture<>(result);
+			return FutureUtils.toJava(resultFuture);
 		} else {
 			throw new RuntimeException("Trying to send a Callable to a remote actor at " +
 				rpcEndpoint.path() + ". This is not supported.");
@@ -331,7 +331,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	}
 
 	@Override
-	public Future<Void> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return terminationFuture;
 	}
 }

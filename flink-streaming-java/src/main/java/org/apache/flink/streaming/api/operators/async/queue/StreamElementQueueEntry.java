@@ -19,13 +19,12 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.util.Preconditions;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /**
  * Entry class for the {@link StreamElementQueue}. The stream element queue entry stores the
@@ -63,23 +62,18 @@ public abstract class StreamElementQueueEntry<T> implements AsyncResult {
 	 * @param executor to run the complete function
 	 */
 	public void onComplete(
-			final AcceptFunction<StreamElementQueueEntry<T>> completeFunction,
+			final Consumer<StreamElementQueueEntry<T>> completeFunction,
 			Executor executor) {
 		final StreamElementQueueEntry<T> thisReference = this;
 
-		getFuture().handleAsync(new BiFunction<T, Throwable, Void>() {
-			@Override
-			public Void apply(T t, Throwable throwable) {
-				// call the complete function for normal completion as well as exceptional completion
-				// see FLINK-6435
-				completeFunction.accept(thisReference);
-
-				return null;
-			}
-		}, executor);
+		getFuture().whenCompleteAsync(
+			// call the complete function for normal completion as well as exceptional completion
+			// see FLINK-6435
+			(value, throwable) -> completeFunction.accept(thisReference),
+			executor);
 	}
 
-	protected abstract Future<T> getFuture();
+	protected abstract CompletableFuture<T> getFuture();
 
 	@Override
 	public final boolean isWatermark() {

@@ -49,7 +49,7 @@ extends AsmTestBase {
 	public void testSimpleGraph()
 			throws Exception {
 		DataSet<Result<IntValue>> aa = undirectedSimpleGraph
-			.run(new AdamicAdar<IntValue, NullValue, NullValue>());
+			.run(new AdamicAdar<>());
 
 		String expectedResult =
 			"(0,1," + ilog[2] + ")\n" +
@@ -105,7 +105,7 @@ extends AsmTestBase {
 		float expectedScore = (completeGraphVertexCount - 2) / (float) Math.log(completeGraphVertexCount - 1);
 
 		DataSet<Result<LongValue>> aa = completeGraph
-			.run(new AdamicAdar<LongValue, NullValue, NullValue>());
+			.run(new AdamicAdar<>());
 
 		for (Result<LongValue> result : aa.collect()) {
 			assertEquals(expectedScore, result.getAdamicAdarScore().getValue(), 0.00001);
@@ -116,7 +116,7 @@ extends AsmTestBase {
 	public void testRMatGraph()
 			throws Exception {
 		DataSet<Result<LongValue>> aa = undirectedRMatGraph(8, 8)
-			.run(new AdamicAdar<LongValue, NullValue, NullValue>());
+			.run(new AdamicAdar<>());
 
 		assertEquals(13954, aa.count());
 	}

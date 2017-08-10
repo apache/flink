@@ -62,25 +62,28 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	 * Retrieves a client for a running cluster.
 	 * @param commandLine The command-line parameters from the CliFrontend
 	 * @param config The Flink config
+	 * @param configurationDirectory Directory for configuration files
 	 * @return Client if a cluster could be retrieved
 	 * @throws UnsupportedOperationException if the operation is not supported
 	 */
 	ClusterType retrieveCluster(
-			CommandLine commandLine,
-			Configuration config) throws UnsupportedOperationException;
+		CommandLine commandLine,
+		Configuration config,
+		String configurationDirectory) throws UnsupportedOperationException;
 
 	/**
 	 * Creates the client for the cluster.
 	 * @param applicationName The application name to use
 	 * @param commandLine The command-line options parsed by the CliFrontend
 	 * @param config The Flink config to use
-	 * @param userJarFiles User jar files to include in the classpath of the cluster.
-	 * @return The client to communicate with the cluster which the CustomCommandLine brought up.
+	 * @param configurationDirectory Directory for configuration files
+	 *@param userJarFiles User jar files to include in the classpath of the cluster.  @return The client to communicate with the cluster which the CustomCommandLine brought up.
 	 * @throws Exception if the cluster could not be created
 	 */
 	ClusterType createCluster(
-			String applicationName,
-			CommandLine commandLine,
-			Configuration config,
-			List<URL> userJarFiles) throws Exception;
+		String applicationName,
+		CommandLine commandLine,
+		Configuration config,
+		String configurationDirectory,
+		List<URL> userJarFiles) throws Exception;
 }

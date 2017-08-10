@@ -58,7 +58,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.8_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -488,7 +488,7 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>fat-jar-kafka-example</id>
+						<id>fat-jar-kafka-010-example</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
@@ -499,10 +499,10 @@ under the License.
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.kafka.ReadFromKafka</mainClass>
+									<mainClass>org.apache.flink.streaming.examples.kafka.Kafka010Example</mainClass>
 								</transformer>
 							</transformers>
-							<finalName>Kafka</finalName>
+							<finalName>Kafka010Example</finalName>
 							<!-- <outputFile>Kafka.jar</outputFile> -->
 							<filters>
 								<filter>

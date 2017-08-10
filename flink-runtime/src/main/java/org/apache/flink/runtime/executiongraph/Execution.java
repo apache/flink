@@ -25,12 +25,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -56,7 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
@@ -129,7 +124,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private final ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	/** A future that completes once the Execution reaches a terminal ExecutionState */
-	private final FlinkCompletableFuture<ExecutionState> terminationFuture;
+	private final CompletableFuture<ExecutionState> terminationFuture;
 
 	private volatile ExecutionState state = CREATED;
 
@@ -189,7 +184,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
-		this.terminationFuture = new FlinkCompletableFuture<>();
+		this.terminationFuture = new CompletableFuture<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -279,7 +274,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @return A future for the execution's termination
 	 */
-	public Future<ExecutionState> getTerminationFuture() {
+	public CompletableFuture<ExecutionState> getTerminationFuture() {
 		return terminationFuture;
 	}
 
@@ -306,14 +301,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 */
 	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) {
 		try {
-			final Future<SimpleSlot> slotAllocationFuture = allocateSlotForExecution(slotProvider, queued);
+			final CompletableFuture<SimpleSlot> slotAllocationFuture = allocateSlotForExecution(slotProvider, queued);
 
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
 			// that we directly deploy the tasks if the slot allocation future is completed. This is
 			// necessary for immediate deployment.
-			final Future<Void> deploymentFuture = slotAllocationFuture.handle(new BiFunction<SimpleSlot, Throwable, Void>() {
-				@Override
-				public Void apply(SimpleSlot simpleSlot, Throwable throwable) {
+			final CompletableFuture<Void> deploymentFuture = slotAllocationFuture.handle(
+				(simpleSlot, throwable) ->  {
 					if (simpleSlot != null) {
 						try {
 							deployToSlot(simpleSlot);
@@ -330,7 +324,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					}
 					return null;
 				}
-			});
+			);
 
 			// if tasks have to scheduled immediately check that the task has been deployed
 			if (!queued && !deploymentFuture.isDone()) {
@@ -344,7 +338,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	public Future<SimpleSlot> allocateSlotForExecution(SlotProvider slotProvider, boolean queued) 
+	public CompletableFuture<SimpleSlot> allocateSlotForExecution(SlotProvider slotProvider, boolean queued)
 			throws IllegalExecutionStateException {
 
 		checkNotNull(slotProvider);
@@ -424,24 +418,24 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			final Future<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, timeout);
+			final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, timeout);
 
-			submitResultFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-				@Override
-				public Void apply(Throwable failure) {
-					if (failure instanceof TimeoutException) {
-						String taskname = vertex.getTaskNameWithSubtaskIndex()+ " (" + attemptId + ')';
+			submitResultFuture.whenCompleteAsync(
+				(ack, failure) -> {
+					// only respond to the failure case
+					if (failure != null) {
+						if (failure instanceof TimeoutException) {
+							String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 
-						markFailed(new Exception(
-							"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
-								+ ") not responding after a timeout of " + timeout, failure));
+							markFailed(new Exception(
+								"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
+									+ ") not responding after a timeout of " + timeout, failure));
+						} else {
+							markFailed(failure);
+						}
 					}
-					else {
-						markFailed(failure);
-					}
-					return null;
-				}
-			}, executor);
+				},
+				executor);
 		}
 		catch (Throwable t) {
 			markFailed(t);
@@ -458,24 +452,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			Future<Acknowledge> stopResultFuture = FutureUtils.retry(
-				new Callable<Future<Acknowledge>>() {
-
-					@Override
-					public Future<Acknowledge> call() throws Exception {
-						return taskManagerGateway.stopTask(attemptId, timeout);
-					}
-				},
+			CompletableFuture<Acknowledge> stopResultFuture = FutureUtils.retry(
+				() -> taskManagerGateway.stopTask(attemptId, timeout),
 				NUM_STOP_CALL_TRIES,
 				executor);
 
-			stopResultFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
-				@Override
-				public Void apply(Throwable failure) {
+			stopResultFuture.exceptionally(
+				failure -> {
 					LOG.info("Stopping task was not successful.", failure);
 					return null;
-				}
-			});
+				});
 		}
 	}
 
@@ -575,9 +561,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				// TODO The current approach may send many update messages even though the consuming
 				// task has already been deployed with all necessary information. We have to check
 				// whether this is a problem and fix it, if it is.
-				FlinkFuture.supplyAsync(new Callable<Void>(){
-					@Override
-					public Void call() throws Exception {
+				CompletableFuture.supplyAsync(
+					() -> {
 						try {
 							consumerVertex.scheduleForExecution(
 									consumerVertex.getExecutionGraph().getSlotProvider(),
@@ -588,8 +573,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						}
 
 						return null;
-					}
-				}, executor);
+					},
+					executor);
 
 				// double check to resolve race conditions
 				if(consumerVertex.getExecutionState() == RUNNING){
@@ -681,7 +666,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param timeout until the request times out
 	 * @return Future stack trace sample response
 	 */
-	public Future<StackTraceSampleResponse> requestStackTraceSample(
+	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
 			int sampleId,
 			int numSamples,
 			Time delayBetweenSamples,
@@ -701,7 +686,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				maxStrackTraceDepth,
 				timeout);
 		} else {
-			return FlinkCompletableFuture.completedExceptionally(new Exception("The execution has no slot assigned."));
+			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));
 		}
 	}
 
@@ -1023,23 +1008,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			Future<Acknowledge> cancelResultFuture = FutureUtils.retry(
-				new Callable<Future<Acknowledge>>() {
-					@Override
-					public Future<Acknowledge> call() throws Exception {
-						return taskManagerGateway.cancelTask(attemptId, timeout);
-					}
-				},
+			CompletableFuture<Acknowledge> cancelResultFuture = FutureUtils.retry(
+				() -> taskManagerGateway.cancelTask(attemptId, timeout),
 				NUM_CANCEL_CALL_TRIES,
 				executor);
 
-			cancelResultFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-				@Override
-				public Void apply(Throwable failure) {
-					fail(new Exception("Task could not be canceled.", failure));
-					return null;
-				}
-			}, executor);
+			cancelResultFuture.whenCompleteAsync(
+				(ack, failure) -> {
+					if (failure != null) {
+						fail(new Exception("Task could not be canceled.", failure));
+					}
+				},
+				executor);
 		}
 	}
 
@@ -1068,16 +1048,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 			final TaskManagerLocation taskManagerLocation = slot.getTaskManagerLocation();
 
-			Future<Acknowledge> updatePartitionsResultFuture = taskManagerGateway.updatePartitions(attemptId, partitionInfos, timeout);
+			CompletableFuture<Acknowledge> updatePartitionsResultFuture = taskManagerGateway.updatePartitions(attemptId, partitionInfos, timeout);
 
-			updatePartitionsResultFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-				@Override
-				public Void apply(Throwable failure) {
-					fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
-						" failed due to:", failure));
-					return null;
-				}
-			}, executor);
+			updatePartitionsResultFuture.whenCompleteAsync(
+				(ack, failure) -> {
+					// fail if there was a failure
+					if (failure != null) {
+						fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
+							" failed due to:", failure));
+					}
+				}, executor);
 		}
 	}
 

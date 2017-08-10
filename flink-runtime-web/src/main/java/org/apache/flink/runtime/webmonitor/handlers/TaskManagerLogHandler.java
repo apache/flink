@@ -27,18 +27,13 @@ package org.apache.flink.runtime.webmonitor.handlers;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobView;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -48,24 +43,26 @@ import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.Future;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.GenericFutureListener;
+
 import akka.dispatch.Mapper;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultFileRegion;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.router.Routed;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedFile;
-import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +73,8 @@ import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import scala.Option;
@@ -83,10 +82,10 @@ import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -111,7 +110,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	private final Configuration config;
 
 	/** Future of the blob cache. */
-	private Future<BlobCache> cache;
+	private CompletableFuture<BlobCache> cache;
 
 	/** Indicates which log file should be displayed. */
 	private FileMode fileMode;
@@ -176,7 +175,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 				}
 			}, executor);
 
-			cache = new FlinkFuture<>(cacheFuture);
+			cache = FutureUtils.toJava(cacheFuture);
 		}
 
 		final String taskManagerID = routed.pathParams().get(TaskManagersHandler.TASK_MANAGER_ID_KEY);
@@ -190,12 +189,11 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 					.ask(new JobManagerMessages.RequestTaskManagerInstance(instanceID), timeout)
 					.mapTo(ClassTag$.MODULE$.<JobManagerMessages.TaskManagerInstance>apply(JobManagerMessages.TaskManagerInstance.class));
 
-				Future<JobManagerMessages.TaskManagerInstance> taskManagerFuture = new FlinkFuture<>(scalaTaskManagerFuture);
+				CompletableFuture<JobManagerMessages.TaskManagerInstance> taskManagerFuture = FutureUtils.toJava(scalaTaskManagerFuture);
 
-				Future<BlobKey> blobKeyFuture = taskManagerFuture.thenCompose(new ApplyFunction<JobManagerMessages.TaskManagerInstance, Future<BlobKey>>() {
-					@Override
-					public Future<BlobKey> apply(JobManagerMessages.TaskManagerInstance value) {
-						Instance taskManager = value.instance().get();
+				CompletableFuture<BlobKey> blobKeyFuture = taskManagerFuture.thenCompose(
+					taskManagerInstance -> {
+						Instance taskManager = taskManagerInstance.instance().get();
 
 						switch (fileMode) {
 							case LOG:
@@ -205,32 +203,20 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 								return taskManager.getTaskManagerGateway().requestTaskManagerStdout(timeTimeout);
 						}
 					}
-				});
+				);
 
-				Future<String> logPathFuture = blobKeyFuture
-					.thenCombine(
+				CompletableFuture<String> logPathFuture = blobKeyFuture
+					.thenCombineAsync(
 						cache,
-						new BiFunction<BlobKey, BlobCache, Tuple2<BlobKey, BlobCache>>() {
-							@Override
-							public Tuple2<BlobKey, BlobCache> apply(BlobKey blobKey, BlobCache blobCache) {
-								return Tuple2.of(blobKey, blobCache);
-							}
-						})
-					.thenComposeAsync(new ApplyFunction<Tuple2<BlobKey, BlobCache>, Future<String>>() {
-						@Override
-						public Future<String> apply(Tuple2<BlobKey, BlobCache> value) {
-							final BlobKey blobKey = value.f0;
-							final BlobCache blobCache = value.f1;
-
+						(blobKey, blobCache) -> {
 							//delete previous log file, if it is different than the current one
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
-								if (!blobKey.equals(lastSubmittedFile.get(taskManagerID))) {
+								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
 									try {
 										blobCache.deleteGlobal(lastSubmittedFile.get(taskManagerID));
 									} catch (IOException e) {
-										return FlinkCompletableFuture.completedExceptionally(
-											new Exception("Could not delete file for " + taskManagerID + '.', e));
+										throw new FlinkFutureException("Could not delete file for " + taskManagerID + '.', e);
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);
 								}
@@ -238,28 +224,24 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 								lastSubmittedFile.put(taskManagerID, blobKey);
 							}
 							try {
-								return FlinkCompletableFuture.completed(blobCache.getURL(blobKey).getFile());
+								return blobCache.getURL(blobKey).getFile();
 							} catch (IOException e) {
-								return FlinkCompletableFuture.completedExceptionally(
-									new Exception("Could not retrieve blob for " + blobKey + '.', e));
+								throw new FlinkFutureException("Could not retrieve blob for " + blobKey + '.', e);
 							}
-						}
-					}, executor);
+						},
+						executor);
 
-				logPathFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
-					@Override
-					public Void apply(Throwable failure) {
+				logPathFuture.exceptionally(
+					failure -> {
 						display(ctx, request, "Fetching TaskManager log failed.");
 						LOG.error("Fetching TaskManager log failed.", failure);
 						lastRequestPending.remove(taskManagerID);
 
 						return null;
-					}
-				});
+					});
 
-				logPathFuture.thenAccept(new AcceptFunction<String>() {
-					@Override
-					public void accept(String filePath) {
+				logPathFuture.thenAccept(
+					filePath -> {
 						File file = new File(filePath);
 						final RandomAccessFile raf;
 						try {
@@ -299,15 +281,11 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 
 						// write the content.
 						ChannelFuture lastContentFuture;
-						final GenericFutureListener<io.netty.util.concurrent.Future<? super Void>> completionListener =
-							new GenericFutureListener<io.netty.util.concurrent.Future<? super Void>>() {
-								@Override
-								public void operationComplete(io.netty.util.concurrent.Future<? super Void> future) throws Exception {
-									lastRequestPending.remove(taskManagerID);
-									fc.close();
-									raf.close();
-								}
-							};
+						final GenericFutureListener<Future<? super Void>> completionListener = future -> {
+							lastRequestPending.remove(taskManagerID);
+							fc.close();
+							raf.close();
+						};
 						if (ctx.pipeline().get(SslHandler.class) == null) {
 							ctx.write(
 								new DefaultFileRegion(fc, 0, fileLength), ctx.newProgressivePromise())
@@ -333,8 +311,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 						if (!HttpHeaders.isKeepAlive(request)) {
 							lastContentFuture.addListener(ChannelFutureListener.CLOSE);
 						}
-					}
-				});
+					});
 			} catch (Exception e) {
 				display(ctx, request, "Error: " + e.getMessage());
 				LOG.error("Fetching TaskManager log failed.", e);

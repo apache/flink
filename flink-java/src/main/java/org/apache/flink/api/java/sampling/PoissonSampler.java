@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.sampling;
 
-import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.XORShiftRandom;
+
+import org.apache.commons.math3.distribution.PoissonDistribution;
 
 import java.util.Iterator;
 import java.util.Random;
@@ -35,14 +37,14 @@ import java.util.Random;
  */
 @Internal
 public class PoissonSampler<T> extends RandomSampler<T> {
-	
+
 	private PoissonDistribution poissonDistribution;
 	private final double fraction;
 	private final Random random;
-	
+
 	// THRESHOLD is a tuning parameter for choosing sampling method according to the fraction.
-	private final static double THRESHOLD = 0.4;
-	
+	private static final double THRESHOLD = 0.4;
+
 	/**
 	 * Create a poisson sampler which can sample elements with replacement.
 	 *
@@ -58,7 +60,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 		}
 		this.random = new XORShiftRandom(seed);
 	}
-	
+
 	/**
 	 * Create a poisson sampler which can sample elements with replacement.
 	 *
@@ -72,7 +74,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 		}
 		this.random = new XORShiftRandom();
 	}
-	
+
 	/**
 	 * Sample the input elements, for each input element, generate its count following a poisson
 	 * distribution.
@@ -83,13 +85,13 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 	@Override
 	public Iterator<T> sample(final Iterator<T> input) {
 		if (fraction == 0) {
-			return EMPTY_ITERABLE;
+			return emptyIterable;
 		}
-		
+
 		return new SampledIterator<T>() {
 			T currentElement;
 			int currentCount = 0;
-			
+
 			@Override
 			public boolean hasNext() {
 				if (currentCount > 0) {
@@ -103,7 +105,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 					}
 				}
 			}
-			
+
 			@Override
 			public T next() {
 				if (currentCount <= 0) {
@@ -112,7 +114,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				currentCount--;
 				return currentElement;
 			}
-			
+
 			public int poisson_ge1(double p) {
 				// sample 'k' from Poisson(p), conditioned to k >= 1.
 				double q = Math.pow(Math.E, -p);
@@ -127,7 +129,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				}
 				return k;
 			}
-			
+
 			private void skipGapElements(int num) {
 				// skip the elements that occurrence number is zero.
 				int elementCount = 0;
@@ -136,7 +138,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 					elementCount++;
 				}
 			}
-			
+
 			private void samplingProcess() {
 				if (fraction <= THRESHOLD) {
 					double u = Math.max(random.nextDouble(), EPSILON);

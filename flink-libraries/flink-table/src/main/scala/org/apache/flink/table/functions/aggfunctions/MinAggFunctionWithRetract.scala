@@ -82,7 +82,7 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
           val iterator = acc.f1.keySet().iterator()
           var key = iterator.next()
           acc.f0 = key
-          while (iterator.hasNext()) {
+          while (iterator.hasNext) {
             key = iterator.next()
             if (ord.compare(acc.f0, key) > 0) {
               acc.f0 = key
@@ -116,7 +116,7 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
         }
         // merge the count for each key
         val iterator = a.f1.keySet().iterator()
-        while (iterator.hasNext()) {
+        while (iterator.hasNext) {
           val key = iterator.next()
           if (acc.f1.containsKey(key)) {
             acc.f1.put(key, acc.f1.get(key) + a.f1.get(key))
@@ -133,9 +133,9 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
     acc.f1.clear()
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[MinWithRetractAccumulator[T]] = {
     new TupleTypeInfo(
-      new MinWithRetractAccumulator[T].getClass,
+      classOf[MinWithRetractAccumulator[T]],
       getValueTypeInfo,
       new MapTypeInfo(getValueTypeInfo, BasicTypeInfo.LONG_TYPE_INFO))
   }

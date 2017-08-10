@@ -19,17 +19,13 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.slf4j.Logger;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -138,14 +134,14 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 		this.delayOnError = delayOnError;
 		this.delayOnRefusedRegistration = delayOnRefusedRegistration;
 
-		this.completionFuture = new FlinkCompletableFuture<>();
+		this.completionFuture = new CompletableFuture<>();
 	}
 
 	// ------------------------------------------------------------------------
 	//  completion and cancellation
 	// ------------------------------------------------------------------------
 
-	public Future<Tuple2<Gateway, Success>> getFuture() {
+	public CompletableFuture<Tuple2<Gateway, Success>> getFuture() {
 		return completionFuture;
 	}
 
@@ -168,7 +164,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	//  registration
 	// ------------------------------------------------------------------------
 
-	protected abstract Future<RegistrationResponse> invokeRegistration(
+	protected abstract CompletableFuture<RegistrationResponse> invokeRegistration(
 			Gateway gateway, UUID leaderId, long timeoutMillis) throws Exception;
 
 	/**
@@ -179,29 +175,25 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	public void startRegistration() {
 		try {
 			// trigger resolution of the resource manager address to a callable gateway
-			Future<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
+			CompletableFuture<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
 
 			// upon success, start the registration attempts
-			Future<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(new AcceptFunction<Gateway>() {
-				@Override
-				public void accept(Gateway result) {
+			CompletableFuture<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(
+				(Gateway result) -> {
 					log.info("Resolved {} address, beginning registration", targetName);
 					register(result, 1, initialRegistrationTimeout);
-				}
-			}, rpcService.getExecutor());
+				},
+				rpcService.getExecutor());
 
 			// upon failure, retry, unless this is cancelled
-			resourceManagerAcceptFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-				@Override
-				public Void apply(Throwable failure) {
-					if (!isCanceled()) {
+			resourceManagerAcceptFuture.whenCompleteAsync(
+				(Void v, Throwable failure) -> {
+					if (failure != null && !isCanceled()) {
 						log.warn("Could not resolve {} address {}, retrying...", targetName, targetAddress, failure);
 						startRegistration();
 					}
-
-					return null;
-				}
-			}, rpcService.getExecutor());
+				},
+				rpcService.getExecutor());
 		}
 		catch (Throwable t) {
 			cancel();
@@ -222,12 +214,11 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 
 		try {
 			log.info("Registration at {} attempt {} (timeout={}ms)", targetName, attempt, timeoutMillis);
-			Future<RegistrationResponse> registrationFuture = invokeRegistration(gateway, leaderId, timeoutMillis);
+			CompletableFuture<RegistrationResponse> registrationFuture = invokeRegistration(gateway, leaderId, timeoutMillis);
 
 			// if the registration was successful, let the TaskExecutor know
-			Future<Void> registrationAcceptFuture = registrationFuture.thenAcceptAsync(new AcceptFunction<RegistrationResponse>() {
-				@Override
-				public void accept(RegistrationResponse result) {
+			CompletableFuture<Void> registrationAcceptFuture = registrationFuture.thenAcceptAsync(
+				(RegistrationResponse result) -> {
 					if (!isCanceled()) {
 						if (result instanceof RegistrationResponse.Success) {
 							// registration successful!
@@ -247,14 +238,13 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 							registerLater(gateway, 1, initialRegistrationTimeout, delayOnRefusedRegistration);
 						}
 					}
-				}
-			}, rpcService.getExecutor());
+				},
+				rpcService.getExecutor());
 
 			// upon failure, retry
-			registrationAcceptFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-				@Override
-				public Void apply(Throwable failure) {
-					if (!isCanceled()) {
+			registrationAcceptFuture.whenCompleteAsync(
+				(Void v, Throwable failure) -> {
+					if (failure != null && !isCanceled()) {
 						if (failure instanceof TimeoutException) {
 							// we simply have not received a response in time. maybe the timeout was
 							// very low (initial fast registration attempts), maybe the target endpoint is
@@ -275,10 +265,8 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 							registerLater(gateway, 1, initialRegistrationTimeout, delayOnError);
 						}
 					}
-
-					return null;
-				}
-			}, rpcService.getExecutor());
+				},
+				rpcService.getExecutor());
 		}
 		catch (Throwable t) {
 			cancel();

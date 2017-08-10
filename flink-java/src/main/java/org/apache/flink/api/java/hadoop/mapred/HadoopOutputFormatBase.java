@@ -25,14 +25,17 @@ import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyProgressable;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.configuration.Configuration;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.JobContext;
+import org.apache.hadoop.mapred.JobContextImpl;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
+import org.apache.hadoop.mapred.TaskAttemptContextImpl;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -65,8 +68,8 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	protected static final Object CLOSE_MUTEX = new Object();
 
 	protected JobConf jobConf;
-	protected org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;
-	protected transient RecordWriter<K,V> recordWriter;
+	protected org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat;
+	protected transient RecordWriter<K, V> recordWriter;
 	protected transient OutputCommitter outputCommitter;
 	protected transient TaskAttemptContext context;
 
@@ -125,20 +128,11 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			this.jobConf.set("mapreduce.task.attempt.id", taskAttemptID.toString());
 			this.jobConf.setInt("mapreduce.task.partition", taskNumber + 1);
 
-			try {
-				this.context = HadoopUtils.instantiateTaskAttemptContext(this.jobConf, taskAttemptID);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			this.context = new TaskAttemptContextImpl(this.jobConf, taskAttemptID);
 
 			this.outputCommitter = this.jobConf.getOutputCommitter();
 
-			JobContext jobContext;
-			try {
-				jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			JobContext jobContext = new JobContextImpl(this.jobConf, new JobID());
 
 			this.outputCommitter.setupJob(jobContext);
 
@@ -162,41 +156,41 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			}
 		}
 	}
-	
+
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 
 		try {
-			JobContext jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
+			JobContext jobContext = new JobContextImpl(this.jobConf, new JobID());
 			OutputCommitter outputCommitter = this.jobConf.getOutputCommitter();
-			
+
 			// finalize HDFS output format
 			outputCommitter.commitJob(jobContext);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		out.writeUTF(mapredOutputFormat.getClass().getName());
 		jobConf.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		super.read(in);
 		String hadoopOutputFormatName = in.readUTF();
-		if(jobConf == null) {
+		if (jobConf == null) {
 			jobConf = new JobConf();
 		}
 		jobConf.readFields(in);
 		try {
-			this.mapredOutputFormat = (org.apache.hadoop.mapred.OutputFormat<K,V>) Class.forName(hadoopOutputFormatName, true, Thread.currentThread().getContextClassLoader()).newInstance();
+			this.mapredOutputFormat = (org.apache.hadoop.mapred.OutputFormat<K, V>) Class.forName(hadoopOutputFormatName, true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop output format", e);
 		}
@@ -204,7 +198,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 
 		jobConf.getCredentials().addAll(this.credentials);
 		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if(currentUserCreds != null) {
+		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
 		}
 	}

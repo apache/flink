@@ -31,6 +31,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.cli.CommandLine;
@@ -66,7 +67,7 @@ import static org.junit.Assert.assertEquals;
  * Tests that verify that the CLI client picks up the correct address for the JobManager
  * from configuration and configs.
  */
-public class CliFrontendYarnAddressConfigurationTest {
+public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -361,14 +362,21 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 			@Override
 			// override cluster descriptor to replace the YarnClient
-			protected AbstractYarnClusterDescriptor getClusterDescriptor() {
-				return new TestingYarnClusterDescriptor();
+			protected AbstractYarnClusterDescriptor getClusterDescriptor(
+					Configuration configuration,
+					String configurationDirecotry,
+					boolean flip6) {
+				return new TestingYarnClusterDescriptor(configuration, configurationDirecotry);
 			}
 
 			/**
 			 * Replace the YarnClient for this test.
 			 */
 			private class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
+
+				public TestingYarnClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
+					super(flinkConfiguration, configurationDirectory);
+				}
 
 				@Override
 				protected YarnClient getYarnClient() {
@@ -378,6 +386,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 				@Override
 				protected YarnClusterClient createYarnClusterClient(
 						AbstractYarnClusterDescriptor descriptor,
+						int numberTaskManagers,
+						int slotsPerTaskManager,
 						YarnClient yarnClient,
 						ApplicationReport report,
 						Configuration flinkConfiguration,

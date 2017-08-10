@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -31,6 +30,8 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Task manager gateway interface to communicate with the task manager.
@@ -66,7 +67,7 @@ public interface TaskManagerGateway {
 	 * @param timeout for the stack trace request
 	 * @return Future for a stack trace
 	 */
-	Future<StackTrace> requestStackTrace(final Time timeout);
+	CompletableFuture<StackTrace> requestStackTrace(final Time timeout);
 
 	/**
 	 * Request a stack trace sample from the given task.
@@ -79,7 +80,7 @@ public interface TaskManagerGateway {
 	 * @param timeout of the request
 	 * @return Future of stack trace sample response
 	 */
-	Future<StackTraceSampleResponse> requestStackTraceSample(
+	CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
 		final ExecutionAttemptID executionAttemptID,
 		final int sampleId,
 		final int numSamples,
@@ -94,7 +95,7 @@ public interface TaskManagerGateway {
 	 * @param timeout of the submit operation
 	 * @return Future acknowledge of the successful operation
 	 */
-	Future<Acknowledge> submitTask(
+	CompletableFuture<Acknowledge> submitTask(
 		TaskDeploymentDescriptor tdd,
 		Time timeout);
 
@@ -105,7 +106,7 @@ public interface TaskManagerGateway {
 	 * @param timeout of the submit operation
 	 * @return Future acknowledge if the task is successfully stopped
 	 */
-	Future<Acknowledge> stopTask(
+	CompletableFuture<Acknowledge> stopTask(
 		ExecutionAttemptID executionAttemptID,
 		Time timeout);
 
@@ -116,7 +117,7 @@ public interface TaskManagerGateway {
 	 * @param timeout of the submit operation
 	 * @return Future acknowledge if the task is successfully canceled
 	 */
-	Future<Acknowledge> cancelTask(
+	CompletableFuture<Acknowledge> cancelTask(
 		ExecutionAttemptID executionAttemptID,
 		Time timeout);
 
@@ -128,7 +129,7 @@ public interface TaskManagerGateway {
 	 * @param timeout of the submit operation
 	 * @return Future acknowledge if the partitions have been successfully updated
 	 */
-	Future<Acknowledge> updatePartitions(
+	CompletableFuture<Acknowledge> updatePartitions(
 		ExecutionAttemptID executionAttemptID,
 		Iterable<PartitionInfo> partitionInfos,
 		Time timeout);
@@ -176,7 +177,7 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager log has been stored
 	 */
-	Future<BlobKey> requestTaskManagerLog(final Time timeout);
+	CompletableFuture<BlobKey> requestTaskManagerLog(final Time timeout);
 
 	/**
 	 * Request the task manager stdout from the task manager.
@@ -184,5 +185,5 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager stdout file has been stored
 	 */
-	Future<BlobKey> requestTaskManagerStdout(final Time timeout);
+	CompletableFuture<BlobKey> requestTaskManagerStdout(final Time timeout);
 }

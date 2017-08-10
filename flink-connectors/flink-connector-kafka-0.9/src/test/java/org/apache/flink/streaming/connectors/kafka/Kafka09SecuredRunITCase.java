@@ -41,11 +41,11 @@ public class Kafka09SecuredRunITCase extends KafkaConsumerTestBase {
 		SecureTestEnvironment.prepare(tempFolder);
 		SecureTestEnvironment.populateFlinkSecureConfigurations(getFlinkConfiguration());
 
-		startClusters(true);
+		startClusters(true, false);
 	}
 
 	@AfterClass
-	public static void shutDownServices() {
+	public static void shutDownServices() throws Exception {
 		shutdownClusters();
 		SecureTestEnvironment.cleanup();
 	}

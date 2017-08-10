@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -39,6 +40,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
@@ -51,7 +54,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class shared between the Java and Scala API of Flink
+ * Base class shared between the Java and Scala API of Flink.
  */
 @Internal
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
@@ -114,16 +117,11 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			return null;
 		}
 
-		JobContext jobContext;
-		try {
-			jobContext = HadoopUtils.instantiateJobContext(configuration, null);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		JobContext jobContext = new JobContextImpl(configuration, null);
 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
-				
+
 		try {
 			final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(jobContext);
 			return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
@@ -148,12 +146,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			throws IOException {
 		configuration.setInt("mapreduce.input.fileinputformat.split.minsize", minNumSplits);
 
-		JobContext jobContext;
-		try {
-			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		JobContext jobContext = new JobContextImpl(configuration, new JobID());
 
 		jobContext.getCredentials().addAll(this.credentials);
 		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
@@ -186,12 +179,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		// enforce sequential open() calls
 		synchronized (OPEN_MUTEX) {
 
-			TaskAttemptContext context;
-			try {
-				context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			TaskAttemptContext context = new TaskAttemptContextImpl(configuration, new TaskAttemptID());
 
 			try {
 				this.recordReader = this.mapreduceInputFormat
@@ -238,7 +226,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
 
-	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths, 
+	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths,
 											ArrayList<FileStatus> files) throws IOException {
 
 		long latestModTime = 0L;
@@ -314,7 +302,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		}
 
 		try {
-			this.mapreduceInputFormat = (org.apache.hadoop.mapreduce.InputFormat<K,V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
+			this.mapreduceInputFormat = (org.apache.hadoop.mapreduce.InputFormat<K, V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop input format", e);
 		}

@@ -27,8 +27,8 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.validate.SqlMonikerType
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.CsvTableSource
-import org.apache.flink.table.utils.CommonTestData
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -86,5 +86,4 @@ class ExternalCatalogSchemaTest {
       Lists.newArrayList(schemaName, db, "nonexist-tb"))
     assertNull(relOptTable)
   }
-
 }

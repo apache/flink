@@ -27,10 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -99,7 +95,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -248,7 +244,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * Called to shut down the TaskManager. The method closes all TaskManager services.
 	 */
 	@Override
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {
 		log.info("Stopping TaskManager {}.", getAddress());
 
 		Exception exception = null;
@@ -272,7 +268,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		fileCache.shutdown();
 
 		try {
-			super.shutDown();
+			super.postStop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -771,55 +767,50 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					reservedSlots.add(offer);
 				}
 
-				Future<Iterable<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
+				CompletableFuture<Iterable<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
 					getResourceID(),
 					reservedSlots,
 					leaderId,
 					taskManagerConfiguration.getTimeout());
 
-				Future<Void> acceptedSlotsAcceptFuture = acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<SlotOffer>>() {
-					@Override
-					public void accept(Iterable<SlotOffer> acceptedSlots) {
-						// check if the response is still valid
-						if (isJobManagerConnectionValid(jobId, leaderId)) {
-							// mark accepted slots active
-							for (SlotOffer acceptedSlot : acceptedSlots) {
-								reservedSlots.remove(acceptedSlot);
-							}
-
-							final Exception e = new Exception("The slot was rejected by the JobManager.");
-
-							for (SlotOffer rejectedSlot: reservedSlots) {
-								freeSlot(rejectedSlot.getAllocationId(), e);
-							}
-						} else {
-							// discard the response since there is a new leader for the job
-							log.debug("Discard offer slot response since there is a new leader " +
-								"for the job {}.", jobId);
-						}
-					}
-				}, getMainThreadExecutor());
-
-				acceptedSlotsAcceptFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
-					@Override
-					public Void apply(Throwable throwable) {
-						if (throwable instanceof TimeoutException) {
-							log.info("Slot offering to JobManager did not finish in time. Retrying the slot offering.");
-							// We ran into a timeout. Try again.
-							offerSlotsToJobManager(jobId);
-						} else {
-							log.warn("Slot offering to JobManager failed. Freeing the slots " +
+				acceptedSlotsFuture.whenCompleteAsync(
+					(Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
+						if (throwable != null) {
+							if (throwable instanceof TimeoutException) {
+								log.info("Slot offering to JobManager did not finish in time. Retrying the slot offering.");
+								// We ran into a timeout. Try again.
+								offerSlotsToJobManager(jobId);
+							} else {
+								log.warn("Slot offering to JobManager failed. Freeing the slots " +
 									"and returning them to the ResourceManager.", throwable);
 
-							// We encountered an exception. Free the slots and return them to the RM.
-							for (SlotOffer reservedSlot: reservedSlots) {
-								freeSlot(reservedSlot.getAllocationId(), throwable);
+								// We encountered an exception. Free the slots and return them to the RM.
+								for (SlotOffer reservedSlot: reservedSlots) {
+									freeSlot(reservedSlot.getAllocationId(), throwable);
+								}
+							}
+						} else {
+							// check if the response is still valid
+							if (isJobManagerConnectionValid(jobId, leaderId)) {
+								// mark accepted slots active
+								for (SlotOffer acceptedSlot : acceptedSlots) {
+									reservedSlots.remove(acceptedSlot);
+								}
+
+								final Exception e = new Exception("The slot was rejected by the JobManager.");
+
+								for (SlotOffer rejectedSlot : reservedSlots) {
+									freeSlot(rejectedSlot.getAllocationId(), e);
+								}
+							} else {
+								// discard the response since there is a new leader for the job
+								log.debug("Discard offer slot response since there is a new leader " +
+									"for the job {}.", jobId);
 							}
 						}
+					},
+					getMainThreadExecutor());
 
-						return null;
-					}
-				});
 			} else {
 				log.debug("There are no unassigned slots for the job {}.", jobId);
 			}
@@ -992,17 +983,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	{
 		final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
-		Future<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(
-				jobMasterLeaderId, taskExecutionState);
+		CompletableFuture<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(jobMasterLeaderId, taskExecutionState);
 
-		futureAcknowledge.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable value) {
-				failTask(executionAttemptID, value);
-
-				return null;
-			}
-		}, getMainThreadExecutor());
+		futureAcknowledge.whenCompleteAsync(
+			(ack, throwable) -> {
+				if (throwable != null) {
+					failTask(executionAttemptID, throwable);
+				}
+			},
+			getMainThreadExecutor());
 	}
 
 	private void unregisterTaskAndNotifyFinalState(
@@ -1124,9 +1113,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 *
 	 * @param t The exception describing the fatal error
 	 */
-	void onFatalError(Throwable t) {
+	void onFatalError(final Throwable t) {
 		log.error("Fatal error occurred.", t);
-		fatalErrorHandler.onFatalError(t);
+		// this could potentially be a blocking call -> call asynchronously:
+		getRpcService().execute(new Runnable() {
+			@Override
+			public void run() {
+				fatalErrorHandler.onFatalError(t);
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------
@@ -1322,8 +1317,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		@Override
-		public Future<Void> retrievePayload() {
-			return FlinkCompletableFuture.completed(null);
+		public CompletableFuture<Void> retrievePayload() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -1349,14 +1344,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		@Override
-		public Future<SlotReport> retrievePayload() {
+		public CompletableFuture<SlotReport> retrievePayload() {
 			return callAsync(
-				new Callable<SlotReport>() {
-					@Override
-					public SlotReport call() throws Exception {
-						return taskSlotTable.createSlotReport(getResourceID());
-					}
-				}, taskManagerConfiguration.getTimeout());
+					() -> taskSlotTable.createSlotReport(getResourceID()),
+					taskManagerConfiguration.getTimeout());
 		}
 	}
 }

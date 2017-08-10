@@ -21,12 +21,8 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
-import akka.dispatch.Futures;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -37,17 +33,20 @@ import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
+import org.apache.flink.runtime.rpc.akka.messages.Shutdown;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -82,10 +81,15 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	/** Throwable which might have been thrown by the postStop method */
+	private Throwable shutdownThrowable;
+
 	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Void> terminationFuture) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 		this.terminationFuture = checkNotNull(terminationFuture);
+
+		this.shutdownThrowable = null;
 	}
 
 	@Override
@@ -96,7 +100,12 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 		// we would complete the future and let the actor system restart the actor with a completed
 		// future.
 		// Complete the termination future so that others know that we've stopped.
-		terminationFuture.complete(null);
+
+		if (shutdownThrowable != null) {
+			terminationFuture.completeExceptionally(shutdownThrowable);
+		} else {
+			terminationFuture.complete(null);
+		}
 	}
 
 	@Override
@@ -134,6 +143,8 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				handleCallAsync((CallAsync) message);
 			} else if (message instanceof RpcInvocation) {
 				handleRpcInvocation((RpcInvocation) message);
+			} else if (message instanceof Shutdown) {
+				triggerShutdown();
 			} else {
 				LOG.warn(
 					"Received message of unknown type {} with value {}. Dropping this message!",
@@ -196,24 +207,20 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 						return;
 					}
 
-					if (result instanceof Future) {
-						final Future<?> future = (Future<?>) result;
+					if (result instanceof CompletableFuture) {
+						final CompletableFuture<?> future = (CompletableFuture<?>) result;
+						Promise.DefaultPromise<Object> promise = new Promise.DefaultPromise<>();
 
-						// pipe result to sender
-						if (future instanceof FlinkFuture) {
-							// FlinkFutures are currently backed by Scala's futures
-							FlinkFuture<?> flinkFuture = (FlinkFuture<?>) future;
-
-							Patterns.pipe(flinkFuture.getScalaFuture(), getContext().dispatcher()).to(getSender());
-						} else {
-							// We have to unpack the Flink future and pack it into a Scala future
-							Patterns.pipe(Futures.future(new Callable<Object>() {
-								@Override
-								public Object call() throws Exception {
-									return future.get();
+						future.whenComplete(
+							(value, throwable) -> {
+								if (throwable != null) {
+									promise.failure(throwable);
+								} else {
+									promise.success(value);
 								}
-							}, getContext().dispatcher()), getContext().dispatcher());
-						}
+							});
+
+						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
 					} else {
 						// tell the sender the result of the computation
 						getSender().tell(new Status.Success(result), getSelf());
@@ -290,6 +297,17 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 						getContext().dispatcher(), ActorRef.noSender());
 			}
 		}
+	}
+
+	private void triggerShutdown() {
+		try {
+			rpcEndpoint.postStop();
+		} catch (Throwable throwable) {
+			shutdownThrowable = throwable;
+		}
+
+		// now stop the actor which will stop processing of any further messages
+		getContext().system().stop(getSelf());
 	}
 
 	/**

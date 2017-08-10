@@ -20,6 +20,9 @@ package org.apache.flink.api.java.operators.join;
 
 import org.apache.flink.annotation.Public;
 
+/**
+ * Join types.
+ */
 @Public
 public enum JoinType {
 

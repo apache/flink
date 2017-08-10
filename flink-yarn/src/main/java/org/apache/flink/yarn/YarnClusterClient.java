@@ -78,6 +78,8 @@ public class YarnClusterClient extends ClusterClient {
 	//---------- Class internal fields -------------------
 
 	private final AbstractYarnClusterDescriptor clusterDescriptor;
+	private final int numberTaskManagers;
+	private final int slotsPerTaskManager;
 	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
 	private final ApplicationReport appReport;
@@ -93,6 +95,8 @@ public class YarnClusterClient extends ClusterClient {
 	 * Create a new Flink on YARN cluster.
 	 *
 	 * @param clusterDescriptor The descriptor used at cluster creation
+	 * @param numberTaskManagers The number of task managers, -1 if unknown
+	 * @param slotsPerTaskManager Slots per task manager, -1 if unknown
 	 * @param yarnClient Client to talk to YARN
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
@@ -102,6 +106,8 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	public YarnClusterClient(
 		final AbstractYarnClusterDescriptor clusterDescriptor,
+		final int numberTaskManagers,
+		final int slotsPerTaskManager,
 		final YarnClient yarnClient,
 		final ApplicationReport appReport,
 		Configuration flinkConfig,
@@ -111,6 +117,8 @@ public class YarnClusterClient extends ClusterClient {
 
 		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
 		this.clusterDescriptor = clusterDescriptor;
+		this.numberTaskManagers = numberTaskManagers;
+		this.slotsPerTaskManager = slotsPerTaskManager;
 		this.yarnClient = yarnClient;
 		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
@@ -186,7 +194,8 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	public int getMaxSlots() {
-		int maxSlots = clusterDescriptor.getTaskManagerCount() * clusterDescriptor.getTaskManagerSlots();
+		// TODO: this should be retrieved from the running Flink cluster
+		int maxSlots = numberTaskManagers * slotsPerTaskManager;
 		return maxSlots > 0 ? maxSlots : -1;
 	}
 
@@ -506,8 +515,8 @@ public class YarnClusterClient extends ClusterClient {
 			currentStatus = getClusterStatus();
 			if (currentStatus != null && !currentStatus.equals(lastStatus)) {
 				logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
-					+ clusterDescriptor.getTaskManagerCount() + ")");
-				if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
+					+ numberTaskManagers + ")");
+				if (currentStatus.numRegisteredTaskManagers() >= numberTaskManagers) {
 					logAndSysout("All TaskManagers are connected");
 					break;
 				}
@@ -529,14 +538,14 @@ public class YarnClusterClient extends ClusterClient {
 
 	private static class LazApplicationClientLoader {
 
-		private final org.apache.flink.configuration.Configuration flinkConfig;
+		private final Configuration flinkConfig;
 		private final LazyActorSystemLoader actorSystemLoader;
 		private final HighAvailabilityServices highAvailabilityServices;
 
 		private ActorRef applicationClient;
 
 		private LazApplicationClientLoader(
-				org.apache.flink.configuration.Configuration flinkConfig,
+				Configuration flinkConfig,
 				LazyActorSystemLoader actorSystemLoader,
 				HighAvailabilityServices highAvailabilityServices) {
 			this.flinkConfig = Preconditions.checkNotNull(flinkConfig, "flinkConfig");

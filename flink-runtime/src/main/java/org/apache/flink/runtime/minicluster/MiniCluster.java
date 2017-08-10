@@ -29,7 +29,6 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -53,6 +52,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -404,7 +404,7 @@ public class MiniCluster {
 
 	public void waitUntilTaskManagerRegistrationsComplete() throws Exception {
 		LeaderRetrievalService rmMasterListener = null;
-		Future<LeaderAddressAndId> addressAndIdFuture;
+		CompletableFuture<LeaderAddressAndId> addressAndIdFuture;
 
 		try {
 			synchronized (lock) {
@@ -649,7 +649,8 @@ public class MiniCluster {
 
 			try {
 				synchronized (lock) {
-					if (taskManagers[index] != null) {
+					// note: if not running (after shutdown) taskManagers may be null!
+					if (running && taskManagers[index] != null) {
 						taskManagers[index].shutDown();
 					}
 				}

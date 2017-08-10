@@ -25,10 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -57,6 +53,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -246,7 +243,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		// work on all slots waiting for this connection
 		for (PendingRequest pending : waitingForResourceManager.values()) {
-			requestSlotFromResourceManager(pending.allocationID(), pending.future(), pending.resourceProfile());
+			requestSlotFromResourceManager(pending.allocationID(), pending.getFuture(), pending.resourceProfile());
 		}
 
 		// all sent off
@@ -264,7 +261,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	// ------------------------------------------------------------------------
 
 	@RpcMethod
-	public Future<SimpleSlot> allocateSlot(
+	public CompletableFuture<SimpleSlot> allocateSlot(
 			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences) {
@@ -278,7 +275,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	}
 
 
-	Future<SimpleSlot> internalAllocateSlot(
+	CompletableFuture<SimpleSlot> internalAllocateSlot(
 			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences) {
@@ -288,12 +285,12 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		if (slotFromPool != null) {
 			SimpleSlot slot = createSimpleSlot(slotFromPool.slot(), slotFromPool.locality());
 			allocatedSlots.add(slot);
-			return FlinkCompletableFuture.completed(slot);
+			return CompletableFuture.completedFuture(slot);
 		}
 
 		// the request will be completed by a future
 		final AllocationID allocationID = new AllocationID();
-		final FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+		final CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 
 		// (2) need to request a slot
 
@@ -310,34 +307,32 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 	private void requestSlotFromResourceManager(
 			final AllocationID allocationID,
-			final FlinkCompletableFuture<SimpleSlot> future,
+			final CompletableFuture<SimpleSlot> future,
 			final ResourceProfile resources) {
 
 		LOG.info("Requesting slot with profile {} from resource manager (request = {}).", resources, allocationID);
 
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
-		Future<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
-				jobManagerLeaderId, resourceManagerLeaderId,
-				new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
-				resourceManagerRequestsTimeout);
+		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
+			jobManagerLeaderId, resourceManagerLeaderId,
+			new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
+			resourceManagerRequestsTimeout);
 
-		Future<Void> slotRequestProcessingFuture = rmResponse.thenAcceptAsync(new AcceptFunction<Acknowledge>() {
-			@Override
-			public void accept(Acknowledge value) {
+		CompletableFuture<Void> slotRequestProcessingFuture = rmResponse.thenAcceptAsync(
+			(Acknowledge value) -> {
 				slotRequestToResourceManagerSuccess(allocationID);
-			}
-		}, getMainThreadExecutor());
+			},
+			getMainThreadExecutor());
 
 		// on failure, fail the request future
-		slotRequestProcessingFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-
-			@Override
-			public Void apply(Throwable failure) {
-				slotRequestToResourceManagerFailed(allocationID, failure);
-				return null;
-			}
-		}, getMainThreadExecutor());
+		slotRequestProcessingFuture.whenCompleteAsync(
+			(Void v, Throwable failure) -> {
+				if (failure != null) {
+					slotRequestToResourceManagerFailed(allocationID, failure);
+				}
+			},
+			getMainThreadExecutor());
 	}
 
 	private void slotRequestToResourceManagerSuccess(final AllocationID allocationID) {
@@ -354,7 +349,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	private void slotRequestToResourceManagerFailed(AllocationID allocationID, Throwable failure) {
 		PendingRequest request = pendingRequests.remove(allocationID);
 		if (request != null) {
-			request.future().completeExceptionally(new NoResourceAvailableException(
+			request.getFuture().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
 		} else {
 			if (LOG.isDebugEnabled()) {
@@ -365,15 +360,15 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 	private void checkTimeoutSlotAllocation(AllocationID allocationID) {
 		PendingRequest request = pendingRequests.remove(allocationID);
-		if (request != null && !request.future().isDone()) {
-			request.future().completeExceptionally(new TimeoutException("Slot allocation request timed out"));
+		if (request != null && !request.getFuture().isDone()) {
+			request.getFuture().completeExceptionally(new TimeoutException("Slot allocation request timed out"));
 		}
 	}
 
 	private void stashRequestWaitingForResourceManager(
 			final AllocationID allocationID,
 			final ResourceProfile resources,
-			final FlinkCompletableFuture<SimpleSlot> future) {
+			final CompletableFuture<SimpleSlot> future) {
 
 		LOG.info("Cannot serve slot request, no ResourceManager connected. " +
 				"Adding as pending request {}",  allocationID);
@@ -390,8 +385,8 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 	private void checkTimeoutRequestWaitingForResourceManager(AllocationID allocationID) {
 		PendingRequest request = waitingForResourceManager.remove(allocationID);
-		if (request != null && !request.future().isDone()) {
-			request.future().completeExceptionally(new NoResourceAvailableException(
+		if (request != null && !request.getFuture().isDone()) {
+			request.getFuture().completeExceptionally(new NoResourceAvailableException(
 					"No slot available and no connection to Resource Manager established."));
 		}
 	}
@@ -426,7 +421,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 					SimpleSlot newSlot = createSimpleSlot(taskManagerSlot, Locality.UNKNOWN);
 					allocatedSlots.add(newSlot);
-					pendingRequest.future().complete(newSlot);
+					pendingRequest.getFuture().complete(newSlot);
 				}
 				else {
 					LOG.debug("Adding returned slot [{}] to available slots", taskManagerSlot.getSlotAllocationId());
@@ -513,7 +508,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		if (pendingRequest != null) {
 			// we were waiting for this!
 			SimpleSlot resultSlot = createSimpleSlot(slot, Locality.UNKNOWN);
-			pendingRequest.future().complete(resultSlot);
+			pendingRequest.getFuture().complete(resultSlot);
 			allocatedSlots.add(resultSlot);
 		}
 		else {
@@ -552,7 +547,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		if (pendingRequest != null) {
 			// request was still pending
 			LOG.debug("Failed pending request [{}] with ", allocationID, cause);
-			pendingRequest.future().completeExceptionally(cause);
+			pendingRequest.getFuture().completeExceptionally(cause);
 		}
 		else if (availableSlots.tryRemove(allocationID)) {
 			LOG.debug("Failed available slot [{}] with ", allocationID, cause);
@@ -982,7 +977,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		}
 
 		@Override
-		public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+		public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
 			Iterable<TaskManagerLocation> locationPreferences = 
 					task.getTaskToExecute().getVertex().getPreferredLocations();
 
@@ -999,13 +994,13 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		private final AllocationID allocationID;
 
-		private final FlinkCompletableFuture<SimpleSlot> future;
+		private final CompletableFuture<SimpleSlot> future;
 
 		private final ResourceProfile resourceProfile;
 
 		PendingRequest(
 				AllocationID allocationID,
-				FlinkCompletableFuture<SimpleSlot> future,
+				CompletableFuture<SimpleSlot> future,
 				ResourceProfile resourceProfile) {
 			this.allocationID = allocationID;
 			this.future = future;
@@ -1016,7 +1011,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 			return allocationID;
 		}
 
-		public FlinkCompletableFuture<SimpleSlot> future() {
+		public CompletableFuture<SimpleSlot> getFuture() {
 			return future;
 		}
 

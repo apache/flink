@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
+
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,12 +35,17 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class NettyServerLowAndHighWatermarkTest {
 
-	private final static int PageSize = 1024;
+	/**
+	 * Pick a larger memory segment size here in order to trigger
+	 * <a href="https://issues.apache.org/jira/browse/FLINK-7258">FLINK-7258</a>.
+	 */
+	private final static int PageSize = 65536;
 
 	/**
 	 * Verifies that the high and low watermark are set in relation to the page size.
@@ -54,12 +60,16 @@ public class NettyServerLowAndHighWatermarkTest {
 	 */
 	@Test
 	public void testLowAndHighWatermarks() throws Throwable {
+		final int expectedLowWatermark = PageSize + 1;
+		final int expectedHighWatermark = 2 * PageSize;
+
 		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 		final NettyProtocol protocol = new NettyProtocol() {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				// The channel handler implements the test
-				return new ChannelHandler[] {new TestLowAndHighWatermarkHandler(error)};
+				return new ChannelHandler[] {new TestLowAndHighWatermarkHandler(
+					expectedLowWatermark, expectedHighWatermark, error)};
 			}
 
 			@Override
@@ -97,17 +107,26 @@ public class NettyServerLowAndHighWatermarkTest {
 	 */
 	private static class TestLowAndHighWatermarkHandler extends ChannelInboundHandlerAdapter {
 
+		private final int expectedLowWatermark;
+
+		private final int expectedHighWatermark;
+
 		private final AtomicReference<Throwable> error;
 
 		private boolean hasFlushed;
 
-		public TestLowAndHighWatermarkHandler(AtomicReference<Throwable> error) {
+		public TestLowAndHighWatermarkHandler(int expectedLowWatermark, int expectedHighWatermark, AtomicReference<Throwable> error) {
+			this.expectedLowWatermark = expectedLowWatermark;
+			this.expectedHighWatermark = expectedHighWatermark;
 			this.error = error;
 		}
 
 		@Override
 		public void channelActive(ChannelHandlerContext ctx) throws Exception {
 			final Channel ch = ctx.channel();
+
+			assertEquals("Low watermark", expectedLowWatermark, ch.config().getWriteBufferLowWaterMark());
+			assertEquals("High watermark", expectedHighWatermark, ch.config().getWriteBufferHighWaterMark());
 
 			// Start with a writable channel
 			assertTrue(ch.isWritable());

@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 
 /**
  * Utilities for dealing with the execution graphs and scheduling.
@@ -40,8 +40,8 @@ public class ExecutionGraphUtils {
 	 * 
 	 * @param slotFuture The future for the slot to release.
 	 */
-	public static void releaseSlotFuture(Future<SimpleSlot> slotFuture) {
-		slotFuture.handle(ReleaseSlotFunction.INSTANCE);
+	public static void releaseSlotFuture(CompletableFuture<SimpleSlot> slotFuture) {
+		slotFuture.handle(ReleaseSlotFunction.INSTANCE::apply);
 	}
 
 	/**

@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.api.common.JobID;
-
 import java.io.File;
 import java.io.IOException;
 

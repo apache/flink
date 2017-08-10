@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.benchmark;
 
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.core.memory.MemoryUtils;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
@@ -31,7 +32,6 @@ import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
-import org.rocksdb.StringAppendOperator;
 import org.rocksdb.WriteOptions;
 import sun.misc.Unsafe;
 
@@ -74,9 +74,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
-					.setDisableDataSync(true)
 					.setCreateIfMissing(true)
-					.setMergeOperator(new StringAppendOperator());
+					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
 			final WriteOptions write_options = new WriteOptions()
 					.setSync(false)
@@ -152,9 +151,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
-					.setDisableDataSync(true)
 					.setCreateIfMissing(true)
-					.setMergeOperator(new StringAppendOperator());
+					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
 			final WriteOptions write_options = new WriteOptions()
 					.setSync(false)

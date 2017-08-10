@@ -24,11 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -51,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -623,7 +620,7 @@ public class SlotManager implements AutoCloseable {
 		TaskExecutorConnection taskExecutorConnection = taskManagerSlot.getTaskManagerConnection();
 		TaskExecutorGateway gateway = taskExecutorConnection.getTaskExecutorGateway();
 
-		final CompletableFuture<Acknowledge> completableFuture = new FlinkCompletableFuture<>();
+		final CompletableFuture<Acknowledge> completableFuture = new CompletableFuture<>();
 		final AllocationID allocationId = pendingSlotRequest.getAllocationId();
 		final SlotID slotId = taskManagerSlot.getSlotId();
 
@@ -641,7 +638,7 @@ public class SlotManager implements AutoCloseable {
 		}
 
 		// RPC call to the task manager
-		Future<Acknowledge> requestFuture = gateway.requestSlot(
+		CompletableFuture<Acknowledge> requestFuture = gateway.requestSlot(
 			slotId,
 			pendingSlotRequest.getJobId(),
 			allocationId,
@@ -649,22 +646,17 @@ public class SlotManager implements AutoCloseable {
 			leaderId,
 			taskManagerRequestTimeout);
 
-		requestFuture.handle(new BiFunction<Acknowledge, Throwable, Void>() {
-			@Override
-			public Void apply(Acknowledge acknowledge, Throwable throwable) {
+		requestFuture.whenComplete(
+			(Acknowledge acknowledge, Throwable throwable) -> {
 				if (acknowledge != null) {
 					completableFuture.complete(acknowledge);
 				} else {
 					completableFuture.completeExceptionally(throwable);
 				}
+			});
 
-				return null;
-			}
-		});
-
-		completableFuture.handleAsync(new BiFunction<Acknowledge, Throwable, Void>() {
-			@Override
-			public Void apply(Acknowledge acknowledge, Throwable throwable) {
+		completableFuture.whenCompleteAsync(
+			(Acknowledge acknowledge, Throwable throwable) -> {
 				if (acknowledge != null) {
 					updateSlot(slotId, allocationId);
 				} else {
@@ -681,10 +673,8 @@ public class SlotManager implements AutoCloseable {
 						LOG.debug("Slot allocation request {} has been cancelled.", allocationId, throwable);
 					}
 				}
-
-				return null;
-			}
-		}, mainThreadExecutor);
+			},
+			mainThreadExecutor);
 	}
 
 	/**

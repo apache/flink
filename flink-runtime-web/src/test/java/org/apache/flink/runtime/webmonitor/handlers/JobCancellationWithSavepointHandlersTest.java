@@ -28,13 +28,14 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoi
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import akka.dispatch.ExecutionContexts$;
 import akka.dispatch.Futures;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -199,7 +200,7 @@ public class JobCancellationWithSavepointHandlersTest {
 		String location = String.format("/jobs/%s/cancel-with-savepoint/in-progress/1", jobId);
 
 		assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 		assertEquals(location, response.headers().get(HttpHeaders.Names.LOCATION));
 
@@ -213,7 +214,7 @@ public class JobCancellationWithSavepointHandlersTest {
 		// Trigger again
 		response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 		assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 		assertEquals(location, response.headers().get(HttpHeaders.Names.LOCATION));
 
@@ -232,7 +233,7 @@ public class JobCancellationWithSavepointHandlersTest {
 
 		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 		assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 
 		json = response.content().toString(Charset.forName("UTF-8"));
@@ -247,7 +248,7 @@ public class JobCancellationWithSavepointHandlersTest {
 		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 
 		assertEquals(HttpResponseStatus.CREATED, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 
 		json = response.content().toString(Charset.forName("UTF-8"));
@@ -263,7 +264,7 @@ public class JobCancellationWithSavepointHandlersTest {
 		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 
 		assertEquals(HttpResponseStatus.CREATED, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 
 		json = response.content().toString(Charset.forName("UTF-8"));
@@ -279,7 +280,7 @@ public class JobCancellationWithSavepointHandlersTest {
 
 		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 		assertEquals(HttpResponseStatus.BAD_REQUEST, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 
 		json = response.content().toString(Charset.forName("UTF-8"));
@@ -326,7 +327,7 @@ public class JobCancellationWithSavepointHandlersTest {
 
 		FullHttpResponse response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
 		assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.getStatus());
-		assertEquals("application/json", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
+		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
 
 		String json = response.content().toString(Charset.forName("UTF-8"));

@@ -21,10 +21,10 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -92,20 +92,19 @@ public class TestingRpcService extends AkkaRpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
+	public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
 		RpcGateway gateway = registeredConnections.get(address);
 
 		if (gateway != null) {
 			if (clazz.isAssignableFrom(gateway.getClass())) {
 				@SuppressWarnings("unchecked")
 				C typedGateway = (C) gateway;
-				return FlinkCompletableFuture.completed(typedGateway);
+				return CompletableFuture.completedFuture(typedGateway);
 			} else {
-				return FlinkCompletableFuture.completedExceptionally(
-					new Exception("Gateway registered under " + address + " is not of type " + clazz));
+				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
+			return FutureUtils.completedExceptionally(new Exception("No gateway registered under " + address + '.'));
 		}
 	}
 

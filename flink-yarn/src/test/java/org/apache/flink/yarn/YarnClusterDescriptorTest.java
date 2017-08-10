@@ -18,10 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.hadoop.fs.Path;
@@ -40,36 +42,37 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link YarnClusterDescriptor}.
  */
-public class YarnClusterDescriptorTest {
+public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private File flinkJar;
-	private File flinkConf;
 
 	@Before
 	public void beforeTest() throws IOException {
 		temporaryFolder.create();
 		flinkJar = temporaryFolder.newFile("flink.jar");
-		flinkConf = temporaryFolder.newFile("flink-conf.yaml");
 	}
 
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() {
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			new Configuration(),
+			temporaryFolder.getRoot().getAbsolutePath());
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
-		clusterDescriptor.setFlinkConfiguration(new Configuration());
-		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
-		// configure slots too high
-		clusterDescriptor.setTaskManagerSlots(Integer.MAX_VALUE);
+		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(-1)
+			.setTaskManagerMemoryMB(-1)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(Integer.MAX_VALUE)
+			.createClusterSpecification();
 
 		try {
-			clusterDescriptor.deploy();
+			clusterDescriptor.deploySessionCluster(clusterSpecification);
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {
@@ -82,23 +85,26 @@ public class YarnClusterDescriptorTest {
 
 	@Test
 	public void testConfigOverwrite() {
-
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
-
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(ConfigConstants.YARN_VCORES, Integer.MAX_VALUE);
 
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			configuration,
+			temporaryFolder.getRoot().getAbsolutePath());
+
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
-		clusterDescriptor.setFlinkConfiguration(configuration);
-		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
 		// configure slots
-		clusterDescriptor.setTaskManagerSlots(1);
+		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+			.setMasterMemoryMB(-1)
+			.setTaskManagerMemoryMB(-1)
+			.setNumberTaskManagers(1)
+			.setSlotsPerTaskManager(1)
+			.createClusterSpecification();
 
 		try {
-			clusterDescriptor.deploy();
+			clusterDescriptor.deploySessionCluster(clusterSpecification);
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {
@@ -111,9 +117,10 @@ public class YarnClusterDescriptorTest {
 
 	@Test
 	public void testSetupApplicationMasterContainer() {
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
-		final Configuration cfg = new Configuration();
-		clusterDescriptor.setFlinkConfiguration(cfg);
+		Configuration cfg = new Configuration();
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			cfg,
+			temporaryFolder.getRoot().getAbsolutePath());
 
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xmx424m";
@@ -127,11 +134,12 @@ public class YarnClusterDescriptorTest {
 			"-Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME; // if set
 		final String log4j =
 			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
-		final String mainClass = clusterDescriptor.getApplicationMasterClass().getName();
+		final String mainClass = clusterDescriptor.getYarnSessionClusterEntrypoint();
 		final String args = "";
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
+		final int jobManagerMemory = 1024;
 
 		// no logging, with/out krb5
 		assertEquals(
@@ -140,7 +148,12 @@ public class YarnClusterDescriptorTest {
 				" " + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, false, false)
+				.setupApplicationMasterContainer(
+					mainClass,
+					false,
+					false,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -149,7 +162,12 @@ public class YarnClusterDescriptorTest {
 				" " + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, false, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					false,
+					false,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback only, with/out krb5
@@ -159,7 +177,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, false, false)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					false,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -168,7 +191,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, false, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					false,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// log4j, with/out krb5
@@ -178,7 +206,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, true, false)
+				.setupApplicationMasterContainer(
+					mainClass,
+					false,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -187,7 +220,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(false, true, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					false,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5
@@ -197,7 +235,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, false)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -206,10 +249,17 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
+		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor,
+		// because we have a reference to the ClusterDescriptor's configuration which we modify continuously
 		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
@@ -217,7 +267,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, false)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -226,10 +281,16 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
@@ -237,7 +298,12 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, false)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					false,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		assertEquals(
@@ -246,11 +312,16 @@ public class YarnClusterDescriptorTest {
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		// now try some configurations with different yarn.container-start-command-template
-
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 		assertEquals(
@@ -259,11 +330,17 @@ public class YarnClusterDescriptorTest {
 				" 3 " + logfile + " " + logback + " " + log4j +
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
 		assertEquals(
 			java +
 				" " + logfile + " " + logback + " " + log4j +
@@ -271,7 +348,12 @@ public class YarnClusterDescriptorTest {
 				" " + jvmmem +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
-				.setupApplicationMasterContainer(true, true, true)
+				.setupApplicationMasterContainer(
+					mainClass,
+					true,
+					true,
+					true,
+					jobManagerMemory)
 				.getCommands().get(0));
 	}
 }

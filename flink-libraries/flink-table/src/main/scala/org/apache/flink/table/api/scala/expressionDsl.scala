@@ -24,6 +24,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
@@ -232,6 +233,25 @@ trait ImplicitExpressionOperations {
 
   def asc = Asc(expr)
   def desc = Desc(expr)
+
+  /**
+    * Returns true if an expression exists in a given list of expressions. This is a shorthand
+    * for multiple OR conditions.
+    *
+    * If the testing set contains null, the result will be null if the element can not be found
+    * and true if it can be found. If the element is null, the result is always null.
+    *
+    * e.g. "42".in(1, 2, 3) leads to false.
+    */
+  def in(elements: Expression*) = In(expr, elements)
+
+  /**
+    * Returns true if an expression exists in a given table sub-query. The sub-query table
+    * must consist of one column. This column must have the same data type as the expression.
+    *
+    * Note: This operation is not supported in a streaming environment yet.
+    */
+  def in(table: Table) = In(expr, Seq(TableReference(table.toString, table)))
 
   /**
     * Returns the start time (inclusive) of a window when applied on a window reference.
@@ -898,6 +918,35 @@ object temporalOverlaps {
 }
 
 /**
+  * Formats a timestamp as a string using a specified format.
+  * The format must be compatible with MySQL's date formatting syntax as used by the
+  * date_parse function.
+  *
+  * For example <code>dataFormat('time, "%Y, %d %M")</code> results in strings
+  * formatted as "2017, 05 May".
+  */
+object dateFormat {
+
+  /**
+    * Formats a timestamp as a string using a specified format.
+    * The format must be compatible with MySQL's date formatting syntax as used by the
+    * date_parse function.
+    *
+    * For example dataFormat('time, "%Y, %d %M") results in strings formatted as "2017, 05 May".
+    *
+    * @param timestamp The timestamp to format as string.
+    * @param format The format of the string.
+    * @return The formatted timestamp as string.
+    */
+  def apply(
+    timestamp: Expression,
+    format: Expression
+  ): Expression = {
+    DateFormat(timestamp, format)
+  }
+}
+
+/**
   * Creates an array of literals. The array will be an array of objects (not primitives).
   */
 object array {
@@ -979,6 +1028,29 @@ object randInteger {
     */
   def apply(seed: Expression, bound: Expression): Expression = {
     RandInteger(seed, bound)
+  }
+}
+
+/**
+  * Returns the string that results from concatenating the arguments.
+  * Returns NULL if any argument is NULL.
+  */
+object concat {
+  def apply(string: Expression, strings: Expression*): Expression = {
+    new Concat(Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Returns the string that results from concatenating the arguments and separator.
+  * Returns NULL If the separator is NULL.
+  *
+  * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
+  * values after the separator argument.
+  **/
+object concat_ws {
+  def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
+    new ConcatWs(separator, Seq(string) ++ strings)
   }
 }
 

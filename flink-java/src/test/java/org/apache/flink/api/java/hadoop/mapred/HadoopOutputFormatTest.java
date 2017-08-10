@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.hadoop.mapred;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,6 +46,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link HadoopOutputFormat}.
+ */
 public class HadoopOutputFormatTest {
 
 	@Test
@@ -152,7 +156,7 @@ public class HadoopOutputFormatTest {
 		verify(outputCommitter, times(1)).commitJob(any(JobContext.class));
 	}
 
-	public class DummyOutputFormat implements OutputFormat<String, Long> {
+	private class DummyOutputFormat implements OutputFormat<String, Long> {
 
 		@Override
 		public RecordWriter<String, Long> getRecordWriter(FileSystem fileSystem, JobConf jobConf, String s, Progressable progressable) throws IOException {
@@ -165,7 +169,7 @@ public class HadoopOutputFormatTest {
 		}
 	}
 
-	public class ConfigurableDummyOutputFormat extends DummyOutputFormat implements Configurable {
+	private class ConfigurableDummyOutputFormat extends DummyOutputFormat implements Configurable {
 
 		@Override
 		public void setConf(Configuration configuration) {
@@ -178,7 +182,7 @@ public class HadoopOutputFormatTest {
 		}
 	}
 
-	public class JobConfigurableDummyOutputFormat extends DummyOutputFormat implements JobConfigurable {
+	private class JobConfigurableDummyOutputFormat extends DummyOutputFormat implements JobConfigurable {
 
 		@Override
 		public void configure(JobConf jobConf) {
@@ -186,7 +190,7 @@ public class HadoopOutputFormatTest {
 		}
 	}
 
-	public class DummyOutputCommitter extends OutputCommitter {
+	private class DummyOutputCommitter extends OutputCommitter {
 
 		@Override
 		public void setupJob(JobContext jobContext) throws IOException {
@@ -214,7 +218,7 @@ public class HadoopOutputFormatTest {
 		}
 	}
 
-	public class DummyRecordWriter implements RecordWriter<String, Long> {
+	private class DummyRecordWriter implements RecordWriter<String, Long> {
 
 		@Override
 		public void write(String s, Long aLong) throws IOException {

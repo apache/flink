@@ -327,7 +327,7 @@ public class LambdaExtractionTest {
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
 
-	public interface InterfaceWithDefaultMethod {
+	private interface InterfaceWithDefaultMethod {
 		void samMethod();
 
 		default void defaultMethod() {
@@ -342,7 +342,7 @@ public class LambdaExtractionTest {
 		assertEquals("samMethod", sam.getName());
 	}
 
-	public interface InterfaceWithMultipleMethods {
+	private interface InterfaceWithMultipleMethods {
 		void firstMethod();
 
 		void secondMethod();
@@ -353,10 +353,10 @@ public class LambdaExtractionTest {
 		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
 	}
 
-	public interface InterfaceWithoutAbstractMethod {
+	private interface InterfaceWithoutAbstractMethod {
 		default void defaultMethod() {
 
-		};
+		}
 	}
 
 	@Test(expected = InvalidTypesException.class)
@@ -364,7 +364,7 @@ public class LambdaExtractionTest {
 		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
 	}
 
-	public abstract class AbstractClassWithSingleAbstractMethod {
+	private abstract class AbstractClassWithSingleAbstractMethod {
 		public abstract void defaultMethod();
 	}
 

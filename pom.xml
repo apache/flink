@@ -57,6 +57,7 @@ under the License.
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
+		<module>flink-java8</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
@@ -95,7 +96,9 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
-		<java.version>1.7</java.version>
+		<java.version>1.8</java.version>
+		<slf4j.version>1.7.7</slf4j.version>
+		<log4j.version>1.2.17</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -107,14 +110,15 @@ under the License.
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
-		<zookeeper.version>3.4.6</zookeeper.version>
+		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.4</jackson.version>
-		<metrics.version>3.1.0</metrics.version>
+		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.0.21</prometheus.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
+		<japicmp.skip>false</japicmp.skip>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -231,19 +235,19 @@ under the License.
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
-				<version>1.7.7</version>
+				<version>${slf4j.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-log4j12</artifactId>
-				<version>1.7.7</version>
+				<version>${slf4j.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>log4j</groupId>
 				<artifactId>log4j</artifactId>
-				<version>1.2.17</version>
+				<version>${log4j.version}</version>
 			</dependency>
 
 			<dependency>
@@ -442,8 +446,8 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-all</artifactId>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-netty</artifactId>
 				<!-- Don't upgrade for now. Netty versions >= 4.0.28.Final
 				contain an improvement by Netty, which slices a Netty buffer
 				instead of doing a memory copy [1] in the
@@ -452,7 +456,7 @@ under the License.
 				errors.
 
 				[1] https://github.com/netty/netty/issues/3704 -->
-				<version>4.0.27.Final</version>
+				<version>4.0.27.Final-1.0</version>
 			</dependency>
 
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
@@ -469,12 +473,6 @@ under the License.
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpclient</artifactId>
 				<version>4.5.3</version>
-			</dependency>
-
-			<dependency>
-				<groupId>tv.cntt</groupId>
-				<artifactId>netty-router</artifactId>
-				<version>1.10</version>
 			</dependency>
 
 			<dependency>
@@ -518,6 +516,81 @@ under the License.
 				<scala.version>2.10.6</scala.version>
 				<scala.binary.version>2.10</scala.binary.version>
 			</properties>
+		</profile>
+
+		<profile>
+			<id>spotbugs</id>
+			<activation>
+				<property>
+					<name>spotbugs</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.github.hazendaz.spotbugs</groupId>
+						<artifactId>spotbugs-maven-plugin</artifactId>
+						<version>3.0.6</version>
+
+						<executions>
+							<execution>
+								<id>findbugs-run</id>
+								<phase>compile</phase>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
+
+						<configuration>
+							<xmlOutput>true</xmlOutput>
+							<threshold>Low</threshold>
+							<effort>default</effort>
+							<findbugsXmlOutputDirectory>${project.build.directory}/spotbugs</findbugsXmlOutputDirectory>
+							<excludeFilterFile>tools/maven/spotbugs-exclude.xml</excludeFilterFile>
+							<failOnError>true</failOnError>
+						</configuration>
+					</plugin>
+
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>xml-maven-plugin</artifactId>
+						<version>1.0.1</version>
+						<executions>
+							<execution>
+								<phase>verify</phase>
+								<goals>
+									<goal>transform</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<transformationSets>
+								<transformationSet>
+									<dir>${project.build.directory}/spotbugs</dir>
+									<outputDir>${project.build.directory}/spotbugs</outputDir>
+									<!-- A list of available stylesheets can be found here: https://github.com/findbugsproject/findbugs/tree/master/findbugs/src/xsl -->
+									<stylesheet>plain.xsl</stylesheet>
+									
+									<fileMappers>
+										<fileMapper
+											implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
+											<targetExtension>.html</targetExtension>
+										</fileMapper>
+									</fileMappers>
+								</transformationSet>
+							</transformationSets>
+						</configuration>
+						<dependencies>
+							<dependency>
+								<groupId>com.github.hazendaz.spotbugs</groupId>
+								<artifactId>spotbugs-maven-plugin</artifactId>
+								<version>3.0.6</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 
 		<profile>
@@ -691,6 +764,23 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
+		
+		<profile>
+			<!--japicmp 0.7 does not support deactivation from the command
+				line, so we have to use a workaround with profiles instead.
+				This can be removed when upgrading japicmp to 0.10+.
+				-->
+			<id>skip-japicmp</id>
+			<activation>
+				<property>
+					<name>japicmp.skip</name>
+					<value>true</value>
+				</property>
+			</activation>
+			<properties>
+				<japicmp.skip>true</japicmp.skip>
+			</properties>
+		</profile>
 
 		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
@@ -748,7 +838,7 @@ under the License.
 		<profile>
 			<id>release</id>
 			<properties>
-				<java.version>1.7</java.version>
+				<java.version>1.8</java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -795,19 +885,12 @@ under the License.
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-						<configuration>
-							<quiet>true</quiet>
-						</configuration>
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
 								<goals>
 									<goal>jar</goal>
 								</goals>
-								<configuration>
-									<additionalparam>-Xdoclint:none</additionalparam>
-									<detectOfflineLinks>false</detectOfflineLinks>
-								</configuration>
 							</execution>
 						</executions>
 					</plugin>
@@ -826,40 +909,6 @@ under the License.
 						</plugin>
 					</plugins>
 				</pluginManagement>
-			</build>
-		</profile>
-		<profile>
-			<id>jdk8</id>
-			<!-- do not activate automatically to prevent 1.8 target while Java 7 is the supported -->
-			<properties>
-				<java.version>1.8</java.version>
-			</properties>
-			<modules>
-				<module>flink-java8</module>
-			</modules>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-						<configuration>
-							<quiet>true</quiet>
-						</configuration>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-								<configuration>
-									<additionalparam>-Xdoclint:none</additionalparam>
-									<detectOfflineLinks>false</detectOfflineLinks>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 	</profiles>
@@ -974,6 +1023,7 @@ under the License.
 						<exclude>flink-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
+						<exclude>test-infra/end-to-end-test/test-data/*</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>
@@ -1014,6 +1064,13 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
 				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
 				<executions>
 					<execution>
 						<id>validate</id>
@@ -1025,9 +1082,10 @@ under the License.
 				</executions>
 				<configuration>
 					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
 					<configLocation>/tools/maven/checkstyle.xml</configLocation>
 					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -1262,6 +1320,18 @@ under the License.
 		<pluginManagement>
 			<plugins>
 
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+					<configuration>
+						<quiet>true</quiet>
+						<additionalparam>-Xdoclint:none</additionalparam>
+						<detectOfflineLinks>false</detectOfflineLinks>
+					</configuration>
+				</plugin>
+
+
 				<!-- Pin the version of the maven shade plugin -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -1405,7 +1475,7 @@ under the License.
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
 						</parameter>
-						<skip>false</skip>
+						<skip>${japicmp.skip}</skip>
 						<dependencies>
 							<dependency>
 								<groupId>org.apache.flink</groupId>

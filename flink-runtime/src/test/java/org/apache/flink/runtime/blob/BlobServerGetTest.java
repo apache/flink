@@ -22,9 +22,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +43,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,7 +74,9 @@ public class BlobServerGetTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -115,7 +116,9 @@ public class BlobServerGetTest extends TestLogger {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -131,9 +134,10 @@ public class BlobServerGetTest extends TestLogger {
 			// issue a GET request that succeeds
 			InputStream is = client.get(key);
 
-			byte[] receiveBuffer = new byte[50000];
-			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
-			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
+			byte[] receiveBuffer = new byte[data.length];
+			int firstChunkLen = 50000;
+			BlobUtils.readFully(is, receiveBuffer, 0, firstChunkLen, null);
+			BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
 
 			// shut down the server
 			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
@@ -141,10 +145,10 @@ public class BlobServerGetTest extends TestLogger {
 			}
 
 			try {
-				byte[] remainder = new byte[data.length - 2*receiveBuffer.length];
-				BlobUtils.readFully(is, remainder, 0, remainder.length, null);
+				BlobUtils.readFully(is, receiveBuffer, 2 * firstChunkLen, data.length - 2 * firstChunkLen, null);
 				// we tolerate that this succeeds, as the receiver socket may have buffered
-				// everything already
+				// everything already, but in this case, also verify the contents
+				assertArrayEquals(data, receiveBuffer);
 			}
 			catch (IOException e) {
 				// expected
@@ -166,14 +170,14 @@ public class BlobServerGetTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentGetOperations() throws IOException, ExecutionException, InterruptedException {
-		final Configuration configuration = new Configuration();
 
-		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		final BlobStore blobStore = mock(BlobStore.class);
 
 		final int numberConcurrentGetOperations = 3;
-		final List<Future<InputStream>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
+		final List<CompletableFuture<InputStream>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
 
 		final byte[] data = {1, 2, 3, 4, 99, 42};
 		final ByteArrayInputStream bais = new ByteArrayInputStream(data);
@@ -198,11 +202,10 @@ public class BlobServerGetTest extends TestLogger {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
-		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {
-				Future<InputStream> getOperation = FlinkCompletableFuture.supplyAsync(new Callable<InputStream>() {
-					@Override
-					public InputStream call() throws Exception {
+				CompletableFuture<InputStream> getOperation = CompletableFuture.supplyAsync(
+					() -> {
 						try (BlobClient blobClient = blobServer.createClient();
 							 InputStream inputStream = blobClient.get(blobKey)) {
 							byte[] buffer = new byte[data.length];
@@ -210,14 +213,16 @@ public class BlobServerGetTest extends TestLogger {
 							IOUtils.readFully(inputStream, buffer);
 
 							return new ByteArrayInputStream(buffer);
+						} catch (IOException e) {
+							throw new FlinkFutureException("Could not read blob for key " + blobKey + '.', e);
 						}
-					}
-				}, executor);
+					},
+					executor);
 
 				getOperations.add(getOperation);
 			}
 
-			Future<Collection<InputStream>> inputStreamsFuture = FutureUtils.combineAll(getOperations);
+			CompletableFuture<Collection<InputStream>> inputStreamsFuture = FutureUtils.combineAll(getOperations);
 
 			Collection<InputStream> inputStreams = inputStreamsFuture.get();
 

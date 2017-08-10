@@ -38,7 +38,7 @@ case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
     val relDataType = relBuilder
       .asInstanceOf[FlinkRelBuilder]
       .getTypeFactory
-      .createTypeFromTypeInfo(resultType)
+      .createTypeFromTypeInfo(resultType, isNullable = false)
     val values = elements.map(_.toRexNode).toList.asJava
     relBuilder
       .getRexBuilder

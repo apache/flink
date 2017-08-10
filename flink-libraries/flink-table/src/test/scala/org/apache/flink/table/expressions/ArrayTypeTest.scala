@@ -20,80 +20,12 @@ package org.apache.flink.table.expressions
 
 import java.sql.Date
 
-import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
 import org.junit.Test
 
-class ArrayTypeTest extends ExpressionTestBase {
-
-  @Test(expected = classOf[ValidationException])
-  def testObviousInvalidIndexTableApi(): Unit = {
-    testTableApi('f2.at(0), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testEmptyArraySql(): Unit = {
-    testSqlApi("ARRAY[]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testEmptyArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array()", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testNullArraySql(): Unit = {
-    testSqlApi("ARRAY[NULL]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testDifferentTypesArraySql(): Unit = {
-    testSqlApi("ARRAY[1, TRUE]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testDifferentTypesArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array(1, true)", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedComparison(): Unit = {
-    testAllApis(
-      'f2 <= 'f5.at(1),
-      "f2 <= f5.at(1)",
-      "f2 <= f5[1]",
-      "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testElementNonArray(): Unit = {
-    testTableApi(
-      'f0.element(),
-      "FAIL",
-      "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testElementNonArraySql(): Unit = {
-    testSqlApi(
-      "ELEMENT(f0)",
-      "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testCardinalityOnNonArray(): Unit = {
-    testTableApi('f0.cardinality(), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testCardinalityOnNonArraySql(): Unit = {
-    testSqlApi("CARDINALITY(f0)", "FAIL")
-  }
+class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
   def testArrayLiterals(): Unit = {
@@ -362,43 +294,5 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f11 !== f9",
       "f11 <> f9",
       "false")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  case class MyCaseClass(string: String, int: Int)
-
-  override def testData: Any = {
-    val testData = new Row(12)
-    testData.setField(0, null)
-    testData.setField(1, 42)
-    testData.setField(2, Array(1, 2, 3))
-    testData.setField(3, Array(Date.valueOf("1984-03-12"), Date.valueOf("1984-02-10")))
-    testData.setField(4, null)
-    testData.setField(5, Array(Array(1, 2, 3), null))
-    testData.setField(6, Array[Integer](1, null, null, 4))
-    testData.setField(7, Array(1, 2, 3, 4))
-    testData.setField(8, Array(4.0))
-    testData.setField(9, Array[Integer](1))
-    testData.setField(10, Array[Integer]())
-    testData.setField(11, Array[Integer](1))
-    testData
-  }
-
-  override def typeInfo: TypeInformation[Any] = {
-    new RowTypeInfo(
-      Types.INT,
-      Types.INT,
-      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.SQL_DATE),
-      ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
-      ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
-    ).asInstanceOf[TypeInformation[Any]]
   }
 }

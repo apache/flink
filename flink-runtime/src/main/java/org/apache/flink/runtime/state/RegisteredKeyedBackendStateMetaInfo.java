@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -220,15 +222,10 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 			}
 
 			// need to check for nulls because serializer and config snapshots may be null on restore
-			return
-				((getStateSerializer() == null && that.getStateSerializer() == null)
-					|| getStateSerializer().equals(that.getStateSerializer()))
-				&& ((getNamespaceSerializer() == null && that.getNamespaceSerializer() == null)
-					|| getNamespaceSerializer().equals(that.getNamespaceSerializer()))
-				&& ((getNamespaceSerializerConfigSnapshot() == null && that.getNamespaceSerializerConfigSnapshot() == null)
-					|| getNamespaceSerializerConfigSnapshot().equals(that.getNamespaceSerializerConfigSnapshot()))
-				&& ((getStateSerializerConfigSnapshot() == null && that.getStateSerializerConfigSnapshot() == null)
-					|| getStateSerializerConfigSnapshot().equals(that.getStateSerializerConfigSnapshot()));
+			return Objects.equals(getStateSerializer(), that.getStateSerializer())
+				&& Objects.equals(getNamespaceSerializer(), that.getNamespaceSerializer())
+				&& Objects.equals(getNamespaceSerializerConfigSnapshot(), that.getNamespaceSerializerConfigSnapshot())
+				&& Objects.equals(getStateSerializerConfigSnapshot(), that.getStateSerializerConfigSnapshot());
 		}
 
 		@Override

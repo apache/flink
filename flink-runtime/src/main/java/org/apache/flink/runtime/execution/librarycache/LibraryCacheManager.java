@@ -22,7 +22,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -35,15 +34,6 @@ public interface LibraryCacheManager {
 	 * @return ClassLoader which can load the user code
 	 */
 	ClassLoader getClassLoader(JobID id);
-
-	/**
-	 * Returns a file handle to the file identified by the blob key.
-	 *
-	 * @param blobKey identifying the requested file
-	 * @return File handle
-	 * @throws IOException if any error occurs when retrieving the file
-	 */
-	File getFile(BlobKey blobKey) throws IOException;
 
 	/**
 	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.

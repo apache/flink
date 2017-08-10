@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -36,6 +35,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
@@ -98,7 +98,7 @@ public class MasterHooks {
 		final SimpleVersionedSerializer<T> serializer = typedHook.createCheckpointDataSerializer();
 
 		// call the hook!
-		final Future<T> resultFuture;
+		final CompletableFuture<T> resultFuture;
 		try {
 			resultFuture = typedHook.triggerCheckpoint(checkpointId, timestamp, executor);
 		}
@@ -307,7 +307,7 @@ public class MasterHooks {
 
 		@Nullable
 		@Override
-		public Future<T> triggerCheckpoint(long checkpointId, long timestamp, final Executor executor) throws Exception {
+		public CompletableFuture<T> triggerCheckpoint(long checkpointId, long timestamp, final Executor executor) throws Exception {
 			Executor wrappedExecutor = new Executor() {
 				@Override
 				public void execute(Runnable command) {

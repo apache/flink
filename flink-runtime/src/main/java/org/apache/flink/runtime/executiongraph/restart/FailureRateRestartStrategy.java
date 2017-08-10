@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
  * with a fixed time delay in between.
  */
 public class FailureRateRestartStrategy implements RestartStrategy {
+
 	private final Time failuresInterval;
 	private final Time delayInterval;
 	private final int maxFailuresPerInterval;
@@ -67,16 +68,22 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final ExecutionGraph executionGraph) {
+	public void restart(final RestartCallback restarter, ScheduledExecutor executor) {
 		if (isRestartTimestampsQueueFull()) {
 			restartTimestampsDeque.remove();
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
-		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getFutureExecutor());
+
+		executor.schedule(new Runnable() {
+			@Override
+			public void run() {
+				restarter.triggerFullRecovery();
+			}
+		}, delayInterval.getSize(), delayInterval.getUnit());
 	}
 
 	private boolean isRestartTimestampsQueueFull() {
-		return restartTimestampsDeque.size() == maxFailuresPerInterval;
+		return restartTimestampsDeque.size() >= maxFailuresPerInterval;
 	}
 
 	@Override

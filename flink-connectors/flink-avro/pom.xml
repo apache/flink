@@ -135,6 +135,13 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+				<configuration>
+					<filesets>
+						<fileset>
+							<directory>${project.basedir}/src/test/java/org/apache/flink/api/io/avro/generated</directory>
+						</fileset>
+					</filesets>
+				</configuration>
 			</plugin>
 			<!-- Generate Test class from avro schema -->
 			<plugin>

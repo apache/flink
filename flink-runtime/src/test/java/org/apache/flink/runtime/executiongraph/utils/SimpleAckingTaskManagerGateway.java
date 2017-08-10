@@ -23,8 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A TaskManagerGateway that simply acks the basic operations (deploy, cancel, update) and does not
@@ -56,39 +56,39 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	public void stopCluster(ApplicationStatus applicationStatus, String message) {}
 
 	@Override
-	public Future<StackTrace> requestStackTrace(Time timeout) {
-		return FlinkCompletableFuture.completedExceptionally(new UnsupportedOperationException());
+	public CompletableFuture<StackTrace> requestStackTrace(Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override
-	public Future<StackTraceSampleResponse> requestStackTraceSample(
+	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
 			ExecutionAttemptID executionAttemptID,
 			int sampleId,
 			int numSamples,
 			Time delayBetweenSamples,
 			int maxStackTraceDepth,
 			Time timeout) {
-		return FlinkCompletableFuture.completedExceptionally(new UnsupportedOperationException());
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override
-	public Future<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		return FlinkCompletableFuture.completed(Acknowledge.get());
+	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
-	public Future<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		return FlinkCompletableFuture.completed(Acknowledge.get());
+	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
-	public Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		return FlinkCompletableFuture.completed(Acknowledge.get());
+	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
-	public Future<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
-		return FlinkCompletableFuture.completed(Acknowledge.get());
+	public CompletableFuture<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
@@ -110,12 +110,12 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			CheckpointOptions checkpointOptions) {}
 
 	@Override
-	public Future<BlobKey> requestTaskManagerLog(Time timeout) {
-		return FlinkCompletableFuture.completedExceptionally(new UnsupportedOperationException());
+	public CompletableFuture<BlobKey> requestTaskManagerLog(Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override
-	public Future<BlobKey> requestTaskManagerStdout(Time timeout) {
-		return FlinkCompletableFuture.completedExceptionally(new UnsupportedOperationException());
+	public CompletableFuture<BlobKey> requestTaskManagerStdout(Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 }

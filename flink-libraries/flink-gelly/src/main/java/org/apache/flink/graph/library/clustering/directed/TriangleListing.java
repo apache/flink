@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -83,11 +84,11 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		// u, v, bitmask where u < v
 		DataSet<Tuple3<K, K, ByteValue>> filteredByID = input
 			.getEdges()
-			.map(new OrderByID<K, EV>())
+			.map(new OrderByID<>())
 				.setParallelism(parallelism)
 				.name("Order by ID")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<>())
 				.setParallelism(parallelism)
 				.name("Flatten by ID");
 
@@ -98,11 +99,11 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 
 		// u, v, bitmask where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple3<K, K, ByteValue>> filteredByDegree = pairDegrees
-			.map(new OrderByDegree<K, EV>())
+			.map(new OrderByDegree<>())
 				.setParallelism(parallelism)
 				.name("Order by degree")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<>())
 				.setParallelism(parallelism)
 				.name("Flatten by degree");
 
@@ -110,7 +111,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		DataSet<Tuple4<K, K, K, ByteValue>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateTriplets<K>())
+			.reduceGroup(new GenerateTriplets<>())
 				.name("Generate triplets");
 
 		// u, v, w, bitmask where (u, v), (u, w), and (v, w) are edges in graph
@@ -118,12 +119,16 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
-			.with(new ProjectTriangles<K>())
+			.with(new ProjectTriangles<>())
 				.name("Triangle listing");
 
-		if (sortTriangleVertices.get()) {
+		if (permuteResults) {
 			triangles = triangles
-				.map(new SortTriangleVertices<K>())
+				.flatMap(new PermuteResult<>())
+					.name("Permute triangle vertices");
+		} else if (sortTriangleVertices.get()) {
+			triangles = triangles
+				.map(new SortTriangleVertices<>())
 					.name("Sort triangle vertices");
 		}
 
@@ -309,6 +314,98 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	}
 
 	/**
+	 * Output each input and an additional result for each of the five
+	 * permutations of the three vertex IDs.
+	 *
+	 * @param <T> ID type
+	 */
+	private static class PermuteResult<T>
+	implements FlatMapFunction<Result<T>, Result<T>> {
+		@Override
+		public void flatMap(Result<T> value, Collector<Result<T>> out)
+				throws Exception {
+			T tmp;
+
+			int f0f1, f0f2, f1f2;
+
+			byte bitmask = value.getBitmask().getValue();
+
+			// 0, 1, 2
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
+			f0f2 = (bitmask & 0b001100) >>> 2;
+			f1f2 = (bitmask & 0b000011) << 2;
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 1, 0, 2
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			f0f1 = (bitmask & 0b110000) >>> 2;
+			f0f2 = (bitmask & 0b001100) << 2;
+			f1f2 = ((bitmask & 0b000010) >>> 1) | ((bitmask & 0b000001) << 1);
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 1, 2, 0
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			f0f1 = ((bitmask & 0b100000) >>> 5) | ((bitmask & 0b010000) >>> 3);
+			f0f2 = ((bitmask & 0b001000) >>> 1) | ((bitmask & 0b000100) << 1);
+			f1f2 = ((bitmask & 0b000010) << 3) | ((bitmask & 0b000001) << 5);
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 0, 2, 1
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
+			f0f2 = (bitmask & 0b001100) >>> 2;
+			f1f2 = (bitmask & 0b000011) << 2;
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 2, 0, 1
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			f0f1 = (bitmask & 0b110000) >>> 2;
+			f0f2 = (bitmask & 0b001100) << 2;
+			f1f2 = ((bitmask & 0b000010) >>> 1) | ((bitmask & 0b000001) << 1);
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 2, 1, 0
+			out.collect(value);
+		}
+	}
+
+	/**
 	 * Reorders the vertices of each emitted triangle (K0, K1, K2, bitmask)
 	 * into sorted order such that K0 < K1 < K2.
 	 *
@@ -384,7 +481,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			this.bitmask = bitmask;
 		}
 
-		private void setBitmask(byte bitmask) {
+		public void setBitmask(byte bitmask) {
 			this.bitmask.setValue(bitmask);
 		}
 

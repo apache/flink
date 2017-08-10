@@ -89,7 +89,8 @@ public abstract class AbstractMergeOuterJoinIterator<T1, T2, O> extends Abstract
 				return true;
 			} else {
 				//consume rest of left side
-				while (iterator1.nextKey()) ;
+				while (iterator1.nextKey()) {
+				}
 				it1Empty = true;
 				return false;
 			}
@@ -100,7 +101,8 @@ public abstract class AbstractMergeOuterJoinIterator<T1, T2, O> extends Abstract
 				return true;
 			} else {
 				//consume rest of right side
-				while (iterator2.nextKey()) ;
+				while (iterator2.nextKey()) {
+				}
 				it2Empty = true;
 				return false;
 			}

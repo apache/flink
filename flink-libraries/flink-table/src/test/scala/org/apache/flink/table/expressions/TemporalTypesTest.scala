@@ -540,7 +540,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   // ----------------------------------------------------------------------------------------------
 
-  def testData = {
+  def testData: Row = {
     val testData = new Row(11)
     testData.setField(0, Date.valueOf("1990-10-14"))
     testData.setField(1, Time.valueOf("10:20:45"))
@@ -556,7 +556,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData
   }
 
-  def typeInfo = {
+  def typeInfo: TypeInformation[Any] = {
     new RowTypeInfo(
       Types.SQL_DATE,
       Types.SQL_TIME,

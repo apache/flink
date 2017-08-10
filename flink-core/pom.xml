@@ -158,6 +158,35 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+
+				<configuration>
+					<configLocation>/tools/maven/checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions-core.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+			</plugin>
 
 			<!-- activate API compatibility checks -->
 			<plugin>
@@ -169,7 +198,7 @@ under the License.
 							<exclude>org.apache.flink.api.common.ExecutionConfig#CONFIG_KEY</exclude>
 							<exclude>org.apache.flink.core.fs.FileSystem\$FSKey</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
-							<!-- Breaking changes between 1.1 and 1.2. 
+							<!-- Breaking changes between 1.1 and 1.2.
 							We ignore these changes because these are low-level, internal runtime configuration parameters -->
 							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE</exclude>
 							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_NETWORK_REQUEST_BACKOFF_INITIAL</exclude>
@@ -196,7 +225,7 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
-		
+
 	</build>
 
 </project>

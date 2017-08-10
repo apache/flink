@@ -48,10 +48,13 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ColumnFamilyOptions;
+import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
@@ -231,6 +234,28 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			verify(rocksCloseable, times(1)).close();
 		}
 
+	}
+
+	@Test
+	public void testCorrectMergeOperatorSet() throws IOException {
+		ColumnFamilyOptions columnFamilyOptions = mock(ColumnFamilyOptions.class);
+
+		try (RocksDBKeyedStateBackend<Integer> test = new RocksDBKeyedStateBackend<>(
+			"test",
+			Thread.currentThread().getContextClassLoader(),
+			tempFolder.newFolder(),
+			mock(DBOptions.class),
+			columnFamilyOptions,
+			mock(TaskKvStateRegistry.class),
+			IntSerializer.INSTANCE,
+			1,
+			new KeyGroupRange(0, 0),
+			new ExecutionConfig(),
+			enableIncrementalCheckpointing)) {
+
+			verify(columnFamilyOptions, Mockito.times(1))
+				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
+		}
 	}
 
 	@Test

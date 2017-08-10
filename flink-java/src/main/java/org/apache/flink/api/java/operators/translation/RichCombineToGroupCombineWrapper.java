@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.operators.translation;
 
 import org.apache.flink.api.common.functions.CombineFunction;
@@ -31,7 +32,7 @@ import org.apache.flink.util.Preconditions;
  * and makes it look like a function that implements {@link GroupCombineFunction} and {@link GroupReduceFunction} to the runtime.
  */
 public class RichCombineToGroupCombineWrapper<IN, OUT, F extends RichGroupReduceFunction<IN, OUT> & CombineFunction<IN, IN>>
-	extends RichGroupCombineFunction<IN,IN> implements GroupReduceFunction<IN, OUT> {
+	extends RichGroupCombineFunction<IN, IN> implements GroupReduceFunction<IN, OUT> {
 
 	private final F wrappedFunction;
 

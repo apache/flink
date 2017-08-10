@@ -20,18 +20,16 @@ package org.apache.flink.table.utils
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet => JDataSet}
-import org.apache.flink.table.api.{Table, TableEnvironment}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Table, TableEnvironment}
+import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.rules.ExpectedException
@@ -62,7 +60,6 @@ class TableTestBase {
       LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(expected.getRelNode)),
       LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(actual.getRelNode)))
   }
-
 }
 
 abstract class TableTestUtil {
@@ -75,14 +72,18 @@ abstract class TableTestUtil {
   }
 
   def addTable[T: TypeInformation](name: String, fields: Expression*): Table
+
   def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): TableFunction[T]
+
   def addFunction(name: String, function: ScalarFunction): Unit
 
   def verifySql(query: String, expected: String): Unit
+
   def verifyTable(resultTable: Table, expected: String): Unit
 
   // the print methods are for debugging purposes only
   def printTable(resultTable: Table): Unit
+
   def printSql(query: String): Unit
 }
 
@@ -112,9 +113,9 @@ object TableTestUtil {
     s"$term=[${value.mkString(", ")}]"
   }
 
-  def tuples(value:List[AnyRef]*): String={
-    val listValues = value.map( listValue => s"{ ${listValue.mkString(", ")} }")
-    term("tuples","[" + listValues.mkString(", ") + "]")
+  def tuples(value: List[AnyRef]*): String = {
+    val listValues = value.map(listValue => s"{ ${listValue.mkString(", ")} }")
+    term("tuples", "[" + listValues.mkString(", ") + "]")
   }
 
   def batchTableNode(idx: Int): String = {
@@ -128,9 +129,10 @@ object TableTestUtil {
 }
 
 case class BatchTableTestUtil() extends TableTestUtil {
-
+  val javaEnv = mock(classOf[JExecutionEnvironment])
+  val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
   val env = mock(classOf[ExecutionEnvironment])
-  val tEnv = TableEnvironment.getTableEnvironment(env)
+  val tableEnv = TableEnvironment.getTableEnvironment(env)
 
   def addTable[T: TypeInformation](
       name: String,
@@ -142,8 +144,18 @@ case class BatchTableTestUtil() extends TableTestUtil {
     val typeInfo: TypeInformation[T] = implicitly[TypeInformation[T]]
     when(jDs.getType).thenReturn(typeInfo)
 
-    val t = ds.toTable(tEnv, fields: _*)
-    tEnv.registerTable(name, t)
+    val t = ds.toTable(tableEnv, fields: _*)
+    tableEnv.registerTable(name, t)
+    t
+  }
+
+  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
+
+    val jDs = mock(classOf[JDataSet[T]])
+    when(jDs.getType).thenReturn(typeInfo)
+
+    val t = javaTableEnv.fromDataSet(jDs, fields)
+    javaTableEnv.registerTable(name, t)
     t
   }
 
@@ -151,27 +163,27 @@ case class BatchTableTestUtil() extends TableTestUtil {
       name: String,
       function: TableFunction[T])
     : TableFunction[T] = {
-    tEnv.registerFunction(name, function)
+    tableEnv.registerFunction(name, function)
     function
   }
 
   def addFunction(name: String, function: ScalarFunction): Unit = {
-    tEnv.registerFunction(name, function)
+    tableEnv.registerFunction(name, function)
   }
 
-  def addFunction[T:TypeInformation, ACC:TypeInformation](
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = {
-    tEnv.registerFunction(name, function)
+    tableEnv.registerFunction(name, function)
   }
 
   def verifySql(query: String, expected: String): Unit = {
-    verifyTable(tEnv.sql(query), expected)
+    verifyTable(tableEnv.sql(query), expected)
   }
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
+    val optimized = tableEnv.optimize(relNode)
     val actual = RelOptUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
@@ -180,22 +192,24 @@ case class BatchTableTestUtil() extends TableTestUtil {
 
   def printTable(resultTable: Table): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
+    val optimized = tableEnv.optimize(relNode)
     println(RelOptUtil.toString(optimized))
   }
 
   def printSql(query: String): Unit = {
-    printTable(tEnv.sql(query))
+    printTable(tableEnv.sql(query))
   }
+
 }
 
 case class StreamTableTestUtil() extends TableTestUtil {
 
   val javaEnv = mock(classOf[JStreamExecutionEnvironment])
   when(javaEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
+  val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
   val env = mock(classOf[StreamExecutionEnvironment])
   when(env.getWrappedStreamExecutionEnvironment).thenReturn(javaEnv)
-  val tEnv = TableEnvironment.getTableEnvironment(env)
+  val tableEnv = TableEnvironment.getTableEnvironment(env)
 
   def addTable[T: TypeInformation](
       name: String,
@@ -208,8 +222,18 @@ case class StreamTableTestUtil() extends TableTestUtil {
     val typeInfo: TypeInformation[T] = implicitly[TypeInformation[T]]
     when(jDs.getType).thenReturn(typeInfo)
 
-    val t = ds.toTable(tEnv, fields: _*)
-    tEnv.registerTable(name, t)
+    val t = ds.toTable(tableEnv, fields: _*)
+    tableEnv.registerTable(name, t)
+    t
+  }
+
+  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
+
+    val jDs = mock(classOf[JDataStream[T]])
+    when(jDs.getType).thenReturn(typeInfo)
+
+    val t = javaTableEnv.fromDataStream(jDs, fields)
+    javaTableEnv.registerTable(name, t)
     t
   }
 
@@ -217,27 +241,27 @@ case class StreamTableTestUtil() extends TableTestUtil {
       name: String,
       function: TableFunction[T])
     : TableFunction[T] = {
-    tEnv.registerFunction(name, function)
+    tableEnv.registerFunction(name, function)
     function
   }
 
   def addFunction(name: String, function: ScalarFunction): Unit = {
-    tEnv.registerFunction(name, function)
+    tableEnv.registerFunction(name, function)
   }
 
-  def addFunction[T:TypeInformation, ACC:TypeInformation](
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = {
-    tEnv.registerFunction(name, function)
+    tableEnv.registerFunction(name, function)
   }
 
   def verifySql(query: String, expected: String): Unit = {
-    verifyTable(tEnv.sql(query), expected)
+    verifyTable(tableEnv.sql(query), expected)
   }
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
     val actual = RelOptUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
@@ -247,11 +271,12 @@ case class StreamTableTestUtil() extends TableTestUtil {
   // the print methods are for debugging purposes only
   def printTable(resultTable: Table): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
     println(RelOptUtil.toString(optimized))
   }
 
   def printSql(query: String): Unit = {
-    printTable(tEnv.sql(query))
+    printTable(tableEnv.sql(query))
   }
+
 }

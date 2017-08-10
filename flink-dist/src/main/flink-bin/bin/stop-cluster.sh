@@ -22,8 +22,10 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
+FLIP6=$1
+
 # Stop TaskManager instance(s)
-TMSlaves stop
+TMSlaves stop $FLIP6
 
 # Stop JobManager instance(s)
 shopt -s nocasematch
@@ -32,10 +34,10 @@ if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
     readMasters
 
     for master in ${MASTERS[@]}; do
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" stop &"
+        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" stop \"${FLIP6}\" &"
     done
 
 else
-	  "$FLINK_BIN_DIR"/jobmanager.sh stop
+	  "$FLINK_BIN_DIR"/jobmanager.sh stop "${FLIP6}"
 fi
 shopt -u nocasematch

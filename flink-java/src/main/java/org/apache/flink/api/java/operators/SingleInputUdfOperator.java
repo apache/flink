@@ -18,12 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.lang.annotation.Annotation;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -39,6 +33,12 @@ import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 
+import java.lang.annotation.Annotation;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -46,16 +46,15 @@ import static java.util.Objects.requireNonNull;
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
  * have one input (such as {@link org.apache.flink.api.common.functions.RichMapFunction} or
  * {@link org.apache.flink.api.common.functions.RichReduceFunction}).
- * <p>
- * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
+ *
+ * <p>This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
  * @param <IN> The data type of the input data set.
  * @param <OUT> The data type of the returned data set.
  */
 @Public
 public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOperator<IN, OUT, O>>
-	extends SingleInputOperator<IN, OUT, O> implements UdfOperator<O>
-{
+	extends SingleInputOperator<IN, OUT, O> implements UdfOperator<O> {
 	private Configuration parameters;
 
 	private Map<String, DataSet<?>> broadcastVariables;
@@ -77,8 +76,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	protected SingleInputUdfOperator(DataSet<IN> input, TypeInformation<OUT> resultType) {
 		super(input, resultType);
 	}
-	
-	
+
 	protected abstract Function getFunction();
 
 	// --------------------------------------------------------------------------------------------
@@ -102,7 +100,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		if (name == null) {
 			throw new IllegalArgumentException("Broadcast variable name must not be null.");
 		}
-		
+
 		if (this.broadcastVariables == null) {
 			this.broadcastVariables = new HashMap<String, DataSet<?>>();
 		}
@@ -115,46 +113,34 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 
 	/**
-	 * <p>
 	 * Adds semantic information about forwarded fields of the user-defined function.
 	 * The forwarded fields information declares fields which are never modified by the function and
 	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
-	 * </p>
 	 *
-	 * <p>
-	 * Fields that are forwarded at the same position are specified by their position.
+	 * <p>Fields that are forwarded at the same position are specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
 	 * For example <code>withForwardedFields("f2")</code> declares that the third field of a Java input tuple is
 	 * copied to the third field of an output tuple.
-	 * </p>
 	 *
-	 * <p>
-	 * Fields which are unchanged copied to another position in the output are declared by specifying the
+	 * <p>Fields which are unchanged copied to another position in the output are declared by specifying the
 	 * source field reference in the input and the target field reference in the output.
 	 * {@code withForwardedFields("f0->f2")} denotes that the first field of the Java input tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in input and output type match.
-	 * </p>
 	 *
-	 * <p>
-	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFields("f2; f3->f0; f4")})
+	 * <p>Multiple forwarded fields can be annotated in one ({@code withForwardedFields("f2; f3->f0; f4")})
 	 * or separate Strings ({@code withForwardedFields("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
-	 * </p>
 	 *
-	 * <p>
-	 * It is not possible to override existing semantic information about forwarded fields which was
+	 * <p>It is not possible to override existing semantic information about forwarded fields which was
 	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields} class annotation.
-	 * </p>
 	 *
-	 * <p>
-	 * <b>NOTE: Adding semantic information for functions is optional!
+	 * <p><b>NOTE: Adding semantic information for functions is optional!
 	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
 	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
 	 * So be careful when adding semantic information.
 	 * </b>
-	 * </p>
 	 *
 	 * @param forwardedFields A list of field forward expressions.
 	 * @return This operator with annotated forwarded field information.
@@ -164,17 +150,17 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O withForwardedFields(String... forwardedFields) {
 
-		if(this.udfSemantics == null) {
+		if (this.udfSemantics == null) {
 			// extract semantic properties from function annotations
 			setSemanticProperties(extractSemanticAnnotations(getFunction().getClass()));
 		}
 
-		if(this.udfSemantics == null
+		if (this.udfSemantics == null
 				|| this.analyzedUdfSemantics) { // discard analyzed semantic properties
 			setSemanticProperties(new SingleInputSemanticProperties());
 			SemanticPropUtil.getSemanticPropsSingleFromString(this.udfSemantics, forwardedFields, null, null, this.getInputType(), this.getResultType());
 		} else {
-			if(udfWithForwardedFieldsAnnotation(getFunction().getClass())) {
+			if (udfWithForwardedFieldsAnnotation(getFunction().getClass())) {
 				// refuse semantic information as it would override the function annotation
 				throw new SemanticProperties.InvalidSemanticAnnotationException("Forwarded field information " +
 						"has already been added by a function annotation for this operator. " +
@@ -202,7 +188,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * <p>Classes can be used as type hints for non-generic types (classes without generic parameters),
 	 * but not for generic types like for example Tuples. For those generic types, please
 	 * use the {@link #returns(TypeHint)} method.
-	 * 
+	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
 	 *     DataSet<String[]> result =
@@ -215,7 +201,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O returns(Class<OUT> typeClass) {
 		requireNonNull(typeClass, "type class must not be null");
-		
+
 		try {
 			return returns(TypeInformation.of(typeClass));
 		}
@@ -225,7 +211,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 					"please use the 'returns(TypeHint)' method instead.", e);
 		}
 	}
-	
+
 	/**
 	 * Adds a type information hint about the return type of this operator. This method
 	 * can be used in cases where Flink cannot determine automatically what the produced
@@ -244,7 +230,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O returns(TypeHint<OUT> typeHint) {
 		requireNonNull(typeHint, "TypeHint must not be null");
-	
+
 		try {
 			return returns(TypeInformation.of(typeHint));
 		}
@@ -259,7 +245,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * can be used in cases where Flink cannot determine automatically what the produced
 	 * type of a function is. That can be the case if the function uses generic type variables
 	 * in the return type that cannot be inferred from the input type.
-	 * 
+	 *
 	 * <p>In most cases, the methods {@link #returns(Class)} and {@link #returns(TypeHint)}
 	 * are preferable.
 	 *
@@ -268,22 +254,22 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O returns(TypeInformation<OUT> typeInfo) {
 		requireNonNull(typeInfo, "TypeInformation must not be null");
-		
+
 		fillInType(typeInfo);
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
 	}
-	
+
 	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
+	 * Adds a type information hint about the return type of this operator.
+	 *
+	 *
+	 * <p>Type hints are important in cases where the Java compiler
 	 * throws away generic type information necessary for efficient execution.
-	 * 
-	 * <p>
-	 * This method takes a type information string that will be parsed. A type information string can contain the following
+	 *
+	 *
+	 * <p>This method takes a type information string that will be parsed. A type information string can contain the following
 	 * types:
 	 *
 	 * <ul>
@@ -303,13 +289,13 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
 	 * </ul>
 	 *
-	 * Example:
+	 * <p>Example:
 	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
 	 *
 	 * @param typeInfoString
 	 *            type information string to be parsed
 	 * @return This operator with a given return type hint.
-	 * 
+	 *
 	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
 	 */
 	@Deprecated
@@ -320,7 +306,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		}
 		return returns(TypeInfoParser.<OUT>parse(typeInfoString));
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Accessors
 	// --------------------------------------------------------------------------------------------

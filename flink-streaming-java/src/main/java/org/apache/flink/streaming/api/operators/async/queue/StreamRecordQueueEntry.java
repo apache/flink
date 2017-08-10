@@ -19,14 +19,12 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link StreamElementQueueEntry} implementation for {@link StreamRecord}. This class also acts
@@ -52,7 +50,7 @@ public class StreamRecordQueueEntry<OUT> extends StreamElementQueueEntry<Collect
 		hasTimestamp = streamRecord.hasTimestamp();
 		timestamp = streamRecord.getTimestamp();
 
-		resultFuture = new FlinkCompletableFuture<>();
+		resultFuture = new CompletableFuture<>();
 	}
 
 	@Override
@@ -71,7 +69,7 @@ public class StreamRecordQueueEntry<OUT> extends StreamElementQueueEntry<Collect
 	}
 
 	@Override
-	protected Future<Collection<OUT>> getFuture() {
+	protected CompletableFuture<Collection<OUT>> getFuture() {
 		return resultFuture;
 	}
 

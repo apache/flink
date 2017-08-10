@@ -22,8 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.net.InetAddress;
 import java.util.ArrayDeque;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -70,7 +70,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+	public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
 		final AllocatedSlot slot;
 
 		synchronized (slots) {
@@ -83,10 +83,10 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
 		if (slot != null) {
 			SimpleSlot result = new SimpleSlot(slot, this, 0);
-			return FlinkCompletableFuture.completed(result);
+			return CompletableFuture.completedFuture(result);
 		}
 		else {
-			return FlinkCompletableFuture.completedExceptionally(new NoResourceAvailableException());
+			return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 		}
 	}
 

@@ -19,18 +19,21 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-
+/**
+ * Tests for {@link FloatSummaryAggregator}.
+ */
 public class FloatSummaryAggregatorTest {
 
 	/**
 	 * Use some values from Anscombe's Quartet for testing.
 	 *
-	 * There was no particular reason to use these except they have known means and variance.
+	 * <p>There was no particular reason to use these except they have known means and variance.
 	 *
-	 * https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
 	 */
 	@Test
 	public void testAnscomesQuartetXValues() throws Exception {
@@ -55,9 +58,9 @@ public class FloatSummaryAggregatorTest {
 	/**
 	 * Use some values from Anscombe's Quartet for testing.
 	 *
-	 * There was no particular reason to use these except they have known means and variance.
+	 * <p>There was no particular reason to use these except they have known means and variance.
 	 *
-	 * https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
 	 */
 	@Test
 	public void testAnscomesQuartetYValues() throws Exception {
@@ -130,6 +133,7 @@ public class FloatSummaryAggregatorTest {
 		Assert.assertEquals(1001.0f, summarize(-1000.0f, 0.0f, 1.0f, 50.0f, 999.0f, 1001.0f).getMax().floatValue(), 0.0f);
 		Assert.assertEquals(11.0f, summarize(1.0f, 8.0f, 7.0f, 6.0f, 9.0f, 10.0f, 2.0f, 3.0f, 5.0f, 0.0f, 11.0f, -2.0f, 3.0f).getMax().floatValue(), 0.0f);
 		Assert.assertEquals(11.0f, summarize(1.0f, 8.0f, 7.0f, 6.0f, 9.0f, null, 10.0f, 2.0f, 3.0f, 5.0f, null, 0.0f, 11.0f, -2.0f, 3.0f).getMax().floatValue(), 0.0f);
+		Assert.assertEquals(-2.0f, summarize(-8.0f, -7.0f, -6.0f, -9.0f, null, -10.0f, null, -2.0f).getMax().floatValue(), 0.0f);
 		Assert.assertNull(summarize().getMax());
 	}
 
@@ -144,12 +148,12 @@ public class FloatSummaryAggregatorTest {
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating
 	 * and combining a bunch of different ways.
 	 */
 	protected NumericColumnSummary<Float> summarize(Float... values) {
 
-		return new AggregateCombineHarness<Float,NumericColumnSummary<Float>,FloatSummaryAggregator>() {
+		return new AggregateCombineHarness<Float, NumericColumnSummary<Float>, FloatSummaryAggregator>() {
 
 			@Override
 			protected void compareResults(NumericColumnSummary<Float> result1, NumericColumnSummary<Float> result2) {

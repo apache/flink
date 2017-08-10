@@ -85,34 +85,32 @@ to enable support for Scala projects and files:
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
-1. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
-1. Set the "Scan Scope" to "Only Java sources (but not tests)".
-1. In the "Configuration File" pane, add a new configuration using the plus icon:
+2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
+3. Set the "Scan Scope" to "Only Java sources (including tests)".
+4. Select _6.19_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
+   don't skip it!**
+5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Flink".
-    1. Select "Use a local Checkstyle file", and point it to
+    2. Select "Use a local Checkstyle file", and point it to
       `"tools/maven/checkstyle.xml"` within
       your repository.
-    1. Check the box for "Store relative to project location", and click
+    3. Check the box for "Store relative to project location", and click
       "Next".
-    1. Configure the "checkstyle.suppressions.file" property value to
+    4. Configure the "checkstyle.suppressions.file" property value to
       `"suppressions.xml"`, and click "Next", then "Finish".
-1. Select "Flink" as the only active configuration file, and click "Apply" and
+6. Select "Flink" as the only active configuration file, and click "Apply" and
    "OK".
-1. Checkstyle will now give warnings in the editor for any Checkstyle
+7. Checkstyle will now give warnings in the editor for any Checkstyle
    violations.
 
-You can also scan an entire module by opening the Checkstyle tools window and
+Once the plugin is installed you can directly import `"tools/maven/checkstyle.xml"` by going to Settings -> Editor -> Code Style -> Java -> Gear Icon next to Scheme dropbox. This will for example automatically adjust the imports layout.
+
+You can scan an entire module by opening the Checkstyle tools window and
 clicking the "Check Module" button. The scan should report no errors.
 
-<span class="label label-info">Note</span> Selecting "Check Project" may report some errors from the archetype
-modules as they are not configured for Checkstyle validation.
-
-<span class="label label-info">Note</span> Some modules use a more strict `checkstyle.xml` file called
-`strict-checkstyle.xml`. You should setup an additional configuration by following the above
-steps for this file as well and activate it on a per-module basis. To set a per-module checkstyle
-configuration go to File -> Project Structure. Then select the module for which you want to change
-the checkstyle configuration in the modules list and change the checkstyle configuration in the
-Checkstyle tab.
+<span class="label label-info">Note</span> Some modules are not fully covered by checkstyle,
+which include `flink-core`, `flink-optimizer`, and `flink-runtime`.
+Nevertheless please make sure that code you add/modify in these modules still conforms to the checkstyle rules.
 
 ## Eclipse
 

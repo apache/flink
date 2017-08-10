@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor.rpc;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
 
@@ -40,7 +40,7 @@ public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
 	}
 
 	@Override
-	public Future<ExecutionState> requestPartitionProducerState(
+	public CompletableFuture<ExecutionState> requestPartitionProducerState(
 			JobID jobId,
 			IntermediateDataSetID resultId,
 			ResultPartitionID partitionId) {

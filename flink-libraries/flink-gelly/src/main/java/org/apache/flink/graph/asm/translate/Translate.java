@@ -88,7 +88,7 @@ public class Translate {
 		TupleTypeInfo<Vertex<NEW, VV>> returnType = new TupleTypeInfo<>(vertexClass, newType, vertexValueType);
 
 		return vertices
-			.map(new TranslateVertexId<OLD, NEW, VV>(translator))
+			.map(new TranslateVertexId<>(translator))
 			.returns(returnType)
 				.setParallelism(parallelism)
 				.name("Translate vertex IDs");
@@ -172,7 +172,7 @@ public class Translate {
 		TupleTypeInfo<Edge<NEW, EV>> returnType = new TupleTypeInfo<>(edgeClass, newType, newType, edgeValueType);
 
 		return edges
-			.map(new TranslateEdgeId<OLD, NEW, EV>(translator))
+			.map(new TranslateEdgeId<>(translator))
 			.returns(returnType)
 				.setParallelism(parallelism)
 				.name("Translate edge IDs");
@@ -257,7 +257,7 @@ public class Translate {
 		TupleTypeInfo<Vertex<K, NEW>> returnType = new TupleTypeInfo<>(vertexClass, idType, newType);
 
 		return vertices
-			.map(new TranslateVertexValue<K, OLD, NEW>(translator))
+			.map(new TranslateVertexValue<>(translator))
 			.returns(returnType)
 				.setParallelism(parallelism)
 				.name("Translate vertex values");
@@ -341,7 +341,7 @@ public class Translate {
 		TupleTypeInfo<Edge<K, NEW>> returnType = new TupleTypeInfo<>(edgeClass, idType, idType, newType);
 
 		return edges
-			.map(new TranslateEdgeValue<K, OLD, NEW>(translator))
+			.map(new TranslateEdgeValue<>(translator))
 			.returns(returnType)
 				.setParallelism(parallelism)
 				.name("Translate edge values");

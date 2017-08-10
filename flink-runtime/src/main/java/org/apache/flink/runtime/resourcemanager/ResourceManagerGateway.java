@@ -24,7 +24,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The {@link ResourceManager}'s RPC gateway interface.
@@ -51,7 +51,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param timeout                 Timeout for the future to complete
 	 * @return Future registration response
 	 */
-	Future<RegistrationResponse> registerJobManager(
+	CompletableFuture<RegistrationResponse> registerJobManager(
 		UUID resourceManagerLeaderId,
 		UUID jobMasterLeaderId,
 		ResourceID jobMasterResourceId,
@@ -67,7 +67,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param slotRequest The slot to request
 	 * @return The confirmation that the slot gets allocated
 	 */
-	Future<Acknowledge> requestSlot(
+	CompletableFuture<Acknowledge> requestSlot(
 		UUID resourceManagerLeaderID,
 		UUID jobMasterLeaderID,
 		SlotRequest slotRequest,
@@ -84,7 +84,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
-	Future<RegistrationResponse> registerTaskExecutor(
+	CompletableFuture<RegistrationResponse> registerTaskExecutor(
 		UUID resourceManagerLeaderId,
 		String taskExecutorAddress,
 		ResourceID resourceID,
@@ -133,7 +133,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param leaderSessionId The leader session ID with which to address the ResourceManager.
 	 * @return The future to the number of registered TaskManagers.
 	 */
-	Future<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
+	CompletableFuture<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
 
 	/**
 	 * Sends the heartbeat to resource manager from task manager

@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -31,28 +31,28 @@ import org.apache.flink.configuration.Configuration;
 /**
  * An {@link ExecutionEnvironment} that runs the program locally, multi-threaded, in the JVM where the
  * environment is instantiated.
- * 
+ *
  * <p>When this environment is instantiated, it uses a default parallelism of {@code 1}. The default
  * parallelism can be set via {@link #setParallelism(int)}.
- * 
+ *
  * <p>Local environments can also be instantiated through {@link ExecutionEnvironment#createLocalEnvironment()}
  * and {@link ExecutionEnvironment#createLocalEnvironment(int)}. The former version will pick a
  * default parallelism equal to the number of hardware contexts in the local machine.
  */
 @Public
 public class LocalEnvironment extends ExecutionEnvironment {
-	
-	/** The user-defined configuration for the local execution */
+
+	/** The user-defined configuration for the local execution. */
 	private final Configuration configuration;
 
-	/** Create lazily upon first use */
+	/** Create lazily upon first use. */
 	private PlanExecutor executor;
 
 	/** In case we keep the executor alive for sessions, this reaper shuts it down eventually.
 	 * The reaper's finalize method triggers the executor shutdown. */
 	@SuppressWarnings("all")
 	private ExecutorReaper executorReaper;
-	
+
 	/**
 	 * Creates a new local environment.
 	 */
@@ -62,7 +62,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 	/**
 	 * Creates a new local environment that configures its local executor with the given configuration.
-	 * 
+	 *
 	 * @param config The configuration used to configure the local executor.
 	 */
 	public LocalEnvironment(Configuration config) {
@@ -73,9 +73,9 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		}
 		this.configuration = config == null ? new Configuration() : config;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		if (executor == null) {
@@ -93,11 +93,11 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		this.lastJobExecutionResult = result;
 		return result;
 	}
-	
+
 	@Override
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan(null, false);
-		
+
 		// make sure that we do not start an executor in any case here.
 		// if one runs, fine, of not, we only create the class but disregard immediately afterwards
 		if (executor != null) {
@@ -118,15 +118,15 @@ public class LocalEnvironment extends ExecutionEnvironment {
 			// create also a new JobID
 			jobID = JobID.generate();
 		}
-		
+
 		// create a new local executor
 		executor = PlanExecutor.createLocalExecutor(configuration);
 		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
-		
+
 		// if we have a session, start the mini cluster eagerly to have it available across sessions
 		if (getSessionTimeout() > 0) {
 			executor.start();
-			
+
 			// also install the reaper that will shut it down eventually
 			executorReaper = new ExecutorReaper(executor);
 		}
@@ -135,7 +135,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "Local Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
@@ -150,7 +150,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	 * This thread shuts down the local executor.
 	 *
 	 * <p><b>IMPORTANT:</b> This must be a static inner class to hold no reference to the outer class.
-	 * Otherwise, the outer class could never become garbage collectible while this thread runs.</p>
+	 * Otherwise, the outer class could never become garbage collectible while this thread runs.
 	 */
 	private static class ShutdownThread extends Thread {
 

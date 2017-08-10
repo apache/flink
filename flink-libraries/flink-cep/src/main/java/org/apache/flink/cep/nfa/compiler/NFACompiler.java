@@ -693,10 +693,12 @@ public class NFACompiler {
 
 			final IterativeCondition<T> ignoreCondition = extendWithUntilCondition(
 				getInnerIgnoreCondition(currentPattern),
-				untilCondition);
+				untilCondition,
+				false);
 			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
 				getTakeCondition(currentPattern),
-				untilCondition);
+				untilCondition,
+				true);
 
 			final IterativeCondition<T> proceedCondition = getTrueFunction();
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
@@ -727,7 +729,8 @@ public class NFACompiler {
 		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
 			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
 				getTakeCondition(currentPattern),
-				(IterativeCondition<T>) currentPattern.getUntilCondition()
+				(IterativeCondition<T>) currentPattern.getUntilCondition(),
+				true
 			);
 
 			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
@@ -746,7 +749,8 @@ public class NFACompiler {
 		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
 			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
 				getTakeCondition(currentPattern),
-				(IterativeCondition<T>) currentPattern.getUntilCondition()
+				(IterativeCondition<T>) currentPattern.getUntilCondition(),
+				true
 			);
 
 			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
@@ -760,14 +764,16 @@ public class NFACompiler {
 		 *
 		 * @param condition the condition to extend
 		 * @param untilCondition the until condition to join with the given condition
+		 * @param isTakeCondition whether the {@code condition} is for {@code TAKE} edge
 		 * @return condition with AND applied or the original condition
 		 */
 		private IterativeCondition<T> extendWithUntilCondition(
 				IterativeCondition<T> condition,
-				IterativeCondition<T> untilCondition) {
+				IterativeCondition<T> untilCondition,
+				boolean isTakeCondition) {
 			if (untilCondition != null && condition != null) {
 				return new AndCondition<>(new NotCondition<>(untilCondition), condition);
-			} else if (untilCondition != null) {
+			} else if (untilCondition != null && isTakeCondition) {
 				return new NotCondition<>(untilCondition);
 			}
 
@@ -804,7 +810,8 @@ public class NFACompiler {
 			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
 				innerIgnoreCondition = extendWithUntilCondition(
 					innerIgnoreCondition,
-					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition(),
+					false);
 			}
 			return innerIgnoreCondition;
 		}
@@ -844,7 +851,8 @@ public class NFACompiler {
 			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
 				ignoreCondition = extendWithUntilCondition(
 					ignoreCondition,
-					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition(),
+					false);
 			}
 			return ignoreCondition;
 		}
@@ -860,7 +868,8 @@ public class NFACompiler {
 			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
 				takeCondition = extendWithUntilCondition(
 					takeCondition,
-					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition(),
+					true);
 			}
 			return takeCondition;
 		}
@@ -874,7 +883,8 @@ public class NFACompiler {
 			if (currentGroupPattern != null && currentGroupPattern.getUntilCondition() != null) {
 				trueCondition = extendWithUntilCondition(
 					trueCondition,
-					(IterativeCondition<T>) currentGroupPattern.getUntilCondition());
+					(IterativeCondition<T>) currentGroupPattern.getUntilCondition(),
+					true);
 			}
 			return trueCondition;
 		}

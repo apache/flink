@@ -260,16 +260,7 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 
-		try (
-				DBOptions optCreated = rocksDbBackend.getDbOptions();
-				DBOptions optReference = new DBOptions();
-				ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
-
-			// check that our instance uses something that we configured
-			assertEquals(true, optCreated.disableDataSync());
-			// just ensure that we pickend an option that actually differs from the reference.
-			assertEquals(false, optReference.disableDataSync());
-
+		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
 			assertEquals(CompactionStyle.LEVEL, colCreated.compactionStyle());
 		}
 	}

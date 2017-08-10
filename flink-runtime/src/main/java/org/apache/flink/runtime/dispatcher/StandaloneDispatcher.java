@@ -38,7 +38,7 @@ import org.apache.flink.runtime.rpc.RpcService;
  * can be used as the default for all different session clusters.
  */
 public class StandaloneDispatcher extends Dispatcher {
-	protected StandaloneDispatcher(
+	public StandaloneDispatcher(
 			RpcService rpcService,
 			String endpointId,
 			Configuration configuration,

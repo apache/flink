@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +34,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,6 +54,9 @@ public class BlobServerDeleteTest extends TestLogger {
 
 	private final Random rnd = new Random();
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
 	public void testDeleteSingleByBlobKey() {
 		BlobServer server = null;
@@ -59,7 +64,9 @@ public class BlobServerDeleteTest extends TestLogger {
 		BlobStore blobStore = new VoidBlobStore();
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -125,7 +132,9 @@ public class BlobServerDeleteTest extends TestLogger {
 		BlobStore blobStore = new VoidBlobStore();
 
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -172,7 +181,9 @@ public class BlobServerDeleteTest extends TestLogger {
 		File blobFile = null;
 		File directory = null;
 		try {
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -223,17 +234,19 @@ public class BlobServerDeleteTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentDeleteOperations() throws IOException, ExecutionException, InterruptedException {
-		final Configuration configuration = new Configuration();
+		final Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
 		final BlobStore blobStore = mock(BlobStore.class);
 
 		final int concurrentDeleteOperations = 3;
 		final ExecutorService executor = Executors.newFixedThreadPool(concurrentDeleteOperations);
 
-		final List<Future<Void>> deleteFutures = new ArrayList<>(concurrentDeleteOperations);
+		final List<CompletableFuture<Void>> deleteFutures = new ArrayList<>(concurrentDeleteOperations);
 
 		final byte[] data = {1, 2, 3};
 
-		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+		try (final BlobServer blobServer = new BlobServer(config, blobStore)) {
 
 			final BlobKey blobKey;
 
@@ -244,21 +257,22 @@ public class BlobServerDeleteTest extends TestLogger {
 			assertTrue(blobServer.getStorageLocation(blobKey).exists());
 
 			for (int i = 0; i < concurrentDeleteOperations; i++) {
-				Future<Void> deleteFuture = FlinkCompletableFuture.supplyAsync(new Callable<Void>() {
-					@Override
-					public Void call() throws Exception {
+				CompletableFuture<Void> deleteFuture = CompletableFuture.supplyAsync(
+					() -> {
 						try (BlobClient blobClient = blobServer.createClient()) {
 							blobClient.delete(blobKey);
+						} catch (IOException e) {
+							throw new FlinkFutureException("Could not delete the given blob key " + blobKey + '.', e);
 						}
 
 						return null;
-					}
-				}, executor);
+					},
+					executor);
 
 				deleteFutures.add(deleteFuture);
 			}
 
-			Future<Void> waitFuture = FutureUtils.waitForAll(deleteFutures);
+			CompletableFuture<Void> waitFuture = FutureUtils.waitForAll(deleteFutures);
 
 			// make sure all delete operation have completed successfully
 			// in case of no lock, one of the delete operations should eventually fail

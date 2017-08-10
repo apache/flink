@@ -3,7 +3,7 @@ title: "Event Time"
 nav-id: event_time
 nav-show_overview: true
 nav-parent_id: streaming
-nav-pos: 20
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -205,7 +205,7 @@ causes too much delay in the evaluation of the event time windows.
 
 For this reason, streaming programs may explicitly expect some *late* elements. Late elements are elements that
 arrive after the system's event time clock (as signaled by the watermarks) has already passed the time of the late element's
-timestamp. See [Allowed Lateness]({{ site.baseurl }}/dev/windows.html#allowed-lateness) for more information on how to work
+timestamp. See [Allowed Lateness]({{ site.baseurl }}/dev/stream/operators/windows.html#allowed-lateness) for more information on how to work
 with late elements in event time windows.
 
 

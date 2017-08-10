@@ -22,8 +22,9 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.TrimMode.TrimMode
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.validate._
 
 /**
@@ -275,5 +276,49 @@ case class Overlay(
       replacement.toRexNode,
       starting.toRexNode,
       position.toRexNode)
+  }
+}
+
+/**
+  * Returns the string that results from concatenating the arguments.
+  * Returns NULL if any argument is NULL.
+  */
+case class Concat(strings: Seq[Expression]) extends Expression with InputTypeSpec {
+
+  override private[flink] def children: Seq[Expression] = strings
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    children.map(_ => STRING_TYPE_INFO)
+
+  override def toString: String = s"concat($strings)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.CONCAT, children.map(_.toRexNode))
+  }
+}
+
+/**
+  * Returns the string that results from concatenating the arguments and separator.
+  * Returns NULL If the separator is NULL.
+  *
+  * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
+  * values after the separator argument.
+  **/
+case class ConcatWs(separator: Expression, strings: Seq[Expression])
+  extends Expression with InputTypeSpec {
+
+  override private[flink] def children: Seq[Expression] = Seq(separator) ++ strings
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    children.map(_ => STRING_TYPE_INFO)
+
+  override def toString: String = s"concat_ws($separator, $strings)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.CONCAT_WS, children.map(_.toRexNode))
   }
 }

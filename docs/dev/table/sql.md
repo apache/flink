@@ -245,8 +245,8 @@ SELECT PRETTY_PRINT(user) FROM Orders
         <p><b>Note:</b> GroupBy on a streaming table produces an updating result. See the <a href="streaming.html">Streaming Concepts</a> page for details.
         </p>
 {% highlight sql %}
-SELECT a, SUM(b) as d 
-FROM Orders 
+SELECT a, SUM(b) as d
+FROM Orders
 GROUP BY a
 {% endhighlight %}
       </td>
@@ -259,8 +259,8 @@ GROUP BY a
     	<td>
         <p>Use a group window to compute a single result row per group. See <a href="#group-windows">Group Windows</a> section for more details.</p>
 {% highlight sql %}
-SELECT user, SUM(amount) 
-FROM Orders 
+SELECT user, SUM(amount)
+FROM Orders
 GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user
 {% endhighlight %}
       </td>
@@ -274,9 +274,9 @@ GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user
         <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming.html#time-attributes">time attribute</a></p>
 {% highlight sql %}
 SELECT COUNT(amount) OVER (
-  PARTITION BY user 
-  ORDER BY proctime 
-  ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+  PARTITION BY user
+  ORDER BY proctime
+  ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
 FROM Orders
 {% endhighlight %}
       </td>
@@ -301,8 +301,8 @@ SELECT DISTINCT users FROM Orders
       </td>
       <td>
 {% highlight sql %}
-SELECT SUM(amount) 
-FROM Orders 
+SELECT SUM(amount)
+FROM Orders
 GROUP BY GROUPING SETS ((user), (product))
 {% endhighlight %}
       </td>
@@ -314,9 +314,9 @@ GROUP BY GROUPING SETS ((user), (product))
       </td>
       <td>
 {% highlight sql %}
-SELECT SUM(amount) 
-FROM Orders 
-GROUP BY users 
+SELECT SUM(amount)
+FROM Orders
+GROUP BY users
 HAVING SUM(amount) > 50
 {% endhighlight %}
       </td>
@@ -329,8 +329,8 @@ HAVING SUM(amount) > 50
       <td>
         <p>UDAGGs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDAGGs.</p>
 {% highlight sql %}
-SELECT MyAggregate(amount) 
-FROM Orders 
+SELECT MyAggregate(amount)
+FROM Orders
 GROUP BY users
 {% endhighlight %}
       </td>
@@ -360,12 +360,41 @@ GROUP BY users
         <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.</p>
         <p><b>Note:</b> The order of joins is not optimized. Tables are joined in the order in which they are specified in the FROM clause. Make sure to specify tables in an order that does not yield a cross join (Cartesian product) which are not supported and would cause a query to fail.</p>
 {% highlight sql %}
-SELECT * 
+SELECT *
 FROM Orders INNER JOIN Product ON Orders.productId = Product.id
 
-SELECT * 
+SELECT *
 FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Time-windowed Join</strong><br>
+        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+
+        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by either two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) or a <code>BETWEEN</code> predicate that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+          <ul>
+            <li>Time predicates must compare time attributes of both input tables.</li>
+            <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
+            <li>Only range predicates are valid time predicates.</li>
+            <li>Non-time predicates must not access a time attribute.</li>
+          </ul>
+        </p>
+
+        <p><b>Note:</b> Currently, only processing time window joins and <code>INNER</code> joins are supported.</p>
+
+{% highlight sql %}
+SELECT *
+FROM Orders o, Shipments s
+WHERE o.id = s.orderId AND
+      o.ordertime BETWEEN s.shiptime - INTERVAL '4' HOUR AND s.shiptime
+{% endhighlight %}
+
+The example above will join all orders with their corresponding shipments if the order was shipped four hours after the order was received.
       </td>
     </tr>
     <tr>
@@ -376,7 +405,7 @@ FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
     	<td>
         <p>Unnesting WITH ORDINALITY is not supported yet.</p>
 {% highlight sql %}
-SELECT users, tag 
+SELECT users, tag
 FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
 {% endhighlight %}
       </td>
@@ -389,7 +418,7 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
     	<td>
       <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
 {% highlight sql %}
-SELECT users, tag 
+SELECT users, tag
 FROM Orders LATERAL VIEW UNNEST_UDTF(tags) t AS tag
 {% endhighlight %}
       </td>
@@ -418,7 +447,7 @@ FROM Orders LATERAL VIEW UNNEST_UDTF(tags) t AS tag
       </td>
       <td>
 {% highlight sql %}
-SELECT * 
+SELECT *
 FROM (
     (SELECT user FROM Orders WHERE a % 2 = 0)
   UNION
@@ -434,7 +463,7 @@ FROM (
       </td>
       <td>
 {% highlight sql %}
-SELECT * 
+SELECT *
 FROM (
     (SELECT user FROM Orders WHERE a % 2 = 0)
   UNION ALL
@@ -451,7 +480,7 @@ FROM (
       </td>
       <td>
 {% highlight sql %}
-SELECT * 
+SELECT *
 FROM (
     (SELECT user FROM Orders WHERE a % 2 = 0)
   INTERSECT
@@ -459,11 +488,28 @@ FROM (
 )
 {% endhighlight %}
 {% highlight sql %}
-SELECT * 
+SELECT *
 FROM (
     (SELECT user FROM Orders WHERE a % 2 = 0)
   EXCEPT
     (SELECT user FROM Orders WHERE b = 0)
+)
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>In</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+      Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.
+{% highlight sql %}
+SELECT user, amount
+FROM Orders
+WHERE product IN (
+    SELECT product FROM NewProducts
 )
 {% endhighlight %}
       </td>
@@ -491,11 +537,11 @@ FROM (
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming.html#time-attributes">time attribute</a>. Additional sorting attributes are supported. 
+<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming.html#time-attributes">time attribute</a>. Additional sorting attributes are supported.
 
 {% highlight sql %}
-SELECT * 
-FROM Orders 
+SELECT *
+FROM Orders
 ORDER BY orderTime
 {% endhighlight %}
       </td>
@@ -507,8 +553,8 @@ ORDER BY orderTime
       </td>
       <td>
 {% highlight sql %}
-SELECT * 
-FROM Orders 
+SELECT *
+FROM Orders
 LIMIT 3
 {% endhighlight %}
       </td>
@@ -551,7 +597,7 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
 
 #### Time Attributes
 
-For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes](streaming.html#time-attributes) to learn how to define time attributes. 
+For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes](streaming.html#time-attributes) to learn how to define time attributes.
 
 For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
 
@@ -919,7 +965,7 @@ value IN (value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a value in a list.</p>
+        <p> Returns TRUE if an expression exists in a given list of expressions. This is a shorthand for multiple OR conditions. If the testing set contains NULL, the result will be NULL if the element can not be found and TRUE if it can be found. If the element is NULL, the result is always NULL. E.g. "42 IN (1, 2, 3)" leads to FALSE.</p>
       </td>
     </tr>
 
@@ -945,7 +991,6 @@ EXISTS (sub-query)
       </td>
     </tr>
 
-<!-- NOT SUPPORTED SO FAR
     <tr>
       <td>
         {% highlight text %}
@@ -953,7 +998,7 @@ value IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
       </td>
     </tr>
 
@@ -964,10 +1009,9 @@ value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
       </td>
     </tr>
-    -->
 
   </tbody>
 </table>
@@ -1444,6 +1488,17 @@ RAND_INTEGER(seed integer, bound integer)
     </td>
    </tr>
 
+    <tr>
+     <td>
+       {% highlight text %}
+LOG(x numeric), LOG(base numeric, x numeric)
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns the natural logarithm of a specified number of a specified base. If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
+    </td>
+   </tr>
+
   </tbody>
 </table>
 
@@ -1908,6 +1963,30 @@ QUARTER(date)
         <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)</code> leads to true; <code>(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)</code> leads to false.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DATE_FORMAT(timestamp, format)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Formats <code>timestamp</code> as a string using a specified <code>format</code> string. The format must be compatible with MySQL's date formatting syntax as used by the <code>date_parse</code> function. The format specification is given in the <a href="#date-format-specifier">Date Format Specifier table</a> below.</p>
+        <p>For example <code>DATE_FORMAT(ts, '%Y, %d %M')</code> results in strings formatted as <code>"2017, 05 May"</code>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TIMESTAMPADD(unit, interval, timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Adds a (signed) integer interval to a timestamp. The unit for the interval is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>. E.g. <code>TIMESTAMPADD(WEEK, 1, '2003-01-02')</code> leads to <code>2003-01-09</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -2163,4 +2242,121 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
 
 {% endhighlight %}
 
+#### Date Format Specifier
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Specifier</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  <tr><td>{% highlight text %}%a{% endhighlight %}</td>
+  <td>Abbreviated weekday name (<code>Sun</code> .. <code>Sat</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%b{% endhighlight %}</td>
+  <td>Abbreviated month name (<code>Jan</code> .. <code>Dec</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%c{% endhighlight %}</td>
+  <td>Month, numeric (<code>1</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%D{% endhighlight %}</td>
+  <td>Day of the month with English suffix (<code>0th</code>, <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ...)</td>
+  </tr>
+  <tr><td>{% highlight text %}%d{% endhighlight %}</td>
+  <td>Day of the month, numeric (<code>01</code> .. <code>31</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%e{% endhighlight %}</td>
+  <td>Day of the month, numeric (<code>1</code> .. <code>31</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%f{% endhighlight %}</td>
+  <td>Fraction of second (6 digits for printing: <code>000000</code> .. <code>999000</code>; 1 - 9 digits for parsing: <code>0</code> .. <code>999999999</code>) (Timestamp is truncated to milliseconds.) </td>
+  </tr>
+  <tr><td>{% highlight text %}%H{% endhighlight %}</td>
+  <td>Hour (<code>00</code> .. <code>23</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%h{% endhighlight %}</td>
+  <td>Hour (<code>01</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%I{% endhighlight %}</td>
+  <td>Hour (<code>01</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%i{% endhighlight %}</td>
+  <td>Minutes, numeric (<code>00</code> .. <code>59</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%j{% endhighlight %}</td>
+  <td>Day of year (<code>001</code> .. <code>366</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%k{% endhighlight %}</td>
+  <td>Hour (<code>0</code> .. <code>23</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%l{% endhighlight %}</td>
+  <td>Hour (<code>1</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%M{% endhighlight %}</td>
+  <td>Month name (<code>January</code> .. <code>December</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%m{% endhighlight %}</td>
+  <td>Month, numeric (<code>01</code> .. <code>12</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%p{% endhighlight %}</td>
+  <td><code>AM</code> or <code>PM</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%r{% endhighlight %}</td>
+  <td>Time, 12-hour (<code>hh:mm:ss</code> followed by <code>AM</code> or <code>PM</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%S{% endhighlight %}</td>
+  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%s{% endhighlight %}</td>
+  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%T{% endhighlight %}</td>
+  <td>Time, 24-hour (<code>hh:mm:ss</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%U{% endhighlight %}</td>
+  <td>Week (<code>00</code> .. <code>53</code>), where Sunday is the first day of the week</td>
+  </tr>
+  <tr><td>{% highlight text %}%u{% endhighlight %}</td>
+  <td>Week (<code>00</code> .. <code>53</code>), where Monday is the first day of the week</td>
+  </tr>
+  <tr><td>{% highlight text %}%V{% endhighlight %}</td>
+  <td>Week (<code>01</code> .. <code>53</code>), where Sunday is the first day of the week; used with <code>%X</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%v{% endhighlight %}</td>
+  <td>Week (<code>01</code> .. <code>53</code>), where Monday is the first day of the week; used with <code>%x</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
+  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
+  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
+  </tr>
+  <tr><td>{% highlight text %}%w{% endhighlight %}</td>
+  <td>Day of the week (<code>0</code> .. <code>6</code>), where Sunday is the first day of the week</td>
+  </tr>
+  <tr><td>{% highlight text %}%X{% endhighlight %}</td>
+  <td>Year for the week where Sunday is the first day of the week, numeric, four digits; used with <code>%V</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
+  <td>Year for the week, where Monday is the first day of the week, numeric, four digits; used with <code>%v</code></td>
+  </tr>
+  <tr><td>{% highlight text %}%Y{% endhighlight %}</td>
+  <td>Year, numeric, four digits</td>
+  </tr>
+  <tr><td>{% highlight text %}%y{% endhighlight %}</td>
+  <td>Year, numeric (two digits) </td>
+  </tr>
+  <tr><td>{% highlight text %}%%{% endhighlight %}</td>
+  <td>A literal <code>%</code> character</td>
+  </tr>
+  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
+  <td><code>x</code>, for any <code>x</code> not listed above</td>
+  </tr>
+  </tbody>
+</table>
+
 {% top %}
+
+

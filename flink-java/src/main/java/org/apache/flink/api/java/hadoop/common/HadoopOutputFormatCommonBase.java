@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.hadoop.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.RichOutputFormat;
+
 import org.apache.hadoop.security.Credentials;
 
 import java.io.IOException;
@@ -28,7 +30,7 @@ import java.io.ObjectOutputStream;
 /**
  * A common base for both "mapred" and "mapreduce" Hadoop output formats.
  *
- * The base is taking care of handling (serializing) security credentials.
+ * <p>The base is taking care of handling (serializing) security credentials.
  */
 @Internal
 public abstract class HadoopOutputFormatCommonBase<T> extends RichOutputFormat<T> {

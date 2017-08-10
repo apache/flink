@@ -46,6 +46,10 @@ case $SERVICE in
         CLASS_TO_RUN=org.apache.flink.runtime.zookeeper.FlinkZooKeeperQuorumPeer
     ;;
 
+    (standalonesession)
+        CLASS_TO_RUN=org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint
+    ;;
+
     (*)
         echo "Unknown service '${SERVICE}'. $USAGE."
         exit 1

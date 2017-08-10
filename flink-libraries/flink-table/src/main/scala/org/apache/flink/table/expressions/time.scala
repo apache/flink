@@ -28,9 +28,10 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.table.functions.sql.DateTimeSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
-import org.apache.flink.table.validate.{ValidationResult, ValidationFailure, ValidationSuccess}
+import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 import scala.collection.JavaConversions._
 
@@ -101,7 +102,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 
     // TODO convert this into Table API expressions to make the code more readable
     val rexBuilder = relBuilder.getRexBuilder
-    val resultType = relBuilder.getTypeFactory().createTypeFromTypeInfo(LONG_TYPE_INFO)
+    val resultType = relBuilder
+      .getTypeFactory()
+      .createTypeFromTypeInfo(LONG_TYPE_INFO, isNullable = true)
     var result = rexBuilder.makeReinterpretCast(
       resultType,
       temporal,
@@ -353,25 +356,45 @@ case class TemporalOverlaps(
       rightT: RexNode,
       relBuilder: FlinkRelBuilder)
     : RexNode = {
-    // leftT = leftP + leftT if leftT is an interval
-    val convLeftT = if (isTimeInterval(leftTemporal.resultType)) {
-        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, leftP, leftT)
-      } else {
-        leftT
-      }
-    // rightT = rightP + rightT if rightT is an interval
-    val convRightT = if (isTimeInterval(rightTemporal.resultType)) {
-        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, rightP, rightT)
-      } else {
-        rightT
-      }
-    // leftT >= rightP
-    val leftPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convLeftT, rightP)
-    // rightT >= leftP
-    val rightPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convRightT, leftP)
+    val convLeftT = convertOverlapsEnd(relBuilder, leftP, leftT, leftTemporal.resultType)
+    val convRightT = convertOverlapsEnd(relBuilder, rightP, rightT, rightTemporal.resultType)
 
-    // leftT >= rightP and rightT >= leftP
+    // sort end points into start and end, such that (s0 <= e0) and (s1 <= e1).
+    val (s0, e0) = buildSwap(relBuilder, leftP, convLeftT)
+    val (s1, e1) = buildSwap(relBuilder, rightP, convRightT)
+
+    // (e0 >= s1) AND (e1 >= s0)
+    val leftPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, e0, s1)
+    val rightPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, e1, s0)
     relBuilder.call(SqlStdOperatorTable.AND, leftPred, rightPred)
+  }
+
+  private def convertOverlapsEnd(
+      relBuilder: FlinkRelBuilder,
+      start: RexNode, end: RexNode,
+      endType: TypeInformation[_]) = {
+    if (isTimeInterval(endType)) {
+      relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, start, end)
+    } else {
+      end
+    }
+  }
+
+  private def buildSwap(relBuilder: FlinkRelBuilder, start: RexNode, end: RexNode) = {
+    val le = relBuilder.call(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, start, end)
+    val l = relBuilder.call(SqlStdOperatorTable.CASE, le, start, end)
+    val r = relBuilder.call(SqlStdOperatorTable.CASE, le, end, start)
+    (l, r)
   }
 }
 
+case class DateFormat(timestamp: Expression, format: Expression) extends Expression {
+  override private[flink] def children = timestamp :: format :: Nil
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) =
+    relBuilder.call(DateTimeSqlFunction.DATE_FORMAT, timestamp.toRexNode, format.toRexNode)
+
+  override def toString: String = s"$timestamp.dateFormat($format)"
+
+  override private[flink] def resultType = STRING_TYPE_INFO
+}

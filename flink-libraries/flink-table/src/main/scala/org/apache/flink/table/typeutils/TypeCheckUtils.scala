@@ -20,6 +20,7 @@ package org.apache.flink.table.typeutils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.{INTERVAL_MILLIS, INTERVAL_MONTHS}
 import org.apache.flink.table.validate._
 
 object TypeCheckUtils {
@@ -66,6 +67,10 @@ object TypeCheckUtils {
   def isInteger(dataType: TypeInformation[_]): Boolean = dataType == INT_TYPE_INFO
 
   def isLong(dataType: TypeInformation[_]): Boolean = dataType == LONG_TYPE_INFO
+
+  def isIntervalMonths(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MONTHS
+
+  def isIntervalMillis(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MILLIS
 
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: ObjectArrayTypeInfo[_, _] |

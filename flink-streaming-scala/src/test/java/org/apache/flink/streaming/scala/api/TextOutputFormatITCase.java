@@ -23,14 +23,19 @@ import org.apache.flink.streaming.api.scala.OutputFormatTestPrograms;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.AbstractTestBase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * IT cases for the {@link org.apache.flink.api.java.io.TextOutputFormat}.
+ */
 public class TextOutputFormatITCase extends StreamingMultipleProgramsTestBase {
 
 	protected String resultPath;
@@ -53,12 +58,10 @@ public class TextOutputFormatITCase extends StreamingMultipleProgramsTestBase {
 		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
 	}
 
-
 	@Test
 	public void testPathWriteMode() throws Exception {
 		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 	}
-
 
 	@Test
 	public void failPathWriteMode() throws Exception {

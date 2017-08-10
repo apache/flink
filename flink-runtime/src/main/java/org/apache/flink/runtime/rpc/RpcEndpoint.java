@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ReflectionUtil;
 import org.slf4j.Logger;
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -126,7 +126,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Start & Shutdown
+	//  Start & shutdown & lifecycle callbacks
 	// ------------------------------------------------------------------------
 
 	/**
@@ -143,17 +143,24 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	}
 
 	/**
-	 * Shuts down the underlying RPC endpoint via the RPC service.
-	 * After this method was called, the RPC endpoint will no longer be reachable, neither remotely,
-	 * not via its {@link #getSelf() self gateway}. It will also not accepts executions in main thread
-	 * any more (via {@link #callAsync(Callable, Time)} and {@link #runAsync(Runnable)}).
-	 * 
-	 * <p>This method can be overridden to add RPC endpoint specific shut down code.
-	 * The overridden method should always call the parent shut down method.
+	 * User overridable callback.
 	 *
-	 * @throws Exception indicating that the something went wrong while shutting the RPC endpoint down
+	 * <p>This method is called when the RpcEndpoint is being shut down. The method is guaranteed
+	 * to be executed in the main thread context and can be used to clean up internal state.
+	 *
+	 * IMPORTANT: This method should never be called directly by the user.
+	 *
+	 * @throws Exception if an error occurs. The exception is returned as result of the termination future.
 	 */
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {}
+
+	/**
+	 * Triggers the shut down of the rpc endpoint. The shut down is executed asynchronously.
+	 *
+	 * <p>In order to wait on the completion of the shut down, obtain the termination future
+	 * via {@link #getTerminationFuture()}} and wait on its completion.
+	 */
+	public final void shutDown() {
 		rpcService.stopServer(self);
 	}
 
@@ -207,7 +214,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 *
 	 * @return Future which is completed when the rpc endpoint has been terminated.
 	 */
-	public Future<Void> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return ((SelfGateway)self).getTerminationFuture();
 	}
 
@@ -257,7 +264,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param <V> Return type of the callable
 	 * @return Future for the result of the callable.
 	 */
-	protected <V> Future<V> callAsync(Callable<V> callable, Time timeout) {
+	protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Time timeout) {
 		return ((MainThreadExecutable) self).callAsync(callable, timeout);
 	}
 

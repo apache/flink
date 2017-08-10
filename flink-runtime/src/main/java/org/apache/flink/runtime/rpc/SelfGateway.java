@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.runtime.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for self gateways
@@ -30,5 +30,5 @@ public interface SelfGateway {
 	 *
 	 * @return Future indicating when the rpc endpoint has been terminated
 	 */
-	Future<Void> getTerminationFuture();
+	CompletableFuture<Void> getTerminationFuture();
 }

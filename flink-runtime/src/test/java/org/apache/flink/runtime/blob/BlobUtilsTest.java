@@ -22,12 +22,12 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
 
-import com.google.common.io.Files;
-
 import org.apache.flink.util.OperatingSystem;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,13 +38,15 @@ public class BlobUtilsTest {
 
 	private File blobUtilsTestDirectory;
 
-	@Before
-	public void before() {
-		// Prepare test directory
-		blobUtilsTestDirectory = Files.createTempDir();
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Before
+	public void before() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
+		// Prepare test directory
+		blobUtilsTestDirectory = temporaryFolder.newFolder();
 		assertTrue(blobUtilsTestDirectory.setExecutable(true, false));
 		assertTrue(blobUtilsTestDirectory.setReadable(true, false));
 		assertTrue(blobUtilsTestDirectory.setWritable(false, false));
@@ -52,7 +54,7 @@ public class BlobUtilsTest {
 
 	@After
 	public void after() {
-		// Cleanup test directory
+		// Cleanup test directory, ensure it was empty
 		assertTrue(blobUtilsTestDirectory.delete());
 	}
 

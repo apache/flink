@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.hadoop.util.Progressable;
 
 /**
- * This is a dummy progress
+ * This is a dummy progress.
  *
  */
 @PublicEvolving
 public class HadoopDummyProgressable implements Progressable {
 	@Override
-	public void progress() { 
-		
+	public void progress() {
+
 	}
 }

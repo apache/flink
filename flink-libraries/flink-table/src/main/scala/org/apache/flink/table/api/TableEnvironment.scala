@@ -48,7 +48,7 @@ import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableE
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer, GeneratedFunction}
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, ExpressionReducer, GeneratedFunction}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.AggregateFunction
@@ -458,11 +458,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   @throws[TableException]
   @varargs
   def scan(tablePath: String*): Table = {
-    scanInternal(tablePath.toArray)
+    scanInternal(tablePath.toArray) match {
+      case Some(table) => table
+      case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
+    }
   }
 
-  @throws[TableException]
-  private def scanInternal(tablePath: Array[String]): Table = {
+  private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
     val schemaPaths = tablePath.slice(0, tablePath.length - 1)
     val schema = getSchema(schemaPaths)
@@ -470,10 +472,10 @@ abstract class TableEnvironment(val config: TableConfig) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
       if (table != null) {
-        return new Table(this, CatalogNode(tablePath, table.getRowType(typeFactory)))
+        return Some(new Table(this, CatalogNode(tablePath, table.getRowType(typeFactory))))
       }
     }
-    throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
+    None
   }
 
   private def getSchema(schemaPath: Array[String]): SchemaPlus = {
@@ -790,7 +792,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     // code generate MapFunction
-    val generator = new CodeGenerator(
+    val generator = new FunctionCodeGenerator(
       config,
       false,
       inputTypeInfo,

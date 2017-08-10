@@ -48,12 +48,14 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -87,6 +89,9 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Rule
+	public TestName name = new TestName();
 
 	private StateBackendEnum stateBackendEnum;
 	private AbstractStateBackend stateBackend;
@@ -123,7 +128,13 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	}
 
 	@Before
-	public void initStateBackend() throws IOException {
+	public void beforeTest() throws IOException {
+		// print a message when starting a test method to avoid Travis' <tt>"Maven produced no
+		// output for xxx seconds."</tt> messages
+		System.out.println(
+			"Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+
+		// init state back-end
 		switch (stateBackendEnum) {
 			case MEM:
 				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
@@ -164,6 +175,16 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			}
 
 		}
+	}
+
+	/**
+	 * Prints a message when finishing a test method to avoid Travis' <tt>"Maven produced no output
+	 * for xxx seconds."</tt> messages.
+	 */
+	@After
+	public void afterTest() {
+		System.out.println(
+			"Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
 	}
 
 	// ------------------------------------------------------------------------

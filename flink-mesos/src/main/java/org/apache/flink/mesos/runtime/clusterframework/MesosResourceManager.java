@@ -45,6 +45,7 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -63,6 +64,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.pattern.Patterns;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskScheduler;
 import com.netflix.fenzo.VirtualMachineLease;
@@ -78,8 +80,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import scala.Option;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * The Mesos implementation of the resource manager.
@@ -308,6 +313,47 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			if (toAssign.size() >= 1) {
 				launchCoordinator.tell(new LaunchCoordinator.Assign(toAssign), selfActor);
 			}
+		}
+	}
+
+	@Override
+	public void postStop() throws Exception {
+		Exception exception = null;
+		FiniteDuration stopTimeout = new FiniteDuration(5L, TimeUnit.SECONDS);
+
+		CompletableFuture<Boolean> stopTaskMonitorFuture = stopActor(taskMonitor, stopTimeout);
+		taskMonitor = null;
+
+		CompletableFuture<Boolean> stopConnectionMonitorFuture = stopActor(connectionMonitor, stopTimeout);
+		connectionMonitor = null;
+
+		CompletableFuture<Boolean> stopLaunchCoordinatorFuture = stopActor(launchCoordinator, stopTimeout);
+		launchCoordinator = null;
+
+		CompletableFuture<Boolean> stopReconciliationCoordinatorFuture = stopActor(reconciliationCoordinator, stopTimeout);
+		reconciliationCoordinator = null;
+
+		CompletableFuture<Void> stopFuture = CompletableFuture.allOf(
+			stopTaskMonitorFuture,
+			stopConnectionMonitorFuture,
+			stopLaunchCoordinatorFuture,
+			stopReconciliationCoordinatorFuture);
+
+		// wait for the future to complete or to time out
+		try {
+			stopFuture.get();
+		} catch (Exception e) {
+			exception = e;
+		}
+
+		try {
+			super.postStop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			throw new ResourceManagerException("Could not properly shut down the ResourceManager.", exception);
 		}
 	}
 
@@ -548,6 +594,27 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Tries to shut down the given actor gracefully.
+	 *
+	 * @param actorRef specifying the actor to shut down
+	 * @param timeout for the graceful shut down
+	 * @return Future containing the result of the graceful shut down
+	 */
+	private CompletableFuture<Boolean> stopActor(final ActorRef actorRef, FiniteDuration timeout) {
+		return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
+			.exceptionally(
+				(Throwable throwable) -> {
+					// The actor did not stop gracefully in time, try to directly stop it
+					actorSystem.stop(actorRef);
+
+					log.warn("Could not stop actor {} gracefully.", actorRef.path(), throwable);
+
+					return true;
+				}
+			);
+	}
 
 	/**
 	 * Creates a launchable task for Fenzo to process.

@@ -206,7 +206,7 @@ under the License.
 		</dependency>
 
 		<!-- Concrete logging framework - we add this only here (and not in the 
-			root POM to not tie the projects to one specific framework and make
+			root POM) to not tie the projects to one specific framework and make
 			it easier for users to swap logging frameworks -->
 
 		<dependency>
@@ -219,6 +219,22 @@ under the License.
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<scope>compile</scope>
+		</dependency>
+
+		<!--
+			The Hadoop 2 Uber jar should not go into the Flink dist jar, but
+			sit next to it. Hence, we set it to 'provided' here.
+		-->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop2-uber</artifactId>
+			<version>${project.version}</version>
+			<!--
+				Exclusion of flink-shaded-hadoop2 not necessary, dependencies
+				are shaded away properly by flink-shaded-hadoop2-uber.
+			-->
+			<scope>provided</scope>
 		</dependency>
 
 		<!--
@@ -408,46 +424,6 @@ under the License.
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
 				</configuration>
-			</plugin>
-
-			<!-- IMPORTANT: Moving the plugin definition after the shade and assembly plugin definition somehow
-			 changes the order in which the assembly and shade plugins are executed in the package phase.
-			 Therefore, we have to define the checkstyle-plugin before the shade-plugin. See FLINK-6792 for more
-			 details. -->
-			<!-- Java Code Style -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<version>6.19</version>
-					</dependency>
-				</dependencies>
-				<configuration>
-					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
-					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
-				</configuration>
-				<executions>
-					<!--
-					Execute checkstyle after compilation but before tests.
-
-					This ensures that any parsing or type checking errors are from
-					javac, so they look as expected. Beyond that, we want to
-					fail as early as possible.
-					-->
-					<execution>
-						<phase>test-compile</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!--Build uber jar-->

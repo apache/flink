@@ -48,37 +48,31 @@ public class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
 
 	@Test
 	public void testHybridHeapSegmentSpecifics() {
+		final ByteBuffer buffer = ByteBuffer.allocateDirect(411);
+		HybridMemorySegment seg = new HybridMemorySegment(buffer);
+
+		assertFalse(seg.isFreed());
+		assertTrue(seg.isOffHeap());
+		assertEquals(buffer.capacity(), seg.size());
+		assertTrue(buffer == seg.getOffHeapBuffer());
+
 		try {
-			final ByteBuffer buffer = ByteBuffer.allocateDirect(411);
-			HybridMemorySegment seg = new HybridMemorySegment(buffer);
-
-			assertFalse(seg.isFreed());
-			assertTrue(seg.isOffHeap());
-			assertEquals(buffer.capacity(), seg.size());
-			assertTrue(buffer == seg.getOffHeapBuffer());
-
-			try {
-				seg.getArray();
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-
-			ByteBuffer buf1 = seg.wrap(1, 2);
-			ByteBuffer buf2 = seg.wrap(3, 4);
-
-			assertTrue(buf1 != buffer);
-			assertTrue(buf2 != buffer);
-			assertTrue(buf1 != buf2);
-			assertEquals(1, buf1.position());
-			assertEquals(3, buf1.limit());
-			assertEquals(3, buf2.position());
-			assertEquals(7, buf2.limit());
+			seg.getArray();
+			fail("should throw an exception");
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		catch (IllegalStateException e) {
+			// expected
 		}
+
+		ByteBuffer buf1 = seg.wrap(1, 2);
+		ByteBuffer buf2 = seg.wrap(3, 4);
+
+		assertTrue(buf1 != buffer);
+		assertTrue(buf2 != buffer);
+		assertTrue(buf1 != buf2);
+		assertEquals(1, buf1.position());
+		assertEquals(3, buf1.limit());
+		assertEquals(3, buf2.position());
+		assertEquals(7, buf2.limit());
 	}
 }

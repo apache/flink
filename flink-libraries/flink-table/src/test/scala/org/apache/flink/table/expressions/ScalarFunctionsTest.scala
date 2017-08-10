@@ -18,17 +18,12 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.types.Row
+import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
-class ScalarFunctionsTest extends ExpressionTestBase {
+class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // String functions
@@ -97,18 +92,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testSqlApi(
       "SUBSTRING(f0 FROM 2)",
       "his is a test String.")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidSubstring1(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a Double.
-    testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidSubstring2(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a String.
-    testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
   }
 
   @Test
@@ -327,18 +310,46 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testMultiConcat(): Unit = {
-   testSqlApi("CONCAT('xx', f33)","null")
-   testSqlApi("CONCAT('AA','BB','CC','---')","AABBCC---")
-   testSqlApi("CONCAT('x~x','b~b','c~~~~c','---')","x~xb~bc~~~~c---")
+    testAllApis(concat("xx", 'f33), "concat('xx', f33)", "CONCAT('xx', f33)", "null")
+    testAllApis(
+      concat("AA", "BB", "CC", "---"),
+      "concat('AA','BB','CC','---')",
+      "CONCAT('AA','BB','CC','---')",
+      "AABBCC---")
+    testAllApis(
+      concat("x~x", "b~b", "c~~~~c", "---"),
+      "concat('x~x','b~b','c~~~~c','---')",
+      "CONCAT('x~x','b~b','c~~~~c','---')",
+      "x~xb~bc~~~~c---")
   }
 
   @Test
   def testConcatWs(): Unit = {
-    testSqlApi("CONCAT_WS(f33, 'AA')", "null")
-    testSqlApi("concat_ws('~~~~','AA')", "AA")
-    testSqlApi("concat_ws('~','AA','BB')", "AA~BB")
-    testSqlApi("concat_ws('~',f33, 'AA','BB','',f33, 'CC')", "AA~BB~~CC")
-    testSqlApi("CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)", "Flink~~~~xx")
+    testAllApis(
+      concat_ws('f33, "AA"),
+      "concat_ws(f33, 'AA')",
+      "CONCAT_WS(f33, 'AA')",
+      "null")
+    testAllApis(
+      concat_ws("~~~~", "AA"),
+      "concat_ws('~~~~','AA')",
+      "concat_ws('~~~~','AA')",
+      "AA")
+    testAllApis(
+      concat_ws("~", "AA", "BB"),
+      "concat_ws('~','AA','BB')",
+      "concat_ws('~','AA','BB')",
+      "AA~BB")
+    testAllApis(
+      concat_ws("~", 'f33, "AA", "BB", "", 'f33, "CC"),
+      "concat_ws('~',f33, 'AA','BB','',f33, 'CC')",
+      "concat_ws('~',f33, 'AA','BB','',f33, 'CC')",
+      "AA~BB~~CC")
+    testAllApis(
+      concat_ws("~~~~", "Flink", 'f33, "xx", 'f33, 'f33),
+      "concat_ws('~~~~','Flink', f33, 'xx', f33, f33)",
+      "CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)",
+      "Flink~~~~xx")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -364,7 +375,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "mod(44, 3)",
       "MOD(44, 3)",
       "2")
-
   }
 
   @Test
@@ -1178,6 +1188,34 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       math.E.toString)
   }
 
+  @Test
+  def testLog(): Unit = {
+    testSqlApi(
+      "LOG(f6)",
+      "1.5260563034950492"
+    )
+
+    testSqlApi(
+      "LOG(f6-f6 + 10, f6-f6+100)",
+      "2.0"
+    )
+
+    testSqlApi(
+      "LOG(f6+20)",
+      "3.202746442938317"
+    )
+
+    testSqlApi(
+      "LOG(10)",
+      "2.302585092994046"
+    )
+
+    testSqlApi(
+      "LOG(10, 100)",
+      "2.0"
+    )
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
@@ -1494,7 +1532,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
         "'2011-03-10 05:02:02'.toTimestamp, '2011-03-10 05:02:01'.toTimestamp)",
       "(TIMESTAMP '2011-03-10 05:02:02', INTERVAL '0' SECOND) OVERLAPS " +
         "(TIMESTAMP '2011-03-10 05:02:02', TIMESTAMP '2011-03-10 05:02:01')",
-      "false")
+      "true")
 
     testAllApis(
       temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
@@ -1525,6 +1563,115 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "'1997-12-31'.toDate.quarter()",
       "QUARTER(DATE '1997-12-31')",
       "4")
+  }
+
+  @Test
+  def testTimestampAdd(): Unit = {
+    val data = Seq(
+      (1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (3, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'")
+    )
+
+    val YEAR = Seq(
+      "2018-11-29 22:58:58.998",
+      "2020-11-29 22:58:58.998",
+      "2016-11-29 22:58:58.998",
+      "1956-11-29 22:58:58.998",
+      "1017-11-29 22:58:58.998")
+
+    val QUARTER = Seq(
+      "2018-03-01 22:58:58.998",
+      "2018-08-31 22:58:58.998",
+      "2017-08-29 22:58:58.998",
+      "2002-08-29 22:58:58.998",
+      "1767-11-29 22:58:58.998")
+
+    val MONTH = Seq(
+      "2017-12-29 22:58:58.998",
+      "2018-03-01 22:58:58.998",
+      "2017-10-29 22:58:58.998",
+      "2012-10-29 22:58:58.998",
+      "1934-07-29 22:58:58.998")
+
+    val WEEK = Seq(
+      "2017-12-06 22:58:58.998",
+      "2017-12-20 22:58:58.998",
+      "2017-11-22 22:58:58.998",
+      "2016-09-28 22:58:58.998",
+      "1998-09-30 22:58:58.998")
+
+    val DAY = Seq(
+      "2017-11-30 22:58:58.998",
+      "2017-12-02 22:58:58.998",
+      "2017-11-28 22:58:58.998",
+      "2017-09-29 22:58:58.998",
+      "2015-03-05 22:58:58.998")
+
+    val HOUR = Seq(
+      "2017-11-29 23:58:58.998",
+      "2017-11-30 01:58:58.998",
+      "2017-11-29 21:58:58.998",
+      "2017-11-27 09:58:58.998",
+      "2017-10-19 06:58:58.998")
+
+    val MINUTE = Seq(
+      "2017-11-29 22:59:58.998",
+      "2017-11-29 23:01:58.998",
+      "2017-11-29 22:57:58.998",
+      "2017-11-29 21:57:58.998",
+      "2017-11-29 06:18:58.998")
+
+    val SECOND = Seq(
+      "2017-11-29 22:58:59.998",
+      "2017-11-29 22:59:01.998",
+      "2017-11-29 22:58:57.998",
+      "2017-11-29 22:57:57.998",
+      "2017-11-29 22:42:18.998")
+
+    // we do not supported FRAC_SECOND, MICROSECOND, SQL_TSI_FRAC_SECOND, SQL_TSI_MICROSECOND
+    val intervalMapResults = Map(
+      "YEAR" -> YEAR,
+      "SQL_TSI_YEAR" -> YEAR,
+      "QUARTER" -> QUARTER,
+      "SQL_TSI_QUARTER" -> QUARTER,
+      "MONTH" -> MONTH,
+      "SQL_TSI_MONTH" -> MONTH,
+      "WEEK" -> WEEK,
+      "SQL_TSI_WEEK" -> WEEK,
+      "DAY" -> DAY,
+      "SQL_TSI_DAY" -> DAY,
+      "HOUR" -> HOUR,
+      "SQL_TSI_HOUR" -> HOUR,
+      "MINUTE" -> MINUTE,
+      "SQL_TSI_MINUTE" -> MINUTE,
+      "SECOND" -> SECOND,
+      "SQL_TSI_SECOND" -> SECOND
+    )
+
+    for ((interval, result) <- intervalMapResults) {
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})", result.head)
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})", result(1))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})", result(2))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})", result(3))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
+    }
+
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+
+    testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+
+    testSqlApi("TIMESTAMPADD(DAY, 1, DATE '2016-06-15')", "2016-06-16")
+
+    testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
+
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1580,85 +1727,5 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f21.isNotFalse",
       "f21 IS NOT FALSE",
       "true")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  def testData = {
-    val testData = new Row(34)
-    testData.setField(0, "This is a test String.")
-    testData.setField(1, true)
-    testData.setField(2, 42.toByte)
-    testData.setField(3, 43.toShort)
-    testData.setField(4, 44.toLong)
-    testData.setField(5, 4.5.toFloat)
-    testData.setField(6, 4.6)
-    testData.setField(7, 3)
-    testData.setField(8, " This is a test String. ")
-    testData.setField(9, -42.toByte)
-    testData.setField(10, -43.toShort)
-    testData.setField(11, -44.toLong)
-    testData.setField(12, -4.5.toFloat)
-    testData.setField(13, -4.6)
-    testData.setField(14, -3)
-    testData.setField(15, BigDecimal("-1231.1231231321321321111").bigDecimal)
-    testData.setField(16, Date.valueOf("1996-11-10"))
-    testData.setField(17, Time.valueOf("06:55:44"))
-    testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
-    testData.setField(19, 1467012213000L) // +16979 07:23:33.000
-    testData.setField(20, 25) // +2-01
-    testData.setField(21, null)
-    testData.setField(22, BigDecimal("2").bigDecimal)
-    testData.setField(23, "%This is a test String.")
-    testData.setField(24, "*_This is a test String.")
-    testData.setField(25, 0.42.toByte)
-    testData.setField(26, 0.toShort)
-    testData.setField(27, 0.toLong)
-    testData.setField(28, 0.45.toFloat)
-    testData.setField(29, 0.46)
-    testData.setField(30, 1)
-    testData.setField(31, BigDecimal("-0.1231231321321321111").bigDecimal)
-    testData.setField(32, -1)
-    testData.setField(33, null)
-    testData
-  }
-
-  def typeInfo = {
-    new RowTypeInfo(
-      Types.STRING,
-      Types.BOOLEAN,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      Types.STRING,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      Types.DECIMAL,
-      Types.SQL_DATE,
-      Types.SQL_TIME,
-      Types.SQL_TIMESTAMP,
-      Types.INTERVAL_MILLIS,
-      Types.INTERVAL_MONTHS,
-      Types.BOOLEAN,
-      Types.DECIMAL,
-      Types.STRING,
-      Types.STRING,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      Types.DECIMAL,
-      Types.INT,
-      Types.STRING).asInstanceOf[TypeInformation[Any]]
-
   }
 }

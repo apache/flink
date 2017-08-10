@@ -131,8 +131,11 @@ class GroupAggProcessFunction(
 
       // if this was not the first row and we have to emit retractions
       if (generateRetraction && !firstRow) {
-        if (prevRow.row.equals(newRow.row)) {
-          // newRow is the same as before. Do not emit retraction and acc messages
+        if (prevRow.row.equals(newRow.row) && !stateCleaningEnabled) {
+          // newRow is the same as before and state cleaning is not enabled.
+          // We do not emit retraction and acc message.
+          // If state cleaning is enabled, we have to emit messages to prevent too early
+          // state eviction of downstream operators.
           return
         } else {
           // retract previous result

@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.PooledByteBufAllocator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.lang.reflect.Field;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -60,10 +61,6 @@ public class NettyBufferPool implements ByteBufAllocator {
 	public NettyBufferPool(int numberOfArenas) {
 		checkArgument(numberOfArenas >= 1, "Number of arenas");
 		this.numberOfArenas = numberOfArenas;
-
-		if (!PlatformDependent.hasUnsafe()) {
-			LOG.warn("Using direct buffers, but sun.misc.Unsafe not available.");
-		}
 
 		// We strictly prefer direct buffers and disallow heap allocations.
 		boolean preferDirect = true;

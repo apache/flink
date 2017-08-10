@@ -219,7 +219,8 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> joinIterator = this.joinIterator;
 		
-		while (this.running && joinIterator.callWithNextKey(joinStub, collector));
+		while (this.running && joinIterator.callWithNextKey(joinStub, collector)) {
+		}
 	}
 
 	@Override

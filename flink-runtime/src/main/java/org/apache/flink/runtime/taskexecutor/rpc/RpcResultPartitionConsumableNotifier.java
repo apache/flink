@@ -20,8 +20,6 @@ package org.apache.flink.runtime.taskexecutor.rpc;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -32,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public class RpcResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
@@ -55,18 +54,17 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 	}
 	@Override
 	public void notifyPartitionConsumable(JobID jobId, ResultPartitionID partitionId, final TaskActions taskActions) {
-		Future<Acknowledge> acknowledgeFuture = jobMasterGateway.scheduleOrUpdateConsumers(
+		CompletableFuture<Acknowledge> acknowledgeFuture = jobMasterGateway.scheduleOrUpdateConsumers(
 				jobMasterLeaderId, partitionId, timeout);
 
-		acknowledgeFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable value) {
-				LOG.error("Could not schedule or update consumers at the JobManager.", value);
+		acknowledgeFuture.whenCompleteAsync(
+			(Acknowledge ack, Throwable throwable) -> {
+				if (throwable != null) {
+					LOG.error("Could not schedule or update consumers at the JobManager.", throwable);
 
-				taskActions.failExternally(new RuntimeException("Could not notify JobManager to schedule or update consumers.", value));
-
-				return null;
-			}
-		}, executor);
+					taskActions.failExternally(new RuntimeException("Could not notify JobManager to schedule or update consumers.", throwable));
+				}
+			},
+			executor);
 	}
 }

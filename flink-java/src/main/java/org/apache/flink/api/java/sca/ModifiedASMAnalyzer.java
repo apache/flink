@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.sca;
 
 import org.apache.flink.annotation.Internal;
+
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -126,7 +127,7 @@ public class ModifiedASMAnalyzer extends Analyzer {
 						// from the label the goto instruction points to until the evaluation with IFEQ
 						final int idx = indexField.getInt(accessField(JumpInsnNode.class, "label").get(gotoInsnn));
 
-						for (int i=idx; i <= insn; i++) {
+						for (int i = idx; i <= insn; i++) {
 							((ModifiedASMFrame) frames[i]).mergePriority = true;
 						}
 						eventInsn = idx - 2;

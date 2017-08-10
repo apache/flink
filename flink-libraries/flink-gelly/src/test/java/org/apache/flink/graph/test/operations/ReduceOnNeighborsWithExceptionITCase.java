@@ -86,7 +86,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 			DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 					graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("Expected an exception.");
@@ -113,7 +113,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 			DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 					graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<>());
 			env.execute();
 
 			fail("Expected an exception.");
@@ -140,7 +140,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 			DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
 					graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<>());
 			env.execute();
 		} catch (Exception e) {
 			// We expect the job to fail with an exception
@@ -165,7 +165,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 			DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
 					graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<>());
 			env.execute();
 		} catch (Exception e) {
 			// We expect the job to fail with an exception

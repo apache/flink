@@ -19,10 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -42,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -105,7 +103,7 @@ public class StackTraceSampleCoordinator {
 	 * @return A future of the completed stack trace sample
 	 */
 	@SuppressWarnings("unchecked")
-	public Future<StackTraceSample> triggerStackTraceSample(
+	public CompletableFuture<StackTraceSample> triggerStackTraceSample(
 			ExecutionVertex[] tasksToSample,
 			int numSamples,
 			Time delayBetweenSamples,
@@ -128,15 +126,14 @@ public class StackTraceSampleCoordinator {
 				executions[i] = execution;
 				triggerIds[i] = execution.getAttemptId();
 			} else {
-				return FlinkCompletableFuture.completedExceptionally(
-					new IllegalStateException("Task " + tasksToSample[i]
+				return FutureUtils.completedExceptionally(new IllegalStateException("Task " + tasksToSample[i]
 					.getTaskNameWithSubtaskIndex() + " is not running."));
 			}
 		}
 
 		synchronized (lock) {
 			if (isShutDown) {
-				return FlinkCompletableFuture.completedExceptionally(new IllegalStateException("Shut down"));
+				return FutureUtils.completedExceptionally(new IllegalStateException("Shut down"));
 			}
 
 			final int sampleId = sampleIdCounter++;
@@ -158,16 +155,15 @@ public class StackTraceSampleCoordinator {
 
 			// Trigger all samples
 			for (Execution execution: executions) {
-				final Future<StackTraceSampleResponse> stackTraceSampleFuture = execution.requestStackTraceSample(
+				final CompletableFuture<StackTraceSampleResponse> stackTraceSampleFuture = execution.requestStackTraceSample(
 					sampleId,
 					numSamples,
 					delayBetweenSamples,
 					maxStackTraceDepth,
 					timeout);
 
-				stackTraceSampleFuture.handleAsync(new BiFunction<StackTraceSampleResponse, Throwable, Void>() {
-					@Override
-					public Void apply(StackTraceSampleResponse stackTraceSampleResponse, Throwable throwable) {
+				stackTraceSampleFuture.handleAsync(
+					(StackTraceSampleResponse stackTraceSampleResponse, Throwable throwable) -> {
 						if (stackTraceSampleResponse != null) {
 							collectStackTraces(
 								stackTraceSampleResponse.getSampleId(),
@@ -178,8 +174,8 @@ public class StackTraceSampleCoordinator {
 						}
 
 						return null;
-					}
-				}, executor);
+					},
+					executor);
 			}
 
 			return pending.getStackTraceSampleFuture();
@@ -321,7 +317,7 @@ public class StackTraceSampleCoordinator {
 			this.startTime = System.currentTimeMillis();
 			this.pendingTasks = new HashSet<>(Arrays.asList(tasksToCollect));
 			this.stackTracesByTask = Maps.newHashMapWithExpectedSize(tasksToCollect.length);
-			this.stackTraceFuture = new FlinkCompletableFuture<>();
+			this.stackTraceFuture = new CompletableFuture<>();
 		}
 
 		int getSampleId() {
@@ -388,7 +384,7 @@ public class StackTraceSampleCoordinator {
 		}
 
 		@SuppressWarnings("unchecked")
-		Future<StackTraceSample> getStackTraceSampleFuture() {
+		CompletableFuture<StackTraceSample> getStackTraceSampleFuture() {
 			return stackTraceFuture;
 		}
 	}

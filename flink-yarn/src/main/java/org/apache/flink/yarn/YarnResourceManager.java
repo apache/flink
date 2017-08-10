@@ -171,9 +171,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	}
 
 	@Override
-	public void shutDown() throws Exception {
+	public void postStop() throws Exception {
 		// shut down all components
 		Throwable firstException = null;
+
 		if (resourceManagerClient != null) {
 			try {
 				resourceManagerClient.stop();
@@ -181,21 +182,24 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 				firstException = t;
 			}
 		}
+
 		if (nodeManagerClient != null) {
 			try {
 				nodeManagerClient.stop();
 			} catch (Throwable t) {
-				if (firstException == null) {
-					firstException = t;
-				} else {
-					firstException.addSuppressed(t);
-				}
+				firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
 			}
 		}
+
+		try {
+			super.postStop();
+		} catch (Throwable t) {
+			firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
+		}
+
 		if (firstException != null) {
 			ExceptionUtils.rethrowException(firstException, "Error while shutting down YARN resource manager");
 		}
-		super.shutDown();
 	}
 
 	@Override

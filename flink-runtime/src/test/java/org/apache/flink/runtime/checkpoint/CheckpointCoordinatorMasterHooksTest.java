@@ -21,8 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -44,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.mockExecutionVertex;
@@ -140,13 +139,13 @@ public class CheckpointCoordinatorMasterHooksTest {
 		when(statefulHook1.getIdentifier()).thenReturn(id1);
 		when(statefulHook1.createCheckpointDataSerializer()).thenReturn(new StringSerializer());
 		when(statefulHook1.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class)))
-				.thenReturn(FlinkCompletableFuture.completed(state1));
+				.thenReturn(CompletableFuture.completedFuture(state1));
 
 		final MasterTriggerRestoreHook<Long> statefulHook2 = mockGeneric(MasterTriggerRestoreHook.class);
 		when(statefulHook2.getIdentifier()).thenReturn(id2);
 		when(statefulHook2.createCheckpointDataSerializer()).thenReturn(new LongSerializer());
 		when(statefulHook2.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class)))
-				.thenReturn(FlinkCompletableFuture.completed(state2));
+				.thenReturn(CompletableFuture.completedFuture(state2));
 
 		final MasterTriggerRestoreHook<Void> statelessHook = mockGeneric(MasterTriggerRestoreHook.class);
 		when(statelessHook.getIdentifier()).thenReturn("some-id");
@@ -339,10 +338,10 @@ public class CheckpointCoordinatorMasterHooksTest {
 		final MasterTriggerRestoreHook<Void> hook = mockGeneric(MasterTriggerRestoreHook.class);
 		when(hook.getIdentifier()).thenReturn(id);
 		when(hook.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class))).thenAnswer(
-				new Answer<Future<Void>>() {
+				new Answer<CompletableFuture<Void>>() {
 
 					@Override
-					public Future<Void> answer(InvocationOnMock invocation) throws Throwable {
+					public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
 						assertEquals(1, cc.getNumberOfPendingCheckpoints());
 
 						long checkpointId = (Long) invocation.getArguments()[0];

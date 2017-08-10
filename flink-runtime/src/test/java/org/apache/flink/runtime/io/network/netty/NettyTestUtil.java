@@ -18,12 +18,11 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.Channel;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.NetUtils;
 
 import scala.Tuple2;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;

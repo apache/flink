@@ -84,7 +84,7 @@ echo "detected current version as: '$CURRENT_FLINK_VERSION'"
 #
 
 if [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then
-    MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source,jdk8 -DskipTests -Drat.skip=true -Drat.ignoreErrors=true \
+    MVN_SNAPSHOT_OPTS="-B -Pdocs-and-source -DskipTests -Drat.skip=true -Drat.ignoreErrors=true \
         -DretryFailedDeploymentCount=10 --settings deploysettings.xml clean deploy"
 
     # hadoop2 scala 2.10

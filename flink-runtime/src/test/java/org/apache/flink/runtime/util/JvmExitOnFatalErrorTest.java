@@ -29,7 +29,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -66,6 +65,7 @@ import org.junit.Test;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -82,9 +82,6 @@ public class JvmExitOnFatalErrorTest {
 	public void testExitJvmOnOutOfMemory() throws Exception {
 		// this test works only on linux
 		assumeTrue(OperatingSystem.isLinux());
-
-		// this test leaves remaining processes if not executed with Java 8
-		CommonTestUtils.assumeJava8();
 
 		// to check what went wrong (when the test hangs) uncomment this line 
 //		ProcessEntryPoint.main(new String[0]);
@@ -250,7 +247,7 @@ public class JvmExitOnFatalErrorTest {
 		private static final class NoOpPartitionProducerStateChecker implements PartitionProducerStateChecker {
 
 			@Override
-			public Future<ExecutionState> requestPartitionProducerState(
+			public CompletableFuture<ExecutionState> requestPartitionProducerState(
 					JobID jobId, IntermediateDataSetID intermediateDataSetId, ResultPartitionID r) {
 				return null;
 			}
