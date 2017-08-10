@@ -93,12 +93,12 @@ public class NFACompiler {
 		boolean timeoutHandling) {
 		if (pattern == null) {
 			// return a factory for empty NFAs
-			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling, new AfterMatchSkipStrategy());
+			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
 		} else {
 			final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
 			nfaFactoryCompiler.compileFactory();
 			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(),
-				nfaFactoryCompiler.getStates(), timeoutHandling, nfaFactoryCompiler.getAfterMatchSkipStrategy());
+				nfaFactoryCompiler.getStates(), timeoutHandling);
 		}
 	}
 
@@ -119,7 +119,7 @@ public class NFACompiler {
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
 		private Pattern<T, ?> followingPattern;
-		private AfterMatchSkipStrategy afterMatchSkipStrategy = new AfterMatchSkipStrategy();
+		private AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
@@ -163,51 +163,21 @@ public class NFACompiler {
 		 * Check pattern after match skip strategy.
 		 */
 		private void checkPatternSkipStrategy() {
-			AfterMatchSkipStrategy afterMatchSkipStrategy = currentPattern.getAfterMatchSkipStrategy();
 			if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST ||
 				afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST) {
 				Pattern<T, ?> pattern = currentPattern;
 				while (!pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
-					pattern = pattern.getPrevious();
-				}
-				// pattern name match check.
-				if (pattern == null) {
-					throw new MalformedPatternException("the pattern name specified in AfterMatchSkipStrategy " +
-						"can not be found in the given Pattern");
-				} else {
-					// can not be used with optional states.
-					if (pattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-						throw new MalformedPatternException("the AfterMatchSkipStrategy "
-							+ afterMatchSkipStrategy.getStrategy() + " can not be used with optional pattern");
-					}
-				}
-
-				// start position check.
-				if (pattern.getPrevious() == null) {
-					if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST) {
-						// can not be the first pattern.
-						throw new MalformedPatternException("the AfterMatchSkipStrategy "
-							+ afterMatchSkipStrategy.getStrategy() + " can not be used with the start pattern");
-					} else if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST){
-						if (!pattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.TIMES) ||
-								pattern.getTimes().getFrom() < 2) {
-							throw new MalformedPatternException("the AfterMatchSkipStrategy "
-								+ afterMatchSkipStrategy.getStrategy() + " can only be used with times pattern in start position," +
-								"and times should >= 2");
-						}
-					}
-				}
-				// if all passes, check preceding states.
-				if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST) {
-					pattern = pattern.getPrevious();
-					while (pattern != null && pattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+					if (pattern.getPrevious() == null) {
+						break;
+					} else {
 						pattern = pattern.getPrevious();
 					}
+				}
 
-					if (pattern == null) {
-						throw new MalformedPatternException("the AfterMatchSkipStrategy "
-							+ afterMatchSkipStrategy.getStrategy() + " should have at lease one preceding non-optional state");
-					}
+				// pattern name match check.
+				if (!pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
+					throw new MalformedPatternException("The pattern name specified in AfterMatchSkipStrategy " +
+						"can not be found in the given Pattern");
 				}
 			}
 		}
@@ -1023,25 +993,22 @@ public class NFACompiler {
 		private final long windowTime;
 		private final Collection<State<T>> states;
 		private final boolean timeoutHandling;
-		private final AfterMatchSkipStrategy skipStrategy;
 
 		private NFAFactoryImpl(
 			TypeSerializer<T> inputTypeSerializer,
 			long windowTime,
 			Collection<State<T>> states,
-			boolean timeoutHandling,
-			AfterMatchSkipStrategy afterMatchSkipStrategy) {
+			boolean timeoutHandling) {
 
 			this.inputTypeSerializer = inputTypeSerializer;
 			this.windowTime = windowTime;
 			this.states = states;
 			this.timeoutHandling = timeoutHandling;
-			this.skipStrategy = afterMatchSkipStrategy;
 		}
 
 		@Override
 		public NFA<T> createNFA() {
-			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling, skipStrategy);
+			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling);
 
 			result.addStates(states);
 

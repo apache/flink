@@ -71,7 +71,7 @@ public class Pattern<T, F extends T> {
 	 */
 	private Times times;
 
-	private AfterMatchSkipStrategy afterMatchSkipStrategy = new AfterMatchSkipStrategy();
+	private AfterMatchSkipStrategy afterMatchSkipStrategy = AfterMatchSkipStrategy.skipToNextEvent();
 
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;

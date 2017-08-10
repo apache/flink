@@ -255,6 +255,7 @@ public class CEPOperatorTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new NFAFactory(true),
 				true,
+				null,
 				null),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO);
@@ -315,6 +316,7 @@ public class CEPOperatorTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			new SimpleNFAFactory(),
 			true,
+			null,
 			null);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
@@ -337,6 +339,7 @@ public class CEPOperatorTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new SimpleNFAFactory(),
 				true,
+				null,
 				null);
 			harness = getCepTestHarness(operator);
 
@@ -354,6 +357,7 @@ public class CEPOperatorTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new SimpleNFAFactory(),
 				true,
+				null,
 				null);
 			harness = getCepTestHarness(operator);
 
@@ -389,6 +393,7 @@ public class CEPOperatorTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			new SimpleNFAFactory(),
 			true,
+			null,
 			null);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
@@ -413,6 +418,7 @@ public class CEPOperatorTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new SimpleNFAFactory(),
 				true,
+				null,
 				null);
 			harness = getCepTestHarness(operator);
 
@@ -433,6 +439,7 @@ public class CEPOperatorTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new SimpleNFAFactory(),
 				true,
+				null,
 				null);
 			harness = getCepTestHarness(operator);
 
@@ -466,6 +473,7 @@ public class CEPOperatorTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			new SimpleNFAFactory(),
 			true,
+			null,
 			null);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
@@ -512,6 +520,7 @@ public class CEPOperatorTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			new SimpleNFAFactory(),
 			true,
+			null,
 			null);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
@@ -662,6 +671,7 @@ public class CEPOperatorTest extends TestLogger {
 				IntSerializer.INSTANCE,
 				new ComplexNFAFactory(),
 				true,
+				null,
 				null);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
@@ -889,6 +899,7 @@ public class CEPOperatorTest extends TestLogger {
 					}
 				},
 				true,
+				null,
 				null);
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
@@ -1105,6 +1116,7 @@ public class CEPOperatorTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			new NFAFactory(),
 			true,
+			null,
 			null);
 	}
 
@@ -1122,7 +1134,8 @@ public class CEPOperatorTest extends TestLogger {
 				public int compare(Event o1, Event o2) {
 					return Double.compare(o1.getPrice(), o2.getPrice());
 				}
-			});
+			},
+			null);
 	}
 
 	private void compareMaps(List<List<Event>> actual, List<List<Event>> expected) {

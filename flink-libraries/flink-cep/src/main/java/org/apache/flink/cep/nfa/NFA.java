@@ -157,28 +157,15 @@ public class NFA<T> implements Serializable {
 	 */
 	private boolean nfaChanged;
 
-	/**
-	 * Store the skip strategy.
-	 */
-	private AfterMatchSkipStrategy afterMatchSkipStrategy;
-
 	public NFA(
 		final TypeSerializer<T> eventSerializer,
 		final long windowTime,
 		final boolean handleTimeout) {
-		this(eventSerializer, windowTime, handleTimeout, new AfterMatchSkipStrategy());
-	}
 
-	public NFA(
-			final TypeSerializer<T> eventSerializer,
-			final long windowTime,
-			final boolean handleTimeout,
-			final AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		this.eventSerializer = eventSerializer;
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
-		this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		this.computationStates = new LinkedList<>();
 		this.states = new HashSet<>();
@@ -246,6 +233,26 @@ public class NFA<T> implements Serializable {
 	 * activated)
 	 */
 	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event, final long timestamp) {
+		return process(event, timestamp, AfterMatchSkipStrategy.skipToNextEvent());
+	}
+
+	/**
+	 * Processes the next input event. If some of the computations reach a final state then the
+	 * resulting event sequences are returned. If computations time out and timeout handling is
+	 * activated, then the timed out event patterns are returned.
+	 *
+	 * <p>If computations reach a stop state, the path forward is discarded and currently constructed path is returned
+	 * with the element that resulted in the stop state.
+	 *
+	 * @param event The current event to be processed or null if only pruning shall be done
+	 * @param timestamp The timestamp of the current event
+	 * @param afterMatchSkipStrategy The skip strategy to use after per match
+	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
+	 * reached a final state) and the collection of timed out patterns (if timeout handling is
+	 * activated)
+	 */
+	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event,
+		final long timestamp, AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		final int numberComputationStates = computationStates.size();
 		final Collection<Map<String, List<T>>> result = new ArrayList<>();
 		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
@@ -336,35 +343,55 @@ public class NFA<T> implements Serializable {
 
 		}
 
+		discardComputationStatesAccordingToStrategy(computationStates, result, afterMatchSkipStrategy);
+
+		// prune shared buffer based on window length
+		if (windowTime > 0L) {
+			long pruningTimestamp = timestamp - windowTime;
+
+			if (pruningTimestamp < timestamp) {
+				// the check is to guard against underflows
+
+				// remove all elements which are expired
+				// with respect to the window length
+				if (eventSharedBuffer.prune(pruningTimestamp)) {
+					nfaChanged = true;
+				}
+			}
+		}
+
+		return Tuple2.of(result, timeoutResult);
+	}
+
+	private void discardComputationStatesAccordingToStrategy(Queue<ComputationState<T>> computationStates,
+		Collection<Map<String, List<T>>> matchedResult, AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		Set<T> discardEvents = new HashSet<>();
 		switch(afterMatchSkipStrategy.getStrategy()) {
 			case SKIP_TO_LAST:
-				for (Map<String, List<T>> resultMap: result) {
-					boolean matched = false;
-					for (String key: resultMap.keySet()) {
-						if (key.equals(afterMatchSkipStrategy.getPatternName())) {
-							matched = true;
-							discardEvents.addAll(resultMap.get(key).subList(0, resultMap.get(key).size() - 1));
-						} else if (!matched) {
-							discardEvents.addAll(resultMap.get(key));
+				for (Map<String, List<T>> resultMap: matchedResult) {
+					for (Map.Entry<String, List<T>> keyMatches : resultMap.entrySet()) {
+						if (keyMatches.getKey().equals(afterMatchSkipStrategy.getPatternName())) {
+							discardEvents.addAll(keyMatches.getValue().subList(0, keyMatches.getValue().size() - 1));
+							break;
+						} else {
+							discardEvents.addAll(keyMatches.getValue());
 						}
 					}
 				}
 				break;
 			case SKIP_TO_FIRST:
-				for (Map<String, List<T>> resultMap: result) {
-					boolean matched = false;
-					for (String key: resultMap.keySet()) {
-						if (key.equals(afterMatchSkipStrategy.getPatternName())) {
-							matched = true;
-						} else if (!matched) {
-							discardEvents.addAll(resultMap.get(key));
+				for (Map<String, List<T>> resultMap: matchedResult) {
+					for (Map.Entry<String, List<T>> keyMatches : resultMap.entrySet()) {
+						if (keyMatches.getKey().equals(afterMatchSkipStrategy.getPatternName())) {
+							break;
+						} else {
+							discardEvents.addAll(keyMatches.getValue());
 						}
 					}
 				}
 				break;
 			case SKIP_PAST_LAST_EVENT:
-				for (Map<String, List<T>> resultMap: result) {
+				for (Map<String, List<T>> resultMap: matchedResult) {
 					for (List<T> eventList: resultMap.values()) {
 						discardEvents.addAll(eventList);
 					}
@@ -393,23 +420,6 @@ public class NFA<T> implements Serializable {
 			}
 			computationStates.removeAll(discardStates);
 		}
-
-		// prune shared buffer based on window length
-		if (windowTime > 0L) {
-			long pruningTimestamp = timestamp - windowTime;
-
-			if (pruningTimestamp < timestamp) {
-				// the check is to guard against underflows
-
-				// remove all elements which are expired
-				// with respect to the window length
-				if (eventSharedBuffer.prune(pruningTimestamp)) {
-					nfaChanged = true;
-				}
-			}
-		}
-
-		return Tuple2.of(result, timeoutResult);
 	}
 
 	@Override
@@ -828,9 +838,6 @@ public class NFA<T> implements Serializable {
 			this.computationStates.addAll(readComputationStates);
 		}
 
-		// set default skip strategy.
-		this.afterMatchSkipStrategy = new AfterMatchSkipStrategy();
-
 		nonDuplicatingTypeSerializer.clearReferences();
 	}
 
@@ -940,10 +947,9 @@ public class NFA<T> implements Serializable {
 
 		public NFASerializerConfigSnapshot(
 				TypeSerializer<T> eventSerializer,
-				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer,
-				TypeSerializer<AfterMatchSkipStrategy> afterMatchSkipStrategyTypeSerializer) {
+				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
 
-			super(eventSerializer, sharedBufferSerializer, afterMatchSkipStrategyTypeSerializer);
+			super(eventSerializer, sharedBufferSerializer);
 		}
 
 		@Override
@@ -968,26 +974,15 @@ public class NFA<T> implements Serializable {
 
 		private final TypeSerializer<T> eventSerializer;
 
-		private final TypeSerializer<AfterMatchSkipStrategy> afterMatchSkipSerializer;
-
-		private int version = 1;
-
 		public NFASerializer(TypeSerializer<T> typeSerializer) {
-			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer),
-				new AfterMatchSkipStrategy.AfterMatchSkipStrategySerializer(
-					new EnumSerializer<>(AfterMatchSkipStrategy.SkipStrategy.class), StringSerializer.INSTANCE),
-				NFASerializerConfigSnapshot.VERSION);
+			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer));
 		}
 
 		public NFASerializer(
 				TypeSerializer<T> typeSerializer,
-				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer,
-				TypeSerializer<AfterMatchSkipStrategy> afterMatchSkipSerializer,
-				int version) {
+				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
 			this.eventSerializer = typeSerializer;
 			this.sharedBufferSerializer = sharedBufferSerializer;
-			this.afterMatchSkipSerializer = afterMatchSkipSerializer;
-			this.version = version;
 		}
 
 		@Override
@@ -1047,9 +1042,6 @@ public class NFA<T> implements Serializable {
 			target.writeLong(record.windowTime);
 			target.writeBoolean(record.handleTimeout);
 
-			// serialize after match skip strategy.
-			afterMatchSkipSerializer.serialize(record.afterMatchSkipStrategy, target);
-
 			sharedBufferSerializer.serialize(record.eventSharedBuffer, target);
 
 			target.writeInt(record.computationStates.size());
@@ -1083,13 +1075,7 @@ public class NFA<T> implements Serializable {
 			long windowTime = source.readLong();
 			boolean handleTimeout = source.readBoolean();
 
-			AfterMatchSkipStrategy afterMatchSkipStrategy = null;
-			if (version > 1) {
-				afterMatchSkipStrategy = afterMatchSkipSerializer.deserialize(source);
-			} else {
-				afterMatchSkipStrategy = new AfterMatchSkipStrategy();
-			}
-			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout, afterMatchSkipStrategy);
+			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout);
 			nfa.addStates(states);
 
 			nfa.eventSharedBuffer = sharedBufferSerializer.deserialize(source);
@@ -1145,9 +1131,6 @@ public class NFA<T> implements Serializable {
 
 			boolean handleTimeout = source.readBoolean();
 			target.writeBoolean(handleTimeout);
-
-			AfterMatchSkipStrategy skipStrategy = afterMatchSkipSerializer.deserialize(source);
-			afterMatchSkipSerializer.serialize(skipStrategy, target);
 
 			SharedBuffer<String, T> sharedBuffer = sharedBufferSerializer.deserialize(source);
 			sharedBufferSerializer.serialize(sharedBuffer, target);
@@ -1207,8 +1190,7 @@ public class NFA<T> implements Serializable {
 
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer,
-				afterMatchSkipSerializer);
+			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer);
 		}
 
 		@Override
@@ -1230,31 +1212,15 @@ public class NFA<T> implements Serializable {
 								serializersAndConfigs.get(1).f1,
 								sharedBufferSerializer);
 
-				CompatibilityResult<AfterMatchSkipStrategy> skipStrategyCompatResult = null;
-				if (configSnapshot.getReadVersion() == 1) {
-					skipStrategyCompatResult = CompatibilityResult.compatible();
-				} else {
-					skipStrategyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						serializersAndConfigs.get(2).f0,
-						UnloadableDummyTypeSerializer.class,
-						serializersAndConfigs.get(2).f1,
-						afterMatchSkipSerializer);
-				}
-
-				if (!sharedBufCompatResult.isRequiresMigration() &&
-					!eventCompatResult.isRequiresMigration() &&
-					!skipStrategyCompatResult.isRequiresMigration()) {
+				if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();
 				} else {
 					if (eventCompatResult.getConvertDeserializer() != null &&
-							sharedBufCompatResult.getConvertDeserializer() != null &&
-							skipStrategyCompatResult.getConvertDeserializer() != null) {
+						sharedBufCompatResult.getConvertDeserializer() != null) {
 						return CompatibilityResult.requiresMigration(
-								new NFASerializer<>(
-										new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
-										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer()),
-										new TypeDeserializerAdapter<>(skipStrategyCompatResult.getConvertDeserializer()),
-										configSnapshot.getVersion()));
+							new NFASerializer<>(
+								new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
+								new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
 					}
 				}
 			}

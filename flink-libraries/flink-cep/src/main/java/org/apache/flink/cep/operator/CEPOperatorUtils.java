@@ -82,7 +82,8 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory,
 					true,
-					comparator));
+					comparator,
+					pattern.getAfterMatchSkipStrategy()));
 		} else {
 
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
@@ -97,7 +98,8 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory,
 					false,
-					comparator
+					comparator,
+					pattern.getAfterMatchSkipStrategy()
 				)).forceNonParallel();
 		}
 
@@ -145,7 +147,8 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory,
 					true,
-					comparator));
+					comparator,
+					pattern.getAfterMatchSkipStrategy()));
 		} else {
 
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
@@ -160,7 +163,8 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory,
 					false,
-					comparator
+					comparator,
+					pattern.getAfterMatchSkipStrategy()
 				)).forceNonParallel();
 		}
 

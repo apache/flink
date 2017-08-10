@@ -106,6 +106,7 @@ public class CEPMigrationTest {
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true,
+								null,
 								null),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -157,6 +158,7 @@ public class CEPMigrationTest {
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true,
+								null,
 								null),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -227,6 +229,7 @@ public class CEPMigrationTest {
 					IntSerializer.INSTANCE,
 					new NFAFactory(),
 					true,
+					null,
 					null),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
@@ -288,6 +291,7 @@ public class CEPMigrationTest {
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true,
+								null,
 								null),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -337,6 +341,7 @@ public class CEPMigrationTest {
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true,
+								null,
 								null),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -421,6 +426,7 @@ public class CEPMigrationTest {
 					IntSerializer.INSTANCE,
 					new NFAFactory(),
 					true,
+					null,
 					null),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
@@ -481,6 +487,7 @@ public class CEPMigrationTest {
 								IntSerializer.INSTANCE,
 								new SinglePatternNFAFactory(),
 								true,
+								null,
 								null),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -521,6 +528,7 @@ public class CEPMigrationTest {
 								IntSerializer.INSTANCE,
 								new SinglePatternNFAFactory(),
 								true,
+								null,
 								null),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);

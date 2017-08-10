@@ -21,6 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -42,20 +43,21 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOpe
 	private static final long serialVersionUID = 5328573789532074581L;
 
 	public KeyedCEPPatternOperator(
-			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
-			TypeSerializer<KEY> keySerializer,
-			NFACompiler.NFAFactory<IN> nfaFactory,
-			boolean migratingFromOldKeyedOperator,
-			EventComparator<IN> comparator) {
+		TypeSerializer<IN> inputSerializer,
+		boolean isProcessingTime,
+		TypeSerializer<KEY> keySerializer,
+		NFACompiler.NFAFactory<IN> nfaFactory,
+		boolean migratingFromOldKeyedOperator,
+		EventComparator<IN> comparator,
+		AfterMatchSkipStrategy afterMatchSkipStrategy) {
 
-		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator, comparator);
+		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator, comparator, afterMatchSkipStrategy);
 	}
 
 	@Override
 	protected void processEvent(NFA<IN> nfa, IN event, long timestamp) {
 		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
-			nfa.process(event, timestamp);
+			nfa.process(event, timestamp, afterMatchSkipStrategy);
 
 		emitMatchedSequences(patterns.f0, timestamp);
 	}
@@ -63,7 +65,7 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOpe
 	@Override
 	protected void advanceTime(NFA<IN> nfa, long timestamp) {
 		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
-			nfa.process(null, timestamp);
+			nfa.process(null, timestamp, afterMatchSkipStrategy);
 
 		emitMatchedSequences(patterns.f0, timestamp);
 	}
