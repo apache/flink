@@ -105,7 +105,7 @@ public class YarnEntrypointUtils {
 		}
 
 		// if a web monitor shall be started, set the port to random binding
-		if (configuration.getInteger(WebOptions.PORT.key(), 0) >= 0) {
+		if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
 			configuration.setInteger(WebOptions.PORT, 0);
 		}
 

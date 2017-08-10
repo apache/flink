@@ -86,7 +86,7 @@ public final class WebMonitorUtils {
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, WebOptions.LOG_PATH.key());
+					logEnv, WebOptions.LOG_PATH);
 				return new LogFileLocation(null, null);
 			}
 

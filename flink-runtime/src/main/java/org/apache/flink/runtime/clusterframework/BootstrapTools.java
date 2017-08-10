@@ -189,7 +189,7 @@ public class BootstrapTools {
 		config.setString(JobManagerOptions.ADDRESS, address.host().get());
 		config.setInteger(JobManagerOptions.PORT, Integer.parseInt(address.port().get().toString()));
 
-		if (config.getInteger(WebOptions.PORT.key(), 0) >= 0) {
+		if (config.getInteger(WebOptions.PORT, 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
 
 			// start the web frontend. we need to load this dynamically
