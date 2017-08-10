@@ -62,7 +62,7 @@ public class NettyMessageSerializationTest {
 				nioBuffer.putInt(i);
 			}
 
-			NettyMessage.BufferResponse expected = new NettyMessage.BufferResponse(buffer, random.nextInt(), new InputChannelID());
+			NettyMessage.BufferResponse expected = new NettyMessage.BufferResponse(buffer, random.nextInt(), new InputChannelID(), random.nextInt());
 			NettyMessage.BufferResponse actual = encodeAndDecode(expected);
 
 			// Verify recycle has been called on buffer instance
@@ -85,6 +85,7 @@ public class NettyMessageSerializationTest {
 
 			assertEquals(expected.sequenceNumber, actual.sequenceNumber);
 			assertEquals(expected.receiverId, actual.receiverId);
+			assertEquals(expected.backlog, actual.backlog);
 		}
 
 		{

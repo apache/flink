@@ -30,23 +30,16 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.testutils.DiscardingRecycler;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -80,19 +73,19 @@ public class PartitionRequestClientHandlerTest {
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
-		final BufferResponse ReceivedBuffer = createBufferResponse(
-				TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId());
+		final BufferResponse receivedBuffer = createBufferResponse(
+			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), 2);
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
 
-		client.channelRead(mock(ChannelHandlerContext.class), ReceivedBuffer);
+		client.channelRead(mock(ChannelHandlerContext.class), receivedBuffer);
 	}
 
 	/**
 	 * Tests a fix for FLINK-1761.
 	 *
-	 * <p> FLINK-1761 discovered an IndexOutOfBoundsException, when receiving buffers of size 0.
+	 * <p>FLINK-1761 discovered an IndexOutOfBoundsException, when receiving buffers of size 0.
 	 */
 	@Test
 	public void testReceiveEmptyBuffer() throws Exception {
@@ -108,10 +101,11 @@ public class PartitionRequestClientHandlerTest {
 		final Buffer emptyBuffer = TestBufferFactory.createBuffer();
 		emptyBuffer.setSize(0);
 
+		final int backlog = 2;
 		final BufferResponse receivedBuffer = createBufferResponse(
-				emptyBuffer, 0, inputChannel.getInputChannelId());
+			emptyBuffer, 0, inputChannel.getInputChannelId(), backlog);
 
-		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
+		final CreditBasedClientHandler client = new CreditBasedClientHandler();
 		client.addInputChannel(inputChannel);
 
 		// Read the empty buffer
@@ -119,6 +113,51 @@ public class PartitionRequestClientHandlerTest {
 
 		// This should not throw an exception
 		verify(inputChannel, never()).onError(any(Throwable.class));
+		verify(inputChannel, times(1)).onEmptyBuffer(0, backlog);
+	}
+
+	/**
+	 * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int)} is called when a
+	 * {@link BufferResponse} is received.
+	 */
+	@Test
+	public void testReceiveBuffer() throws Exception {
+		final Buffer buffer = TestBufferFactory.createBuffer();
+		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
+		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
+		when(inputChannel.requestBuffer()).thenReturn(buffer);
+
+		final int backlog = 2;
+		final BufferResponse bufferResponse = createBufferResponse(
+			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), backlog);
+
+		final CreditBasedClientHandler client = new CreditBasedClientHandler();
+		client.addInputChannel(inputChannel);
+
+		client.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
+
+		verify(inputChannel, times(1)).onBuffer(buffer, 0, backlog);
+	}
+
+	/**
+	 * Verifies that {@link RemoteInputChannel#onError(Throwable)} is called when a
+	 * {@link BufferResponse} is received but no available buffer in input channel.
+	 */
+	@Test
+	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
+		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
+		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
+		when(inputChannel.requestBuffer()).thenReturn(null);
+
+		final BufferResponse bufferResponse = createBufferResponse(
+			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), 2);
+
+		final CreditBasedClientHandler client = new CreditBasedClientHandler();
+		client.addInputChannel(inputChannel);
+
+		client.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
+
+		verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
 	}
 
 	/**
@@ -136,8 +175,8 @@ public class PartitionRequestClientHandlerTest {
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
 		final ErrorResponse partitionNotFound = new ErrorResponse(
-				new PartitionNotFoundException(new ResultPartitionID()),
-				inputChannel.getInputChannelId());
+			new PartitionNotFoundException(new ResultPartitionID()),
+			inputChannel.getInputChannelId());
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
@@ -169,84 +208,7 @@ public class PartitionRequestClientHandlerTest {
 		client.cancelRequestFor(inputChannel.getInputChannelId());
 	}
 
-	/**
-	 * Tests that an unsuccessful message decode call for a staged message
-	 * does not leave the channel with auto read set to false.
-	 */
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testAutoReadAfterUnsuccessfulStagedMessage() throws Exception {
-		PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
-		EmbeddedChannel channel = new EmbeddedChannel(handler);
-
-		final AtomicReference<BufferListener> listener = new AtomicReference<>();
-
-		BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.addBufferListener(any(BufferListener.class))).thenAnswer(new Answer<Boolean>() {
-			@Override
-			@SuppressWarnings("unchecked")
-			public Boolean answer(InvocationOnMock invocation) throws Throwable {
-				listener.set((BufferListener) invocation.getArguments()[0]);
-				return true;
-			}
-		});
-
-		when(bufferProvider.requestBuffer()).thenReturn(null);
-
-		InputChannelID channelId = new InputChannelID(0, 0);
-		RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
-		when(inputChannel.getInputChannelId()).thenReturn(channelId);
-
-		// The 3rd staged msg has a null buffer provider
-		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider, bufferProvider, null);
-
-		handler.addInputChannel(inputChannel);
-
-		BufferResponse msg = createBufferResponse(createBuffer(true), 0, channelId);
-
-		// Write 1st buffer msg. No buffer is available, therefore the buffer
-		// should be staged and auto read should be set to false.
-		assertTrue(channel.config().isAutoRead());
-		channel.writeInbound(msg);
-
-		// No buffer available, auto read false
-		assertFalse(channel.config().isAutoRead());
-
-		// Write more buffers... all staged.
-		msg = createBufferResponse(createBuffer(true), 1, channelId);
-		channel.writeInbound(msg);
-
-		msg = createBufferResponse(createBuffer(true), 2, channelId);
-		channel.writeInbound(msg);
-
-		// Notify about buffer => handle 1st msg
-		Buffer availableBuffer = createBuffer(false);
-		listener.get().notifyBufferAvailable(availableBuffer);
-
-		// Start processing of staged buffers (in run pending tasks). Make
-		// sure that the buffer provider acts like it's destroyed.
-		when(bufferProvider.addBufferListener(any(BufferListener.class))).thenReturn(false);
-		when(bufferProvider.isDestroyed()).thenReturn(true);
-
-		// Execute all tasks that are scheduled in the event loop. Further
-		// eventLoop().execute() calls are directly executed, if they are
-		// called in the scope of this call.
-		channel.runPendingTasks();
-
-		assertTrue(channel.config().isAutoRead());
-	}
-
 	// ---------------------------------------------------------------------------------------------
-
-	private static Buffer createBuffer(boolean fill) {
-		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024, null);
-		if (fill) {
-			for (int i = 0; i < 1024; i++) {
-				segment.put(i, (byte) i);
-			}
-		}
-		return new Buffer(segment, DiscardingRecycler.INSTANCE, true);
-	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.
@@ -254,10 +216,11 @@ public class PartitionRequestClientHandlerTest {
 	private BufferResponse createBufferResponse(
 			Buffer buffer,
 			int sequenceNumber,
-			InputChannelID receivingChannelId) throws IOException {
+			InputChannelID receivingChannelId,
+			int backlog) throws IOException {
 
 		// Mock buffer to serialize
-		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId);
+		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId, backlog);
 
 		ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 
