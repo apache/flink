@@ -33,9 +33,9 @@ under the License.
 	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
 	<name>flink-connector-kinesis</name>
 	<properties>
-		<aws.sdk.version>1.10.71</aws.sdk.version>
-		<aws.kinesis-kcl.version>1.6.2</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.10.2</aws.kinesis-kpl.version>
+		<aws.sdk.version>1.11.171</aws.sdk.version>
+		<aws.kinesis-kcl.version>1.8.1</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.12.5</aws.kinesis-kpl.version>
 	</properties>
 
 	<packaging>jar</packaging>
