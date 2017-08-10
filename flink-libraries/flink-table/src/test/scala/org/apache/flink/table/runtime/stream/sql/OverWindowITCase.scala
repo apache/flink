@@ -836,6 +836,52 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testHopStartEndWithHaving(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+    env.setParallelism(1)
+
+    val sqlQueryHopStartEndWithHaving = "SELECT \n" +
+      "  c AS k, \n" +
+      "  COUNT(a) AS v, \n" +
+      "  HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE) AS windowStart, \n" +
+      "  HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE) AS windowEnd \n" +
+      "FROM \n" +
+      "  T1 \n" +
+      "GROUP BY \n" +
+      "  HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE), \n" +
+      "  c \n" +
+      "HAVING \n" +
+      "  SUM(b) > 1 \n"
+
+    val data = Seq(
+      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000000L, (2, 1L, "Hello")),
+      Left(14000002L, (3, 1L, "Hello")),
+      Right(14000010L)
+    )
+
+    val t1 = env.addSource(new EventTimeSourceFunction[(Int, Long, String)](data))
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+
+    val resultHopStartEndWithHaving = tEnv.sql(sqlQueryHopStartEndWithHaving).toAppendStream[Row]
+    resultHopStartEndWithHaving.addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = List(
+      "Hello,2,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0",
+      "Hi,1,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 object OverWindowITCase {
