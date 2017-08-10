@@ -23,8 +23,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder.createFrameLengthDecoder;
-
 /**
  * Defines the server and client channel handlers, i.e. the protocol, used by netty.
  */
@@ -32,8 +30,6 @@ public class NettyProtocol {
 
 	private final NettyMessage.NettyMessageEncoder
 		messageEncoder = new NettyMessage.NettyMessageEncoder();
-
-	private final NettyMessage.NettyMessageDecoder messageDecoder = new NettyMessage.NettyMessageDecoder();
 
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventDispatcher taskEventDispatcher;
@@ -50,24 +46,19 @@ public class NettyProtocol {
 	 * +-------------------------------------------------------------------+
 	 * |                        SERVER CHANNEL PIPELINE                    |
 	 * |                                                                   |
-	 * |    +----------+----------+ (3) write  +----------------------+    |
-	 * |    | Queue of queues     +----------->| Message encoder      |    |
-	 * |    +----------+----------+            +-----------+----------+    |
+	 * |   +-----------+-----------+ (3) write  +---------------------+    |
+	 * |   | Queue of queues       +----------->| Message encoder     |    |
+	 * |   +-----------+-----------+            +----------+----------+    |
 	 * |              /|\                                 \|/              |
 	 * |               | (2) enqueue                       |               |
-	 * |    +----------+----------+                        |               |
-	 * |    | Request handler     |                        |               |
-	 * |    +----------+----------+                        |               |
+	 * |   +-----------+-----------+                       |               |
+	 * |   | Request handler       |                       |               |
+	 * |   +-----------+-----------+                       |               |
 	 * |              /|\                                  |               |
 	 * |               |                                   |               |
-	 * |    +----------+----------+                        |               |
-	 * |    | Message decoder     |                        |               |
-	 * |    +----------+----------+                        |               |
-	 * |              /|\                                  |               |
-	 * |               |                                   |               |
-	 * |    +----------+----------+                        |               |
-	 * |    | Frame decoder       |                        |               |
-	 * |    +----------+----------+                        |               |
+	 * |   +-----------+-----------+                       |               |
+	 * |   | Message+Frame decoder |                       |               |
+	 * |   +-----------+-----------+                       |               |
 	 * |              /|\                                  |               |
 	 * +---------------+-----------------------------------+---------------+
 	 * |               | (1) client request               \|/
@@ -88,8 +79,7 @@ public class NettyProtocol {
 
 		return new ChannelHandler[] {
 			messageEncoder,
-			createFrameLengthDecoder(),
-			messageDecoder,
+			new NettyMessage.NettyMessageDecoder(),
 			serverHandler,
 			queueOfPartitionQueues
 		};
@@ -99,26 +89,21 @@ public class NettyProtocol {
 	 * Returns the client channel handlers.
 	 *
 	 * <pre>
-	 *     +-----------+----------+            +----------------------+
-	 *     | Remote input channel |            | request client       |
-	 *     +-----------+----------+            +-----------+----------+
+	 *     +-----------+------------+          +----------------------+
+	 *     | Remote input channel   |          | request client       |
+	 *     +-----------+------------+          +-----------+----------+
 	 *                 |                                   | (1) write
 	 * +---------------+-----------------------------------+---------------+
 	 * |               |     CLIENT CHANNEL PIPELINE       |               |
 	 * |               |                                  \|/              |
-	 * |    +----------+----------+            +----------------------+    |
-	 * |    | Request handler     +            | Message encoder      |    |
-	 * |    +----------+----------+            +-----------+----------+    |
+	 * |    +----------+------------+          +----------------------+    |
+	 * |    | Request handler       +          | Message encoder      |    |
+	 * |    +----------+------------+          +-----------+----------+    |
 	 * |              /|\                                 \|/              |
 	 * |               |                                   |               |
-	 * |    +----------+----------+                        |               |
-	 * |    | Message decoder     |                        |               |
-	 * |    +----------+----------+                        |               |
-	 * |              /|\                                  |               |
-	 * |               |                                   |               |
-	 * |    +----------+----------+                        |               |
-	 * |    | Frame decoder       |                        |               |
-	 * |    +----------+----------+                        |               |
+	 * |    +----------+------------+                      |               |
+	 * |    | Message+Frame decoder |                      |               |
+	 * |    +----------+------------+                      |               |
 	 * |              /|\                                  |               |
 	 * +---------------+-----------------------------------+---------------+
 	 * |               | (3) server response              \|/ (2) client request
@@ -135,8 +120,7 @@ public class NettyProtocol {
 	public ChannelHandler[] getClientChannelHandlers() {
 		return new ChannelHandler[] {
 			messageEncoder,
-			createFrameLengthDecoder(),
-			messageDecoder,
+			new NettyMessage.NettyMessageDecoder(),
 			new PartitionRequestClientHandler()};
 	}
 
