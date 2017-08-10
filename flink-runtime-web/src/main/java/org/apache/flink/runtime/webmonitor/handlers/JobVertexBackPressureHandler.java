@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -27,8 +28,11 @@ import org.apache.flink.runtime.webmonitor.OperatorBackPressureStats;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import scala.Option;
 
@@ -51,10 +55,11 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 
 	public JobVertexBackPressureHandler(
 			ExecutionGraphHolder executionGraphHolder,
+			Executor executor,
 			BackPressureStatsTracker backPressureStatsTracker,
 			int refreshInterval) {
 
-		super(executionGraphHolder);
+		super(executionGraphHolder, executor);
 		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker, "Stats tracker");
 		checkArgument(refreshInterval >= 0, "Negative timeout");
 		this.refreshInterval = refreshInterval;
@@ -66,11 +71,11 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 	}
 
 	@Override
-	public String handleRequest(
+	public CompletableFuture<String> handleRequest(
 			AccessExecutionJobVertex accessJobVertex,
-			Map<String, String> params) throws Exception {
+			Map<String, String> params) {
 		if (accessJobVertex instanceof ArchivedExecutionJobVertex) {
-			return "";
+			return CompletableFuture.completedFuture("");
 		}
 		ExecutionJobVertex jobVertex = (ExecutionJobVertex) accessJobVertex;
 		try (StringWriter writer = new StringWriter();
@@ -116,7 +121,9 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 			gen.writeEndObject();
 			gen.close();
 
-			return writer.toString();
+			return CompletableFuture.completedFuture(writer.toString());
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
@@ -40,6 +41,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Request handler that returns checkpoint stats for a single job vertex.
@@ -50,8 +53,8 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 
 	private final CheckpointStatsCache cache;
 
-	public CheckpointStatsDetailsHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
-		super(executionGraphHolder);
+	public CheckpointStatsDetailsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor, CheckpointStatsCache cache) {
+		super(executionGraphHolder, executor);
 		this.cache = cache;
 	}
 
@@ -61,30 +64,38 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 	}
 
 	@Override
-	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		long checkpointId = parseCheckpointId(params);
-		if (checkpointId == -1) {
-			return "{}";
-		}
+	public CompletableFuture<String> handleRequest(AccessExecutionGraph graph, Map<String, String> params) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				long checkpointId = parseCheckpointId(params);
+				if (checkpointId == -1) {
+					return "{}";
+				}
 
-		CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
-		if (snapshot == null) {
-			return "{}";
-		}
+				CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+				if (snapshot == null) {
+					return "{}";
+				}
 
-		AbstractCheckpointStats checkpoint = snapshot.getHistory().getCheckpointById(checkpointId);
+				AbstractCheckpointStats checkpoint = snapshot.getHistory().getCheckpointById(checkpointId);
 
-		if (checkpoint != null) {
-			cache.tryAdd(checkpoint);
-		} else {
-			checkpoint = cache.tryGet(checkpointId);
+				if (checkpoint != null) {
+					cache.tryAdd(checkpoint);
+				} else {
+					checkpoint = cache.tryGet(checkpointId);
 
-			if (checkpoint == null) {
-				return "{}";
-			}
-		}
+					if (checkpoint == null) {
+						return "{}";
+					}
+				}
 
-		return createCheckpointDetailsJson(checkpoint);
+				try {
+					return createCheckpointDetailsJson(checkpoint);
+				} catch (IOException e) {
+					throw new FlinkFutureException("Could not create checkpoint details json.", e);
+				}
+			},
+			executor);
 	}
 
 	/**

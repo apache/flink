@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.metrics;
 import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Request handler that returns for a given task manager a list of all available metrics or the values for a set of metrics.
@@ -37,8 +38,8 @@ public class TaskManagerMetricsHandler extends AbstractMetricsHandler {
 
 	private static final String TASKMANAGER_METRICS_REST_PATH = "/taskmanagers/:taskmanagerid/metrics";
 
-	public TaskManagerMetricsHandler(MetricFetcher fetcher) {
-		super(fetcher);
+	public TaskManagerMetricsHandler(Executor executor, MetricFetcher fetcher) {
+		super(executor, fetcher);
 	}
 
 	@Override

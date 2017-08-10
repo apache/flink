@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -34,7 +35,7 @@ import java.util.List;
 public class JobStoppingHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {
-		JobStoppingHandler handler = new JobStoppingHandler(TestingUtils.TIMEOUT());
+		JobStoppingHandler handler = new JobStoppingHandler(Executors.directExecutor(), TestingUtils.TIMEOUT());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(2, paths.length);
 		List<String> pathsList = Lists.newArrayList(paths);

@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -276,27 +277,27 @@ public final class ExceptionUtils {
 	}
 
 	/**
-	 * Checks whether a throwable chain contains a specific type of exception.
+	 * Checks whether a throwable chain contains a specific type of exception and returns it.
 	 *
 	 * @param throwable the throwable chain to check.
 	 * @param searchType the type of exception to search for in the chain.
-	 * @return True, if the searched type is nested in the throwable, false otherwise.
+	 * @return Optional throwable of the requested type if available, otherwise empty
 	 */
-	public static boolean containsThrowable(Throwable throwable, Class<?> searchType) {
+	public static Optional<Throwable> findThrowable(Throwable throwable, Class<?> searchType) {
 		if (throwable == null || searchType == null) {
-			return false;
+			return Optional.empty();
 		}
 
 		Throwable t = throwable;
 		while (t != null) {
 			if (searchType.isAssignableFrom(t.getClass())) {
-				return true;
+				return Optional.of(t);
 			} else {
 				t = t.getCause();
 			}
 		}
 
-		return false;
+		return Optional.empty();
 	}
 
 	/**

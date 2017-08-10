@@ -49,7 +49,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStoreTest.setupStore(fetcher.getMetricStore());
 
-		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);
+		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 		Map<String, String> queryParams = new HashMap<>();
@@ -58,7 +58,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		pathParams.put("vertexid", "taskid");
 
 		// get list of available metrics
-		String availableList = handler.handleJsonRequest(pathParams, queryParams, null);
+		String availableList = handler.handleJsonRequest(pathParams, queryParams, null).get();
 
 		assertEquals("[" +
 				"{\"id\":\"8.opname.abc.metric5\"}," +
@@ -69,7 +69,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		// get value for a single metric
 		queryParams.put("get", "8.opname.abc.metric5");
 
-		String metricValue = handler.handleJsonRequest(pathParams, queryParams, null);
+		String metricValue = handler.handleJsonRequest(pathParams, queryParams, null).get();
 
 		assertEquals("[" +
 				"{\"id\":\"8.opname.abc.metric5\",\"value\":\"4\"}" +
@@ -80,7 +80,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		// get values for multiple metrics
 		queryParams.put("get", "8.opname.abc.metric5,8.abc.metric4");
 
-		String metricValues = handler.handleJsonRequest(pathParams, queryParams, null);
+		String metricValues = handler.handleJsonRequest(pathParams, queryParams, null).get();
 
 		assertEquals("[" +
 				"{\"id\":\"8.opname.abc.metric5\",\"value\":\"4\"}," +
@@ -102,7 +102,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStoreTest.setupStore(fetcher.getMetricStore());
 
-		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);
+		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 		Map<String, String> queryParams = new HashMap<>();
@@ -114,7 +114,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		pathParams.put("jobid", "nonexistent");
 
 		try {
-			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null).get());
 		} catch (Exception e) {
 			fail();
 		}
@@ -132,7 +132,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT());
 		MetricStoreTest.setupStore(fetcher.getMetricStore());
 
-		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);
+		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(Executors.directExecutor(), fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
 		Map<String, String> queryParams = new HashMap<>();
@@ -144,7 +144,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		queryParams.put("get", "");
 
 		try {
-			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null).get());
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
@@ -154,7 +154,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		queryParams.put("get", "subindex.opname.abc.metric5");
 
 		try {
-			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null).get());
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
@@ -164,7 +164,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		queryParams.put("get", "subindex.opname.abc.nonexistant");
 
 		try {
-			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null).get());
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}

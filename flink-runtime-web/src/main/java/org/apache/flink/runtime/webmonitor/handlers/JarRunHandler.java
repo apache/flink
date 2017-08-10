@@ -24,6 +24,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.util.Preconditions;
@@ -33,6 +34,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.File;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * This handler handles requests to fetch plan for a jar.
@@ -44,8 +47,8 @@ public class JarRunHandler extends JarActionHandler {
 	private final Time timeout;
 	private final Configuration clientConfig;
 
-	public JarRunHandler(File jarDirectory, Time timeout, Configuration clientConfig) {
-		super(jarDirectory);
+	public JarRunHandler(Executor executor, File jarDirectory, Time timeout, Configuration clientConfig) {
+		super(executor, jarDirectory);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.clientConfig = Preconditions.checkNotNull(clientConfig);
 	}
@@ -56,31 +59,35 @@ public class JarRunHandler extends JarActionHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		try {
-			JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
-			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config);
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+					Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config);
 
-			try {
-				JobClient.submitJobDetached(
-					jobManagerGateway,
-					clientConfig,
-					graph.f0,
-					timeout,
-					graph.f1);
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Failed to submit the job to the job manager", e);
-			}
+					try {
+						JobClient.submitJobDetached(
+							jobManagerGateway,
+							clientConfig,
+							graph.f0,
+							timeout,
+							graph.f1);
+					} catch (JobExecutionException e) {
+						throw new ProgramInvocationException("Failed to submit the job to the job manager", e);
+					}
 
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-			gen.writeStartObject();
-			gen.writeStringField("jobid", graph.f0.getJobID().toString());
-			gen.writeEndObject();
-			gen.close();
-			return writer.toString();
-		} catch (Exception e) {
-			return sendError(e);
-		}
+					StringWriter writer = new StringWriter();
+					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+					gen.writeStartObject();
+					gen.writeStringField("jobid", graph.f0.getJobID().toString());
+					gen.writeEndObject();
+					gen.close();
+					return writer.toString();
+				} catch (Exception e) {
+					throw new FlinkFutureException("Could not run the jar.", e);
+				}
+			},
+			executor);
 	}
 }
