@@ -60,7 +60,7 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT, "2");
 		Properties replacedConfig = KinesisConfigUtil.replaceDeprecatedProducerKeys(testConfig);
 
-		assertEquals("1", replacedConfig.getProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT));
-		assertEquals("2", replacedConfig.getProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT));
+		assertEquals("1", replacedConfig.getProperty(KinesisConfigUtil.AGGREGATION_MAX_COUNT));
+		assertEquals("2", replacedConfig.getProperty(KinesisConfigUtil.COLLECTION_MAX_COUNT));
 	}
 }

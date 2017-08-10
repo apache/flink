@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kinesis;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -168,10 +167,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		super.open(parameters);
 
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
-		// Override KPL default value if it's not specified by user
-		if (!configProps.containsKey(ProducerConfigConstants.RATE_LIMIT)) {
-			producerConfig.setRateLimit(ProducerConfigConstants.DEFAULT_RATE_LIMIT);
-		}
 
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {

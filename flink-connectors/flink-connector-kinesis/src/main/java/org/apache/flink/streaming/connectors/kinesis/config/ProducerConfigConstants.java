@@ -22,30 +22,14 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 /**
  * Optional producer specific configuration keys for {@link FlinkKinesisProducer}.
  */
+@Deprecated
 public class ProducerConfigConstants extends AWSConfigConstants {
 
 	/** Deprecated key. **/
+	@Deprecated
 	public static final String DEPRECATED_COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
 
  	/** Deprecated key. **/
+	@Deprecated
 	public static final String DEPRECATED_AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
-
-	/** Maximum number of items to pack into an PutRecords request. **/
-	public static final String COLLECTION_MAX_COUNT = "CollectionMaxCount";
-
-	/** Maximum number of items to pack into an aggregated record. **/
-	public static final String AGGREGATION_MAX_COUNT = "AggregationMaxCount";
-
-	/** Limits the maximum allowed put rate for a shard, as a percentage of the backend limits.
-	 * The default value is set as 100% in Flink. KPL's default value is 150% but it throws RateLimitExceededException
-	 * too frequently and breaks Flink sink.
-	 **/
-	public static final String RATE_LIMIT = "RateLimit";
-
-
-	// ------------------------------------------------------------------------
-	//  Default values for producer configuration
-	// ------------------------------------------------------------------------
-
-	public static final long DEFAULT_RATE_LIMIT = 100L;
 }

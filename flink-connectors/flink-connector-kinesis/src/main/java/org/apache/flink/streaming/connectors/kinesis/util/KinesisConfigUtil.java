@@ -39,6 +39,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for Flink Kinesis connector configuration.
  */
 public class KinesisConfigUtil {
+	/** Maximum number of items to pack into an PutRecords request. **/
+	@Deprecated
+	protected static final String COLLECTION_MAX_COUNT = "CollectionMaxCount";
+
+	/** Maximum number of items to pack into an aggregated record. **/
+	@Deprecated
+	protected static final String AGGREGATION_MAX_COUNT = "AggregationMaxCount";
+
+	/** Limits the maximum allowed put rate for a shard, as a percentage of the backend limits.
+	 * The default value is set as 100% in Flink. KPL's default value is 150% but it makes KPL throw
+	 * RateLimitExceededException too frequently and breaks Flink sink as a result.
+	 **/
+	private static final String RATE_LIMIT = "RateLimit";
+
+	/** Default values for RateLimit. **/
+	private static final String DEFAULT_RATE_LIMIT = "100";
+
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
@@ -134,13 +151,13 @@ public class KinesisConfigUtil {
 	public static Properties replaceDeprecatedProducerKeys(Properties configProps) {
 		// Replace deprecated key
 		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT)) {
-			configProps.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT,
+			configProps.setProperty(COLLECTION_MAX_COUNT,
 					configProps.getProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT));
 			configProps.remove(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT);
 		}
 		// Replace deprecated key
 		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT)) {
-			configProps.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT,
+			configProps.setProperty(AGGREGATION_MAX_COUNT,
 					configProps.getProperty(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT));
 			configProps.remove(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT);
 		}
@@ -154,6 +171,11 @@ public class KinesisConfigUtil {
 		checkNotNull(config, "config can not be null");
 
 		validateAwsConfiguration(config);
+
+		// Override KPL default value if it's not specified by user
+		if (!config.containsKey(RATE_LIMIT)) {
+			config.setProperty(RATE_LIMIT, DEFAULT_RATE_LIMIT);
+		}
 
 		return KinesisProducerConfiguration.fromProperties(config);
 	}
