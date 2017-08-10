@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -74,7 +75,7 @@ public interface SlotPoolGateway extends RpcGateway {
 
 	void registerTaskManager(ResourceID resourceID);
 
-	void releaseTaskManager(ResourceID resourceID);
+	CompletableFuture<Acknowledge> releaseTaskManager(ResourceID resourceID);
 
 	CompletableFuture<Boolean> offerSlot(AllocatedSlot slot);
 

@@ -613,7 +613,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	 * @param resourceID The id of the TaskManager
 	 */
 	@Override
-	public void releaseTaskManager(final ResourceID resourceID) {
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceID) {
 		if (registeredTaskManagers.remove(resourceID)) {
 			availableSlots.removeAllForTaskManager(resourceID);
 
@@ -622,6 +622,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 				slot.releaseSlot();
 			}
 		}
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	// ------------------------------------------------------------------------

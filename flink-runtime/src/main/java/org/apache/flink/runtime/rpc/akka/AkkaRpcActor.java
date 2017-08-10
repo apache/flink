@@ -189,6 +189,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 		if (rpcMethod != null) {
 			try {
+				// this supports declaration of anonymous classes
+				rpcMethod.setAccessible(true);
+
 				if (rpcMethod.getReturnType().equals(Void.TYPE)) {
 					// No return value to send back
 					rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());

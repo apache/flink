@@ -291,8 +291,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		TaskSlot taskSlot = getTaskSlot(allocationId);
 
 		if (taskSlot != null) {
-			LOG.info("Free slot {}.", allocationId, cause);
-
 			final JobID jobId = taskSlot.getJobId();
 
 			if (taskSlot.markFree()) {
