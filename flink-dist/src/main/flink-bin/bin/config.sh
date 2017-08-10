@@ -336,16 +336,18 @@ if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""
 fi
 
-# Check if deprecated HADOOP_HOME is set.
-if [ -n "$HADOOP_HOME" ]; then
-    # HADOOP_HOME is set. Check if its a Hadoop 1.x or 2.x HADOOP_HOME path
-    if [ -d "$HADOOP_HOME/conf" ]; then
-        # its a Hadoop 1.x
-        HADOOP_CONF_DIR="$HADOOP_CONF_DIR:$HADOOP_HOME/conf"
-    fi
-    if [ -d "$HADOOP_HOME/etc/hadoop" ]; then
-        # Its Hadoop 2.2+
-        HADOOP_CONF_DIR="$HADOOP_CONF_DIR:$HADOOP_HOME/etc/hadoop"
+# Check if deprecated HADOOP_HOME is set, and specify config path to HADOOP_CONF_DIR if it's empty.
+if [ -z "$HADOOP_CONF_DIR" ]; then
+    if [ -n "$HADOOP_HOME" ]; then
+        # HADOOP_HOME is set. Check if its a Hadoop 1.x or 2.x HADOOP_HOME path
+        if [ -d "$HADOOP_HOME/conf" ]; then
+            # its a Hadoop 1.x
+            HADOOP_CONF_DIR="$HADOOP_HOME/conf"
+        fi
+        if [ -d "$HADOOP_HOME/etc/hadoop" ]; then
+            # Its Hadoop 2.2+
+            HADOOP_CONF_DIR="$HADOOP_HOME/etc/hadoop"
+        fi
     fi
 fi
 
