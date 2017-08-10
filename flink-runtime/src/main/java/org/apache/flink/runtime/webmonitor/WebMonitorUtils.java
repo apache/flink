@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -79,14 +79,14 @@ public final class WebMonitorUtils {
 
 			if (logFilePath == null) {
 				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-				logFilePath = config.getString(JobManagerOptions.WEB_LOG_PATH);
+				logFilePath = config.getString(WebOptions.LOG_PATH);
 			}
 
 			// not configured, cannot serve log files
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, JobManagerOptions.WEB_LOG_PATH.key());
+					logEnv, WebOptions.LOG_PATH.key());
 				return new LogFileLocation(null, null);
 			}
 

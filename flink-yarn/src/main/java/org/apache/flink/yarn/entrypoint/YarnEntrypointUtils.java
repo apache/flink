@@ -24,6 +24,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -104,8 +105,8 @@ public class YarnEntrypointUtils {
 		}
 
 		// if a web monitor shall be started, set the port to random binding
-		if (configuration.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
-			configuration.setInteger(JobManagerOptions.WEB_PORT, 0);
+		if (configuration.getInteger(WebOptions.PORT.key(), 0) >= 0) {
+			configuration.setInteger(WebOptions.PORT, 0);
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the
