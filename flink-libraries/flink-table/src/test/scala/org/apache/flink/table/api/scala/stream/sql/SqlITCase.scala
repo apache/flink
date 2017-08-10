@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
@@ -26,6 +27,7 @@ import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestDa
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.scala.stream.sql.OverWindowITCase.EventTimeSourceFunction
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
@@ -312,6 +314,55 @@ class SqlITCase extends StreamingWithStateTestBase {
     val expected = List(
       "2,[(13,41.6), (14,45.2136)],14,45.2136",
       "3,[(18,42.6)],18,42.6")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testHopStartEndWithHaving(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+    env.setParallelism(1)
+
+    val sqlQueryHopStartEndWithHaving =
+      """
+        |SELECT
+        |  c AS k,
+        |  COUNT(a) AS v,
+        |  HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE) AS windowStart,
+        |  HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE) AS windowEnd
+        |FROM T1
+        |GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE), c
+        |HAVING
+        |  SUM(b) > 1 AND
+        |    QUARTER(HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' MINUTE)) = 1
+      """.stripMargin
+
+    val data = Seq(
+      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000000L, (2, 1L, "Hello")),
+      Left(14000002L, (3, 1L, "Hello")),
+      Right(14000010L),
+      Left(8640000000L, (4, 1L, "Hello")), // data for the quarter to validate having filter
+      Left(8640000001L, (4, 1L, "Hello")),
+      Right(8640000010L)
+    )
+
+    val t1 = env.addSource(new EventTimeSourceFunction[(Int, Long, String)](data))
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+
+    val resultHopStartEndWithHaving = tEnv.sql(sqlQueryHopStartEndWithHaving).toAppendStream[Row]
+    resultHopStartEndWithHaving.addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = List(
+      "Hello,2,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0"
+    )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

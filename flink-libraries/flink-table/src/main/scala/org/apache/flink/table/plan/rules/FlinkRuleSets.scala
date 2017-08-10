@@ -137,7 +137,8 @@ object FlinkRuleSets {
 
     // Transform window to LogicalWindowAggregate
     DataSetLogicalWindowAggregateRule.INSTANCE,
-    WindowStartEndPropertiesRule.INSTANCE
+    WindowStartEndPropertiesRule.INSTANCE,
+    WindowStartEndPropertiesHavingRule.INSTANCE
   )
 
   /**
@@ -169,6 +170,7 @@ object FlinkRuleSets {
     // Transform window to LogicalWindowAggregate
     DataStreamLogicalWindowAggregateRule.INSTANCE,
     WindowStartEndPropertiesRule.INSTANCE,
+    WindowStartEndPropertiesHavingRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,

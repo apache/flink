@@ -335,4 +335,46 @@ class WindowAggregateTest extends TableTestBase {
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
     util.verifySql(sql, "n/a")
   }
+
+  @Test
+  def testExpressionOnWindowHavingFunction() = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+
+    val sql =
+      "SELECT " +
+        "  COUNT(*), " +
+        "  HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE) " +
+        "FROM T " +
+        "GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE) " +
+        "HAVING " +
+        "  SUM(a) > 0 AND " +
+        "  QUARTER(HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetWindowAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "ts, a")
+          ),
+          term("window", SlidingGroupWindow('w$, 'ts, 60000.millis, 900000.millis)),
+          term("select",
+            "COUNT(*) AS EXPR$0",
+            "SUM(a) AS $f1",
+            "start('w$) AS w$start",
+            "end('w$) AS w$end")
+        ),
+        term("select", "EXPR$0", "CAST(w$start) AS w$start"),
+        term("where",
+          "AND(>($f1, 0), " +
+            "=(+(/INT(-(EXTRACT_DATE(FLAG(MONTH), /INT(Reinterpret(CAST(w$start)), 86400000)), " +
+              "1), 3), 1), 1))")
+      )
+
+    util.verifySql(sql, expected)
+  }
 }
