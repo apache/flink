@@ -233,20 +233,35 @@ public class TaskManagerServices {
 			// similar to #calculateNetworkBufferMemory(TaskManagerServicesConfiguration tmConfig)
 			float memoryFraction = taskManagerServicesConfiguration.getMemoryFraction();
 
-			// The maximum heap memory has been adjusted according to the fraction (see
-			// calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config)), i.e.
-			// maxJvmHeap = jvmHeapNoNet - jvmHeapNoNet * memoryFraction = jvmHeapNoNet * (1 - memoryFraction)
-			// directMemorySize = jvmHeapNoNet * memoryFraction
-			long maxMemory = EnvironmentInformation.getMaxJvmHeapMemory();
-			long directMemorySize = (long) (maxMemory / (1.0 - memoryFraction) * memoryFraction);
-			if (preAllocateMemory) {
-				LOG.info("Using {} of the maximum memory size for managed off-heap memory ({} MB)." ,
-					memoryFraction, directMemorySize >> 20);
+			if (memType == MemoryType.HEAP) {
+				// network buffers allocated off-heap -> use memoryFraction of the available heap:
+				long relativeMemSize = (long) (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() * memoryFraction);
+				if (preAllocateMemory) {
+					LOG.info("Using {} of the currently free heap space for managed heap memory ({} MB)." ,
+						memoryFraction , relativeMemSize >> 20);
+				} else {
+					LOG.info("Limiting managed memory to {} of the currently free heap space ({} MB), " +
+						"memory will be allocated lazily." , memoryFraction , relativeMemSize >> 20);
+				}
+				memorySize = relativeMemSize;
+			} else if (memType == MemoryType.OFF_HEAP) {
+				// The maximum heap memory has been adjusted according to the fraction (see
+				// calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config)), i.e.
+				// maxJvmHeap = jvmTotalNoNet - jvmTotalNoNet * memoryFraction = jvmTotalNoNet * (1 - memoryFraction)
+				// directMemorySize = jvmTotalNoNet * memoryFraction
+				long maxJvmHeap = EnvironmentInformation.getMaxJvmHeapMemory();
+				long directMemorySize = (long) (maxJvmHeap / (1.0 - memoryFraction) * memoryFraction);
+				if (preAllocateMemory) {
+					LOG.info("Using {} of the maximum memory size for managed off-heap memory ({} MB)." ,
+						memoryFraction, directMemorySize >> 20);
+				} else {
+					LOG.info("Limiting managed memory to {} of the maximum memory size ({} MB)," +
+						" memory will be allocated lazily.", memoryFraction, directMemorySize >> 20);
+				}
+				memorySize = directMemorySize;
 			} else {
-				LOG.info("Limiting managed memory to {} of the maximum memory size ({} MB)," +
-					" memory will be allocated lazily.", memoryFraction, directMemorySize >> 20);
+				throw new RuntimeException("No supported memory type detected.");
 			}
-			memorySize = directMemorySize;
 		}
 
 		// now start the memory manager
