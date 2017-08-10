@@ -272,7 +272,7 @@ check_shaded_artifacts() {
 	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
 	if [ $ASM != "0" ]; then
 		echo "=============================================================================="
-		echo "Detected $ASM asm dependencies in fat jar"
+		echo "Detected $ASM unshaded asm dependencies in fat jar"
 		echo "=============================================================================="
 		return 1
 	fi

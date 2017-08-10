@@ -31,8 +31,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 
-import static org.objectweb.asm.Type.getConstructorDescriptor;
-import static org.objectweb.asm.Type.getMethodDescriptor;
+import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getMethodDescriptor;
 
 @Internal
 public class TypeExtractionUtils {

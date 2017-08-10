@@ -20,8 +20,8 @@ package org.apache.flink.api.java.sca;
 
 import org.apache.flink.annotation.Internal;
 
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.analysis.BasicValue;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.BasicValue;
 
 import java.util.HashMap;
 import java.util.Iterator;

@@ -109,7 +109,6 @@ under the License.
 		<scala.version>2.11.11</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.4</chill.version>
-		<asm.version>5.0.4</asm.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.4</jackson.version>
@@ -254,6 +253,12 @@ under the License.
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-lang3</artifactId>
 				<version>3.3.2</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-asm</artifactId>
+				<version>5.0.4-1.0</version>
 			</dependency>
 
 			<!-- Make sure we use a consistent avro version throughout the project -->
@@ -1255,7 +1260,6 @@ under the License.
 									-->
 									<include>org.apache.flink:force-shading</include>
 									<include>com.google.guava:*</include>
-									<include>org.ow2.asm:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -1266,10 +1270,6 @@ under the License.
 										<exclude>com.google.protobuf.**</exclude>
 										<exclude>com.google.inject.**</exclude>
 									</excludes>
-								</relocation>
-								<relocation>
-									<pattern>org.objectweb.asm</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.objectweb.asm</shadedPattern>
 								</relocation>
 							</relocations>
 							<transformers>

@@ -63,12 +63,6 @@ under the License.
 			<artifactId>scala-compiler</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm</artifactId>
-			<version>${asm.version}</version>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>

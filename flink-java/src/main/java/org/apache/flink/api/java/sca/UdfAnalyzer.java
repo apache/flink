@@ -37,8 +37,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.sca.TaggedValue.Input;
 
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.MethodNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodNode;
+
 import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
