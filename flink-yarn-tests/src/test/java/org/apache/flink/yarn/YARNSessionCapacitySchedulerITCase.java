@@ -545,7 +545,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// TM was started with 1024 but we cut off 50% (NOT THE DEFAULT VALUE)
-			String expected = "Starting TaskManagers with command: $JAVA_HOME/bin/java -Xms424m -Xmx424m";
+			String expected = "Starting TaskManagers with command: $JAVA_HOME/bin/java -Xms360m -Xmx360m -XX:MaxDirectMemorySize=664m";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '" + jobmanagerLog + "'",
 				content.contains(expected));
 			expected = " (2/2) (attempt #0) to ";
