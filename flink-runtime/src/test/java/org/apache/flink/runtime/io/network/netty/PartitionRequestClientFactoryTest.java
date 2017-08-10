@@ -57,7 +57,8 @@ public class PartitionRequestClientFactoryTest {
 		final CountDownLatch syncOnConnect = new CountDownLatch(1);
 
 		final Tuple2<NettyServer, NettyClient> netty = createNettyServerAndClient(
-				new NettyProtocol() {
+				new NettyProtocol(null, null) {
+
 					@Override
 					public ChannelHandler[] getServerChannelHandlers() {
 						return new ChannelHandler[0];

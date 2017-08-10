@@ -64,7 +64,7 @@ public class NettyServerLowAndHighWatermarkTest {
 		final int expectedHighWatermark = 2 * PageSize;
 
 		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-		final NettyProtocol protocol = new NettyProtocol() {
+		final NettyProtocol protocol = new NettyProtocol(null, null) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				// The channel handler implements the test

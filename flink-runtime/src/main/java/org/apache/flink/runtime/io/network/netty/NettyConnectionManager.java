@@ -46,8 +46,8 @@ public class NettyConnectionManager implements ConnectionManager {
 	@Override
 	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher)
 			throws IOException {
-		PartitionRequestProtocol partitionRequestProtocol =
-				new PartitionRequestProtocol(partitionProvider, taskEventDispatcher);
+		NettyProtocol partitionRequestProtocol =
+				new NettyProtocol(partitionProvider, taskEventDispatcher);
 
 		client.init(partitionRequestProtocol, bufferPool);
 		server.init(partitionRequestProtocol, bufferPool);
