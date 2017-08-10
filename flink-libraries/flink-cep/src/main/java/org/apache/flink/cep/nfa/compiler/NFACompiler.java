@@ -36,8 +36,8 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava18.com.google.common.base.Predicate;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import javax.annotation.Nullable;
 

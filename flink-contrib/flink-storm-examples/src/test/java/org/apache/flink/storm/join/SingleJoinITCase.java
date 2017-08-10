@@ -20,7 +20,7 @@ package org.apache.flink.storm.join;
 
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
-import com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 /**
  * Test for the SingleJoin example.

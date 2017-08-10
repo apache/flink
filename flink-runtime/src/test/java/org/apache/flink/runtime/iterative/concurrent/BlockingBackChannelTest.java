@@ -22,10 +22,10 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
 
-import com.google.common.collect.Lists;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -46,7 +46,7 @@ public class BlockingBackChannelTest {
 	public void multiThreaded() throws InterruptedException {
 
 		BlockingQueue<Integer> dataChannel = new ArrayBlockingQueue<Integer>(1);
-		List<String> actionLog = Lists.newArrayList();
+		List<String> actionLog = new ArrayList<>();
 
 		SerializedUpdateBuffer buffer = Mockito.mock(SerializedUpdateBuffer.class);
 		BlockingBackChannel channel = new BlockingBackChannel(buffer);

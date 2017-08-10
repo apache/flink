@@ -74,11 +74,13 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.HashMultimap;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

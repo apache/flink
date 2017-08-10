@@ -28,7 +28,8 @@ import org.apache.flink.runtime.security.modules.JaasModule;
 import org.apache.flink.runtime.security.modules.SecurityModule;
 import org.apache.flink.runtime.security.modules.ZooKeeperModule;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;

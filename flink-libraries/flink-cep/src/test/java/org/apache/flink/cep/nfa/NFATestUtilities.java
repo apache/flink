@@ -21,7 +21,6 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.cep.Event;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.primitives.Doubles;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -96,7 +95,7 @@ public class NFATestUtilities {
 		@Override
 		public int compare(Event o1, Event o2) {
 			int nameComp = o1.getName().compareTo(o2.getName());
-			int priceComp = Doubles.compare(o1.getPrice(), o2.getPrice());
+			int priceComp = Double.compare(o1.getPrice(), o2.getPrice());
 			int idComp = Integer.compare(o1.getId(), o2.getId());
 			if (nameComp == 0) {
 				if (priceComp == 0) {
