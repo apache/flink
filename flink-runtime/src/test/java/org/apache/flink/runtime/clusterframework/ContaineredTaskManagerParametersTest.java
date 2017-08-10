@@ -53,7 +53,7 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 			calculateNetworkBufferMemory(
 				(CONTAINER_MEMORY - cutoff) << 20, // megabytes to bytes
 				conf) >> 20; // bytes to megabytes
-		assertEquals(networkBufMB, params.taskManagerDirectMemoryLimitMB());
+		assertEquals(networkBufMB + cutoff, params.taskManagerDirectMemoryLimitMB());
 	}
 
 	/**
