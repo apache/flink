@@ -164,7 +164,11 @@ class GroupWindowTest extends TableTestBase {
             term("select", "rowtime, a")
           ),
           term("window", SlidingGroupWindow('w$, 'rowtime, 60000.millis, 900000.millis)),
-          term("select", "COUNT(*) AS EXPR$0", "SUM(a) AS $f1", "start('w$) AS w$start", "end('w$) AS w$end")
+          term("select",
+            "COUNT(*) AS EXPR$0",
+            "SUM(a) AS $f1",
+            "start('w$) AS w$start",
+            "end('w$) AS w$end")
         ),
         term("select", "EXPR$0", "w$start")
       )

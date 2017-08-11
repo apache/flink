@@ -34,9 +34,14 @@ object WindowStartEndPropertiesHavingRule {
   private val INNER_PROJECT_OPERAND_INDEX = 2
   private val LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX = 3
 
-  val INSTANCE = new WindowStartEndPropertiesRule("WindowStartEndPropertiesRule" ,WINDOW_EXPRESSION_RULE_PREDICATE) {
-    override private[table] def getProjectOperandIndex = PROJECT_OPERAND_INDEX
-    override private[table] def getInnerProjectOperandIndex = INNER_PROJECT_OPERAND_INDEX
-    override private[table] def getLogicalWindowAggregateOperandIndex = LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX
+  val INSTANCE = new WindowStartEndPropertiesRule("WindowStartEndPropertiesRule" ,
+    WINDOW_EXPRESSION_RULE_PREDICATE) {
+
+    override private[table] def getProjectOperandIndex =
+      PROJECT_OPERAND_INDEX
+    override private[table] def getInnerProjectOperandIndex =
+      INNER_PROJECT_OPERAND_INDEX
+    override private[table] def getLogicalWindowAggregateOperandIndex =
+      LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX
   }
 }
