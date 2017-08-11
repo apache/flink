@@ -344,7 +344,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * {{{A1 A2 B}}} appears, this will generate patterns:
     * {{{A1 B}}} and {{{A1 A2 B}}}. See also {{{allowCombinations()}}}.
     *
-    * @return The same pattern with a [[Quantifier.oneOrMore()]] quantifier applied.
+    * @return The same pattern with a [[Quantifier.looping()]] quantifier applied.
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
   def oneOrMore: Pattern[T, F] = {
@@ -378,7 +378,21 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
-    * Applicable only to [[Quantifier.oneOrMore()]] and [[Quantifier.times()]] patterns,
+    * Specifies that this pattern can occur the specified times at least.
+    * This means at least the specified times and at most infinite number of events can
+    * be matched to this pattern.
+    *
+    * @return The same pattern with a { @link Quantifier#looping(ConsumingStrategy)} quantifier
+    *         applied.
+    * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+    */
+  def timesOrMore(times: Int): Pattern[T, F] = {
+    jPattern.timesOrMore(times)
+    this
+  }
+
+  /**
+    * Applicable only to [[Quantifier.looping()]] and [[Quantifier.times()]] patterns,
     * this option allows more flexibility to the matching events.
     *
     * If {{{allowCombinations()}}} is not applied for a

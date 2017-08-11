@@ -291,13 +291,9 @@ public class NFACompiler {
 				final State<T> looping = createLooping(sink);
 
 				setCurrentGroupPatternFirstOfLoop(true);
-				if (!quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-					lastSink = createInitMandatoryStateOfOneOrMore(looping);
-				} else {
-					lastSink = createInitOptionalStateOfZeroOrMore(looping, sinkState);
-				}
+				lastSink = createTimesState(looping, sinkState, currentPattern.getTimes());
 			} else if (quantifier.hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-				lastSink = createTimesState(sinkState, currentPattern.getTimes());
+				lastSink = createTimesState(sinkState, sinkState, currentPattern.getTimes());
 			} else {
 				lastSink = createSingletonState(sinkState);
 			}
@@ -407,16 +403,26 @@ public class NFACompiler {
 		 * same {@link IterativeCondition}.
 		 *
 		 * @param sinkState the state that the created state should point to
+		 * @param proceedState state that the state being converted should proceed to
 		 * @param times     number of times the state should be copied
 		 * @return the first state of the "complex" state, next state should point to it
 		 */
-		private State<T> createTimesState(final State<T> sinkState, Times times) {
+		@SuppressWarnings("unchecked")
+		private State<T> createTimesState(final State<T> sinkState, final State<T> proceedState, Times times) {
 			State<T> lastSink = sinkState;
 			setCurrentGroupPatternFirstOfLoop(false);
-			final IterativeCondition<T> takeCondition = getTakeCondition(currentPattern);
-			final IterativeCondition<T> innerIgnoreCondition = getInnerIgnoreCondition(currentPattern);
+			final IterativeCondition<T> untilCondition = (IterativeCondition<T>) currentPattern.getUntilCondition();
+			final IterativeCondition<T> innerIgnoreCondition = extendWithUntilCondition(
+				getInnerIgnoreCondition(currentPattern),
+				untilCondition,
+				false);
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				getTakeCondition(currentPattern),
+				untilCondition,
+				true);
+
 			for (int i = times.getFrom(); i < times.getTo(); i++) {
-				lastSink = createSingletonState(lastSink, sinkState, takeCondition, innerIgnoreCondition, true);
+				lastSink = createSingletonState(lastSink, proceedState, takeCondition, innerIgnoreCondition, true);
 				addStopStateToLooping(lastSink);
 			}
 			for (int i = 0; i < times.getFrom() - 1; i++) {
@@ -427,7 +433,7 @@ public class NFACompiler {
 			setCurrentGroupPatternFirstOfLoop(true);
 			return createSingletonState(
 				lastSink,
-				sinkState,
+				proceedState,
 				takeCondition,
 				getIgnoreCondition(currentPattern),
 				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
@@ -653,46 +659,6 @@ public class NFACompiler {
 				addStopStateToLooping(ignoreState);
 			}
 			return loopingState;
-		}
-
-		/**
-		 * Patterns with quantifiers AT_LEAST_ONE_* are created as a pair of states: a singleton state and
-		 * looping state. This method creates the first of the two.
-		 *
-		 * @param sinkState the state the newly created state should point to, it should be a looping state
-		 * @return the newly created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
-			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				getTakeCondition(currentPattern),
-				(IterativeCondition<T>) currentPattern.getUntilCondition(),
-				true
-			);
-
-			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
-
-			return createSingletonState(sinkState, null, takeCondition, ignoreCondition, false);
-		}
-
-		/**
-		 * Creates a pair of states that enables relaxed strictness before a zeroOrMore looping state.
-		 *
-		 * @param loopingState the first state of zeroOrMore complex state
-		 * @param lastSink     the state that the looping one points to
-		 * @return the newly created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
-			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				getTakeCondition(currentPattern),
-				(IterativeCondition<T>) currentPattern.getUntilCondition(),
-				true
-			);
-
-			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
-
-			return createSingletonState(loopingState, lastSink, takeCondition, ignoreFunction, true);
 		}
 
 		/**
