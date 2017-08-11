@@ -104,8 +104,6 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 	 */
 	public abstract class Context {
 
-		private volatile long watermarkDelay = 0L;
-
 		/**
 		 * Timestamp of the element currently being processed or timestamp of a firing timer.
 		 *
@@ -118,24 +116,6 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 		 * A {@link TimerService} for querying time and registering timers.
 		 */
 		public abstract TimerService timerService();
-
-
-		/**
-		 * Set a time delay for holding back watermarks.
-		 * @param delay the time delay
-		 */
-		public void setWatermarkDelay(long delay) {
-			if (delay >= 0) {
-				this.watermarkDelay = delay;
-			}
-		}
-
-		/**
-		 * Return the time delay for holding back watermarks.
-		 */
-		public long watermarkDelay() {
-			return watermarkDelay;
-		}
 	}
 
 	/**

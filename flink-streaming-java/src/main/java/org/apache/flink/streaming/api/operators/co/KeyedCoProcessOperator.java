@@ -106,11 +106,6 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 		onTimerContext.timer = null;
 	}
 
-	@Override
-	protected long holdBackWatermark(long watermarkTime) {
-		return watermarkTime - context.watermarkDelay();
-	}
-
 	protected TimestampedCollector<OUT> getCollector() {
 		return collector;
 	}
