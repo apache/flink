@@ -121,9 +121,7 @@ public class MetricFetcher {
 							for (JobDetails job : details.getFinishedJobs()) {
 								toRetain.add(job.getJobId().toString());
 							}
-							synchronized (metrics) {
-								metrics.jobs.keySet().retainAll(toRetain);
-							}
+							metrics.jobs.keySet().retainAll(toRetain);
 						}
 					}, ctx);
 				logErrorOnFailure(jobDetailsFuture, "Fetching of JobDetails failed.");
@@ -156,9 +154,8 @@ public class MetricFetcher {
 
 								queryMetrics(taskManagerQueryService);
 							}
-							synchronized (metrics) { // remove all metrics belonging to unregistered task managers
-								metrics.taskManagers.keySet().retainAll(activeTaskManagers);
-							}
+							// remove all metrics belonging to unregistered task managers
+							metrics.taskManagers.keySet().retainAll(activeTaskManagers);
 						}
 					}, ctx);
 				logErrorOnFailure(registeredTaskManagersFuture, "Fetchin list of registered TaskManagers failed.");
