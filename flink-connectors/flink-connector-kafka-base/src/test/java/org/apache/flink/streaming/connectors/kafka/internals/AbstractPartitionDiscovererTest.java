@@ -394,6 +394,41 @@ public class AbstractPartitionDiscovererTest {
 		}
 	}
 
+	@Test
+	public void testNonContiguousPartitionIdDiscovery() throws Exception {
+		List<KafkaTopicPartition> mockGetAllPartitionsForTopicsReturn1 = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 1),
+			new KafkaTopicPartition("test-topic", 4));
+
+		List<KafkaTopicPartition> mockGetAllPartitionsForTopicsReturn2 = Arrays.asList(
+			new KafkaTopicPartition("test-topic", 0),
+			new KafkaTopicPartition("test-topic", 1),
+			new KafkaTopicPartition("test-topic", 2),
+			new KafkaTopicPartition("test-topic", 3),
+			new KafkaTopicPartition("test-topic", 4));
+
+		TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
+				topicsDescriptor,
+				0,
+				1,
+				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList("test-topic")),
+				// first metadata fetch has missing partitions that appears only in the second fetch;
+				// need to create new modifiable lists for each fetch, since internally Iterable.remove() is used.
+				Arrays.asList(new ArrayList<>(mockGetAllPartitionsForTopicsReturn1), new ArrayList<>(mockGetAllPartitionsForTopicsReturn2)));
+		partitionDiscoverer.open();
+
+		List<KafkaTopicPartition> discoveredPartitions1 = partitionDiscoverer.discoverPartitions();
+		assertEquals(2, discoveredPartitions1.size());
+		assertTrue(discoveredPartitions1.contains(new KafkaTopicPartition("test-topic", 1)));
+		assertTrue(discoveredPartitions1.contains(new KafkaTopicPartition("test-topic", 4)));
+
+		List<KafkaTopicPartition> discoveredPartitions2 = partitionDiscoverer.discoverPartitions();
+		assertEquals(3, discoveredPartitions2.size());
+		assertTrue(discoveredPartitions2.contains(new KafkaTopicPartition("test-topic", 0)));
+		assertTrue(discoveredPartitions2.contains(new KafkaTopicPartition("test-topic", 2)));
+		assertTrue(discoveredPartitions2.contains(new KafkaTopicPartition("test-topic", 3)));
+	}
+
 	private boolean contains(List<KafkaTopicPartition> partitions, int partition) {
 		for (KafkaTopicPartition ktp : partitions) {
 			if (ktp.getPartition() == partition) {
