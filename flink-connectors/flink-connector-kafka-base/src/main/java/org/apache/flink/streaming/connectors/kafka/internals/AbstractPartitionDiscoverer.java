@@ -244,8 +244,4 @@ public abstract class AbstractPartitionDiscoverer {
 	private boolean isUndiscoveredPartition(KafkaTopicPartition partition) {
 		return !discoveredPartitions.contains(partition);
 	}
-
-	public static boolean shouldAssignToThisSubtask(KafkaTopicPartition partition, int indexOfThisSubtask, int numParallelSubtasks) {
-		return Math.abs(partition.hashCode() % numParallelSubtasks) == indexOfThisSubtask;
-	}
 }
