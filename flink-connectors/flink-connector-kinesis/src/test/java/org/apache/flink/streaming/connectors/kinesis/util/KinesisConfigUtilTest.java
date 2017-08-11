@@ -56,8 +56,8 @@ public class KinesisConfigUtilTest {
 	public void testReplaceDeprecatedKeys() {
 		Properties testConfig = new Properties();
 		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT, "1");
-		testConfig.setProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT, "2");
+		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "1");
+		testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "2");
 		Properties replacedConfig = KinesisConfigUtil.replaceDeprecatedProducerKeys(testConfig);
 
 		assertEquals("1", replacedConfig.getProperty(KinesisConfigUtil.AGGREGATION_MAX_COUNT));

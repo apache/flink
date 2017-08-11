@@ -27,9 +27,9 @@ public class ProducerConfigConstants extends AWSConfigConstants {
 
 	/** Deprecated key. **/
 	@Deprecated
-	public static final String DEPRECATED_COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
+	public static final String COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
 
  	/** Deprecated key. **/
 	@Deprecated
-	public static final String DEPRECATED_AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
+	public static final String AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
 }

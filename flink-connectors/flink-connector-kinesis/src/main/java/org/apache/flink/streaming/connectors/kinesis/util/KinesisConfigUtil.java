@@ -39,12 +39,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for Flink Kinesis connector configuration.
  */
 public class KinesisConfigUtil {
+
 	/** Maximum number of items to pack into an PutRecords request. **/
-	@Deprecated
 	protected static final String COLLECTION_MAX_COUNT = "CollectionMaxCount";
 
 	/** Maximum number of items to pack into an aggregated record. **/
-	@Deprecated
 	protected static final String AGGREGATION_MAX_COUNT = "AggregationMaxCount";
 
 	/** Limits the maximum allowed put rate for a shard, as a percentage of the backend limits.
@@ -150,16 +149,16 @@ public class KinesisConfigUtil {
 	 */
 	public static Properties replaceDeprecatedProducerKeys(Properties configProps) {
 		// Replace deprecated key
-		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT)) {
+		if (configProps.containsKey(ProducerConfigConstants.COLLECTION_MAX_COUNT)) {
 			configProps.setProperty(COLLECTION_MAX_COUNT,
-					configProps.getProperty(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT));
-			configProps.remove(ProducerConfigConstants.DEPRECATED_COLLECTION_MAX_COUNT);
+					configProps.getProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.COLLECTION_MAX_COUNT);
 		}
 		// Replace deprecated key
-		if (configProps.containsKey(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT)) {
+		if (configProps.containsKey(ProducerConfigConstants.AGGREGATION_MAX_COUNT)) {
 			configProps.setProperty(AGGREGATION_MAX_COUNT,
-					configProps.getProperty(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT));
-			configProps.remove(ProducerConfigConstants.DEPRECATED_AGGREGATION_MAX_COUNT);
+					configProps.getProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT));
+			configProps.remove(ProducerConfigConstants.AGGREGATION_MAX_COUNT);
 		}
 		return configProps;
 	}
