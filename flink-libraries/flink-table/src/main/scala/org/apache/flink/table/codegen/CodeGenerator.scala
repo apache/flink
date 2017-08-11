@@ -1198,7 +1198,6 @@ abstract class CodeGenerator(
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$tmpTypeTerm $tmpTerm = $fieldTerm;
         |boolean $nullTerm = $fieldTerm == null;
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
