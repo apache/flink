@@ -34,6 +34,7 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
+import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -71,7 +72,7 @@ import java.util.Stack;
 /**
  * Non-deterministic finite automaton implementation.
  *
- * <p>The {@link org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator CEP operator}
+ * <p>The {@link AbstractKeyedCEPPatternOperator CEP operator}
  * keeps one NFA per key, for keyed input streams, and a single global NFA for non-keyed ones.
  * When an event gets processed, it updates the NFA's internal state machine.
  *
