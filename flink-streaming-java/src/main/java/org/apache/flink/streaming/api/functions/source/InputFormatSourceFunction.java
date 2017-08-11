@@ -80,7 +80,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 				((RichInputFormat) format).openInputFormat();
 			}
 
-			OUT nextElement = serializer.createInstance();
+			OUT reuse = serializer.createInstance();
 			while (isRunning) {
 				format.open(splitIterator.next());
 
@@ -88,7 +88,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 				// was called by checking the isRunning flag
 
 				while (isRunning && !format.reachedEnd()) {
-					nextElement = format.nextRecord(nextElement);
+					OUT nextElement = format.nextRecord(reuse);
 					if (nextElement != null) {
 						ctx.collect(nextElement);
 					} else {

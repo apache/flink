@@ -91,6 +91,7 @@ public class InputFormatSourceFunctionTest {
 		private boolean isConfigured = false;
 		private boolean isInputFormatOpen = false;
 		private boolean isSplitOpen = false;
+		private Integer savedReuse = null;
 
 		// end of split
 		private boolean eos = false;
@@ -177,6 +178,11 @@ public class InputFormatSourceFunctionTest {
 			Assert.assertTrue(isInputFormatOpen);
 			Assert.assertTrue(isConfigured);
 			Assert.assertTrue(isSplitOpen);
+			Assert.assertNotNull(reuse);
+			if (savedReuse == null) {
+				savedReuse = reuse;
+			}
+			Assert.assertTrue(reuse == savedReuse);
 
 			Assert.assertTrue(reachedEndCalls == ++nextRecordCalls);
 
