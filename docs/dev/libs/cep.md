@@ -1279,63 +1279,75 @@ and `flatSelect` API calls allow a timeout handler to be specified. This timeout
 partial event sequence. The timeout handler receives all the events that have been matched so far by the pattern, and
 the timestamp when the timeout was detected.
 
+In order to treat partial patterns, the `select` and `flatSelect` API calls offer an overloaded version which takes as
+parameters
+
+ * `PatternTimeoutFunction`/`PatternFlatTimeoutFunction`
+ * [OutputTag]({{ site.baseurl }}/dev/stream/side_output.html) for the side output in which the timeouted matches will be returned
+ * and the known `PatternSelectFunction`/`PatternFlatSelectFunction`.
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-In order to treat partial patterns, the `select` and `flatSelect` API calls offer an overloaded version which takes as
-the first parameter a `PatternTimeoutFunction`/`PatternFlatTimeoutFunction` and as second parameter the known
-`PatternSelectFunction`/`PatternFlatSelectFunction`. The return type of the timeout function can be different from the
-select function. The timeout event and the select event are wrapped in `Either.Left` and `Either.Right` respectively
-so that the resulting data stream is of type `org.apache.flink.types.Either`.
 
-{% highlight java %}
+~~~java
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
-DataStream<Either<TimeoutEvent, ComplexEvent>> result = patternStream.select(
+OutputTag<String> outputTag = new OutputTag<String>("side-output"){};
+
+SingleOutputStreamOperator<ComplexEvent> result = patternStream.select(
     new PatternTimeoutFunction<Event, TimeoutEvent>() {...},
+    outputTag,
     new PatternSelectFunction<Event, ComplexEvent>() {...}
 );
 
-DataStream<Either<TimeoutEvent, ComplexEvent>> flatResult = patternStream.flatSelect(
+DataStream<TimeoutEvent> timeoutResult = result.getSideOutput(outputTag);
+
+SingleOutputStreamOperator<ComplexEvent> flatResult = patternStream.flatSelect(
     new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {...},
+    outputTag,
     new PatternFlatSelectFunction<Event, ComplexEvent>() {...}
 );
-{% endhighlight %}
+
+DataStream<TimeoutEvent> timeoutFlatResult = flatResult.getSideOutput(outputTag);
+~~~
 
 </div>
 
 <div data-lang="scala" markdown="1">
-In order to treat partial patterns, the `select` API call offers an overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
-The timeout function is called with a map of string-event pairs of the partial match which has timed out and a long indicating when the timeout occurred.
-The string is defined by the name of the pattern to which the event has been matched.
-The timeout function returns exactly one result per call.
-The return type of the timeout function can be different from the select function.
-The timeout event and the select event are wrapped in `Left` and `Right` respectively so that the resulting data stream is of type `Either`.
 
-{% highlight scala %}
+~~~scala
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
-DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.select{
+val outputTag = OutputTag[String]("side-output")
+
+val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.select(outputTag){
     (pattern: Map[String, Iterable[Event]], timestamp: Long) => TimeoutEvent()
 } {
     pattern: Map[String, Iterable[Event]] => ComplexEvent()
 }
-{% endhighlight %}
+
+val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag);
+~~~
 
 The `flatSelect` API call offers the same overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
 In contrast to the `select` functions, the `flatSelect` functions are called with a `Collector`.
 The collector can be used to emit an arbitrary number of events.
 
-{% highlight scala %}
+~~~scala
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
-DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect{
+val outputTag = OutputTag[String]("side-output")
+
+val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(outputTag){
     (pattern: Map[String, Iterable[Event]], timestamp: Long, out: Collector[TimeoutEvent]) =>
         out.collect(TimeoutEvent())
 } {
     (pattern: mutable.Map[String, Iterable[Event]], out: Collector[ComplexEvent]) =>
         out.collect(ComplexEvent())
 }
-{% endhighlight %}
+
+val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag);
+~~~
 
 </div>
 </div>
