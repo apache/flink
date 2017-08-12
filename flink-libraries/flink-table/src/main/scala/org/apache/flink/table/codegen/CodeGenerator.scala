@@ -327,13 +327,13 @@ abstract class CodeGenerator(
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException(
-        s"Arity[${returnType.getArity}] of result type[$returnType] does not match " +
-        s"number[${fieldExprs.length}] of expressions[$fieldExprs].")
+        s"Arity [${returnType.getArity}] of result type [$returnType] does not match " +
+        s"number [${fieldExprs.length}] of expressions [$fieldExprs].")
     }
     if (resultFieldNames.length != fieldExprs.length) {
       throw new CodeGenException(
-        s"Arity[${resultFieldNames.length}] of result field names[$resultFieldNames] does not " +
-        s"match number[${fieldExprs.length}] of expressions[$fieldExprs].")
+        s"Arity [${resultFieldNames.length}] of result field names [$resultFieldNames] does not " +
+        s"match number [${fieldExprs.length}] of expressions [$fieldExprs].")
     }
     // type check
     returnType match {
@@ -341,8 +341,8 @@ abstract class CodeGenerator(
         fieldExprs.zipWithIndex foreach {
           case (fieldExpr, i) if fieldExpr.resultType != pt.getTypeAt(resultFieldNames(i)) =>
             throw new CodeGenException(
-              s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
-              s"[${fieldExpr.resultType}], result type is [${pt.getTypeAt(resultFieldNames(i))}]")
+              s"Incompatible types of expression and result type. Expression [$fieldExpr] type is" +
+              s" [${fieldExpr.resultType}], result type is [${pt.getTypeAt(resultFieldNames(i))}]")
 
           case _ => // ok
         }
@@ -358,7 +358,7 @@ abstract class CodeGenerator(
 
       case at: AtomicType[_] if at != fieldExprs.head.resultType =>
         throw new CodeGenException(
-          s"Incompatible types of expression and result type. Expression[${fieldExprs.head}] " +
+          s"Incompatible types of expression and result type. Expression [${fieldExprs.head}] " +
           s"type is [${fieldExprs.head.resultType}], result type is [$at]")
 
       case _ => // ok

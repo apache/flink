@@ -17,10 +17,8 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.sql.Timestamp
 import java.util.{ArrayList => JArrayList, List => JList}
 
-import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
@@ -118,7 +116,7 @@ class RowTimeBoundedRangeOver(
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
-    val triggeringTs = SqlFunctions.toLong(input.getField(rowTimeIdx).asInstanceOf[Timestamp])
+    val triggeringTs = input.getField(rowTimeIdx).asInstanceOf[Long]
 
     val lastTriggeringTs = lastTriggeringTsState.value
 

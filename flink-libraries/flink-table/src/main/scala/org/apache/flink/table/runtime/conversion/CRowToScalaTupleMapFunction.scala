@@ -15,29 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions
 
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.validate.SqlMonotonicity
+package org.apache.flink.table.runtime.conversion
+
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
 
 /**
-  * Function that materializes a processing time attribute.
-  * After materialization the result can be used in regular arithmetical calculations.
+  * Convert [[CRow]] to a [[Tuple2]].
   */
-object ProctimeSqlFunction
-  extends SqlFunction(
-    "PROCTIME",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
-    InferTypes.RETURN_TYPE,
-    OperandTypes.family(SqlTypeFamily.TIMESTAMP),
-    SqlFunctionCategory.SYSTEM) {
+class CRowToScalaTupleMapFunction extends MapFunction[CRow, (Boolean, Row)] {
 
-  override def getSyntax: SqlSyntax = SqlSyntax.FUNCTION
-
-  override def getMonotonicity(call: SqlOperatorBinding): SqlMonotonicity =
-    SqlMonotonicity.INCREASING
-
-  override def isDeterministic: Boolean = false
+  override def map(cRow: CRow): (Boolean, Row) = {
+    (cRow.change, cRow.row)
+  }
 }

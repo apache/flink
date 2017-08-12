@@ -96,7 +96,6 @@ object AggregateUtil {
 
     val genFunction = generator.generateAggregations(
       "UnboundedProcessingOverAggregateHelper",
-      generator,
       inputFieldTypeInfo,
       aggregates,
       aggFields,
@@ -175,7 +174,6 @@ object AggregateUtil {
 
     val genFunction = generator.generateAggregations(
       "NonWindowedAggregationHelper",
-      generator,
       inputFieldTypes,
       aggregates,
       aggFields,
@@ -240,7 +238,6 @@ object AggregateUtil {
 
     val genFunction = generator.generateAggregations(
       "BoundedOverAggregateHelper",
-      generator,
       inputFieldTypeInfo,
       aggregates,
       aggFields,
@@ -372,7 +369,6 @@ object AggregateUtil {
 
     val genFunction = generator.generateAggregations(
       "DataSetAggregatePrepareMapHelper",
-      generator,
       inputFieldTypeInfo,
       aggregates,
       aggFieldIndexes,
@@ -451,7 +447,6 @@ object AggregateUtil {
         // sliding time-window for partial aggregations
         val genFunction = generator.generateAggregations(
           "DataSetAggregatePrepareMapHelper",
-          generator,
           physicalInputTypes,
           aggregates,
           aggFieldIndexes,
@@ -555,7 +550,6 @@ object AggregateUtil {
 
     val genPreAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
-      generator,
       physicalInputTypes,
       aggregates,
       aggFieldIndexes,
@@ -572,7 +566,6 @@ object AggregateUtil {
 
     val genFinalAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
-      generator,
       physicalInputTypes,
       aggregates,
       aggFieldIndexes,
@@ -714,7 +707,6 @@ object AggregateUtil {
 
         val genFunction = generator.generateAggregations(
           "GroupingWindowAggregateHelper",
-          generator,
           physicalInputTypes,
           aggregates,
           aggFieldIndexes,
@@ -789,7 +781,6 @@ object AggregateUtil {
 
         val genFunction = generator.generateAggregations(
           "GroupingWindowAggregateHelper",
-          generator,
           physicalInputTypes,
           aggregates,
           aggFieldIndexes,
@@ -870,7 +861,6 @@ object AggregateUtil {
 
       val genPreAggFunction = generator.generateAggregations(
         "DataSetAggregatePrepareMapHelper",
-        generator,
         inputFieldTypeInfo,
         aggregates,
         aggInFields,
@@ -897,7 +887,6 @@ object AggregateUtil {
 
       val genFinalAggFunction = generator.generateAggregations(
         "DataSetAggregateFinalHelper",
-        generator,
         inputFieldTypeInfo,
         aggregates,
         aggInFields,
@@ -921,7 +910,6 @@ object AggregateUtil {
     else {
       val genFunction = generator.generateAggregations(
         "DataSetAggregateHelper",
-        generator,
         inputFieldTypeInfo,
         aggregates,
         aggInFields,
@@ -1019,7 +1007,6 @@ object AggregateUtil {
 
     val genFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
-      generator,
       inputFieldTypeInfo,
       aggregates,
       aggFields,
@@ -1214,7 +1201,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSumWithRetractAggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum aggregate does no support type: '${sqlType}'")
+                throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
             }
           } else {
             aggregates(index) = sqlTypeName match {
@@ -1233,7 +1220,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSumAggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum aggregate does no support type: '${sqlType}'")
+                throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
             }
           }
 
@@ -1255,7 +1242,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSum0WithRetractAggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum0 aggregate does no support type: '${sqlType}'")
+                throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
             }
           } else {
             aggregates(index) = sqlTypeName match {
@@ -1274,7 +1261,7 @@ object AggregateUtil {
               case DECIMAL =>
                 new DecimalSum0AggFunction
               case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum0 aggregate does no support type: '${sqlType}'")
+                throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
             }
           }
 
@@ -1295,7 +1282,7 @@ object AggregateUtil {
             case DECIMAL =>
               new DecimalAvgAggFunction
             case sqlType: SqlTypeName =>
-              throw new TableException(s"Avg aggregate does no support type: '${sqlType}'")
+              throw new TableException(s"Avg aggregate does no support type: '$sqlType'")
           }
 
         case sqlMinMaxFunction: SqlMinMaxAggFunction =>
@@ -1322,7 +1309,7 @@ object AggregateUtil {
                   new StringMinWithRetractAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException(
-                    s"Min with retract aggregate does no support type: '${sqlType}'")
+                    s"Min with retract aggregate does no support type: '$sqlType'")
               }
             } else {
               sqlTypeName match {
@@ -1345,7 +1332,7 @@ object AggregateUtil {
                 case VARCHAR | CHAR =>
                   new StringMinAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException(s"Min aggregate does no support type: '${sqlType}'")
+                  throw new TableException(s"Min aggregate does no support type: '$sqlType'")
               }
             }
           } else {
@@ -1371,7 +1358,7 @@ object AggregateUtil {
                   new StringMaxWithRetractAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException(
-                    s"Max with retract aggregate does no support type: '${sqlType}'")
+                    s"Max with retract aggregate does no support type: '$sqlType'")
               }
             } else {
               sqlTypeName match {
@@ -1394,7 +1381,7 @@ object AggregateUtil {
                 case VARCHAR | CHAR =>
                   new StringMaxAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException(s"Max aggregate does no support type: '${sqlType}'")
+                  throw new TableException(s"Max aggregate does no support type: '$sqlType'")
               }
             }
           }
@@ -1463,7 +1450,7 @@ object AggregateUtil {
           relDataType.head.getIndex
         } else {
           throw TableException(
-            s"Encountered more than one time attribute with the same name: '${relDataType}'")
+            s"Encountered more than one time attribute with the same name: '$relDataType'")
         }
       case e => throw TableException(
         "The time attribute of window in batch environment should be " +

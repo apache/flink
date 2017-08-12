@@ -18,35 +18,40 @@
 
 package org.apache.flink.table.runtime
 
-import java.sql.Timestamp
-
-import org.apache.calcite.runtime.SqlFunctions
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.operators.TimestampedCollector
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.util.Collector
+import org.apache.flink.types.Row
+import org.slf4j.LoggerFactory
 
 /**
-  * ProcessFunction to copy a timestamp from a [[org.apache.flink.types.Row]] field into the
-  * [[org.apache.flink.streaming.runtime.streamrecord.StreamRecord]].
+  * MapRunner with [[CRow]] input.
   */
-class TimestampSetterProcessFunction(
-    val rowtimeIdx: Int,
-    @transient var returnType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
-  with ResultTypeQueryable[CRow] {
+class CRowMapRunner[OUT](
+    name: String,
+    code: String,
+    @transient var returnType: TypeInformation[OUT])
+  extends RichMapFunction[CRow, OUT]
+  with ResultTypeQueryable[OUT]
+  with Compiler[MapFunction[Row, OUT]] {
 
-  override def processElement(
-      in: CRow,
-      ctx: ProcessFunction[CRow, CRow]#Context,
-      out: Collector[CRow]): Unit = {
+  val LOG = LoggerFactory.getLogger(this.getClass)
 
-    val timestamp = SqlFunctions.toLong(in.row.getField(rowtimeIdx).asInstanceOf[Timestamp])
-    out.asInstanceOf[TimestampedCollector[CRow]].setAbsoluteTimestamp(timestamp)
-    out.collect(in)
+  private var function: MapFunction[Row, OUT] = _
+
+  override def open(parameters: Configuration): Unit = {
+    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
+    LOG.debug("Instantiating MapFunction.")
+    function = clazz.newInstance()
   }
 
-  override def getProducedType: TypeInformation[CRow] = returnType
+  override def map(in: CRow): OUT = {
+    function.map(in.row)
+  }
+
+  override def getProducedType: TypeInformation[OUT] = returnType
 }

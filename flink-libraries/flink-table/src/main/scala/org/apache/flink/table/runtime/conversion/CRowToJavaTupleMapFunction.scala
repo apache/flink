@@ -15,29 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions
 
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.validate.SqlMonotonicity
+package org.apache.flink.table.runtime.conversion
+
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
+
+import _root_.java.lang.{Boolean => JBool}
 
 /**
-  * Function that materializes a processing time attribute.
-  * After materialization the result can be used in regular arithmetical calculations.
+  * Convert [[CRow]] to a [[JTuple2]] containing a [[Row]].
   */
-object ProctimeSqlFunction
-  extends SqlFunction(
-    "PROCTIME",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
-    InferTypes.RETURN_TYPE,
-    OperandTypes.family(SqlTypeFamily.TIMESTAMP),
-    SqlFunctionCategory.SYSTEM) {
+class CRowToJavaTupleMapFunction extends MapFunction[CRow, JTuple2[JBool, Row]] {
 
-  override def getSyntax: SqlSyntax = SqlSyntax.FUNCTION
+  val out: JTuple2[JBool, Row] = new JTuple2(true.asInstanceOf[JBool], null.asInstanceOf[Row])
 
-  override def getMonotonicity(call: SqlOperatorBinding): SqlMonotonicity =
-    SqlMonotonicity.INCREASING
-
-  override def isDeterministic: Boolean = false
+  override def map(cRow: CRow): JTuple2[JBool, Row] = {
+    out.f0 = cRow.change
+    out.f1 = cRow.row
+    out
+  }
 }

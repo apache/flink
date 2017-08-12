@@ -17,24 +17,17 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.sql.Timestamp
+import java.util.{Collections, ArrayList => JArrayList, List => JList}
 
-import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.state.MapState
-import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
-import java.util.Collections
-import java.util.{ArrayList => JArrayList, List => JList}
-
-import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.streaming.api.operators.TimestampedCollector
 
 /**
  * ProcessFunction to sort on event-time and possibly addtional secondary sort attributes.
@@ -90,7 +83,7 @@ class RowTimeSortProcessFunction(
     val input = inputC.row
     
     // timestamp of the processed row
-    val rowtime = SqlFunctions.toLong(input.getField(rowtimeIdx).asInstanceOf[Timestamp])
+    val rowtime = input.getField(rowtimeIdx).asInstanceOf[Long]
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
