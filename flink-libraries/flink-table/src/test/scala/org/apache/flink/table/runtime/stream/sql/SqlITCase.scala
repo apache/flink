@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -313,35 +313,6 @@ class SqlITCase extends StreamingWithStateTestBase {
       "3,[(18,42.6)],18,42.6")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
-
-  @Test
-  def testSelectWithNullTimestamp(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
-    val data = Seq(
-      Row.of(null, "empty")
-    )
-
-    implicit val tpe: TypeInformation[Row] = new RowTypeInfo(
-      SqlTimeTypeInfo.TIMESTAMP,
-      BasicTypeInfo.STRING_TYPE_INFO) // tpe is automatically
-
-    val stream = env.fromCollection(data)
-    tEnv.registerDataStream("T", stream, 'ts, 'event)
-
-    val sqlQuery = "SELECT * from T"
-
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
-    env.execute()
-
-    val expected = List("null,empty")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
 
 }
 

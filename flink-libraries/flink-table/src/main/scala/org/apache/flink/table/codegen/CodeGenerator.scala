@@ -1172,13 +1172,6 @@ abstract class CodeGenerator(
     val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
 
-    // the initial value for result.
-    val initValue = fieldType match {
-        // special case for String
-      case BasicTypeInfo.STRING_TYPE_INFO => null
-      case _ => defaultValue
-    }
-
     // explicit unboxing
     val unboxedFieldCode = if (isTimePoint(fieldType)) {
       timePointToInternalCode(fieldType, fieldTerm)
@@ -1188,7 +1181,7 @@ abstract class CodeGenerator(
 
     val wrappedCode = if (nullCheck && !isReference(fieldType)) {
       s"""
-        |$tmpTypeTerm $tmpTerm = $initValue;
+        |$tmpTypeTerm $tmpTerm = $defaultValue;
         |boolean $nullTerm = $fieldTerm == null;
         |if(!$nullTerm) {
         |  $tmpTerm = $unboxedFieldCode;
@@ -1204,7 +1197,7 @@ abstract class CodeGenerator(
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = $initValue;
+        |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = $fieldTerm == null;
         |if (!$nullTerm){
         |  $resultTerm = $unboxedFieldCode;
@@ -1212,10 +1205,7 @@ abstract class CodeGenerator(
         |""".stripMargin
     } else {
       s"""
-        |$resultTypeTerm $resultTerm = $initValue;
-        |if ($fieldTerm != null) {
-        |  $resultTerm = $unboxedFieldCode;
-        |}
+        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
         |""".stripMargin
     }
 
