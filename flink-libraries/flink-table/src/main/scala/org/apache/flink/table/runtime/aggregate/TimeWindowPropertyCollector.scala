@@ -59,7 +59,7 @@ abstract class TimeWindowPropertyCollector[T](
     if (windowRowtimeOffset.isDefined) {
       output.setField(
         lastFieldPos + windowRowtimeOffset.get,
-        SqlFunctions.internalToTimestamp(windowEnd - 1))
+        windowEnd - 1)
     }
 
     wrappedCollector.collect(record)

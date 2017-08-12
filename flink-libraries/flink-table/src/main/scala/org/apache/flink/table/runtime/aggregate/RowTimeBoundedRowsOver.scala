@@ -17,11 +17,9 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.sql.Timestamp
 import java.util
 import java.util.{List => JList}
 
-import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
@@ -29,11 +27,11 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.types.Row
+import org.apache.flink.util.{Collector, Preconditions}
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
  * Process Function for ROWS clause event-time bounded OVER window
@@ -56,6 +54,8 @@ class RowTimeBoundedRowsOver(
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
+  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
+
   private var output: CRow = _
 
   // the state which keeps the last triggering timestamp
@@ -73,7 +73,6 @@ class RowTimeBoundedRowsOver(
   // to this time stamp.
   private var dataState: MapState[Long, JList[Row]] = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
@@ -127,7 +126,7 @@ class RowTimeBoundedRowsOver(
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
-    val triggeringTs = SqlFunctions.toLong(input.getField(rowTimeIdx).asInstanceOf[Timestamp])
+    val triggeringTs = input.getField(rowTimeIdx).asInstanceOf[Long]
 
     val lastTriggeringTs = lastTriggeringTsState.value
     // check if the data is expired, if not, save the data and register event time timer

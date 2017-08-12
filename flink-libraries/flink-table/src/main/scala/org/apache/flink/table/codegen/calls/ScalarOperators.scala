@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCoercion}
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 object ScalarOperators {
@@ -543,6 +543,11 @@ object ScalarOperators {
       operand: GeneratedExpression,
       targetType: TypeInformation[_])
     : GeneratedExpression = (operand.resultType, targetType) match {
+
+    // special case: cast from TimeIndicatorTypeInfo to SqlTimeTypeInfo
+    case (ti: TimeIndicatorTypeInfo, SqlTimeTypeInfo.TIMESTAMP) =>
+      operand.copy(resultType = SqlTimeTypeInfo.TIMESTAMP) // just replace the TypeInformation
+
     // identity casting
     case (fromTp, toTp) if fromTp == toTp =>
       operand

@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.runtime.harness
 
 import java.lang.{Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
-import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTS}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
@@ -34,7 +34,7 @@ import org.junit.Test
 
 class OverWindowHarnessTest extends HarnessTestBase{
 
-  protected var queryConfig =
+  protected var queryConfig: StreamQueryConfig =
     new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
@@ -60,75 +60,75 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.setProcessingTime(1)
 
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 1L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 1L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "bbb", 10L: JLong), true)))
+      CRow(Row.of(1L: JLong, "bbb", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 2L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 2L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 3L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 3L: JLong), change = true)))
 
     // register cleanup timer with 4100
     testHarness.setProcessingTime(1100)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "bbb", 20L: JLong), true)))
+      CRow(Row.of(1L: JLong, "bbb", 20L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 4L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 4L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 5L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 6L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(1), "bbb", 30L: JLong), true)))
+      CRow(Row.of(1L: JLong, "bbb", 30L: JLong), change = true)))
 
     // register cleanup timer with 6001
     testHarness.setProcessingTime(3001)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 7L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 7L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 8L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 8L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 9L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 9L: JLong), change = true)))
 
     // trigger cleanup timer and register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
     testHarness.processElement(new StreamRecord(
-        CRow(Row.of(toTS(2), "aaa", 10L: JLong), true)))
+        CRow(Row.of(2L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2), "bbb", 40L: JLong), true)))
+      CRow(Row.of(2L: JLong, "bbb", 40L: JLong), change = true)))
 
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(1L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 3L: JLong, 2L: JLong, 3L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 3L: JLong, 2L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true)))
+      CRow(Row.of(1L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 4L: JLong, 3L: JLong, 4L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 4L: JLong, 3L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 5L: JLong, 4L: JLong, 5L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 5L: JLong, 4L: JLong, 5L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "aaa", 6L: JLong, 5L: JLong, 6L: JLong), true)))
+      CRow(Row.of(1L: JLong, "aaa", 6L: JLong, 5L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(1), "bbb", 30L: JLong, 20L: JLong, 30L: JLong), true)))
+      CRow(Row.of(1L: JLong, "bbb", 30L: JLong, 20L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 7L: JLong, 6L: JLong, 7L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 7L: JLong, 6L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 8L: JLong, 7L: JLong, 8L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 8L: JLong, 7L: JLong, 8L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 9L: JLong, 8L: JLong, 9L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 9L: JLong, 8L: JLong, 9L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2), "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true)))
+      CRow(Row.of(2L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
 
@@ -160,51 +160,51 @@ class OverWindowHarnessTest extends HarnessTestBase{
     // register cleanup timer with 3003
     testHarness.setProcessingTime(3)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 1L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 1L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 10L: JLong), change = true)))
 
     testHarness.setProcessingTime(4)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 2L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 2L: JLong), change = true)))
 
     // trigger cleanup timer and register cleanup timer with 6003
     testHarness.setProcessingTime(3003)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 3L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 3L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 20L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 20L: JLong), change = true)))
 
     testHarness.setProcessingTime(5)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 4L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 4L: JLong), change = true)))
 
     // register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
 
     testHarness.setProcessingTime(7002)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 5L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 6L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 30L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 30L: JLong), change = true)))
 
     // register cleanup timer with 14002
     testHarness.setProcessingTime(11002)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 7L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 7L: JLong), change = true)))
 
     testHarness.setProcessingTime(11004)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 8L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 8L: JLong), change = true)))
 
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 9L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 9L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 40L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 40L: JLong), change = true)))
 
     testHarness.setProcessingTime(11006)
 
@@ -214,33 +214,33 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // all elements at the same proc timestamp have the same value per key
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 3L: JLong, 3L: JLong, 4L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 3L: JLong, 3L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 20L: JLong, 20L: JLong, 20L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 20L: JLong, 20L: JLong, 20L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 4L: JLong, 4L: JLong, 4L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 4L: JLong, 4L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 5L: JLong, 5L: JLong, 6L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 5L: JLong, 5L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 6L: JLong, 5L: JLong, 6L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 6L: JLong, 5L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 30L: JLong, 30L: JLong, 30L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 30L: JLong, 30L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 7L: JLong, 7L: JLong, 7L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 7L: JLong, 7L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 8L: JLong, 7L: JLong, 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 8L: JLong, 7L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 9L: JLong, 7L: JLong, 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 9L: JLong, 7L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 10L: JLong, 7L: JLong, 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 10L: JLong, 7L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
 
@@ -268,69 +268,69 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.setProcessingTime(1003)
 
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 1L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 1L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 2L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 2L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 3L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 3L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 20L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 20L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 4L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 4L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 5L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 6L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 30L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 30L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 7L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 7L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 8L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 8L: JLong), change = true)))
 
     // trigger cleanup timer and register cleanup timer with 8003
     testHarness.setProcessingTime(5003)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 9L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 9L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 40L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 40L: JLong), change = true)))
 
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 4L: JLong, 1L: JLong, 4L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 5L: JLong, 1L: JLong, 5L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 5L: JLong, 1L: JLong, 5L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 6L: JLong, 1L: JLong, 6L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 7L: JLong, 1L: JLong, 7L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 8L: JLong, 1L: JLong, 8L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 9L: JLong, 9L: JLong, 9L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 9L: JLong, 9L: JLong, 9L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "aaa", 10L: JLong, 9L: JLong, 10L: JLong), true)))
+      CRow(Row.of(0L: JLong, "aaa", 10L: JLong, 9L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(0), "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true)))
+      CRow(Row.of(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
     testHarness.close()
@@ -361,51 +361,51 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.processWatermark(1)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 1L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 1L: JLong), change = true)))
 
     testHarness.processWatermark(2)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(3), "bbb", 10L: JLong), true)))
+      CRow(Row.of(3L: JLong, "bbb", 10L: JLong), change = true)))
 
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong), change = true)))
 
     testHarness.processWatermark(4001)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4002), "aaa", 3L: JLong), true)))
+      CRow(Row.of(4002L: JLong, "aaa", 3L: JLong), change = true)))
 
     testHarness.processWatermark(4002)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4003), "aaa", 4L: JLong), true)))
+      CRow(Row.of(4003L: JLong, "aaa", 4L: JLong), change = true)))
 
     testHarness.processWatermark(4800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4801), "bbb", 25L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "bbb", 25L: JLong), change = true)))
 
     testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong), change = true)))
 
     testHarness.processWatermark(7000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong), change = true)))
 
     testHarness.processWatermark(8000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong), change = true)))
 
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong), change = true)))
 
     testHarness.processWatermark(19000)
 
@@ -415,10 +415,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // check that state is removed after max retention time
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong), true))) // clean-up 3000
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong), change = true))) // clean-up 3000
     testHarness.setProcessingTime(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong), true))) // clean-up 4500
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong), change = true))) // clean-up 4500
     testHarness.processWatermark(20010) // compute output
 
     assert(testHarness.numKeyedStateEntries() > 0) // check that we have state
@@ -430,7 +430,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // check that state is only removed if all data was processed
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20011), "ccc", 3L: JLong), true))) // clean-up 6500
+      CRow(Row.of(20011L: JLong, "ccc", 3L: JLong), change = true))) // clean-up 6500
 
     assert(testHarness.numKeyedStateEntries() > 0) // check that we have state
     testHarness.setProcessingTime(6500) // clean-up attempt but rescheduled to 8500
@@ -450,40 +450,40 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // all elements at the same row-time have the same value per key
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(2L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(3), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(3L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4002), "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true)))
+      CRow(Row.of(4002L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4003), "aaa", 4L: JLong, 2L: JLong, 4L: JLong), true)))
+      CRow(Row.of(4003L: JLong, "aaa", 4L: JLong, 2L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4801), "bbb", 25L: JLong, 25L: JLong, 25L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "bbb", 25L: JLong, 25L: JLong, 25L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong, 2L: JLong, 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong, 2L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong, 2L: JLong, 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong, 2L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong, 2L: JLong, 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong, 2L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong, 2L: JLong, 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong, 2L: JLong, 8L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong, 25L: JLong, 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong, 25L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong, 8L: JLong, 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong, 8L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong, 8L: JLong, 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), change = true)))
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20011), "ccc", 3L: JLong, 3L: JLong, 3L: JLong), true)))
+      CRow(Row.of(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
     testHarness.close()
@@ -511,47 +511,47 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.processWatermark(800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(801), "aaa", 1L: JLong), true)))
+      CRow(Row.of(801L: JLong, "aaa", 1L: JLong), change = true)))
 
     testHarness.processWatermark(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2501), "bbb", 10L: JLong), true)))
+      CRow(Row.of(2501L: JLong, "bbb", 10L: JLong), change = true)))
 
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 3L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "bbb", 20L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "bbb", 20L: JLong), change = true)))
 
     testHarness.processWatermark(4800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4801), "aaa", 4L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "aaa", 4L: JLong), change = true)))
 
     testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong), change = true)))
 
     testHarness.processWatermark(7000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong), change = true)))
 
     testHarness.processWatermark(8000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong), change = true)))
 
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong), change = true)))
 
     testHarness.processWatermark(19000)
 
@@ -561,10 +561,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // check that state is removed after max retention time
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong), true))) // clean-up 3000
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong), change = true))) // clean-up 3000
     testHarness.setProcessingTime(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong), true))) // clean-up 4500
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong), change = true))) // clean-up 4500
     testHarness.processWatermark(20010) // compute output
 
     assert(testHarness.numKeyedStateEntries() > 0) // check that we have state
@@ -575,7 +575,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // check that state is only removed if all data was processed
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20011), "ccc", 3L: JLong), true))) // clean-up 6500
+      CRow(Row.of(20011L: JLong, "ccc", 3L: JLong), change = true))) // clean-up 6500
 
     assert(testHarness.numKeyedStateEntries() > 0) // check that we have state
     testHarness.setProcessingTime(6500) // clean-up attempt but rescheduled to 8500
@@ -595,40 +595,40 @@ class OverWindowHarnessTest extends HarnessTestBase{
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(801), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2501), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4801), "aaa", 4L: JLong, 2L: JLong, 4L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "aaa", 4L: JLong, 2L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong, 3L: JLong, 5L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong, 3L: JLong, 5L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong, 4L: JLong, 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong, 4L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong, 5L: JLong, 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong, 5L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong, 6L: JLong, 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong, 6L: JLong, 8L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong, 7L: JLong, 9L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong, 7L: JLong, 9L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong, 8L: JLong, 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong, 20L: JLong, 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong, 20L: JLong, 40L: JLong), change = true)))
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20011), "ccc", 3L: JLong, 3L: JLong, 3L: JLong), true)))
+      CRow(Row.of(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
     testHarness.close()
@@ -659,47 +659,47 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.setProcessingTime(1000)
     testHarness.processWatermark(800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(801), "aaa", 1L: JLong), true)))
+      CRow(Row.of(801L: JLong, "aaa", 1L: JLong), change = true)))
 
     testHarness.processWatermark(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2501), "bbb", 10L: JLong), true)))
+      CRow(Row.of(2501L: JLong, "bbb", 10L: JLong), change = true)))
 
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 3L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "bbb", 20L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "bbb", 20L: JLong), change = true)))
 
     testHarness.processWatermark(4800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4801), "aaa", 4L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "aaa", 4L: JLong), change = true)))
 
     testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong), change = true)))
 
     testHarness.processWatermark(7000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong), change = true)))
 
     testHarness.processWatermark(8000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong), change = true)))
 
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong), change = true)))
 
     testHarness.processWatermark(19000)
 
@@ -712,10 +712,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.processWatermark(20000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong), true))) // clean-up 5000
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong), change = true))) // clean-up 5000
     testHarness.setProcessingTime(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong), true))) // clean-up 5000
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong), change = true))) // clean-up 5000
 
     assert(testHarness.numKeyedStateEntries() > 0)
     testHarness.setProcessingTime(5000) // does not clean up, because data left. New timer 7000
@@ -733,38 +733,38 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // all elements at the same row-time have the same value per key
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(801), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2501), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong, 1L: JLong, 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4801), "aaa", 4L: JLong, 1L: JLong, 4L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong, 1L: JLong, 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong, 1L: JLong, 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong, 1L: JLong, 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong, 1L: JLong, 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong, 1L: JLong, 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong, 1L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong, 1L: JLong, 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong, 1L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong, 10L: JLong, 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong, 10L: JLong, 40L: JLong), change = true)))
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
     testHarness.close()
@@ -792,47 +792,47 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.setProcessingTime(1000)
     testHarness.processWatermark(800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(801), "aaa", 1L: JLong), true)))
+      CRow(Row.of(801L: JLong, "aaa", 1L: JLong), change = true)))
 
     testHarness.processWatermark(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(2501), "bbb", 10L: JLong), true)))
+      CRow(Row.of(2501L: JLong, "bbb", 10L: JLong), change = true)))
 
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 3L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4001), "bbb", 20L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "bbb", 20L: JLong), change = true)))
 
     testHarness.processWatermark(4800)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(4801), "aaa", 4L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "aaa", 4L: JLong), change = true)))
 
     testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong), change = true)))
 
     testHarness.processWatermark(7000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong), change = true)))
 
     testHarness.processWatermark(8000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong), change = true)))
 
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong), change = true)))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong), change = true)))
 
     testHarness.processWatermark(19000)
 
@@ -845,10 +845,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.processWatermark(20000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong), true))) // clean-up 5000
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong), change = true))) // clean-up 5000
     testHarness.setProcessingTime(2500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong), true))) // clean-up 5000
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong), change = true))) // clean-up 5000
 
     assert(testHarness.numKeyedStateEntries() > 0)
     testHarness.setProcessingTime(5000) // does not clean up, because data left. New timer 7000
@@ -865,38 +865,38 @@ class OverWindowHarnessTest extends HarnessTestBase{
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(801), "aaa", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(2501), "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true)))
+      CRow(Row.of(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4001), "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true)))
+      CRow(Row.of(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(4801), "aaa", 4L: JLong, 1L: JLong, 4L: JLong), true)))
+      CRow(Row.of(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 5L: JLong, 1L: JLong, 5L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 5L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "aaa", 6L: JLong, 1L: JLong, 6L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(6501), "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true)))
+      CRow(Row.of(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(7001), "aaa", 7L: JLong, 1L: JLong, 7L: JLong), true)))
+      CRow(Row.of(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(8001), "aaa", 8L: JLong, 1L: JLong, 8L: JLong), true)))
+      CRow(Row.of(8001L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 9L: JLong, 1L: JLong, 9L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 9L: JLong, 1L: JLong, 9L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "aaa", 10L: JLong, 1L: JLong, 10L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "aaa", 10L: JLong, 1L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(12001), "bbb", 40L: JLong, 10L: JLong, 40L: JLong), true)))
+      CRow(Row.of(12001L: JLong, "bbb", 40L: JLong, 10L: JLong, 40L: JLong), change = true)))
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20001), "ccc", 1L: JLong, 1L: JLong, 1L: JLong), true)))
+      CRow(Row.of(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(toTS(20002), "ccc", 2L: JLong, 1L: JLong, 2L: JLong), true)))
+      CRow(Row.of(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
     testHarness.close()

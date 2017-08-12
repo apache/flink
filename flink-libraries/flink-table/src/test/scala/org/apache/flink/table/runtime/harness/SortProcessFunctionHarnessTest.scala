@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.harness
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
-import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTS}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
@@ -189,35 +188,35 @@ class SortProcessFunctionHarnessTest {
 
       // timestamp is ignored in processing time
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", toTS(1001)), true)))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 1001L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 2002L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 13L: JLong, 2: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 13L: JLong, 2: JInt, "aaa", 2002L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 2002L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", 2002L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", toTS(2004)), true)))
+      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 2004L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", toTS(2006)), true)))
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 2006L: JLong), true)))
 
     // move watermark forward
     testHarness.processWatermark(2007)
 
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 20L: JLong, 1: JInt, "aaa", toTS(2008)), true)))
+      Row.of(1: JInt, 20L: JLong, 1: JInt, "aaa", 2008L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", toTS(2002)), true))) // too late
+      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", 2002L: JLong), true))) // too late
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", toTS(2019)), true))) // too early
+      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 2019L: JLong), true))) // too early
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 20L: JLong, 2: JInt, "aaa", toTS(2008)), true)))
+      Row.of(1: JInt, 20L: JLong, 2: JInt, "aaa", 2008L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", toTS(2010)), true)))
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 2010L: JLong), true)))
     testHarness.processElement(new StreamRecord(new CRow(
-      Row.of(1: JInt, 19L: JLong, 0: JInt, "aaa", toTS(2008)), true)))
+      Row.of(1: JInt, 19L: JLong, 0: JInt, "aaa", 2008L: JLong), true)))
 
     // move watermark forward
     testHarness.processWatermark(2012)
@@ -231,29 +230,29 @@ class SortProcessFunctionHarnessTest {
     // (10,0) (11,1) (12,2) (12,1) (12,0)
     expectedOutput.add(new Watermark(3))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", toTS(1001)), true)))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 1001L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 2002L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 2002L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 13L: JLong, 2: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 13L: JLong, 2: JInt, "aaa", 2002L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", toTS(2002)), true)))
+      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", 2002L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", toTS(2004)), true)))
+      Row.of(1: JInt, 12L: JLong, 3: JInt, "aaa", 2004L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", toTS(2006)), true)))
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 2006L: JLong), true)))
     expectedOutput.add(new Watermark(2007))
 
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 19L: JLong, 0: JInt, "aaa", toTS(2008)), true)))
+      Row.of(1: JInt, 19L: JLong, 0: JInt, "aaa", 2008L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 20L: JLong, 2: JInt, "aaa", toTS(2008)), true)))
+      Row.of(1: JInt, 20L: JLong, 2: JInt, "aaa", 2008L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 20L: JLong, 1: JInt, "aaa", toTS(2008)), true)))
+      Row.of(1: JInt, 20L: JLong, 1: JInt, "aaa", 2008L: JLong), true)))
     expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", toTS(2010)), true)))
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 2010L: JLong), true)))
 
     expectedOutput.add(new Watermark(2012))
 

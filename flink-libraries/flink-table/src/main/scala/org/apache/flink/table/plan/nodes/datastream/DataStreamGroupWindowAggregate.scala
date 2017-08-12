@@ -38,7 +38,7 @@ import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.nodes.datastream.DataStreamGroupWindowAggregate._
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
-import org.apache.flink.table.runtime.TimestampSetterProcessFunction
+import org.apache.flink.table.runtime.RowtimeProcessFunction
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -149,7 +149,7 @@ class DataStreamGroupWindowAggregate(
 
       inputDS
         .process(
-          new TimestampSetterProcessFunction(timeIdx, CRowTypeInfo(inputSchema.typeInfo)))
+          new RowtimeProcessFunction(timeIdx, CRowTypeInfo(inputSchema.typeInfo)))
         .setParallelism(inputDS.getParallelism)
         .name(s"time attribute: ($timeAttribute)")
     } else {

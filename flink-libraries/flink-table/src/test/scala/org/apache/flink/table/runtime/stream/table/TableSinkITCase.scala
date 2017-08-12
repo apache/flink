@@ -421,8 +421,8 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
           ctx: ProcessFunction[(Boolean, Row), Row]#Context,
           out: Collector[Row]): Unit = {
 
-          val rowTS: Long = row._2.getField(2).asInstanceOf[Long]
-          if (ctx.timestamp() == rowTS) {
+          val rowTs = row._2.getField(2).asInstanceOf[Long]
+          if (ctx.timestamp() == rowTs) {
             out.collect(row._2)
           }
         }

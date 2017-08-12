@@ -17,23 +17,21 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.sql.Timestamp
 import java.util
 import java.util.{List => JList}
 
-import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.types.Row
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state._
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
+import org.slf4j.{Logger, LoggerFactory}
 
 
 /**
@@ -52,6 +50,8 @@ abstract class RowTimeUnboundedOver(
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
+  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
+
   protected var output: CRow = _
   // state to hold the accumulators of the aggregations
   private var accumulatorState: ValueState[Row] = _
@@ -60,7 +60,6 @@ abstract class RowTimeUnboundedOver(
   // list to sort timestamps to access rows in timestamp order
   private var sortedTimestamps: util.LinkedList[Long] = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   protected var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
@@ -111,7 +110,7 @@ abstract class RowTimeUnboundedOver(
     // register state-cleanup timer
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
-    val timestamp = SqlFunctions.toLong(input.getField(rowTimeIdx).asInstanceOf[Timestamp])
+    val timestamp = input.getField(rowTimeIdx).asInstanceOf[Long]
     val curWatermark = ctx.timerService().currentWatermark()
 
     // discard late record

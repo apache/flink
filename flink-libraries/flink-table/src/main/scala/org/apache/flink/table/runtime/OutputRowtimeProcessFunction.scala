@@ -18,35 +18,41 @@
 
 package org.apache.flink.table.runtime
 
-import java.sql.Timestamp
-
 import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.util.Collector
 
 /**
-  * ProcessFunction to copy a timestamp from a [[org.apache.flink.types.Row]] field into the
-  * [[org.apache.flink.streaming.runtime.streamrecord.StreamRecord]].
+  * Wraps a ProcessFunction and sets a Timestamp field of a CRow as
+  * [[org.apache.flink.streaming.runtime.streamrecord.StreamRecord]] timestamp.
   */
-class TimestampSetterProcessFunction(
-    val rowtimeIdx: Int,
-    @transient var returnType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
-  with ResultTypeQueryable[CRow] {
+class OutputRowtimeProcessFunction[OUT](
+    function: MapFunction[CRow, OUT],
+    rowtimeIdx: Int)
+  extends ProcessFunction[CRow, OUT] {
+
+  override def open(parameters: Configuration): Unit = {
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
+  }
 
   override def processElement(
       in: CRow,
-      ctx: ProcessFunction[CRow, CRow]#Context,
-      out: Collector[CRow]): Unit = {
+      ctx: ProcessFunction[CRow, OUT]#Context,
+      out: Collector[OUT]): Unit = {
 
-    val timestamp = SqlFunctions.toLong(in.row.getField(rowtimeIdx).asInstanceOf[Timestamp])
-    out.asInstanceOf[TimestampedCollector[CRow]].setAbsoluteTimestamp(timestamp)
-    out.collect(in)
+    val timestamp = in.row.getField(rowtimeIdx).asInstanceOf[Long]
+    out.asInstanceOf[TimestampedCollector[_]].setAbsoluteTimestamp(timestamp)
+
+    val convertedTimestamp = SqlFunctions.internalToTimestamp(timestamp)
+    in.row.setField(rowtimeIdx, convertedTimestamp)
+
+    out.collect(function.map(in))
   }
 
-  override def getProducedType: TypeInformation[CRow] = returnType
 }
