@@ -186,8 +186,7 @@ public class NFA<T> implements Serializable {
 		states.add(state);
 
 		if (state.isStart()) {
-			ComputationState<T> startComputationState = ComputationState.createStartState(this, state);
-			computationStates.add(startComputationState);
+			computationStates.add(ComputationState.createStartState(this, state));
 		}
 	}
 
@@ -940,7 +939,7 @@ public class NFA<T> implements Serializable {
 	 */
 	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
-		private static final int VERSION = 2;
+		private static final int VERSION = 1;
 
 		/** This empty constructor is required for deserializing the configuration. */
 		public NFASerializerConfigSnapshot() {}
@@ -950,11 +949,6 @@ public class NFA<T> implements Serializable {
 				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
 
 			super(eventSerializer, sharedBufferSerializer);
-		}
-
-		@Override
-		public int[] getCompatibleVersions() {
-			return new int[]{1, getVersion()};
 		}
 
 		@Override
