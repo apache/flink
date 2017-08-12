@@ -66,7 +66,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
 
-    val t = table.select('rowtime.cast(Types.STRING), 'proctime)
+    val t = table.select('rowtime.cast(Types.STRING))
 
     val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
