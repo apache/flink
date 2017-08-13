@@ -65,9 +65,6 @@ public class BufferPoolFactoryTest {
 
 		lbp = networkBufferPool.createBufferPool(1, 2);
 		assertEquals(2, lbp.getNumBuffers());
-
-		BufferPool fbp = networkBufferPool.createFixedBufferPool(2);
-		assertEquals(2, fbp.getNumBuffers());
 	}
 
 	@Test
@@ -79,7 +76,7 @@ public class BufferPoolFactoryTest {
 
 	@Test
 	public void testSingleManagedPoolGetsAllExceptFixedOnes() throws IOException {
-		BufferPool fixed = networkBufferPool.createFixedBufferPool(24);
+		BufferPool fixed = networkBufferPool.createBufferPool(24, 24);
 
 		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
@@ -116,22 +113,16 @@ public class BufferPoolFactoryTest {
 
 	@Test
 	public void testUniformDistributionBounded1() throws IOException {
-		BufferPool fixed = networkBufferPool.createFixedBufferPool(10);
-		assertEquals(10, fixed.getNumBuffers());
-
 		BufferPool first = networkBufferPool.createBufferPool(0, networkBufferPool.getTotalNumberOfMemorySegments());
-		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - 10, first.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), first.getNumBuffers());
 
 		BufferPool second = networkBufferPool.createBufferPool(0, networkBufferPool.getTotalNumberOfMemorySegments());
-		assertEquals((networkBufferPool.getTotalNumberOfMemorySegments() - 10) / 2, first.getNumBuffers());
-		assertEquals((networkBufferPool.getTotalNumberOfMemorySegments() - 10) / 2, second.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, first.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, second.getNumBuffers());
 	}
 
 	@Test
 	public void testUniformDistributionBounded2() throws IOException {
-		BufferPool fixed = networkBufferPool.createFixedBufferPool(10);
-		assertEquals(10, fixed.getNumBuffers());
-
 		BufferPool first = networkBufferPool.createBufferPool(0, 10);
 		assertEquals(10, first.getNumBuffers());
 
@@ -142,11 +133,7 @@ public class BufferPoolFactoryTest {
 
 	@Test
 	public void testUniformDistributionBounded3() throws IOException {
-		NetworkBufferPool globalPool = new NetworkBufferPool(4, 128, MemoryType.HEAP);
-
-		BufferPool fixed = globalPool.createFixedBufferPool(1);
-		assertEquals(1, fixed.getNumBuffers());
-
+		NetworkBufferPool globalPool = new NetworkBufferPool(3, 128, MemoryType.HEAP);
 		BufferPool first = globalPool.createBufferPool(0, 10);
 		assertEquals(3, first.getNumBuffers());
 
@@ -163,7 +150,7 @@ public class BufferPoolFactoryTest {
 
 		// similar to #verifyAllBuffersReturned()
 		String msg = "Did not return all buffers to network buffer pool after test.";
-		assertEquals(msg, 4, globalPool.getNumberOfAvailableMemorySegments());
+		assertEquals(msg, 3, globalPool.getNumberOfAvailableMemorySegments());
 		// in case buffers have actually been requested, we must release them again
 		globalPool.destroy();
 	}

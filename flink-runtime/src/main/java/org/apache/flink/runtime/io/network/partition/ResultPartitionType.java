@@ -20,9 +20,9 @@ package org.apache.flink.runtime.io.network.partition;
 
 public enum ResultPartitionType {
 
-	BLOCKING(false, false, false),
+	BLOCKING(false, false, false, false),
 
-	PIPELINED(true, true, false),
+	PIPELINED(true, true, false, false),
 
 	/**
 	 * Pipelined partitions with a bounded (local) buffer pool.
@@ -35,7 +35,7 @@ public enum ResultPartitionType {
 	 * For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
 	 * no checkpoint barriers.
 	 */
-	PIPELINED_BOUNDED(true, true, true);
+	PIPELINED_BOUNDED(true, true, true, false);
 
 	/** Can the partition be consumed while being produced? */
 	private final boolean isPipelined;
@@ -46,13 +46,17 @@ public enum ResultPartitionType {
 	/** Does this partition use a limited number of (network) buffers? */
 	private final boolean isBounded;
 
+	/** Does this partition only send data when consumer has available buffers? */
+	private final boolean isCreditBased;
+
 	/**
 	 * Specifies the behaviour of an intermediate result partition at runtime.
 	 */
-	ResultPartitionType(boolean isPipelined, boolean hasBackPressure, boolean isBounded) {
+	ResultPartitionType(boolean isPipelined, boolean hasBackPressure, boolean isBounded, boolean isCreditBased) {
 		this.isPipelined = isPipelined;
 		this.hasBackPressure = hasBackPressure;
 		this.isBounded = isBounded;
+		this.isCreditBased = isCreditBased;
 	}
 
 	public boolean hasBackPressure() {
@@ -74,5 +78,9 @@ public enum ResultPartitionType {
 	 */
 	public boolean isBounded() {
 		return isBounded;
+	}
+
+	public boolean isCreditBased() {
+		return isCreditBased;
 	}
 }

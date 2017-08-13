@@ -39,17 +39,6 @@ public interface BufferPoolFactory {
 	BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException;
 
 	/**
-	 * Tries to create a buffer pool, which is guaranteed to provide the fixed number of required
-	 * buffers.
-	 *
-	 * <p> The buffer pool is of fixed size with <tt>numRequiredBuffers</tt> buffers.
-	 *
-	 * @param numRequiredBuffers
-	 * 		fixed number of network buffers in this pool
-	 */
-	BufferPool createFixedBufferPool(int numRequiredBuffers) throws IOException;
-
-	/**
 	 * Destroy callback for updating factory book keeping.
 	 */
 	void destroyBufferPool(BufferPool bufferPool) throws IOException;

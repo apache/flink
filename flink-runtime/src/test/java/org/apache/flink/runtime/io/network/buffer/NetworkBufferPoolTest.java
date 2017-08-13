@@ -49,7 +49,7 @@ public class NetworkBufferPoolTest {
 			assertTrue(globalPool.isDestroyed());
 
 			try {
-				globalPool.createFixedBufferPool(2);
+				globalPool.createBufferPool(2, 2);
 				fail("Should throw an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -84,7 +84,7 @@ public class NetworkBufferPoolTest {
 		try {
 			NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, MemoryType.HEAP);
 
-			BufferPool fixedPool = globalPool.createFixedBufferPool(2);
+			BufferPool fixedPool = globalPool.createBufferPool(2, 2);
 			BufferPool boundedPool = globalPool.createBufferPool(0, 1);
 			BufferPool nonFixedPool = globalPool.createBufferPool(5, Integer.MAX_VALUE);
 

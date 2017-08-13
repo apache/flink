@@ -34,8 +34,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A buffer pool used to manage a number of {@link Buffer} instances from the
  * {@link NetworkBufferPool}.
- *
- * <p> Buffer requests are mediated to the network buffer pool to ensure dead-lock
+ * <p>
+ * Buffer requests are mediated to the network buffer pool to ensure dead-lock
  * free operation of the network stack by limiting the number of buffers per
  * local buffer pool. It also implements the default mechanism for buffer
  * recycling, which ensures that every buffer is ultimately returned to the
@@ -58,13 +58,13 @@ class LocalBufferPool implements BufferPool {
 	 * The currently available memory segments. These are segments, which have been requested from
 	 * the network buffer pool and are currently not handed out as Buffer instances.
 	 */
-	private final ArrayDeque<MemorySegment> availableMemorySegments = new ArrayDeque<>();
+	private final ArrayDeque<MemorySegment> availableMemorySegments = new ArrayDeque<MemorySegment>();
 
 	/**
 	 * Buffer availability listeners, which need to be notified when a Buffer becomes available.
 	 * Listeners can only be registered at a time/state where no Buffer instance was available.
 	 */
-	private final Queue<EventListener<Buffer>> registeredListeners = new ArrayDeque<>();
+	private final Queue<EventListener<Buffer>> registeredListeners = new ArrayDeque<EventListener<Buffer>>();
 
 	/** Maximum number of network buffers to allocate. */
 	private final int maxNumberOfMemorySegments;
@@ -292,11 +292,6 @@ class LocalBufferPool implements BufferPool {
 			registeredListeners.add(listener);
 			return true;
 		}
-	}
-
-	@Override
-	public boolean addBufferPoolListener(BufferPoolListener listener) {
-		return false;
 	}
 
 	@Override
