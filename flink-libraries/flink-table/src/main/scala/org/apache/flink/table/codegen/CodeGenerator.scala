@@ -1301,11 +1301,10 @@ abstract class CodeGenerator(
 
   private[flink] def generateProctimeTimestamp(): GeneratedExpression = {
     val resultTerm = newName("result")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
 
     val resultCode =
       s"""
-        |$resultTypeTerm $resultTerm = $contextTerm.timerService().currentProcessingTime();
+        |long $resultTerm = $contextTerm.timerService().currentProcessingTime();
         |""".stripMargin
     GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
   }

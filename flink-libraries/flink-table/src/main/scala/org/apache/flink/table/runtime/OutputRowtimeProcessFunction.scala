@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime
 
 import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
@@ -36,13 +37,8 @@ class OutputRowtimeProcessFunction[OUT](
   extends ProcessFunction[CRow, OUT] {
 
   override def open(parameters: Configuration): Unit = {
-    super.open(parameters)
-    function match {
-      case f: RichMapFunction[_, _] =>
-        f.setRuntimeContext(getRuntimeContext)
-        f.open(parameters)
-      case _ =>
-    }
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
   override def processElement(
