@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.plan.schema
 
-import java.lang.reflect.{Method, Type}
+import java.lang.reflect.Type
 import java.util
+import java.util.Collections
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.TableFunction
-import org.apache.calcite.schema.impl.ReflectiveFunctionBase
+import org.apache.calcite.schema.{FunctionParameter, TableFunction}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.TableException
@@ -36,10 +36,8 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 class FlinkTableFunctionImpl[T](
     val typeInfo: TypeInformation[T],
     val fieldIndexes: Array[Int],
-    val fieldNames: Array[String],
-    val evalMethod: Method)
-  extends ReflectiveFunctionBase(evalMethod)
-  with TableFunction {
+    val fieldNames: Array[String])
+  extends TableFunction {
 
   if (fieldIndexes.length != fieldNames.length) {
     throw new TableException(
@@ -70,6 +68,9 @@ class FlinkTableFunctionImpl[T](
     }
 
   override def getElementType(arguments: util.List[AnyRef]): Type = classOf[Array[Object]]
+
+  // we do never use the FunctionParameters, so return an empty list
+  override def getParameters: util.List[FunctionParameter] = Collections.emptyList()
 
   override def getRowType(typeFactory: RelDataTypeFactory,
                           arguments: util.List[AnyRef]): RelDataType = {

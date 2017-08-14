@@ -20,6 +20,7 @@ package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc2, _}
 import org.junit.Test
@@ -226,6 +227,54 @@ class CorrelateTest extends TableTestBase {
         term("function", func1.getClass.getCanonicalName),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "f0 AS s")
+    )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testTableFunctionWithVariableArguments(): Unit = {
+    val util = streamTestUtil()
+    val func1 = new JavaVarsArgTableFunc0
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("func1", func1)
+
+    var sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func1('hello', 'world', c)) AS T(s)"
+
+    var expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", "func1('hello', 'world', $cor0.c)"),
+        term("function", func1.getClass.getCanonicalName),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "f0 AS s")
+    )
+
+    util.verifySql(sqlQuery, expected)
+
+    // test scala var arg function
+    val func2 = new VarArgsFunc0
+    util.addFunction("func2", func2)
+
+    sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func2('hello', 'world', c)) AS T(s)"
+
+    expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", "func2('hello', 'world', $cor0.c)"),
+        term("function", func2.getClass.getCanonicalName),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "f0 AS s")

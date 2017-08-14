@@ -48,22 +48,6 @@ class FunctionCatalog {
     sqlFunctions += sqlFunction
   }
 
-  /**
-    * Register multiple SQL functions at the same time. The functions have the same name.
-    */
-  def registerSqlFunctions(functions: Seq[SqlFunction]): Unit = {
-    if (functions.nonEmpty) {
-      val name = functions.head.getName
-      // check that all functions have the same name
-      if (functions.forall(_.getName == name)) {
-        sqlFunctions --= sqlFunctions.filter(_.getName == name)
-        sqlFunctions ++= functions
-      } else {
-        throw ValidationException("The SQL functions to be registered have different names.")
-      }
-    }
-  }
-
   def getSqlOperatorTable: SqlOperatorTable =
     ChainedSqlOperatorTable.of(
       new BasicOperatorTable(),
