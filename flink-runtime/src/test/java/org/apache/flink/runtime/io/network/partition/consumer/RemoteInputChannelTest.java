@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -34,6 +36,7 @@ import org.junit.Test;
 import scala.Tuple2;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -45,8 +48,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -293,6 +298,80 @@ public class RemoteInputChannelTest {
 
 		// Should throw an instance of CancelTaskException.
 		ch.getNextBuffer();
+	}
+
+	/**
+	 * Tests {@link RemoteInputChannel#recycle(MemorySegment)}, verifying the exclusive segment is
+	 * recycled to available buffers directly and it triggers notify of announced credit.
+	 */
+	@Test
+	public void testRecycleExclusiveBufferBeforeReleased() throws Exception {
+		final SingleInputGate inputGate = mock(SingleInputGate.class);
+		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
+
+		// Recycle exclusive segment
+		inputChannel.recycle(MemorySegmentFactory.allocateUnpooledSegment(1024, inputChannel));
+
+		assertEquals("There should be one buffer available after recycle.",
+			1, inputChannel.getNumberOfAvailableBuffers());
+		verify(inputChannel, times(1)).notifyCreditAvailable();
+
+		inputChannel.recycle(MemorySegmentFactory.allocateUnpooledSegment(1024, inputChannel));
+
+		assertEquals("There should be two buffers available after recycle.",
+			2, inputChannel.getNumberOfAvailableBuffers());
+		// It should be called only once when increased from zero.
+		verify(inputChannel, times(1)).notifyCreditAvailable();
+	}
+
+	/**
+	 * Tests {@link RemoteInputChannel#recycle(MemorySegment)}, verifying the exclusive segment is
+	 * recycled to global pool via input gate when channel is released.
+	 */
+	@Test
+	public void testRecycleExclusiveBufferAfterReleased() throws Exception {
+		// Setup
+		final SingleInputGate inputGate = mock(SingleInputGate.class);
+		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
+
+		inputChannel.releaseAllResources();
+
+		// Recycle exclusive segment after channel released
+		inputChannel.recycle(MemorySegmentFactory.allocateUnpooledSegment(1024, inputChannel));
+
+		assertEquals("Resource leak during recycling buffer after channel is released.",
+			0, inputChannel.getNumberOfAvailableBuffers());
+		verify(inputChannel, times(0)).notifyCreditAvailable();
+		verify(inputGate, times(1)).returnExclusiveSegments(anyListOf(MemorySegment.class));
+	}
+
+	/**
+	 * Tests {@link RemoteInputChannel#releaseAllResources()}, verifying the exclusive segments are
+	 * recycled to global pool via input gate and no resource leak.
+	 */
+	@Test
+	public void testReleaseExclusiveBuffers() throws Exception {
+		// Setup
+		final SingleInputGate inputGate = mock(SingleInputGate.class);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+
+		// Assign exclusive segments to channel
+		final List<MemorySegment> exclusiveSegments = new ArrayList<>();
+		final int numExclusiveBuffers = 2;
+		for (int i = 0; i < numExclusiveBuffers; i++) {
+			exclusiveSegments.add(MemorySegmentFactory.allocateUnpooledSegment(1024, inputChannel));
+		}
+		inputChannel.assignExclusiveSegments(exclusiveSegments);
+
+		assertEquals("The number of available buffers is not equal to the assigned amount.",
+			numExclusiveBuffers, inputChannel.getNumberOfAvailableBuffers());
+
+		// Release this channel
+		inputChannel.releaseAllResources();
+
+		assertEquals("Resource leak after channel is released.",
+			0, inputChannel.getNumberOfAvailableBuffers());
+		verify(inputGate, times(1)).returnExclusiveSegments(anyListOf(MemorySegment.class));
 	}
 
 	// ---------------------------------------------------------------------------------------------
