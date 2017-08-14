@@ -23,10 +23,12 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
@@ -36,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,9 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class BlobLibraryCacheManager implements LibraryCacheManager {
 
-	private static Logger LOG = LoggerFactory.getLogger(BlobLibraryCacheManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BlobLibraryCacheManager.class);
 
-	private static ExecutionAttemptID JOB_ATTEMPT_ID = new ExecutionAttemptID(-1, -1);
+	private static final ExecutionAttemptID JOB_ATTEMPT_ID = new ExecutionAttemptID(-1, -1);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -204,11 +207,37 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		private final FlinkUserCodeClassLoader classLoader;
 
 		private final Set<ExecutionAttemptID> referenceHolders;
-
+		/**
+		 * Set of BLOB keys used for a previous job/task registration.
+		 *
+		 * <p>The purpose of this is to make sure, future registrations do not differ in content as
+		 * this is a contract of the {@link BlobLibraryCacheManager}.
+		 */
 		private final Set<BlobKey> libraries;
 
-		private final Set<URL> classPaths;
+		/**
+		 * Set of class path URLs used for a previous job/task registration.
+		 *
+		 * <p>The purpose of this is to make sure, future registrations do not differ in content as
+		 * this is a contract of the {@link BlobLibraryCacheManager}.
+		 */
+		private final Set<String> classPaths;
 
+		/**
+		 * Creates a cache entry for a flink class loader with the given <tt>libraryURLs</tt>.
+		 *
+		 * @param requiredLibraries
+		 * 		BLOB keys required by the class loader (stored for ensuring consistency among different
+		 * 		job/task registrations)
+		 * @param requiredClasspaths
+		 * 		class paths required by the class loader (stored for ensuring consistency among
+		 * 		different job/task registrations)
+		 * @param libraryURLs
+		 * 		complete list of URLs to use for the class loader (includes references to the
+		 * 		<tt>requiredLibraries</tt> and <tt>requiredClasspaths</tt>)
+		 * @param initialReference
+		 * 		reference holder ID
+		 */
 		LibraryCacheEntry(
 				Collection<BlobKey> requiredLibraries,
 				Collection<URL> requiredClasspaths,
@@ -216,12 +245,17 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				ExecutionAttemptID initialReference) {
 
 			this.classLoader = new FlinkUserCodeClassLoader(libraryURLs);
-			this.classPaths= new HashSet<>(requiredClasspaths);
+			// NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
+			//       see http://findbugs.sourceforge.net/bugDescriptions.html#DMI_COLLECTION_OF_URLS
+			//       -> alternatively, compare their string representation
+			this.classPaths = new HashSet<>(requiredClasspaths.size());
+			for (URL url : requiredClasspaths) {
+				classPaths.add(url.toString());
+			}
 			this.libraries = new HashSet<>(requiredLibraries);
 			this.referenceHolders = new HashSet<>();
 			this.referenceHolders.add(initialReference);
 		}
-
 
 		public ClassLoader getClassLoader() {
 			return classLoader;
@@ -232,17 +266,32 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 
 		public void register(
-			ExecutionAttemptID task, Collection<BlobKey> requiredLibraries, Collection<URL> requiredClasspaths) {
-			if (libraries.size() != requiredLibraries.size() || !libraries.containsAll(requiredLibraries)) {
+				ExecutionAttemptID task, Collection<BlobKey> requiredLibraries,
+				Collection<URL> requiredClasspaths) {
+
+			// Make sure the previous registration referred to the same libraries and class paths.
+			// NOTE: the original collections may contain duplicates and may not already be Set
+			//       collections with fast checks whether an item is contained in it.
+
+			// lazy construction of a new set for faster comparisons
+			if (libraries.size() != requiredLibraries.size() ||
+				!new HashSet<>(requiredLibraries).containsAll(libraries)) {
+
 				throw new IllegalStateException(
-					"The library registration references a different set of library BLOBs than " +
+					"The library registration references a different set of library BLOBs than" +
 						" previous registrations for this job:\nold:" + libraries.toString() +
 						"\nnew:" + requiredLibraries.toString());
 			}
-			if (classPaths.size() != requiredClasspaths.size() || !classPaths.containsAll(requiredClasspaths)) {
+
+			// lazy construction of a new set with String representations of the URLs
+			if (classPaths.size() != requiredClasspaths.size() ||
+				!requiredClasspaths.stream().map(URL::toString).collect(Collectors.toSet())
+					.containsAll(classPaths)) {
+
 				throw new IllegalStateException(
-					"The library registration references a different set of library BLOBs than " +
-						" previous registrations for this job:\nold:" + classPaths.toString() +
+					"The library registration references a different set of library BLOBs than" +
+						" previous registrations for this job:\nold:" +
+						classPaths.toString() +
 						"\nnew:" + requiredClasspaths.toString());
 			}
 
