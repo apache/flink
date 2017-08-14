@@ -222,7 +222,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	}
 
 	@Override
-	public final void snapshotState(FunctionSnapshotContext context) throws Exception {
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		// this is like the pre-commit of a 2-phase-commit transaction
 		// we are ready to commit and remember the transaction
 
@@ -246,7 +246,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	}
 
 	@Override
-	public final void initializeState(FunctionInitializationContext context) throws Exception {
+	public void initializeState(FunctionInitializationContext context) throws Exception {
 		// when we are restoring state with pendingCommitTransactions, we don't really know whether the
 		// transactions were already committed, or whether there was a failure between
 		// completing the checkpoint on the master, and notifying the writer here.
