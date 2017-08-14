@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.net.URL
+import java.net.{URL, URLClassLoader}
 import java.util.UUID
 import java.util.concurrent.{Executors, TimeUnit}
 
@@ -33,7 +33,7 @@ import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.{AkkaJobManagerGateway, AkkaUtils}
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
 import org.apache.flink.runtime.concurrent.{FutureUtils, Executors => FlinkExecutors}
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
@@ -668,7 +668,7 @@ abstract class FlinkMiniCluster(
   private def createUserCodeClassLoader(
       jars: java.util.List[Path],
       classPaths: java.util.List[URL],
-      parentClassLoader: ClassLoader): FlinkUserCodeClassLoader = {
+      parentClassLoader: ClassLoader): URLClassLoader = {
 
     val urls = new Array[URL](jars.size() + classPaths.size())
 
@@ -686,6 +686,6 @@ abstract class FlinkMiniCluster(
       counter += 1
     }
 
-    new FlinkUserCodeClassLoader(urls, parentClassLoader)
+    FlinkUserCodeClassLoaders.parentFirst(urls, parentClassLoader)
   }
 }
