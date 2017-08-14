@@ -252,48 +252,40 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 		public void jobFinished(JobExecutionResult result) {
 			log.info("Job {} finished.", jobId);
 
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
+			runAsync(() -> {
 					try {
 						removeJob(jobId, true);
 					} catch (Exception e) {
 						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
 					}
-				}
-			});
+				});
 		}
 
 		@Override
 		public void jobFailed(Throwable cause) {
 			log.info("Job {} failed.", jobId);
 
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
+			runAsync(() -> {
 					try {
 						removeJob(jobId, true);
 					} catch (Exception e) {
 						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
 					}
-				}
-			});
+				});
 		}
 
 		@Override
 		public void jobFinishedByOther() {
 			log.info("Job {} was finished by other JobManager.", jobId);
 
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
+			runAsync(
+				() -> {
 					try {
 						removeJob(jobId, false);
 					} catch (Exception e) {
 						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
 					}
-				}
-			});
+				});
 		}
 	}
 }

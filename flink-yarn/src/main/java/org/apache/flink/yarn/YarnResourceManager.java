@@ -293,7 +293,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 
 	@Override
 	public void onError(Throwable error) {
-		onFatalErrorAsync(error);
+		onFatalError(error);
 	}
 
 	//Utility methods
