@@ -20,7 +20,6 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -50,6 +50,9 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+/**
+ * Integration test for {@link BlobLibraryCacheManager}.
+ */
 public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 	@Rule
@@ -76,7 +79,6 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
-
 
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);

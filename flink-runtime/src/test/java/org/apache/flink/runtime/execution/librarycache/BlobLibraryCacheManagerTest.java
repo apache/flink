@@ -20,7 +20,6 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.OperatingSystem;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -52,6 +51,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
+/**
+ * Tests for {@link BlobLibraryCacheManager}.
+ */
 public class BlobLibraryCacheManagerTest {
 
 	@Rule
@@ -434,7 +436,6 @@ public class BlobLibraryCacheManagerTest {
 			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 				temporaryFolder.newFolder().getAbsolutePath());
 			config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
-
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
