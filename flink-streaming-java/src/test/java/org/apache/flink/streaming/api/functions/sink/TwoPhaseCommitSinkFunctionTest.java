@@ -155,7 +155,10 @@ public class TwoPhaseCommitSinkFunctionTest {
 		@Override
 		protected void commit(FileTransaction transaction) {
 			try {
-				Files.move(transaction.tmpFile.toPath(), new File(targetDirectory, transaction.tmpFile.getName()).toPath(), ATOMIC_MOVE);
+				Files.move(
+					transaction.tmpFile.toPath(),
+					new File(targetDirectory, transaction.tmpFile.getName()).toPath(),
+					ATOMIC_MOVE);
 			} catch (IOException e) {
 				throw new IllegalStateException(e);
 			}
