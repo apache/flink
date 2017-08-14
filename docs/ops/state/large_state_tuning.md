@@ -130,19 +130,17 @@ on spinning disks.
 
 **Incremental Checkpoints**
 
-Incremental checkpoints can dramatically reduce the checkpointing time in comparison to full checkpoints, at the cost of a (potentially) longer
-recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
-producing a full, self-contained backup of the state backend. Like this, incremental checkpoints build upon previous checkpoints. Flink leverages
-RocksDB's internal backup mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink
-does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically. `
-
-While we strongly encourage the use of incremental checkpoints for large state, please note that this is a new feature and currently not enabled 
-by default. To enable this feature, users can instantiate a `RocksDBStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
+Incremental checkpoints can dramatically reduce the checkpointing time in comparison to full checkpoints, at the cost of
+a (potentially) longer recovery time. Currently, only the RocksDBStateBackend offers incremental checkpoints. You can
+activate this feature as follows:
 
 {% highlight java %}
     RocksDBStateBackend backend =
         new RocksDBStateBackend(filebackend, true);
 {% endhighlight %}
+
+For more information about incremental checkpoints and a deeper discussion of Flink's implementation, please read
+[here]({{ site.baseurl }}/ops/state/checkpoints.html#incremental-checkpoints).
 
 **Passing Options to RocksDB**
 
