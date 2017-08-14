@@ -40,7 +40,7 @@ public class BlobServerRangeTest extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
-	 * Start blob server on 0 = pick an ephemeral port
+	 * Start blob server on 0 = pick an ephemeral port.
 	 */
 	@Test
 	public void testOnEphemeralPort() throws IOException {
@@ -82,13 +82,13 @@ public class BlobServerRangeTest extends TestLogger {
 
 	/**
 	 * Give the BlobServer a choice of three ports, where two of them
-	 * are allocated
+	 * are allocated.
 	 */
 	@Test
 	public void testOnePortAvailable() throws IOException {
 		int numAllocated = 2;
 		ServerSocket[] sockets = new ServerSocket[numAllocated];
-		for(int i = 0; i < numAllocated; i++) {
+		for (int i = 0; i < numAllocated; i++) {
 			try {
 				sockets[i] = new ServerSocket(0);
 			} catch (IOException e) {

@@ -39,7 +39,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class BlobUtilsTest extends TestLogger {
 
-	private final static String CANNOT_CREATE_THIS = "cannot-create-this";
+	private static final String CANNOT_CREATE_THIS = "cannot-create-this";
 
 	private File blobUtilsTestDirectory;
 

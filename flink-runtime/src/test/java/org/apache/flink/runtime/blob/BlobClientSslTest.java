@@ -113,7 +113,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify ssl client to ssl server upload
+	 * Verify ssl client to ssl server upload.
 	 */
 	@Test
 	public void testUploadJarFilesHelper() throws Exception {
@@ -121,7 +121,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify ssl client to non-ssl server failure
+	 * Verify ssl client to non-ssl server failure.
 	 */
 	@Test(expected = IOException.class)
 	public void testSSLClientFailure() throws Exception {
@@ -130,7 +130,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify ssl client to non-ssl server failure
+	 * Verify ssl client to non-ssl server failure.
 	 */
 	@Test(expected = IOException.class)
 	public void testSSLClientFailure2() throws Exception {
@@ -139,7 +139,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify non-ssl client to ssl server failure
+	 * Verify non-ssl client to ssl server failure.
 	 */
 	@Test(expected = IOException.class)
 	public void testSSLServerFailure() throws Exception {
@@ -148,7 +148,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify non-ssl client to ssl server failure
+	 * Verify non-ssl client to ssl server failure.
 	 */
 	@Test(expected = IOException.class)
 	public void testSSLServerFailure2() throws Exception {
@@ -157,7 +157,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify non-ssl connection sanity
+	 * Verify non-ssl connection sanity.
 	 */
 	@Test
 	public void testNonSSLConnection() throws Exception {
@@ -165,7 +165,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify non-ssl connection sanity
+	 * Verify non-ssl connection sanity.
 	 */
 	@Test
 	public void testNonSSLConnection2() throws Exception {
@@ -173,7 +173,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify non-ssl connection sanity
+	 * Verify non-ssl connection sanity.
 	 */
 	@Test
 	public void testNonSSLConnection3() throws Exception {
@@ -181,7 +181,7 @@ public class BlobClientSslTest extends BlobClientTest {
 	}
 
 	/**
-	 * Verify non-ssl connection sanity
+	 * Verify non-ssl connection sanity.
 	 */
 	@Test
 	public void testNonSSLConnection4() throws Exception {

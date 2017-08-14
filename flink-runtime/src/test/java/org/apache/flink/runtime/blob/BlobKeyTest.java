@@ -55,7 +55,7 @@ public final class BlobKeyTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the serialization/deserialization of BLOB keys
+	 * Tests the serialization/deserialization of BLOB keys.
 	 */
 	@Test
 	public void testSerialization() throws Exception {
@@ -97,10 +97,10 @@ public final class BlobKeyTest extends TestLogger {
 	public void testStreams() throws Exception {
 		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream(20);
-		
+
 		k1.writeToOutputStream(baos);
 		baos.close();
-		
+
 		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 		final BlobKey k2 = BlobKey.readFromInputStream(bais);
 

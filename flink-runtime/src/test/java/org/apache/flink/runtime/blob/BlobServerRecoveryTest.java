@@ -80,9 +80,9 @@ public class BlobServerRecoveryTest extends TestLogger {
 
 	/**
 	 * Helper to test that the {@link BlobServer} recovery from its HA store works.
-	 * <p>
-	 * Uploads two BLOBs to one {@link BlobServer} and expects a second one to be able to retrieve
-	 * them via a shared HA store.
+	 *
+	 * <p>Uploads two BLOBs to one {@link BlobServer} and expects a second one to be able to retrieve
+	 * them via a shared HA store upon request of a {@link BlobCache}.
 	 *
 	 * @param config
 	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
