@@ -38,8 +38,8 @@ class CRowToJavaTupleMapRunner(
     code: String,
     @transient var returnType: TypeInformation[JTuple2[JBool, Any]])
   extends RichMapFunction[CRow, Any]
-          with ResultTypeQueryable[JTuple2[JBool, Any]]
-          with Compiler[MapFunction[Row, Any]] {
+  with ResultTypeQueryable[JTuple2[JBool, Any]]
+  with Compiler[MapFunction[Row, Any]] {
 
   val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 

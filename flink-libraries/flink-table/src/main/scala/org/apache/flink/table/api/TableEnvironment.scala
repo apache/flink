@@ -715,7 +715,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       throw new TableException("Field name can not be '*'.")
     }
 
-    (fieldNames.toArray, fieldIndexes.toArray) // build fails if not converted to array
+    (fieldNames.toArray, fieldIndexes.toArray) // build fails in Scala 2.10 if not converted
   }
 
   protected def generateRowConverterFunction[OUT](
