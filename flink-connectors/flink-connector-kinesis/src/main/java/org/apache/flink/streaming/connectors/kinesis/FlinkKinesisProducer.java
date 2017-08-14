@@ -55,9 +55,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	/** Properties to parametrize settings such as AWS service region, access key etc. */
 	private final Properties configProps;
 
-	/** Configuration for KinesisProducer. */
-	private final KinesisProducerConfiguration producerConfig;
-
 	/* Flag controlling the error behavior of the producer */
 	private boolean failOnError = false;
 
@@ -121,8 +118,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	public FlinkKinesisProducer(KinesisSerializationSchema<OUT> schema, Properties configProps) {
 		checkNotNull(configProps, "configProps can not be null");
 		this.configProps = KinesisConfigUtil.replaceDeprecatedProducerKeys(configProps);
-		// check the configuration properties for any invalid settings
-		this.producerConfig = KinesisConfigUtil.validateProducerConfiguration(configProps);
 
 		ClosureCleaner.ensureSerializable(Objects.requireNonNull(schema));
 		this.schema = schema;
@@ -166,6 +161,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
+		// check and pass the configuration properties
+		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.validateProducerConfiguration(configProps);
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
 
 		producer = new KinesisProducer(producerConfig);
