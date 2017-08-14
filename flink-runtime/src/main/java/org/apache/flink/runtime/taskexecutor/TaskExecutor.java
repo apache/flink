@@ -231,7 +231,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		try {
 			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
 		} catch (Exception e) {
-			onFatalErrorAsync(e);
+			onFatalError(e);
 		}
 
 		// tell the task slot table who's responsible for the task slot actions
@@ -1117,35 +1117,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	/**
 	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
-	 * This method should be used when asynchronous threads want to notify the
-	 * TaskExecutor of a fatal error.
-	 *
-	 * @param t The exception describing the fatal error
-	 */
-	void onFatalErrorAsync(final Throwable t) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				onFatalError(t);
-			}
-		});
-	}
-
-	/**
-	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
-	 * This method must only be called from within the TaskExecutor's main thread.
 	 *
 	 * @param t The exception describing the fatal error
 	 */
 	void onFatalError(final Throwable t) {
-		log.error("Fatal error occurred.", t);
-		// this could potentially be a blocking call -> call asynchronously:
-		getRpcService().execute(new Runnable() {
-			@Override
-			public void run() {
-				fatalErrorHandler.onFatalError(t);
-			}
-		});
+		try {
+			log.error("Fatal error occurred in TaskExecutor.", t);
+		} catch (Throwable ignored) {}
+
+		// The fatal error handler implementation should make sure that this call is non-blocking
+		fatalErrorHandler.onFatalError(t);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1183,7 +1164,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void handleError(Exception exception) {
-			onFatalErrorAsync(exception);
+			onFatalError(exception);
 		}
 	}
 
@@ -1223,7 +1204,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void handleError(Throwable throwable) {
-			onFatalErrorAsync(throwable);
+			onFatalError(throwable);
 		}
 	}
 
@@ -1245,7 +1226,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void onRegistrationFailure(Throwable failure) {
-			onFatalErrorAsync(failure);
+			onFatalError(failure);
 		}
 	}
 
@@ -1270,7 +1251,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
-			log.error(message, cause);
+			try {
+				log.error(message, cause);
+			} catch (Throwable ignored) {}
+
+			// The fatal error handler implementation should make sure that this call is non-blocking
 			fatalErrorHandler.onFatalError(cause);
 		}
 

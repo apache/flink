@@ -877,20 +877,13 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	//----------------------------------------------------------------------------------------------
 
 	private void handleFatalError(final Throwable cause) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
 
-				try {
-					shutDown();
-				} catch (Exception e) {
-					cause.addSuppressed(e);
-				}
+		try {
+			log.error("Fatal error occurred on JobManager.", cause);
+		} catch (Throwable ignore) {}
 
-				errorHandler.onFatalError(cause);
-			}
-		});
+		// The fatal error handler implementation should make sure that this call is non-blocking
+		errorHandler.onFatalError(cause);
 	}
 
 	private void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
@@ -910,7 +903,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 						Map<String, Object> accumulatorResults = executionGraph.getAccumulators();
 						JobExecutionResult result = new JobExecutionResult(jobID, 0L, accumulatorResults); 
 
-						jobCompletionActions.jobFinished(result);
+						executor.execute(() -> jobCompletionActions.jobFinished(result));
 					}
 					catch (Exception e) {
 						log.error("Cannot fetch final accumulators for job {} ({})", jobName, jobID, e);
@@ -920,7 +913,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 								"The job is registered as 'FINISHED (successful), but this notification describes " +
 								"a failure, since the resulting accumulators could not be fetched.", e);
 
-						jobCompletionActions.jobFailed(exception);
+						executor.execute(() ->jobCompletionActions.jobFailed(exception));
 					}
 					break;
 
@@ -928,7 +921,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					final JobExecutionException exception = new JobExecutionException(
 						jobID, "Job was cancelled.", new Exception("The job was cancelled"));
 
-					jobCompletionActions.jobFailed(exception);
+					executor.execute(() -> jobCompletionActions.jobFailed(exception));
 					break;
 				}
 
@@ -936,7 +929,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					final Throwable unpackedError = SerializedThrowable.get(error, userCodeLoader);
 					final JobExecutionException exception = new JobExecutionException(
 							jobID, "Job execution failed.", unpackedError);
-					jobCompletionActions.jobFailed(exception);
+					executor.execute(() -> jobCompletionActions.jobFailed(exception));
 					break;
 				}
 

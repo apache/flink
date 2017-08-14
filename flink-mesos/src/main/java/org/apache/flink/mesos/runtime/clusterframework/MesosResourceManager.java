@@ -416,7 +416,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			// tell the launch coordinator to launch the new tasks
 			launchCoordinator.tell(new LaunchCoordinator.Launch(Collections.singletonList((LaunchableTask) launchable)), selfActor);
 		} catch (Exception ex) {
-			onFatalErrorAsync(new ResourceManagerException("Unable to request new workers.", ex));
+			onFatalError(new ResourceManagerException("Unable to request new workers.", ex));
 		}
 	}
 
@@ -447,7 +447,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			}
 		}
 		catch (Exception e) {
-			onFatalErrorAsync(new ResourceManagerException("Unable to release a worker.", e));
+			onFatalError(new ResourceManagerException("Unable to release a worker.", e));
 		}
 	}
 
