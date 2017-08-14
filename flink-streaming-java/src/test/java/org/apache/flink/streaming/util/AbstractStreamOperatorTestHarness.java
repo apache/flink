@@ -90,7 +90,7 @@ import static org.mockito.Mockito.when;
 /**
  * Base class for {@code AbstractStreamOperator} test harnesses.
  */
-public class AbstractStreamOperatorTestHarness<OUT> {
+public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	protected final StreamOperator<OUT> operator;
 
