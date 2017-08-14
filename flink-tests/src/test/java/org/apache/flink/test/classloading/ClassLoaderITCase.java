@@ -138,7 +138,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testCustomSplitJobWithCustomClassLoaderJar() throws IOException, ProgramInvocationException {
 
-		PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram inputSplitTestProg = new PackagedProgram(new Configuration(), new File(INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestEnvironment.setAsContext(
 			testCluster,
@@ -151,7 +151,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@Test
 	public void testStreamingCustomSplitJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
-		PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new Configuration(), new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestStreamEnvironment.setAsContext(
 			testCluster,
@@ -165,7 +165,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testCustomSplitJobWithCustomClassLoaderPath() throws IOException, ProgramInvocationException {
 		URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
-		PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
+		PackagedProgram inputSplitTestProg2 = new PackagedProgram(new Configuration(), new File(INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestEnvironment.setAsContext(
 			testCluster,
@@ -179,7 +179,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
 		// regular streaming job
-		PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
+		PackagedProgram streamingProg = new PackagedProgram(new Configuration(), new File(STREAMING_PROG_JAR_FILE));
 
 		TestStreamEnvironment.setAsContext(
 			testCluster,
@@ -194,7 +194,7 @@ public class ClassLoaderITCase extends TestLogger {
 	public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
 		// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
 		// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
-		PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
+		PackagedProgram streamingCheckpointedProg = new PackagedProgram(new Configuration(), new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
 
 		TestStreamEnvironment.setAsContext(
 			testCluster,
@@ -216,6 +216,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testKMeansJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
 		PackagedProgram kMeansProg = new PackagedProgram(
+			new Configuration(),
 			new File(KMEANS_JAR_PATH),
 			new String[] {
 				KMeansData.DATAPOINTS,
@@ -238,6 +239,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 		// test FLINK-3633
 		final PackagedProgram userCodeTypeProg = new PackagedProgram(
+			new Configuration(),
 			new File(USERCODETYPE_JAR_PATH),
 			new String[] { USERCODETYPE_JAR_PATH,
 				"localhost",
@@ -259,6 +261,7 @@ public class ClassLoaderITCase extends TestLogger {
 		File outputDir = FOLDER.newFolder();
 
 		final PackagedProgram program = new PackagedProgram(
+			new Configuration(),
 			new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
 			new String[] {
 				checkpointDir.toURI().toString(),
@@ -288,6 +291,7 @@ public class ClassLoaderITCase extends TestLogger {
 		File outputDir = FOLDER.newFolder();
 
 		final PackagedProgram program = new PackagedProgram(
+				new Configuration(),
 				new File(CUSTOM_KV_STATE_JAR_PATH),
 				new String[] {
 						String.valueOf(parallelism),

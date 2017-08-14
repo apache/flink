@@ -422,7 +422,7 @@ public abstract class ClusterClient {
 	 */
 	public JobSubmissionResult run(JobWithJars jobWithJars, int parallelism, SavepointRestoreSettings savepointSettings)
 			throws CompilerException, ProgramInvocationException {
-		ClassLoader classLoader = jobWithJars.getUserCodeClassLoader();
+		ClassLoader classLoader = jobWithJars.getUserCodeClassLoader(flinkConfig);
 		if (classLoader == null) {
 			throw new IllegalArgumentException("The given JobWithJars does not provide a usercode class loader.");
 		}

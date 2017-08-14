@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -82,7 +83,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config, blobStoreService);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-				libServer[i] = new BlobLibraryCacheManager(server[i], 3600 * 1000);
+				config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3600);
+				libServer[i] = new BlobLibraryCacheManager(server[i], config);
 			}
 
 			// Random data
@@ -103,7 +105,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// The cache
 			cache = new BlobCache(serverAddress[0], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3600);
+			libCache = new BlobLibraryCacheManager(cache, config);
 
 			// Register uploaded libraries
 			ExecutionAttemptID executionId = new ExecutionAttemptID();
@@ -126,7 +129,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libCache.shutdown();
 
 			cache = new BlobCache(serverAddress[1], config, blobStoreService);
-			libCache = new BlobLibraryCacheManager(cache, 3600 * 1000);
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3600);
+			libCache = new BlobLibraryCacheManager(cache, config);
 
 			// Verify key 1
 			f = cache.getFile(keys.get(0));

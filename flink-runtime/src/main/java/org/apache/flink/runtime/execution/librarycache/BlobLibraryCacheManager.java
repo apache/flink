@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -71,6 +74,8 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	private final BlobService blobService;
 	
 	private final Timer cleanupTimer;
+
+	private final Configuration config;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -78,10 +83,16 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	 * Creates the blob library cache manager.
 	 *
 	 * @param blobService blob file retrieval service to use
-	 * @param cleanupInterval cleanup interval in milliseconds
+	 * @param config the Flink {@link Configuration}
 	 */
-	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
+	public BlobLibraryCacheManager(BlobService blobService, Configuration config) {
 		this.blobService = checkNotNull(blobService);
+
+		this.config = config;
+
+		Long cleanupInterval = config.getLong(
+			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
+			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
 
 		// Initializing the clean up task
 		this.cleanupTimer = new Timer(true);
@@ -146,7 +157,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 					count++;
 				}
 
-				cacheEntries.put(jobId, new LibraryCacheEntry(requiredJarFiles, urls, task));
+				cacheEntries.put(jobId, new LibraryCacheEntry(requiredJarFiles, urls, task, config));
 			}
 			else {
 				entry.register(task, requiredJarFiles);
@@ -290,15 +301,27 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	 */
 	private static class LibraryCacheEntry {
 		
-		private final FlinkUserCodeClassLoader classLoader;
+		private final URLClassLoader classLoader;
 		
 		private final Set<ExecutionAttemptID> referenceHolders;
 		
 		private final Set<BlobKey> libraries;
 		
 		
-		public LibraryCacheEntry(Collection<BlobKey> libraries, URL[] libraryURLs, ExecutionAttemptID initialReference) {
-			this.classLoader = new FlinkUserCodeClassLoader(libraryURLs);
+		public LibraryCacheEntry(
+			Collection<BlobKey> libraries,
+			URL[] libraryURLs,
+			ExecutionAttemptID initialReference,
+			Configuration config) {
+
+			// we're creating the ClassLoader here ourselves because we're also releasing it
+			// in releaseClassLoader()
+			this.classLoader =
+				FlinkUserCodeClassLoaders.fromConfiguration(
+					config,
+					libraryURLs,
+					FlinkUserCodeClassLoaders.class.getClassLoader());
+
 			this.libraries = new HashSet<>(libraries);
 			this.referenceHolders = new HashSet<>();
 			this.referenceHolders.add(initialReference);

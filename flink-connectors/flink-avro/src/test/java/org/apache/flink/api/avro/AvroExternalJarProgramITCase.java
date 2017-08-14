@@ -59,7 +59,7 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 			String jarFile = JAR_FILE;
 			String testData = getClass().getResource(TEST_DATA_FILE).toString();
 
-			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
+			PackagedProgram program = new PackagedProgram(config, new File(jarFile), new String[] { testData });
 
 			TestEnvironment.setAsContext(
 				testMiniCluster,

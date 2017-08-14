@@ -59,7 +59,7 @@ public class JarRunHandler extends JarActionHandler {
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
 		try {
 			JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
-			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config);
+			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config, clientConfig);
 
 			try {
 				JobClient.submitJobDetached(

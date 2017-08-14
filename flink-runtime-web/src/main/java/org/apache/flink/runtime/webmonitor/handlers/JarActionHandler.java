@@ -58,18 +58,21 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 		jarDir = jarDirectory;
 	}
 
-	protected Tuple2<JobGraph, ClassLoader> getJobGraphAndClassLoader(JarActionHandlerConfig config) throws Exception {
+	protected Tuple2<JobGraph, ClassLoader> getJobGraphAndClassLoader(
+			JarActionHandlerConfig jarHandlerConfig,
+			Configuration flinkConfig) throws Exception {
 		// generate the graph
 		JobGraph graph = null;
 
 		PackagedProgram program = new PackagedProgram(
-				new File(jarDir, config.getJarFile()),
-				config.getEntryClass(),
-				config.getProgramArgs());
+				flinkConfig,
+				new File(jarDir, jarHandlerConfig.getJarFile()),
+				jarHandlerConfig.getEntryClass(),
+				jarHandlerConfig.getProgramArgs());
 		ClassLoader classLoader = program.getUserCodeClassLoader();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
-		FlinkPlan plan = ClusterClient.getOptimizedPlan(optimizer, program, config.getParallelism());
+		FlinkPlan plan = ClusterClient.getOptimizedPlan(optimizer, program, jarHandlerConfig.getParallelism());
 
 		if (plan instanceof StreamingPlan) {
 			graph = ((StreamingPlan) plan).getJobGraph();
@@ -81,7 +84,7 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 		}
 
 		// Set the savepoint settings
-		graph.setSavepointRestoreSettings(config.getSavepointRestoreSettings());
+		graph.setSavepointRestoreSettings(jarHandlerConfig.getSavepointRestoreSettings());
 
 		for (URL jar : program.getAllLibraries()) {
 			try {

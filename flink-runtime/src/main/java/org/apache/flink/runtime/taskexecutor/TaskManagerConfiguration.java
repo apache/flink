@@ -53,8 +53,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private final Time maxRegistrationPause;
 	private final Time refusedRegistrationPause;
 
-	private final long cleanupInterval;
-
 	private final UnmodifiableConfiguration configuration;
 
 	private final boolean exitJvmOnOutOfMemory;
@@ -67,7 +65,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		Time initialRegistrationPause,
 		Time maxRegistrationPause,
 		Time refusedRegistrationPause,
-		long cleanupInterval,
 		Configuration configuration,
 		boolean exitJvmOnOutOfMemory) {
 
@@ -78,7 +75,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
-		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 	}
@@ -105,10 +101,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public Time getRefusedRegistrationPause() {
 		return refusedRegistrationPause;
-	}
-
-	public long getCleanupInterval() {
-		return cleanupInterval;
 	}
 
 	@Override
@@ -152,10 +144,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		}
 
 		LOG.info("Messages have a max timeout of " + timeout);
-
-		final long cleanupInterval = configuration.getLong(
-			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
 
 		final Time finiteRegistrationDuration;
 
@@ -228,7 +216,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			initialRegistrationPause,
 			maxRegistrationPause,
 			refusedRegistrationPause,
-			cleanupInterval,
 			configuration,
 			exitOnOom);
 	}

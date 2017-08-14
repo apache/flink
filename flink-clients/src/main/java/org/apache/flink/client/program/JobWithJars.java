@@ -19,7 +19,8 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 
 import java.io.File;
 import java.io.IOException;
@@ -102,9 +103,10 @@ public class JobWithJars {
 	 *
 	 * @return The user code ClassLoader.
 	 */
-	public ClassLoader getUserCodeClassLoader() {
+	public ClassLoader getUserCodeClassLoader(Configuration config) {
 		if (this.userCodeClassLoader == null) {
-			this.userCodeClassLoader = buildUserCodeClassLoader(jarFiles, classpaths, getClass().getClassLoader());
+			this.userCodeClassLoader =
+				buildUserCodeClassLoader(jarFiles, classpaths, getClass().getClassLoader(), config);
 		}
 		return this.userCodeClassLoader;
 	}
@@ -125,7 +127,8 @@ public class JobWithJars {
 		// TODO: Check if proper JAR file
 	}
 
-	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
+	public static ClassLoader buildUserCodeClassLoader(
+		List<URL> jars, List<URL> classpaths, ClassLoader parent, Configuration config) {
 		URL[] urls = new URL[jars.size() + classpaths.size()];
 		for (int i = 0; i < jars.size(); i++) {
 			urls[i] = jars.get(i);
@@ -133,6 +136,7 @@ public class JobWithJars {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		return new FlinkUserCodeClassLoader(urls, parent);
+
+		return FlinkUserCodeClassLoaders.fromConfiguration(config, urls, parent);
 	}
 }

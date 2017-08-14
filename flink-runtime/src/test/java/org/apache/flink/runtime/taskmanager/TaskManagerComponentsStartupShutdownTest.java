@@ -46,7 +46,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -109,6 +108,8 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 			final int numberOfSlots = 1;
 
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1000L);
+
 			// create the components for the TaskManager manually
 			final TaskManagerConfiguration tmConfig = new TaskManagerConfiguration(
 				numberOfSlots,
@@ -118,7 +119,6 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				Time.milliseconds(500),
 				Time.seconds(30),
 				Time.seconds(10),
-				1000000, // cleanup interval
 				config,
 				false); // exit-jvm-on-fatal-error
 

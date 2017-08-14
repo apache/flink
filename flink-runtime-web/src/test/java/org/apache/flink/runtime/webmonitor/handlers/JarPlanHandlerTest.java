@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.configuration.Configuration;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,7 +29,7 @@ import org.junit.Test;
 public class JarPlanHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JarPlanHandler handler = new JarPlanHandler(null);
+		JarPlanHandler handler = new JarPlanHandler(null, new Configuration());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jars/:jarid/plan", paths[0]);

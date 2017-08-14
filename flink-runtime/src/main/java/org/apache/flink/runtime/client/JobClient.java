@@ -34,7 +34,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -251,7 +251,7 @@ public class JobClient {
 				allURLs[pos++] = url;
 			}
 
-			return new FlinkUserCodeClassLoader(allURLs, JobClient.class.getClassLoader());
+			return FlinkUserCodeClassLoaders.fromConfiguration(config, allURLs, JobClient.class.getClassLoader());
 		} else {
 			throw new JobRetrievalException(jobID, "Couldn't retrieve class loader. Job " + jobID + " not found");
 		}

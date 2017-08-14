@@ -19,6 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.client.CliFrontendTestUtils;
+import org.apache.flink.configuration.Configuration;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,7 +35,7 @@ public class PackagedProgramTest {
 	@Test
 	public void testGetPreviewPlan() {
 		try {
-			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
+			PackagedProgram prog = new PackagedProgram(new Configuration(), new File(CliFrontendTestUtils.getTestJarPath()));
 
 			final PrintStream out = System.out;
 			final PrintStream err = System.err;
