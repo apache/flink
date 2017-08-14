@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumbe
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -48,6 +50,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +63,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -531,6 +535,44 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "unparsableLong");
 
 		KinesisConfigUtil.validateProducerConfiguration(testConfig);
+	}
+
+	// ----------------------------------------------------------------------
+	// Tests to verify serializability
+	// ----------------------------------------------------------------------
+
+	@Test
+	public void testCreateWithNonSerializableDeserializerFails() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("The provided deserialization schema is not serializable");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		new FlinkKinesisConsumer<>("test-stream", new NonSerializableDeserializationSchema(), testConfig);
+	}
+
+	@Test
+	public void testCreateWithSerializableDeserializer() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		new FlinkKinesisConsumer<>("test-stream", new SerializableDeserializationSchema(), testConfig);
+	}
+
+	@Test
+	public void testConsumerIsSerializable() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("test-stream", new SimpleStringSchema(), testConfig);
+		assertTrue(InstantiationUtil.isSerializable(consumer));
 	}
 
 	// ----------------------------------------------------------------------
@@ -1061,5 +1103,29 @@ public class FlinkKinesisConsumerTest {
 		}
 
 		return fakeRestoredState;
+	}
+
+	private final class NonSerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
+		@Override
+		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
+			return new String(recordValue);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
+	}
+
+	private static final class SerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
+		@Override
+		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
+			return new String(recordValue);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
 	}
 }
