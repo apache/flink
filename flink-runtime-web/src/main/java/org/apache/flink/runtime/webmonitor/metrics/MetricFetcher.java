@@ -58,8 +58,8 @@ public class MetricFetcher {
 	private final Executor executor;
 	private final Time timeout;
 
-	private MetricStore metrics = new MetricStore();
-	private MetricDumpDeserializer deserializer = new MetricDumpDeserializer();
+	private final MetricStore metrics = new MetricStore();
+	private final MetricDumpDeserializer deserializer = new MetricDumpDeserializer();
 
 	private long lastUpdateTime;
 
