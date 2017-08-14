@@ -19,7 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 
 import java.io.File;
 import java.io.IOException;
@@ -133,6 +133,6 @@ public class JobWithJars {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		return new FlinkUserCodeClassLoader(urls, parent);
+		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
 	}
 }

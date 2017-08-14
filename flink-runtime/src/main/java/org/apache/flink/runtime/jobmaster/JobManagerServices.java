@@ -20,10 +20,12 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
@@ -111,7 +113,11 @@ public class JobManagerServices {
 		Preconditions.checkNotNull(config);
 		Preconditions.checkNotNull(blobServer);
 
-		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobServer);
+		final String classLoaderResolveOrder =
+			config.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+
+		final BlobLibraryCacheManager libraryCacheManager =
+			new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder));
 
 		final FiniteDuration timeout;
 		try {

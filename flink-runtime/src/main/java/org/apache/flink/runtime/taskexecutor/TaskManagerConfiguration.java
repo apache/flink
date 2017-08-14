@@ -23,9 +23,11 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 
@@ -58,6 +60,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	private final boolean exitJvmOnOutOfMemory;
 
+	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
+
 	public TaskManagerConfiguration(
 		int numberSlots,
 		String[] tmpDirectories,
@@ -68,7 +72,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		Time refusedRegistrationPause,
 		long cleanupInterval,
 		Configuration configuration,
-		boolean exitJvmOnOutOfMemory) {
+		boolean exitJvmOnOutOfMemory,
+		FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -79,6 +84,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
+		this.classLoaderResolveOrder = classLoaderResolveOrder;
 	}
 
 	public int getNumberSlots() {
@@ -118,6 +124,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Override
 	public boolean shouldExitJvmOnOutOfMemoryError() {
 		return exitJvmOnOutOfMemory;
+	}
+
+	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
+		return classLoaderResolveOrder;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -212,6 +222,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
+		final String classLoaderResolveOrder =
+			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+
+
 		return new TaskManagerConfiguration(
 			numberSlots,
 			tmpDirPaths,
@@ -222,6 +236,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			refusedRegistrationPause,
 			cleanupInterval,
 			configuration,
-			exitOnOom);
+			exitOnOom,
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder));
 	}
 }

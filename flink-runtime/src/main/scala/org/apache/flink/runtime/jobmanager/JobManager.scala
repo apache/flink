@@ -47,6 +47,7 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{FutureUtils, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph._
@@ -2467,6 +2468,8 @@ object JobManager {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
+    val classLoaderResolveOrder = configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER)
+
     val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 
     val archiveCount = configuration.getInteger(WebOptions.ARCHIVE_COUNT)
@@ -2497,7 +2500,8 @@ object JobManager {
       blobServer = new BlobServer(configuration, blobStore)
       instanceManager = new InstanceManager()
       scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(futureExecutor))
-      libraryCacheManager = new BlobLibraryCacheManager(blobServer)
+      libraryCacheManager =
+        new BlobLibraryCacheManager(blobServer, ResolveOrder.fromString(classLoaderResolveOrder))
 
       instanceManager.addInstanceListener(scheduler)
     }
