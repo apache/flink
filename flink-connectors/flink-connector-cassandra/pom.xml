@@ -39,6 +39,7 @@ under the License.
 	<properties>
 		<cassandra.version>2.2.5</cassandra.version>
 		<driver.version>3.0.0</driver.version>
+		<netty4.version>4.0.27.Final</netty4.version>
 	</properties>
 
 	<build>
@@ -72,6 +73,7 @@ under the License.
 									<include>com.datastax.cassandra:cassandra-driver-core</include>
 									<include>com.datastax.cassandra:cassandra-driver-mapping</include>
 									<include>com.google.guava:guava</include>
+									<include>io.netty:netty-*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -82,6 +84,10 @@ under the License.
 										<exclude>com.google.protobuf.**</exclude>
 										<exclude>com.google.inject.**</exclude>
 									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.shaded.netty4.io.netty</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
