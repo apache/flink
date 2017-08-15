@@ -92,7 +92,14 @@ class NetworkFailureHandler extends SimpleChannelUpstreamHandler {
 		final Channel sourceChannel = event.getChannel();
 		sourceChannel.setReadable(false);
 
-		if (blocked.get()) {
+		boolean isBlocked = blocked.get();
+		LOG.debug("Attempt to open proxy channel from [%s] to [%s:%s] in state [blocked = %s]",
+			sourceChannel.getLocalAddress(),
+			remoteHost,
+			remotePort,
+			isBlocked);
+
+		if (isBlocked) {
 			sourceChannel.close();
 			return;
 		}
