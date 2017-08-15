@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.runtime.operator
+
+package org.apache.flink.table.runtime.operators
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -63,7 +64,7 @@ class KeyedProcessOperatorWithWatermarkDelayTest extends TestLogger {
   }
 }
 
-class EmptyProcessFunction extends ProcessFunction[Integer, String] {
+private class EmptyProcessFunction extends ProcessFunction[Integer, String] {
   override def processElement(value: Integer,
     ctx: ProcessFunction[Integer, String]#Context, out: Collector[String]): Unit = {
     // do nothing

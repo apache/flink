@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.runtime.operator
+package org.apache.flink.table.runtime.operators
 
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
@@ -23,20 +23,22 @@ import org.apache.flink.streaming.api.watermark.Watermark
 
 /**
   * A {@link org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator} that supports
-  * holding back watermarks  with a static delay.
+  * holding back watermarks with a static delays.
   */
 class KeyedCoProcessOperatorWithWatermarkDelay[KEY, IN1, IN2, OUT](
   private val flatMapper: CoProcessFunction[IN1, IN2, OUT],
-  private val watermarkDelay: Long = 0L)
+  private val watermarkDelay1: Long = 0L,
+  // The watermarkDelay2 is useless now
+  private var watermarkDelay2: Long = 0L)
   extends KeyedCoProcessOperator[KEY, IN1, IN2, OUT](flatMapper) {
 
-  if (watermarkDelay < 0) {
+  if (watermarkDelay1 < 0) {
     throw new IllegalArgumentException("The watermark delay should be non-negative");
   }
 
   override protected def getWatermarkToEmit(inputWatermark: Watermark): Watermark = {
-    if (watermarkDelay > 0) {
-      return new Watermark(inputWatermark.getTimestamp - watermarkDelay)
+    if (watermarkDelay1 > 0) {
+      return new Watermark(inputWatermark.getTimestamp - watermarkDelay1)
     }
     inputWatermark
   }
