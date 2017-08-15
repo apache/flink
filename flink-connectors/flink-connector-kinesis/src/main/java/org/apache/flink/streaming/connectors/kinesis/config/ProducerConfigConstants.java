@@ -20,24 +20,31 @@ package org.apache.flink.streaming.connectors.kinesis.config;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 
 /**
- * @deprecated
- *
  * Optional producer specific configuration keys for {@link FlinkKinesisProducer}.
+ *
+ * @deprecated This class is deprecated in favor of the official AWS Kinesis producer configuration keys.
+ *             See <a href="https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties">
+ *             here</a> for the full list of available configs.
+ *             For configuring the region and credentials, please use the keys in {@link AWSConfigConstants}.
  */
 @Deprecated
 public class ProducerConfigConstants extends AWSConfigConstants {
 
 	/**
-	 * @deprecated
+	 * Deprecated key.
 	 *
-	 * Deprecated key. **/
+	 * @deprecated This is deprecated in favor of the official AWS Kinesis producer configuration keys.
+	 *             Please use {@code CollectionMaxCount} instead.
+	 **/
 	@Deprecated
 	public static final String COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
 
  	/**
-	 * @deprecated
+	 * Deprecated key.
 	 *
-	 * Deprecated key. **/
+	 * @deprecated This is deprecated in favor of the official AWS Kinesis producer configuration keys.
+	 *             Please use {@code AggregationMaxCount} instead.
+	 **/
 	@Deprecated
 	public static final String AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
 }

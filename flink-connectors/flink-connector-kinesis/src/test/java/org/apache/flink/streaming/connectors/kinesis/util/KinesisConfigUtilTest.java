@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
 import org.junit.Rule;
@@ -46,7 +47,7 @@ public class KinesisConfigUtilTest {
 		exception.expectMessage("Error trying to set field RateLimit with the value 'unparsableLong'");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		testConfig.setProperty("RateLimit", "unparsableLong");
 
 		KinesisConfigUtil.validateProducerConfiguration(testConfig);
@@ -55,7 +56,8 @@ public class KinesisConfigUtilTest {
 	@Test
 	public void testReplaceDeprecatedKeys() {
 		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		// these deprecated keys should be replaced
 		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "1");
 		testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "2");
 		Properties replacedConfig = KinesisConfigUtil.replaceDeprecatedProducerKeys(testConfig);
