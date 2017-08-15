@@ -35,6 +35,7 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
@@ -509,11 +510,11 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 	private void waitForLeaderNotification(
 			String expectedJobManagerURL,
-			AkkaJobManagerRetriever retriever,
+			GatewayRetriever<JobManagerGateway> retriever,
 			Deadline deadline) throws Exception {
 
 		while (deadline.hasTimeLeft()) {
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
+			Optional<JobManagerGateway> optJobManagerGateway = retriever.getNow();
 
 			if (optJobManagerGateway.isPresent() && Objects.equals(expectedJobManagerURL, optJobManagerGateway.get().getAddress())) {
 				return;

@@ -18,29 +18,33 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * JobManagerRetriever implementation for Flip-6 JobManager.
+ * {@link LeaderGatewayRetriever} implementation using the {@link RpcService}.
+ *
+ * @param <T> type of the gateway to retrieve
  */
-public class RpcJobManagerRetriever extends JobManagerRetriever {
+public class RpcGatewayRetriever<T extends RpcGateway> extends LeaderGatewayRetriever<T> {
 
 	private final RpcService rpcService;
+	private final Class<T> gatewayType;
 
-	public RpcJobManagerRetriever(
-		RpcService rpcService) {
-
+	public RpcGatewayRetriever(RpcService rpcService, Class<T> gatewayType) {
 		this.rpcService = Preconditions.checkNotNull(rpcService);
+		this.gatewayType = Preconditions.checkNotNull(gatewayType);
 	}
 
 	@Override
-	protected CompletableFuture<JobManagerGateway> createJobManagerGateway(String leaderAddress, UUID leaderId) throws Exception {
-		return rpcService.connect(leaderAddress, JobManagerGateway.class);
+	protected CompletableFuture<T> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
+		return leaderFuture.thenCompose(
+			(Tuple2<String, UUID> addressLeaderTuple) -> rpcService.connect(addressLeaderTuple.f0, gatewayType));
 	}
 }

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
@@ -96,8 +97,8 @@ public class MetricFetcherTest extends TestLogger {
 		when(jobManagerGateway.getAddress()).thenReturn("/jm/address");
 		when(jobManagerGateway.requestWebPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(0));
 
-		AkkaJobManagerRetriever retriever = mock(AkkaJobManagerRetriever.class);
-		when(retriever.getJobManagerGatewayNow())
+		GatewayRetriever<JobManagerGateway> retriever = mock(AkkaJobManagerRetriever.class);
+		when(retriever.getNow())
 			.thenReturn(Optional.of(jobManagerGateway));
 
 		// ========= setup QueryServices ================================================================================

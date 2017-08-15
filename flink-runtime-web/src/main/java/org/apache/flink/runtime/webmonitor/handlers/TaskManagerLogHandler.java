@@ -37,7 +37,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -120,7 +120,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	}
 
 	public TaskManagerLogHandler(
-		JobManagerRetriever retriever,
+		GatewayRetriever<JobManagerGateway> retriever,
 		Executor executor,
 		CompletableFuture<String> localJobManagerAddressPromise,
 		Time timeout,

@@ -27,9 +27,9 @@ package org.apache.flink.runtime.webmonitor.files;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -97,7 +97,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * example.</p>
  */
 @ChannelHandler.Sharable
-public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
+public class StaticFileServerHandler<T extends RestfulGateway> extends SimpleChannelInboundHandler<Routed> {
 
 	/** Default logger, if none is specified. */
 	private static final Logger DEFAULT_LOGGER = LoggerFactory.getLogger(StaticFileServerHandler.class);
@@ -113,7 +113,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 	// ------------------------------------------------------------------------
 
-	private final JobManagerRetriever retriever;
+	private final GatewayRetriever<T> retriever;
 
 	private final CompletableFuture<String> localJobManagerAddressFuture;
 
@@ -131,7 +131,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	private String localJobManagerAddress;
 
 	public StaticFileServerHandler(
-			JobManagerRetriever retriever,
+			GatewayRetriever<T> retriever,
 			CompletableFuture<String> localJobManagerAddressPromise,
 			Time timeout,
 			File rootPath,
@@ -141,7 +141,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	}
 
 	public StaticFileServerHandler(
-			JobManagerRetriever retriever,
+			GatewayRetriever<T> retriever,
 			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
 			File rootPath,
@@ -168,31 +168,47 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			}
 
 			final HttpRequest request = routed.request();
-			String requestPath = routed.path();
+			final String requestPath;
 
 			// make sure we request the "index.html" in case there is a directory request
-			if (requestPath.endsWith("/")) {
-				requestPath = requestPath + "index.html";
+			if (routed.path().endsWith("/")) {
+				requestPath = routed.path() + "index.html";
 			}
-
 			// in case the files being accessed are logs or stdout files, find appropriate paths.
-			if (requestPath.equals("/jobmanager/log") || requestPath.equals("/jobmanager/stdout")) {
+			else if (routed.path().equals("/jobmanager/log") || routed.path().equals("/jobmanager/stdout")) {
 				requestPath = "";
+			} else {
+				requestPath = routed.path();
 			}
 
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
+			Optional<T> optLeader = retriever.getNow();
 
-			if (optJobManagerGateway.isPresent()) {
+			if (optLeader.isPresent()) {
 				// Redirect to leader if necessary
-				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
-					localJobManagerAddress, optJobManagerGateway.get(), timeout);
+				Optional<CompletableFuture<String>> optRedirectAddress = HandlerRedirectUtils.getRedirectAddress(
+					localJobManagerAddress,
+					optLeader.get(),
+					timeout);
 
-				if (redirectAddress != null) {
-					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(
-						redirectAddress, requestPath, httpsEnabled);
-					KeepAliveWrite.flush(ctx, routed.request(), redirect);
-				}
-				else {
+				if (optRedirectAddress.isPresent()) {
+					optRedirectAddress.get().whenComplete(
+						(String address, Throwable throwable) -> {
+							if (throwable != null) {
+								logger.error("Failed to obtain redirect address.", throwable);
+								sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+							} else {
+								try {
+									HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(
+										address, requestPath, httpsEnabled);
+
+									KeepAliveWrite.flush(ctx, routed.request(), redirect);
+								} catch (Exception e) {
+									logger.error("Failed to send redirect response.", e);
+									sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+								}
+							}
+						});
+				} else {
 					respondAsLeader(ctx, request, requestPath);
 				}
 			}

@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorRef;
@@ -35,9 +36,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link JobManagerRetriever} implementation for Akka based JobManagers.
+ * {@link LeaderGatewayRetriever} implementation for Akka based JobManagers.
  */
-public class AkkaJobManagerRetriever extends JobManagerRetriever {
+public class AkkaJobManagerRetriever extends LeaderGatewayRetriever<JobManagerGateway> {
 
 	private final ActorSystem actorSystem;
 	private final Time timeout;
@@ -51,19 +52,21 @@ public class AkkaJobManagerRetriever extends JobManagerRetriever {
 	}
 
 	@Override
-	protected CompletableFuture<JobManagerGateway> createJobManagerGateway(String leaderAddress, UUID leaderId) throws Exception {
-		return FutureUtils.toJava(
-			AkkaUtils.getActorRefFuture(
-				leaderAddress,
-				actorSystem,
-				FutureUtils.toFiniteDuration(timeout)))
-			.thenApplyAsync(
-				(ActorRef jobManagerRef) -> {
-					ActorGateway leaderGateway = new AkkaActorGateway(
-						jobManagerRef, leaderId);
+	protected CompletableFuture<JobManagerGateway> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
+		return leaderFuture.thenCompose(
+			(Tuple2<String, UUID> addressLeaderId) ->
+				FutureUtils.toJava(
+					AkkaUtils.getActorRefFuture(
+						addressLeaderId.f0,
+						actorSystem,
+						FutureUtils.toFiniteDuration(timeout)))
+					.thenApplyAsync(
+						(ActorRef jobManagerRef) -> {
+							ActorGateway leaderGateway = new AkkaActorGateway(
+								jobManagerRef, addressLeaderId.f1);
 
-					return new AkkaJobManagerGateway(leaderGateway);
-				},
-				actorSystem.dispatcher());
+							return new AkkaJobManagerGateway(leaderGateway);
+						}
+					));
 	}
 }

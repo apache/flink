@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.metrics;
 
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.TestLogger;
 
@@ -49,7 +49,7 @@ public class JobManagerMetricsHandlerTest extends TestLogger {
 	@Test
 	public void getMapFor() {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
 			TestingUtils.TIMEOUT());
@@ -67,7 +67,7 @@ public class JobManagerMetricsHandlerTest extends TestLogger {
 	@Test
 	public void getMapForNull() {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
 			TestingUtils.TIMEOUT());

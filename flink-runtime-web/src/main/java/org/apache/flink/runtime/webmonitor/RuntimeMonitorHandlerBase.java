@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -30,6 +30,9 @@ import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandl
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -46,7 +49,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ChannelHandler.Sharable
 public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHandler<Routed> {
 
-	private final JobManagerRetriever retriever;
+	private final Logger logger = LoggerFactory.getLogger(getClass());
+
+	private final GatewayRetriever<JobManagerGateway> retriever;
 
 	protected final CompletableFuture<String> localJobManagerAddressFuture;
 
@@ -58,7 +63,7 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 	protected String localJobManagerAddress;
 
 	public RuntimeMonitorHandlerBase(
-		JobManagerRetriever retriever,
+		GatewayRetriever<JobManagerGateway> retriever,
 		CompletableFuture<String> localJobManagerAddressFuture,
 		Time timeout,
 		boolean httpsEnabled) {
@@ -83,19 +88,38 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 				localJobManagerAddress = localJobManagerAddressFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
+			Optional<JobManagerGateway> optJobManagerGateway = retriever.getNow();
 
 			if (optJobManagerGateway.isPresent()) {
 				JobManagerGateway jobManagerGateway = optJobManagerGateway.get();
-				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
-					localJobManagerAddress, jobManagerGateway, timeout);
+				Optional<CompletableFuture<String>> optRedirectAddress = HandlerRedirectUtils.getRedirectAddress(
+					localJobManagerAddress,
+					jobManagerGateway,
+					timeout);
 
-				if (redirectAddress != null) {
-					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path(),
-						httpsEnabled);
-					KeepAliveWrite.flush(ctx, routed.request(), redirect);
-				}
-				else {
+				if (optRedirectAddress.isPresent()) {
+					optRedirectAddress.get().whenComplete(
+						(String redirectAddress, Throwable throwable) -> {
+							HttpResponse response;
+
+							if (throwable != null) {
+								logger.error("Could not retrieve the redirect address.", throwable);
+								response = HandlerRedirectUtils.getErrorResponse(throwable);
+							} else {
+								try {
+									response = HandlerRedirectUtils.getRedirectResponse(
+										redirectAddress,
+										routed.path(),
+										httpsEnabled);
+								} catch (Exception e) {
+									logger.error("Could not create the redirect response.", e);
+									response = HandlerRedirectUtils.getErrorResponse(e);
+								}
+							}
+
+							KeepAliveWrite.flush(ctx, routed.request(), response);
+						});
+				} else {
 					respondAsLeader(ctx, routed, jobManagerGateway);
 				}
 			} else {

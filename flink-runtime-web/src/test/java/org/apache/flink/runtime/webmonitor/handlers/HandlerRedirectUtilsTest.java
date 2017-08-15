@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.any;
@@ -47,26 +49,29 @@ public class HandlerRedirectUtilsTest extends TestLogger {
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 		when(jobManagerGateway.getAddress()).thenReturn("akka://flink/user/foobar");
 
-		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(
+		Optional<CompletableFuture<String>> redirectingAddress = HandlerRedirectUtils.getRedirectAddress(
 			localJobManagerAddress,
 			jobManagerGateway,
 			Time.seconds(3L));
 
-		Assert.assertNull(redirectingAddress);
+		Assert.assertFalse(redirectingAddress.isPresent());
 	}
 
 	@Test
 	public void testGetRedirectAddressWithRemoteAkkaPath() throws Exception {
-		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
+		JobManagerGateway jobManagerGateway = mock(AkkaJobManagerGateway.class);
 		when(jobManagerGateway.getAddress()).thenReturn(remotePath);
 		when(jobManagerGateway.getHostname()).thenReturn(remoteHostname);
 		when(jobManagerGateway.requestWebPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(webPort));
+		when(jobManagerGateway.requestRestAddress(any(Time.class))).thenCallRealMethod();
 
-		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(
+		Optional<CompletableFuture<String>> optRedirectingAddress = HandlerRedirectUtils.getRedirectAddress(
 			localJobManagerAddress,
 			jobManagerGateway,
 			Time.seconds(3L));
 
-		Assert.assertEquals(remoteURL, redirectingAddress);
+		Assert.assertTrue(optRedirectingAddress.isPresent());
+
+		Assert.assertEquals(remoteURL, optRedirectingAddress.get().get());
 	}
 }
