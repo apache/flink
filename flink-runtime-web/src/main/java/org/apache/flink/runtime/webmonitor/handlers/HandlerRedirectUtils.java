@@ -56,7 +56,7 @@ public class HandlerRedirectUtils {
 	public static Optional<CompletableFuture<String>> getRedirectAddress(
 			String localJobManagerAddress,
 			RestfulGateway restfulGateway,
-			Time timeout) throws Exception {
+			Time timeout) {
 
 		final String leaderAddress = restfulGateway.getAddress();
 
@@ -72,7 +72,7 @@ public class HandlerRedirectUtils {
 		}
 	}
 
-	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) throws Exception {
+	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) {
 		checkNotNull(redirectAddress, "Redirect address");
 		checkNotNull(path, "Path");
 
@@ -100,7 +100,7 @@ public class HandlerRedirectUtils {
 		return unavailableResponse;
 	}
 
-	public static FullHttpResponse getResponse(HttpResponseStatus status, @Nullable String message) {
+	public static HttpResponse getResponse(HttpResponseStatus status, @Nullable String message) {
 		ByteBuf messageByteBuf = message == null ? Unpooled.buffer(0)
 			: Unpooled.wrappedBuffer(message.getBytes(ENCODING));
 		FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, messageByteBuf);
@@ -110,11 +110,11 @@ public class HandlerRedirectUtils {
 		return response;
 	}
 
-	public static FullHttpResponse getErrorResponse(Throwable throwable) {
+	public static HttpResponse getErrorResponse(Throwable throwable) {
 		return getErrorResponse(throwable, HttpResponseStatus.INTERNAL_SERVER_ERROR);
 	}
 
-	public static FullHttpResponse getErrorResponse(Throwable throwable, HttpResponseStatus status) {
+	public static HttpResponse getErrorResponse(Throwable throwable, HttpResponseStatus status) {
 		byte[] bytes = ExceptionUtils.stringifyException(throwable).getBytes(ENCODING);
 		FullHttpResponse response = new DefaultFullHttpResponse(
 			HttpVersion.HTTP_1_1,

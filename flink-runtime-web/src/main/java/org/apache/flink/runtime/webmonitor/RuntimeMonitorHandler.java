@@ -30,6 +30,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
@@ -54,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * proper codes, like OK, NOT_FOUND, or SERVER_ERROR.
  */
 @ChannelHandler.Sharable
-public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
+public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> implements WebHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RuntimeMonitorHandler.class);
 
@@ -72,12 +73,11 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			Time timeout,
 			boolean httpsEnabled) {
 
-		super(retriever, localJobManagerAddressFuture, timeout, httpsEnabled);
+		super(localJobManagerAddressFuture, retriever, timeout, httpsEnabled);
 		this.handler = checkNotNull(handler);
 		this.allowOrigin = cfg.getAllowOrigin();
 	}
 
-	@Override
 	public String[] getPaths() {
 		return handler.getPaths();
 	}
@@ -103,13 +103,14 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 				(httpsEnabled ? "https://" : "http://") + address.getHostName() + ":" + address.getPort());
 
 			responseFuture = handler.handleRequest(pathParams, queryParams, jobManagerGateway);
+
 		} catch (Exception e) {
 			responseFuture = FutureUtils.completedExceptionally(e);
 		}
 
 		responseFuture.whenComplete(
-			(FullHttpResponse httpResponse, Throwable throwable) -> {
-				final FullHttpResponse finalResponse;
+			(HttpResponse httpResponse, Throwable throwable) -> {
+				final HttpResponse finalResponse;
 
 				if (throwable != null) {
 					LOG.debug("Error while handling request.", throwable);

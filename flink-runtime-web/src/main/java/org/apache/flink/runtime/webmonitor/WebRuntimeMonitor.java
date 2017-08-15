@@ -77,6 +77,7 @@ import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
 import org.slf4j.Logger;
@@ -293,7 +294,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		router
 			// log and stdout
 			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
-				new StaticFileServerHandler(
+				new StaticFileServerHandler<>(
 					retriever,
 					jobManagerAddressFuture,
 					timeout,
@@ -301,7 +302,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 					enableSSL))
 
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
-				new StaticFileServerHandler(retriever, jobManagerAddressFuture, timeout, logFiles.stdOutFile,
+				new StaticFileServerHandler<>(retriever, jobManagerAddressFuture, timeout, logFiles.stdOutFile,
 					enableSSL));
 
 		get(router, new JobManagerMetricsHandler(executor, metricFetcher));
@@ -352,7 +353,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 
 		// this handler serves all the static contents
-		router.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressFuture, timeout, webRootDir,
+		router.GET("/:*", new StaticFileServerHandler<>(
+			retriever,
+			jobManagerAddressFuture,
+			timeout,
+			webRootDir,
 			enableSSL));
 
 		// add shutdown hook for deleting the directories and remaining temp files on shutdown
@@ -483,14 +488,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 	}
 
 	/** These methods are used in the route path setup. They register the given {@link RequestHandler} or
-	 * {@link RuntimeMonitorHandlerBase} with the given {@link Router} for the respective REST method.
+	 * {@link RuntimeMonitorHandler} with the given {@link Router} for the respective REST method.
 	 * The REST paths under which they are registered are defined by the handlers. **/
 
 	private void get(Router router, RequestHandler handler) {
 		get(router, handler(handler));
 	}
 
-	private void get(Router router, RuntimeMonitorHandlerBase handler) {
+	private static <T extends ChannelInboundHandler & WebHandler> void get(Router router, T handler) {
 		for (String path : handler.getPaths()) {
 			router.GET(path, handler);
 		}
@@ -500,17 +505,17 @@ public class WebRuntimeMonitor implements WebMonitor {
 		delete(router, handler(handler));
 	}
 
-	private void delete(Router router, RuntimeMonitorHandlerBase handler) {
+	private static <T extends ChannelInboundHandler & WebHandler> void delete(Router router, T handler) {
 		for (String path : handler.getPaths()) {
 			router.DELETE(path, handler);
 		}
 	}
 
-	private void post(Router router, RequestHandler handler) {
+	private void post(Router router, RequestHandler handler)  {
 		post(router, handler(handler));
 	}
 
-	private void post(Router router, RuntimeMonitorHandlerBase handler) {
+	private static <T extends ChannelInboundHandler & WebHandler> void post(Router router, T handler) {
 		for (String path : handler.getPaths()) {
 			router.POST(path, handler);
 		}
