@@ -19,6 +19,7 @@
 package org.apache.flink.table.calcite
 
 import java.util
+import java.nio.charset.Charset
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
@@ -27,6 +28,7 @@ import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -300,6 +302,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         None
       }
     }
+  }
+
+  override def getDefaultCharset: Charset = {
+    Charset.forName(ConversionUtil.NATIVE_UTF16_CHARSET_NAME)
   }
 }
 
