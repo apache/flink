@@ -82,7 +82,7 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 		this.deserializer = deserializer;
 
 		String userDefinedOffset = eventhubsProps.getProperty("eventhubs.auto.offset");
-		if (userDefinedOffset != null && userDefinedOffset.toLowerCase() == "lastest"){
+		if (userDefinedOffset != null && userDefinedOffset.toLowerCase().compareTo("lastest") == 0){
 			this.defaultEventhubInitOffset = PartitionReceiver.END_OF_STREAM;
 		}
 		else {
