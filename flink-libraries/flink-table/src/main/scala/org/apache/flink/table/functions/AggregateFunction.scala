@@ -32,7 +32,7 @@ package org.apache.flink.table.functions
   *  - resetAccumulator, and
   *  - getAccumulatorType.
   *
-  * All these methods muse be declared publicly, not static and named exactly as the names
+  * All these methods must be declared publicly, not static and named exactly as the names
   * mentioned above. The methods createAccumulator and getValue are defined in the
   * [[AggregateFunction]] functions, while other methods are explained below.
   *
