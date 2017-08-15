@@ -22,11 +22,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils.{ExpressionTestBase, Func3}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.types.Row
 import org.junit.Test
 
-class LiteralPrefixTest extends ExpressionTestBase {
+class LiteralTest extends ExpressionTestBase {
 
   @Test
   def testFieldWithBooleanPrefix(): Unit = {
@@ -62,18 +63,53 @@ class LiteralPrefixTest extends ExpressionTestBase {
     )
   }
 
+  @Test
+  def testNonAsciiLiteral(): Unit = {
+    testAllApis(
+      'f4.like("%测试%"),
+      "f4.like('%测试%')",
+      "f4 LIKE '%测试%'",
+      "true")
+
+    testAllApis(
+      "Абвгде" + "谢谢",
+      "'Абвгде' + '谢谢'",
+      "'Абвгде' || '谢谢'",
+      "Абвгде谢谢")
+  }
+
+  @Test
+  def testDoubleQuote(): Unit = {
+    val hello = "\"<hello>\""
+    testAllApis(
+      Func3(42, hello),
+      s"Func3(42, '$hello')",
+      s"Func3(42, '$hello')",
+      s"42 and $hello")
+  }
+
   def testData: Any = {
-    val testData = new Row(3)
+    val testData = new Row(4)
     testData.setField(0, "trUeX_value")
     testData.setField(1, "FALSE_A_value")
     testData.setField(2, "FALSE_AB_value")
+    testData.setField(3, "这是个测试字符串")
     testData
   }
 
   def typeInfo: TypeInformation[Any] = {
     new RowTypeInfo(
-      Array(Types.STRING, Types.STRING, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("trUeX", "FALSE_A", "FALSE_AB")
+      Array(
+        Types.STRING,
+        Types.STRING,
+        Types.STRING,
+        Types.STRING
+      ).asInstanceOf[Array[TypeInformation[_]]],
+      Array("trUeX", "FALSE_A", "FALSE_AB", "f4")
     ).asInstanceOf[TypeInformation[Any]]
   }
+
+  override def functions: Map[String, ScalarFunction] = Map(
+    "Func3" -> Func3
+  )
 }
