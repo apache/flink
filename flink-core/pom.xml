@@ -80,12 +80,6 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
-		<!-- Avro is needed for the interoperability with Avro types for serialization -->
-		<dependency>
-			<groupId>org.apache.avro</groupId>
-			<artifactId>avro</artifactId>
-		</dependency>
-
 		<!-- We explicitly depend on snappy since connectors that require it load it through the system class loader -->
 		<dependency>
 			<groupId>org.xerial.snappy</groupId>
@@ -118,7 +112,7 @@ under the License.
 			<artifactId>joda-convert</artifactId>
 			<scope>test</scope>
 		</dependency>
-    </dependencies>
+	</dependencies>
 
 	<profiles>
 		<profile>
@@ -199,6 +193,7 @@ under the License.
 							<exclude>org.apache.flink.core.fs.FileSystem#isFlinkSupportedScheme(java.lang.String)</exclude>
 							<exclude>org.apache.flink.core.fs.FileSystem#setDefaultScheme(org.apache.flink.configuration.Configuration)</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
+							<exclude>org.apache.flink.api.java.typeutils.AvroTypeInfo</exclude>
 							<!-- Breaking changes between 1.1 and 1.2.
 							We ignore these changes because these are low-level, internal runtime configuration parameters -->
 							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE</exclude>

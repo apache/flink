@@ -57,11 +57,6 @@ under the License.
 			<artifactId>zookeeper</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.avro</groupId>
-			<artifactId>avro</artifactId>
-			<scope>provided</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -116,6 +111,7 @@ under the License.
 									<include>com.google.code.findbugs:*</include>
 									<include>asm:asm</include>
 									<include>io.netty:netty:*</include>
+									<include>org.apache.avro:*</include>
 									<include>org.apache.curator:*</include>
 									<include>org.apache.hadoop:*</include>
 									<include>org.htrace:htrace-core</include>
@@ -146,6 +142,10 @@ under the License.
 								<relocation>
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.avro</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.avro</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.curator</pattern>

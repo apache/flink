@@ -18,20 +18,22 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -41,6 +43,20 @@ import static org.junit.Assert.assertTrue;
  * Tests related to configuration snapshotting and reconfiguring for the {@link KryoSerializer}.
  */
 public class KryoSerializerCompatibilityTest {
+
+	@Test
+	public void testMigrationStrategyForRemovedAvroDependency() throws Exception {
+		KryoSerializer<TestClass> kryoSerializerForA = new KryoSerializer<>(TestClass.class, new ExecutionConfig());
+
+		// read configuration again from bytes
+		TypeSerializerConfigSnapshot kryoSerializerConfigSnapshot;
+		try (InputStream in = getClass().getResourceAsStream("/kryo-serializer-flink1.3-snapshot")) {
+			kryoSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+		CompatibilityResult<TestClass> compatResult = kryoSerializerForA.ensureCompatibility(kryoSerializerConfigSnapshot);
+		assertFalse(compatResult.isRequiresMigration());
+	}
 
 	/**
 	 * Verifies that reconfiguration result is INCOMPATIBLE if data type has changed.
@@ -60,7 +76,7 @@ public class KryoSerializerCompatibilityTest {
 		KryoSerializer<TestClassB> kryoSerializerForB = new KryoSerializer<>(TestClassB.class, new ExecutionConfig());
 
 		// read configuration again from bytes
-		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			kryoSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
@@ -103,7 +119,7 @@ public class KryoSerializerCompatibilityTest {
 		kryoSerializer = new KryoSerializer<>(TestClass.class, executionConfig);
 
 		// read configuration from bytes
-		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			kryoSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
