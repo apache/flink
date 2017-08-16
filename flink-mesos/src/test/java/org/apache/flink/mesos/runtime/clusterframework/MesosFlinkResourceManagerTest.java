@@ -251,6 +251,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 				containeredParams,
 				Collections.<Protos.Volume>emptyList(),
 				Collections.<ConstraintEvaluator>emptyList(),
+				"",
 				Option.<String>empty(),
 				Option.<String>empty());
 

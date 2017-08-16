@@ -21,11 +21,10 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.mesos.configuration.MesosOptions;
+import org.apache.flink.mesos.entrypoint.MesosEntrypointUtils;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
@@ -34,13 +33,6 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
-import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
-import org.apache.flink.runtime.clusterframework.overlays.HadoopConfOverlay;
-import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
-import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
-import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
-import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -65,7 +57,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +64,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -81,7 +71,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
-import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -222,7 +211,7 @@ public class MesosApplicationMasterRunner {
 			LOG.info("App Master Hostname to use: {}", appMasterHostname);
 
 			// Mesos configuration
-			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
+			final MesosConfiguration mesosConfig = MesosEntrypointUtils.createMesosSchedulerConfiguration(config, appMasterHostname);
 
 			// JM configuration
 			int numberProcessors = Hardware.getNumberCPUCores();
@@ -235,19 +224,10 @@ public class MesosApplicationMasterRunner {
 				numberProcessors,
 				new ExecutorThreadFactory("mesos-jobmanager-io"));
 
-			mesosServices = MesosServicesUtils.createMesosServices(config);
+			mesosServices = MesosServicesUtils.createMesosServices(config, appMasterHostname);
 
 			// TM configuration
-			final MesosTaskManagerParameters taskManagerParameters = MesosTaskManagerParameters.create(config);
-
-			LOG.info("TaskManagers will be created with {} task slots",
-				taskManagerParameters.containeredParameters().numSlots());
-			LOG.info("TaskManagers will be started with container size {} MB, JVM heap size {} MB, " +
-					"JVM direct memory limit {} MB, {} cpus",
-				taskManagerParameters.containeredParameters().taskManagerTotalMemoryMB(),
-				taskManagerParameters.containeredParameters().taskManagerHeapSizeMB(),
-				taskManagerParameters.containeredParameters().taskManagerDirectMemoryLimitMB(),
-				taskManagerParameters.cpus());
+			final MesosTaskManagerParameters taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
 
 			// JM endpoint, which should be explicitly configured based on acquired net resources
 			final int listeningPort = config.getInteger(JobManagerOptions.PORT);
@@ -268,9 +248,7 @@ public class MesosApplicationMasterRunner {
 
 			// try to start the artifact server
 			LOG.debug("Starting Artifact Server");
-			final int artifactServerPort = config.getInteger(MesosOptions.ARTIFACT_SERVER_PORT);
-			final String artifactServerPrefix = UUID.randomUUID().toString();
-			artifactServer = new MesosArtifactServer(artifactServerPrefix, akkaHostname, artifactServerPort, config);
+			artifactServer = mesosServices.getArtifactServer();
 
 			// ----------------- (3) Generate the configuration for the TaskManagers -------------------
 
@@ -287,10 +265,10 @@ public class MesosApplicationMasterRunner {
 			taskManagerContainerSpec.getDynamicConfiguration().addAll(taskManagerConfig);
 
 			// apply the overlays
-			applyOverlays(config, taskManagerContainerSpec);
+			MesosEntrypointUtils.applyOverlays(config, taskManagerContainerSpec);
 
 			// configure the artifact server to serve the specified artifacts
-			configureArtifactServer(artifactServer, taskManagerContainerSpec);
+			LaunchableMesosWorker.configureArtifactServer(artifactServer, taskManagerContainerSpec);
 
 			// ----------------- (4) start the actors -------------------
 
@@ -386,14 +364,6 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
-			if (artifactServer != null) {
-				try {
-					artifactServer.stop();
-				} catch (Throwable ignored) {
-					LOG.error("Failed to stop the artifact server", ignored);
-				}
-			}
-
 			if (actorSystem != null) {
 				try {
 					actorSystem.shutdown();
@@ -444,12 +414,6 @@ public class MesosApplicationMasterRunner {
 			}
 		}
 
-		try {
-			artifactServer.stop();
-		} catch (Throwable t) {
-			LOG.error("Failed to stop the artifact server", t);
-		}
-
 		if (highAvailabilityServices != null) {
 			try {
 				highAvailabilityServices.close();
@@ -490,85 +454,4 @@ public class MesosApplicationMasterRunner {
 		return MemoryArchivist.class;
 	}
 
-	/**
-	 * Loads and validates the ResourceManager Mesos configuration from the given Flink configuration.
-	 */
-	public static MesosConfiguration createMesosConfig(Configuration flinkConfig, String hostname) {
-
-		Protos.FrameworkInfo.Builder frameworkInfo = Protos.FrameworkInfo.newBuilder()
-			.setHostname(hostname);
-		Protos.Credential.Builder credential = null;
-
-		if (!flinkConfig.contains(MesosOptions.MASTER_URL)) {
-			throw new IllegalConfigurationException(MesosOptions.MASTER_URL.key() + " must be configured.");
-		}
-		String masterUrl = flinkConfig.getString(MesosOptions.MASTER_URL);
-
-		Duration failoverTimeout = FiniteDuration.apply(
-			flinkConfig.getInteger(
-				MesosOptions.FAILOVER_TIMEOUT_SECONDS),
-			TimeUnit.SECONDS);
-		frameworkInfo.setFailoverTimeout(failoverTimeout.toSeconds());
-
-		frameworkInfo.setName(flinkConfig.getString(
-			MesosOptions.RESOURCEMANAGER_FRAMEWORK_NAME));
-
-		frameworkInfo.setRole(flinkConfig.getString(
-			MesosOptions.RESOURCEMANAGER_FRAMEWORK_ROLE));
-
-		frameworkInfo.setUser(flinkConfig.getString(
-			MesosOptions.RESOURCEMANAGER_FRAMEWORK_USER));
-
-		if (flinkConfig.contains(MesosOptions.RESOURCEMANAGER_FRAMEWORK_PRINCIPAL)) {
-			frameworkInfo.setPrincipal(flinkConfig.getString(
-				MesosOptions.RESOURCEMANAGER_FRAMEWORK_PRINCIPAL));
-
-			credential = Protos.Credential.newBuilder();
-			credential.setPrincipal(frameworkInfo.getPrincipal());
-
-			// some environments use a side-channel to communicate the secret to Mesos,
-			// and thus don't set the 'secret' configuration setting
-			if (flinkConfig.contains(MesosOptions.RESOURCEMANAGER_FRAMEWORK_SECRET)) {
-				credential.setSecret(flinkConfig.getString(
-					MesosOptions.RESOURCEMANAGER_FRAMEWORK_SECRET));
-			}
-		}
-
-		MesosConfiguration mesos =
-			new MesosConfiguration(masterUrl, frameworkInfo, scala.Option.apply(credential));
-
-		return mesos;
-	}
-
-	/**
-	 * Generate a container specification as a TaskManager template.
-	 *
-	 * <p>This code is extremely Mesos-specific and registers all the artifacts that the TaskManager
-	 * needs (such as JAR file, config file, ...) and all environment variables into a container specification.
-	 * The Mesos fetcher then ensures that those artifacts will be copied into the task's sandbox directory.
-	 * A lightweight HTTP server serves the artifacts to the fetcher.
-	 */
-	private static void applyOverlays(
-		Configuration globalConfiguration, ContainerSpecification containerSpec) throws IOException {
-
-		// create the overlays that will produce the specification
-		CompositeContainerOverlay overlay = new CompositeContainerOverlay(
-			FlinkDistributionOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
-			HadoopConfOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
-			HadoopUserOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
-			KeytabOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
-			Krb5ConfOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
-			SSLStoreOverlay.newBuilder().fromEnvironment(globalConfiguration).build()
-		);
-
-		// apply the overlays
-		overlay.configure(containerSpec);
-	}
-
-	private static void configureArtifactServer(MesosArtifactServer server, ContainerSpecification container) throws IOException {
-		// serve the artifacts associated with the container environment
-		for (ContainerSpecification.Artifact artifact : container.getArtifacts()) {
-			server.addPath(artifact.source, artifact.dest);
-		}
-	}
 }
