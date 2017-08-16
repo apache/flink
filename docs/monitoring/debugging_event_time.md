@@ -31,11 +31,7 @@ Flink's [event time]({{ site.baseurl }}/dev/event_time.html) and watermark suppo
 out-of-order events. However, it's harder to understand what exactly is going on because the progress of time
 is tracked within the system.
 
-There are plans (see [FLINK-3427](https://issues.apache.org/jira/browse/FLINK-3427)) to show the current low watermark
-for each operator in the Flink web interface.
-
-Until this feature is implemented the current low watermark for each task can be accessed through the 
-[metrics system]({{ site.baseurl }}/monitoring/metrics.html).
+Low watermarks of each task can be accessed through Flink web interface or [metrics system]({{ site.baseurl }}/monitoring/metrics.html).
 
 Each Task in Flink exposes a metric called `currentLowWatermark` that represents the lowest watermark received
 by this task. This long value represents the "current event time".
