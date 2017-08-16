@@ -68,6 +68,7 @@ under the License.
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>
+		<module>flink-end-to-end-tests</module>
 		<module>flink-test-utils-parent</module>
 		<module>flink-libraries</module>
 		<module>flink-scala-shell</module>

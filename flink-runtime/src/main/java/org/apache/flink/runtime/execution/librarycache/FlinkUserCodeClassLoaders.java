@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.configuration.Configuration;
@@ -61,11 +62,11 @@ public class FlinkUserCodeClassLoaders {
 	 */
 	static class ParentFirstClassLoader extends URLClassLoader {
 
-		public ParentFirstClassLoader(URL[] urls) {
+		ParentFirstClassLoader(URL[] urls) {
 			this(urls, FlinkUserCodeClassLoaders.class.getClassLoader());
 		}
 
-		public ParentFirstClassLoader(URL[] urls, ClassLoader parent) {
+		ParentFirstClassLoader(URL[] urls, ClassLoader parent) {
 			super(urls, parent);
 		}
 	}
@@ -75,25 +76,35 @@ public class FlinkUserCodeClassLoaders {
 	 */
 	static final class ChildFirstClassLoader extends URLClassLoader {
 
-		private final ClassLoader parent;
+		private ClassLoader parent;
 
 		public ChildFirstClassLoader(URL[] urls, ClassLoader parent) {
-			super(urls, null);
-			this.parent = parent;
+			super(urls, parent);
+			this.parent = getSystemClassLoader();
 		}
 
 		@Override
-		public Class<?> findClass(String name) throws ClassNotFoundException {
-			// first try to load from the URLs
-			// because the URLClassLoader's parent is null, this cannot implicitly load from the parent
-			try {
-				return super.findClass(name);
+		protected synchronized Class<?> loadClass(
+			String name, boolean resolve) throws ClassNotFoundException {
+
+			// First, check if the class has already been loaded
+			Class<?> c = findLoadedClass(name);
+
+			if (c == null) {
+				try {
+					// check the URLs
+					c = findClass(name);
+				} catch (ClassNotFoundException e) {
+					// let URLClassLoader do it, which will eventually call the parent
+					c = super.loadClass(name, resolve);
+				}
 			}
-			catch (ClassNotFoundException e) {
-				// not in the URL, check the parent
-				return parent.loadClass(name);
+
+			if (resolve) {
+				resolveClass(c);
 			}
+
+			return c;
 		}
 	}
-
 }
