@@ -53,5 +53,10 @@ under the License.
 </ol>
 
 <h1>{{ page.title }}{% if page.is_beta %} <span class="beta">Beta</span>{% endif %}</h1>
+{% if site.show_outdated_warning %}
+<div class="alert alert-danger" role="alert">
+  <strong>This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://flink.apache.org/q/stable-docs.html">the latest stable version</a>.</strong>
+</div>
+{% endif %}
 
 {{ content }}
