@@ -287,4 +287,39 @@ public class TypeExtractionUtils {
 			((TypeVariable<?>) t1).getName().equals(((TypeVariable<?>) t2).getName()) &&
 			((TypeVariable<?>) t1).getGenericDeclaration().equals(((TypeVariable<?>) t2).getGenericDeclaration());
 	}
+
+	/**
+	 * Traverses the type hierarchy of a type up until a certain stop class is found.
+	 *
+	 * @param t type for which a hierarchy need to be created
+	 * @return type of the immediate child of the stop class
+	 */
+	public static Type getTypeHierarchy(List<Type> typeHierarchy, Type t, Class<?> stopAtClass) {
+		while (!(isClassType(t) && typeToClass(t).equals(stopAtClass))) {
+			typeHierarchy.add(t);
+			t = typeToClass(t).getGenericSuperclass();
+
+			if (t == null) {
+				break;
+			}
+		}
+		return t;
+	}
+
+	/**
+	 * Returns true if the given class has a superclass of given name.
+	 *
+	 * @param clazz class to be analyzed
+	 * @param superClassName class name of the super class
+	 */
+	public static boolean hasSuperclass(Class<?> clazz, String superClassName) {
+		List<Type> hierarchy = new ArrayList<>();
+		getTypeHierarchy(hierarchy, clazz, Object.class);
+		for (Type t : hierarchy) {
+			if (isClassType(t) && typeToClass(t).getName().equals(superClassName)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

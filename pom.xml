@@ -66,6 +66,7 @@ under the License.
 		<module>flink-streaming-java</module>
 		<module>flink-streaming-scala</module>
 		<module>flink-connectors</module>
+		<module>flink-formats</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-queryable-state</module>
@@ -273,19 +274,6 @@ under the License.
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-asm</artifactId>
 				<version>5.0.4-1.0</version>
-			</dependency>
-
-			<!-- Make sure we use a consistent avro version throughout the project -->
-			<dependency>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro</artifactId>
-				<version>1.8.2</version>
-			</dependency>
-			
-			<dependency>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro-ipc</artifactId>
-				<version>1.8.2</version>
 			</dependency>
 
 			<dependency>
@@ -1033,7 +1021,8 @@ under the License.
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
 						<exclude>flink-runtime/src/test/resources/flink_11-kryo_registrations</exclude>
-						<exclude>flink-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
+						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
+						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 						<exclude>test-infra/end-to-end-test/test-data/*</exclude>
@@ -1042,8 +1031,8 @@ under the License.
 						<exclude>**/src/test/resources/*-snapshot</exclude>
 						<exclude>**/src/test/resources/*-savepoint</exclude>
 
-						<exclude>flink-connectors/flink-avro/src/test/resources/testdata.avro</exclude>
-						<exclude>flink-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
+						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
+						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_text</exclude>
 						<!-- Configuration Files. -->

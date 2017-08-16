@@ -161,6 +161,12 @@ under the License.
 					<groupId>commons-beanutils</groupId>
 					<artifactId>commons-beanutils</artifactId>
 				</exclusion>
+
+				<!-- we don't want Hadoop's Avro dependency, since Flink adds its own Avro support --> 
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -411,6 +417,12 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.contribs</groupId>
 					<artifactId>jersey-guice</artifactId>
+				</exclusion>
+
+				<!-- we don't want Hadoop's Avro dependency, since Flink adds its own Avro support -->
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

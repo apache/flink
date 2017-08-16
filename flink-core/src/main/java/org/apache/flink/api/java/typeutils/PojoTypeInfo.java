@@ -27,12 +27,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -300,15 +301,32 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 	@Override
 	@PublicEvolving
+	@SuppressWarnings("unchecked")
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		if(config.isForceKryoEnabled()) {
-			return new KryoSerializer<T>(getTypeClass(), config);
-		}
-		if(config.isForceAvroEnabled()) {
-			return new AvroSerializer<T>(getTypeClass());
+			return new KryoSerializer<>(getTypeClass(), config);
 		}
 
-		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length ];
+		if(config.isForceAvroEnabled()) {
+			Class<?> clazz;
+			try {
+				clazz = Class.forName("org.apache.flink.formats.avro.typeutils.AvroSerializer");
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Could not load the AvroSerializer class. " +
+					"You may be missing the 'flink-avro' dependency.");
+			}
+
+			try {
+				Constructor<?> constructor = clazz.getConstructor(Class.class);
+				return (TypeSerializer<T>) constructor.newInstance(getTypeClass());
+			} catch (NoSuchMethodException | IllegalAccessException | InstantiationException e) {
+				throw new RuntimeException("Incompatible versions of the Avro classes found.");
+			} catch (InvocationTargetException e) {
+				throw new RuntimeException("Cannot create AvroSerializer.", e.getTargetException());
+			}
+		}
+
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
 		Field[] reflectiveFields = new Field[fields.length];
 
 		for (int i = 0; i < fields.length; i++) {
