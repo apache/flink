@@ -97,8 +97,7 @@ public class NFACompiler {
 		} else {
 			final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
 			nfaFactoryCompiler.compileFactory();
-			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(),
-				nfaFactoryCompiler.getStates(), timeoutHandling);
+			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
 		}
 	}
 
@@ -119,7 +118,7 @@ public class NFACompiler {
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
 		private Pattern<T, ?> followingPattern;
-		private AfterMatchSkipStrategy afterMatchSkipStrategy;
+		private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
@@ -166,12 +165,8 @@ public class NFACompiler {
 			if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST ||
 				afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST) {
 				Pattern<T, ?> pattern = currentPattern;
-				while (!pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
-					if (pattern.getPrevious() == null) {
-						break;
-					} else {
-						pattern = pattern.getPrevious();
-					}
+				while (pattern.getPrevious() != null && !pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
+					pattern = pattern.getPrevious();
 				}
 
 				// pattern name match check.

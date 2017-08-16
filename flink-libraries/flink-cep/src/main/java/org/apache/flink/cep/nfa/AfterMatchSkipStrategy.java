@@ -24,49 +24,50 @@ import java.io.Serializable;
 /**
  * Indicate the skip strategy after a match process.
  * <p>There're four kinds of strategies:
- * SKIP_PAST_LAST_EVENT,
- * SKIP_TO_NEXT_EVENT,
- * SKIP_TO_FIRST_<code>PATTERN</code> and
- * SKIP_TO_LAST_<code>PATTERN</code>.
+ * SKIP_PAST_LAST_EVENT (start a new match process after the last event of the current match),
+ * SKIP_TO_NEXT_EVENT (start a new match process after the first event of the current match),
+ * SKIP_TO_FIRST_<code>PATTERN</code> (start a new match process at the first event of the matched *pattern*) and
+ * SKIP_TO_LAST_<code>PATTERN</code> (start a new match process at the last event of the matched *pattern*).
  * </p>
  */
 public class AfterMatchSkipStrategy implements Serializable {
 
+	private static final long serialVersionUID = -4048930333619068531L;
 	// default strategy
-	SkipStrategy strategy = SkipStrategy.SKIP_TO_NEXT_EVENT;
+	private SkipStrategy strategy = SkipStrategy.SKIP_TO_NEXT_EVENT;
 
 	// pattern name to skip to
-	String patternName = null;
+	private String patternName = null;
 
 	/**
-	 * Skip to first *pattern*.
+	 * Start a new match process at the first event of the matched *PatternName*.
 	 * @param patternName the pattern name to skip to
-	 * @return
+	 * @return the created AfterMatchSkipStrategy
 	 */
 	public static AfterMatchSkipStrategy skipToFirst(String patternName) {
 		return new AfterMatchSkipStrategy(SkipStrategy.SKIP_TO_FIRST, patternName);
 	}
 
 	/**
-	 * Skip to last *pattern*.
+	 * Start a new match process at the last event of the matched *PatternName*
 	 * @param patternName the pattern name to skip to
-	 * @return
+	 * @return the created AfterMatchSkipStrategy
 	 */
 	public static AfterMatchSkipStrategy skipToLast(String patternName) {
 		return new AfterMatchSkipStrategy(SkipStrategy.SKIP_TO_LAST, patternName);
 	}
 
 	/**
-	 * Skip past last event.
-	 * @return
+	 * Start a new match process after the last event of the current match.
+	 * @return the created AfterMatchSkipStrategy
 	 */
 	public static AfterMatchSkipStrategy skipPastLastEvent() {
 		return new AfterMatchSkipStrategy(SkipStrategy.SKIP_PAST_LAST_EVENT);
 	}
 
 	/**
-	 * Skip to next event.
-	 * @return
+	 * Start a new match process after the first event of the current match.
+	 * @return the created AfterMatchSkipStrategy
 	 */
 	public static AfterMatchSkipStrategy skipToNextEvent() {
 		return new AfterMatchSkipStrategy(SkipStrategy.SKIP_TO_NEXT_EVENT);
@@ -84,29 +85,59 @@ public class AfterMatchSkipStrategy implements Serializable {
 		this.patternName = patternName;
 	}
 
+	/**
+	 * Get the {@SkipStrategy} enum.
+	 * @return the skip strategy
+	 */
 	public SkipStrategy getStrategy() {
 		return strategy;
 	}
 
+	/**
+	 * Get the referenced pattern name of this strategy.
+	 * @return the referenced pattern name.
+	 */
 	public String getPatternName() {
 		return patternName;
 	}
 
 	@Override
 	public String toString() {
-		return "AfterMatchStrategy{" +
-			"strategy=" + strategy +
-			", patternName=" + patternName +
-			'}';
+		switch (strategy) {
+			case SKIP_TO_NEXT_EVENT:
+			case SKIP_PAST_LAST_EVENT:
+				return "AfterMatchStrategy{" +
+					strategy +
+					"}";
+			case SKIP_TO_FIRST:
+			case SKIP_TO_LAST:
+				return "AfterMatchStrategy{" +
+					strategy + "[" +
+					patternName + "]" +
+					"}";
+		}
+		return super.toString();
 	}
 
 	/**
 	 * Skip Strategy Enum.
 	 */
 	public enum SkipStrategy{
+		/**
+		 * Start a new match process after the first event of the current match.
+		 */
 		SKIP_TO_NEXT_EVENT,
+		/**
+		 * Start a new match process after the last event of the current match.
+		 */
 		SKIP_PAST_LAST_EVENT,
+		/**
+		 * Start a new match process at the first event of the matched *PatternName*.
+		 */
 		SKIP_TO_FIRST,
+		/**
+		 * Start a new match process at the last event of the matched *PatternName*
+		 */
 		SKIP_TO_LAST
 	}
 }

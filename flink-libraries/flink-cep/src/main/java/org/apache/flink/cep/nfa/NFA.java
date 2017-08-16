@@ -60,6 +60,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -158,9 +159,9 @@ public class NFA<T> implements Serializable {
 	private boolean nfaChanged;
 
 	public NFA(
-		final TypeSerializer<T> eventSerializer,
-		final long windowTime,
-		final boolean handleTimeout) {
+			final TypeSerializer<T> eventSerializer,
+			final long windowTime,
+			final boolean handleTimeout) {
 
 		this.eventSerializer = eventSerializer;
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
@@ -413,6 +414,7 @@ public class NFA<T> implements Serializable {
 								computationState.getCounter()
 							);
 							discardStates.add(computationState);
+							break;
 						}
 					}
 				}
@@ -776,7 +778,7 @@ public class NFA<T> implements Serializable {
 		}
 		// for a given computation state, we cannot have more than one matching patterns.
 		Preconditions.checkState(paths.size() == 1);
-		Map<String, List<T>> result = new HashMap<>();
+		Map<String, List<T>> result = new LinkedHashMap<>();
 		Map<String, List<T>> path = paths.get(0);
 		for (String key : path.keySet()) {
 			List<T> events = path.get(key);

@@ -121,16 +121,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	private final EventComparator<IN> comparator;
 
-	final AfterMatchSkipStrategy afterMatchSkipStrategy;
+	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 	public AbstractKeyedCEPPatternOperator(
-		final TypeSerializer<IN> inputSerializer,
-		final boolean isProcessingTime,
-		final TypeSerializer<KEY> keySerializer,
-		final NFACompiler.NFAFactory<IN> nfaFactory,
-		final boolean migratingFromOldKeyedOperator,
-		final EventComparator<IN> comparator,
-		final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+			final TypeSerializer<IN> inputSerializer,
+			final boolean isProcessingTime,
+			final TypeSerializer<KEY> keySerializer,
+			final NFACompiler.NFAFactory<IN> nfaFactory,
+			final boolean migratingFromOldKeyedOperator,
+			final EventComparator<IN> comparator,
+			final AfterMatchSkipStrategy afterMatchSkipStrategy) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
