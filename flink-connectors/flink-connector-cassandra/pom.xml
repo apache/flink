@@ -39,7 +39,6 @@ under the License.
 	<properties>
 		<cassandra.version>2.2.5</cassandra.version>
 		<driver.version>3.0.0</driver.version>
-		<netty4.version>4.0.27.Final</netty4.version>
 	</properties>
 
 	<build>
@@ -85,9 +84,14 @@ under the License.
 										<exclude>com.google.inject.**</exclude>
 									</excludes>
 								</relocation>
+								<!--
+									For the details of relocation pattern, refer the discussion at
+									https://github.com/apache/flink/pull/4545
+									FLINK-6805
+								-->
 								<relocation>
 									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.shaded.netty4.io.netty</shadedPattern>
+									<shadedPattern>org.apache.flink.cassandra.shaded.io.netty</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
