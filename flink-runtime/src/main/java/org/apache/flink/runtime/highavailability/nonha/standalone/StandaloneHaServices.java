@@ -45,6 +45,9 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	/** The fix address of the ResourceManager */
 	private final String resourceManagerAddress;
 
+	/** The fix address of the Dispatcher */
+	private final String dispatcherAddress;
+
 	/** The fix address of the JobManager */
 	private final String jobManagerAddress;
 
@@ -53,8 +56,12 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	 * 
 	 * @param resourceManagerAddress    The fix address of the ResourceManager
 	 */
-	public StandaloneHaServices(String resourceManagerAddress, String jobManagerAddress) {
+	public StandaloneHaServices(
+		String resourceManagerAddress,
+		String dispatcherAddress,
+		String jobManagerAddress) {
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress, "resourceManagerAddress");
+		this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
 		this.jobManagerAddress = checkNotNull(jobManagerAddress, "jobManagerAddress");
 	}
 
@@ -73,7 +80,25 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderRetrievalService(dispatcherAddress, DEFAULT_LEADER_ID);
+		}
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderElectionService();
+		}
+	}
+
+	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
 		synchronized (lock) {
 			checkNotShutdown();
 

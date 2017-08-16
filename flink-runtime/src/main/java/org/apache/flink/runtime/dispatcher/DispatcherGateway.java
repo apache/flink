@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
 import java.util.Collection;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -37,11 +38,13 @@ public interface DispatcherGateway extends RpcGateway {
 	 * Submit a job to the dispatcher.
 	 *
 	 * @param jobGraph JobGraph to submit
+	 * @param leaderSessionId leader session id
 	 * @param timeout RPC timeout
 	 * @return A future acknowledge if the submission succeeded
 	 */
 	CompletableFuture<Acknowledge> submitJob(
 		JobGraph jobGraph,
+		UUID leaderSessionId,
 		@RpcTimeout Time timeout);
 
 	/**
