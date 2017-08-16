@@ -462,6 +462,7 @@ public class TaskExecutorTest extends TestLogger {
 		final ResourceID resourceID = ResourceID.generate();
 		final String resourceManagerAddress = "/resource/manager/address/one";
 		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
+		final String dispatcherAddress = "localhost";
 		final String jobManagerAddress = "localhost";
 
 		final TestingRpcService rpc = new TestingRpcService();
@@ -483,6 +484,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			StandaloneHaServices haServices = new StandaloneHaServices(
 				resourceManagerAddress,
+				dispatcherAddress,
 				jobManagerAddress);
 
 			final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);

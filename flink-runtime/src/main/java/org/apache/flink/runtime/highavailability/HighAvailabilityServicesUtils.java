@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
@@ -87,8 +88,17 @@ public class HighAvailabilityServicesUtils {
 					ResourceManager.RESOURCE_MANAGER_NAME,
 					addressResolution,
 					configuration);
+				final String dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+					hostnamePort.f0,
+					hostnamePort.f1,
+					Dispatcher.DISPATCHER_NAME,
+					addressResolution,
+					configuration);
 
-				return new StandaloneHaServices(resourceManagerRpcUrl, jobManagerRpcUrl);
+				return new StandaloneHaServices(
+					resourceManagerRpcUrl,
+					dispatcherRpcUrl,
+					jobManagerRpcUrl);
 			case ZOOKEEPER:
 				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
 

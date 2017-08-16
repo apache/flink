@@ -38,11 +38,15 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderRetrievalService resourceManagerLeaderRetriever;
 
+	private volatile LeaderRetrievalService dispatcherLeaderRetriever;
+
 	private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers = new ConcurrentHashMap<>();
 
 	private ConcurrentHashMap<JobID, LeaderElectionService> jobManagerLeaderElectionServices = new ConcurrentHashMap<>();
 
 	private volatile LeaderElectionService resourceManagerLeaderElectionService;
+
+	private volatile LeaderElectionService dispatcherLeaderElectionService;
 
 	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
@@ -56,6 +60,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.resourceManagerLeaderRetriever = resourceManagerLeaderRetriever;
 	}
 
+	public void setDispatcherLeaderRetriever(LeaderRetrievalService dispatcherLeaderRetriever) {
+		this.dispatcherLeaderRetriever = dispatcherLeaderRetriever;
+	}
+
 	public void setJobMasterLeaderRetriever(JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
 		this.jobMasterLeaderRetrievers.put(jobID, jobMasterLeaderRetriever);
 	}
@@ -66,6 +74,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	public void setResourceManagerLeaderElectionService(LeaderElectionService leaderElectionService) {
 		this.resourceManagerLeaderElectionService = leaderElectionService;
+	}
+
+	public void setDispatcherLeaderElectionService(LeaderElectionService leaderElectionService) {
+		this.dispatcherLeaderElectionService = leaderElectionService;
 	}
 
 	public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
@@ -83,6 +95,16 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
 		LeaderRetrievalService service = this.resourceManagerLeaderRetriever;
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("ResourceManagerLeaderRetriever has not been set");
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		LeaderRetrievalService service = this.dispatcherLeaderRetriever;
 		if (service != null) {
 			return service;
 		} else {
@@ -113,6 +135,17 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 			return service;
 		} else {
 			throw new IllegalStateException("ResourceManagerLeaderElectionService has not been set");
+		}
+	}
+
+	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
+		LeaderElectionService service = dispatcherLeaderElectionService;
+
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("DispatcherLeaderElectionService has not been set");
 		}
 	}
 
