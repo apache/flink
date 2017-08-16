@@ -43,6 +43,9 @@ download_url: "http://flink.apache.org/downloads.html"
 FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.3/flink-1.0.3-bin-hadoop1-scala_2.10.tgz"
 FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.3/flink-1.0.3-bin-hadoop2-scala_2.10.tgz"
 
+# Flag to indicate whether an outdated warning should be shown.
+show_outdated_warning: true
+
 #------------------------------------------------------------------------------
 # BUILD CONFIG
 #------------------------------------------------------------------------------
