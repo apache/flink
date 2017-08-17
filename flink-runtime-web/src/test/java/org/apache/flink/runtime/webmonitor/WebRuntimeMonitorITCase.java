@@ -31,10 +31,10 @@ import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rest.handler.util.MimeTypes;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
@@ -330,7 +330,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse();
 
 				assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
-				assertEquals(MimeTypes.getMimeTypeForExtension("txt"), response.getType());
+				assertEquals(MimeTypes.getMimeTypeForExtension("json"), response.getType());
 				assertTrue(response.getContent().contains("refresh"));
 			}
 		}
