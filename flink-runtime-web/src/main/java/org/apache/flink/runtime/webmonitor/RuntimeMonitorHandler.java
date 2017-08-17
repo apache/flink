@@ -39,7 +39,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,10 +70,9 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 			RequestHandler handler,
 			GatewayRetriever<JobManagerGateway> retriever,
 			CompletableFuture<String> localJobManagerAddressFuture,
-			Time timeout,
-			boolean httpsEnabled) {
+			Time timeout) {
 
-		super(localJobManagerAddressFuture, retriever, timeout, httpsEnabled);
+		super(localJobManagerAddressFuture, retriever, timeout);
 		this.handler = checkNotNull(handler);
 		this.allowOrigin = cfg.getAllowOrigin();
 	}
@@ -99,9 +97,7 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 				pathParams.put(key, URLDecoder.decode(routed.pathParams().get(key), ENCODING.toString()));
 			}
 
-			InetSocketAddress address = (InetSocketAddress) ctx.channel().localAddress();
-			queryParams.put(WEB_MONITOR_ADDRESS_KEY,
-				(httpsEnabled ? "https://" : "http://") + address.getHostName() + ":" + address.getPort());
+			queryParams.put(WEB_MONITOR_ADDRESS_KEY, localAddressFuture.get());
 
 			responseFuture = handler.handleRequest(pathParams, queryParams, jobManagerGateway);
 

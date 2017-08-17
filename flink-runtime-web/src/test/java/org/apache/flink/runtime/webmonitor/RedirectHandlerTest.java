@@ -67,8 +67,8 @@ public class RedirectHandlerTest extends TestLogger {
 	public void testRedirectHandler() throws Exception {
 		final String restPath = "/testing";
 		final String correctAddress = "foobar:21345";
-		final String redirectionAddress = "foobar:12345";
-		final String expectedRedirection = "http://" + redirectionAddress + restPath;
+		final String redirectionAddress = "http://foobar:12345";
+		final String expectedRedirection = redirectionAddress + restPath;
 
 		final Configuration configuration = new Configuration();
 		final Router router = new Router();
@@ -87,8 +87,7 @@ public class RedirectHandlerTest extends TestLogger {
 		final TestingHandler testingHandler = new TestingHandler(
 			localAddressFuture,
 			gatewayRetriever,
-			timeout,
-			false);
+			timeout);
 
 		router.GET(restPath, testingHandler);
 		WebFrontendBootstrap bootstrap = new WebFrontendBootstrap(
@@ -143,9 +142,8 @@ public class RedirectHandlerTest extends TestLogger {
 		protected TestingHandler(
 				@Nonnull CompletableFuture<String> localAddressFuture,
 				@Nonnull GatewayRetriever<RestfulGateway> leaderRetriever,
-				@Nonnull Time timeout,
-				boolean httpsEnabled) {
-			super(localAddressFuture, leaderRetriever, timeout, httpsEnabled);
+				@Nonnull Time timeout) {
+			super(localAddressFuture, leaderRetriever, timeout);
 		}
 
 		@Override

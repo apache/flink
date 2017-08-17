@@ -67,12 +67,11 @@ public class HandlerRedirectUtils {
 			});
 	}
 
-	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) {
+	public static HttpResponse getRedirectResponse(String redirectAddress, String path) {
 		checkNotNull(redirectAddress, "Redirect address");
 		checkNotNull(path, "Path");
 
-		String protocol = httpsEnabled ? "https" : "http";
-		String newLocation = String.format("%s://%s%s", protocol, redirectAddress, path);
+		String newLocation = String.format("%s%s", redirectAddress, path);
 
 		HttpResponse redirectResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);

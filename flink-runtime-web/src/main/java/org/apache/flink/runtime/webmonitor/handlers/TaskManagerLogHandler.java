@@ -127,9 +127,8 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 		Time timeout,
 		FileMode fileMode,
 		Configuration config,
-		boolean httpsEnabled,
 		BlobView blobView) {
-		super(localJobManagerAddressPromise, retriever, timeout, httpsEnabled);
+		super(localJobManagerAddressPromise, retriever, timeout);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;

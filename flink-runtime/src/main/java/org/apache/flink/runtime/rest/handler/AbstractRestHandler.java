@@ -69,9 +69,8 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			CompletableFuture<String> localAddressFuture,
 			GatewayRetriever<T> leaderRetriever,
 			Time timeout,
-			boolean httpsEnabled,
 			MessageHeaders<R, P, M> messageHeaders) {
-		super(localAddressFuture, leaderRetriever, timeout, httpsEnabled);
+		super(localAddressFuture, leaderRetriever, timeout);
 		this.messageHeaders = messageHeaders;
 	}
 
