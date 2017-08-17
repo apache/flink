@@ -41,12 +41,19 @@ public abstract class ResultSubpartition {
 	/** The total number of bytes (both data and event buffers) */
 	private long totalNumberOfBytes;
 
+	/** The number of non-event buffers currently in this subpartition */
+	protected int backlog;
+
 	public ResultSubpartition(int index, ResultPartition parent) {
 		this.index = index;
 		this.parent = parent;
 	}
 
 	protected void updateStatistics(Buffer buffer) {
+		if (buffer.isBuffer()) {
+			backlog++;
+		}
+
 		totalNumberOfBuffers++;
 		totalNumberOfBytes += buffer.getSize();
 	}

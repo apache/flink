@@ -50,4 +50,5 @@ public interface ResultSubpartitionView {
 
 	Throwable getFailureCause();
 
+	int getBacklog();
 }

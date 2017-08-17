@@ -212,5 +212,10 @@ public class CancelPartitionRequestTest {
 		public Throwable getFailureCause() {
 			return null;
 		}
+
+		@Override
+		public int getBacklog() {
+			return 0;
+		}
 	}
 }

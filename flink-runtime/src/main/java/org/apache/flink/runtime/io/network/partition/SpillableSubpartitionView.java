@@ -145,6 +145,10 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					listener.notifyBuffersAvailable(1);
 				}
 
+				if (current.isBuffer()) {
+					parent.backlog--;
+				}
+
 				return current;
 			}
 		} // else: spilled
@@ -200,6 +204,11 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		} else {
 			return parent.getFailureCause();
 		}
+	}
+
+	@Override
+	public int getBacklog() {
+		return parent.backlog;
 	}
 
 	@Override

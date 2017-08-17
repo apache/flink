@@ -124,6 +124,10 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
 
+		if (buffer != null && buffer.isBuffer()) {
+			parent.backlog--;
+		}
+
 		return buffer;
 	}
 
@@ -162,6 +166,11 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
+	}
+
+	@Override
+	public int getBacklog() {
+		return parent.backlog;
 	}
 
 	@Override
