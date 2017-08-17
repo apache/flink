@@ -31,6 +31,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,8 +100,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			client.close();
 
 			client = new BlobClient(serverAddress, config);
-			try {
-				client.get(key1);
+			try (InputStream ignored = client.get(key1)) {
 				fail("BLOB should have been deleted");
 			}
 			catch (IOException e) {
@@ -111,12 +111,14 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			client = new BlobClient(serverAddress, config);
 			try {
-				client.get(jobId, key1);
+				// NOTE: the server will stall in its send operation until either the data is fully
+				//       read or the socket is closed, e.g. via a client.close() call
+				BlobClientTest.validateGet(client.get(jobId, key1), data);
 			}
 			catch (IOException e) {
-				// expected
 				fail("Deleting a job-unrelated BLOB should not affect a job-related BLOB with the same key");
 			}
+			client.close();
 
 			// delete a file directly on the server
 			server.delete(key2);

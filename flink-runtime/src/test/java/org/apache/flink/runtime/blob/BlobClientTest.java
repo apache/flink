@@ -139,30 +139,35 @@ public class BlobClientTest {
 	 * the specified buffer.
 	 * 
 	 * @param inputStream
-	 *        the input stream returned from the GET operation
+	 *        the input stream returned from the GET operation (will be closed by this method)
 	 * @param buf
 	 *        the buffer to compare the input stream's data to
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream
 	 */
 	static void validateGet(final InputStream inputStream, final byte[] buf) throws IOException {
-		byte[] receivedBuffer = new byte[buf.length];
+		try {
+			byte[] receivedBuffer = new byte[buf.length];
 
-		int bytesReceived = 0;
+			int bytesReceived = 0;
 
-		while (true) {
+			while (true) {
 
-			final int read = inputStream.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
-			if (read < 0) {
-				throw new EOFException();
+				final int read = inputStream
+					.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
+				if (read < 0) {
+					throw new EOFException();
+				}
+				bytesReceived += read;
+
+				if (bytesReceived == receivedBuffer.length) {
+					assertEquals(-1, inputStream.read());
+					assertArrayEquals(buf, receivedBuffer);
+					return;
+				}
 			}
-			bytesReceived += read;
-
-			if (bytesReceived == receivedBuffer.length) {
-				assertEquals(-1, inputStream.read());
-				assertArrayEquals(buf, receivedBuffer);
-				return;
-			}
+		} finally {
+			inputStream.close();
 		}
 	}
 
@@ -171,7 +176,7 @@ public class BlobClientTest {
 	 * the specified file.
 	 * 
 	 * @param inputStream
-	 *        the input stream returned from the GET operation
+	 *        the input stream returned from the GET operation (will be closed by this method)
 	 * @param file
 	 *        the file to compare the input stream's data to
 	 * @throws IOException
@@ -200,6 +205,7 @@ public class BlobClientTest {
 			if (inputStream2 != null) {
 				inputStream2.close();
 			}
+			inputStream.close();
 		}
 
 	}
@@ -231,14 +237,11 @@ public class BlobClientTest {
 			assertEquals(origKey, receivedKey);
 
 			// Retrieve the data
-			InputStream is = client.get(receivedKey);
-			validateGet(is, testBuffer);
-			is = client.get(jobId, receivedKey);
-			validateGet(is, testBuffer);
+			validateGet(client.get(receivedKey), testBuffer);
+			validateGet(client.get(jobId, receivedKey), testBuffer);
 
 			// Check reaction to invalid keys
-			try {
-				client.get(new BlobKey());
+			try (InputStream ignored = client.get(new BlobKey())) {
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -246,8 +249,7 @@ public class BlobClientTest {
 			}
 			// new client needed (closed from failure above)
 			client = new BlobClient(serverAddress, getBlobClientConfig());
-			try {
-				client.get(jobId, new BlobKey());
+			try (InputStream ignored = client.get(jobId, new BlobKey())) {
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -308,10 +310,8 @@ public class BlobClientTest {
 			is = null;
 
 			// Retrieve the data
-			is = client.get(receivedKey);
-			validateGet(is, testFile);
-			is = client.get(jobId, receivedKey);
-			validateGet(is, testFile);
+			validateGet(client.get(receivedKey), testFile);
+			validateGet(client.get(jobId, receivedKey), testFile);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -362,8 +362,7 @@ public class BlobClientTest {
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			InputStream is = blobClient.get(blobKeys.get(0));
-			validateGet(is, testFile);
+			validateGet(blobClient.get(blobKeys.get(0)), testFile);
 		}
 	}
 }
