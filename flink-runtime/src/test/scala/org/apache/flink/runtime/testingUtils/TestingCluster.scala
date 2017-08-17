@@ -120,7 +120,8 @@ class TestingCluster(
     submittedJobGraphStore: SubmittedJobGraphStore,
     checkpointRecoveryFactory: CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[MetricRegistry]): Props = {
+    metricsRegistry: Option[MetricRegistry],
+    optRestAddress: Option[String]): Props = {
 
     val props = super.getJobManagerProps(
       jobManagerClass,
@@ -138,7 +139,8 @@ class TestingCluster(
       submittedJobGraphStore,
       checkpointRecoveryFactory,
       jobRecoveryTimeout,
-      metricsRegistry)
+      metricsRegistry,
+      optRestAddress)
 
     if (synchronousDispatcher) {
       props.withDispatcher(CallingThreadDispatcher.Id)
@@ -240,7 +242,10 @@ class TestingCluster(
           // reset the original configuration
           originalConfiguration.setInteger(JobManagerOptions.PORT, oldPort)
 
-          val newJobManagerActor = startJobManager(index, newJobManagerActorSystem)
+          val newJobManagerActor = startJobManager(
+            index,
+            newJobManagerActorSystem,
+            webMonitor.map(_.getRestAddress))
 
           jobManagerActors = Some(jmActors.patch(index, Seq(newJobManagerActor), 1))
           jobManagerActorSystems = Some(jmActorSystems.patch(

@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -144,6 +145,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

@@ -53,7 +53,8 @@ class TestingJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout : FiniteDuration,
-    metricRegistry : Option[MetricRegistry])
+    metricRegistry : Option[MetricRegistry],
+    optRestAddress: Option[String])
   extends JobManager(
     flinkConfiguration,
     futureExecutor,
@@ -69,5 +70,6 @@ class TestingJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricRegistry)
+    metricRegistry,
+    optRestAddress)
   with TestingJobManagerLike {}

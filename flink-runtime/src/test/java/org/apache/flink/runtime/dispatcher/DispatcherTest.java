@@ -47,6 +47,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -204,7 +205,8 @@ public class DispatcherTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
-				fatalErrorHandler);
+				fatalErrorHandler,
+				Optional.empty());
 
 			this.jobManagerRunner = jobManagerRunner;
 			this.expectedJobId = expectedJobId;

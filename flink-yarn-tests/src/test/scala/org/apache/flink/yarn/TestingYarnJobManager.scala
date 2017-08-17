@@ -68,7 +68,8 @@ class TestingYarnJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricRegistry : Option[MetricRegistry])
+    metricRegistry : Option[MetricRegistry],
+    optRestAddress: Option[String])
   extends YarnJobManager(
     flinkConfiguration,
     futureExecutor,
@@ -84,5 +85,6 @@ class TestingYarnJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricRegistry)
+    metricRegistry,
+    optRestAddress)
   with TestingJobManagerLike {}

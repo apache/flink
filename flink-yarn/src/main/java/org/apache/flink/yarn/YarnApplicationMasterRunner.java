@@ -35,7 +35,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -343,22 +342,7 @@ public class YarnApplicationMasterRunner {
 				ioExecutor,
 				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
-			// 1: the JobManager
-			LOG.debug("Starting JobManager actor");
-
-			// we start the JobManager with its standard name
-			ActorRef jobManager = JobManager.startJobManagerActors(
-				config,
-				actorSystem,
-				futureExecutor,
-				ioExecutor,
-				highAvailabilityServices,
-				new Some<>(JobMaster.JOB_MANAGER_NAME),
-				Option.<String>empty(),
-				getJobManagerClass(),
-				getArchivistClass())._1();
-
-			// 2: the web monitor
+			// 1: the web monitor
 			LOG.debug("Starting Web Frontend");
 
 			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
@@ -370,15 +354,25 @@ public class YarnApplicationMasterRunner {
 				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
 				webMonitorTimeout,
 				futureExecutor,
-				AkkaUtils.getAkkaURL(actorSystem, jobManager),
 				LOG);
 
-			String protocol = "http://";
-			if (config.getBoolean(WebOptions.SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
-				protocol = "https://";
-			}
-			final String webMonitorURL = webMonitor == null ? null :
-				protocol + appMasterHostname + ":" + webMonitor.getServerPort();
+			// 2: the JobManager
+			LOG.debug("Starting JobManager actor");
+
+			// we start the JobManager with its standard name
+			ActorRef jobManager = JobManager.startJobManagerActors(
+				config,
+				actorSystem,
+				futureExecutor,
+				ioExecutor,
+				highAvailabilityServices,
+				webMonitor == null ? Option.empty() : Option.apply(webMonitor.getRestAddress()),
+				new Some<>(JobMaster.JOB_MANAGER_NAME),
+				Option.<String>empty(),
+				getJobManagerClass(),
+				getArchivistClass())._1();
+
+			final String webMonitorURL = webMonitor == null ? null : webMonitor.getRestAddress();
 
 			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");

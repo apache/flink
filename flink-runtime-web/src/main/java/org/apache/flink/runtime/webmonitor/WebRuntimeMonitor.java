@@ -123,7 +123,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final SSLContext serverSSLContext;
 
-	private final CompletableFuture<String> jobManagerAddressFuture = new CompletableFuture<>();
+	private final CompletableFuture<String> localRestAddress = new CompletableFuture<>();
 
 	private final Time timeout;
 
@@ -273,7 +273,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			new TaskManagerLogHandler(
 				retriever,
 				executor,
-				jobManagerAddressFuture,
+				localRestAddress,
 				timeout,
 				TaskManagerLogHandler.FileMode.LOG,
 				config,
@@ -283,7 +283,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			new TaskManagerLogHandler(
 				retriever,
 				executor,
-				jobManagerAddressFuture,
+				localRestAddress,
 				timeout,
 				TaskManagerLogHandler.FileMode.STDOUT,
 				config,
@@ -296,13 +296,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
 				new StaticFileServerHandler<>(
 					retriever,
-					jobManagerAddressFuture,
+					localRestAddress,
 					timeout,
 					logFiles.logFile,
 					enableSSL))
 
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
-				new StaticFileServerHandler<>(retriever, jobManagerAddressFuture, timeout, logFiles.stdOutFile,
+				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile,
 					enableSSL));
 
 		get(router, new JobManagerMetricsHandler(executor, metricFetcher));
@@ -355,7 +355,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// this handler serves all the static contents
 		router.GET("/:*", new StaticFileServerHandler<>(
 			retriever,
-			jobManagerAddressFuture,
+			localRestAddress,
 			timeout,
 			webRootDir,
 			enableSSL));
@@ -377,6 +377,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 
 		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
+
+		localRestAddress.complete(netty.getRestAddress());
 	}
 
 	/**
@@ -420,11 +422,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 	}
 
 	@Override
-	public void start(String jobManagerAkkaUrl) throws Exception {
-		LOG.info("Starting with JobManager {} on port {}", jobManagerAkkaUrl, getServerPort());
-
+	public void start() throws Exception {
 		synchronized (startupShutdownLock) {
-			jobManagerAddressFuture.complete(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
 
 			long delay = backPressureStatsTracker.getCleanUpInterval();
@@ -464,6 +463,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 	@Override
 	public int getServerPort() {
 		return netty.getServerPort();
+	}
+
+	@Override
+	public String getRestAddress() {
+		return netty.getRestAddress();
 	}
 
 	private void cleanup() {
@@ -526,7 +530,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
-		return new RuntimeMonitorHandler(cfg, handler, retriever, jobManagerAddressFuture, timeout,
+		return new RuntimeMonitorHandler(cfg, handler, retriever, localRestAddress, timeout,
 			serverSSLContext !=  null);
 	}
 

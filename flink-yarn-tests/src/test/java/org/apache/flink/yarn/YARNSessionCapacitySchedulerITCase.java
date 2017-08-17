@@ -135,7 +135,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * Test TaskManager failure and also if the vcores are set correctly (see issue FLINK-2213).
 	 */
 	@Test(timeout = 100000) // timeout after 100 seconds
-	public void testTaskManagerFailure() {
+	public void testTaskManagerFailure() throws Exception {
 		LOG.info("Starting testTaskManagerFailure()");
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
@@ -153,68 +153,62 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		// ------------------------ Test if JobManager web interface is accessible -------
 
-		YarnClient yc = null;
-		try {
-			yc = YarnClient.createYarnClient();
-			yc.init(YARN_CONFIGURATION);
-			yc.start();
+		final YarnClient yc = YarnClient.createYarnClient();
+		yc.init(YARN_CONFIGURATION);
+		yc.start();
 
-			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-			Assert.assertEquals(1, apps.size()); // Only one running
-			ApplicationReport app = apps.get(0);
-			Assert.assertEquals("customName", app.getName());
-			String url = app.getTrackingUrl();
-			if (!url.endsWith("/")) {
-				url += "/";
-			}
-			if (!url.startsWith("http://")) {
-				url = "http://" + url;
-			}
-			LOG.info("Got application URL from YARN {}", url);
-
-			String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-
-			JsonNode parsedTMs = new ObjectMapper().readTree(response);
-			ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
-			Assert.assertNotNull(taskManagers);
-			Assert.assertEquals(1, taskManagers.size());
-			Assert.assertEquals(3, taskManagers.get(0).get("slotsNumber").asInt());
-
-			// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
-			String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
-			Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
-
-			Assert.assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
-			Assert.assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
-			Assert.assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
-
-			// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
-			// first, get the hostname/port
-			String oC = outContent.toString();
-			Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
-			Matcher matches = p.matcher(oC);
-			String hostname = null;
-			String port = null;
-			while (matches.find()) {
-				hostname = matches.group(1).toLowerCase();
-				port = matches.group(2);
-			}
-			LOG.info("Extracted hostname:port: {} {}", hostname, port);
-
-			Assert.assertEquals("unable to find hostname in " + jsonConfig, hostname,
-				parsedConfig.get(JobManagerOptions.ADDRESS.key()));
-			Assert.assertEquals("unable to find port in " + jsonConfig, port,
-				parsedConfig.get(JobManagerOptions.PORT.key()));
-
-			// test logfile access
-			String logs = TestBaseUtils.getFromHTTP(url + "jobmanager/log");
-			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster"));
-			Assert.assertTrue(logs.contains("Starting JobManager"));
-			Assert.assertTrue(logs.contains("Starting JobManager Web Frontend"));
-		} catch (Throwable e) {
-			LOG.warn("Error while running test", e);
-			Assert.fail(e.getMessage());
+		List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+		Assert.assertEquals(1, apps.size()); // Only one running
+		ApplicationReport app = apps.get(0);
+		Assert.assertEquals("customName", app.getName());
+		String url = app.getTrackingUrl();
+		if (!url.endsWith("/")) {
+			url += "/";
 		}
+		if (!url.startsWith("http://")) {
+			url = "http://" + url;
+		}
+		LOG.info("Got application URL from YARN {}", url);
+
+		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
+
+		JsonNode parsedTMs = new ObjectMapper().readTree(response);
+		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
+		Assert.assertNotNull(taskManagers);
+		Assert.assertEquals(1, taskManagers.size());
+		Assert.assertEquals(3, taskManagers.get(0).get("slotsNumber").asInt());
+
+		// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
+		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
+		Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
+
+		Assert.assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
+		Assert.assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
+		Assert.assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
+
+		// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
+		// first, get the hostname/port
+		String oC = outContent.toString();
+		Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
+		Matcher matches = p.matcher(oC);
+		String hostname = null;
+		String port = null;
+		while (matches.find()) {
+			hostname = matches.group(1).toLowerCase();
+			port = matches.group(2);
+		}
+		LOG.info("Extracted hostname:port: {} {}", hostname, port);
+
+		Assert.assertEquals("unable to find hostname in " + jsonConfig, hostname,
+			parsedConfig.get(JobManagerOptions.ADDRESS.key()));
+		Assert.assertEquals("unable to find port in " + jsonConfig, port,
+			parsedConfig.get(JobManagerOptions.PORT.key()));
+
+		// test logfile access
+		String logs = TestBaseUtils.getFromHTTP(url + "jobmanager/log");
+		Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster"));
+		Assert.assertTrue(logs.contains("Starting JobManager"));
+		Assert.assertTrue(logs.contains("Starting JobManager Web Frontend"));
 
 		// ------------------------ Kill container with TaskManager and check if vcores are set correctly -------
 
@@ -290,7 +284,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		// ----------- Send output to logger
 		System.setOut(ORIGINAL_STDOUT);
 		System.setErr(ORIGINAL_STDERR);
-		String oC = outContent.toString();
+		oC = outContent.toString();
 		String eC = errContent.toString();
 		LOG.info("Sending stdout content through logger: \n\n{}\n\n", oC);
 		LOG.info("Sending stderr content through logger: \n\n{}\n\n", eC);

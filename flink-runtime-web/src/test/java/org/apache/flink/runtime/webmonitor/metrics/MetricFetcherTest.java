@@ -95,7 +95,6 @@ public class MetricFetcherTest extends TestLogger {
 		when(jobManagerGateway.requestTaskManagerInstances(any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(Collections.singleton(taskManager)));
 		when(jobManagerGateway.getAddress()).thenReturn("/jm/address");
-		when(jobManagerGateway.requestWebPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(0));
 
 		GatewayRetriever<JobManagerGateway> retriever = mock(AkkaJobManagerRetriever.class);
 		when(retriever.getNow())

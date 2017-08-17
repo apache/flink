@@ -55,13 +55,6 @@ public interface JobManagerGateway extends RestfulGateway {
 	CompletableFuture<Integer> requestBlobServerPort(Time timeout);
 
 	/**
-	 * Returns the port of the web runtime monitor serving requests for the JobManager endpoint.
-	 *
-	 * @return Port of the WebRuntimeMonitor responsible for the JobManager endpoint
-	 */
-	CompletableFuture<Integer> requestWebPort(Time timeout);
-
-	/**
 	 * Submits a job to the JobManager.
 	 *
 	 * @param jobGraph to submit
