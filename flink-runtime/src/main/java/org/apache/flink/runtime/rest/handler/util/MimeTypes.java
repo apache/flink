@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.files;
+package org.apache.flink.runtime.rest.handler.util;
 
 import java.util.HashMap;
 

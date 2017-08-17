@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.rest.handler.util;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;

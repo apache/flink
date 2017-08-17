@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.files;
 
+import org.apache.flink.runtime.rest.handler.util.MimeTypes;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertNotNull;
