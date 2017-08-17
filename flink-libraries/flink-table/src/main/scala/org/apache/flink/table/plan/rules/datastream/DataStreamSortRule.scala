@@ -73,10 +73,13 @@ class DataStreamSortRule
     val sortCollation = sort.collation
     // get type of first sort field
     val firstSortType = SortUtil.getFirstSortField(sortCollation, sort.getRowType).getType
-    // get direction of first sort field
+
     val firstSortDirection = SortUtil.getFirstSortDirection(sortCollation)
 
-    FlinkTypeFactory.isTimeIndicatorType(firstSortType) && firstSortDirection == Direction.ASCENDING
+    //we support ascending time sort of descending time sort with offset and/or fetch
+    FlinkTypeFactory.isTimeIndicatorType(firstSortType) && 
+        (firstSortDirection == Direction.ASCENDING || 
+        firstSortDirection == Direction.DESCENDING && (sort.offset != null || sort.fetch != null))
   }
 }
 

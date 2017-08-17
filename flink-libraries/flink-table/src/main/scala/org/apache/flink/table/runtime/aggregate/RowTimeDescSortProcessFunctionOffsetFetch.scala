@@ -33,40 +33,40 @@ import java.util.Collections
 import java.util.{List => JList, ArrayList => JArrayList}
 
 /**
- * ProcessFunction to sort on event-time and possibly additional secondary sort attributes.
+ * ProcessFunction to sort on event-time and possibly additional secondary sort attributes
+ * with offset (optionally) and fetch
  *
  * @param offset Is used to indicate the number of elements to be skipped in the current context
  * (0 offset allows to execute only fetch)
  * @param fetch Is used to indicate the number of elements to be outputted in the current context
- * (-1 allows to fetch unlimited number of items)
- * @param inputRowType The data type of the input data.
- * @param rowComparator A comparator to sort rows.
+ * @param inputType It is used to mark the type of the incoming data
+ * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
-class RowTimeSortProcessFunction(
-    private val offset: Int,
-    private val fetch: Int,
-    private val inputRowType: CRowTypeInfo,
-    private val rowComparator: Option[CollectionRowComparator])
-  extends ProcessFunction[CRow, CRow] {
+class RowTimeDescSortProcessFunctionOffsetFetch(
+  private val offset: Int,
+  private val fetch: Int,
+  private val inputRowType: CRowTypeInfo,
+  private val rowComparator: Option[CollectionRowComparator])
+    extends ProcessFunction[CRow, CRow] {
 
   Preconditions.checkNotNull(rowComparator)
 
-  // State to collect rows between watermarks.
+   // State to collect rows between watermarks.
   private var dataState: MapState[Long, JList[Row]] = _
-
-  // the state keep the last triggering timestamp. Used to filter late events.
+  
+  // the state which keeps the last triggering timestamp to filter late events
   private var lastTriggeringTsState: ValueState[Long] = _
-  private var counterEvents: ValueState[Long] = _
-  private val adjustedFetchLimit = offset + Math.max(fetch, 0)
-
+  
   private var outputC: CRow = _
+  private var outputR: CRow = _
+  private val adjustedFetchLimit = offset + Math.max(fetch, 0)
   
   override def open(config: Configuration) {
      
     val keyTypeInformation: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    val valueTypeInformation: TypeInformation[JList[Row]] = new ListTypeInfo[Row](
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
 
     val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
       new MapStateDescriptor[Long, JList[Row]](
@@ -79,12 +79,10 @@ class RowTimeSortProcessFunction(
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
     lastTriggeringTsState = getRuntimeContext.getState(lastTriggeringTsDescriptor)
-    
-    val counterEventsDescriptor: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("counterEventsState", classOf[Long])
-    counterEvents = getRuntimeContext.getState(counterEventsDescriptor)
-    
+
+    val arity:Integer = inputRowType.getArity
     outputC = new CRow()
+    outputR = new CRow(Row.of(arity), false)
   }
 
   
@@ -93,27 +91,25 @@ class RowTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
 
-    val input = inputC.row
+     val input = inputC.row
     
     // timestamp of the processed row
-    val rowtime = ctx.timestamp
+    val triggeringTs = ctx.timestamp
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
     // check if the row is late and drop it if it is late
-    if (rowtime > lastTriggeringTs) {
-      // get list for timestamp
-      val rows = dataState.get(rowtime)
+    if (triggeringTs > lastTriggeringTs) {
+      val rows = dataState.get(triggeringTs)
       if (null != rows) {
         rows.add(input)
-        dataState.put(rowtime, rows)
+        dataState.put(triggeringTs, rows)
       } else {
         val rows = new JArrayList[Row]
         rows.add(input)
-        dataState.put(rowtime, rows)
-
+        dataState.put(triggeringTs, rows)
         // register event time timer
-        ctx.timerService.registerEventTimeTimer(rowtime)
+        ctx.timerService.registerEventTimeTimer(triggeringTs)
       }
     }
   }
@@ -123,39 +119,50 @@ class RowTimeSortProcessFunction(
     timestamp: Long,
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
+
+    
+    //retract previous elements that were emitted
+    val lastTriggeringTs = lastTriggeringTsState.value
+    var inputs: JList[Row] = dataState.get(lastTriggeringTs)
+    var i = 0
+    
+    if (null != inputs) {
+      while (i < inputs.size) {
+        if (i >= offset && i < adjustedFetchLimit) {
+          outputR.row = inputs.get(i)   
+          out.collect(outputR)
+        }
+        i += 1
+      }
+    }
     
     // gets all rows for the triggering timestamps
-    val inputs: JList[Row] = dataState.get(timestamp)
+    inputs = dataState.get(timestamp)
 
     if (null != inputs) {
-      
-      var countOF = counterEvents.value();
-      if (countOF == null) {
-        countOF = 0L
-      }
 
       // sort rows on secondary fields if necessary
       if (rowComparator.isDefined) {
         Collections.sort(inputs, rowComparator.get)
       }
-
+    
       //we need to build the output and emit the events in order
-      var i = 0
+      i = 0
       while (i < inputs.size) {
-        if (countOF >= offset && (fetch == -1 || countOF < adjustedFetchLimit)) {
+        if (i >= offset && (fetch == -1 || i < adjustedFetchLimit)) {
           outputC.row = inputs.get(i)  
           out.collect(outputC)
         }
         i += 1
-        //to prevent the counter to overflow
-        countOF = Math.min(countOF + 1, adjustedFetchLimit) 
       }
-      
-      // remove emitted rows from state
-      dataState.remove(timestamp)
-      lastTriggeringTsState.update(timestamp)
-      counterEvents.update(countOF)
+    
+      //we need to  clear the events processed and keep the sort list for order-retract next time
+      dataState.put(timestamp, inputs)
     }
+    
+    // remove emitted rows from state
+    dataState.remove(lastTriggeringTs)
+    lastTriggeringTsState.update(timestamp)
   }
   
 }

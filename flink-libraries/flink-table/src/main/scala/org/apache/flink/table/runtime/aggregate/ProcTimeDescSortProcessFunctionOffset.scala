@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state._
+import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
@@ -29,42 +29,39 @@ import java.util.Collections
 
 
 /**
- * ProcessFunction to sort on processing time and additional attributes.
+ * ProcessFunction to sort on processing time and additional attributes with offset
  *
  * @param offset Is used to indicate the number of elements to be skipped in the current context
- * (0 offset allows to execute only fetch)
- * @param fetch Is used to indicate the number of elements to be outputted in the current context
- * (-1 fetch allows to emit unlimited number of elements)
- * @param inputRowType The data type of the input data.
- * @param rowComparator A comparator to sort rows.
+ * @param inputType It is used to mark the type of the incoming data
+ * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
-class ProcTimeSortProcessFunction(
-    private val offset: Int,
-    private val fetch: Int,
-    private val inputRowType: CRowTypeInfo,
-    private val rowComparator: CollectionRowComparator)
-  extends ProcessFunction[CRow, CRow] {
+class ProcTimeDescSortProcessFunctionOffset(
+  private val offset: Int,
+  private val inputRowType: CRowTypeInfo,
+  private val rowComparator: CollectionRowComparator)
+    extends ProcessFunction[CRow, CRow] {
 
   Preconditions.checkNotNull(rowComparator)
 
   private var bufferedEvents: ListState[Row] = _
-  private var counterEvents: ValueState[Long] = _
+  private var bufferedEventsRetract: ListState[Row] = _
   private val sortBuffer: ArrayList[Row] = new ArrayList[Row]
-  private val adjustedFetchLimit: Long = offset + Math.max(fetch, 0)
   
   private var outputC: CRow = _
+  private var outputR: CRow = _
   
   override def open(config: Configuration) {
-    val sortDescriptor = new ListStateDescriptor[Row](
-      "sortState",
-      inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    val sortDescriptor = new ListStateDescriptor[Row]("sortState",
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
     bufferedEvents = getRuntimeContext.getListState(sortDescriptor)
+    val sortDescriptorRetract = new ListStateDescriptor[Row]("sortStateRetract",
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    bufferedEventsRetract = getRuntimeContext.getListState(sortDescriptorRetract)
 
-    val counterEventsDescriptor: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("counterEventsState", classOf[Long])
-    counterEvents = getRuntimeContext.getState(counterEventsDescriptor)
-    
+    val arity:Integer = inputRowType.getArity
     outputC = new CRow()
+    outputR = new CRow(Row.of(arity), false)
+    
   }
 
   override def processElement(
@@ -73,13 +70,13 @@ class ProcTimeSortProcessFunction(
     out: Collector[CRow]): Unit = {
 
     val input = inputC.row
+    
     val currentTime = ctx.timerService.currentProcessingTime
-
-    // buffer the event incoming event
+    //buffer the event incoming event
     bufferedEvents.add(input)
-
+    
     // register a timer for the next millisecond to sort and emit buffered data
-    ctx.timerService.registerProcessingTimeTimer(currentTime + 1)
+    ctx.timerService.registerProcessingTimeTimer(currentTime + 1)  
     
   }
   
@@ -88,37 +85,37 @@ class ProcTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     
-    var countOF = counterEvents.value();
-    if (countOF == null) {
-      countOF = 0L
-    }
+    var iter =  bufferedEvents.get.iterator()
     
-    val iter =  bufferedEvents.get.iterator()
-
-    // insert all rows into the sort buffer
     sortBuffer.clear()
-    while (iter.hasNext) {
+    while(iter.hasNext()) {
       sortBuffer.add(iter.next())
     }
-    // sort the rows
-    Collections.sort(sortBuffer, rowComparator)
     
-    // Emit the rows in order
+    Collections.sort(sortBuffer, rowComparator)
+            
+    //retract previous emitted results
+    var element: Row = null
+    iter = bufferedEventsRetract.get.iterator()
+    while (iter.hasNext) {
+      outputR.row = iter.next()   
+      out.collect(outputR)
+    }
+    bufferedEventsRetract.clear()
+    
+    //we need to build the output and emit the events in order
     var i = 0
     while (i < sortBuffer.size) {
       // display only elements beyond the offset limit
-      if (countOF >= offset && (fetch == -1 || countOF < adjustedFetchLimit)) {
+      if (i >= offset ) {
         outputC.row = sortBuffer.get(i)   
         out.collect(outputC)
+        bufferedEventsRetract.add(sortBuffer.get(i))
       }
       i += 1
-      //to prevent the counter to overflow
-      countOF = Math.min(countOF + 1, adjustedFetchLimit)
     }
-    
-    // remove all buffered rows
     bufferedEvents.clear()
-    counterEvents.update(countOF)
+    
   }
   
 }

@@ -95,40 +95,63 @@ class DataStreamSort(
     
     // need to identify time between others order fields. Time needs to be first sort element
     val timeType = SortUtil.getFirstSortField(sortCollation, schema.logicalType).getType
-    
-    // time ordering needs to be ascending
-    if (SortUtil.getFirstSortDirection(sortCollation) != Direction.ASCENDING) {
-      throw new TableException("Primary sort order of a streaming table must be ascending on time.")
-    }
-    
     val execCfg = tableEnv.execEnv.getConfig
-      
-    // enable to extend for other types of aggregates that will not be implemented in a window
-    timeType match {
-        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType)  =>
-            (sortOffset, sortFetch) match {
-              case (_: RexNode, _: RexNode)  => // offset and fetch needs retraction
-                createSortProcTimeOffsetFetch(inputDS, execCfg)
-              case (_, _: RexNode) => // fetch needs retraction
-                createSortProcTimeOffsetFetch(inputDS, execCfg) // offset is null
-              case (_: RexNode, _) =>  // offset needs retraction
-                createSortProcTimeOffset(inputDS, execCfg)
-              case _ => createSortProcTime(inputDS, execCfg)  //sort can be done without retraction
-            }
+    
+    //we check if time ordering is descending to enable offset and fetch applied at each time shot
+    if (SortUtil.getFirstSortDirection(sortCollation) != Direction.ASCENDING) {
+      //this scenario requires retraction for the elements
+      timeType match {
+        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
+          (sortOffset, sortFetch) match {
+            case (_: RexNode, _: RexNode) => // offset and fetch needs retraction
+              createDescSortProcTimeOffsetFetch(inputDS, execCfg)
+            case (_, _: RexNode) => // fetch needs retraction
+              createDescSortProcTimeOffsetFetch(inputDS, execCfg) // offset is null
+            case (_: RexNode, _) => // offset needs retraction
+              createDescSortProcTimeOffset(inputDS, execCfg)
+            case _ => throw new TableException(
+                "Single time sort order of a streaming table must be ascending on time.")
+          }
         case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
-            (sortOffset, sortFetch) match {
-              case (_: RexNode, _: RexNode)  => // offset and fetch needs retraction
-                createSortRowTimeOffsetFetch(inputDS, execCfg)
-              case (_, _: RexNode) => // fetch needs retraction
-                createSortRowTimeOffsetFetch(inputDS, execCfg)
-              case (_: RexNode, _) =>  // offset needs retraction
-                 createSortRowTimeOffset(inputDS, execCfg)
-              case _ => createSortRowTime(inputDS, execCfg)  //sort can be done without retraction
-            }
+          (sortOffset, sortFetch) match {
+            case (_: RexNode, _: RexNode) => // offset and fetch needs retraction
+              createDescSortRowTimeOffsetFetch(inputDS, execCfg)
+            case (_, _: RexNode) => // fetch needs retraction
+              createDescSortRowTimeOffsetFetch(inputDS, execCfg)
+            case (_: RexNode, _) => // offset needs retraction
+              createDescSortRowTimeOffset(inputDS, execCfg)
+            case _ => throw new TableException(
+                "Single time sort order of a streaming table must be ascending on time.")
+          }
+      }
+    } else {
+
+      // enable to extend for other types of aggregates that will not be implemented in a window
+      timeType match {
+        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
+          (sortOffset, sortFetch) match {
+            case (_: RexNode, _: RexNode) => // offset and fetch needs retraction
+              createSortProcTimeOffsetFetch(inputDS, execCfg)
+            case (_, _: RexNode) => // fetch needs retraction
+              createSortProcTimeOffsetFetch(inputDS, execCfg) // offset is null
+            case (_: RexNode, _) => // offset needs retraction
+              createSortProcTimeOffset(inputDS, execCfg)
+            case _ => createSortProcTime(inputDS, execCfg) //sort can be done without retraction
+          }
+        case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
+          (sortOffset, sortFetch) match {
+            case (_: RexNode, _: RexNode) => // offset and fetch needs retraction
+              createSortRowTimeOffsetFetch(inputDS, execCfg)
+            case (_, _: RexNode) => // fetch needs retraction
+              createSortRowTimeOffsetFetch(inputDS, execCfg)
+            case (_: RexNode, _) => // offset needs retraction
+              createSortRowTimeOffset(inputDS, execCfg)
+            case _ => createSortRowTime(inputDS, execCfg) //sort can be done without retraction
+          }
         case _ =>
           throw new TableException("SQL/Table needs to have sort on time as first sort element")
+      }
     }
-    
   }
 
   /**
@@ -142,13 +165,19 @@ class DataStreamSort(
     
     // if the order has secondary sorting fields in addition to the proctime
     if (sortCollation.getFieldCollations.size() > 1) {
-    
-      val processFunction = SortUtil.createProcTimeSortFunction(
+
+      val collectionRowComparator = SortUtil.createCollectionRowComparator(
         sortCollation,
-        inputSchema.logicalType, 
-        inputSchema.physicalTypeInfo, 
+        inputSchema.logicalType,
         execCfg)
-      
+      val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+
+      val processFunction = new ProcTimeSortProcessFunction(
+        0, //no offset
+        -1, //full fetch
+        inputCRowType,
+        collectionRowComparator)
+
       inputDS.keyBy(new NullByteKeySelector[CRow])
         .process(processFunction).setParallelism(1).setMaxParallelism(1)
         .returns(returnTypeInfo)
@@ -171,17 +200,23 @@ class DataStreamSort(
     execCfg: ExecutionConfig): DataStream[CRow] = {
 
    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+   val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+   val offsetInt = SortUtil.getNormalizedOffset(sortOffset)
     
     //if the order has secondary sorting fields in addition to the proctime
     //if( SortUtil.getSortFieldIndexList(sortCollation).size > 1) {
     if (sortCollation.getFieldCollations.size() > 1) {
-    
-      val processFunction = SortUtil.createProcTimeSortFunctionOffset(
+      
+      val collectionRowComparator = SortUtil.createCollectionRowComparator(
         sortCollation,
-        sortOffset, 
-        inputSchema.logicalType, 
-        inputSchema.physicalTypeInfo, 
+        inputSchema.logicalType,
         execCfg)
+    
+      val processFunction =   new ProcTimeSortProcessFunction(
+        offsetInt,
+        -1,  //unlimited fetch
+        inputCRowType,
+        collectionRowComparator)
       
       inputDS.keyBy(new NullByteKeySelector[CRow])
         .process(processFunction).setParallelism(1).setMaxParallelism(1)
@@ -189,9 +224,10 @@ class DataStreamSort(
         .asInstanceOf[DataStream[CRow]]
     } else {
       //sorting is done only on the time order of the events and nothing else
-      val processFunction =  SortUtil.createIdentifyProcTimeSortFunctionOffset(
-        sortOffset,
-        inputSchema.physicalTypeInfo)
+      val processFunction =  new ProcTimeIdentitySortProcessFunctionOffsetFetch(
+        offsetInt,
+        -1, //unlimited fetch
+        inputCRowType)
          
       inputDS.keyBy(new NullByteKeySelector[CRow])
         .process(processFunction).setParallelism(1).setMaxParallelism(1)
@@ -203,18 +239,92 @@ class DataStreamSort(
   /**
    * Create Sort logic based on processing time with retraction and offset
    */
+  def createDescSortProcTimeOffset(
+    inputDS: DataStream[CRow],
+    execCfg: ExecutionConfig): DataStream[CRow] = {
+
+   val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+   val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+   val offsetInt = SortUtil.getNormalizedOffset(sortOffset)
+    
+    //if the order has secondary sorting fields in addition to the proctime
+    //if( SortUtil.getSortFieldIndexList(sortCollation).size > 1) {
+    if (sortCollation.getFieldCollations.size() > 1) {
+      
+      val collectionRowComparator = SortUtil.createCollectionRowComparator(
+        sortCollation,
+        inputSchema.logicalType,
+        execCfg)
+    
+      val processFunction =  new ProcTimeDescSortProcessFunctionOffset(
+        offsetInt,
+        inputCRowType,
+        collectionRowComparator) 
+        
+      inputDS.keyBy(new NullByteKeySelector[CRow])
+        .process(processFunction).setParallelism(1).setMaxParallelism(1)
+        .returns(returnTypeInfo)
+        .asInstanceOf[DataStream[CRow]]
+    } else {
+      //sorting is done only on the time order of the events and nothing else
+      val processFunction =  new ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
+        offsetInt,
+        -1, //unlimited fetch
+        inputCRowType)
+         
+      inputDS.keyBy(new NullByteKeySelector[CRow])
+        .process(processFunction).setParallelism(1).setMaxParallelism(1)
+        .returns(returnTypeInfo)
+        .asInstanceOf[DataStream[CRow]]
+    }   
+  }
+  
+   /**
+   * Create Sort logic based on descending rowtime with retraction and offset
+   */
+  def createDescSortRowTimeOffset(
+    inputDS: DataStream[CRow],
+    execCfg: ExecutionConfig): DataStream[CRow] = {
+   
+    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+    val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+    val collectionRowComparator = SortUtil.createWrappedRowComparator(
+      sortCollation,
+      inputSchema.logicalType, 
+      execCfg)
+    val offsetInt = SortUtil.getNormalizedOffset(sortOffset)
+    
+    val processFunction = new RowTimeDescSortProcessFunctionOffset(
+      offsetInt,
+      inputCRowType,
+      collectionRowComparator)
+
+    inputDS.keyBy(new NullByteKeySelector[CRow])
+      .process(processFunction).setParallelism(1).setMaxParallelism(1)
+      .returns(returnTypeInfo)
+      .asInstanceOf[DataStream[CRow]]
+  }
+  
+  /**
+   * Create Sort logic based on processing time with retraction and offset
+   */
   def createSortRowTimeOffset(
     inputDS: DataStream[CRow],
     execCfg: ExecutionConfig): DataStream[CRow] = {
    
     val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
-       
-    val processFunction = SortUtil.createRowTimeSortFunctionOffset(
+    val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+    val collectionRowComparator = SortUtil.createWrappedRowComparator(
       sortCollation,
-      sortOffset, 
       inputSchema.logicalType, 
-      inputSchema.physicalTypeInfo, 
       execCfg)
+    val offsetInt = SortUtil.getNormalizedOffset(sortOffset)
+    
+    val processFunction =  new RowTimeSortProcessFunction(
+      offsetInt,
+      -1,
+      inputCRowType,
+      collectionRowComparator) 
       
     inputDS.keyBy(new NullByteKeySelector[CRow])
       .process(processFunction).setParallelism(1).setMaxParallelism(1)
@@ -223,21 +333,54 @@ class DataStreamSort(
   }
   
   /**
-   * Create Sort logic based on processing time with retraction and (offset and) fetch
+   * Create Sort logic based on rowtime time with retraction and (offset and) fetch
    */
   def createSortRowTimeOffsetFetch(
     inputDS: DataStream[CRow],
     execCfg: ExecutionConfig): DataStream[CRow] = {
    
     val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
-       
-    val processFunction = SortUtil.createRowTimeSortFunctionOffsetFetch(
+    val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+    val offsetInt = SortUtil.getNormalizedOffset(sortOffset) 
+    val fetchInt = SortUtil.getNormalizedFetch(sortFetch)
+    val collectionRowComparator =  SortUtil.createWrappedRowComparator(
       sortCollation,
-      sortOffset,
-      sortFetch,
       inputSchema.logicalType, 
-      inputSchema.physicalTypeInfo, 
       execCfg)
+       
+    val processFunction = new RowTimeSortProcessFunction(
+      offsetInt,
+      fetchInt,
+      inputCRowType,
+      collectionRowComparator) 
+      
+    inputDS.keyBy(new NullByteKeySelector[CRow])
+      .process(processFunction).setParallelism(1).setMaxParallelism(1)
+      .returns(returnTypeInfo)
+      .asInstanceOf[DataStream[CRow]]
+  }
+  
+    /**
+   * Create Sort logic based on descending rowtime time with retraction and (offset and) fetch
+   */
+  def createDescSortRowTimeOffsetFetch(
+    inputDS: DataStream[CRow],
+    execCfg: ExecutionConfig): DataStream[CRow] = {
+   
+    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+    val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+    val offsetInt = SortUtil.getNormalizedOffset(sortOffset) 
+    val fetchInt = SortUtil.getNormalizedFetch(sortFetch)
+    val collectionRowComparator =  SortUtil.createWrappedRowComparator(
+      sortCollation,
+      inputSchema.logicalType, 
+      execCfg)
+       
+    val processFunction = new RowTimeDescSortProcessFunctionOffsetFetch(
+      offsetInt,
+      fetchInt,
+      inputCRowType,
+      collectionRowComparator)
       
     inputDS.keyBy(new NullByteKeySelector[CRow])
       .process(processFunction).setParallelism(1).setMaxParallelism(1)
@@ -253,30 +396,82 @@ class DataStreamSort(
     execCfg: ExecutionConfig): DataStream[CRow] = {
 
    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
-    
+   val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+   val offsetInt = SortUtil.getNormalizedOffset(sortOffset)
+   val fetchInt = SortUtil.getNormalizedFetch(sortFetch)
+
     //if the order has secondary sorting fields in addition to the proctime
     //if( SortUtil.getSortFieldIndexList(sortCollation).size > 1) {
     if (sortCollation.getFieldCollations.size() > 1) {
-    
-      val processFunction = SortUtil.createProcTimeSortFunctionOffsetFetch(
+
+      val collectionRowComparator = SortUtil.createCollectionRowComparator(
         sortCollation,
-        sortOffset, 
-        sortFetch,
-        inputSchema.logicalType, 
-        inputSchema.physicalTypeInfo, 
+        inputSchema.logicalType,
         execCfg)
-      
+
+      val processFunction = new ProcTimeSortProcessFunction(
+        offsetInt,
+        fetchInt,
+        inputCRowType,
+        collectionRowComparator)
+
       inputDS.keyBy(new NullByteKeySelector[CRow])
         .process(processFunction).setParallelism(1).setMaxParallelism(1)
         .returns(returnTypeInfo)
         .asInstanceOf[DataStream[CRow]]
     } else {
       //sorting is done only on the time order of the events and nothing else
-      val processFunction = SortUtil.createIdentifyProcTimeSortFunctionOffsetFetch(
-        sortOffset,
-        sortFetch,
-        inputSchema.physicalTypeInfo)
+      val processFunction =  new ProcTimeIdentitySortProcessFunctionOffsetFetch(
+        offsetInt,
+        fetchInt,
+        inputCRowType)
          
+      inputDS.keyBy(new NullByteKeySelector[CRow])
+        .process(processFunction).setParallelism(1).setMaxParallelism(1)
+        .returns(returnTypeInfo)
+        .asInstanceOf[DataStream[CRow]]
+    }
+   
+  }
+  
+  /**
+   * Create Sort logic based on descending processing time with retraction and offset
+   */
+  def createDescSortProcTimeOffsetFetch(
+    inputDS: DataStream[CRow],
+    execCfg: ExecutionConfig): DataStream[CRow] = {
+
+   val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+   val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+   val offsetInt = SortUtil.getNormalizedOffset(sortOffset)
+   val fetchInt = SortUtil.getNormalizedFetch(sortFetch)
+
+    //if the order has secondary sorting fields in addition to the proctime
+    //if( SortUtil.getSortFieldIndexList(sortCollation).size > 1) {
+    if (sortCollation.getFieldCollations.size() > 1) {
+
+      val collectionRowComparator = SortUtil.createCollectionRowComparator(
+        sortCollation,
+        inputSchema.logicalType,
+        execCfg)
+
+      val processFunction = new ProcTimeDescSortProcessFunctionOffsetFetch(
+      offsetInt,
+      fetchInt,
+      inputCRowType,
+      collectionRowComparator)
+
+      inputDS.keyBy(new NullByteKeySelector[CRow])
+        .process(processFunction).setParallelism(1).setMaxParallelism(1)
+        .returns(returnTypeInfo)
+        .asInstanceOf[DataStream[CRow]]
+    } else {
+      //sorting is done only on the time order of the events and nothing else
+      val processFunction = new ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
+        offsetInt,
+        fetchInt,
+        inputCRowType)
+        
       inputDS.keyBy(new NullByteKeySelector[CRow])
         .process(processFunction).setParallelism(1).setMaxParallelism(1)
         .returns(returnTypeInfo)
@@ -293,12 +488,17 @@ class DataStreamSort(
     execCfg: ExecutionConfig): DataStream[CRow] = {
 
     val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
-       
-    val processFunction = SortUtil.createRowTimeSortFunction(
+    val collectionRowComparator = SortUtil.createWrappedRowComparator(
       sortCollation,
       inputSchema.logicalType, 
-      inputSchema.physicalTypeInfo, 
       execCfg)
+    val inputCRowType = CRowTypeInfo(inputSchema.physicalTypeInfo)
+    
+    val processFunction = new RowTimeSortProcessFunction(
+      0,
+      -1,
+      inputCRowType,
+      collectionRowComparator)
       
     inputDS.keyBy(new NullByteKeySelector[CRow])
       .process(processFunction).setParallelism(1).setMaxParallelism(1)

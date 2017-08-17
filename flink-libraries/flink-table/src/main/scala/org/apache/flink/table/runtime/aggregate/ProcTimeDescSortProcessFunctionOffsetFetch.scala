@@ -15,63 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ 
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state._
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.{ FunctionInitializationContext, FunctionSnapshotContext }
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
-import org.apache.flink.util.{ Collector, Preconditions }
-import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import scala.util.control.Breaks._
-import org.apache.flink.api.java.tuple.{ Tuple2 => JTuple2 }
-import org.apache.flink.api.common.state.MapState
-import org.apache.flink.api.common.state.MapStateDescriptor
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.ListTypeInfo
-import java.util.Comparator
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.util.{Collector, Preconditions}
+
 import java.util.ArrayList
 import java.util.Collections
-import org.apache.flink.api.common.typeutils.TypeComparator
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+
 
 /**
- * Process Function used for the sort based solely on proctime with offset/fetch
- * [[org.apache.flink.streaming.api.datastream.DataStream]]
+ * ProcessFunction to sort on processing time and additional attributes with offset/fetch
  *
  * @param offset Is used to indicate the number of elements to be skipped in the current context
  * (0 offset allows to execute only fetch)
  * @param fetch Is used to indicate the number of elements to be outputted in the current context
  * @param inputType It is used to mark the type of the incoming data
+ * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
-class ProcTimeIdentitySortProcessFunctionOffsetFetch(
+class ProcTimeDescSortProcessFunctionOffsetFetch(
   private val offset: Int,
   private val fetch: Int,
-  private val inputRowType: CRowTypeInfo)
+  private val inputRowType: CRowTypeInfo,
+  private val rowComparator: CollectionRowComparator)
     extends ProcessFunction[CRow, CRow] {
 
-  private var stateEventsBuffer: ListState[Row] = _
-  private var counterEvents: ValueState[Long] = _
+  Preconditions.checkNotNull(rowComparator)
+
+  private var bufferedEvents: ListState[Row] = _
+  private var bufferedEventsRetract: ListState[Row] = _
+  private val sortBuffer: ArrayList[Row] = new ArrayList[Row]
   
   private var outputC: CRow = _
-  private val adjustedFetchLimit: Long = offset + Math.max(fetch, 0)
+  private var outputR: CRow = _
+  private val adjustedFetchLimit = offset + Math.max(fetch, 0)
   
   override def open(config: Configuration) {
     val sortDescriptor = new ListStateDescriptor[Row]("sortState",
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
-    stateEventsBuffer = getRuntimeContext.getListState(sortDescriptor)
-    
-    val counterEventsDescriptor: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("counterEventsState", classOf[Long])
-    counterEvents = getRuntimeContext.getState(counterEventsDescriptor)
+    bufferedEvents = getRuntimeContext.getListState(sortDescriptor)
+    val sortDescriptorRetract = new ListStateDescriptor[Row]("sortStateRetract",
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    bufferedEventsRetract = getRuntimeContext.getListState(sortDescriptorRetract)
 
     val arity:Integer = inputRowType.getArity
-    if (outputC == null) {
-      outputC = new CRow(Row.of(arity), true)
-    }
+    outputC = new CRow()
+    outputR = new CRow(Row.of(arity), false)
     
   }
 
@@ -84,9 +78,11 @@ class ProcTimeIdentitySortProcessFunctionOffsetFetch(
     
     val currentTime = ctx.timerService.currentProcessingTime
     //buffer the event incoming event
-    stateEventsBuffer.add(input)
+  
+    //we accumulate the events as they arrive within the given proctime
+    bufferedEvents.add(input)
     
-    //deduplication of multiple registered timers is done automatically
+    // register a timer for the next millisecond to sort and emit buffered data
     ctx.timerService.registerProcessingTimeTimer(currentTime + 1)  
     
   }
@@ -96,27 +92,38 @@ class ProcTimeIdentitySortProcessFunctionOffsetFetch(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     
-    var countOF = counterEvents.value();
-    if (countOF == null) {
-      countOF = 0L
+    var iter =  bufferedEvents.get.iterator()
+    
+    sortBuffer.clear()
+    while(iter.hasNext()) {
+      sortBuffer.add(iter.next())
     }
     
-    var i = 0
+    Collections.sort(sortBuffer, rowComparator)
+            
+    //retract previous emitted results
+    var element: Row = null
+    iter = bufferedEventsRetract.get.iterator()
+    while (iter.hasNext) {
+      outputR.row = iter.next()   
+      out.collect(outputR)
+    }
+    bufferedEventsRetract.clear()
+    
     //we need to build the output and emit the events in order
-    val iter =  stateEventsBuffer.get.iterator()
-    while (iter.hasNext()) {
+    var i = 0
+    while (i < sortBuffer.size) {
       // display only elements beyond the offset limit
-      outputC.row = iter.next()
-      if (countOF >= offset && (fetch == -1 || countOF < adjustedFetchLimit)) {
+      if (i >= offset && (fetch == -1 || i < adjustedFetchLimit)) {
+        outputC.row = sortBuffer.get(i)   
         out.collect(outputC)
+        bufferedEventsRetract.add(sortBuffer.get(i))
       }
       i += 1
-      //to prevent the counter to overflow
-      countOF = Math.min(countOF + 1, adjustedFetchLimit) 
     }
-    stateEventsBuffer.clear()
-    counterEvents.update(countOF)
+    bufferedEvents.clear()
     
   }
   
 }
+

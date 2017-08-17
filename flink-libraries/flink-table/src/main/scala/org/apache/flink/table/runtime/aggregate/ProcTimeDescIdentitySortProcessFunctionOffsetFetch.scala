@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state._
+import org.apache.flink.api.common.state.{ ListState, ListStateDescriptor }
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{ FunctionInitializationContext, FunctionSnapshotContext }
@@ -47,30 +47,34 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
  * @param fetch Is used to indicate the number of elements to be outputted in the current context
  * @param inputType It is used to mark the type of the incoming data
  */
-class ProcTimeIdentitySortProcessFunctionOffsetFetch(
+class ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
   private val offset: Int,
   private val fetch: Int,
   private val inputRowType: CRowTypeInfo)
     extends ProcessFunction[CRow, CRow] {
 
   private var stateEventsBuffer: ListState[Row] = _
-  private var counterEvents: ValueState[Long] = _
+  private var stateEventsBufferRetract: ListState[Row] = _
   
   private var outputC: CRow = _
-  private val adjustedFetchLimit: Long = offset + Math.max(fetch, 0)
+  private var outputR: CRow = _
+  private val adjustedFetchLimit = offset + Math.max(fetch, 0)
   
   override def open(config: Configuration) {
     val sortDescriptor = new ListStateDescriptor[Row]("sortState",
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
     stateEventsBuffer = getRuntimeContext.getListState(sortDescriptor)
-    
-    val counterEventsDescriptor: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("counterEventsState", classOf[Long])
-    counterEvents = getRuntimeContext.getState(counterEventsDescriptor)
+    val sortDescriptorRetract = new ListStateDescriptor[Row]("sortStateRetract",
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    stateEventsBufferRetract = getRuntimeContext.getListState(sortDescriptorRetract)
 
     val arity:Integer = inputRowType.getArity
     if (outputC == null) {
       outputC = new CRow(Row.of(arity), true)
+    }
+    
+    if (outputR == null) {
+      outputR = new CRow(Row.of(arity), false)
     }
     
   }
@@ -96,26 +100,30 @@ class ProcTimeIdentitySortProcessFunctionOffsetFetch(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     
-    var countOF = counterEvents.value();
-    if (countOF == null) {
-      countOF = 0L
+    //retract previous emitted results
+    var element: Row = null
+    var iElements = 0
+    var iter = stateEventsBufferRetract.get.iterator()
+    while (iter.hasNext()) {
+      outputR.row = iter.next()   
+      out.collect(outputR)
     }
+    stateEventsBufferRetract.clear()
     
-    var i = 0
     //we need to build the output and emit the events in order
-    val iter =  stateEventsBuffer.get.iterator()
+    iter =  stateEventsBuffer.get.iterator()
+    iElements = 0
     while (iter.hasNext()) {
       // display only elements beyond the offset limit
-      outputC.row = iter.next()
-      if (countOF >= offset && (fetch == -1 || countOF < adjustedFetchLimit)) {
+      element = iter.next()
+      if (iElements >= offset && (fetch == -1 || iElements < adjustedFetchLimit)) {
+        outputC.row = element    
         out.collect(outputC)
+        stateEventsBufferRetract.add(element)
       }
-      i += 1
-      //to prevent the counter to overflow
-      countOF = Math.min(countOF + 1, adjustedFetchLimit) 
+      iElements += 1
     }
     stateEventsBuffer.clear()
-    counterEvents.update(countOF)
     
   }
   
