@@ -162,6 +162,11 @@ trait ImplicitExpressionOperations {
   def % (other: Expression) = mod(other)
 
   /**
+    * Returns the first value in an ordered set of values.
+    */
+  def first_value = FirstValue(expr)
+
+  /**
     * Returns the sum of the numeric field across all input values.
     * If all values are null, null is returned.
     */

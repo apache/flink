@@ -1406,6 +1406,61 @@ object AggregateUtil {
               }
             }
           }
+        case sqlFirstLastValueAggFunction: SqlFirstLastValueAggFunction =>
+
+          aggregates(index) = if (sqlFirstLastValueAggFunction.getKind == SqlKind.FIRST_VALUE) {
+            if (needRetraction) {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteFirstValueWithRetractAggFunction
+                case SMALLINT =>
+                  new ShortFirstValueWithRetractAggFunction
+                case INTEGER =>
+                  new IntFirstValueWithRetractAggFunction
+                case BIGINT =>
+                  new LongFirstValueWithRetractAggFunction
+                case FLOAT =>
+                  new FloatFirstValueWithRetractAggFunction
+                case DOUBLE =>
+                  new DoubleFirstValueWithRetractAggFunction
+                case DECIMAL =>
+                  new BooleanFirstValueWithRetractAggFunction
+                case BOOLEAN =>
+                  new DecimalFirstValueWithRetractAggFunction
+                case VARCHAR | CHAR =>
+                  new StringFirstValueWithRetractAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException(
+                    s"FIRST_VALUE aggregate does no support type:'${sqlType}'")
+              }
+            } else {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteFirstValueAggFunction
+                case SMALLINT =>
+                  new ShortFirstValueAggFunction
+                case INTEGER =>
+                  new IntFirstValueAggFunction
+                case BIGINT =>
+                  new LongFirstValueAggFunction
+                case FLOAT =>
+                  new FloatFirstValueAggFunction
+                case DOUBLE =>
+                  new DoubleFirstValueAggFunction
+                case DECIMAL =>
+                  new DecimalFirstValueAggFunction
+                case BOOLEAN =>
+                  new BooleanFirstValueAggFunction
+                case VARCHAR | CHAR =>
+                  new StringFirstValueAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException(
+                    s"FIRST_VALUE aggregate does no support type:'${sqlType}'")
+              }
+            }
+          } else {
+            throw new TableException(s"LAST_VALUE aggregate does no supported yet.")
+          }
 
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggFunction

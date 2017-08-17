@@ -105,6 +105,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
+      " first_value(d) OVER (" +
+      "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW), " +
       "  SUM(c) OVER (" +
       "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
@@ -115,21 +117,21 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,0,0",
-      "2,1,0",
-      "2,3,0",
-      "3,6,0",
-      "3,10,0",
-      "3,15,0",
-      "4,21,0",
-      "4,28,0",
-      "4,36,0",
-      "4,45,0",
-      "5,55,0",
-      "5,66,1",
-      "5,77,2",
-      "5,88,3",
-      "5,99,4")
+      "1,Hallo,0,0",
+      "2,Hallo,1,0",
+      "2,Hallo,3,0",
+      "3,Hallo,6,0",
+      "3,Hallo,10,0",
+      "3,Hallo,15,0",
+      "4,Hallo,21,0",
+      "4,Hallo,28,0",
+      "4,Hallo,36,0",
+      "4,Hallo,45,0",
+      "5,Hallo,55,0",
+      "5,Hallo Welt,66,1",
+      "5,Hallo Welt wie,77,2",
+      "5,Hallo Welt wie gehts?,88,3",
+      "5,ABC,99,4")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -149,6 +151,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT " +
       "c, " +
+      "first_value(b) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding)," +
       "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
       "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
@@ -158,8 +161,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "Hello World,1,7", "Hello World,2,15", "Hello World,3,35",
-      "Hello,1,1", "Hello,2,3", "Hello,3,6", "Hello,4,10", "Hello,5,15", "Hello,6,21")
+      "Hello World,7,1,7", "Hello World,7,2,15", "Hello World,7,3,35",
+      "Hello,1,1,1", "Hello,1,2,3", "Hello,1,3,6", "Hello,1,4,10", "Hello,1,5,15", "Hello,1,6,21")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

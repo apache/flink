@@ -23,7 +23,7 @@ import java.math.BigDecimal
 import java.util.{ArrayList => JArrayList, List => JList}
 
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.aggfunctions.{DecimalAvgAccumulator, DecimalSumWithRetractAccumulator}
+import org.apache.flink.table.functions.aggfunctions.{DecimalAvgAccumulator, DecimalSumWithRetractAccumulator, FirstValueWithRetractAccumulator}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -137,6 +137,8 @@ abstract class AggFunctionTestBase[T, ACC] {
       case (e: BigDecimal, r: BigDecimal) =>
         // BigDecimal.equals() value and scale but we are only interested in value.
         assert(e.compareTo(r) == 0)
+      case (e: FirstValueWithRetractAccumulator[T], r:FirstValueWithRetractAccumulator[T]) =>
+        assert(e.datas.list.size() == 0)
       case _ =>
         assertEquals(expected, result)
     }

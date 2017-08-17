@@ -191,6 +191,7 @@ object FunctionCatalog {
     "stddevSamp" -> classOf[StddevSamp],
     "varPop" -> classOf[VarPop],
     "varSamp" -> classOf[VarSamp],
+    "first_value" -> classOf[FirstValue],
 
     // string functions
     "charLength" -> classOf[CharLength],
@@ -342,6 +343,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.STDDEV_SAMP,
     SqlStdOperatorTable.VAR_POP,
     SqlStdOperatorTable.VAR_SAMP,
+    SqlStdOperatorTable.FIRST_VALUE,
+
     // ARRAY OPERATORS
     SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
     SqlStdOperatorTable.ITEM,

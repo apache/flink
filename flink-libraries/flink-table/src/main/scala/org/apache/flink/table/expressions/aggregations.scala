@@ -18,7 +18,7 @@
 package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
@@ -49,6 +49,24 @@ abstract sealed class Aggregation extends Expression {
     */
   private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder): SqlAggFunction
 
+}
+
+case class FirstValue(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
+  override def toString = s"first_value($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.FIRST_VALUE, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    val returnType = relBuilder
+      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+      .createTypeFromTypeInfo(resultType, isNullable = true)
+    new SqlFirstLastValueAggFunction(SqlKind.FIRST_VALUE)
+  }
 }
 
 case class Sum(child: Expression) extends Aggregation {
