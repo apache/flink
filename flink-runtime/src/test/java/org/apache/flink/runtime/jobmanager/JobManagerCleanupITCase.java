@@ -39,6 +39,8 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -63,7 +65,7 @@ import static org.junit.Assert.fail;
  * Small test to check that the {@link org.apache.flink.runtime.blob.BlobServer} cleanup is executed
  * after job termination.
  */
-public class JobManagerCleanupITCase {
+public class JobManagerCleanupITCase extends TestLogger {
 
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();

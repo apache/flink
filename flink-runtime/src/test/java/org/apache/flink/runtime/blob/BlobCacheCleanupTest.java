@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * A few tests for the deferred ref-counting based cleanup inside the {@link BlobCache}.
  */
-public class BlobCacheCleanupTest {
+public class BlobCacheCleanupTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -66,14 +68,15 @@ public class BlobCacheCleanupTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
+
+			// upload blobs
+			try (BlobClient bc = new BlobClient(serverAddress, config)) {
+				keys.add(bc.put(jobId, buf));
+				buf[0] += 1;
+				keys.add(bc.put(jobId, buf));
+			}
+
 			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
-
-			keys.add(bc.put(jobId, buf));
-			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -163,14 +166,15 @@ public class BlobCacheCleanupTest {
 
 			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			BlobClient bc = new BlobClient(serverAddress, config);
+
+			// upload blobs
+			try (BlobClient bc = new BlobClient(serverAddress, config)) {
+				keys.add(bc.put(jobId, buf));
+				buf[0] += 1;
+				keys.add(bc.put(jobId, buf));
+			}
+
 			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
-
-			keys.add(bc.put(jobId, buf));
-			buf[0] += 1;
-			keys.add(bc.put(jobId, buf));
-
-			bc.close();
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);

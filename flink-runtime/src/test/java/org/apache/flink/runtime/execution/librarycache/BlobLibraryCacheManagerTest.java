@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,7 +55,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Tests for {@link BlobLibraryCacheManager}.
  */
-public class BlobLibraryCacheManagerTest {
+public class BlobLibraryCacheManagerTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();

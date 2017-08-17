@@ -39,6 +39,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.TestLogger;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -46,7 +48,7 @@ import static org.junit.Assert.fail;
 /**
  * This class contains unit tests for the {@link BlobClient}.
  */
-public class BlobClientTest {
+public class BlobClientTest extends TestLogger {
 
 	/** The buffer size used during the tests in bytes. */
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;

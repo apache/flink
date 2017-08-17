@@ -67,15 +67,15 @@ public class JobManagerConnection {
 	private final PartitionProducerStateChecker partitionStateChecker;
 
 	public JobManagerConnection(
-			JobID jobID,
-			ResourceID resourceID,
-			JobMasterGateway jobMasterGateway,
-			UUID leaderId,
-			TaskManagerActions taskManagerActions,
-			CheckpointResponder checkpointResponder,
-			BlobCache blobCache, LibraryCacheManager libraryCacheManager,
-			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
-			PartitionProducerStateChecker partitionStateChecker) {
+				JobID jobID,
+				ResourceID resourceID,
+				JobMasterGateway jobMasterGateway,
+				UUID leaderId,
+				TaskManagerActions taskManagerActions,
+				CheckpointResponder checkpointResponder,
+				BlobCache blobCache, LibraryCacheManager libraryCacheManager,
+				ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+				PartitionProducerStateChecker partitionStateChecker) {
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
 		this.leaderId = Preconditions.checkNotNull(leaderId);

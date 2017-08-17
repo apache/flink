@@ -25,7 +25,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
  * exception.
  */
 public class FailingBlockingInvokable extends AbstractInvokable {
-	private static boolean blocking = true;
+	private static volatile boolean blocking = true;
 	private static final Object lock = new Object();
 
 	@Override

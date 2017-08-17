@@ -431,12 +431,13 @@ public class BlobCache extends TimerTask implements BlobService {
 	public void run() {
 		synchronized (jobRefCounters) {
 			Iterator<Map.Entry<JobID, RefCount>> entryIter = jobRefCounters.entrySet().iterator();
+			final long currentTimeMillis = System.currentTimeMillis();
 
 			while (entryIter.hasNext()) {
 				Map.Entry<JobID, RefCount> entry = entryIter.next();
 				RefCount ref = entry.getValue();
 
-				if (ref.references <= 0 && ref.keepUntil > 0 && System.currentTimeMillis() >= ref.keepUntil) {
+				if (ref.references <= 0 && ref.keepUntil > 0 && currentTimeMillis >= ref.keepUntil) {
 					JobID jobId = entry.getKey();
 
 					final File localFile =
