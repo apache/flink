@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -92,8 +93,8 @@ public class JobMasterTest extends TestLogger {
 
 		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
-		final BlobLibraryCacheManager libraryCacheManager = mock(BlobLibraryCacheManager.class);
-		when(libraryCacheManager.getBlobServerPort()).thenReturn(1337);
+		BlobServer blobServer = mock(BlobServer.class);
+		when(blobServer.getPort()).thenReturn(1337);
 
 		final JobGraph jobGraph = new JobGraph();
 
@@ -106,7 +107,8 @@ public class JobMasterTest extends TestLogger {
 				haServices,
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
-				libraryCacheManager,
+				blobServer,
+				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
 				Time.of(10, TimeUnit.SECONDS),
 				null,
@@ -204,6 +206,7 @@ public class JobMasterTest extends TestLogger {
 				haServices,
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
+				mock(BlobServer.class),
 				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
 				Time.of(10, TimeUnit.SECONDS),

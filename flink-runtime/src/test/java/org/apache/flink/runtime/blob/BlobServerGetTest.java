@@ -49,6 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -122,7 +123,7 @@ public class BlobServerGetTest extends TestLogger {
 			assertNotNull(key);
 			assertEquals(key, key2);
 			// request for jobId2 should succeed
-			getFileHelper(client, jobId2, key);
+			validateGetAndClose(getFileHelper(client, jobId2, key), data);
 			// request for jobId1 should still fail
 			client = verifyDeleted(client, jobId1, key, serverAddress, config);
 
@@ -160,8 +161,7 @@ public class BlobServerGetTest extends TestLogger {
 	private static BlobClient verifyDeleted(
 			BlobClient client, JobID jobId, BlobKey key,
 			InetSocketAddress serverAddress, Configuration config) throws IOException {
-		try {
-			getFileHelper(client, jobId, key);
+		try (InputStream ignored = getFileHelper(client, jobId, key)) {
 			fail("This should not succeed.");
 		} catch (IOException e) {
 			// expected
@@ -227,6 +227,7 @@ public class BlobServerGetTest extends TestLogger {
 			catch (IOException e) {
 				// expected
 			}
+			is.close();
 		} finally {
 			if (client != null) {
 				client.close();

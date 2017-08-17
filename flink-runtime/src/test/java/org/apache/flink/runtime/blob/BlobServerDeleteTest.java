@@ -31,6 +31,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -60,7 +64,7 @@ public class BlobServerDeleteTest extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
-	public void testDeleteSingleByBlobKey() {
+	public void testDeleteSingleByBlobKey() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 		BlobStore blobStore = new VoidBlobStore();
@@ -99,8 +103,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			client.close();
 
 			client = new BlobClient(serverAddress, config);
-			try {
-				client.get(key1);
+			try (InputStream ignored = client.get(key1)) {
 				fail("BLOB should have been deleted");
 			}
 			catch (IOException e) {
@@ -111,12 +114,14 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			client = new BlobClient(serverAddress, config);
 			try {
-				client.get(jobId, key1);
+				// NOTE: the server will stall in its send operation until either the data is fully
+				//       read or the socket is closed, e.g. via a client.close() call
+				validateGetAndClose(client.get(jobId, key1), data);
 			}
 			catch (IOException e) {
-				// expected
 				fail("Deleting a job-unrelated BLOB should not affect a job-related BLOB with the same key");
 			}
+			client.close();
 
 			// delete a file directly on the server
 			server.delete(key2);
@@ -127,10 +132,6 @@ public class BlobServerDeleteTest extends TestLogger {
 			catch (IOException e) {
 				// expected
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			cleanup(server, client);
@@ -150,16 +151,16 @@ public class BlobServerDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteAlreadyDeletedNoJob() {
+	public void testDeleteAlreadyDeletedNoJob() throws IOException {
 		testDeleteAlreadyDeleted(null);
 	}
 
 	@Test
-	public void testDeleteAlreadyDeletedForJob() {
+	public void testDeleteAlreadyDeletedForJob() throws IOException {
 		testDeleteAlreadyDeleted(new JobID());
 	}
 
-	private void testDeleteAlreadyDeleted(final JobID jobId) {
+	private void testDeleteAlreadyDeleted(final JobID jobId) throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 		BlobStore blobStore = new VoidBlobStore();
@@ -198,10 +199,6 @@ public class BlobServerDeleteTest extends TestLogger {
 				server.delete(jobId, key);
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			cleanup(server, client);
 		}
@@ -216,16 +213,16 @@ public class BlobServerDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteFailsNoJob() {
+	public void testDeleteFailsNoJob() throws IOException {
 		testDeleteFails(null);
 	}
 
 	@Test
-	public void testDeleteFailsForJob() {
+	public void testDeleteFailsForJob() throws IOException {
 		testDeleteFails(new JobID());
 	}
 
-	private void testDeleteFails(final JobID jobId) {
+	private void testDeleteFails(final JobID jobId) throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		BlobServer server = null;
@@ -272,9 +269,6 @@ public class BlobServerDeleteTest extends TestLogger {
 			} else {
 				server.getFile(jobId, key);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			if (blobFile != null && directory != null) {
 				//noinspection ResultOfMethodCallIgnored
@@ -283,6 +277,64 @@ public class BlobServerDeleteTest extends TestLogger {
 				directory.setWritable(true, false);
 			}
 			cleanup(server, client);
+		}
+	}
+
+	/**
+	 * Tests that {@link BlobServer} cleans up after calling {@link BlobServer#cleanupJob(JobID)}.
+	 */
+	@Test
+	public void testJobCleanup() throws IOException, InterruptedException {
+
+		JobID jobId1 = new JobID();
+		List<BlobKey> keys1 = new ArrayList<BlobKey>();
+		JobID jobId2 = new JobID();
+		List<BlobKey> keys2 = new ArrayList<BlobKey>();
+		BlobServer server = null;
+
+		final byte[] buf = new byte[128];
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+				temporaryFolder.newFolder().getAbsolutePath());
+
+			server = new BlobServer(config, new VoidBlobStore());
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			BlobClient bc = new BlobClient(serverAddress, config);
+
+			keys1.add(bc.put(jobId1, buf));
+			keys2.add(bc.put(jobId2, buf));
+			assertEquals(keys2.get(0), keys1.get(0));
+
+			buf[0] += 1;
+			keys1.add(bc.put(jobId1, buf));
+
+			bc.close();
+
+			assertEquals(2, checkFilesExist(jobId1, keys1, server, true));
+			checkFileCountForJob(2, jobId1, server);
+			assertEquals(1, checkFilesExist(jobId2, keys2, server, true));
+			checkFileCountForJob(1, jobId2, server);
+
+			server.cleanupJob(jobId1);
+
+			checkFileCountForJob(0, jobId1, server);
+			assertEquals(1, checkFilesExist(jobId2, keys2, server, true));
+			checkFileCountForJob(1, jobId2, server);
+
+			server.cleanupJob(jobId2);
+
+			checkFileCountForJob(0, jobId1, server);
+			checkFileCountForJob(0, jobId2, server);
+
+			// calling a second time should not fail
+			server.cleanupJob(jobId2);
+		}
+		finally {
+			if (server != null) {
+				server.close();
+			}
 		}
 	}
 

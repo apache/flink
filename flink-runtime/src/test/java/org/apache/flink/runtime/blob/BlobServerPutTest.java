@@ -46,8 +46,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.getFileHelper;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -226,9 +226,9 @@ public class BlobServerPutTest extends TestLogger {
 	 * @param jobId
 	 * 		job ID or <tt>null</tt> if job-unrelated
 	 * @param key1
-	 * 		first key
+	 * 		first key for 44 bytes starting at byte 10 of data in the BLOB
 	 * @param key2
-	 * 		second key
+	 * 		second key for the complete data in the BLOB
 	 * @param data
 	 * 		expected data
 	 * @param serverAddress
@@ -241,12 +241,9 @@ public class BlobServerPutTest extends TestLogger {
 			InetSocketAddress serverAddress, Configuration config) throws IOException {
 
 		BlobClient client = new BlobClient(serverAddress, config);
-		InputStream is1 = null;
-		InputStream is2 = null;
 
-		try {
-			// one get request on the same client
-			is1 = getFileHelper(client, jobId, key2);
+		// one get request on the same client
+		try (InputStream is1 = getFileHelper(client, jobId, key2)) {
 			byte[] result1 = new byte[44];
 			BlobUtils.readFully(is1, result1, 0, result1.length, null);
 			is1.close();
@@ -255,20 +252,12 @@ public class BlobServerPutTest extends TestLogger {
 				assertEquals(data[j], result1[i]);
 			}
 
-			// close the client and create a new one for the remaining requests
+			// close the client and create a new one for the remaining request
 			client.close();
 			client = new BlobClient(serverAddress, config);
 
-			is2 = getFileHelper(client, jobId, key1);
-			BlobClientTest.validateGet(is2, data);
-			is2.close();
+			validateGetAndClose(getFileHelper(client, jobId, key1), data);
 		} finally {
-			if (is1 != null) {
-				is1.close();
-			}
-			if (is2 != null) {
-				is1.close();
-			}
 			client.close();
 		}
 	}

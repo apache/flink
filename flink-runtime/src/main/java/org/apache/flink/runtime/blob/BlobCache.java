@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -25,7 +26,6 @@ import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,6 +33,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -47,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * download it from a distributed file system (if available) or the BLOB
  * server.</p>
  */
-public final class BlobCache implements BlobService {
+public class BlobCache extends TimerTask implements BlobService {
 
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(BlobCache.class);
@@ -70,6 +75,32 @@ public final class BlobCache implements BlobService {
 
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Job reference counters with a time-to-live (TTL).
+	 */
+	private static class RefCount {
+		/**
+		 * Number of references to a job.
+		 */
+		public int references = 0;
+		
+		/**
+		 * Timestamp in milliseconds when any job data should be cleaned up (no cleanup for
+		 * non-positive values).
+		 */
+		public long keepUntil = -1;
+	}
+
+	/** Map to store the number of references to a specific job */
+	private final Map<JobID, RefCount> jobRefCounters = new HashMap<>();
+
+	/** Time interval (ms) to run the cleanup task; also used as the default TTL. */
+	private final long cleanupInterval;
+
+	private final Timer cleanupTimer;
 
 	/**
 	 * Instantiates a new BLOB cache.
@@ -108,8 +139,60 @@ public final class BlobCache implements BlobService {
 			this.numFetchRetries = 0;
 		}
 
+		// Initializing the clean up task
+		this.cleanupTimer = new Timer(true);
+
+		cleanupInterval = blobClientConfig.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
+		this.cleanupTimer.schedule(this, cleanupInterval, cleanupInterval);
+
 		// Add shutdown hook to delete storage directory
 		shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+	}
+
+	/**
+	 * Registers use of job-related BLOBs.
+	 * <p>
+	 * Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within calls
+	 * to {@link #registerJob(JobID)} and {@link #releaseJob(JobID)}.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 *
+	 * @see #releaseJob(JobID)
+	 */
+	public void registerJob(JobID jobId) {
+		synchronized (jobRefCounters) {
+			RefCount ref = jobRefCounters.get(jobId);
+			if (ref == null) {
+				ref = new RefCount();
+				jobRefCounters.put(jobId, ref);
+			}
+			++ref.references;
+		}
+	}
+
+	/**
+	 * Unregisters use of job-related BLOBs and allow them to be released.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to
+	 *
+	 * @see #registerJob(JobID)
+	 */
+	public void releaseJob(JobID jobId) {
+		synchronized (jobRefCounters) {
+			RefCount ref = jobRefCounters.get(jobId);
+
+			if (ref == null) {
+				LOG.warn("improper use of releaseJob() without a matching number of registerJob() calls");
+				return;
+			}
+
+			--ref.references;
+			if (ref.references == 0) {
+				ref.keepUntil = System.currentTimeMillis() + cleanupInterval;
+			}
+		}
 	}
 
 	/**
@@ -148,7 +231,7 @@ public final class BlobCache implements BlobService {
 	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
 	@Override
-	public File getFile(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public File getFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
 	}
@@ -258,7 +341,7 @@ public final class BlobCache implements BlobService {
 	 * @throws IOException
 	 */
 	@Override
-	public void delete(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void delete(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteInternal(jobId, key);
 	}
@@ -307,7 +390,7 @@ public final class BlobCache implements BlobService {
 	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
 	 * 		BLOB server cannot delete the file
 	 */
-	public void deleteGlobal(@Nonnull JobID jobId, BlobKey key) throws IOException {
+	public void deleteGlobal(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
 		deleteGlobalInternal(jobId, key);
 	}
@@ -341,8 +424,40 @@ public final class BlobCache implements BlobService {
 		return serverAddress.getPort();
 	}
 
+	/**
+	 * Cleans up BLOBs which are not referenced anymore.
+	 */
+	@Override
+	public void run() {
+		synchronized (jobRefCounters) {
+			Iterator<Map.Entry<JobID, RefCount>> entryIter = jobRefCounters.entrySet().iterator();
+			final long currentTimeMillis = System.currentTimeMillis();
+
+			while (entryIter.hasNext()) {
+				Map.Entry<JobID, RefCount> entry = entryIter.next();
+				RefCount ref = entry.getValue();
+
+				if (ref.references <= 0 && ref.keepUntil > 0 && currentTimeMillis >= ref.keepUntil) {
+					JobID jobId = entry.getKey();
+
+					final File localFile =
+						new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+					try {
+						FileUtils.deleteDirectory(localFile);
+						// let's only remove this directory from cleanup if the cleanup was successful
+						entryIter.remove();
+					} catch (Throwable t) {
+						LOG.warn("Failed to locally delete job directory " + localFile.getAbsolutePath(), t);
+					}
+				}
+			}
+		}
+	}
+
 	@Override
 	public void close() throws IOException {
+		cleanupTimer.cancel();
+
 		if (shutdownRequested.compareAndSet(false, true)) {
 			LOG.info("Shutting down BlobCache");
 
@@ -369,8 +484,19 @@ public final class BlobCache implements BlobService {
 		return new BlobClient(serverAddress, blobClientConfig);
 	}
 
-	public File getStorageDir() {
-		return this.storageDir;
+	/**
+	 * Returns a file handle to the file associated with the given blob key on the blob
+	 * server.
+	 *
+	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
+	 *
+	 * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param key identifying the file
+	 * @return file handle to the file
+	 */
+	@VisibleForTesting
+	public File getStorageLocation(JobID jobId, BlobKey key) {
+		return BlobUtils.getStorageLocation(storageDir, jobId, key);
 	}
 
 }
