@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileReader;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -51,7 +53,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private static final Logger LOG = LoggerFactory.getLogger(SpilledSubpartitionView.class);
 
 	/** The subpartition this view belongs to. */
-	private final ResultSubpartition parent;
+	private final SpillableSubpartition parent;
 
 	/** Writer for spills. */
 	private final BufferFileWriter spillWriter;
@@ -75,7 +77,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private volatile boolean isSpillInProgress = true;
 
 	SpilledSubpartitionView(
-		ResultSubpartition parent,
+		SpillableSubpartition parent,
 		int memorySegmentSize,
 		BufferFileWriter spillWriter,
 		long numberOfSpilledBuffers,
@@ -113,8 +115,9 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		LOG.debug("Finished spilling. Notified about {} available buffers.", numberOfSpilledBuffers);
 	}
 
+	@Nullable
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
 		if (fileReader.hasReachedEndOfFile() || isSpillInProgress) {
 			return null;
 		}
@@ -124,7 +127,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
 
-		return buffer;
+		int newBacklog = parent.decreaseBuffersInBacklog(buffer);
+		return new BufferAndBacklog(buffer, newBacklog);
 	}
 
 	@Override

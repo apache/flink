@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A single subpartition of a {@link ResultPartition} instance.
@@ -95,10 +98,44 @@ public abstract class ResultSubpartition {
 	abstract public boolean isReleased();
 
 	/**
+	 * Gets the number of non-event buffers in this subpartition.
+	 *
+	 * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
+	 * scenarios since it does not make any concurrency guarantees.
+	 */
+	@VisibleForTesting
+	abstract public int getBuffersInBacklog();
+
+	/**
 	 * Makes a best effort to get the current size of the queue.
 	 * This method must not acquire locks or interfere with the task and network threads in
 	 * any way.
 	 */
 	abstract public int unsynchronizedGetNumberOfQueuedBuffers();
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * A combination of a {@link Buffer} and the backlog length indicating
+	 * how many non-event buffers are available in the subpartition.
+	 */
+	public static final class BufferAndBacklog {
+
+		private final Buffer buffer;
+		private final int buffersInBacklog;
+
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog) {
+			this.buffer = checkNotNull(buffer);
+			this.buffersInBacklog = buffersInBacklog;
+		}
+
+		public Buffer buffer() {
+			return buffer;
+		}
+
+		public int buffersInBacklog() {
+			return buffersInBacklog;
+		}
+	}
 
 }

@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -106,18 +107,38 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(1, subpartition.getTotalNumberOfBuffers());
 		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 
+		assertEquals(1, subpartition.getTotalNumberOfBuffers());
+		assertEquals(1, subpartition.getBuffersInBacklog());
+		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+
 		// ...should have resulted in a notification
 		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
 
 		// ...and one available result
-		assertNotNull(view.getNextBuffer());
+		BufferAndBacklog read = view.getNextBuffer();
+		assertNotNull(read);
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertNull(view.getNextBuffer());
+		assertEquals(0, subpartition.getBuffersInBacklog());
 
 		// Add data to the queue...
 		subpartition.add(createBuffer());
+
 		assertEquals(2, subpartition.getTotalNumberOfBuffers());
+		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
+
+		// Add event to the queue...
+		Buffer event = createBuffer();
+		event.tagAsEvent();
+		subpartition.add(event);
+
+		assertEquals(3, subpartition.getTotalNumberOfBuffers());
+		assertEquals(1, subpartition.getBuffersInBacklog());
+		assertEquals(3 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		verify(listener, times(3)).notifyBuffersAvailable(eq(1L));
 	}
 
 	@Test
