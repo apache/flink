@@ -128,7 +128,9 @@ public class WebFrontendBootstrap {
 
 		this.log.info("Web frontend listening at {}" + ':' + "{}", address, port);
 
-		this.restAddress = address + ':' + port;
+		final String protocol = serverSSLContext != null ? "https://" : "http://";
+
+		this.restAddress = protocol + address + ':' + port;
 	}
 
 	public ServerBootstrap getBootstrap() {

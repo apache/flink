@@ -56,26 +56,21 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-	private final CompletableFuture<String> localAddressFuture;
+	protected final CompletableFuture<String> localAddressFuture;
 
 	protected final GatewayRetriever<T> leaderRetriever;
 
 	protected final Time timeout;
-
-	/** Whether the web service has https enabled. */
-	protected final boolean httpsEnabled;
 
 	private String localAddress;
 
 	protected RedirectHandler(
 			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<T> leaderRetriever,
-			@Nonnull Time timeout,
-			boolean httpsEnabled) {
+			@Nonnull Time timeout) {
 		this.localAddressFuture = Preconditions.checkNotNull(localAddressFuture);
 		this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
 		this.timeout = Preconditions.checkNotNull(timeout);
-		this.httpsEnabled = httpsEnabled;
 		localAddress = null;
 	}
 
@@ -123,8 +118,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 								} else if (optRedirectAddress.isPresent()) {
 									response = HandlerRedirectUtils.getRedirectResponse(
 										optRedirectAddress.get(),
-										routed.path(),
-										httpsEnabled);
+										routed.path());
 
 									KeepAliveWrite.flush(channelHandlerContext, routed.request(), response);
 								} else {

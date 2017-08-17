@@ -277,7 +277,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 				timeout,
 				TaskManagerLogHandler.FileMode.LOG,
 				config,
-				enableSSL,
 				blobView));
 		get(router,
 			new TaskManagerLogHandler(
@@ -287,7 +286,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 				timeout,
 				TaskManagerLogHandler.FileMode.STDOUT,
 				config,
-				enableSSL,
 				blobView));
 		get(router, new TaskManagerMetricsHandler(executor, metricFetcher));
 
@@ -298,12 +296,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 					retriever,
 					localRestAddress,
 					timeout,
-					logFiles.logFile,
-					enableSSL))
+					logFiles.logFile))
 
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
-				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile,
-					enableSSL));
+				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile));
 
 		get(router, new JobManagerMetricsHandler(executor, metricFetcher));
 
@@ -357,8 +353,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			retriever,
 			localRestAddress,
 			timeout,
-			webRootDir,
-			enableSSL));
+			webRootDir));
 
 		// add shutdown hook for deleting the directories and remaining temp files on shutdown
 		try {
@@ -530,8 +525,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
-		return new RuntimeMonitorHandler(cfg, handler, retriever, localRestAddress, timeout,
-			serverSSLContext !=  null);
+		return new RuntimeMonitorHandler(cfg, handler, retriever, localRestAddress, timeout);
 	}
 
 	File getBaseDir(Configuration configuration) {

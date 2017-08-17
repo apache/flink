@@ -143,8 +143,14 @@ public abstract class RestServerEndpoint {
 
 			log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
 
-			// TODO: Make it include the protocol (http/https)
-			restAddress = address + ':' + port;
+			final String protocol;
+
+			if (sslEngine != null) {
+				protocol = "https://";
+			} else {
+				protocol = "http://";
+			}
+			restAddress = protocol + address + ':' + port;
 
 			started = true;
 		}

@@ -72,17 +72,16 @@ public class RestEndpointITCase extends TestLogger {
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
-		final String address = "localhost";
+		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
-		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(address));
+		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
 		GatewayRetriever<RestfulGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
 		when(mockGatewayRetriever.getNow()).thenReturn(Optional.of(mockRestfulGateway));
 
 		TestHandler testHandler = new TestHandler(
-			CompletableFuture.completedFuture(address),
+			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT,
-			true);
+			RpcUtils.INF_TIMEOUT);
 
 		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
 		RestClient clientEndpoint = new TestRestClient(clientConfig);
@@ -150,13 +149,11 @@ public class RestEndpointITCase extends TestLogger {
 		TestHandler(
 			CompletableFuture<String> localAddressFuture,
 			GatewayRetriever<RestfulGateway> leaderRetriever,
-			Time timeout,
-			boolean httpsEnabled) {
+			Time timeout) {
 			super(
 				localAddressFuture,
 				leaderRetriever,
 				timeout,
-				httpsEnabled,
 				new TestHeaders());
 		}
 

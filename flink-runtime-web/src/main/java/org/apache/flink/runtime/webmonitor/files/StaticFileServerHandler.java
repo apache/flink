@@ -112,10 +112,9 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 			GatewayRetriever<T> retriever,
 			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
-			File rootPath,
-			boolean httpsEnabled) throws IOException {
+			File rootPath) throws IOException {
 
-		super(localJobManagerAddressFuture, retriever, timeout, httpsEnabled);
+		super(localJobManagerAddressFuture, retriever, timeout);
 
 		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
 	}
