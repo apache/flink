@@ -59,11 +59,13 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.configuration.ConfigConstants.LOCAL_START_WEBSERVER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -91,13 +93,19 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		TestingCluster flink = null;
-		WebRuntimeMonitor webMonitor = null;
+
+		final Configuration configuration = new Configuration();
+
+		// activate the web monitor
+		configuration.setBoolean(LOCAL_START_WEBSERVER, true);
+		configuration.setInteger(WebOptions.PORT, 0);
 
 		try {
-			// Flink w/o a web monitor
-			flink = new TestingCluster(new Configuration());
+			// Flink with a web monitor
+			flink = new TestingCluster(configuration);
 			flink.start(true);
-			webMonitor = startWebRuntimeMonitor(flink, TIMEOUT);
+
+			WebMonitor webMonitor = flink.webMonitor().get();
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expected = new Scanner(new File(mainResourcesPath + "/index.html"))
@@ -124,10 +132,6 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		finally {
 			if (flink != null) {
 				flink.shutdown();
-			}
-
-			if (webMonitor != null) {
-				webMonitor.stop();
 			}
 		}
 	}
@@ -191,11 +195,12 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 					TestingUtils.defaultExecutor(),
 					TestingUtils.defaultExecutor(),
 					highAvailabilityServices,
+					Option.apply(webMonitor[i].getRestAddress()),
 					JobManager.class,
 					MemoryArchivist.class)._1();
 
 				jobManagerAddress[i] = AkkaUtils.getAkkaURL(jobManagerSystem[i], jobManager[i]);
-				webMonitor[i].start(jobManagerAddress[i]);
+				webMonitor[i].start();
 			}
 
 			LeaderRetrievalService lrs = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
@@ -320,7 +325,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				TIMEOUT,
 				TestingUtils.defaultExecutor());
 
-			webRuntimeMonitor.start("akka://schmakka");
+			webRuntimeMonitor.start();
 
 			try (HttpTestClient client = new HttpTestClient(
 					"localhost", webRuntimeMonitor.getServerPort())) {
@@ -359,12 +364,18 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		TestingCluster flink = null;
-		WebRuntimeMonitor webMonitor = null;
+
+		final Configuration configuration = new Configuration();
+
+		// activate the web monitor
+		configuration.setBoolean(LOCAL_START_WEBSERVER, true);
+		configuration.setInteger(WebOptions.PORT, 0);
 
 		try {
-			flink = new TestingCluster(new Configuration());
+			flink = new TestingCluster(configuration);
 			flink.start(true);
-			webMonitor = startWebRuntimeMonitor(flink, TIMEOUT);
+
+			WebRuntimeMonitor webMonitor = (WebRuntimeMonitor) flink.webMonitor().get();
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
@@ -405,10 +416,6 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			if (flink != null) {
 				flink.shutdown();
 			}
-
-			if (webMonitor != null) {
-				webMonitor.stop();
-			}
 		}
 	}
 
@@ -421,16 +428,21 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		TestingCluster flink = null;
-		WebRuntimeMonitor webMonitor = null;
+
+		final Configuration configuration = new Configuration();
+
+		// activate the web monitor
+		configuration.setBoolean(LOCAL_START_WEBSERVER, true);
+		configuration.setInteger(WebOptions.PORT, 0);
 
 		try {
-			flink = new TestingCluster(new Configuration());
+			flink = new TestingCluster(configuration);
 			flink.start(true);
-			webMonitor = startWebRuntimeMonitor(flink, TIMEOUT);
+			WebRuntimeMonitor webMonitor = ((WebRuntimeMonitor) flink.webMonitor().get());
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
-						.useDelimiter("\\A").next();
+					.useDelimiter("\\A").next();
 
 				// 1) Request index.html from web server
 				client.sendGetRequest("index.html", deadline.timeLeft());
@@ -445,65 +457,26 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				response = client.getNextResponse(deadline.timeLeft());
 				assertEquals(
-						"Returned status code " + response.getStatus() + " for file outside of web root.",
-						HttpResponseStatus.NOT_FOUND,
-						response.getStatus());
+					"Returned status code " + response.getStatus() + " for file outside of web root.",
+					HttpResponseStatus.NOT_FOUND,
+					response.getStatus());
 
 				assertFalse("Did not respond with the file, but still copied it from the JAR.",
-						new File(webMonitor.getBaseDir(new Configuration()), "log4j-test.properties").exists());
+					new File(webMonitor.getBaseDir(new Configuration()), "log4j-test.properties").exists());
 
 				// 3) Request non-existing file
 				client.sendGetRequest("not-existing-resource", deadline.timeLeft());
 				response = client.getNextResponse(deadline.timeLeft());
 				assertEquals(
-						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
-						HttpResponseStatus.NOT_FOUND,
-						response.getStatus());
+					"Unexpected status code " + response.getStatus() + " for file outside of web root.",
+					HttpResponseStatus.NOT_FOUND,
+					response.getStatus());
 			}
 		} finally {
 			if (flink != null) {
 				flink.shutdown();
 			}
-
-			if (webMonitor != null) {
-				webMonitor.stop();
-			}
 		}
-	}
-
-	private WebRuntimeMonitor startWebRuntimeMonitor(
-			TestingCluster flink,
-			Time timeout) throws Exception {
-
-		ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
-		ActorRef jmActor = flink.jobManagerActors().get().head();
-
-		// Needs to match the leader address from the leader retrieval service
-		String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
-
-		File logDir = temporaryFolder.newFolder("log");
-		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
-		Files.createFile(new File(logDir, "jobmanager.out").toPath());
-
-		// Web frontend on random port
-		Configuration config = new Configuration();
-		config.setInteger(WebOptions.PORT, 0);
-		config.setString(WebOptions.LOG_PATH, logFile.toString());
-
-		HighAvailabilityServices highAvailabilityServices = flink.highAvailabilityServices();
-
-		WebRuntimeMonitor webMonitor = new WebRuntimeMonitor(
-			config,
-			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-			highAvailabilityServices.createBlobStore(),
-			new AkkaJobManagerRetriever(jmActorSystem, timeout, 0, Time.milliseconds(50L)),
-			new AkkaQueryServiceRetriever(jmActorSystem, timeout),
-			timeout,
-			TestingUtils.defaultExecutor());
-
-		webMonitor.start(jobManagerAddress);
-		flink.waitForActorsToBeAlive();
-		return webMonitor;
 	}
 
 	// ------------------------------------------------------------------------

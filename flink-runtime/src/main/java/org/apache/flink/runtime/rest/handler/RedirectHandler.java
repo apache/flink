@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -103,37 +104,30 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 
 				optLeaderConsumer.ifPresent(
 					(T gateway) -> {
-						OptionalConsumer<CompletableFuture<String>> optRedirectAddressConsumer = OptionalConsumer.of(
-							HandlerRedirectUtils.getRedirectAddress(
-								localAddress,
-								gateway,
-								timeout));
+						CompletableFuture<Optional<String>> optRedirectAddressFuture = HandlerRedirectUtils.getRedirectAddress(
+							localAddress,
+							gateway,
+							timeout);
 
-						optRedirectAddressConsumer
-							.ifPresent(
-								(CompletableFuture<String> redirectAddressFuture) ->
-									redirectAddressFuture.whenComplete(
-										(String redirectAddress, Throwable throwable) -> {
-											if (throwable != null) {
-												logger.error("Could not retrieve the redirect address.", throwable);
+						optRedirectAddressFuture.whenComplete(
+							(Optional<String> optRedirectAddress, Throwable throwable) -> {
+								HttpResponse response;
+								if (throwable != null) {
+									logger.error("Could not retrieve the redirect address.", throwable);
 
-												HandlerUtils.sendErrorResponse(
-													channelHandlerContext,
-													routed.request(),
-													new ErrorResponseBody("Could not retrieve the redirect address of the current leader. Please try to refresh."),
-													HttpResponseStatus.INTERNAL_SERVER_ERROR);
-											} else {
-												HttpResponse response = HandlerRedirectUtils.getRedirectResponse(
-													redirectAddress,
-													routed.path(),
-													httpsEnabled);
+									HandlerUtils.sendErrorResponse(
+										channelHandlerContext,
+										routed.request(),
+										new ErrorResponseBody("Could not retrieve the redirect address of the current leader. Please try to refresh."),
+										HttpResponseStatus.INTERNAL_SERVER_ERROR);
+								} else if (optRedirectAddress.isPresent()) {
+									response = HandlerRedirectUtils.getRedirectResponse(
+										optRedirectAddress.get(),
+										routed.path(),
+										httpsEnabled);
 
-												KeepAliveWrite.flush(channelHandlerContext, routed.request(), response);
-											}
-										}
-									))
-							.ifNotPresent(
-								() -> {
+									KeepAliveWrite.flush(channelHandlerContext, routed.request(), response);
+								} else {
 									try {
 										respondAsLeader(channelHandlerContext, routed, gateway);
 									} catch (Exception e) {
@@ -144,7 +138,9 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 											new ErrorResponseBody("Error while responding to the request."),
 											HttpResponseStatus.INTERNAL_SERVER_ERROR);
 									}
-								});
+								}
+							}
+						);
 					}
 				).ifNotPresent(
 					() ->
@@ -157,8 +153,8 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 				HandlerUtils.sendErrorResponse(
 					channelHandlerContext,
 					routed.request(),
-					new ErrorResponseBody("Service temporarily unavailable due to an ongoing leader election. Please refresh."),
-					HttpResponseStatus.SERVICE_UNAVAILABLE);
+					new ErrorResponseBody("Local address has not been resolved. This indicates an internal error."),
+					HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			}
 		} catch (Throwable throwable) {
 			logger.warn("Error occurred while processing web request.", throwable);

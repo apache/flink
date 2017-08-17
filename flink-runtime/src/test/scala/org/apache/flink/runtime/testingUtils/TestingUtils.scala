@@ -477,6 +477,7 @@ object TestingUtils {
         futureExecutor,
         ioExecutor,
         highAvailabilityServices,
+        None,
         Some(prefix + JobMaster.JOB_MANAGER_NAME),
         Some(prefix + JobMaster.ARCHIVE_NAME),
         jobManagerClass,

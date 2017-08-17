@@ -56,18 +56,27 @@ import java.util.concurrent.TimeUnit;
 public abstract class RestServerEndpoint {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
+	private final Object lock = new Object();
+
 	private final String configuredAddress;
 	private final int configuredPort;
 	private final SSLEngine sslEngine;
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
+	private String restAddress;
+
+	private volatile boolean started;
 
 	public RestServerEndpoint(RestServerEndpointConfiguration configuration) {
 		Preconditions.checkNotNull(configuration);
 		this.configuredAddress = configuration.getEndpointBindAddress();
 		this.configuredPort = configuration.getEndpointBindPort();
 		this.sslEngine = configuration.getSslEngine();
+
+		this.restAddress = null;
+
+		this.started = false;
 	}
 
 	/**
@@ -80,53 +89,65 @@ public abstract class RestServerEndpoint {
 	 * Starts this REST server endpoint.
 	 */
 	public void start() {
-		log.info("Starting rest endpoint.");
-
-		final Router router = new Router();
-
-		initializeHandlers().forEach(handler -> registerHandler(router, handler));
-
-		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-
-			@Override
-			protected void initChannel(SocketChannel ch) {
-				Handler handler = new RouterHandler(router);
-
-				// SSL should be the first handler in the pipeline
-				if (sslEngine != null) {
-					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
-				}
-
-				ch.pipeline()
-					.addLast(new HttpServerCodec())
-					.addLast(new HttpObjectAggregator(1024 * 1024 * 10))
-					.addLast(handler.name(), handler)
-					.addLast(new PipelineErrorHandler(log));
+		synchronized (lock) {
+			if (started) {
+				// RestServerEndpoint already started
+				return;
 			}
-		};
 
-		NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
-		NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("flink-rest-server-netty-worker"));
+			log.info("Starting rest endpoint.");
 
-		bootstrap = new ServerBootstrap();
-		bootstrap
-			.group(bossGroup, workerGroup)
-			.channel(NioServerSocketChannel.class)
-			.childHandler(initializer);
+			final Router router = new Router();
 
-		final ChannelFuture channel;
-		if (configuredAddress == null) {
-			channel = bootstrap.bind(configuredPort);
-		} else {
-			channel = bootstrap.bind(configuredAddress, configuredPort);
+			initializeHandlers().forEach(handler -> registerHandler(router, handler));
+
+			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
+
+				@Override
+				protected void initChannel(SocketChannel ch) {
+					Handler handler = new RouterHandler(router);
+
+					// SSL should be the first handler in the pipeline
+					if (sslEngine != null) {
+						ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					}
+
+					ch.pipeline()
+						.addLast(new HttpServerCodec())
+						.addLast(new HttpObjectAggregator(1024 * 1024 * 10))
+						.addLast(handler.name(), handler)
+						.addLast(new PipelineErrorHandler(log));
+				}
+			};
+
+			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
+			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("flink-rest-server-netty-worker"));
+
+			bootstrap = new ServerBootstrap();
+			bootstrap
+				.group(bossGroup, workerGroup)
+				.channel(NioServerSocketChannel.class)
+				.childHandler(initializer);
+
+			final ChannelFuture channel;
+			if (configuredAddress == null) {
+				channel = bootstrap.bind(configuredPort);
+			} else {
+				channel = bootstrap.bind(configuredAddress, configuredPort);
+			}
+			serverChannel = channel.syncUninterruptibly().channel();
+
+			InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
+			String address = bindAddress.getAddress().getHostAddress();
+			int port = bindAddress.getPort();
+
+			log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
+
+			// TODO: Make it include the protocol (http/https)
+			restAddress = address + ':' + port;
+
+			started = true;
 		}
-		serverChannel = channel.syncUninterruptibly().channel();
-
-		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-		String address = bindAddress.getAddress().getHostAddress();
-		int port = bindAddress.getPort();
-
-		log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
 	}
 
 	/**
@@ -135,7 +156,9 @@ public abstract class RestServerEndpoint {
 	 * @return address on which this endpoint is accepting requests
 	 */
 	public InetSocketAddress getServerAddress() {
+		Preconditions.checkState(started, "The RestServerEndpoint has not been started yet.");
 		Channel server = this.serverChannel;
+
 		if (server != null) {
 			try {
 				return ((InetSocketAddress) server.localAddress());
@@ -148,40 +171,65 @@ public abstract class RestServerEndpoint {
 	}
 
 	/**
+	 * Returns the address of the REST server endpoint. Since the address is only known
+	 * after the endpoint is started, it is returned as a future which is completed
+	 * with the REST address at start up.
+	 *
+	 * @return REST address of this endpoint
+	 */
+	public String getRestAddress() {
+		Preconditions.checkState(started, "The RestServerEndpoint has not been started yet.");
+		return restAddress;
+	}
+
+	/**
 	 * Stops this REST server endpoint.
 	 */
 	public void shutdown(Time timeout) {
-		log.info("Shutting down rest endpoint.");
 
-		CompletableFuture<?> channelFuture = new CompletableFuture<>();
-		if (this.serverChannel != null) {
-			this.serverChannel.close().addListener(ignored -> channelFuture.complete(null));
-		}
-		CompletableFuture<?> groupFuture = new CompletableFuture<>();
-		CompletableFuture<?> childGroupFuture = new CompletableFuture<>();
-
-		channelFuture.thenRun(() -> {
-			if (bootstrap != null) {
-				if (bootstrap.group() != null) {
-					bootstrap.group().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-						.addListener(ignored -> groupFuture.complete(null));
-				}
-				if (bootstrap.childGroup() != null) {
-					bootstrap.childGroup().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-						.addListener(ignored -> childGroupFuture.complete(null));
-				}
-			} else {
-				// complete the group futures since there is nothing to stop
-				groupFuture.complete(null);
-				childGroupFuture.complete(null);
+		synchronized (lock) {
+			if (!started) {
+				// RestServerEndpoint has not been started
+				return;
 			}
-		});
 
-		try {
-			CompletableFuture.allOf(groupFuture, childGroupFuture).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			log.info("Rest endpoint shutdown complete.");
-		} catch (Exception e) {
-			log.warn("Rest endpoint shutdown failed.", e);
+			log.info("Shutting down rest endpoint.");
+
+			CompletableFuture<?> channelFuture = new CompletableFuture<>();
+			if (this.serverChannel != null) {
+				this.serverChannel.close().addListener(ignored -> channelFuture.complete(null));
+				serverChannel = null;
+			}
+			CompletableFuture<?> groupFuture = new CompletableFuture<>();
+			CompletableFuture<?> childGroupFuture = new CompletableFuture<>();
+
+			channelFuture.thenRun(() -> {
+				if (bootstrap != null) {
+					if (bootstrap.group() != null) {
+						bootstrap.group().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+							.addListener(ignored -> groupFuture.complete(null));
+					}
+					if (bootstrap.childGroup() != null) {
+						bootstrap.childGroup().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+							.addListener(ignored -> childGroupFuture.complete(null));
+					}
+					bootstrap = null;
+				} else {
+					// complete the group futures since there is nothing to stop
+					groupFuture.complete(null);
+					childGroupFuture.complete(null);
+				}
+			});
+
+			try {
+				CompletableFuture.allOf(groupFuture, childGroupFuture).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+				log.info("Rest endpoint shutdown complete.");
+			} catch (Exception e) {
+				log.warn("Rest endpoint shutdown failed.", e);
+			}
+
+			restAddress = null;
+			started = false;
 		}
 	}
 

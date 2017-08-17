@@ -72,7 +72,8 @@ class YarnJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[MetricRegistry])
+    metricsRegistry: Option[MetricRegistry],
+    optRestAddress: Option[String])
   extends ContaineredJobManager(
     flinkConfiguration,
     futureExecutor,
@@ -88,7 +89,8 @@ class YarnJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricsRegistry) {
+    metricsRegistry,
+    optRestAddress) {
 
   val DEFAULT_YARN_HEARTBEAT_DELAY: FiniteDuration = 5 seconds
   val YARN_HEARTBEAT_DELAY: FiniteDuration =
