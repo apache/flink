@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -113,7 +114,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			try {
 				// NOTE: the server will stall in its send operation until either the data is fully
 				//       read or the socket is closed, e.g. via a client.close() call
-				BlobClientTest.validateGet(client.get(jobId, key1), data);
+				validateGetAndClose(client.get(jobId, key1), data);
 			}
 			catch (IOException e) {
 				fail("Deleting a job-unrelated BLOB should not affect a job-related BLOB with the same key");

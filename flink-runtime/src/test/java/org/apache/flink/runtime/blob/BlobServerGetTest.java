@@ -49,7 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.runtime.blob.BlobClientTest.validateGet;
+import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -123,7 +123,7 @@ public class BlobServerGetTest extends TestLogger {
 			assertNotNull(key);
 			assertEquals(key, key2);
 			// request for jobId2 should succeed
-			validateGet(getFileHelper(client, jobId2, key), data);
+			validateGetAndClose(getFileHelper(client, jobId2, key), data);
 			// request for jobId1 should still fail
 			client = verifyDeleted(client, jobId1, key, serverAddress, config);
 

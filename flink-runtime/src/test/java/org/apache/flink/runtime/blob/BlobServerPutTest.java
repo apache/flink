@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.getFileHelper;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -255,7 +256,7 @@ public class BlobServerPutTest extends TestLogger {
 			client.close();
 			client = new BlobClient(serverAddress, config);
 
-			BlobClientTest.validateGet(getFileHelper(client, jobId, key1), data);
+			validateGetAndClose(getFileHelper(client, jobId, key1), data);
 		} finally {
 			client.close();
 		}

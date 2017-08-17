@@ -145,7 +145,7 @@ public class BlobClientTest {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream
 	 */
-	static void validateGet(final InputStream inputStream, final byte[] buf) throws IOException {
+	static void validateGetAndClose(final InputStream inputStream, final byte[] buf) throws IOException {
 		try {
 			byte[] receivedBuffer = new byte[buf.length];
 
@@ -182,7 +182,7 @@ public class BlobClientTest {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream or the file
 	 */
-	private static void validateGet(final InputStream inputStream, final File file) throws IOException {
+	private static void validateGetAndClose(final InputStream inputStream, final File file) throws IOException {
 
 		InputStream inputStream2 = null;
 		try {
@@ -237,8 +237,8 @@ public class BlobClientTest {
 			assertEquals(origKey, receivedKey);
 
 			// Retrieve the data
-			validateGet(client.get(receivedKey), testBuffer);
-			validateGet(client.get(jobId, receivedKey), testBuffer);
+			validateGetAndClose(client.get(receivedKey), testBuffer);
+			validateGetAndClose(client.get(jobId, receivedKey), testBuffer);
 
 			// Check reaction to invalid keys
 			try (InputStream ignored = client.get(new BlobKey())) {
@@ -310,8 +310,8 @@ public class BlobClientTest {
 			is = null;
 
 			// Retrieve the data
-			validateGet(client.get(receivedKey), testFile);
-			validateGet(client.get(jobId, receivedKey), testFile);
+			validateGetAndClose(client.get(receivedKey), testFile);
+			validateGetAndClose(client.get(jobId, receivedKey), testFile);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -362,7 +362,7 @@ public class BlobClientTest {
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			validateGet(blobClient.get(blobKeys.get(0)), testFile);
+			validateGetAndClose(blobClient.get(blobKeys.get(0)), testFile);
 		}
 	}
 }
