@@ -19,15 +19,14 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.webmonitor.handlers.JarActionHandler.JarActionHandlerConfig;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 /**
  * Tests for the JarActionHandler.
@@ -49,7 +48,7 @@ public class JarActionHandlerTest {
 		Map<String, String> queryParams = new HashMap<>(); // <-- everything goes here
 
 		// Nothing configured
-		JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+		JarActionHandler.JarActionHandlerConfig config = JarActionHandler.JarActionHandlerConfig.fromParams(pathParams, queryParams);
 		assertEquals(SavepointRestoreSettings.none(), config.getSavepointRestoreSettings());
 
 		// Set path
@@ -58,14 +57,14 @@ public class JarActionHandlerTest {
 
 		SavepointRestoreSettings expected = SavepointRestoreSettings.forPath("the-savepoint-path", false);
 
-		config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+		config = JarActionHandler.JarActionHandlerConfig.fromParams(pathParams, queryParams);
 		assertEquals(expected, config.getSavepointRestoreSettings());
 
 		// Set flag
 		queryParams.put("allowNonRestoredState", "true");
 
 		expected = SavepointRestoreSettings.forPath("the-savepoint-path", true);
-		config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+		config = JarActionHandler.JarActionHandlerConfig.fromParams(pathParams, queryParams);
 		assertEquals(expected, config.getSavepointRestoreSettings());
 	}
 
@@ -85,10 +84,10 @@ public class JarActionHandlerTest {
 		queryParams.put("allowNonRestoredState", "");
 
 		// Nothing configured
-		JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+		JarActionHandler.JarActionHandlerConfig config = JarActionHandler.JarActionHandlerConfig.fromParams(pathParams, queryParams);
 
 		assertEquals(0, config.getProgramArgs().length);
-		assertNull(config.getEntryClass());
+		Assert.assertNull(config.getEntryClass());
 		assertEquals(1, config.getParallelism());
 		assertEquals(SavepointRestoreSettings.none(), config.getSavepointRestoreSettings());
 	}
