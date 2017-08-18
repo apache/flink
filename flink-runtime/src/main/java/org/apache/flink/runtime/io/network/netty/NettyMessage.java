@@ -220,6 +220,10 @@ abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+			if (null == buffer) {
+				throw new NullPointerException();
+			}
+			
 			int length = 16 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
@@ -242,9 +246,7 @@ abstract class NettyMessage {
 				throw new IOException(t);
 			}
 			finally {
-				if (buffer != null) {
-					buffer.recycle();
-				}
+				buffer.recycle();
 			}
 		}
 
