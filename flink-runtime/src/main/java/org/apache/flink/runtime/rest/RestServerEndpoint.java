@@ -19,16 +19,16 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
-import org.apache.flink.runtime.rest.messages.RequestBody;
-import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
@@ -82,13 +82,18 @@ public abstract class RestServerEndpoint {
 	/**
 	 * This method is called at the beginning of {@link #start()} to setup all handlers that the REST server endpoint
 	 * implementation requires.
+	 *
+	 * @param restAddressFuture future rest address of the RestServerEndpoint
+	 * @return Collection of AbstractRestHandler which are added to the server endpoint
 	 */
-	protected abstract Collection<AbstractRestHandler<?, ?, ?, ?>> initializeHandlers();
+	protected abstract Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
 
 	/**
 	 * Starts this REST server endpoint.
+	 *
+	 * @throws Exception if we cannot start the RestServerEndpoint
 	 */
-	public void start() {
+	public void start() throws Exception {
 		synchronized (lock) {
 			if (started) {
 				// RestServerEndpoint already started
@@ -98,8 +103,9 @@ public abstract class RestServerEndpoint {
 			log.info("Starting rest endpoint.");
 
 			final Router router = new Router();
+			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
-			initializeHandlers().forEach(handler -> registerHandler(router, handler));
+			initializeHandlers(restAddressFuture).forEach(handler -> registerHandler(router, handler));
 
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
@@ -150,7 +156,10 @@ public abstract class RestServerEndpoint {
 			} else {
 				protocol = "http://";
 			}
+
 			restAddress = protocol + address + ':' + port;
+
+			restAddressFuture.complete(restAddress);
 
 			started = true;
 		}
@@ -239,13 +248,13 @@ public abstract class RestServerEndpoint {
 		}
 	}
 
-	private static <R extends RequestBody, P extends ResponseBody> void registerHandler(Router router, AbstractRestHandler<?, R, P, ?> handler) {
-		switch (handler.getMessageHeaders().getHttpMethod()) {
+	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler) {
+		switch (specificationHandler.f0.getHttpMethod()) {
 			case GET:
-				router.GET(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				router.GET(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case POST:
-				router.POST(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				router.POST(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 		}
 	}

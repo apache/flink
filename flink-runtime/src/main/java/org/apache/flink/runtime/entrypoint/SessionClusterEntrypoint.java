@@ -18,22 +18,30 @@
 
 package org.apache.flink.runtime.entrypoint;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
+import java.io.File;
 import java.util.Optional;
 
 /**
@@ -44,6 +52,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	private ResourceManager<?> resourceManager;
 
 	private Dispatcher dispatcher;
+
+	private LeaderRetrievalService dispatcherLeaderRetrievalService;
 
 	private DispatcherRestEndpoint dispatcherRestEndpoint;
 
@@ -60,8 +70,18 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
 
-		dispatcherRestEndpoint = new DispatcherRestEndpoint(
-			RestServerEndpointConfiguration.fromConfiguration(configuration));
+		dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
+
+		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
+			rpcService,
+			DispatcherGateway.class,
+			uuid -> new DispatcherId(uuid),
+			10,
+			Time.milliseconds(50L));
+
+		dispatcherRestEndpoint = createDispatcherRestEndpoint(
+			configuration,
+			dispatcherGatewayRetriever);
 
 		LOG.debug("Starting Dispatcher REST endpoint.");
 		dispatcherRestEndpoint.start();
@@ -90,17 +110,30 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 		LOG.debug("Starting Dispatcher.");
 		dispatcher.start();
+		dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 	}
 
 	@Override
 	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
 		Throwable exception = null;
 
+		if (dispatcherRestEndpoint != null) {
+			dispatcherRestEndpoint.shutdown(Time.seconds(10L));
+		}
+
+		if (dispatcherLeaderRetrievalService != null) {
+			try {
+				dispatcherLeaderRetrievalService.stop();
+			} catch (Throwable t) {
+				exception = ExceptionUtils.firstOrSuppressed(t, exception);
+			}
+		}
+
 		if (dispatcher != null) {
 			try {
 				dispatcher.shutDown();
 			} catch (Throwable t) {
-				exception = t;
+				exception = ExceptionUtils.firstOrSuppressed(t, exception);
 			}
 		}
 
@@ -115,6 +148,20 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		if (exception != null) {
 			throw new FlinkException("Could not properly shut down the session cluster entry point.", exception);
 		}
+	}
+
+	protected DispatcherRestEndpoint createDispatcherRestEndpoint(
+		Configuration configuration,
+		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever) throws Exception {
+
+		Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+		File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR));
+
+		return new DispatcherRestEndpoint(
+			RestServerEndpointConfiguration.fromConfiguration(configuration),
+			dispatcherGatewayRetriever,
+			timeout,
+			tmpDir);
 	}
 
 	protected Dispatcher createDispatcher(
