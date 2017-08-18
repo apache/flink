@@ -80,7 +80,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	}
 
 	@Override
-	protected void shutDown(boolean cleanupHaData) throws FlinkException {
+	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
 		Throwable exception = null;
 
 		if (dispatcher != null) {
@@ -97,12 +97,6 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			} catch (Throwable t) {
 				exception = ExceptionUtils.firstOrSuppressed(t, exception);
 			}
-		}
-
-		try {
-			super.shutDown(cleanupHaData);
-		} catch (Throwable t) {
-			exception = ExceptionUtils.firstOrSuppressed(t, exception);
 		}
 
 		if (exception != null) {
