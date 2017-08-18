@@ -58,6 +58,9 @@ public class Pattern<T, F extends T> {
 	/** Window length in which the pattern match has to occur. */
 	private Time windowTime;
 
+	/** The minimum number of events retained to be accessed by the pattern. */
+	private int retainLength;
+
 	/** A quantifier for the pattern. By default set to {@link Quantifier#one(ConsumingStrategy)}. */
 	private Quantifier quantifier = Quantifier.one(ConsumingStrategy.STRICT);
 
@@ -98,6 +101,10 @@ public class Pattern<T, F extends T> {
 
 	public Time getWindowTime() {
 		return windowTime;
+	}
+
+	public int getRetainLength() {
+		return retainLength;
 	}
 
 	public Quantifier getQuantifier() {
@@ -228,6 +235,18 @@ public class Pattern<T, F extends T> {
 			this.windowTime = windowTime;
 		}
 
+		return this;
+	}
+
+	/**
+	 * Defines the minimum number of events to be retained during matching.
+	 *
+	 * @param retainLength the minimum number of events to be retained
+	 * @return The same pattern operator with the new retain length
+	 */
+	public Pattern<T, F> retain(int retainLength) {
+		Preconditions.checkArgument(retainLength > 0, "The number of events to be retained must be positive");
+		this.retainLength = retainLength;
 		return this;
 	}
 

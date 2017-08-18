@@ -217,5 +217,13 @@ public class ComputationState<T> {
 				}
 			};
 		}
+
+		@Override
+		public T getEventByOffset(T fromEvent, int offset) {
+			Preconditions.checkNotNull(fromEvent);
+			Preconditions.checkArgument(offset >= 0);
+
+			return nfa.getEventByOffset(fromEvent, offset);
+		}
 	}
 }

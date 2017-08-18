@@ -86,11 +86,11 @@ public class NFACompiler {
 		boolean timeoutHandling) {
 		if (pattern == null) {
 			// return a factory for empty NFAs
-			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
+			return new NFAFactoryImpl<>(inputTypeSerializer, 0, 0, Collections.<State<T>>emptyList(), timeoutHandling);
 		} else {
 			final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
 			nfaFactoryCompiler.compileFactory();
-			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
+			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getRetainLength(), nfaFactoryCompiler.getStates(), timeoutHandling);
 		}
 	}
 
@@ -107,6 +107,7 @@ public class NFACompiler {
 		private final List<State<T>> states = new ArrayList<>();
 
 		private long windowTime = 0;
+		private int retainLength = 0;
 		private GroupPattern<T, ?> currentGroupPattern;
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
@@ -142,6 +143,10 @@ public class NFACompiler {
 
 		long getWindowTime() {
 			return windowTime;
+		}
+
+		int getRetainLength() {
+			return retainLength;
 		}
 
 		/**
@@ -216,6 +221,7 @@ public class NFACompiler {
 		private State<T> createEndingState() {
 			State<T> endState = createState(ENDING_STATE_NAME, State.StateType.Final);
 			windowTime = currentPattern.getWindowTime() != null ? currentPattern.getWindowTime().toMilliseconds() : 0L;
+			retainLength = currentPattern.getRetainLength();
 			return endState;
 		}
 
@@ -256,6 +262,10 @@ public class NFACompiler {
 				if (currentWindowTime != null && currentWindowTime.toMilliseconds() < windowTime) {
 					// the window time is the global minimum of all window times of each state
 					windowTime = currentWindowTime.toMilliseconds();
+				}
+				final int currentRetainLength = currentPattern.getRetainLength();
+				if (currentRetainLength > retainLength) {
+					retainLength = currentRetainLength;
 				}
 			}
 			return lastSink;
@@ -874,24 +884,27 @@ public class NFACompiler {
 
 		private final TypeSerializer<T> inputTypeSerializer;
 		private final long windowTime;
+		private final int retainLength;
 		private final Collection<State<T>> states;
 		private final boolean timeoutHandling;
 
 		private NFAFactoryImpl(
 			TypeSerializer<T> inputTypeSerializer,
 			long windowTime,
+			int retainLength,
 			Collection<State<T>> states,
 			boolean timeoutHandling) {
 
 			this.inputTypeSerializer = inputTypeSerializer;
 			this.windowTime = windowTime;
+			this.retainLength = retainLength;
 			this.states = states;
 			this.timeoutHandling = timeoutHandling;
 		}
 
 		@Override
 		public NFA<T> createNFA() {
-			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling);
+			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, retainLength, timeoutHandling);
 
 			result.addStates(states);
 

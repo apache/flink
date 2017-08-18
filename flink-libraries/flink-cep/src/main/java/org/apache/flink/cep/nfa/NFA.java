@@ -55,9 +55,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
@@ -145,6 +147,11 @@ public class NFA<T> implements Serializable {
 	 */
 	private SharedBuffer<String, T> eventSharedBuffer;
 
+	/**
+	 * Buffer used to store the past events, including the non-matched events.
+	 */
+	private transient EvictingBoundedList<T> processedEvents;
+
 	private TypeSerializer<T> eventSerializer;
 
 	/**
@@ -155,6 +162,7 @@ public class NFA<T> implements Serializable {
 	public NFA(
 			final TypeSerializer<T> eventSerializer,
 			final long windowTime,
+			final int retainLength,
 			final boolean handleTimeout) {
 
 		this.eventSerializer = eventSerializer;
@@ -163,6 +171,9 @@ public class NFA<T> implements Serializable {
 		this.handleTimeout = handleTimeout;
 		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		this.computationStates = new LinkedList<>();
+		if (retainLength > 0) {
+			this.processedEvents = new EvictingBoundedList<>(retainLength);
+		}
 		this.states = new HashSet<>();
 		this.nfaChanged = false;
 	}
@@ -227,6 +238,11 @@ public class NFA<T> implements Serializable {
 	 * activated)
 	 */
 	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event, final long timestamp) {
+		if (processedEvents != null) {
+			processedEvents.add(event);
+			nfaChanged = true;
+		}
+
 		final int numberComputationStates = computationStates.size();
 		final Collection<Map<String, List<T>>> result = new ArrayList<>();
 		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
@@ -710,6 +726,26 @@ public class NFA<T> implements Serializable {
 		return result;
 	}
 
+	T getEventByOffset(T fromEvent, int offset) {
+		if (offset == 0) {
+			return fromEvent;
+		}
+
+		boolean fromEventFound = false;
+		Iterator<T> iter = processedEvents.descendingIterator();
+		while (iter.hasNext()) {
+			T currEvent = iter.next();
+			if (fromEventFound || currEvent.equals(fromEvent)) {
+				fromEventFound = true;
+				if(offset == 0) {
+					return currEvent;
+				}
+				offset--;
+			}
+		}
+		return null;
+	}
+
 	//////////////////////			Fault-Tolerance			//////////////////////
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
@@ -764,7 +800,7 @@ public class NFA<T> implements Serializable {
 	 */
 	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty constructor is required for deserializing the configuration. */
 		public NFASerializerConfigSnapshot() {}
@@ -780,6 +816,12 @@ public class NFA<T> implements Serializable {
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			// we are compatible with version 1 (Flink 1.3.x)
+			return new int[]{VERSION, 1};
+		}
 	}
 
 	/**
@@ -792,6 +834,8 @@ public class NFA<T> implements Serializable {
 		private final TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer;
 
 		private final TypeSerializer<T> eventSerializer;
+
+		private int readVersion = NFASerializerConfigSnapshot.VERSION;
 
 		public NFASerializer(TypeSerializer<T> typeSerializer) {
 			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer));
@@ -886,6 +930,17 @@ public class NFA<T> implements Serializable {
 					eventSerializer.serialize(computationState.getEvent(), target);
 				}
 			}
+
+			int retainLength = record.processedEvents == null ? 0 : record.processedEvents.elements.length;
+			target.writeInt(retainLength);
+			if (retainLength > 0) {
+				target.writeInt(record.processedEvents == null ? 0 : record.processedEvents.count);
+				if (record.processedEvents != null) {
+					for (T event : record.processedEvents) {
+						eventSerializer.serialize(event, target);
+					}
+				}
+			}
 		}
 
 		@Override
@@ -894,7 +949,7 @@ public class NFA<T> implements Serializable {
 			long windowTime = source.readLong();
 			boolean handleTimeout = source.readBoolean();
 
-			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout);
+			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, 0, handleTimeout);
 			nfa.states = states;
 
 			nfa.eventSharedBuffer = sharedBufferSerializer.deserialize(source);
@@ -923,6 +978,18 @@ public class NFA<T> implements Serializable {
 			}
 
 			nfa.computationStates = computationStates;
+
+			if (readVersion > 1) {
+				int retainLength = source.readInt();
+				if (retainLength > 0) {
+					NFA.EvictingBoundedList<T> processedEvents = new NFA.EvictingBoundedList<>(retainLength);
+					int count = source.readInt();
+					for (int i = 0; i < count; i++) {
+						processedEvents.add(eventSerializer.deserialize(source));
+					}
+					nfa.processedEvents = processedEvents;
+				}
+			}
 			return nfa;
 		}
 
@@ -987,6 +1054,17 @@ public class NFA<T> implements Serializable {
 					eventSerializer.serialize(event, target);
 				}
 			}
+
+			int retainLength = source.readInt();
+			target.writeInt(retainLength);
+			if (retainLength > 0) {
+				int count = source.readInt();
+				target.writeInt(count);
+				for (int i = 0; i < count; i++) {
+					T event = eventSerializer.deserialize(source);
+					eventSerializer.serialize(event, target);
+				}
+			}
 		}
 
 		@Override
@@ -1015,6 +1093,8 @@ public class NFA<T> implements Serializable {
 		@Override
 		public CompatibilityResult<NFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
+				readVersion = configSnapshot.getReadVersion();
+
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
 						((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
@@ -1238,6 +1318,92 @@ public class NFA<T> implements Serializable {
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
+		}
+	}
+
+	private static class EvictingBoundedList<T> implements Iterable<T>, Serializable {
+
+		private static final long serialVersionUID = -1863961980953613146L;
+
+		/** the array (viewed as a circular buffer) that holds the latest (= non-evicted) elements */
+		private final T[] elements;
+
+		/** The next index to put an element in the array */
+		private int idx;
+
+		/** The current number of elements in the list */
+		private int count;
+
+		@SuppressWarnings("unchecked")
+		public EvictingBoundedList(int sizeLimit) {
+			this.elements = (T[]) new Object[sizeLimit];
+			this.idx = 0;
+			this.count = 0;
+		}
+
+		public void add(T t) {
+			elements[idx] = t;
+			idx = (idx + 1) % elements.length;
+			if (count < elements.length) {
+				count++;
+			}
+		}
+
+		public T get(int i) {
+			return elements[i];
+		}
+
+		@Override
+		public Iterator<T> iterator() {
+			return new Iterator<T>() {
+				int pos = (idx + elements.length - count) % elements.length;
+				int returnedCount = 0;
+
+				@Override
+				public boolean hasNext() {
+					return returnedCount < count;
+				}
+
+				@Override
+				public T next() {
+					if (hasNext()) {
+						try {
+							return get(pos);
+						} finally {
+							returnedCount++;
+							pos = (pos + 1) % elements.length;
+						}
+					} else {
+						throw new NoSuchElementException();
+					}
+				}
+			};
+		}
+
+		Iterator<T> descendingIterator() {
+			return new Iterator<T>() {
+				int pos = (idx + elements.length - 1) % elements.length;
+				int returnedCount = 0;
+
+				@Override
+				public boolean hasNext() {
+					return returnedCount < count;
+				}
+
+				@Override
+				public T next() {
+					if (hasNext()) {
+						try {
+							return get(pos);
+						} finally {
+							returnedCount++;
+							pos = (pos + elements.length -1) % elements.length;
+						}
+					} else {
+						throw new NoSuchElementException();
+					}
+				}
+			};
 		}
 	}
 }

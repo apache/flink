@@ -94,5 +94,14 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 		 * @param name The name of the pattern.
 		 */
 		Iterable<T> getEventsForPattern(String name);
+
+		/**
+		 * @return The event at the specified {@code offset} in the backward direction
+		 * relative to {@code fromEvent}.
+		 *
+		 * @param fromEvent the event relative to
+		 * @param offset the offset
+		 */
+		T getEventByOffset(T fromEvent, int offset);
 	}
 }
