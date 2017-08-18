@@ -618,7 +618,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			// send registration message
 			CompletableFuture<RegistrationResponse> successfulFuture =
 				resourceManager.registerTaskExecutor(rmServices.rmLeaderSessionId, task1Executor.address, task1Executor.resourceID, slotReport, timeout);
-			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
+			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
 			// verify the internal state
@@ -654,7 +654,7 @@ public class MesosResourceManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Test unplanned task failure of a pending worker.
+	 * Test planned stop of a launched worker.
 	 */
 	@Test
 	public void testStopWorker() throws Exception {

@@ -968,10 +968,20 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			runAsync(new Runnable() {
 				@Override
 				public void run() {
+					ResourceID resourceID = null;
+
 					for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry : taskExecutors.entrySet()) {
 						if (entry.getValue().getInstanceID().equals(instanceId)) {
-							stopWorker(entry.getKey());
+							resourceID = entry.getKey();
+							break;
 						}
+					}
+
+					if (resourceID != null) {
+						stopWorker(resourceID);
+					}
+					else {
+						log.warn("Ignoring request to release TaskManager with instance ID {} (not found).", instanceId);
 					}
 				}
 			});
