@@ -24,9 +24,9 @@ package org.apache.flink.runtime.webmonitor;
 public interface WebHandler {
 
 	/**
-	 * Paths to register the handler under.
+	 * Returns an array of REST URL's under which this handler can be registered.
 	 *
-	 * @return Array of paths under which the handler wants to be registered
+	 * @return array containing REST URL's under which this handler can be registered.
 	 */
 	String[] getPaths();
 }

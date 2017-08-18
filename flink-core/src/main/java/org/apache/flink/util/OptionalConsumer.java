@@ -30,10 +30,10 @@ import java.util.function.Consumer;
  * @param <T> type of the optional
  */
 public class OptionalConsumer<T> {
-	private Optional<T> optional;
+	private final Optional<T> optional;
 
 	private OptionalConsumer(Optional<T> optional) {
-		this.optional = optional;
+		this.optional = Preconditions.checkNotNull(optional);
 	}
 
 	public static <T> OptionalConsumer<T> of(Optional<T> optional) {

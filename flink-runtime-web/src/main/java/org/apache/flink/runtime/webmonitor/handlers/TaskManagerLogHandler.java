@@ -138,6 +138,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 		this.blobView = Preconditions.checkNotNull(blobView, "blobView");
 	}
 
+	@Override
 	public String[] getPaths() {
 		switch (fileMode) {
 			case LOG:
