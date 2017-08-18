@@ -216,7 +216,8 @@ public class FlinkClient {
 			ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
 					Collections.<URL>singletonList(uploadedJarUrl),
 					Collections.<URL>emptyList(),
-					this.getClass().getClassLoader());
+					this.getClass().getClassLoader(),
+					configuration);
 			client.runDetached(jobGraph, classLoader);
 		} catch (final ProgramInvocationException e) {
 			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);

@@ -942,7 +942,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				haServices.createBlobStore());
 			libraryCacheManager = new BlobLibraryCacheManager(
 				blobCache,
-				taskManagerConfiguration.getCleanupInterval());
+				taskManagerConfiguration.getConfiguration());
 		} catch (IOException e) {
 			// Can't pass the IOException up - we need a RuntimeException anyway
 			// two levels up where this is run asynchronously. Also, we don't

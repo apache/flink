@@ -325,10 +325,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		if (webSubmitAllow) {
 			// fetch the list of uploaded jars.
-			get(router, new JarListHandler(uploadDir));
+			get(router, new JarListHandler(uploadDir, config));
 
 			// get plan for an uploaded jar
-			get(router, new JarPlanHandler(uploadDir));
+			get(router, new JarPlanHandler(uploadDir, config));
 
 			// run a jar
 			post(router, new JarRunHandler(uploadDir, timeout, config));

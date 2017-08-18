@@ -179,6 +179,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 			archive = system.actorOf(JobManager.getArchiveProps(MemoryArchivist.class, 10, Option.<Path>empty()));
 
+			flinkConfiguration.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 3600L);
+
 			Props jobManagerProps = Props.create(
 				TestingJobManager.class,
 				flinkConfiguration,
@@ -190,7 +192,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 					new BlobServer(
 						flinkConfiguration,
 						testingHighAvailabilityServices.createBlobStore()),
-					3600000L),
+					flinkConfiguration),
 				archive,
 				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
 				timeout,
@@ -353,6 +355,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 			final Collection<JobID> recoveredJobs = new ArrayList<>(2);
 
+			flinkConfiguration.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, (1 << 20) / 1000);
+
 			Props jobManagerProps = Props.create(
 				TestingFailingHAJobManager.class,
 				flinkConfiguration,
@@ -360,7 +364,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				mock(InstanceManager.class),
 				mock(Scheduler.class),
-				new BlobLibraryCacheManager(mock(BlobService.class), 1 << 20),
+				new BlobLibraryCacheManager(mock(BlobService.class), flinkConfiguration),
 				ActorRef.noSender(),
 				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
 				timeout,

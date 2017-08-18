@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
 
@@ -41,8 +42,11 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
-	public  JarListHandler(File jarDirectory) {
+	private final Configuration clientConfig;
+
+	public  JarListHandler(File jarDirectory, Configuration clientConfig) {
 		jarDir = jarDirectory;
+		this.clientConfig = clientConfig;
 	}
 
 	@Override
@@ -111,7 +115,7 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 
 					PackagedProgram program = null;
 					try {
-						program = new PackagedProgram(f, clazz, new String[0]);
+						program = new PackagedProgram(clientConfig, f, clazz, new String[0]);
 					} catch (Exception ignored) {
 						// ignore jar files which throw an error upon creating a PackagedProgram
 					}

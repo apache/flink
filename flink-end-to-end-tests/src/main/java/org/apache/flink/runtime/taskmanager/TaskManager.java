@@ -15,21 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.execution.librarycache;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+package org.apache.flink.runtime.taskmanager;
 
 /**
- * Gives the URLClassLoader a nicer name for debugging purposes.
+ * A {@code Taskmanager} in the same package as the proper Flink {@link TaskManager}. We use this
+ * to check whether Flink correctly uses the child-first {@link ClassLoader} when configured to do
+ * so.
  */
-public class FlinkUserCodeClassLoader extends URLClassLoader {
-
-	public FlinkUserCodeClassLoader(URL[] urls) {
-		this(urls, FlinkUserCodeClassLoader.class.getClassLoader());
-	}
-
-	public FlinkUserCodeClassLoader(URL[] urls, ClassLoader parent) {
-		super(urls, parent);
+public class TaskManager {
+	public static String getMessage() {
+		return "Hello, World!";
 	}
 }

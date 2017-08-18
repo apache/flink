@@ -190,8 +190,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
-			getClass().getClassLoader());
+		ClassLoader usercodeClassLoader =
+			JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths, getClass().getClassLoader(), clientConfiguration);
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(this.clientConfiguration);

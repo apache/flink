@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -108,11 +107,7 @@ public class JobManagerServices {
 		Preconditions.checkNotNull(config);
 		Preconditions.checkNotNull(blobService);
 
-		final long cleanupInterval = config.getLong(
-			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
-
-		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobService, cleanupInterval);
+		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobService, config);
 
 		final FiniteDuration timeout;
 		try {

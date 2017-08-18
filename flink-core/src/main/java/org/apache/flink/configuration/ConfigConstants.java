@@ -177,7 +177,7 @@ public final class ConfigConstants {
 	public static final String BLOB_SERVICE_SSL_ENABLED = "blob.service.ssl.enabled";
 
 	/**
-	 * The config parameter defining the cleanup interval of the library cache manager.
+	 * The config parameter defining the cleanup interval of the library cache manager, in seconds.
 	 */
 	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
 

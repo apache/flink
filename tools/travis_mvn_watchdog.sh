@@ -423,6 +423,12 @@ case $TEST in
 			printf "==============================================================================\n"
 			test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
+
+			printf "\n==============================================================================\n"
+			printf "Running class loading end-to-end test\n"
+			printf "==============================================================================\n"
+			test-infra/end-to-end-test/test_streaming_classloader.sh build-target cluster
+			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
 			printf "\n==============================================================================\n"
 			printf "Previous build failure detected, skipping end-to-end tests.\n"

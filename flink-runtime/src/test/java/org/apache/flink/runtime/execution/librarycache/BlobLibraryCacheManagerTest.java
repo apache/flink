@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -82,8 +83,9 @@ public class BlobLibraryCacheManagerTest {
 
 			bc.close();
 
-			long cleanupInterval = 1000L;
-			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+
+			libraryCacheManager = new BlobLibraryCacheManager(server, config);
 			libraryCacheManager.registerJob(jid, keys, Collections.<URL>emptyList());
 
 			assertEquals(2, checkFilesExist(jobId, keys, server, true));
@@ -219,8 +221,9 @@ public class BlobLibraryCacheManagerTest {
 			buf[0] += 1;
 			keys.add(bc.put(jobId, buf));
 
-			long cleanupInterval = 1000L;
-			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1L);
+
+			libraryCacheManager = new BlobLibraryCacheManager(server, config);
 			libraryCacheManager.registerTask(jid, executionId1, keys, Collections.<URL>emptyList());
 			libraryCacheManager.registerTask(jid, executionId2, keys, Collections.<URL>emptyList());
 
@@ -297,7 +300,9 @@ public class BlobLibraryCacheManagerTest {
 			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();
 
-			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache, 1000000000L);
+			config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1000000L);
+
+			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache, config);
 
 			assertEquals(0, libCache.getNumberOfCachedLibraries());
 
