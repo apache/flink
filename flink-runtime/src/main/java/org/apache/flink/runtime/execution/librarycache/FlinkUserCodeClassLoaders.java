@@ -76,11 +76,8 @@ public class FlinkUserCodeClassLoaders {
 	 */
 	static final class ChildFirstClassLoader extends URLClassLoader {
 
-		private ClassLoader parent;
-
 		public ChildFirstClassLoader(URL[] urls, ClassLoader parent) {
 			super(urls, parent);
-			this.parent = getSystemClassLoader();
 		}
 
 		@Override
