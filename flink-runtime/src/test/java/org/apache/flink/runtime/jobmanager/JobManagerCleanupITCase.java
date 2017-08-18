@@ -201,12 +201,18 @@ public class JobManagerCleanupITCase extends TestLogger {
 						jobManagerGateway.tell(
 							new JobManagerMessages.SubmitJob(
 								jobGraph,
-								ListeningBehaviour.EXECUTION_RESULT),
+								// NOTE: to not receive two different (arbitrarily ordered) messages
+								//       upon cancellation, only listen for the job submission
+								//       message when cancelling the job
+								testCase == TestCase.JOB_IS_CANCELLED ?
+									ListeningBehaviour.DETACHED :
+									ListeningBehaviour.EXECUTION_RESULT
+							),
 							testActorGateway);
 						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							expectMsgClass(JobManagerMessages.JobResultFailure.class);
 						} else {
-							expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+							expectMsgEquals(new JobManagerMessages.JobSubmitSuccess(jid));
 
 							if (testCase == TestCase.JOB_FAILS) {
 								// fail a task so that the job is going to be recovered (we actually do not
@@ -221,11 +227,8 @@ public class JobManagerCleanupITCase extends TestLogger {
 								jobManagerGateway.tell(
 									new JobManagerMessages.CancelJob(jid),
 									testActorGateway);
-								expectMsgClass(JobManagerMessages.CancellationResponse.class);
 
-								// job will be cancelled and everything should be cleaned up
-
-								expectMsgClass(JobManagerMessages.JobResultFailure.class);
+								expectMsgEquals(new JobManagerMessages.CancellationSuccess(jid, null));
 							} else {
 								expectMsgClass(JobManagerMessages.JobResultSuccess.class);
 							}
