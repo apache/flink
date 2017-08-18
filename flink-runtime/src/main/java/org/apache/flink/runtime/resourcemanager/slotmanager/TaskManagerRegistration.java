@@ -68,7 +68,9 @@ public class TaskManagerRegistration {
 	}
 
 	public void markIdle() {
-		idleSince = System.currentTimeMillis();
+		if (!isIdle()) {
+			idleSince = System.currentTimeMillis();
+		}
 	}
 
 	public void markUsed() {

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -228,7 +227,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	}
 
 	@Override
-	public void stopWorker(InstanceID instanceId) {
+	public void stopWorker(ResourceID resourceID) {
 		// TODO: Implement to stop the worker
 	}
 
