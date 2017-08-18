@@ -18,20 +18,39 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * An overview of how many jobs are in which status.
  */
 public class JobsOverview implements InfoMessage {
 
 	private static final long serialVersionUID = -3699051943490133183L;
-	
+
+	public static final String FIELD_NAME_JOBS_RUNNING = "jobs-running";
+	public static final String FIELD_NAME_JOBS_FINISHED = "jobs-finished";
+	public static final String FIELD_NAME_JOBS_CANCELLED = "jobs-cancelled";
+	public static final String FIELD_NAME_JOBS_FAILED = "jobs-failed";
+
+	@JsonProperty(FIELD_NAME_JOBS_RUNNING)
 	private final int numJobsRunningOrPending;
+
+	@JsonProperty(FIELD_NAME_JOBS_FINISHED)
 	private final int numJobsFinished;
+
+	@JsonProperty(FIELD_NAME_JOBS_CANCELLED)
 	private final int numJobsCancelled;
+
+	@JsonProperty(FIELD_NAME_JOBS_FAILED)
 	private final int numJobsFailed;
 
-	public JobsOverview(int numJobsRunningOrPending, int numJobsFinished,
-						int numJobsCancelled, int numJobsFailed) {
+	@JsonCreator
+	public JobsOverview(
+			@JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
+			@JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
+			@JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
+			@JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed) {
 		
 		this.numJobsRunningOrPending = numJobsRunningOrPending;
 		this.numJobsFinished = numJobsFinished;

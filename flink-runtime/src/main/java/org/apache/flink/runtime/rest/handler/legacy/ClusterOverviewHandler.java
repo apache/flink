@@ -21,8 +21,15 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverviewWithVersion;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.FlinkException;
 
@@ -34,15 +41,16 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders.CLUSTER_OVERVIEW_REST_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Responder that returns the status of the Flink cluster, such as how many
  * TaskManagers are currently connected, and how many jobs are running.
  */
-public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
+public class ClusterOverviewHandler extends AbstractJsonRequestHandler implements LegacyRestHandler<DispatcherGateway, StatusOverviewWithVersion, EmptyMessageParameters> {
 
-	private static final String CLUSTER_OVERVIEW_REST_PATH = "/overview";
+
 
 	private static final String version = EnvironmentInformation.getVersion();
 
@@ -74,16 +82,16 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 							JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 							gen.writeStartObject();
-							gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());
-							gen.writeNumberField("slots-total", overview.getNumSlotsTotal());
-							gen.writeNumberField("slots-available", overview.getNumSlotsAvailable());
-							gen.writeNumberField("jobs-running", overview.getNumJobsRunningOrPending());
-							gen.writeNumberField("jobs-finished", overview.getNumJobsFinished());
-							gen.writeNumberField("jobs-cancelled", overview.getNumJobsCancelled());
-							gen.writeNumberField("jobs-failed", overview.getNumJobsFailed());
-							gen.writeStringField("flink-version", version);
+							gen.writeNumberField(StatusOverview.FIELD_NAME_TASKMANAGERS, overview.getNumTaskManagersConnected());
+							gen.writeNumberField(StatusOverview.FIELD_NAME_SLOTS_TOTAL, overview.getNumSlotsTotal());
+							gen.writeNumberField(StatusOverview.FIELD_NAME_SLOTS_AVAILABLE, overview.getNumSlotsAvailable());
+							gen.writeNumberField(JobsOverview.FIELD_NAME_JOBS_RUNNING, overview.getNumJobsRunningOrPending());
+							gen.writeNumberField(JobsOverview.FIELD_NAME_JOBS_FINISHED, overview.getNumJobsFinished());
+							gen.writeNumberField(JobsOverview.FIELD_NAME_JOBS_CANCELLED, overview.getNumJobsCancelled());
+							gen.writeNumberField(JobsOverview.FIELD_NAME_JOBS_FAILED, overview.getNumJobsFailed());
+							gen.writeStringField(StatusOverviewWithVersion.FIELD_NAME_VERSION, version);
 							if (!commitID.equals(EnvironmentInformation.UNKNOWN)) {
-								gen.writeStringField("flink-commit", commitID);
+								gen.writeStringField(StatusOverviewWithVersion.FIELD_NAME_COMMIT, commitID);
 							}
 							gen.writeEndObject();
 
@@ -101,5 +109,13 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 		catch (Exception e) {
 			return FutureUtils.completedExceptionally(new FlinkException("Failed to fetch list of all running jobs: ", e));
 		}
+	}
+
+	@Override
+	public CompletableFuture<StatusOverviewWithVersion> handleRequest(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, DispatcherGateway gateway) {
+		CompletableFuture<StatusOverview> overviewFuture = gateway.requestStatusOverview(timeout);
+
+		return overviewFuture.thenApply(
+			statusOverview -> StatusOverviewWithVersion.fromStatusOverview(statusOverview, version, commitID));
 	}
 }

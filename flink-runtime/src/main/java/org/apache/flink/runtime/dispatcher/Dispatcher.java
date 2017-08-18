@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -241,6 +242,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public CompletableFuture<String> requestRestAddress(Time timeout) {
 		return restAddressFuture;
+	}
+
+	@Override
+	public CompletableFuture<StatusOverview> requestStatusOverview(Time timeout) {
+		// TODO: Implement proper cluster overview generation
+		return CompletableFuture.completedFuture(
+			new StatusOverview(
+				42,
+				1337,
+				1337,
+				5,
+				6,
+				7,
+				8));
 	}
 
 	/**
