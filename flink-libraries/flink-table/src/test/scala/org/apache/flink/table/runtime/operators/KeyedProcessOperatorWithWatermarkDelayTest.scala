@@ -26,11 +26,10 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.util.{Collector, TestLogger}
-
-import org.junit.{Assert, Test}
+import org.junit.Test
 
 /**
-  * Tests {@link KeyedProcessOperatorWithWatermarkDelay}.
+  * Tests [[KeyedProcessOperatorWithWatermarkDelay]].
   */
 class KeyedProcessOperatorWithWatermarkDelayTest extends TestLogger {
 
@@ -40,33 +39,36 @@ class KeyedProcessOperatorWithWatermarkDelayTest extends TestLogger {
       new EmptyProcessFunction, 100)
     val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, String](
       operator, new IdentityKeySelector, BasicTypeInfo.INT_TYPE_INFO)
+
     testHarness.setup()
     testHarness.open()
     testHarness.processWatermark(new Watermark(101))
     testHarness.processWatermark(new Watermark(103))
+
     val expectedOutput = new ConcurrentLinkedQueue[AnyRef]
     expectedOutput.add(new Watermark(1))
     expectedOutput.add(new Watermark(3))
-    TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput,
+
+    TestHarnessUtil.assertOutputEquals(
+      "Output was not correct.",
+      expectedOutput,
       testHarness.getOutput)
+
     testHarness.close()
   }
 
-  @Test
+  @Test(expected = classOf[IllegalArgumentException])
   def testDelayParameter(): Unit = {
-    try {
-      new KeyedProcessOperatorWithWatermarkDelay[Integer, Integer, String](
-        new EmptyProcessFunction, -1)
-    } catch {
-      case ex: Exception =>
-        Assert.assertTrue(ex.isInstanceOf[IllegalArgumentException])
-    }
+    new KeyedProcessOperatorWithWatermarkDelay[Integer, Integer, String](
+      new EmptyProcessFunction, -1)
   }
 }
 
 private class EmptyProcessFunction extends ProcessFunction[Integer, String] {
-  override def processElement(value: Integer,
-    ctx: ProcessFunction[Integer, String]#Context, out: Collector[String]): Unit = {
+  override def processElement(
+    value: Integer,
+    ctx: ProcessFunction[Integer, String]#Context,
+    out: Collector[String]): Unit = {
     // do nothing
   }
 }

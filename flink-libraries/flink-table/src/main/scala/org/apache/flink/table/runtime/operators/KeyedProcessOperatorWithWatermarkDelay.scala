@@ -23,15 +23,15 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 
 /**
-  * A {@link org.apache.flink.streaming.api.operators.KeyedProcessOperator} that supports holding
-  * back watermarks with a static delay.
+  * A [[KeyedProcessOperator]] that supports holding back watermarks with a static delay.
   */
 class KeyedProcessOperatorWithWatermarkDelay[KEY, IN, OUT](
   private val flatMapper: ProcessFunction[IN, OUT],
-  private var watermarkDelay: Long = 0L) extends KeyedProcessOperator[KEY, IN, OUT](flatMapper) {
+  private var watermarkDelay: Long = 0L)
+  extends KeyedProcessOperator[KEY, IN, OUT](flatMapper) {
 
   if (watermarkDelay < 0) {
-    throw new IllegalArgumentException("The watermark delay should be non-negative");
+    throw new IllegalArgumentException("The watermark delay should be non-negative")
   }
 
   override protected def getWatermarkToEmit(inputWatermark: Watermark): Watermark = {

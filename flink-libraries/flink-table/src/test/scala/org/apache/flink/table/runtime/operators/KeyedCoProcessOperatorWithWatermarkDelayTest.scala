@@ -25,11 +25,10 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.{KeyedTwoInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.util.{Collector, TestLogger}
-
-import org.junit.{Assert, Test}
+import org.junit.Test
 
 /**
-  * Tests {@link KeyedProcessOperatorWithWatermarkDelay}.
+  * Tests [[KeyedCoProcessOperatorWithWatermarkDelay]].
   */
 class KeyedCoProcessOperatorWithWatermarkDelayTest extends TestLogger {
 
@@ -38,45 +37,48 @@ class KeyedCoProcessOperatorWithWatermarkDelayTest extends TestLogger {
     val operator = new KeyedCoProcessOperatorWithWatermarkDelay[String, Integer, String, String](
       new EmptyCoProcessFunction, 100)
     val testHarness = new KeyedTwoInputStreamOperatorTestHarness[String, Integer, String, String](
-      operator, new IntToStringKeySelector, new CoIdentityKeySelector[String],
+      operator,
+      new IntToStringKeySelector, new CoIdentityKeySelector[String],
       BasicTypeInfo.STRING_TYPE_INFO)
+
     testHarness.setup()
     testHarness.open()
     testHarness.processWatermark1(new Watermark(101))
     testHarness.processWatermark2(new Watermark(202))
     testHarness.processWatermark1(new Watermark(103))
     testHarness.processWatermark2(new Watermark(204))
+
     val expectedOutput = new ConcurrentLinkedQueue[AnyRef]
     expectedOutput.add(new Watermark(1))
     expectedOutput.add(new Watermark(3))
-    TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput,
+
+    TestHarnessUtil.assertOutputEquals(
+      "Output was not correct.",
+      expectedOutput,
       testHarness.getOutput)
+
     testHarness.close()
   }
 
-  @Test
+  @Test(expected = classOf[IllegalArgumentException])
   def testDelayParameter(): Unit = {
-    try {
-      new KeyedCoProcessOperatorWithWatermarkDelay[AnyRef, Integer, String, String](
-        new EmptyCoProcessFunction, -1)
-    } catch {
-      case ex: Exception =>
-        Assert.assertTrue(ex.isInstanceOf[IllegalArgumentException])
-    }
+    new KeyedCoProcessOperatorWithWatermarkDelay[AnyRef, Integer, String, String](
+      new EmptyCoProcessFunction, -1)
   }
 }
 
-class EmptyCoProcessFunction extends CoProcessFunction[Integer, String, String] {
-  @throws[Exception]
-  override def processElement1(value: Integer,
-    ctx: CoProcessFunction[Integer, String, String]#Context, out: Collector[String]): Unit = {
+private class EmptyCoProcessFunction extends CoProcessFunction[Integer, String, String] {
+  override def processElement1(
+    value: Integer,
+    ctx: CoProcessFunction[Integer, String, String]#Context,
+    out: Collector[String]): Unit = {
     // do nothing
   }
 
-  @throws[Exception]
-  override def processElement2(value: String,
-    ctx: CoProcessFunction[Integer, String, String]#Context, out: Collector[String]):
-  Unit = {
+  override def processElement2(
+    value: String,
+    ctx: CoProcessFunction[Integer, String, String]#Context,
+    out: Collector[String]): Unit = {
     //do nothing
   }
 }
