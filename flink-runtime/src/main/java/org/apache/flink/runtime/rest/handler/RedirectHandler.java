@@ -34,6 +34,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
+import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,22 +79,24 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 		ChannelHandlerContext channelHandlerContext,
 		Routed routed) throws Exception {
 
-		try {
-			if (localAddressFuture.isDone()) {
-				if (localAddress == null) {
-					try {
-						localAddress = localAddressFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-					} catch (Exception e) {
-						logger.error("Could not obtain local address.", e);
+		if (localAddressFuture.isDone()) {
+			if (localAddress == null) {
+				try {
+					localAddress = localAddressFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+				} catch (Exception e) {
+					logger.error("Could not obtain local address.", e);
 
-						HandlerUtils.sendErrorResponse(
-							channelHandlerContext,
-							routed.request(),
-							new ErrorResponseBody("Fatal error. Could not obtain local address. Please try to refresh."),
-							HttpResponseStatus.INTERNAL_SERVER_ERROR);
-					}
+					HandlerUtils.sendErrorResponse(
+						channelHandlerContext,
+						routed.request(),
+						new ErrorResponseBody("Fatal error. Could not obtain local address. Please try to refresh."),
+						HttpResponseStatus.INTERNAL_SERVER_ERROR);
+
+					return;
 				}
+			}
 
+			try {
 				OptionalConsumer<T> optLeaderConsumer = OptionalConsumer.of(leaderRetriever.getNow());
 
 				optLeaderConsumer.ifPresent(
@@ -103,34 +106,42 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 							gateway,
 							timeout);
 
+						// retain the message for the asynchronous handler
+						ReferenceCountUtil.retain(routed);
+
 						optRedirectAddressFuture.whenComplete(
 							(Optional<String> optRedirectAddress, Throwable throwable) -> {
 								HttpResponse response;
-								if (throwable != null) {
-									logger.error("Could not retrieve the redirect address.", throwable);
+								try {
+									if (throwable != null) {
+										logger.error("Could not retrieve the redirect address.", throwable);
 
 									HandlerUtils.sendErrorResponse(
 										channelHandlerContext,
 										routed.request(),
 										new ErrorResponseBody("Could not retrieve the redirect address of the current leader. Please try to refresh."),
 										HttpResponseStatus.INTERNAL_SERVER_ERROR);
-								} else if (optRedirectAddress.isPresent()) {
-									response = HandlerRedirectUtils.getRedirectResponse(
-										optRedirectAddress.get(),
-										routed.path());
+									} else if (optRedirectAddress.isPresent()) {
+										response = HandlerRedirectUtils.getRedirectResponse(
+											optRedirectAddress.get(),
+											routed.path());
 
-									KeepAliveWrite.flush(channelHandlerContext, routed.request(), response);
-								} else {
-									try {
-										respondAsLeader(channelHandlerContext, routed, gateway);
-									} catch (Exception e) {
-										logger.error("Error while responding as leader.", e);
+										KeepAliveWrite.flush(channelHandlerContext, routed.request(), response);
+									} else {
+										try {
+											respondAsLeader(channelHandlerContext, routed, gateway);
+										} catch (Exception e) {
+											logger.error("Error while responding as leader.", e);
 										HandlerUtils.sendErrorResponse(
-											channelHandlerContext,
-											routed.request(),
+												channelHandlerContext,
+												routed.request(),
 											new ErrorResponseBody("Error while responding to the request."),
 											HttpResponseStatus.INTERNAL_SERVER_ERROR);
+										}
 									}
+								} finally {
+									// release the message after processing it asynchronously
+									ReferenceCountUtil.release(routed);
 								}
 							}
 						);
@@ -142,19 +153,21 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 							routed.request(),
 							new ErrorResponseBody("Service temporarily unavailable due to an ongoing leader election. Please refresh."),
 							HttpResponseStatus.SERVICE_UNAVAILABLE));
-			} else {
+
+			} catch (Throwable throwable) {
+				logger.warn("Error occurred while processing web request.", throwable);
+
 				HandlerUtils.sendErrorResponse(
 					channelHandlerContext,
 					routed.request(),
-					new ErrorResponseBody("Local address has not been resolved. This indicates an internal error."),
+					new ErrorResponseBody("Error occurred in RedirectHandler: " + throwable.getMessage() + '.'),
 					HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			}
-		} catch (Throwable throwable) {
-			logger.warn("Error occurred while processing web request.", throwable);
+		} else {
 			HandlerUtils.sendErrorResponse(
 				channelHandlerContext,
 				routed.request(),
-				new ErrorResponseBody("Error occurred in RedirectHandler: " + throwable.getMessage() + '.'),
+				new ErrorResponseBody("Local address has not been resolved. This indicates an internal error."),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}
 	}

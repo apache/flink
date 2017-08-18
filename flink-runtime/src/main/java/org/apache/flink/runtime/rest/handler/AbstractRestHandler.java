@@ -66,11 +66,11 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	private final MessageHeaders<R, P, M> messageHeaders;
 
 	protected AbstractRestHandler(
-			CompletableFuture<String> localAddressFuture,
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<T> leaderRetriever,
 			Time timeout,
 			MessageHeaders<R, P, M> messageHeaders) {
-		super(localAddressFuture, leaderRetriever, timeout);
+		super(localRestAddress, leaderRetriever, timeout);
 		this.messageHeaders = messageHeaders;
 	}
 

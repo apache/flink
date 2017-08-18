@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * Response to the {@link RequestStatusOverview} message, carrying a description
  * of the Flink cluster status.
@@ -25,13 +28,29 @@ package org.apache.flink.runtime.messages.webmonitor;
 public class StatusOverview extends JobsOverview {
 
 	private static final long serialVersionUID = -729861859715105265L;
-	
+
+	public static final String FIELD_NAME_TASKMANAGERS = "taskmanagers";
+	public static final String FIELD_NAME_SLOTS_TOTAL = "slots-total";
+	public static final String FIELD_NAME_SLOTS_AVAILABLE = "slots-available";
+
+	@JsonProperty(FIELD_NAME_TASKMANAGERS)
 	private final int numTaskManagersConnected;
+
+	@JsonProperty(FIELD_NAME_SLOTS_TOTAL)
 	private final int numSlotsTotal;
+
+	@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE)
 	private final int numSlotsAvailable;
 
-	public StatusOverview(int numTaskManagersConnected, int numSlotsTotal, int numSlotsAvailable,
-							int numJobsRunningOrPending, int numJobsFinished, int numJobsCancelled, int numJobsFailed) {
+	@JsonCreator
+	public StatusOverview(
+			@JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
+			@JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
+			@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
+			@JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
+			@JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
+			@JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
+			@JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed) {
 
 		super(numJobsRunningOrPending, numJobsFinished, numJobsCancelled, numJobsFailed);
 		

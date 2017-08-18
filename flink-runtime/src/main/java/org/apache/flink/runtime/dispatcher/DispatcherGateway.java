@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -53,4 +54,6 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	 */
 	CompletableFuture<Collection<JobID>> listJobs(
 		@RpcTimeout Time timeout);
+
+	CompletableFuture<StatusOverview> requestStatusOverview(@RpcTimeout Time timeout);
 }

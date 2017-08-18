@@ -43,6 +43,7 @@ import org.apache.flink.util.FlinkException;
 
 import java.io.File;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for session cluster entry points.
@@ -81,7 +82,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 		dispatcherRestEndpoint = createDispatcherRestEndpoint(
 			configuration,
-			dispatcherGatewayRetriever);
+			dispatcherGatewayRetriever,
+			rpcService.getExecutor());
 
 		LOG.debug("Starting Dispatcher REST endpoint.");
 		dispatcherRestEndpoint.start();
@@ -151,8 +153,9 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	}
 
 	protected DispatcherRestEndpoint createDispatcherRestEndpoint(
-		Configuration configuration,
-		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever) throws Exception {
+			Configuration configuration,
+			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
+			Executor executor) throws Exception {
 
 		Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 		File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR));
@@ -161,7 +164,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			RestServerEndpointConfiguration.fromConfiguration(configuration),
 			dispatcherGatewayRetriever,
 			timeout,
-			tmpDir);
+			tmpDir,
+			executor);
 	}
 
 	protected Dispatcher createDispatcher(
