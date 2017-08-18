@@ -353,6 +353,11 @@ fi
 
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
+# check if the "hadoop" binary is available, if yes, use that to augment the CLASSPATH
+if command -v hadoop >/dev/null 2>&1; then
+    INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}:`hadoop classpath`"
+fi
+
 if [ -n "${HBASE_CONF_DIR}" ]; then
     # Look for hbase command in HBASE_HOME or search PATH.
     if [ -n "${HBASE_HOME}" ]; then
