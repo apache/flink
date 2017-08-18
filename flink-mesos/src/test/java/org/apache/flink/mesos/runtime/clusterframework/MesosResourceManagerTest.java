@@ -619,7 +619,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			CompletableFuture<RegistrationResponse> successfulFuture =
 				resourceManager.registerTaskExecutor(rmServices.rmLeaderSessionId, task1Executor.address, task1Executor.resourceID, slotReport, timeout);
 			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
+			assertTrue("unexpected: " + response, response instanceof TaskExecutorRegistrationSuccess);
 
 			// verify the internal state
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
