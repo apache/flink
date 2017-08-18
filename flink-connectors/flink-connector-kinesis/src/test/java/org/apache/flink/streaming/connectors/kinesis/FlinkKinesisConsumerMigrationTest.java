@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -118,7 +119,7 @@ public class FlinkKinesisConsumerMigrationTest {
 		testHarness.open();
 
 		// assert that no state was restored
-		assertEquals(null, consumerFunction.getRestoredState());
+		assertTrue(consumerFunction.getRestoredState().isEmpty());
 
 		consumerOperator.close();
 		consumerOperator.cancel();
