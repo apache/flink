@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -70,7 +71,7 @@ public class FlinkKinesisConsumerMigrationTest {
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
-	private final static HashMap<StreamShardMetadata, SequenceNumber> TEST_STATE = new HashMap<>();
+	private static final HashMap<StreamShardMetadata, SequenceNumber> TEST_STATE = new HashMap<>();
 	static {
 		StreamShardMetadata shardMetadata = new StreamShardMetadata();
 		shardMetadata.setStreamName("fakeStream1");
@@ -99,7 +100,9 @@ public class FlinkKinesisConsumerMigrationTest {
 		writeSnapshot("src/test/resources/kinesis-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-snapshot", TEST_STATE);
 
 		// write empty state snapshot
-		writeSnapshot("src/test/resources/kinesis-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-empty-snapshot", new HashMap<>());
+		writeSnapshot(
+			"src/test/resources/kinesis-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-empty-snapshot",
+			new HashMap<StreamShardMetadata, SequenceNumber>());
 	}
 
 	@Test
@@ -118,7 +121,7 @@ public class FlinkKinesisConsumerMigrationTest {
 		testHarness.open();
 
 		// assert that no state was restored
-		assertEquals(null, consumerFunction.getRestoredState());
+		assertTrue(consumerFunction.getRestoredState().isEmpty());
 
 		consumerOperator.close();
 		consumerOperator.cancel();

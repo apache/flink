@@ -366,15 +366,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		LOG.info("Subtask {} restoring offsets from an older Flink version: {}",
 			getRuntimeContext().getIndexOfThisSubtask(), sequenceNumsToRestore);
 
-		if (restoredState.isEmpty()) {
-			sequenceNumsToRestore = null;
-		} else {
-			sequenceNumsToRestore = new HashMap<>();
-			for (Map.Entry<KinesisStreamShard, SequenceNumber> stateEntry : restoredState.entrySet()) {
-				sequenceNumsToRestore.put(
-						KinesisStreamShard.convertToStreamShardMetadata(stateEntry.getKey()),
-						stateEntry.getValue());
-			}
+		sequenceNumsToRestore = new HashMap<>();
+
+		for (Map.Entry<KinesisStreamShard, SequenceNumber> stateEntry : restoredState.entrySet()) {
+			sequenceNumsToRestore.put(
+				KinesisStreamShard.convertToStreamShardMetadata(stateEntry.getKey()),
+				stateEntry.getValue());
 		}
 	}
 
