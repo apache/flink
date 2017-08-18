@@ -38,6 +38,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.MessageToMessageDecoder;
 
+import org.apache.flink.util.Preconditions;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -220,6 +222,8 @@ abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+			Preconditions.checkNotNull(buffer, "No buffer instance to serialize.");
+
 			int length = 16 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
@@ -242,9 +246,7 @@ abstract class NettyMessage {
 				throw new IOException(t);
 			}
 			finally {
-				if (buffer != null) {
-					buffer.recycle();
-				}
+				buffer.recycle();
 			}
 		}
 
