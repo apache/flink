@@ -49,7 +49,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -197,7 +196,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 	protected ActorRef createTaskMonitor(SchedulerDriver schedulerDriver) {
 		return actorSystem.actorOf(
-			Tasks.createActorProps(Tasks.class, flinkConfig, schedulerDriver, TaskMonitor.class),
+			Tasks.createActorProps(Tasks.class, selfActor, flinkConfig, schedulerDriver, TaskMonitor.class),
 			"tasks");
 	}
 
@@ -422,8 +421,34 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public void stopWorker(InstanceID instanceId) {
-		// TODO implement worker release
+	public void stopWorker(ResourceID resourceID) {
+		LOG.info("Stopping worker {}.", resourceID);
+		try {
+
+			if (workersInLaunch.containsKey(resourceID)) {
+				// update persistent state of worker to Released
+				MesosWorkerStore.Worker worker = workersInLaunch.remove(resourceID);
+				worker = worker.releaseWorker();
+				workerStore.putWorker(worker);
+				workersBeingReturned.put(extractResourceID(worker.taskID()), worker);
+
+				taskMonitor.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
+
+				if (worker.hostname().isDefined()) {
+					// tell the launch coordinator that the task is being unassigned from the host, for planning purposes
+					launchCoordinator.tell(new LaunchCoordinator.Unassign(worker.taskID(), worker.hostname().get()), selfActor);
+				}
+			}
+			else if (workersBeingReturned.containsKey(resourceID)) {
+				LOG.info("Ignoring request to stop worker {} because it is already being stopped.", resourceID);
+			}
+			else {
+				LOG.warn("Unrecognized worker {}.", resourceID);
+			}
+		}
+		catch (Exception e) {
+			onFatalErrorAsync(new ResourceManagerException("Unable to release a worker.", e));
+		}
 	}
 
 	/**
@@ -596,8 +621,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			assert(launched != null);
 			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
 				id, status.getState(), status.getReason(), status.getMessage());
-
-			// TODO : launch a replacement worker?
 		}
 
 		closeTaskManagerConnection(id, new Exception(status.getMessage()));

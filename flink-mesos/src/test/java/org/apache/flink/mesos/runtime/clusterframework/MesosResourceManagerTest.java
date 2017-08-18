@@ -78,6 +78,7 @@ import org.apache.mesos.SchedulerDriver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -454,7 +455,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosWorkerStore.Worker expected = MesosWorkerStore.Worker.newWorker(taskID, resourceProfile);
 
 			// drain the probe messages
-			verify(rmServices.workerStore).putWorker(expected);
+			verify(rmServices.workerStore, Mockito.timeout(timeout.toMilliseconds())).putWorker(expected);
 			assertThat(resourceManager.workersInNew, hasEntry(extractResourceID(taskID), expected));
 			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
 			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
@@ -531,7 +532,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			// verify that a new worker was persisted, the internal state was updated, the task router was notified,
 			// and the launch coordinator was asked to launch a task
 			MesosWorkerStore.Worker expected = MesosWorkerStore.Worker.newWorker(task1, resourceProfile1);
-			verify(rmServices.workerStore).putWorker(expected);
+			verify(rmServices.workerStore, Mockito.timeout(timeout.toMilliseconds())).putWorker(expected);
 			assertThat(resourceManager.workersInNew, hasEntry(extractResourceID(task1), expected));
 			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
 			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
@@ -649,6 +650,36 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// verify that `closeTaskManagerConnection` was called
 			assertThat(resourceManager.closedTaskManagerConnections, hasItem(extractResourceID(task1)));
+		}};
+	}
+
+	/**
+	 * Test unplanned task failure of a pending worker.
+	 */
+	@Test
+	public void testStopWorker() throws Exception {
+		new Context() {{
+			// set the initial persistent state with a launched worker
+			MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
+			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
+			when(rmServices.workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
+			startResourceManager();
+
+			// drain the assign message
+			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Assign.class);
+
+			// tell the RM to stop the worker
+			resourceManager.stopWorker(extractResourceID(task1));
+
+			// verify that the instance state was updated
+			MesosWorkerStore.Worker worker1Released = worker1launched.releaseWorker();
+			verify(rmServices.workerStore).putWorker(worker1Released);
+			assertThat(resourceManager.workersInLaunch.entrySet(), empty());
+			assertThat(resourceManager.workersBeingReturned, hasEntry(extractResourceID(task1), worker1Released));
+
+			// verify that the monitor was notified
+			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
+			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Unassign.class);
 		}};
 	}
 
