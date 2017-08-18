@@ -354,6 +354,7 @@ fi
 # try and set HADOOP_CONF_DIR to some common default if it's not set
 if [ -z "$HADOOP_CONF_DIR" ]; then
     if [ -d "/etc/hadoop/conf" ]; then
+        echo "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR was set."
         HADOOP_CONF_DIR="/etc/hadoop/conf"
     fi
 fi
