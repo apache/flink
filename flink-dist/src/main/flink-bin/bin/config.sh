@@ -351,6 +351,14 @@ if [ -z "$HADOOP_CONF_DIR" ]; then
     fi
 fi
 
+# try and set HADOOP_CONF_DIR to some common default if it's not set
+if [ -z "$HADOOP_CONF_DIR" ]; then
+    if [ -d "/etc/hadoop/conf" ]; then
+        echo "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR was set."
+        HADOOP_CONF_DIR="/etc/hadoop/conf"
+    fi
+fi
+
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
 # check if the "hadoop" binary is available, if yes, use that to augment the CLASSPATH
