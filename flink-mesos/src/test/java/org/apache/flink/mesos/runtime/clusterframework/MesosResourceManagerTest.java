@@ -331,9 +331,9 @@ public class MesosResourceManagerTest extends TestLogger {
 				when(slotManager.registerSlotRequest(any(SlotRequest.class))).thenReturn(true);
 			}
 
-			public void grantLeadership() {
+			public void grantLeadership() throws Exception {
 				rmLeaderSessionId = UUID.randomUUID();
-				rmLeaderElectionService.isLeader(rmLeaderSessionId);
+				rmLeaderElectionService.isLeader(rmLeaderSessionId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 		}
 
@@ -619,7 +619,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			CompletableFuture<RegistrationResponse> successfulFuture =
 				resourceManager.registerTaskExecutor(rmServices.rmLeaderSessionId, task1Executor.address, task1Executor.resourceID, slotReport, timeout);
 			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			assertTrue("unexpected: " + response, response instanceof TaskExecutorRegistrationSuccess);
+			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
 			// verify the internal state
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
