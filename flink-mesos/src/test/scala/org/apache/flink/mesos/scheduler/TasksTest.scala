@@ -93,7 +93,7 @@ class TasksTest
         taskActorRef
       }
       TestActorRef[Tasks](
-        Props(classOf[Tasks], config, schedulerDriver, taskActorCreator),
+        Props(classOf[Tasks], testActor, config, schedulerDriver, taskActorCreator),
         testActor,
         TestFSMUtils.randomName)
     }

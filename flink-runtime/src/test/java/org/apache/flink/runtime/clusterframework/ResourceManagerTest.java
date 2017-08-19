@@ -629,7 +629,7 @@ public class ResourceManagerTest extends TestLogger {
 
 			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
-			rmLeaderElectionService.isLeader(rmLeaderId);
+			rmLeaderElectionService.isLeader(rmLeaderId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(

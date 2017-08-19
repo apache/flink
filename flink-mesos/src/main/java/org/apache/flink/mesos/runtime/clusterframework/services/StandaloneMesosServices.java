@@ -21,13 +21,20 @@ package org.apache.flink.mesos.runtime.clusterframework.services;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.runtime.clusterframework.store.StandaloneMesosWorkerStore;
+import org.apache.flink.mesos.util.MesosArtifactServer;
+
+import akka.actor.ActorSystem;
 
 import java.util.concurrent.Executor;
 
 /**
  * {@link MesosServices} implementation for the standalone mode.
  */
-public class StandaloneMesosServices implements MesosServices {
+public class StandaloneMesosServices extends AbstractMesosServices {
+
+	protected StandaloneMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer) {
+		super(actorSystem, artifactServer);
+	}
 
 	@Override
 	public MesosWorkerStore createMesosWorkerStore(Configuration configuration, Executor executor) {
@@ -36,5 +43,6 @@ public class StandaloneMesosServices implements MesosServices {
 
 	@Override
 	public void close(boolean cleanup) throws Exception {
+		super.close(cleanup);
 	}
 }

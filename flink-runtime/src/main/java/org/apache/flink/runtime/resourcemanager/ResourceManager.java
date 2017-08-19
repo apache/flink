@@ -944,7 +944,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	@VisibleForTesting
 	public abstract void startNewWorker(ResourceProfile resourceProfile);
 
-	public abstract void stopWorker(InstanceID instanceId);
+	/**
+	 * Deallocates a resource.
+	 *
+	 * @param resourceID The resource ID
+	 */
+	public abstract void stopWorker(ResourceID resourceID);
 
 	/**
 	 * Callback when a worker was started.
@@ -960,12 +965,36 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void releaseResource(InstanceID instanceId) {
-			stopWorker(instanceId);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					ResourceID resourceID = null;
+
+					for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry : taskExecutors.entrySet()) {
+						if (entry.getValue().getInstanceID().equals(instanceId)) {
+							resourceID = entry.getKey();
+							break;
+						}
+					}
+
+					if (resourceID != null) {
+						stopWorker(resourceID);
+					}
+					else {
+						log.warn("Ignoring request to release TaskManager with instance ID {} (not found).", instanceId);
+					}
+				}
+			});
 		}
 
 		@Override
 		public void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
-			startNewWorker(resourceProfile);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					startNewWorker(resourceProfile);
+				}
+			});
 		}
 
 		@Override

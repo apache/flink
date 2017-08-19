@@ -836,10 +836,13 @@ public class SlotManager implements AutoCloseable {
 
 			while (taskManagerRegistrationIterator.hasNext()) {
 				TaskManagerRegistration taskManagerRegistration = taskManagerRegistrationIterator.next().getValue();
+				LOG.debug("Evaluating TaskManager {} for idleness.", taskManagerRegistration.getInstanceId());
 
 				if (anySlotUsed(taskManagerRegistration.getSlots())) {
 					taskManagerRegistration.markUsed();
 				} else if (currentTime - taskManagerRegistration.getIdleSince() >= taskManagerTimeout.toMilliseconds()) {
+					LOG.info("Removing idle TaskManager {} from the SlotManager.", taskManagerRegistration.getInstanceId());
+
 					taskManagerRegistrationIterator.remove();
 
 					internalUnregisterTaskManager(taskManagerRegistration);

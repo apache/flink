@@ -110,7 +110,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 	}
 
 	@Override
-	protected void shutDown(boolean cleanupHaData) throws FlinkException {
+	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
 		Throwable exception = null;
 
 		if (jobManagerRunner != null) {
@@ -129,14 +129,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			}
 		}
 
-		try {
-			super.shutDown(cleanupHaData);
-		} catch (Throwable t) {
-			exception = ExceptionUtils.firstOrSuppressed(t, exception);
-		}
-
 		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the session cluster entry point.", exception);
+			throw new FlinkException("Could not properly shut down the job cluster entry point.", exception);
 		}
 	}
 

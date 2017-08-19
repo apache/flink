@@ -74,6 +74,10 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.hostname")
 		.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_TM_CMD =
+		key("mesos.resourcemanager.tasks.taskmanager-cmd")
+		.defaultValue("$FLINK_HOME/bin/mesos-taskmanager.sh"); // internal
+
 	public static final ConfigOption<String> MESOS_TM_BOOTSTRAP_CMD =
 		key("mesos.resourcemanager.tasks.bootstrap-cmd")
 		.noDefaultValue();
@@ -107,6 +111,8 @@ public class MesosTaskManagerParameters {
 
 	private final List<ConstraintEvaluator> constraints;
 
+	private final String command;
+
 	private final Option<String> bootstrapCommand;
 
 	private final Option<String> taskManagerHostname;
@@ -118,6 +124,7 @@ public class MesosTaskManagerParameters {
 			ContaineredTaskManagerParameters containeredParameters,
 			List<Protos.Volume> containerVolumes,
 			List<ConstraintEvaluator> constraints,
+			String command,
 			Option<String> bootstrapCommand,
 			Option<String> taskManagerHostname) {
 
@@ -127,6 +134,7 @@ public class MesosTaskManagerParameters {
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
 		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
 		this.constraints = Preconditions.checkNotNull(constraints);
+		this.command = Preconditions.checkNotNull(command);
 		this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
 		this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
 	}
@@ -183,6 +191,13 @@ public class MesosTaskManagerParameters {
 	}
 
 	/**
+	 * Get the command.
+	 */
+	public String command() {
+		return command;
+	}
+
+	/**
 	 * Get the bootstrap command.
 	 */
 	public Option<String> bootstrapCommand() {
@@ -199,6 +214,7 @@ public class MesosTaskManagerParameters {
 			", containerVolumes=" + containerVolumes +
 			", constraints=" + constraints +
 			", taskManagerHostName=" + taskManagerHostname +
+			", command=" + command +
 			", bootstrapCommand=" + bootstrapCommand +
 			'}';
 	}
@@ -249,7 +265,8 @@ public class MesosTaskManagerParameters {
 		//obtain Task Manager Host Name from the configuration
 		Option<String> taskManagerHostname = Option.apply(flinkConfig.getString(MESOS_TM_HOSTNAME));
 
-		//obtain bootstrap command from the configuration
+		//obtain command-line from the configuration
+		String tmCommand = flinkConfig.getString(MESOS_TM_CMD);
 		Option<String> tmBootstrapCommand = Option.apply(flinkConfig.getString(MESOS_TM_BOOTSTRAP_CMD));
 
 		return new MesosTaskManagerParameters(
@@ -259,6 +276,7 @@ public class MesosTaskManagerParameters {
 			containeredParameters,
 			containerVolumes,
 			constraints,
+			tmCommand,
 			tmBootstrapCommand,
 			taskManagerHostname);
 	}
