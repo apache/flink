@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.commons.lang3.StringUtils;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -73,7 +75,7 @@ public class UnmodifiableConfigurationTest extends TestLogger {
 			UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
 
 			for (Method m : clazz.getMethods()) {
-				if (m.getName().startsWith("set")) {
+				if (m.getName().startsWith("set") && !StringUtils.equals(m.getName(), "setDynamicProperties")) {
 
 					Class<?> keyClass = m.getParameterTypes()[0];
 					Class<?> parameterClass = m.getParameterTypes()[1];

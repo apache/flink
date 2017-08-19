@@ -303,4 +303,28 @@ public class ConfigurationTest extends TestLogger {
 		assertEquals(13, cfg.getInteger(matchesThird));
 		assertEquals(-1, cfg.getInteger(notContained));
 	}
+
+	@Test
+	public void testDynamicProperties() {
+		final Configuration orig = new Configuration();
+		orig.setString("mykey", "myvalue");
+		orig.setInteger("mynumber", 100);
+		orig.setBoolean("shouldbetrue", true);
+
+		assertEquals("myvalue", orig.getString("mykey", null));
+		assertEquals(100, orig.getInteger("mynumber", 0));
+		assertEquals(true, orig.getBoolean("shouldbetrue", false));
+
+		final Configuration dynamicProperties = new Configuration();
+		dynamicProperties.setString("mykey", "myvalue2");
+		dynamicProperties.setInteger("mynumber", 1000);
+		dynamicProperties.setBoolean("shouldbefalse", false);
+		dynamicProperties.setBoolean("shouldbetrue", false);
+		orig.setDynamicProperties(dynamicProperties);
+
+		assertEquals("myvalue2", orig.getString("mykey", null));
+		assertEquals(1000, orig.getInteger("mynumber", 0));
+		assertEquals(false, orig.getBoolean("shouldbefalse", true));
+		assertEquals(false, orig.getBoolean("shouldbetrue", true));
+	}
 }

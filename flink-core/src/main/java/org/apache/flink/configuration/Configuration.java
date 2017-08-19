@@ -79,7 +79,15 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Set the process-wide dynamic properties to be merged with the configuration.
+	 * @param dynamicProperties The given dynamic properties
+     */
+	public void setDynamicProperties(Configuration dynamicProperties) {
+		addAll(dynamicProperties);
+	}
+
 	/**
 	 * Returns the class associated with the given key as a string.
 	 * 
