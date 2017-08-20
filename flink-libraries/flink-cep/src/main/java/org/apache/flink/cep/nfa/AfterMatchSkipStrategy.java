@@ -49,7 +49,7 @@ public class AfterMatchSkipStrategy implements Serializable {
 	}
 
 	/**
-	 * Start a new match process at the last event of the matched *PatternName*
+	 * Start a new match process at the last event of the matched *PatternName*.
 	 * @param patternName the pattern name to skip to
 	 * @return the created AfterMatchSkipStrategy
 	 */
@@ -136,7 +136,7 @@ public class AfterMatchSkipStrategy implements Serializable {
 		 */
 		SKIP_TO_FIRST,
 		/**
-		 * Start a new match process at the last event of the matched *PatternName*
+		 * Start a new match process at the last event of the matched *PatternName*.
 		 */
 		SKIP_TO_LAST
 	}
