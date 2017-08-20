@@ -46,7 +46,7 @@ public class CommonRangeBoundaries<T> implements RangeBoundaries<T> {
 		typeComparator.extractKeys(record, keys, 0);
 
 		while (low <= high) {
-			final int mid = (low + high) >>> 1;
+			final int mid = low + (high - low) >>> 1;
 			final int result = compareKeys(flatComparators, keys, this.boundaries[mid]);
 
 			if (result > 0) {
