@@ -92,8 +92,7 @@ class Main:
                 file_path = _params.get("input")
                 input_stream = env.read_text_file(file_path)
             except Exception as e:
-                print(e)
-                print ("Error in reading input file. Exiting...")
+                print("Error in reading input file. Exiting...", e)
                 sys.exit(5)
         else:
             input_stream = env.add_source(Generator(num_iters=50))
@@ -115,9 +114,8 @@ class Main:
             try:
                 file_path = _params.get("output")
                 parsed_output.write_as_text(file_path)
-            except Execption as e:
-                print (e)
-                print ("Error in writing to output file. will print instead.")
+            except Exception as e:
+                print("Error in writing to output file. Printing to the console instead.", e)
                 parsed_output.print()
         else:
             parsed_output.print()
