@@ -20,7 +20,6 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
+import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -41,7 +41,6 @@ import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
-import java.io.File;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -157,14 +156,10 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 			Executor executor) throws Exception {
 
-		Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
-		File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR));
-
 		return new DispatcherRestEndpoint(
 			RestServerEndpointConfiguration.fromConfiguration(configuration),
 			dispatcherGatewayRetriever,
-			timeout,
-			tmpDir,
+			RestHandlerConfiguration.fromConfiguration(configuration),
 			executor);
 	}
 
