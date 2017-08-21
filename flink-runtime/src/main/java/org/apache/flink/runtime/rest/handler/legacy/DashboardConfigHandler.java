@@ -18,15 +18,20 @@
 
 package org.apache.flink.runtime.rest.handler.legacy;
 
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
+import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.time.ZonedDateTime;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -35,16 +40,21 @@ import java.util.concurrent.Executor;
  * against this web server should behave. It defines for example the refresh interval,
  * and time zone of the server timestamps.
  */
-public class DashboardConfigHandler extends AbstractJsonRequestHandler {
+public class DashboardConfigHandler extends AbstractJsonRequestHandler implements LegacyRestHandler<DispatcherGateway, DashboardConfiguration, EmptyMessageParameters> {
 
-	private static final String DASHBOARD_CONFIG_REST_PATH = "/config";
+	public static final String DASHBOARD_CONFIG_REST_PATH = "/config";
 
 	private final String configString;
 
+	private final DashboardConfiguration dashboardConfiguration;
+
 	public DashboardConfigHandler(Executor executor, long refreshInterval) {
 		super(executor);
+
+		dashboardConfiguration = DashboardConfiguration.from(refreshInterval, ZonedDateTime.now());
+
 		try {
-			this.configString = createConfigJson(refreshInterval);
+			this.configString = createConfigJson(dashboardConfiguration);
 		}
 		catch (Exception e) {
 			// should never happen
@@ -58,28 +68,25 @@ public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
+	public CompletableFuture<DashboardConfiguration> handleRequest(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, DispatcherGateway gateway) {
+		return CompletableFuture.completedFuture(dashboardConfiguration);
+	}
+
+	@Override
 	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
 		return CompletableFuture.completedFuture(configString);
 	}
 
-	public static String createConfigJson(long refreshInterval) throws IOException {
+	public static String createConfigJson(DashboardConfiguration dashboardConfiguration) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
-		TimeZone timeZone = TimeZone.getDefault();
-		String timeZoneName = timeZone.getDisplayName();
-		long timeZoneOffset = timeZone.getRawOffset();
-
 		gen.writeStartObject();
-		gen.writeNumberField("refresh-interval", refreshInterval);
-		gen.writeNumberField("timezone-offset", timeZoneOffset);
-		gen.writeStringField("timezone-name", timeZoneName);
-		gen.writeStringField("flink-version", EnvironmentInformation.getVersion());
-
-		EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
-		if (revision != null) {
-			gen.writeStringField("flink-revision", revision.commitId + " @ " + revision.commitDate);
-		}
+		gen.writeNumberField(DashboardConfiguration.FIELD_NAME_REFRESH_INTERVAL, dashboardConfiguration.getRefreshInterval());
+		gen.writeNumberField(DashboardConfiguration.FIELD_NAME_TIMEZONE_OFFSET, dashboardConfiguration.getTimeZoneOffset());
+		gen.writeStringField(DashboardConfiguration.FIELD_NAME_TIMEZONE_NAME, dashboardConfiguration.getTimeZoneName());
+		gen.writeStringField(DashboardConfiguration.FIELD_NAME_FLINK_VERSION, dashboardConfiguration.getFlinkVersion());
+		gen.writeStringField(DashboardConfiguration.FIELD_NAME_FLINK_REVISION, dashboardConfiguration.getFlinkRevision());
 
 		gen.writeEndObject();
 

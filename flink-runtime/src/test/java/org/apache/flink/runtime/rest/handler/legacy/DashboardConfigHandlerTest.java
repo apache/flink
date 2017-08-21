@@ -19,19 +19,20 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
-import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.TestLogger;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.TimeZone;
+import java.time.ZonedDateTime;
 
 /**
  * Tests for the DashboardConfigHandler.
  */
-public class DashboardConfigHandlerTest {
+public class DashboardConfigHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {
 		DashboardConfigHandler handler = new DashboardConfigHandler(Executors.directExecutor(), 10000L);
@@ -43,17 +44,18 @@ public class DashboardConfigHandlerTest {
 	@Test
 	public void testJsonGeneration() throws Exception {
 		long refreshInterval = 12345;
-		TimeZone timeZone = TimeZone.getDefault();
-		EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
+		final ZonedDateTime zonedDateTime = ZonedDateTime.now();
 
-		String json = DashboardConfigHandler.createConfigJson(refreshInterval);
+		final DashboardConfiguration dashboardConfiguration = DashboardConfiguration.from(refreshInterval, zonedDateTime);
+
+		String json = DashboardConfigHandler.createConfigJson(dashboardConfiguration);
 
 		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(json);
 
 		Assert.assertEquals(refreshInterval, result.get("refresh-interval").asLong());
-		Assert.assertEquals(timeZone.getDisplayName(), result.get("timezone-name").asText());
-		Assert.assertEquals(timeZone.getRawOffset(), result.get("timezone-offset").asLong());
-		Assert.assertEquals(EnvironmentInformation.getVersion(), result.get("flink-version").asText());
-		Assert.assertEquals(revision.commitId + " @ " + revision.commitDate, result.get("flink-revision").asText());
+		Assert.assertEquals(dashboardConfiguration.getTimeZoneName(), result.get("timezone-name").asText());
+		Assert.assertEquals(dashboardConfiguration.getTimeZoneOffset(), result.get("timezone-offset").asInt());
+		Assert.assertEquals(dashboardConfiguration.getFlinkVersion(), result.get("flink-version").asText());
+		Assert.assertEquals(dashboardConfiguration.getFlinkRevision(), result.get("flink-revision").asText());
 	}
 }

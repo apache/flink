@@ -19,22 +19,20 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
-import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
+import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for the {@link ClusterOverviewHandler}.
+ * Message headers for the {@link DashboardConfigHandler}.
  */
-public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequestBody, StatusOverviewWithVersion, EmptyMessageParameters> {
+public final class DashboardConfigurationHeaders implements MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
 
-	private static final ClusterOverviewHeaders INSTANCE = new ClusterOverviewHeaders();
+	private static final DashboardConfigurationHeaders INSTANCE = new DashboardConfigurationHeaders();
 
-	public static final String CLUSTER_OVERVIEW_REST_PATH = "/overview";
-
-	// make this class a singleton
-	private ClusterOverviewHeaders() {}
+	// make the constructor private since we want it to be a singleton
+	private DashboardConfigurationHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -48,12 +46,12 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return CLUSTER_OVERVIEW_REST_PATH;
+		return DashboardConfigHandler.DASHBOARD_CONFIG_REST_PATH;
 	}
 
 	@Override
-	public Class<StatusOverviewWithVersion> getResponseClass() {
-		return StatusOverviewWithVersion.class;
+	public Class<DashboardConfiguration> getResponseClass() {
+		return DashboardConfiguration.class;
 	}
 
 	@Override
@@ -66,7 +64,7 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 		return EmptyMessageParameters.getInstance();
 	}
 
-	public static ClusterOverviewHeaders getInstance() {
+	public static DashboardConfigurationHeaders getInstance() {
 		return INSTANCE;
 	}
 }
