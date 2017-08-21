@@ -125,9 +125,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 		private final File targetDirectory;
 
 		public FileBasedSinkFunction(File tmpDirectory, File targetDirectory) {
-			super(
-				TypeInformation.of(FileTransaction.class),
-				TypeInformation.of(new TypeHint<List<FileTransaction>>() {}));
+			super(TypeInformation.of(new TypeHint<State<FileTransaction>>() {}));
 
 			if (!tmpDirectory.isDirectory() || !targetDirectory.isDirectory()) {
 				throw new IllegalArgumentException();
