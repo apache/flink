@@ -95,17 +95,23 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 			ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
 
 			R request;
-			try {
-				if (msgContent.capacity() == 0 || messageHeaders.getHttpMethod() == HttpMethodWrapper.GET) {
+			if (msgContent.capacity() == 0 || messageHeaders.getHttpMethod() == HttpMethodWrapper.GET) {
+				try {
 					request = mapper.readValue("{}", messageHeaders.getRequestClass());
-				} else {
+				} catch (JsonParseException | JsonMappingException je) {
+					log.error("Implementation error: Get request bodies must have a no-argument constructor.", je);
+					sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+					return;
+				}
+			} else {
+				try {
 					ByteBufInputStream in = new ByteBufInputStream(msgContent);
 					request = mapper.readValue(in, messageHeaders.getRequestClass());
+				} catch (JsonParseException | JsonMappingException je) {
+					log.error("Failed to read request.", je);
+					sendErrorResponse(new ErrorResponseBody(String.format("Request did not match expected format %s.", messageHeaders.getRequestClass().getSimpleName())), HttpResponseStatus.BAD_REQUEST, ctx, httpRequest);
+					return;
 				}
-			} catch (JsonParseException | JsonMappingException je) {
-				log.error("Failed to read request.", je);
-				sendErrorResponse(new ErrorResponseBody(String.format("Request did not match expected format %s.", messageHeaders.getRequestClass().getSimpleName())), HttpResponseStatus.BAD_REQUEST, ctx, httpRequest);
-				return;
 			}
 
 			CompletableFuture<HandlerResponse<P>> response;
