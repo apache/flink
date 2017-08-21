@@ -25,7 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.TaskRestore;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -465,7 +465,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 */
 	public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnState() {
 		TaskManagerLocation priorLocation;
-		if (currentExecution.getTaskStateSnapshot() != null && (priorLocation = getLatestPriorLocation()) != null) {
+		if (currentExecution.getTaskRestore() != null && (priorLocation = getLatestPriorLocation()) != null) {
 			return Collections.singleton(CompletableFuture.completedFuture(priorLocation));
 		}
 		else {
@@ -745,7 +745,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
-			TaskStateSnapshot taskStateHandles,
+			TaskRestore taskRestore,
 			int attemptNumber) throws ExecutionGraphException {
 		
 		// Produced intermediate results
@@ -833,7 +833,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			subTaskIndex,
 			attemptNumber,
 			targetSlot.getRoot().getSlotNumber(),
-			taskStateHandles,
+			taskRestore,
 			producedPartitions,
 			consumedPartitions);
 	}

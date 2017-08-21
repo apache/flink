@@ -21,7 +21,7 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.TaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -142,8 +142,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** Slot number to run the sub task in on the target machine. */
 	private final int targetSlotNumber;
 
-	/** State handles for the sub task. */
-	private final TaskStateSnapshot taskStateHandles;
+	/** Information to restore the task. */
+	private final TaskRestore taskRestore;
 
 	public TaskDeploymentDescriptor(
 			JobID jobId,
@@ -154,7 +154,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			int subtaskIndex,
 			int attemptNumber,
 			int targetSlotNumber,
-			TaskStateSnapshot taskStateHandles,
+			TaskRestore taskRestore,
 			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 
@@ -175,7 +175,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		Preconditions.checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
 		this.targetSlotNumber = targetSlotNumber;
 
-		this.taskStateHandles = taskStateHandles;
+		this.taskRestore = taskRestore;
 
 		this.producedPartitions = Preconditions.checkNotNull(resultPartitionDeploymentDescriptors);
 		this.inputGates = Preconditions.checkNotNull(inputGateDeploymentDescriptors);
@@ -263,8 +263,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return inputGates;
 	}
 
-	public TaskStateSnapshot getTaskStateHandles() {
-		return taskStateHandles;
+	public TaskRestore getTaskRestore() {
+		return taskRestore;
 	}
 
 	public AllocationID getAllocationId() {

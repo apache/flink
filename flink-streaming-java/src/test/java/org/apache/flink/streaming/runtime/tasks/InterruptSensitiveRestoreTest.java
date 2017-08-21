@@ -29,6 +29,7 @@ import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -225,6 +226,9 @@ public class InterruptSensitiveRestoreTest {
 		streamConfig.setOperatorID(operatorID);
 		TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
 		stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
+
+		TaskRestore taskRestore = new TaskRestore(1L, stateSnapshot);
+
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
 			"test job name",
@@ -254,7 +258,7 @@ public class InterruptSensitiveRestoreTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			stateSnapshot,
+			taskRestore,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,

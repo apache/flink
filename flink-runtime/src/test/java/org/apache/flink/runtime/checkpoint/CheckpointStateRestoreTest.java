@@ -141,11 +141,12 @@ public class CheckpointStateRestoreTest {
 
 			// verify that each stateful vertex got the state
 
-			BaseMatcher<TaskStateSnapshot> matcher = new BaseMatcher<TaskStateSnapshot>() {
+			BaseMatcher<TaskRestore> matcher = new BaseMatcher<TaskRestore>() {
 				@Override
 				public boolean matches(Object o) {
-					if (o instanceof TaskStateSnapshot) {
-						return Objects.equals(o, subtaskStates);
+					if (o instanceof TaskRestore) {
+						TaskRestore taskRestore = (TaskRestore) o;
+						return Objects.equals(taskRestore.getTaskStateSnapshot(), subtaskStates);
 					}
 					return false;
 				}
@@ -159,8 +160,8 @@ public class CheckpointStateRestoreTest {
 			verify(statefulExec1, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statefulExec2, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statefulExec3, times(1)).setInitialState(Mockito.argThat(matcher));
-			verify(statelessExec1, times(0)).setInitialState(Mockito.<TaskStateSnapshot>any());
-			verify(statelessExec2, times(0)).setInitialState(Mockito.<TaskStateSnapshot>any());
+			verify(statelessExec1, times(0)).setInitialState(Mockito.<TaskRestore>any());
+			verify(statelessExec2, times(0)).setInitialState(Mockito.<TaskRestore>any());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
