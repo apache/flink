@@ -484,6 +484,17 @@ object Pattern {
   def begin[X](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
 
   /**
+    * Starts a new pattern sequence. The provided name is the one of the initial pattern
+    * of the new sequence. Furthermore, the base type of the event sequence is set.
+    *
+    * @param name The name of starting pattern of the new pattern sequence
+    * @param afterMatchSkipStrategy The skip strategy to use after each match.
+    * @tparam X Base type of the event pattern
+    * @return The first pattern of a pattern sequence
+    */
+  def begin[X](name: String, afterMatchSkipStrategy: AfterMatchSkipStrategy): Pattern[X, X] = Pattern(JPattern.begin(name, afterMatchSkipStrategy))
+
+  /**
     * Starts a new pattern sequence. The provided pattern is the initial pattern
     * of the new sequence.
     *

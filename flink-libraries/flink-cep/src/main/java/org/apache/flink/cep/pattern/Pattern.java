@@ -158,7 +158,7 @@ public class Pattern<T, F extends T> {
 	 * of the new sequence. Furthermore, the base type of the event sequence is set.
 	 *
 	 * @param name The name of starting pattern of the new pattern sequence
-	 * @param afterMatchSkipStrategy The strategy to use after each match.
+	 * @param afterMatchSkipStrategy The skip strategy to use after each match.
 	 * @param <X> Base type of the event pattern
 	 * @return The first pattern of a pattern sequence
 	 */
