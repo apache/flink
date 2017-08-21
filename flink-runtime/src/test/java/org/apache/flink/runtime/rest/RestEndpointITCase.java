@@ -23,6 +23,8 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerResponse;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.Parameter;
+import org.apache.flink.runtime.rest.messages.ParameterMapper;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.ConfigurationException;
@@ -35,6 +37,10 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -42,6 +48,10 @@ import java.util.concurrent.ExecutionException;
  * IT cases for {@link RestClientEndpoint} and {@link RestServerEndpoint}.
  */
 public class RestEndpointITCase {
+
+	private static final String PATH_JOB_ID = "1234";
+	private static final String QUERY_JOB_ID = "6789";
+
 	@Test
 	public void testEndpoints() throws ConfigurationException, IOException, InterruptedException, ExecutionException {
 		Configuration config = new Configuration();
@@ -56,8 +66,8 @@ public class RestEndpointITCase {
 			serverEndpoint.start();
 			clientEndpoint.start();
 
-			clientEndpoint.sendRequest(new TestHeaders(), new TestRequest()).get();
-			clientEndpoint.sendRequest(new TestHeaders(), new TestRequest()).get();
+			clientEndpoint.sendRequest(new TestHeaders(), new TestParameterMapper(), new TestRequest()).get();
+			clientEndpoint.sendRequest(new TestHeaders(), new TestParameterMapper(), new TestRequest()).get();
 		} catch (Exception e) {
 			clientEndpoint.shutdown();
 			serverEndpoint.shutdown();
@@ -73,7 +83,7 @@ public class RestEndpointITCase {
 
 		@Override
 		protected void setupHandlers(Router router) {
-			router.GET("/test", new TestHandler());
+			router.GET("/test/:jobid", new TestHandler());
 		}
 	}
 
@@ -85,6 +95,12 @@ public class RestEndpointITCase {
 
 		@Override
 		protected CompletableFuture<HandlerResponse<TestResponse>> handleRequest(@Nonnull HandlerRequest<TestRequest> request) {
+			if (!request.getPathParameters().containsKey(Parameter.JOB_ID.getKey())) {
+				return CompletableFuture.completedFuture(HandlerResponse.error("Path parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR));
+			}
+			if (!request.getQueryParameters().containsKey(Parameter.JOB_ID.getKey())) {
+				return CompletableFuture.completedFuture(HandlerResponse.error("Query parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR));
+			}
 			return CompletableFuture.completedFuture(HandlerResponse.successful(new TestResponse()));
 		}
 	}
@@ -102,7 +118,22 @@ public class RestEndpointITCase {
 	private static class TestResponse implements ResponseBody {
 	}
 
-	private static class TestHeaders implements MessageHeaders<TestRequest, TestResponse> {
+	static class TestParameterMapper extends ParameterMapper {
+
+		public Map<Parameter, String> mapQueryParameters(Set<Parameter> queryParameters) {
+			Map<Parameter, String> map = new HashMap<>(1);
+			queryParameters.forEach((parameter -> map.put(parameter, QUERY_JOB_ID)));
+			return map;
+		}
+
+		public Map<Parameter, String> mapPathParameters(Set<Parameter> pathParameters) {
+			Map<Parameter, String> map = new HashMap<>(1);
+			pathParameters.forEach((parameter -> map.put(parameter, PATH_JOB_ID)));
+			return map;
+		}
+	}
+
+	private static class TestHeaders implements MessageHeaders<TestRequest, TestResponse, TestParameterMapper> {
 
 		@Override
 		public HttpMethodWrapper getHttpMethod() {
@@ -111,12 +142,17 @@ public class RestEndpointITCase {
 
 		@Override
 		public String getTargetRestEndpointURL() {
-			return "/test";
+			return "/test/:jobid";
 		}
 
 		@Override
-		public String getResolvedTargetRestEndpointURL() {
-			return getTargetRestEndpointURL();
+		public Set<Parameter> getPathParameters() {
+			return Collections.singleton(Parameter.JOB_ID);
+		}
+
+		@Override
+		public Set<Parameter> getQueryParameters() {
+			return Collections.singleton(Parameter.JOB_ID);
 		}
 
 		@Override

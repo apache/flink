@@ -24,6 +24,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.ParameterMapper;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
@@ -130,17 +131,24 @@ public class RestClientEndpoint {
 		}
 	}
 
-	public <R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(MessageHeaders<R, P> messageHeaders, R request) throws IOException {
+	public <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(M messageHeaders, U urlResolver, R request) throws IOException {
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
-		LOG.debug("Sending request of class {} to {}", request.getClass(), messageHeaders.getResolvedTargetRestEndpointURL());
+
+		String targetUrl = ParameterMapper.resolveUrl(
+			messageHeaders.getTargetRestEndpointURL(),
+			urlResolver.mapPathParameters(messageHeaders.getPathParameters()),
+			urlResolver.mapQueryParameters(messageHeaders.getQueryParameters())
+		);
+
+		LOG.debug("Sending request of class {} to {}", request.getClass(), targetUrl);
 		// serialize payload
 		StringWriter sw = new StringWriter();
 		objectMapper.writeValue(sw, request);
 		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
 		// create request and set headers
-		FullHttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), messageHeaders.getResolvedTargetRestEndpointURL(), payload);
+		FullHttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), targetUrl, payload);
 		httpRequest.headers()
 			.add(HttpHeaders.Names.CONTENT_LENGTH, payload.capacity())
 			.add(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ConfigConstants.DEFAULT_CHARSET.name())
@@ -161,7 +169,7 @@ public class RestClientEndpoint {
 		}
 	}
 
-	private <R extends RequestBody, P extends ResponseBody> CompletableFuture<P> submitRequest(FullHttpRequest httpRequest, MessageHeaders<R, P> messageHeaders) {
+	private <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> submitRequest(FullHttpRequest httpRequest, M messageHeaders) {
 		CompletableFuture<P> responseFuture = handler.expectResponse(messageHeaders.getResponseClass());
 
 		try {

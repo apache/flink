@@ -74,9 +74,9 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 
 	private static final ObjectMapper mapper = RestMapperUtils.getStrictObjectMapper();
 
-	private final MessageHeaders<R, P> messageHeaders;
+	private final MessageHeaders<R, P, ?> messageHeaders;
 
-	protected AbstractRestHandler(MessageHeaders<R, P> messageHeaders) {
+	protected AbstractRestHandler(MessageHeaders<R, P, ?> messageHeaders) {
 		this.messageHeaders = messageHeaders;
 	}
 
@@ -157,13 +157,13 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	 */
 	protected abstract CompletableFuture<HandlerResponse<P>> handleRequest(@Nonnull HandlerRequest<R> request);
 
-	private static <R extends RequestBody, P extends ResponseBody> void sendResponse(MessageHeaders<R, P> messageHeaders, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) throws IOException {
+	private static <M extends MessageHeaders<R, P, ?>, R extends RequestBody, P extends ResponseBody> void sendResponse(M messageHeaders, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) throws IOException {
 		StringWriter sw = new StringWriter();
 		mapper.writeValue(sw, response);
 		sendResponse(ctx, httpRequest, messageHeaders.getResponseStatusCode(), sw.toString());
 	}
 
-	private static void sendErrorResponse(ErrorResponseBody error, HttpResponseStatus statusCode, ChannelHandlerContext ctx, HttpRequest httpRequest) throws IOException {
+	static void sendErrorResponse(ErrorResponseBody error, HttpResponseStatus statusCode, ChannelHandlerContext ctx, HttpRequest httpRequest) throws IOException {
 		StringWriter sw = new StringWriter();
 		mapper.writeValue(sw, error);
 		sendResponse(ctx, httpRequest, statusCode, sw.toString());
