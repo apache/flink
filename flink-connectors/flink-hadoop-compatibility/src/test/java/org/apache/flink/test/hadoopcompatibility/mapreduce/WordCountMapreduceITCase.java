@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.hadoop.mapreduce;
+package org.apache.flink.test.hadoopcompatibility.mapreduce;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.hadoopcompatibility.HadoopInputs;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.fs.Path;
@@ -78,8 +80,8 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 
 		DataSet<Tuple2<LongWritable, Text>> input;
 		if (isTestDeprecatedAPI) {
-			input = env.readHadoopFile(new TextInputFormat(),
-				LongWritable.class, Text.class, textPath);
+			input = env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
+				LongWritable.class, Text.class, textPath));
 		} else {
 			input = env.createInput(readHadoopFile(new TextInputFormat(),
 				LongWritable.class, Text.class, textPath));
@@ -117,5 +119,18 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 		// Output & Execute
 		words.output(hadoopOutputFormat);
 		env.execute("Hadoop Compat WordCount");
+	}
+
+	static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
+
+		@Override
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+			String[] tokens = value.toLowerCase().split("\\W+");
+			for (String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new Tuple2<>(token, 1));
+				}
+			}
+		}
 	}
 }

@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.hadoop.mapred
 
 import org.apache.flink.annotation.Public
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormatBase
-import org.apache.hadoop.mapred.{JobConf, InputFormat}
+import org.apache.hadoop.mapred.{InputFormat, JobConf}
 
 @Public
 class HadoopInputFormat[K, V](

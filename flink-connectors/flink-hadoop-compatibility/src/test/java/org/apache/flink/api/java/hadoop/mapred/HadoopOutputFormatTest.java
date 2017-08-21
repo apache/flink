@@ -34,6 +34,7 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
 import org.junit.Test;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 
@@ -41,7 +42,6 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,7 +56,7 @@ public class HadoopOutputFormatTest {
 
 		OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
 		DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
-		JobConf jobConf = spy(new JobConf());
+		JobConf jobConf = Mockito.spy(new JobConf());
 		when(jobConf.getOutputCommitter()).thenReturn(outputCommitter);
 
 		HadoopOutputFormat<String, Long> outputFormat = new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
@@ -146,7 +146,7 @@ public class HadoopOutputFormatTest {
 	public void testFinalizeGlobal() throws Exception {
 		OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
 		DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
-		JobConf jobConf = spy(new JobConf());
+		JobConf jobConf = Mockito.spy(new JobConf());
 		when(jobConf.getOutputCommitter()).thenReturn(outputCommitter);
 
 		HadoopOutputFormat<String, Long> outputFormat = new HadoopOutputFormat<>(dummyOutputFormat, jobConf);

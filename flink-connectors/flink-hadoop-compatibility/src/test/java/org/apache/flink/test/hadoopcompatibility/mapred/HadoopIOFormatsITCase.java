@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.hadoop.mapred;
+package org.apache.flink.test.hadoopcompatibility.mapred;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
