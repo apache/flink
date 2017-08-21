@@ -391,5 +391,8 @@ public class ClassLoaderITCase extends TestLogger {
 		Future<?> cancelFuture = jm.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft());
 		Object response = Await.result(cancelFuture, deadline.timeLeft());
 		assertTrue("Unexpected response: " + response, response instanceof JobManagerMessages.CancellationSuccess);
+
+		// make sure, the execution is finished to not influence other test methods
+		invokeThread.join(deadline.timeLeft().toMillis());
 	}
 }
