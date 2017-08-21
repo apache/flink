@@ -640,8 +640,8 @@ public class NFA<T> implements Serializable {
 
 		if (computationState.isStartState()) {
 			int totalBranches = calculateIncreasingSelfState(
-				outgoingEdges.getTotalIgnoreBranches(),
-				outgoingEdges.getTotalTakeBranches());
+					outgoingEdges.getTotalIgnoreBranches(),
+					outgoingEdges.getTotalTakeBranches());
 
 			DeweyNumber startVersion = computationState.getVersion().increase(totalBranches);
 			ComputationState<T> startState = ComputationState.createStartState(this, computationState.getState(), startVersion);
@@ -778,9 +778,10 @@ public class NFA<T> implements Serializable {
 		}
 		// for a given computation state, we cannot have more than one matching patterns.
 		Preconditions.checkState(paths.size() == 1);
+
 		Map<String, List<T>> result = new LinkedHashMap<>();
 		Map<String, List<T>> path = paths.get(0);
-		for (String key : path.keySet()) {
+		for (String key: path.keySet()) {
 			List<T> events = path.get(key);
 
 			List<T> values = result.get(key);
@@ -789,7 +790,7 @@ public class NFA<T> implements Serializable {
 				result.put(key, values);
 			}
 
-			for (T event : events) {
+			for (T event: events) {
 				// copy the element so that the user can change it
 				values.add(eventSerializer.isImmutableType() ? event : eventSerializer.copy(event));
 			}
@@ -1072,7 +1073,7 @@ public class NFA<T> implements Serializable {
 			boolean handleTimeout = source.readBoolean();
 
 			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout);
-			nfa.addStates(states);
+			nfa.states = states;
 
 			nfa.eventSharedBuffer = sharedBufferSerializer.deserialize(source);
 
