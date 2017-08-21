@@ -255,7 +255,7 @@ public class TaskAsyncCallTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			new TaskStateSnapshot(),
+			null,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,

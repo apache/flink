@@ -2363,7 +2363,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			KeyGroupsStateHandle originalKeyedStateBackend = generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i), false);
 			KeyGroupsStateHandle originalKeyedStateRaw = generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i), true);
 
-			TaskStateSnapshot taskStateHandles = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
+			JobManagerTaskRestore taskRestore = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskRestore();
+			TaskStateSnapshot taskStateHandles = taskRestore.getTaskStateSnapshot();
 
 			final int headOpIndex = operatorIDs.size() - 1;
 			List<Collection<OperatorStateHandle>> allParallelManagedOpStates = new ArrayList<>(operatorIDs.size());
@@ -2563,7 +2564,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			final List<OperatorID> operatorIds = newJobVertex1.getOperatorIDs();
 
-			TaskStateSnapshot stateSnapshot = newJobVertex1.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
+			JobManagerTaskRestore taskRestore = newJobVertex1.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskRestore();
+			TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
 			OperatorSubtaskState headOpState = stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIds.size() - 1));
 			assertTrue(headOpState.getManagedKeyedState().isEmpty());
@@ -2629,7 +2631,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			final List<OperatorID> operatorIds = newJobVertex2.getOperatorIDs();
 
-			TaskStateSnapshot stateSnapshot = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
+			JobManagerTaskRestore taskRestore = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskRestore();
+			TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
 			// operator 3
 			{
@@ -3040,7 +3043,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 
-			TaskStateSnapshot stateSnapshot = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskStateSnapshot();
+			JobManagerTaskRestore taskRestore = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskRestore();
+			TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
 			OperatorSubtaskState operatorState = stateSnapshot.getSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID));
 

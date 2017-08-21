@@ -1057,7 +1057,7 @@ public class CheckpointCoordinator {
 			final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
 
 			StateAssignmentOperation stateAssignmentOperation =
-					new StateAssignmentOperation(tasks, operatorStates, allowNonRestoredState);
+					new StateAssignmentOperation(latest.getCheckpointID(), tasks, operatorStates, allowNonRestoredState);
 
 			stateAssignmentOperation.assignStates();
 

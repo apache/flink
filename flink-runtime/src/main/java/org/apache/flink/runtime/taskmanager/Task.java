@@ -35,7 +35,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -172,7 +172,7 @@ public class Task implements Runnable, TaskActions {
 
 	/** Access to task manager configuration and host names*/
 	private final TaskManagerRuntimeInfo taskManagerConfig;
-	
+
 	/** The memory manager to be used by this task */
 	private final MemoryManager memoryManager;
 
@@ -251,12 +251,6 @@ public class Task implements Runnable, TaskActions {
 	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
 	private volatile ExecutorService asyncCallDispatcher;
 
-	/**
-	 * The handles to the states that the task was initialized with. Will be set
-	 * to null after the initialization, to be memory friendly.
-	 */
-	private volatile TaskStateSnapshot taskStateHandles;
-
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
 
@@ -283,7 +277,7 @@ public class Task implements Runnable, TaskActions {
 		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
 		int targetSlotNumber,
-		TaskStateSnapshot taskStateHandles,
+		JobManagerTaskRestore taskRestore,
 		MemoryManager memManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
@@ -325,7 +319,6 @@ public class Task implements Runnable, TaskActions {
 		this.requiredClasspaths = jobInformation.getRequiredClasspathURLs();
 		this.nameOfInvokableClass = taskInformation.getInvokableClassName();
 		this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
-		this.taskStateHandles = taskStateHandles;
 
 		Configuration tmConfig = taskManagerConfig.getConfiguration();
 		this.taskCancellationInterval = tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
@@ -678,7 +671,7 @@ public class Task implements Runnable, TaskActions {
 				this);
 
 			// now load and instantiate the task's invokable code
-			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env, taskStateHandles);
+			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env);
 
 			// ----------------------------------------------------------------
 			//  actual task core work
@@ -743,7 +736,7 @@ public class Task implements Runnable, TaskActions {
 
 			try {
 				// check if the exception is unrecoverable
-				if (ExceptionUtils.isJvmFatalError(t) || 
+				if (ExceptionUtils.isJvmFatalError(t) ||
 					(t instanceof OutOfMemoryError && taskManagerConfig.shouldExitJvmOnOutOfMemoryError()))
 				{
 					// terminate the JVM immediately
@@ -833,7 +826,7 @@ public class Task implements Runnable, TaskActions {
 				removeCachedFiles(distributedCacheEntries, fileCache);
 
 				// close and de-activate safety net for task thread
-				LOG.info("Ensuring all FileSystem streams are closed for task {}", this); 
+				LOG.info("Ensuring all FileSystem streams are closed for task {}", this);
 				FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 
 				notifyFinalState();
@@ -943,7 +936,7 @@ public class Task implements Runnable, TaskActions {
 	 * <p>
 	 * This method never blocks.
 	 * </p>
-	 * 
+	 *
 	 * @throws UnsupportedOperationException
 	 *             if the {@link AbstractInvokable} does not implement {@link StoppableTask}
 	 */
@@ -972,7 +965,7 @@ public class Task implements Runnable, TaskActions {
 	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
 	 * Otherwise it sets the state to CANCELING, and, if the invokable code is running,
 	 * starts an asynchronous thread that aborts that code.
-	 * 
+	 *
 	 * <p>This method never blocks.</p>
 	 */
 	public void cancelExecution() {
@@ -1136,7 +1129,7 @@ public class Task implements Runnable, TaskActions {
 
 	/**
 	 * Calls the invokable to trigger a checkpoint.
-	 * 
+	 *
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
 	 * @param checkpointOptions Options for performing this checkpoint.
@@ -1365,8 +1358,6 @@ public class Task implements Runnable, TaskActions {
 	 * @param classLoader The classloader to load the class through.
 	 * @param className The name of the class to load.
 	 * @param environment The task environment.
-	 * @param initialState The task's initial state. Null, if the task is either stateless, or
-	 *                     initialized with empty state.
 	 *
 	 * @return The instantiated invokable task object.
 	 *
@@ -1374,59 +1365,34 @@ public class Task implements Runnable, TaskActions {
 	 *                   Also throws an exception if the task class misses the necessary constructor.
 	 */
 	private static AbstractInvokable loadAndInstantiateInvokable(
-			ClassLoader classLoader,
-			String className,
-			Environment environment,
-			@Nullable TaskStateSnapshot initialState) throws Throwable {
+		ClassLoader classLoader,
+		String className,
+		Environment environment) throws Throwable {
 
 		final Class<? extends AbstractInvokable> invokableClass;
 		try {
 			invokableClass = Class.forName(className, true, classLoader)
-					.asSubclass(AbstractInvokable.class);
-		}
-		catch (Throwable t) {
+				.asSubclass(AbstractInvokable.class);
+		} catch (Throwable t) {
 			throw new Exception("Could not load the task's invokable class.", t);
 		}
 
-		Constructor<? extends AbstractInvokable> statefulCtor = null;
-		Constructor<? extends AbstractInvokable> statelessCtor = null;
+		Constructor<? extends AbstractInvokable> statelessCtor;
 
-		// try to find and call the constructor that accepts state
 		try {
-			//noinspection JavaReflectionMemberAccess
-			statefulCtor = invokableClass.getConstructor(Environment.class, TaskStateSnapshot.class);
-		}
-		catch (NoSuchMethodException e) {
-			if (initialState == null) {
-				// we allow also the constructor that takes no state, as a convenience for stateless
-				// tasks so that they are not forced to carry the stateful constructor
-				try {
-					statelessCtor = invokableClass.getConstructor(Environment.class);
-				}
-				catch (NoSuchMethodException ee) {
-					throw new FlinkException("Task misses proper constructor", ee);
-				}
-			}
-			else {
-				throw new FlinkException("Task has state to restore, but misses the stateful constructor", e);
-			}
+			statelessCtor = invokableClass.getConstructor(Environment.class);
+		} catch (NoSuchMethodException ee) {
+			throw new FlinkException("Task misses proper constructor", ee);
 		}
 
 		// instantiate the class
 		try {
-			if (statefulCtor != null) {
-				return statefulCtor.newInstance(environment, initialState);
-			}
-			else {
-				//noinspection ConstantConditions  --> cannot happen
-				return statelessCtor.newInstance(environment);
-			}
-		}
-		catch (InvocationTargetException e) {
+			//noinspection ConstantConditions  --> cannot happen
+			return statelessCtor.newInstance(environment);
+		} catch (InvocationTargetException e) {
 			// directly forward exceptions from the eager initialization
 			throw e.getTargetException();
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new FlinkException("Could not instantiate the task's invokable class.", e);
 		}
 	}
