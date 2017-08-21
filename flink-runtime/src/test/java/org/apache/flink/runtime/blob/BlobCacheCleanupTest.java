@@ -20,7 +20,6 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
@@ -37,7 +36,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * A few tests for the deferred ref-counting based cleanup inside the {@link BlobCache}.
@@ -138,6 +139,63 @@ public class BlobCacheCleanupTest extends TestLogger {
 			}
 			// now everything should be cleaned up
 			checkFileCountForJob(0, jobId, server);
+		}
+	}
+
+	/**
+	 * Tests that {@link BlobCache} sets the expected reference counts and cleanup timeouts when
+	 * registering, releasing, and re-registering jobs.
+	 */
+	@Test
+	public void testJobReferences() throws IOException, InterruptedException {
+
+		JobID jobId = new JobID();
+
+		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600_000L); // 1 hour should effectively prevent races
+
+		// NOTE: use fake address - we will not connect to it here
+		InetSocketAddress serverAddress = new InetSocketAddress("localhost", 12345);
+
+		try (BlobCache cache = new BlobCache(serverAddress, config, new VoidBlobStore())) {
+
+			// register once
+			cache.registerJob(jobId);
+			assertEquals(1, cache.getJobRefCounters().get(jobId).references);
+			assertEquals(-1, cache.getJobRefCounters().get(jobId).keepUntil);
+
+			// register a second time
+			cache.registerJob(jobId);
+			assertEquals(2, cache.getJobRefCounters().get(jobId).references);
+			assertEquals(-1, cache.getJobRefCounters().get(jobId).keepUntil);
+
+			// release once
+			cache.releaseJob(jobId);
+			assertEquals(1, cache.getJobRefCounters().get(jobId).references);
+			assertEquals(-1, cache.getJobRefCounters().get(jobId).keepUntil);
+
+			// release a second time
+			long cleanupLowerBound =
+				System.currentTimeMillis() + config.getLong(BlobServerOptions.CLEANUP_INTERVAL);
+			cache.releaseJob(jobId);
+			assertEquals(0, cache.getJobRefCounters().get(jobId).references);
+			assertThat(cache.getJobRefCounters().get(jobId).keepUntil,
+				greaterThanOrEqualTo(cleanupLowerBound));
+
+			// register again
+			cache.registerJob(jobId);
+			assertEquals(1, cache.getJobRefCounters().get(jobId).references);
+			assertEquals(-1, cache.getJobRefCounters().get(jobId).keepUntil);
+
+			// finally release the job
+			cleanupLowerBound =
+				System.currentTimeMillis() + config.getLong(BlobServerOptions.CLEANUP_INTERVAL);
+			cache.releaseJob(jobId);
+			assertEquals(0, cache.getJobRefCounters().get(jobId).references);
+			assertThat(cache.getJobRefCounters().get(jobId).keepUntil,
+				greaterThanOrEqualTo(cleanupLowerBound));
 		}
 	}
 
