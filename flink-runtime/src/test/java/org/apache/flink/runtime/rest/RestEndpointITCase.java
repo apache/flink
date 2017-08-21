@@ -30,13 +30,13 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,8 +82,8 @@ public class RestEndpointITCase {
 		}
 
 		@Override
-		protected void setupHandlers(Router router) {
-			router.GET("/test/:jobid", new TestHandler());
+		protected Collection<TestHandler> initializeHandlers() {
+			return Collections.singleton(new TestHandler());
 		}
 	}
 

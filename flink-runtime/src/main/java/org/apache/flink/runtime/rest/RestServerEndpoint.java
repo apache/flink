@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -40,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLEngine;
 
 import java.net.InetSocketAddress;
+import java.util.Collection;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -62,19 +66,18 @@ public abstract class RestServerEndpoint {
 	}
 
 	/**
-	 * This method is called at the beginning of {@link #start()} to setup and register all handlers that the REST
-	 * server endpoint implementation requires.
-	 *
-	 * @param router router on which handlers can be registered.
+	 * This method is called at the beginning of {@link #start()} to setup all handlers that the REST server endpoint
+	 * implementation requires.
 	 */
-	protected abstract void setupHandlers(Router router);
+	protected abstract Collection<? extends AbstractRestHandler<?, ?>> initializeHandlers();
 
 	/**
 	 * Starts this REST server endpoint.
 	 */
 	public void start() {
 		log.info("Starting rest endpoint.");
-		setupHandlers(router);
+		initializeHandlers()
+			.forEach(this::registerHandler);
 
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
@@ -117,6 +120,17 @@ public abstract class RestServerEndpoint {
 		int port = bindAddress.getPort();
 
 		log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
+	}
+
+	private <R extends RequestBody, P extends ResponseBody> void registerHandler(AbstractRestHandler<R, P> handler) {
+		switch (handler.getMessageHeaders().getHttpMethod()) {
+			case GET:
+				router.GET(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				break;
+			case POST:
+				router.POST(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				break;
+		}
 	}
 
 	/**

@@ -80,6 +80,10 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 		this.messageHeaders = messageHeaders;
 	}
 
+	public MessageHeaders<R, P, ?> getMessageHeaders() {
+		return messageHeaders;
+	}
+
 	@Override
 	protected void channelRead0(final ChannelHandlerContext ctx, Routed routed) throws Exception {
 		log.debug("Received request.");
