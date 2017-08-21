@@ -81,7 +81,8 @@ public class BlobCache extends TimerTask implements BlobService {
 	/**
 	 * Job reference counters with a time-to-live (TTL).
 	 */
-	private static class RefCount {
+	@VisibleForTesting
+	static class RefCount {
 		/**
 		 * Number of references to a job.
 		 */
@@ -166,6 +167,9 @@ public class BlobCache extends TimerTask implements BlobService {
 			if (ref == null) {
 				ref = new RefCount();
 				jobRefCounters.put(jobId, ref);
+			} else {
+				// reset cleanup timeout
+				ref.keepUntil = -1;
 			}
 			++ref.references;
 		}
@@ -184,7 +188,7 @@ public class BlobCache extends TimerTask implements BlobService {
 			RefCount ref = jobRefCounters.get(jobId);
 
 			if (ref == null) {
-				LOG.warn("improper use of releaseJob() without a matching number of registerJob() calls");
+				LOG.warn("improper use of releaseJob() without a matching number of registerJob() calls for jobId " + jobId);
 				return;
 			}
 
@@ -482,6 +486,16 @@ public class BlobCache extends TimerTask implements BlobService {
 	@Override
 	public BlobClient createClient() throws IOException {
 		return new BlobClient(serverAddress, blobClientConfig);
+	}
+
+	/**
+	 * Returns the job reference counters - for testing purposes only!
+	 *
+	 * @return job reference counters (internal state!)
+	 */
+	@VisibleForTesting
+	Map<JobID, RefCount> getJobRefCounters() {
+		return jobRefCounters;
 	}
 
 	/**
