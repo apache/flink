@@ -95,7 +95,7 @@ public class EventhubClientWrapper implements Serializable {
 
 		String previousOffset = offset;
 
-		if (previousOffset != PartitionReceiver.START_OF_STREAM && previousOffset != null) {
+		if (previousOffset.compareTo(PartitionReceiver.START_OF_STREAM) != 0 && previousOffset != null) {
 
 			offsetType = EventhubOffsetType.PreviousCheckpoint;
 			currentOffset = previousOffset;

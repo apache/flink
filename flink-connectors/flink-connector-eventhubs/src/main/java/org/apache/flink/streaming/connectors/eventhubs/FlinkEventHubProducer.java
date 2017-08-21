@@ -58,12 +58,12 @@ public class FlinkEventHubProducer<OUT> extends RichSinkFunction<OUT> implements
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		cache.checkErr();
+		return;
 	}
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-
+		return;
 	}
 
 	@Override

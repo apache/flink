@@ -3,6 +3,7 @@ package org.apache.flink.streaming.connectors.eventhubs;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -82,7 +83,7 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 		this.deserializer = deserializer;
 
 		String userDefinedOffset = eventhubsProps.getProperty("eventhubs.auto.offset");
-		if (userDefinedOffset != null && userDefinedOffset.toLowerCase() == "lastest"){
+		if (userDefinedOffset != null && userDefinedOffset.toLowerCase().compareTo("lastest") == 0){
 			this.defaultEventhubInitOffset = PartitionReceiver.END_OF_STREAM;
 		}
 		else {
@@ -264,6 +265,36 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 	@Override
 	public TypeInformation<T> getProducedType() {
 		return this.deserializer.getProducedType();
+	}
+
+	public FlinkEventHubConsumer<T> assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks<T> assigner) {
+		Preconditions.checkNotNull(assigner);
+
+		if (this.periodicWatermarkAssigner != null) {
+			throw new IllegalStateException("A periodic watermark emitter has already been set.");
+		}
+		try {
+			ClosureCleaner.clean(assigner, true);
+			this.punctuatedWatermarkAssigner = new SerializedValue<>(assigner);
+			return this;
+		} catch (Exception e) {
+			throw new IllegalArgumentException("The given assigner is not serializable", e);
+		}
+	}
+
+	public FlinkEventHubConsumer<T> assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks<T> assigner) {
+		Preconditions.checkNotNull(assigner);
+
+		if (this.punctuatedWatermarkAssigner != null) {
+			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
+		}
+		try {
+			ClosureCleaner.clean(assigner, true);
+			this.periodicWatermarkAssigner = new SerializedValue<>(assigner);
+			return this;
+		} catch (Exception e) {
+			throw new IllegalArgumentException("The given assigner is not serializable", e);
+		}
 	}
 
 	private List<EventhubPartition> getAllEventhubPartitions() {
