@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
+import org.apache.flink.runtime.rest.handler.RouterHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -79,7 +80,7 @@ public abstract class RestServerEndpoint {
 
 			@Override
 			protected void initChannel(SocketChannel ch) {
-				Handler handler = new Handler(router);
+				Handler handler = new RouterHandler(router);
 
 				// SSL should be the first handler in the pipeline
 				if (sslEngine != null) {
