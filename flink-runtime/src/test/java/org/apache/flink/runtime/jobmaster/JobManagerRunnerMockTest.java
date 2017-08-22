@@ -209,7 +209,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
-		verify(jobManager).suspendExecution(any(Throwable.class));
+		verify(jobManager).suspend(any(Throwable.class));
 		assertFalse(runner.isShutdown());
 	}
 
@@ -224,7 +224,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
-		verify(jobManager).suspendExecution(any(Throwable.class));
+		verify(jobManager).suspend(any(Throwable.class));
 		assertFalse(runner.isShutdown());
 
 		UUID leaderSessionID2 = UUID.randomUUID();
