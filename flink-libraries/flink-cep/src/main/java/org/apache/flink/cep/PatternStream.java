@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
@@ -54,6 +55,9 @@ public class PatternStream<T> {
 	// comparator to sort events
 	private final EventComparator<T> comparator;
 
+	// The minimum number of events retained that may be accessed by the pattern
+	private int retainLength = 0;
+
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
@@ -76,6 +80,22 @@ public class PatternStream<T> {
 
 	public EventComparator<T> getComparator() {
 		return comparator;
+	}
+
+	public int getRetainLength() {
+		return retainLength;
+	}
+
+	/**
+	 * Defines the minimum number of events to be retained during matching.
+	 *
+	 * @param retainLength the minimum number of events to be retained
+	 * @return The same pattern operator with the new retain length
+	 */
+	public PatternStream<T> retain(int retainLength) {
+		Preconditions.checkArgument(retainLength > 0, "The number of events to be retained must be positive");
+		this.retainLength = retainLength;
+		return this;
 	}
 
 	/**
@@ -130,7 +150,7 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		return CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator, clean(patternSelectFunction), outTypeInfo);
+		return CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator, retainLength, clean(patternSelectFunction), outTypeInfo);
 	}
 
 	/**
@@ -214,6 +234,7 @@ public class PatternStream<T> {
 			inputStream,
 			pattern,
 			comparator,
+			retainLength,
 			clean(patternSelectFunction),
 			outTypeInfo,
 			timeoutOutputTag,
@@ -275,6 +296,7 @@ public class PatternStream<T> {
 			inputStream,
 			pattern,
 			comparator,
+			retainLength,
 			clean(patternSelectFunction),
 			rightTypeInfo,
 			outputTag,
@@ -334,6 +356,7 @@ public class PatternStream<T> {
 			inputStream,
 			pattern,
 			comparator,
+			retainLength,
 			clean(patternFlatSelectFunction),
 			outTypeInfo);
 	}
@@ -416,6 +439,7 @@ public class PatternStream<T> {
 			inputStream,
 			pattern,
 			comparator,
+			retainLength,
 			clean(patternFlatSelectFunction),
 			outTypeInfo,
 			timeoutOutputTag,
@@ -478,6 +502,7 @@ public class PatternStream<T> {
 			inputStream,
 			pattern,
 			comparator,
+			retainLength,
 			clean(patternFlatSelectFunction),
 			rightTypeInfo,
 			outputTag,

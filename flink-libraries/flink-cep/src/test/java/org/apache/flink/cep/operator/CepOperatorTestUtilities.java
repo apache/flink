@@ -19,8 +19,6 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.EventComparator;
@@ -57,49 +55,32 @@ public class CepOperatorTestUtilities {
 			BasicTypeInfo.INT_TYPE_INFO);
 	}
 
-	public static SelectCepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOpearator(
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+		boolean isProcessingTime,
+		NFACompiler.NFAFactory<Event> nfaFactory,
+		EventComparator<Event> comparator) {
+
+		return getKeyedCepOpearator(isProcessingTime, nfaFactory, comparator, 0);
+	}
+
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
 		boolean isProcessingTime,
 		NFACompiler.NFAFactory<Event> nfaFactory) {
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, IntSerializer.INSTANCE, null);
-	}
 
-	public static SelectCepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOpearator(
-		boolean isProcessingTime,
-		NFACompiler.NFAFactory<Event> nfaFactory,
-		EventComparator<Event> comparator) {
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, IntSerializer.INSTANCE, comparator);
+		return getKeyedCepOpearator(isProcessingTime, nfaFactory, null, 0);
 	}
 
 	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
 		boolean isProcessingTime,
 		NFACompiler.NFAFactory<Event> nfaFactory,
-		TypeSerializer<K> keySerializer,
-		EventComparator<Event> comparator) {
-
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, keySerializer, true, comparator);
-	}
-
-	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
-		boolean isProcessingTime,
-		NFACompiler.NFAFactory<Event> nfaFactory,
-		TypeSerializer<K> keySerializer) {
-
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, keySerializer, true, null);
-	}
-
-	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
-		boolean isProcessingTime,
-		NFACompiler.NFAFactory<Event> nfaFactory,
-		TypeSerializer<K> keySerializer,
-		boolean migratingFromOldKeyedOperator,
-		EventComparator<Event> comparator) {
+		EventComparator<Event> comparator,
+		int retainLength) {
 		return new SelectCepOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
-			keySerializer,
 			nfaFactory,
-			migratingFromOldKeyedOperator,
 			comparator,
+			retainLength,
 			new PatternSelectFunction<Event, Map<String, List<Event>>>() {
 				@Override
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {

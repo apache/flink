@@ -65,8 +65,6 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     Option(jPattern.getWindowTime)
   }
 
-  def getRetainLength: Int = jPattern.getRetainLength
-
   /**
     *
     * @return currently applied quantifier to this pattern
@@ -263,17 +261,6 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
-    * Defines the minimum number of events to be retained during matching.
-    *
-    * @param retainLength the minimum number of events to be retained
-    * @return The same pattern operator with the new retain length
-    */
-  def retain(retainLength: Int): Pattern[T, F] = {
-    jPattern.retain(retainLength)
-    this
-  }
-
-  /**
     * Appends a new pattern to the existing one. The new pattern enforces strict
     * temporal contiguity. This means that the whole pattern sequence matches only
     * if an event which matches this pattern directly follows the preceding matching
@@ -282,7 +269,9 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def next(name: String) = Pattern[T, T](jPattern.next(name))
+  def next(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.next(name))
+  }
 
   /**
     * Appends a new pattern to the existing one. The new pattern enforces that there is no event
@@ -291,7 +280,9 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def notNext(name: String) = Pattern[T, T](jPattern.notNext(name))
+  def notNext(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.notNext(name))
+  }
 
   /**
     * Appends a new pattern to the existing one. The new pattern enforces non-strict
@@ -301,7 +292,9 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def followedBy(name: String) = Pattern[T, T](jPattern.followedBy(name))
+  def followedBy(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.followedBy(name))
+  }
 
   /**
     * Appends a new pattern to the existing one. The new pattern enforces that there is no event
@@ -312,7 +305,9 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def notFollowedBy(name : String) = Pattern[T, T](jPattern.notFollowedBy(name))
+  def notFollowedBy(name : String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.notFollowedBy(name))
+  }
 
   /**
     * Appends a new pattern to the existing one. The new pattern enforces non-strict
@@ -322,7 +317,9 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def followedByAny(name: String) = Pattern[T, T](jPattern.followedByAny(name))
+  def followedByAny(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.followedByAny(name))
+  }
 
 
   /**
@@ -332,7 +329,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @return The same pattern as optional.
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
-  def optional = {
+  def optional: Pattern[T, F] = {
     jPattern.optional()
     this
   }
@@ -350,7 +347,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @return The same pattern with a [[Quantifier.looping()]] quantifier applied.
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
-  def oneOrMore = {
+  def oneOrMore: Pattern[T, F] = {
     jPattern.oneOrMore()
     this
   }
@@ -374,7 +371,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @return The same pattern with number of times applied
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
-  def times(times: Int) = {
+  def times(times: Int): Pattern[T, F] = {
     jPattern.times(times)
     this
   }
@@ -387,7 +384,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @return The same pattern with the number of times range applied
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
-  def times(from: Int, to: Int) = {
+  def times(from: Int, to: Int): Pattern[T, F] = {
     jPattern.times(from, to)
     this
   }
@@ -419,7 +416,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @return The same pattern with the updated quantifier.
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
-  def allowCombinations() = {
+  def allowCombinations(): Pattern[T, F] = {
     jPattern.allowCombinations()
     this
   }
@@ -442,7 +439,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * By default a relaxed continuity is applied.
     * @return pattern with continuity changed to strict
     */
-  def consecutive() = {
+  def consecutive(): Pattern[T, F] = {
     jPattern.consecutive()
     this
   }
@@ -455,7 +452,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param pattern the pattern to append
     * @return A new pattern which is appended to this one
     */
-  def followedBy(pattern: Pattern[T, F]) =
+  def followedBy(pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](jPattern.followedBy(pattern.wrappedPattern))
 
   /**
@@ -466,7 +463,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param pattern the pattern to append
     * @return A new pattern which is appended to this one
     */
-  def followedByAny(pattern: Pattern[T, F]) =
+  def followedByAny(pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](jPattern.followedByAny(pattern.wrappedPattern))
 
   /**
@@ -478,7 +475,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param pattern the pattern to append
     * @return A new pattern which is appended to this one
     */
-  def next(pattern: Pattern[T, F]) =
+  def next(pattern: Pattern[T, F]): GroupPattern[T, F] =
     GroupPattern[T, F](jPattern.next(pattern.wrappedPattern))
 
 }

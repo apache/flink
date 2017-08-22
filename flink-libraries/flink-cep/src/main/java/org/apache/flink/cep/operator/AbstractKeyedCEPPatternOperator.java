@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -45,9 +46,12 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -76,9 +80,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
+	private static final String RETAIN_QUEUE_STATE_NAME = "retainQueueStateName";
+	private static final String RETAIN_QUEUE_LENGTH_STATE_NAME = "retainQueueLengthStateName";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
 	private transient MapState<Long, List<IN>> elementQueueState;
+	private transient MapState<Long, List<IN>> retainQueueState;
+	private transient MapState<Long, Integer> retainQueueLengthState;
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
@@ -92,13 +100,17 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	private final EventComparator<IN> comparator;
 
+	/**
+	 * The minimum number of events retained that may be accessed by the pattern.
+	 */
+	private final int retainLength;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
-			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
-			final boolean migratingFromOldKeyedOperator,
 			final EventComparator<IN> comparator,
+			final int retainLength,
 			final F function) {
 		super(function);
 
@@ -106,6 +118,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 		this.comparator = comparator;
+		this.retainLength = retainLength;
 	}
 
 	@Override
@@ -128,6 +141,24 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 					)
 			);
 		}
+
+		if (isRetainEventsEnabled() && retainQueueState == null) {
+			retainQueueState = getRuntimeContext().getMapState(
+				new MapStateDescriptor<>(
+					RETAIN_QUEUE_STATE_NAME,
+					LongSerializer.INSTANCE,
+					new ListSerializer<>(inputSerializer))
+			);
+		}
+
+		if (isRetainEventsEnabled() && retainQueueLengthState == null) {
+			retainQueueLengthState = getRuntimeContext().getMapState(
+				new MapStateDescriptor<>(
+					RETAIN_QUEUE_LENGTH_STATE_NAME,
+					LongSerializer.INSTANCE,
+					IntSerializer.INSTANCE)
+			);
+		}
 	}
 
 	@Override
@@ -146,7 +177,21 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			if (comparator == null) {
 				// there can be no out of order elements in processing time
 				NFA<IN> nfa = getNFA();
-				processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
+				long currentTime = timerService.currentProcessingTime();
+				retainEvent(element.getValue(), currentTime);
+				processEvent(nfa, element.getValue(), currentTime);
+
+				if (isRetainEventsEnabled()) {
+					Integer length = retainQueueLengthState.get(currentTime);
+					if (length == null) {
+						length = 1;
+					} else {
+						length += 1;
+					}
+					retainQueueLengthState.put(currentTime, length);
+					evictRetainedEvents();
+				}
+
 				updateNFA(nfa);
 			} else {
 				long currentTime = timerService.currentProcessingTime();
@@ -217,15 +262,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		// 5) update the last seen watermark.
 
 		// STEP 1
-		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps(elementQueueState.keys(), true);
 		NFA<IN> nfa = getNFA();
 
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
-			sort(elementQueueState.get(timestamp)).forEachOrdered(
-				event -> processEvent(nfa, event, timestamp)
-			);
+			processEvents(nfa, timestamp);
 			elementQueueState.remove(timestamp);
 		}
 
@@ -255,15 +298,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		//		have state to be used later.
 
 		// STEP 1
-		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps(elementQueueState.keys(), true);
 		NFA<IN> nfa = getNFA();
 
 		// STEP 2
 		while (!sortedTimestamps.isEmpty()) {
 			long timestamp = sortedTimestamps.poll();
-			sort(elementQueueState.get(timestamp)).forEachOrdered(
-				event -> processEvent(nfa, event, timestamp)
-			);
+			processEvents(nfa, timestamp);
 			elementQueueState.remove(timestamp);
 		}
 
@@ -272,6 +313,31 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			elementQueueState.clear();
 		}
 		updateNFA(nfa);
+	}
+
+	/**
+	 * Process the events with the given timestamp by giving them to the NFA.
+	 *
+	 * @param nfa NFA to be used for the event detection
+	 * @param timestamp The timestamp of the events to be processed
+	 */
+	private void processEvents(NFA<IN> nfa, long timestamp) throws Exception {
+		final AtomicInteger count = new AtomicInteger(0);
+		sort(elementQueueState.get(timestamp)).forEachOrdered(
+			event -> {
+				try {
+					retainEvent(event, timestamp);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+				processEvent(nfa, event, timestamp);
+				count.getAndAdd(1);
+			}
+		);
+		if (isRetainEventsEnabled()) {
+			retainQueueLengthState.put(timestamp, count.get());
+			evictRetainedEvents();
+		}
 	}
 
 	private Stream<IN> sort(Iterable<IN> iter) {
@@ -283,13 +349,60 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		}
 	}
 
+	private void retainEvent(IN event, long timestamp) throws Exception {
+		if (isRetainEventsEnabled()) {
+			List<IN> elementsForTimestamp =  retainQueueState.get(timestamp);
+			if (elementsForTimestamp == null) {
+				elementsForTimestamp = new ArrayList<>();
+			}
+
+			if (getExecutionConfig().isObjectReuseEnabled()) {
+				// copy the StreamRecord so that it cannot be changed
+				elementsForTimestamp.add(inputSerializer.copy(event));
+			} else {
+				elementsForTimestamp.add(event);
+			}
+			retainQueueState.put(timestamp, elementsForTimestamp);
+		}
+	}
+
+	private void evictRetainedEvents() throws Exception {
+		if (isRetainEventsEnabled()) {
+			PriorityQueue<Long> sortedTimestamps = getSortedTimestamps(retainQueueLengthState.keys(), false);
+			int alreadyRetained = 0;
+			while (!sortedTimestamps.isEmpty()) {
+				long timestamp = sortedTimestamps.poll();
+				alreadyRetained += retainQueueLengthState.get(timestamp);
+				if (alreadyRetained >= retainLength) {
+					break;
+				}
+			}
+
+			while (!sortedTimestamps.isEmpty()) {
+				long timestamp = sortedTimestamps.poll();
+				retainQueueState.remove(timestamp);
+				retainQueueLengthState.remove(timestamp);
+			}
+		}
+	}
+
+	private boolean isRetainEventsEnabled() {
+		return retainLength > 0;
+	}
+
 	private void updateLastSeenWatermark(long timestamp) {
 		this.lastWatermark = timestamp;
 	}
 
-	private NFA<IN> getNFA() throws IOException {
+	private NFA<IN> getNFA() throws Exception {
 		NFA<IN> nfa = nfaOperatorState.value();
-		return nfa != null ? nfa : nfaFactory.createNFA();
+		if (nfa == null) {
+			nfa = nfaFactory.createNFA();
+		}
+		if (isRetainEventsEnabled()) {
+			nfa.setRetainedEvents(new RetainedEventsDescendingIterable());
+		}
+		return nfa;
 	}
 
 	private void updateNFA(NFA<IN> nfa) throws IOException {
@@ -303,9 +416,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		}
 	}
 
-	private PriorityQueue<Long> getSortedTimestamps() throws Exception {
-		PriorityQueue<Long> sortedTimestamps = new PriorityQueue<>();
-		for (Long timestamp: elementQueueState.keys()) {
+	private PriorityQueue<Long> getSortedTimestamps(
+		final Iterable<Long> timestamps,
+		final boolean ascending) throws Exception {
+		PriorityQueue<Long> sortedTimestamps = new PriorityQueue<>(
+			(o1, o2) -> ascending ? Long.compare(o1, o2) : (-1) * Long.compare(o1, o2));
+		for (Long timestamp: timestamps) {
 			sortedTimestamps.offer(timestamp);
 		}
 		return sortedTimestamps;
@@ -348,6 +464,57 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	protected void processTimedOutSequences(
 			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
 			long timestamp) throws Exception {
+	}
+
+	/**
+	 * Descendant iterable of retained events.
+	 */
+	private class RetainedEventsDescendingIterable implements Iterable<IN> {
+
+		RetainedEventsDescendingIterable() {}
+
+		@Override
+		public Iterator<IN> iterator() {
+			try {
+				return new RetainedEventsDescendingIterator();
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	/**
+	 * Descendant iterator of retained events.
+	 */
+	private class RetainedEventsDescendingIterator implements Iterator<IN> {
+		private PriorityQueue<Long> sortedTimestamps;
+		private List<IN> events;
+
+		RetainedEventsDescendingIterator() throws Exception {
+			sortedTimestamps = getSortedTimestamps(retainQueueState.keys(), false);
+		}
+
+		@Override
+		public boolean hasNext() {
+			return (events != null && !events.isEmpty()) || !sortedTimestamps.isEmpty();
+		}
+
+		@Override
+		public IN next() {
+			if (hasNext()) {
+				if (events == null || events.isEmpty()) {
+					long timestamp = sortedTimestamps.poll();
+					try {
+						events = new ArrayList<>(retainQueueState.get(timestamp));
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				}
+				return events.remove(events.size() - 1);
+			} else {
+				throw new NoSuchElementException();
+			}
+		}
 	}
 
 	//////////////////////			Testing Methods			//////////////////////

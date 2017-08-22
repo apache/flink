@@ -39,12 +39,11 @@ public class SelectCepOperator<IN, KEY, OUT>
 	public SelectCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
-		TypeSerializer<KEY> keySerializer,
 		NFACompiler.NFAFactory<IN> nfaFactory,
-		boolean migratingFromOldKeyedOperator,
 		EventComparator<IN> comparator,
+		int retainLength,
 		PatternSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator, comparator, function);
+		super(inputSerializer, isProcessingTime, nfaFactory, comparator, retainLength, function);
 	}
 
 	@Override

@@ -21,7 +21,6 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -256,10 +255,9 @@ public class CEPOperatorTest extends TestLogger {
 				new SelectTimeoutCepOperator<>(
 					Event.createTypeSerializer(),
 					false,
-					IntSerializer.INSTANCE,
 					new NFAFactory(true),
-					true,
 					null,
+					0,
 					new PatternSelectFunction<Event, Map<String, List<Event>>>() {
 						@Override
 						public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
@@ -1021,6 +1019,175 @@ public class CEPOperatorTest extends TestLogger {
 			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent2, endEvent);
 			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent1, endEvent);
 			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent2, endEvent);
+			verifyWatermark(harness.getOutput().poll(), 6L);
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
+	public void testCEPOperatorRetainProcessingTime() throws Exception {
+		Event startEvent1 = new Event(42, "start", 1.0);
+		Event startEvent2 = new Event(42, "start", 2.0);
+		SubEvent middleEvent = new SubEvent(42, "foo1", 4.0, 1.0);
+		Event endEvent1 = new Event(42, "end", 1.0);
+
+		final Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).oneOrMore().followedBy("middle").subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
+
+			private static final long serialVersionUID = 6215754202506583964L;
+
+			@Override
+			public boolean filter (SubEvent value) throws Exception {
+				return value.getName().startsWith("foo");
+			}
+		}).followedBy("end").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = 7056763917392056548L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				if (!value.getName().equals("end")) {
+					return false;
+				}
+
+				Event event = ctx.getEventByOffset(value, 2);
+				return Double.compare(event.getPrice(), 10.0) >= 0;
+			}
+		});
+
+		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator =
+			CepOperatorTestUtilities.getKeyedCepOpearator(true,
+				new NFACompiler.NFAFactory<Event>() {
+					private static final long serialVersionUID = 477082663248051994L;
+
+					@Override
+					public NFA<Event> createNFA() {
+						return NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+					}
+				},
+				null,
+				3);
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+
+		try {
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(startEvent1, 0L));
+			harness.processElement(new StreamRecord<>(startEvent2, 1L));
+			harness.processElement(new StreamRecord<>(new Event(42, "dummy", 10.5), 2L));
+
+			assertTrue(operator.hasNonEmptyNFA(42));
+
+			harness.processElement(new StreamRecord<>(middleEvent, 3L));
+
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			harness.close();
+
+			harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+			harness.setup();
+			harness.initializeState(snapshot);
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(endEvent1, 5L));
+
+			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent, endEvent1);
+			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent, endEvent1);
+			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent, endEvent1);
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
+	public void testCEPOperatorRetainEventTime() throws Exception {
+		Event startEvent1 = new Event(42, "start", 1.0);
+		Event startEvent2 = new Event(42, "start", 2.0);
+		SubEvent middleEvent = new SubEvent(42, "foo1", 4.0, 1.0);
+		Event endEvent = new Event(42, "end", 1.0);
+
+		final Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 6215754202506583964L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).oneOrMore().followedBy("middle").subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
+
+			private static final long serialVersionUID = 6215754202506583964L;
+
+			@Override
+			public boolean filter (SubEvent value) throws Exception {
+				return value.getName().startsWith("foo");
+			}
+		}).followedBy("end").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = 7056763917392056548L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				if (!value.getName().equals("end")) {
+					return false;
+				}
+
+				Event fromEvent = ctx.getEventsForPattern("start").iterator().next();
+				Event event = ctx.getEventByOffset(fromEvent, 1);
+				return Double.compare(event.getPrice(), 10.0) >= 0;
+			}
+		});
+
+		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator =
+			CepOperatorTestUtilities.getKeyedCepOpearator(false,
+				new NFACompiler.NFAFactory<Event>() {
+					private static final long serialVersionUID = 477082663248051994L;
+
+					@Override
+					public NFA<Event> createNFA() {
+						return NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+					}
+				},
+				null,
+				10);
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+
+		try {
+			harness.open();
+
+			harness.processWatermark(0L);
+
+			harness.processElement(new StreamRecord<>(startEvent1, 2L));
+			harness.processElement(new StreamRecord<>(new Event(42, "dummy", 10.5), 1L));
+
+			assertTrue(operator.hasNonEmptyPQ(42));
+			assertTrue(!operator.hasNonEmptyNFA(42));
+
+			harness.processWatermark(3L);
+			assertTrue(!operator.hasNonEmptyPQ(42));
+			assertTrue(operator.hasNonEmptyNFA(42));
+
+			harness.processElement(new StreamRecord<>(startEvent2, 4L));
+			harness.processElement(new StreamRecord<>(middleEvent, 5L));
+
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			harness.close();
+
+			harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+			harness.setup();
+			harness.initializeState(snapshot);
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(endEvent, 6L));
+			harness.processWatermark(6L);
+
+			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent, endEvent);
+			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent, endEvent);
 			verifyWatermark(harness.getOutput().poll(), 6L);
 		} finally {
 			harness.close();

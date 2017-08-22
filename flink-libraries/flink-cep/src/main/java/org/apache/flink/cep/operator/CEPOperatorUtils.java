@@ -20,7 +20,6 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.cep.EventComparator;
@@ -58,38 +57,38 @@ public class CEPOperatorUtils {
 			final DataStream<IN> inputStream,
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
+			final int retainLength,
 			final PatternSelectFunction<IN, OUT> selectFunction,
 			final TypeInformation<OUT> outTypeInfo) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
-			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
-				return new SelectCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					keySerializer,
-					nfaFactory,
-					migratingFromOldKeyedOperator,
-					comparator,
-					selectFunction
-				);
-			}
+		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, retainLength,
+			new OperatorBuilder<IN, OUT>() {
+				@Override
+				public <KEY> OneInputStreamOperator<IN, OUT> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					int retainLength) {
+					return new SelectCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaFactory,
+						comparator,
+						retainLength,
+						selectFunction
+					);
+				}
 
-			@Override
-			public String getKeyedOperatorName() {
-				return "SelectCepOperator";
-			}
+				@Override
+				public String getKeyedOperatorName() {
+					return "SelectCepOperator";
+				}
 
-			@Override
-			public String getOperatorName() {
-				return "SelectCepOperator";
-			}
-		});
+				@Override
+				public String getOperatorName() {
+					return "SelectCepOperator";
+				}
+			});
 	}
 
 	/**
@@ -107,38 +106,38 @@ public class CEPOperatorUtils {
 			final DataStream<IN> inputStream,
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
+			final int retainLength,
 			final PatternFlatSelectFunction<IN, OUT> selectFunction,
 			final TypeInformation<OUT> outTypeInfo) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
-			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
-				return new FlatSelectCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					keySerializer,
-					nfaFactory,
-					migratingFromOldKeyedOperator,
-					comparator,
-					selectFunction
-				);
-			}
+		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, retainLength,
+			new OperatorBuilder<IN, OUT>() {
+				@Override
+				public <KEY> OneInputStreamOperator<IN, OUT> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					int retainLength) {
+					return new FlatSelectCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaFactory,
+						comparator,
+						retainLength,
+						selectFunction
+					);
+				}
 
-			@Override
-			public String getKeyedOperatorName() {
-				return "FlatSelectCepOperator";
-			}
+				@Override
+				public String getKeyedOperatorName() {
+					return "FlatSelectCepOperator";
+				}
 
-			@Override
-			public String getOperatorName() {
-				return "FlatSelectCepOperator";
-			}
-		});
+				@Override
+				public String getOperatorName() {
+					return "FlatSelectCepOperator";
+				}
+			});
 	}
 
 	/**
@@ -161,42 +160,42 @@ public class CEPOperatorUtils {
 			final DataStream<IN> inputStream,
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
+			final int retainLength,
 			final PatternFlatSelectFunction<IN, OUT1> selectFunction,
 			final TypeInformation<OUT1> outTypeInfo,
 			final OutputTag<OUT2> outputTag,
 			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
-			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT1> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
-				return new FlatSelectTimeoutCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					keySerializer,
-					nfaFactory,
-					migratingFromOldKeyedOperator,
-					comparator,
-					selectFunction,
-					timeoutFunction,
-					outputTag
-				);
-			}
+		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, retainLength,
+			new OperatorBuilder<IN, OUT1>() {
+				@Override
+				public <KEY> OneInputStreamOperator<IN, OUT1> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					int retainLength) {
+					return new FlatSelectTimeoutCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaFactory,
+						comparator,
+						retainLength,
+						selectFunction,
+						timeoutFunction,
+						outputTag
+					);
+				}
 
-			@Override
-			public String getKeyedOperatorName() {
-				return "FlatSelectTimeoutCepOperator";
-			}
+				@Override
+				public String getKeyedOperatorName() {
+					return "FlatSelectTimeoutCepOperator";
+				}
 
-			@Override
-			public String getOperatorName() {
-				return "FlatSelectTimeoutCepOperator";
-			}
-		});
+				@Override
+				public String getOperatorName() {
+					return "FlatSelectTimeoutCepOperator";
+				}
+			});
 	}
 
 	/**
@@ -219,42 +218,42 @@ public class CEPOperatorUtils {
 			final DataStream<IN> inputStream,
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
+			final int retainLength,
 			final PatternSelectFunction<IN, OUT1> selectFunction,
 			final TypeInformation<OUT1> outTypeInfo,
 			final OutputTag<OUT2> outputTag,
 			final PatternTimeoutFunction<IN, OUT2> timeoutFunction) {
-		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
-			@Override
-			public <KEY> OneInputStreamOperator<IN, OUT1> build(
-				TypeSerializer<IN> inputSerializer,
-				boolean isProcessingTime,
-				TypeSerializer<KEY> keySerializer,
-				NFACompiler.NFAFactory<IN> nfaFactory,
-				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
-				return new SelectTimeoutCepOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					keySerializer,
-					nfaFactory,
-					migratingFromOldKeyedOperator,
-					comparator,
-					selectFunction,
-					timeoutFunction,
-					outputTag
-				);
-			}
+		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, retainLength,
+			new OperatorBuilder<IN, OUT1>() {
+				@Override
+				public <KEY> OneInputStreamOperator<IN, OUT1> build(
+					TypeSerializer<IN> inputSerializer,
+					boolean isProcessingTime,
+					NFACompiler.NFAFactory<IN> nfaFactory,
+					EventComparator<IN> comparator,
+					int retainLength) {
+					return new SelectTimeoutCepOperator<>(
+						inputSerializer,
+						isProcessingTime,
+						nfaFactory,
+						comparator,
+						retainLength,
+						selectFunction,
+						timeoutFunction,
+						outputTag
+					);
+				}
 
-			@Override
-			public String getKeyedOperatorName() {
-				return "SelectTimeoutCepOperator";
-			}
+				@Override
+				public String getKeyedOperatorName() {
+					return "SelectTimeoutCepOperator";
+				}
 
-			@Override
-			public String getOperatorName() {
-				return "SelectTimeoutCepOperator";
-			}
-		});
+				@Override
+				public String getOperatorName() {
+					return "SelectTimeoutCepOperator";
+				}
+			});
 	}
 
 	private static <IN, OUT, K> SingleOutputStreamOperator<OUT> createPatternStream(
@@ -263,6 +262,7 @@ public class CEPOperatorUtils {
 			final TypeInformation<OUT> outTypeInfo,
 			final boolean timeoutHandling,
 			final EventComparator<IN> comparator,
+			final int retainLength,
 			final OperatorBuilder<IN, OUT> operatorBuilder) {
 		final TypeSerializer<IN> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
@@ -277,21 +277,17 @@ public class CEPOperatorUtils {
 		if (inputStream instanceof KeyedStream) {
 			KeyedStream<IN, K> keyedStream = (KeyedStream<IN, K>) inputStream;
 
-			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
-
 			patternStream = keyedStream.transform(
 				operatorBuilder.getKeyedOperatorName(),
 				outTypeInfo,
 				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					true,
-					comparator));
+					comparator,
+					retainLength));
 		} else {
 			KeySelector<IN, Byte> keySelector = new NullByteKeySelector<>();
-			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
 
 			patternStream = inputStream.keyBy(keySelector).transform(
 				operatorBuilder.getOperatorName(),
@@ -299,10 +295,9 @@ public class CEPOperatorUtils {
 				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					false,
-					comparator
+					comparator,
+					retainLength
 				)).forceNonParallel();
 		}
 
@@ -313,10 +308,9 @@ public class CEPOperatorUtils {
 		<K> OneInputStreamOperator<IN, OUT> build(
 			TypeSerializer<IN> inputSerializer,
 			boolean isProcessingTime,
-			TypeSerializer<K> keySerializer,
 			NFACompiler.NFAFactory<IN> nfaFactory,
-			boolean migratingFromOldKeyedOperator,
-			EventComparator<IN> comparator);
+			EventComparator<IN> comparator,
+			int retainLength);
 
 		String getKeyedOperatorName();
 

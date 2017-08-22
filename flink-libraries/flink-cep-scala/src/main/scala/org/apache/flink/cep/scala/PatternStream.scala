@@ -47,6 +47,19 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
   def getComparator: EventComparator[T] = jPatternStream.getComparator
 
+  def getRetainLength: Int = jPatternStream.getRetainLength
+
+  /**
+    * Defines the minimum number of events to be retained during matching.
+    *
+    * @param retainLength the minimum number of events to be retained
+    * @return The same pattern operator with the new retain length
+    */
+  def retain(retainLength: Int): PatternStream[T] = {
+    jPatternStream.retain(retainLength)
+    this
+  }
+
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the
     * provided [[PatternSelectFunction]] is called. The pattern select function can produce
