@@ -318,11 +318,26 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 			super.start();
 
 			log.info("JobManager started as leader {} for job {}", leaderSessionID, jobGraph.getJobID());
-			selfGateway.startJobExecution();
+			runAsync(this::startJobExecution);
 		}
 		else {
 			log.warn("Job already started with leader ID {}, ignoring this start request.", leaderSessionID);
 		}
+	}
+
+	/**
+	 * Suspending job, all the running tasks will be cancelled, and communication with other components
+	 * will be disposed.
+	 *
+	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
+	 * calling the {@link #start(UUID)} method once we take the leadership back again.
+	 *
+	 * <p>This method is executed asynchronously
+	 *
+	 * @param cause The reason of why this job been suspended.
+	 */
+	public void suspend(final Throwable cause) {
+		runAsync(() -> suspendExecution(cause));
 	}
 
 	/**
@@ -341,98 +356,6 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 	//----------------------------------------------------------------------------------------------
 	// RPC methods
-	//----------------------------------------------------------------------------------------------
-
-	//-- job starting and stopping  -----------------------------------------------------------------
-
-	@Override
-	public void startJobExecution() {
-		// double check that the leader status did not change
-		if (leaderSessionID == null) {
-			log.info("Aborting job startup - JobManager lost leader status");
-			return;
-		}
-
-		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
-
-		try {
-			// start the slot pool make sure the slot pool now accepts messages for this leader
-			log.debug("Staring SlotPool component");
-			slotPool.start(leaderSessionID, getAddress());
-		} catch (Exception e) {
-			log.error("Faild to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
-
-			handleFatalError(new Exception("Could not start job execution: Failed to start the slot pool.", e));
-		}
-
-		try {
-			// job is ready to go, try to establish connection with resource manager
-			//   - activate leader retrieval for the resource manager
-			//   - on notification of the leader, the connection will be established and
-			//     the slot pool will start requesting slots
-			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
-		}
-		catch (Throwable t) {
-			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
-
-			handleFatalError(new Exception(
-					"Could not start job execution: Failed to start leader service for Resource Manager", t));
-
-			return;
-		}
-
-		// start scheduling job in another thread
-		executor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					executionGraph.scheduleForExecution();
-				}
-				catch (Throwable t) {
-					executionGraph.failGlobal(t);
-				}
-			}
-		});
-	}
-
-	/**
-	 * Suspending job, all the running tasks will be cancelled, and communication with other components
-	 * will be disposed.
-	 *
-	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
-	 * calling the {@link #start(UUID)} method once we take the leadership back again.
-	 *
-	 * @param cause The reason of why this job been suspended.
-	 */
-	@Override
-	public void suspendExecution(final Throwable cause) {
-		if (leaderSessionID == null) {
-			log.debug("Job has already been suspended or shutdown.");
-			return;
-		}
-
-		// not leader any more - should not accept any leader messages any more
-		leaderSessionID = null;
-
-		try {
-			resourceManagerLeaderRetriever.stop();
-		} catch (Throwable t) {
-			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
-		}
-
-		// tell the execution graph (JobManager is still processing messages here) 
-		executionGraph.suspend(cause);
-
-		// receive no more messages until started again, should be called before we clear self leader id
-		stop();
-
-		// the slot pool stops receiving messages and clears its pooled slots 
-		slotPoolGateway.suspend();
-
-		// disconnect from resource manager:
-		closeResourceManagerConnection(new Exception("Execution was suspended.", cause));
-	}
-
 	//----------------------------------------------------------------------------------------------
 
 	/**
@@ -861,6 +784,96 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
+	//----------------------------------------------------------------------------------------------
+
+	//-- job starting and stopping  -----------------------------------------------------------------
+
+	private void startJobExecution() {
+		// double check that the leader status did not change
+		if (leaderSessionID == null) {
+			log.info("Aborting job startup - JobManager lost leader status");
+			return;
+		}
+
+		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
+
+		try {
+			// start the slot pool make sure the slot pool now accepts messages for this leader
+			log.debug("Staring SlotPool component");
+			slotPool.start(leaderSessionID, getAddress());
+		} catch (Exception e) {
+			log.error("Faild to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
+
+			handleFatalError(new Exception("Could not start job execution: Failed to start the slot pool.", e));
+		}
+
+		try {
+			// job is ready to go, try to establish connection with resource manager
+			//   - activate leader retrieval for the resource manager
+			//   - on notification of the leader, the connection will be established and
+			//     the slot pool will start requesting slots
+			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
+		}
+		catch (Throwable t) {
+			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
+
+			handleFatalError(new Exception(
+				"Could not start job execution: Failed to start leader service for Resource Manager", t));
+
+			return;
+		}
+
+		// start scheduling job in another thread
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					executionGraph.scheduleForExecution();
+				}
+				catch (Throwable t) {
+					executionGraph.failGlobal(t);
+				}
+			}
+		});
+	}
+
+	/**
+	 * Suspending job, all the running tasks will be cancelled, and communication with other components
+	 * will be disposed.
+	 *
+	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
+	 * calling the {@link #start(UUID)} method once we take the leadership back again.
+	 *
+	 * @param cause The reason of why this job been suspended.
+	 */
+	private void suspendExecution(final Throwable cause) {
+		if (leaderSessionID == null) {
+			log.debug("Job has already been suspended or shutdown.");
+			return;
+		}
+
+		// not leader any more - should not accept any leader messages any more
+		leaderSessionID = null;
+
+		try {
+			resourceManagerLeaderRetriever.stop();
+		} catch (Throwable t) {
+			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
+		}
+
+		// tell the execution graph (JobManager is still processing messages here)
+		executionGraph.suspend(cause);
+
+		// receive no more messages until started again, should be called before we clear self leader id
+		stop();
+
+		// the slot pool stops receiving messages and clears its pooled slots
+		slotPoolGateway.suspend();
+
+		// disconnect from resource manager:
+		closeResourceManagerConnection(new Exception("Execution was suspended.", cause));
+	}
+
 	//----------------------------------------------------------------------------------------------
 
 	private void handleFatalError(final Throwable cause) {
