@@ -27,6 +27,7 @@ import java.lang.reflect.Field;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 
 /**
  * This class represents a piece of memory managed by Flink. The memory can be on-heap or off-heap,
@@ -305,6 +306,9 @@ public final class HybridMemorySegment extends MemorySegment {
 		// check the byte array offset and length
 		if ((offset | numBytes | (offset + numBytes)) < 0) {
 			throw new IndexOutOfBoundsException();
+		}
+		if (target.isReadOnly()) {
+			throw new ReadOnlyBufferException();
 		}
 
 		final int targetOffset = target.position();
