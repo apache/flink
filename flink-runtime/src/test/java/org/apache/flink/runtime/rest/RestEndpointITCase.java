@@ -31,6 +31,9 @@ import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -66,8 +69,23 @@ public class RestEndpointITCase {
 			serverEndpoint.start();
 			clientEndpoint.start();
 
-			clientEndpoint.sendRequest(new TestHeaders(), new TestParameterMapper(), new TestRequest()).get();
-			clientEndpoint.sendRequest(new TestHeaders(), new TestParameterMapper(), new TestRequest()).get();
+			// send first request and wait until the handler blocks
+			CompletableFuture<TestResponse> response1;
+			synchronized (TestHandler.LOCK) {
+				response1 = clientEndpoint.sendRequest(new TestHeaders(), new TestParameterMapper(), new TestRequest(1));
+				TestHandler.LOCK.wait();
+			}
+
+			// send second request and verify response
+			CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(new TestHeaders(), new TestParameterMapper(), new TestRequest(2));
+			Assert.assertEquals(2, response2.get().id);
+
+			// wake up blocked handler
+			synchronized (TestHandler.LOCK) {
+				TestHandler.LOCK.notifyAll();
+			}
+			// verify response to first request
+			Assert.assertEquals(1, response1.get().id);
 		} catch (Exception e) {
 			clientEndpoint.shutdown();
 			serverEndpoint.shutdown();
@@ -89,6 +107,8 @@ public class RestEndpointITCase {
 
 	private static class TestHandler extends AbstractRestHandler<TestRequest, TestResponse> {
 
+		public static final Object LOCK = new Object();
+
 		TestHandler() {
 			super(new TestHeaders());
 		}
@@ -101,7 +121,17 @@ public class RestEndpointITCase {
 			if (!request.getQueryParameters().containsKey(Parameter.JOB_ID.getKey())) {
 				return CompletableFuture.completedFuture(HandlerResponse.error("Query parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR));
 			}
-			return CompletableFuture.completedFuture(HandlerResponse.successful(new TestResponse()));
+
+			if (request.getRequestBody().id == 1) {
+				synchronized (LOCK) {
+					try {
+						LOCK.notifyAll();
+						LOCK.wait();
+					} catch (InterruptedException ignored) {
+					}
+				}
+			}
+			return CompletableFuture.completedFuture(HandlerResponse.successful(new TestResponse(request.getRequestBody().id)));
 		}
 	}
 
@@ -113,9 +143,21 @@ public class RestEndpointITCase {
 	}
 
 	private static class TestRequest implements RequestBody {
+		public final int id;
+
+		@JsonCreator
+		public TestRequest(@JsonProperty("id") int id) {
+			this.id = id;
+		}
 	}
 
 	private static class TestResponse implements ResponseBody {
+		public final int id;
+
+		@JsonCreator
+		public TestResponse(@JsonProperty("id") int id) {
+			this.id = id;
+		}
 	}
 
 	static class TestParameterMapper extends ParameterMapper {
@@ -137,7 +179,7 @@ public class RestEndpointITCase {
 
 		@Override
 		public HttpMethodWrapper getHttpMethod() {
-			return HttpMethodWrapper.GET;
+			return HttpMethodWrapper.POST;
 		}
 
 		@Override
