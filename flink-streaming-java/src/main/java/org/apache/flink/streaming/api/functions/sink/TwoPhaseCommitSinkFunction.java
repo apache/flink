@@ -285,7 +285,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		}
 		// if in restore we didn't get any userContext or we are initializing from scratch
 		if (userContext == null) {
-			LOG.info("{} - no state to restore {}", name());
+			LOG.info("{} - no state to restore", name());
 
 			userContext = initializeUserContext();
 		}
