@@ -515,16 +515,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param sql The SQL string to evaluate.
     * @return The result of the query as Table.
     */
-  @deprecated
+  @deprecated("use [[sqlQuery()]] instead")
   def sql(sql: String): Table = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
-    // parse the sql query
-    val parsed = planner.parse(sql)
-    // validate the sql query
-    val validated = planner.validate(parsed)
-    // transform to a relational tree
-    val relational = planner.rel(validated)
-    new Table(this, LogicalRelNode(relational.rel))
+    sqlQuery(sql)
   }
 
   /**

@@ -271,7 +271,7 @@ class SetOperatorsITCase(
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    val result = tEnv.sql("SELECT d FROM Table5 WHERE d IN (SELECT a FROM Table3)")
+    val result = tEnv.sqlQuery("SELECT d FROM Table5 WHERE d IN (SELECT a FROM Table3)")
 
     val expected = Seq("1", "2", "2", "3", "3", "3").mkString("\n")
     val results = result.toDataSet[Row].collect()
@@ -288,7 +288,7 @@ class SetOperatorsITCase(
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    val result = tEnv.sql("SELECT d IN (SELECT a FROM Table3) FROM Table5")
+    val result = tEnv.sqlQuery("SELECT d IN (SELECT a FROM Table3) FROM Table5")
 
     val expected = Seq("false", "false", "false", "false", "false", "false", "false",
       "false", "false", "true", "true", "true", "true", "true", "true").mkString("\n")

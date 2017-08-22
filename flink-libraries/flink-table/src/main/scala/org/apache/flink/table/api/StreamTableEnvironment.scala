@@ -163,7 +163,9 @@ abstract class StreamTableEnvironment(
         _: RetractStreamTableSink[_]) =>
         registerTableInternal(name, new TableSinkTable(t))
       case _ =>
-        throw new TableException("BatchTableSink can not be registered in StreamTableEnvironment")
+        throw new TableException(
+          "Only AppendStreamTableSink, UpsertStreamTableSink and RetractStreamTableSink can be " +
+            "registered in StreamTableEnvironment.")
     }
   }
 
