@@ -16,32 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.handler.response;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.Collections;
-import java.util.List;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 
 /**
- * Generic response body for communicating errors on the server.
+ * {@link HandlerResponse} that contains the result of a successful request handling.
+ *
+ * @param <P> expected response type for a successful handling
  */
-public final class ErrorResponseBody implements ResponseBody {
+public class SuccessfulHandlerResponse<P extends ResponseBody> implements HandlerResponse<P> {
 
-	static final String FIELD_NAME_ERRORS = "errors";
+	private final P response;
 
-	@JsonProperty(FIELD_NAME_ERRORS)
-	public final List<String> errors;
-
-	public ErrorResponseBody(String error) {
-		this(Collections.singletonList(error));
+	SuccessfulHandlerResponse(P response) {
+		this.response = response;
 	}
 
-	@JsonCreator
-	public ErrorResponseBody(
-		@JsonProperty(FIELD_NAME_ERRORS) List<String> errors) {
-
-		this.errors = errors;
+	/**
+	 * Returns the response for the successful processing of a request.
+	 *
+	 * @return response for a successful processing of a request
+	 */
+	public P getResponse() {
+		return response;
 	}
 }

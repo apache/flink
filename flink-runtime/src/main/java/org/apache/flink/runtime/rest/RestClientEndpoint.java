@@ -19,21 +19,22 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ParameterMapper;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
-import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
@@ -74,25 +75,37 @@ public class RestClientEndpoint {
 
 	private final String configuredTargetAddress;
 	private final int configuredTargetPort;
-	private final SSLEngine sslEngine;
 
 	private Bootstrap bootstrap;
 
-	private final Object lock = new Object();
-
 	public RestClientEndpoint(RestClientEndpointConfiguration configuration) {
+		Preconditions.checkNotNull(configuration);
 		this.configuredTargetAddress = configuration.getTargetRestEndpointAddress();
 		this.configuredTargetPort = configuration.getTargetRestEndpointPort();
-		this.sslEngine = configuration.getSslEngine();
-	}
 
-	public void start() {
+		SSLEngine sslEngine = configuration.getSslEngine();
+		ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
+			@Override
+			protected void initChannel(SocketChannel ch) throws Exception {
+				// SSL should be the first handler in the pipeline
+				if (sslEngine != null) {
+					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+				}
+
+				ch.pipeline()
+					.addLast(new HttpClientCodec())
+					.addLast(new HttpObjectAggregator(1024 * 1024))
+					.addLast(new ClientHandler())
+					.addLast(new PipelineErrorHandler(LOG));
+			}
+		};
 		NioEventLoopGroup group = new NioEventLoopGroup(1);
 
 		bootstrap = new Bootstrap();
 		bootstrap
 			.group(group)
-			.channel(NioSocketChannel.class);
+			.channel(NioSocketChannel.class)
+			.handler(initializer);
 
 		LOG.info("Rest client endpoint started.");
 	}
@@ -105,14 +118,15 @@ public class RestClientEndpoint {
 		}
 	}
 
-	public <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(M messageHeaders, U urlResolver, R request) throws IOException {
+	public <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(M messageHeaders, U parameterMapper, R request) throws IOException {
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
+		Preconditions.checkNotNull(parameterMapper);
 
 		String targetUrl = ParameterMapper.resolveUrl(
 			messageHeaders.getTargetRestEndpointURL(),
-			urlResolver.mapPathParameters(messageHeaders.getPathParameters()),
-			urlResolver.mapQueryParameters(messageHeaders.getQueryParameters())
+			parameterMapper.mapPathParameters(messageHeaders.getPathParameters()),
+			parameterMapper.mapQueryParameters(messageHeaders.getQueryParameters())
 		);
 
 		LOG.debug("Sending request of class {} to {}", request.getClass(), targetUrl);
@@ -133,59 +147,30 @@ public class RestClientEndpoint {
 	}
 
 	private <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> submitRequest(FullHttpRequest httpRequest, M messageHeaders) {
-		synchronized (lock) {
-			CompletableFuture<P> responseFuture = ClientHandler.addHandlerForResponse(bootstrap, sslEngine, messageHeaders.getResponseClass());
-
-			try {
-				// write request
-				Channel channel = bootstrap.connect(configuredTargetAddress, configuredTargetPort).sync().channel();
+		return CompletableFuture.supplyAsync(() -> bootstrap.connect(configuredTargetAddress, configuredTargetPort))
+			.thenApply((channel) -> {
+				try {
+					return channel.sync();
+				} catch (InterruptedException e) {
+					throw new FlinkRuntimeException(e);
+				}
+			})
+			.thenApply((ChannelFuture::channel))
+			.thenCompose((channel -> {
+				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+				CompletableFuture<P> future = handler.setExpectedResponse(messageHeaders.getResponseClass());
 				channel.writeAndFlush(httpRequest);
-				channel.closeFuture();
-			} catch (InterruptedException e) {
-				return FutureUtils.completedExceptionally(e);
-			}
-			return responseFuture;
-		}
+				return future;
+			}));
 	}
 
-	private static class RestChannelInitializer extends ChannelInitializer<SocketChannel> {
+	private static class ClientHandler extends SimpleChannelInboundHandler<Object> {
 
-		private final SSLEngine sslEngine;
-		private final ClientHandler handler;
+		private ExpectedResponse<? extends ResponseBody> expectedResponse = null;
 
-		public RestChannelInitializer(SSLEngine sslEngine, ClientHandler handler) {
-			this.sslEngine = sslEngine;
-			this.handler = handler;
-		}
-
-		@Override
-		protected void initChannel(SocketChannel ch) throws Exception {
-			// SSL should be the first handler in the pipeline
-			if (sslEngine != null) {
-				ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
-			}
-
-			ch.pipeline()
-				.addLast(new HttpClientCodec())
-				.addLast(new HttpObjectAggregator(1024 * 1024))
-				.addLast(handler)
-				.addLast(new PipelineErrorHandler(LOG));
-		}
-	}
-
-	private static class ClientHandler<P extends ResponseBody> extends SimpleChannelInboundHandler<Object> {
-
-		private final ExpectedResponse<P> expectedResponse;
-
-		private ClientHandler(ExpectedResponse<P> expectedResponse) {
-			this.expectedResponse = expectedResponse;
-		}
-
-		static <P extends ResponseBody> CompletableFuture<P> addHandlerForResponse(Bootstrap bootStrap, SSLEngine sslEngine, Class<P> expectedResponse) {
+		<P extends ResponseBody> CompletableFuture<P> setExpectedResponse(Class<P> expectedResponse) {
 			CompletableFuture<P> responseFuture = new CompletableFuture<>();
-
-			ClientHandler handler = new ClientHandler<>(new ExpectedResponse<>(expectedResponse, responseFuture));
-			bootStrap.handler(new RestChannelInitializer(sslEngine, handler));
+			this.expectedResponse = new ExpectedResponse<>(expectedResponse, responseFuture);
 
 			return responseFuture;
 		}
@@ -196,10 +181,11 @@ public class RestClientEndpoint {
 				completeFuture((FullHttpResponse) msg);
 			} else {
 				LOG.error("Implementation error: Received a response that wasn't a FullHttpResponse.");
+				expectedResponse.responseFuture.completeExceptionally(new RestClientException("Implementation error: Received a response that wasn't a FullHttpResponse."));
 			}
 		}
 
-		private void completeFuture(FullHttpResponse msg) throws IOException {
+		private <P extends ResponseBody> void completeFuture(FullHttpResponse msg) throws IOException {
 			ByteBuf content = msg.content();
 
 			JsonNode rawResponse;
@@ -209,6 +195,7 @@ public class RestClientEndpoint {
 				LOG.debug("Received response {}.", rawResponse);
 			} catch (JsonMappingException | JsonParseException je) {
 				LOG.error("Response was not valid JSON.", je);
+				expectedResponse.responseFuture.completeExceptionally(new RestClientException("Response was not valid JSON.", je));
 				return;
 			}
 
@@ -218,26 +205,22 @@ public class RestClientEndpoint {
 			}
 
 			try {
-				try {
-					P response = objectMapper.treeToValue(rawResponse, expectedResponse.responseClass);
-					expectedResponse.responseFuture.complete(response);
-				} catch (JsonProcessingException jpe) {
-					// the received response did not matched the expected response type
+				ExpectedResponse<P> expectedResponse = (ExpectedResponse<P>) this.expectedResponse;
+				P response = objectMapper.treeToValue(rawResponse, expectedResponse.responseClass);
+				expectedResponse.responseFuture.complete(response);
+			} catch (JsonProcessingException jpe) {
+				// the received response did not matched the expected response type
 
-					// lets see if it is an ErrorResponse instead
-					try {
-						ErrorResponseBody error = objectMapper.treeToValue(rawResponse, ErrorResponseBody.class);
-						expectedResponse.responseFuture.completeExceptionally(new RuntimeException(error.errors.toString()));
-					} catch (JsonMappingException jme) {
-						// if this fails it is either the expected type or response type was wrong, most likely caused
-						// by a client/search MessageHeaders mismatch
-						LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", expectedResponse.responseClass, rawResponse, jme);
-						expectedResponse.responseFuture.completeExceptionally(new RuntimeException("Response was neither of the expected type(" + expectedResponse.responseClass + ") nor an error.", jme));
-					}
+				// lets see if it is an ErrorResponse instead
+				try {
+					ErrorResponseBody error = objectMapper.treeToValue(rawResponse, ErrorResponseBody.class);
+					expectedResponse.responseFuture.completeExceptionally(new RestClientException(error.errors.toString()));
+				} catch (JsonMappingException jme) {
+					// if this fails it is either the expected type or response type was wrong, most likely caused
+					// by a client/search MessageHeaders mismatch
+					LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", expectedResponse.responseClass, rawResponse, jme);
+					expectedResponse.responseFuture.completeExceptionally(new RestClientException("Response was neither of the expected type(" + expectedResponse.responseClass + ") nor an error.", jme));
 				}
-			} catch (Exception e) {
-				LOG.error("Critical error while handling response {}.", rawResponse, e);
-				expectedResponse.responseFuture.completeExceptionally(e);
 			}
 		}
 	}

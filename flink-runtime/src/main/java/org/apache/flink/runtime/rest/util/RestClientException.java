@@ -16,32 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.util;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.Collections;
-import java.util.List;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Generic response body for communicating errors on the server.
+ * An exception that is thrown if the failure of a REST operation was detected on the client.
  */
-public final class ErrorResponseBody implements ResponseBody {
-
-	static final String FIELD_NAME_ERRORS = "errors";
-
-	@JsonProperty(FIELD_NAME_ERRORS)
-	public final List<String> errors;
-
-	public ErrorResponseBody(String error) {
-		this(Collections.singletonList(error));
+public class RestClientException extends FlinkException {
+	public RestClientException(String message) {
+		super(message);
 	}
 
-	@JsonCreator
-	public ErrorResponseBody(
-		@JsonProperty(FIELD_NAME_ERRORS) List<String> errors) {
+	public RestClientException(Throwable cause) {
+		super(cause);
+	}
 
-		this.errors = errors;
+	public RestClientException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

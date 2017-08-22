@@ -25,6 +25,7 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
@@ -35,10 +36,11 @@ public final class RestClientEndpointConfiguration {
 
 	private final String targetRestEndpointAddress;
 	private final int targetRestEndpointPort;
+	@Nullable
 	private final SSLEngine sslEngine;
 
-	public RestClientEndpointConfiguration(String targetRestEndpointAddress, int targetRestEndpointPort, SSLEngine sslEngine) {
-		this.targetRestEndpointAddress = targetRestEndpointAddress;
+	private RestClientEndpointConfiguration(String targetRestEndpointAddress, int targetRestEndpointPort, @Nullable SSLEngine sslEngine) {
+		this.targetRestEndpointAddress = Preconditions.checkNotNull(targetRestEndpointAddress);
 		this.targetRestEndpointPort = targetRestEndpointPort;
 		this.sslEngine = sslEngine;
 	}
@@ -80,7 +82,11 @@ public final class RestClientEndpointConfiguration {
 	 */
 
 	public static RestClientEndpointConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
+		Preconditions.checkNotNull(config);
 		String address = config.getString(RestOptions.REST_ADDRESS);
+		if (address == null) {
+			throw new ConfigurationException("The address of the REST server was not configured under " + RestOptions.REST_ADDRESS.key() + ".");
+		}
 
 		int port = config.getInteger(RestOptions.REST_PORT);
 		Preconditions.checkArgument(0 <= port && port <= 65536, "Port " + port + " is out of valid port range (0-65536).");

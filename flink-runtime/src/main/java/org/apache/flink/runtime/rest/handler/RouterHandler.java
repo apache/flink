@@ -29,8 +29,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 /**
  * This class is an extension of {@link Handler} that replaces the standard error response to be identical with those
  * sent by the {@link AbstractRestHandler}.
@@ -44,10 +42,6 @@ public class RouterHandler extends Handler {
 
 	@Override
 	protected void respondNotFound(ChannelHandlerContext ctx, HttpRequest request) {
-		try {
-			AbstractRestHandler.sendErrorResponse(new ErrorResponseBody("Not found."), HttpResponseStatus.NOT_FOUND, ctx, request);
-		} catch (IOException e) {
-			LOG.error("Critical error. Failed to send error response.", e);
-		}
+		AbstractRestHandler.sendErrorResponse(new ErrorResponseBody("Not found."), HttpResponseStatus.NOT_FOUND, ctx, request);
 	}
 }

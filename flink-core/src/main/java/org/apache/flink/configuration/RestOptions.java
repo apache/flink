@@ -35,7 +35,7 @@ public class RestOptions {
 			.defaultValue("localhost");
 
 	/**
-	 * The port htat the server listens on / the client connects to.
+	 * The port that the server listens on / the client connects to.
 	 */
 	public static final ConfigOption<Integer> REST_PORT =
 		key("rest.port")

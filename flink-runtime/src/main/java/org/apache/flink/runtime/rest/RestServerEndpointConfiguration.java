@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
@@ -33,11 +34,13 @@ import javax.net.ssl.SSLEngine;
  */
 public final class RestServerEndpointConfiguration {
 
+	@Nullable
 	private final String restBindAddress;
 	private final int restBindPort;
+	@Nullable
 	private final SSLEngine sslEngine;
 
-	private RestServerEndpointConfiguration(String restBindAddress, int targetRestEndpointPort, SSLEngine sslEngine) {
+	private RestServerEndpointConfiguration(@Nullable String restBindAddress, int targetRestEndpointPort, @Nullable SSLEngine sslEngine) {
 		this.restBindAddress = restBindAddress;
 		this.restBindPort = targetRestEndpointPort;
 		this.sslEngine = sslEngine;
@@ -78,6 +81,7 @@ public final class RestServerEndpointConfiguration {
 	 * @throws ConfigurationException if SSL was configured incorrectly
 	 */
 	public static RestServerEndpointConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
+		Preconditions.checkNotNull(config);
 		String address = config.getString(RestOptions.REST_ADDRESS);
 
 		int port = config.getInteger(RestOptions.REST_PORT);

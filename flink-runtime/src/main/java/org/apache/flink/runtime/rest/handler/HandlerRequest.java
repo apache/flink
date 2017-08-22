@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,18 +29,13 @@ import java.util.Map;
  */
 public class HandlerRequest<R extends RequestBody> {
 	private final R requestBody;
-	private final Map<String, String> queryParameters;
 	private final Map<String, String> pathParameters;
+	private final Map<String, List<String>> queryParameters;
 
 	public HandlerRequest(R requestBody, Map<String, String> pathParameters, Map<String, List<String>> queryParameters) {
-		this.requestBody = requestBody;
-		this.pathParameters = pathParameters;
-		if (!queryParameters.isEmpty()) {
-			this.queryParameters = new HashMap<>();
-			queryParameters.forEach((key, value) -> this.queryParameters.put(key, value.get(0)));
-		} else {
-			this.queryParameters = Collections.emptyMap();
-		}
+		this.requestBody = Preconditions.checkNotNull(requestBody);
+		this.pathParameters = Preconditions.checkNotNull(pathParameters);
+		this.queryParameters = Preconditions.checkNotNull(queryParameters);
 	}
 
 	/**
@@ -58,7 +52,7 @@ public class HandlerRequest<R extends RequestBody> {
 	 *
 	 * @return query parameters
 	 */
-	public Map<String, String> getQueryParameters() {
+	public Map<String, List<String>> getQueryParameters() {
 		return queryParameters;
 	}
 

@@ -20,7 +20,9 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.handler.response.FailedHandlerResponse;
+import org.apache.flink.runtime.rest.handler.response.HandlerResponse;
+import org.apache.flink.runtime.rest.handler.response.SuccessfulHandlerResponse;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
@@ -91,7 +93,9 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 
 		try {
 			if (!(httpRequest instanceof FullHttpRequest)) {
-				log.error("Implementation error: Received a request that wasn't a FullHttpResponse.");
+				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
+				// FullHttpRequests.
+				log.error("Implementation error: Received a request that wasn't a FullHttpRequest.");
 				sendErrorResponse(new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST, ctx, httpRequest);
 				return;
 			}
@@ -99,7 +103,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 			ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
 
 			R request;
-			if (msgContent.capacity() == 0 || messageHeaders.getHttpMethod() == HttpMethodWrapper.GET) {
+			if (msgContent.capacity() == 0) {
 				try {
 					request = mapper.readValue("{}", messageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
@@ -127,28 +131,25 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 			}
 
 			response.whenComplete((HandlerResponse<P> resp, Throwable error) -> {
-				try {
-					if (error != null) {
-						log.error("Implementation error: Unhandled exception.", error);
-						sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+				if (error != null) {
+					log.error("Implementation error: Unhandled exception.", error);
+					sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+				} else {
+					if (resp instanceof SuccessfulHandlerResponse) {
+						SuccessfulHandlerResponse<P> success = (SuccessfulHandlerResponse<P>) resp;
+						sendResponse(messageHeaders.getResponseStatusCode(), success.getResponse(), ctx, httpRequest);
+					} else if (resp instanceof FailedHandlerResponse) {
+						FailedHandlerResponse<P> failure = (FailedHandlerResponse<P>) resp;
+						sendErrorResponse(new ErrorResponseBody(failure.getErrorMessage()), failure.getErrorCode(), ctx, httpRequest);
 					} else {
-						if (resp.wasSuccessful()) {
-							sendResponse(messageHeaders, resp.getResponse(), ctx, httpRequest);
-						} else {
-							sendErrorResponse(new ErrorResponseBody(resp.getErrorMessage()), resp.getErrorCode(), ctx, httpRequest);
-						}
+						log.error("Implementation error: HandlerResponse did neither implement SuccessfulHandlerResponse nor FailedHandlerResponse.", error);
+						sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
 					}
-				} catch (Exception e) {
-					log.error("Critical error while sending a response.", e);
 				}
 			});
 		} catch (Exception e) {
 			log.error("Request processing failed.", e);
-			try {
-				sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
-			} catch (IOException e1) {
-				log.error("Critical error while sending a response.", e1);
-			}
+			sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
 		}
 	}
 
@@ -161,15 +162,26 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	 */
 	protected abstract CompletableFuture<HandlerResponse<P>> handleRequest(@Nonnull HandlerRequest<R> request);
 
-	private static <M extends MessageHeaders<R, P, ?>, R extends RequestBody, P extends ResponseBody> void sendResponse(M messageHeaders, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) throws IOException {
+	private static <P extends ResponseBody> void sendResponse(HttpResponseStatus statusCode, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) {
 		StringWriter sw = new StringWriter();
-		mapper.writeValue(sw, response);
-		sendResponse(ctx, httpRequest, messageHeaders.getResponseStatusCode(), sw.toString());
+		try {
+			mapper.writeValue(sw, response);
+		} catch (IOException ioe) {
+			sendErrorResponse(new ErrorResponseBody("Internal server error. Could not map response to JSON."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+			return;
+		}
+		sendResponse(ctx, httpRequest, statusCode, sw.toString());
 	}
 
-	static void sendErrorResponse(ErrorResponseBody error, HttpResponseStatus statusCode, ChannelHandlerContext ctx, HttpRequest httpRequest) throws IOException {
+	static void sendErrorResponse(ErrorResponseBody error, HttpResponseStatus statusCode, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+
 		StringWriter sw = new StringWriter();
-		mapper.writeValue(sw, error);
+		try {
+			mapper.writeValue(sw, error);
+		} catch (IOException e) {
+			// this should never happen
+			sendResponse(ctx, httpRequest, HttpResponseStatus.INTERNAL_SERVER_ERROR, "Internal server error. Could not map error response to JSON.");
+		}
 		sendResponse(ctx, httpRequest, statusCode, sw.toString());
 	}
 

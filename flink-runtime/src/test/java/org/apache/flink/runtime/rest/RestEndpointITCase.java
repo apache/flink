@@ -21,13 +21,14 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.HandlerResponse;
+import org.apache.flink.runtime.rest.handler.response.HandlerResponse;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.Parameter;
 import org.apache.flink.runtime.rest.messages.ParameterMapper;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -50,7 +51,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * IT cases for {@link RestClientEndpoint} and {@link RestServerEndpoint}.
  */
-public class RestEndpointITCase {
+public class RestEndpointITCase extends TestLogger {
 
 	private static final String PATH_JOB_ID = "1234";
 	private static final String QUERY_JOB_ID = "6789";
@@ -67,7 +68,6 @@ public class RestEndpointITCase {
 
 		try {
 			serverEndpoint.start();
-			clientEndpoint.start();
 
 			// send first request and wait until the handler blocks
 			CompletableFuture<TestResponse> response1;
@@ -160,7 +160,7 @@ public class RestEndpointITCase {
 		}
 	}
 
-	static class TestParameterMapper extends ParameterMapper {
+	static class TestParameterMapper implements ParameterMapper {
 
 		public Map<Parameter, String> mapQueryParameters(Set<Parameter> queryParameters) {
 			Map<Parameter, String> map = new HashMap<>(1);

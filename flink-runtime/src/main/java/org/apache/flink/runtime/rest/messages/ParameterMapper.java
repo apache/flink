@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +25,7 @@ import java.util.Set;
 /**
  * This class is used to map query/path {@link Parameter}s to their actual value.
  */
-public abstract class ParameterMapper {
+public interface ParameterMapper {
 
 	/**
 	 * Maps the given query {@link Parameter}s to their actual value.
@@ -34,9 +33,7 @@ public abstract class ParameterMapper {
 	 * @param queryParameters parameters to map
 	 * @return map containing the parameters and their associated value
 	 */
-	public Map<Parameter, String> mapQueryParameters(Set<Parameter> queryParameters) {
-		return Collections.emptyMap();
-	}
+	Map<Parameter, String> mapQueryParameters(Set<Parameter> queryParameters);
 
 	/**
 	 * Maps the given path {@link Parameter}s to their actual value.
@@ -44,9 +41,7 @@ public abstract class ParameterMapper {
 	 * @param pathParameters parameters to map
 	 * @return map containing the parameters and their associated value
 	 */
-	public Map<Parameter, String> mapPathParameters(Set<Parameter> pathParameters) {
-		return Collections.emptyMap();
-	}
+	Map<Parameter, String> mapPathParameters(Set<Parameter> pathParameters);
 
 	/**
 	 * Resolves the given URL (e.g "jobs/:jobid") using the given path/query parameters.
@@ -56,7 +51,7 @@ public abstract class ParameterMapper {
 	 * @param queryParameters query parameters
 	 * @return resolved url, e.g "/jobs/1234?state=running"
 	 */
-	public static String resolveUrl(String genericUrl, Map<Parameter, String> pathParameters, Map<Parameter, String> queryParameters) {
+	static String resolveUrl(String genericUrl, Map<Parameter, String> pathParameters, Map<Parameter, String> queryParameters) {
 		StringBuilder sb = new StringBuilder(genericUrl);
 
 		pathParameters.forEach((parameter, value) -> {
