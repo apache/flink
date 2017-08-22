@@ -82,7 +82,7 @@ public class RestEndpointITCase {
 		}
 
 		@Override
-		protected Collection<TestHandler> initializeHandlers() {
+		protected Collection<AbstractRestHandler<?, ?>> initializeHandlers() {
 			return Collections.singleton(new TestHandler());
 		}
 	}

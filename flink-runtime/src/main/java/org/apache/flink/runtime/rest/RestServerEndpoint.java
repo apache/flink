@@ -69,7 +69,7 @@ public abstract class RestServerEndpoint {
 	 * This method is called at the beginning of {@link #start()} to setup all handlers that the REST server endpoint
 	 * implementation requires.
 	 */
-	protected abstract Collection<? extends AbstractRestHandler<?, ?>> initializeHandlers();
+	protected abstract Collection<AbstractRestHandler<?, ?>> initializeHandlers();
 
 	/**
 	 * Starts this REST server endpoint.
