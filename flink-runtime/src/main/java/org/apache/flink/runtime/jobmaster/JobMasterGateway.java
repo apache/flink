@@ -52,16 +52,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 
-	// ------------------------------------------------------------------------
-	//  Job start and stop methods
-	// ------------------------------------------------------------------------
-
-	void startJobExecution();
-
-	void suspendExecution(Throwable cause);
-
-	// ------------------------------------------------------------------------
-
 	/**
 	 * Updates the task execution state for a given task.
 	 *
