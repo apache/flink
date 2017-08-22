@@ -55,7 +55,7 @@ public class Quantifier {
 		return new Quantifier(consumingStrategy, QuantifierProperty.SINGLE);
 	}
 
-	public static Quantifier oneOrMore(final ConsumingStrategy consumingStrategy) {
+	public static Quantifier looping(final ConsumingStrategy consumingStrategy) {
 		return new Quantifier(consumingStrategy, QuantifierProperty.LOOPING);
 	}
 

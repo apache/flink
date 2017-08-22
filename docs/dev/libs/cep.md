@@ -186,6 +186,13 @@ named `start`, the following are valid quantifiers:
 
  // expecting 0 or more occurrences
  start.oneOrMore().optional();
+
+ // expecting 2 or more occurrences
+ start.timesOrMore(2);
+
+ // expecting 0, 2 or more occurrences
+ start.timesOrMore(2).optional();
+
  {% endhighlight %}
  </div>
 
@@ -208,6 +215,12 @@ named `start`, the following are valid quantifiers:
 
  // expecting 0 or more occurrences
  start.oneOrMore().optional()
+
+ // expecting 2 or more occurrences
+ start.timesOrMore(2);
+
+ // expecting 0, 2 or more occurrences
+ start.timesOrMore(2).optional();
  {% endhighlight %}
  </div>
  </div>
@@ -477,6 +490,18 @@ pattern.oneOrMore();
 {% endhighlight %}
           </td>
        </tr>
+           <tr>
+              <td><strong>timesOrMore(#times)</strong></td>
+              <td>
+                  <p>Specifies that this pattern expects at least <strong>#times</strong> occurrences
+                  of a matching event.</p>
+                  <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
+                  internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+{% highlight java %}
+pattern.timesOrMore(2);
+{% endhighlight %}
+           </td>
+       </tr>
        <tr>
           <td><strong>times(#ofTimes)</strong></td>
           <td>
@@ -646,6 +671,18 @@ pattern.subtype(classOf[SubEvent])
 pattern.oneOrMore()
 {% endhighlight %}
           </td>
+       </tr>
+       <tr>
+          <td><strong>timesOrMore(#times)</strong></td>
+          <td>
+              <p>Specifies that this pattern expects at least <strong>#times</strong> occurrences
+              of a matching event.</p>
+              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
+              internal contiguity see <a href="#consecutive_scala">consecutive</a>.</p>
+{% highlight scala %}
+pattern.timesOrMore(2)
+{% endhighlight %}
+           </td>
        </tr>
        <tr>
                  <td><strong>times(#ofTimes)</strong></td>
