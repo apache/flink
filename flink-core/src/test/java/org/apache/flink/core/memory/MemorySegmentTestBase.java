@@ -32,6 +32,7 @@ import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
@@ -1912,6 +1913,36 @@ public abstract class MemorySegmentTestBase {
 		target.get(result);
 
 		assertArrayEquals(bytes, result);
+	}
+
+	@Test(expected = ReadOnlyBufferException.class)
+	public void testHeapByteBufferGetReadOnly() {
+		testByteBufferGetReadOnly(false);
+	}
+
+	@Test(expected = ReadOnlyBufferException.class)
+	public void testOffHeapByteBufferGetReadOnly() {
+		testByteBufferGetReadOnly(true);
+	}
+
+	/**
+	 * Tries to write into a {@link ByteBuffer} instance which is read-only. This should fail with a
+	 * {@link ReadOnlyBufferException}.
+	 *
+	 * @param directBuffer
+	 * 		whether the {@link ByteBuffer} instance should be a direct byte buffer or not
+	 *
+	 * @throws ReadOnlyBufferException
+	 * 		expected exception due to writing to a read-only buffer
+	 */
+	private void testByteBufferGetReadOnly(boolean directBuffer) throws ReadOnlyBufferException {
+		MemorySegment seg = createSegment(pageSize);
+
+		ByteBuffer target = (directBuffer ?
+			ByteBuffer.allocateDirect(pageSize) :
+			ByteBuffer.allocate(pageSize)).asReadOnlyBuffer();
+
+		seg.get(0, target, pageSize);
 	}
 
 	@Test
