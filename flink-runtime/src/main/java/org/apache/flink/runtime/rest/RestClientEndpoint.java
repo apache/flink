@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.ParameterMapper;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
@@ -118,16 +118,13 @@ public class RestClientEndpoint {
 		}
 	}
 
-	public <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(M messageHeaders, U parameterMapper, R request) throws IOException {
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) throws IOException {
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
-		Preconditions.checkNotNull(parameterMapper);
+		Preconditions.checkNotNull(messageParameters);
+		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
 
-		String targetUrl = ParameterMapper.resolveUrl(
-			messageHeaders.getTargetRestEndpointURL(),
-			parameterMapper.mapPathParameters(messageHeaders.getPathParameters()),
-			parameterMapper.mapQueryParameters(messageHeaders.getQueryParameters())
-		);
+		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
 
 		LOG.debug("Sending request of class {} to {}", request.getClass(), targetUrl);
 		// serialize payload
@@ -143,10 +140,10 @@ public class RestClientEndpoint {
 			.set(HttpHeaders.Names.HOST, configuredTargetAddress + ":" + configuredTargetPort)
 			.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		return submitRequest(httpRequest, messageHeaders);
+		return submitRequest(httpRequest, messageHeaders.getResponseClass());
 	}
 
-	private <M extends MessageHeaders<R, P, U>, U extends ParameterMapper, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> submitRequest(FullHttpRequest httpRequest, M messageHeaders) {
+	private <P extends ResponseBody> CompletableFuture<P> submitRequest(FullHttpRequest httpRequest, Class<P> responseClass) {
 		return CompletableFuture.supplyAsync(() -> bootstrap.connect(configuredTargetAddress, configuredTargetPort))
 			.thenApply((channel) -> {
 				try {
@@ -158,7 +155,7 @@ public class RestClientEndpoint {
 			.thenApply((ChannelFuture::channel))
 			.thenCompose((channel -> {
 				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-				CompletableFuture<P> future = handler.setExpectedResponse(messageHeaders.getResponseClass());
+				CompletableFuture<P> future = handler.setExpectedResponse(responseClass);
 				channel.writeAndFlush(httpRequest);
 				return future;
 			}));

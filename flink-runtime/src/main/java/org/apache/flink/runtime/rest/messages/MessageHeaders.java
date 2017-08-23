@@ -22,18 +22,16 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import java.util.Collections;
-import java.util.Set;
-
 /**
  * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data required for their http headers.
  *
  * <p>Implementations must be state-less.
  *
- * @param <R> request type
- * @param <P> response type
+ * @param <R> request message type
+ * @param <P> response message type
+ * @param <M> message parameters type
  */
-public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M extends ParameterMapper> {
+public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> {
 
 	/**
 	 * Returns the class of the request message.
@@ -48,24 +46,6 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	 * @return http method to be used for the request
 	 */
 	HttpMethodWrapper getHttpMethod();
-
-	/**
-	 * Returns the set of {@link Parameter} that can be used as query parameters.
-	 *
-	 * @return set of query parameters
-	 */
-	default Set<Parameter> getQueryParameters() {
-		return Collections.emptySet();
-	}
-
-	/**
-	 * Returns the set of {@link Parameter} that can be used as path parameters.
-	 *
-	 * @return set of path parameters
-	 */
-	default Set<Parameter> getPathParameters() {
-		return Collections.emptySet();
-	}
 
 	/**
 	 * Returns the generalized endpoint url that this request should be sent to, for example {@code /job/:jobid}.
@@ -87,5 +67,12 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	 * @return http status code of the response
 	 */
 	HttpResponseStatus getResponseStatusCode();
+
+	/**
+	 * Returns a new {@link MessageParameters} object.
+	 *
+	 * @return new message parameters object
+	 */
+	M getUnresolvedMessageParameters();
 
 }

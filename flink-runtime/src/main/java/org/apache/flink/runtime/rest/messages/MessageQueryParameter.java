@@ -18,24 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.Collections;
-import java.util.Map;
-
 /**
- * Tests for {@link ParameterMapper}.
+ * Convenience class for {@link MessageParameter}s that are query parameters.
  */
-public class ParameterMapperTest {
-	@Test
-	public void testResolveUrl() {
-		String genericUrl = "/jobs/:jobid/state";
-		Map<Parameter, String> pathParameters = Collections.singletonMap(Parameter.JOB_ID, "1234");
-		Map<Parameter, String> queryParameters = Collections.singletonMap(Parameter.JOB_ID, "6789");
-
-		String resolvedUrl = ParameterMapper.resolveUrl(genericUrl, pathParameters, queryParameters);
-
-		Assert.assertEquals("/jobs/1234/state?jobid=6789", resolvedUrl);
+public abstract class MessageQueryParameter extends MessageParameter {
+	protected MessageQueryParameter(String key, MessageParameterRequisiteness requisiteness) {
+		super(key, MessageParameterType.QUERY, requisiteness);
 	}
 }

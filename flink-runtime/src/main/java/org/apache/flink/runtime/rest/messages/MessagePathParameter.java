@@ -19,23 +19,10 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * This enum contains entries for query/path-parameters that can be used for requests.
+ * Convenience class for {@link MessageParameter}s that are path parameters.
  */
-public enum Parameter {
-	JOB_ID("jobid");
-
-	private final String key;
-
-	private Parameter(String key) {
-		this.key = key;
-	}
-
-	public String getKey() {
-		return key;
-	}
-
-	@Override
-	public String toString() {
-		return key;
+public abstract class MessagePathParameter extends MessageParameter {
+	protected MessagePathParameter(String key, MessageParameterRequisiteness requisiteness) {
+		super(key, MessageParameterType.PATH, requisiteness);
 	}
 }
