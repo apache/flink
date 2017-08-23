@@ -155,34 +155,54 @@ public class RestClientEndpoint {
 			.thenApply((ChannelFuture::channel))
 			.thenCompose((channel -> {
 				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-				CompletableFuture<P> future = handler.setExpectedResponse(responseClass);
+				CompletableFuture<JsonNode> future = handler.getJsonFuture();
 				channel.writeAndFlush(httpRequest);
 				return future;
-			}));
+			}))
+			.thenCompose((rawResponse -> parseResponse(rawResponse, responseClass)));
+	}
+
+	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonNode rawResponse, Class<P> responseClass) {
+		CompletableFuture<P> responseFuture = new CompletableFuture<>();
+		try {
+			P response = objectMapper.treeToValue(rawResponse, responseClass);
+			responseFuture.complete(response);
+		} catch (JsonProcessingException jpe) {
+			// the received response did not matched the expected response type
+
+			// lets see if it is an ErrorResponse instead
+			try {
+				ErrorResponseBody error = objectMapper.treeToValue(rawResponse, ErrorResponseBody.class);
+				responseFuture.completeExceptionally(new RestClientException(error.errors.toString()));
+			} catch (JsonProcessingException jpe2) {
+				// if this fails it is either the expected type or response type was wrong, most likely caused
+				// by a client/search MessageHeaders mismatch
+				LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", responseClass, rawResponse);
+				responseFuture.completeExceptionally(new RestClientException("Response was neither of the expected type(" + responseClass + ") nor an error."));
+			}
+		}
+		return responseFuture;
 	}
 
 	private static class ClientHandler extends SimpleChannelInboundHandler<Object> {
 
-		private ExpectedResponse<? extends ResponseBody> expectedResponse = null;
+		private final CompletableFuture<JsonNode> jsonFuture = new CompletableFuture<>();
 
-		<P extends ResponseBody> CompletableFuture<P> setExpectedResponse(Class<P> expectedResponse) {
-			CompletableFuture<P> responseFuture = new CompletableFuture<>();
-			this.expectedResponse = new ExpectedResponse<>(expectedResponse, responseFuture);
-
-			return responseFuture;
+		CompletableFuture<JsonNode> getJsonFuture() {
+			return jsonFuture;
 		}
 
 		@Override
 		protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
 			if (msg instanceof FullHttpResponse) {
-				completeFuture((FullHttpResponse) msg);
+				readRawRespponse((FullHttpResponse) msg);
 			} else {
 				LOG.error("Implementation error: Received a response that wasn't a FullHttpResponse.");
-				expectedResponse.responseFuture.completeExceptionally(new RestClientException("Implementation error: Received a response that wasn't a FullHttpResponse."));
+				jsonFuture.completeExceptionally(new RestClientException("Implementation error: Received a response that wasn't a FullHttpResponse."));
 			}
 		}
 
-		private <P extends ResponseBody> void completeFuture(FullHttpResponse msg) throws IOException {
+		private void readRawRespponse(FullHttpResponse msg) throws IOException {
 			ByteBuf content = msg.content();
 
 			JsonNode rawResponse;
@@ -192,43 +212,9 @@ public class RestClientEndpoint {
 				LOG.debug("Received response {}.", rawResponse);
 			} catch (JsonMappingException | JsonParseException je) {
 				LOG.error("Response was not valid JSON.", je);
-				expectedResponse.responseFuture.completeExceptionally(new RestClientException("Response was not valid JSON.", je));
+				jsonFuture.completeExceptionally(new RestClientException("Response was not valid JSON.", je));
 				return;
 			}
-
-			if (expectedResponse == null) {
-				LOG.error("Received response, but we didn't expect any. Response={}", rawResponse);
-				return;
-			}
-
-			try {
-				ExpectedResponse<P> expectedResponse = (ExpectedResponse<P>) this.expectedResponse;
-				P response = objectMapper.treeToValue(rawResponse, expectedResponse.responseClass);
-				expectedResponse.responseFuture.complete(response);
-			} catch (JsonProcessingException jpe) {
-				// the received response did not matched the expected response type
-
-				// lets see if it is an ErrorResponse instead
-				try {
-					ErrorResponseBody error = objectMapper.treeToValue(rawResponse, ErrorResponseBody.class);
-					expectedResponse.responseFuture.completeExceptionally(new RestClientException(error.errors.toString()));
-				} catch (JsonMappingException jme) {
-					// if this fails it is either the expected type or response type was wrong, most likely caused
-					// by a client/search MessageHeaders mismatch
-					LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", expectedResponse.responseClass, rawResponse, jme);
-					expectedResponse.responseFuture.completeExceptionally(new RestClientException("Response was neither of the expected type(" + expectedResponse.responseClass + ") nor an error.", jme));
-				}
-			}
-		}
-	}
-
-	private static class ExpectedResponse<P extends ResponseBody> {
-		final Class<P> responseClass;
-		final CompletableFuture<P> responseFuture;
-
-		private ExpectedResponse(Class<P> extectedResponse, CompletableFuture<P> responseFuture) {
-			this.responseClass = extectedResponse;
-			this.responseFuture = responseFuture;
 		}
 	}
 }
