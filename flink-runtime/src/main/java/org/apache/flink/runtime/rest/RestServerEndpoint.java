@@ -45,6 +45,8 @@ import javax.net.ssl.SSLEngine;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -158,17 +160,33 @@ public abstract class RestServerEndpoint {
 	 */
 	public void shutdown() {
 		log.info("Shutting down rest endpoint.");
+
+		CompletableFuture<?> channelFuture = new CompletableFuture<>();
 		if (this.serverChannel != null) {
-			this.serverChannel.close().awaitUninterruptibly();
+			this.serverChannel.close().addListener(ignored -> channelFuture.complete(null));
 		}
-		if (bootstrap != null) {
-			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully();
+		CompletableFuture<?> groupFuture = new CompletableFuture<>();
+		CompletableFuture<?> childGroupFuture = new CompletableFuture<>();
+
+		channelFuture.thenRun(() -> {
+			if (bootstrap != null) {
+				if (bootstrap.group() != null) {
+					bootstrap.group().shutdownGracefully(0, 5, TimeUnit.SECONDS)
+						.addListener(ignored -> groupFuture.complete(null));
+				}
+				if (bootstrap.childGroup() != null) {
+					bootstrap.childGroup().shutdownGracefully(0, 5, TimeUnit.SECONDS)
+						.addListener(ignored -> childGroupFuture.complete(null));
+				}
 			}
-			if (bootstrap.childGroup() != null) {
-				bootstrap.childGroup().shutdownGracefully();
-			}
+		});
+
+		try {
+			CompletableFuture.allOf(groupFuture, childGroupFuture)
+				.get(10, TimeUnit.SECONDS);
+			log.info("Rest endpoint shutdown complete.");
+		} catch (Exception e) {
+			log.warn("Rest endpoint shutdown failed.", e);
 		}
-		log.info("Rest endpoint shutdown complete.");
 	}
 }

@@ -63,6 +63,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This client is the counter-part to the {@link RestServerEndpoint}.
@@ -110,10 +111,20 @@ public class RestClientEndpoint {
 	}
 
 	public void shutdown() {
+		LOG.info("Shutting down rest endpoint.");
+		CompletableFuture<?> groupFuture = new CompletableFuture<>();
 		if (bootstrap != null) {
 			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully();
+				bootstrap.group().shutdownGracefully(0, 5, TimeUnit.SECONDS)
+					.addListener(ignored -> groupFuture.complete(null));
 			}
+		}
+
+		try {
+			groupFuture.get(5, TimeUnit.SECONDS);
+			LOG.info("Rest endpoint shutdown complete.");
+		} catch (Exception e) {
+			LOG.warn("Rest endpoint shutdown failed.", e);
 		}
 	}
 
