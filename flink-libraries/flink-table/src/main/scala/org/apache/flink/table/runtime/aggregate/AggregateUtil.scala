@@ -25,13 +25,16 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
+import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
+import org.apache.flink.api.common.state.StateDescriptor
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
+import org.apache.flink.table.api.dataview.DataViewSpec
 import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -47,6 +50,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
+import org.apache.flink.util.InstantiationUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -82,11 +86,13 @@ object AggregateUtil {
       isRowsClause: Boolean)
     : ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates, accTypes) =
+    val isStateBackedDataViews = true
+    val (aggFields, aggregates, accTypes, accSpecs) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetraction = false)
+        needRetraction = false,
+        isStateBackedDataViews)
 
     val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
 
@@ -107,7 +113,8 @@ object AggregateUtil {
       outputArity,
       needRetract = false,
       needMerge = false,
-      needReset = false
+      needReset = false,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
     )
 
     if (rowTimeIdx.isDefined) {
@@ -160,11 +167,13 @@ object AggregateUtil {
       generateRetraction: Boolean,
       consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates, accTypes) =
+    val isStateBackedDataViews = true
+    val (aggFields, aggregates, accTypes, accSpecs) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputRowType,
-        consumeRetraction)
+        consumeRetraction,
+        isStateBackedDataViews)
 
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
@@ -185,8 +194,8 @@ object AggregateUtil {
       outputArity,
       consumeRetraction,
       needMerge = false,
-      needReset = false
-    )
+      needReset = false,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews))
 
     new GroupAggProcessFunction(
       genFunction,
@@ -223,11 +232,13 @@ object AggregateUtil {
     : ProcessFunction[CRow, CRow] = {
 
     val needRetract = true
-    val (aggFields, aggregates, accTypes) =
+    val isStateBackedDataViews = true
+    val (aggFields, aggregates, accTypes, accSpecs) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetract)
+        needRetract,
+        isStateBackedDataViews)
 
     val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
     val inputRowType = CRowTypeInfo(inputTypeInfo)
@@ -249,7 +260,8 @@ object AggregateUtil {
       outputArity,
       needRetract,
       needMerge = false,
-      needReset = true
+      needReset = true,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
     )
 
     if (rowTimeIdx.isDefined) {
@@ -323,10 +335,12 @@ object AggregateUtil {
   : MapFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
+    val isStateBackedDataViews = false
+    val (aggFieldIndexes, aggregates, accTypes, accSpecs) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetract)
+      needRetract,
+      isStateBackedDataViews)
 
     val mapReturnType: RowTypeInfo =
       createRowTypeForKeysAndAggregates(
@@ -380,14 +394,16 @@ object AggregateUtil {
       outputArity,
       needRetract,
       needMerge = false,
-      needReset = true
+      needReset = true,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
     )
 
     new DataSetWindowAggMapFunction(
       genFunction,
       timeFieldPos,
       tumbleTimeWindowSize,
-      mapReturnType)
+      mapReturnType
+    )
   }
 
   /**
@@ -428,10 +444,12 @@ object AggregateUtil {
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
+    val isStateBackedDataViews = false
+    val (aggFieldIndexes, aggregates, accTypes, accSpecs) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      isStateBackedDataViews)
 
     val returnType: RowTypeInfo = createRowTypeForKeysAndAggregates(
       groupings,
@@ -458,8 +476,10 @@ object AggregateUtil {
           keysAndAggregatesArity + 1,
           needRetract,
           needMerge = true,
-          needReset = true
+          needReset = true,
+          accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
         )
+
         new DataSetSlideTimeWindowAggReduceGroupFunction(
           genFunction,
           keysAndAggregatesArity,
@@ -541,10 +561,12 @@ object AggregateUtil {
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, _) = transformToAggregateFunctions(
+    val isStateBackedDataViews = false
+    val (aggFieldIndexes, aggregates, _, accSpecs) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      isStateBackedDataViews)
 
     val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
 
@@ -561,7 +583,8 @@ object AggregateUtil {
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
-      needReset = true
+      needReset = true,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
     )
 
     val genFinalAggFunction = generator.generateAggregations(
@@ -577,7 +600,8 @@ object AggregateUtil {
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
-      needReset = true
+      needReset = true,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
     )
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
@@ -686,10 +710,12 @@ object AggregateUtil {
     groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
+    val isStateBackedDataViews = false
+    val (aggFieldIndexes, aggregates, accTypes, accSpecs) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      isStateBackedDataViews)
 
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
@@ -718,7 +744,8 @@ object AggregateUtil {
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
-          needReset = true
+          needReset = true,
+          accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
         )
 
         new DataSetSessionWindowAggregatePreProcessor(
@@ -759,10 +786,12 @@ object AggregateUtil {
     : GroupCombineFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes) = transformToAggregateFunctions(
+    val isStateBackedDataViews = false
+    val (aggFieldIndexes, aggregates, accTypes, accSpecs) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      isStateBackedDataViews)
 
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
@@ -792,7 +821,8 @@ object AggregateUtil {
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
-          needReset = true
+          needReset = true,
+          accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
         )
 
         new DataSetSessionWindowAggregatePreProcessor(
@@ -825,10 +855,12 @@ object AggregateUtil {
         RichGroupReduceFunction[Row, Row]) = {
 
     val needRetract = false
-    val (aggInFields, aggregates, accTypes) = transformToAggregateFunctions(
+    val isStateBackedDataViews = false
+    val (aggInFields, aggregates, accTypes, accSpecs) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetract)
+      needRetract,
+      isStateBackedDataViews)
 
     val (gkeyOutMapping, aggOutMapping) = getOutputMappings(
       namedAggregates,
@@ -872,7 +904,8 @@ object AggregateUtil {
         groupings.length + aggregates.length,
         needRetract,
         needMerge = false,
-        needReset = true
+        needReset = true,
+        accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
       )
 
       // compute mapping of forwarded grouping keys
@@ -898,7 +931,8 @@ object AggregateUtil {
         outputType.getFieldCount,
         needRetract,
         needMerge = true,
-        needReset = true
+        needReset = true,
+        accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
       )
 
       (
@@ -921,7 +955,8 @@ object AggregateUtil {
         outputType.getFieldCount,
         needRetract,
         needMerge = false,
-        needReset = true
+        needReset = true,
+        accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
       )
 
       (
@@ -996,11 +1031,13 @@ object AggregateUtil {
     : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val needRetract = false
-    val (aggFields, aggregates, accTypes) =
+    val isStateBackedDataViews = false
+    val (aggFields, aggregates, accTypes, accSpecs) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetract)
+        needRetract,
+        isStateBackedDataViews)
 
     val aggMapping = aggregates.indices.toArray
     val outputArity = aggregates.length
@@ -1018,7 +1055,8 @@ object AggregateUtil {
       outputArity,
       needRetract,
       needMerge,
-      needReset = false
+      needReset = false,
+      accConfig = DataViewConfig(accSpecs, isStateBackedDataViews)
     )
 
     val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
@@ -1159,8 +1197,12 @@ object AggregateUtil {
   private def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
-      needRetraction: Boolean)
-  : (Array[Array[Int]], Array[TableAggregateFunction[_, _]], Array[TypeInformation[_]]) = {
+      needRetraction: Boolean,
+      isStateBackedDataViews: Boolean = false)
+  : (Array[Array[Int]],
+    Array[TableAggregateFunction[_, _]],
+    Array[TypeInformation[_]],
+    Array[Seq[DataViewSpec[_]]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     val aggFieldIndexes = new Array[Array[Int]](aggregateCalls.size)
@@ -1398,14 +1440,29 @@ object AggregateUtil {
       }
     }
 
+    val accSpecs = new Array[Seq[DataViewSpec[_]]](aggregateCalls.size)
+
     // create accumulator type information for every aggregate function
     aggregates.zipWithIndex.foreach { case (agg, index) =>
-      if (null == accTypes(index)) {
+      if (accTypes(index) != null) {
+        val (accType, specs) = removeStateViewFieldsFromAccTypeInfo(index,
+          agg,
+          accTypes(index),
+          isStateBackedDataViews)
+        if (specs.isDefined) {
+          accSpecs(index) = specs.get
+          accTypes(index) = accType
+        } else {
+          accTypes(index) = getAccumulatorTypeOfAggregateFunction(agg)
+          accSpecs(index) = Seq()
+        }
+      } else {
         accTypes(index) = getAccumulatorTypeOfAggregateFunction(agg)
+        accSpecs(index) = Seq()
       }
     }
 
-    (aggFieldIndexes, aggregates, accTypes)
+    (aggFieldIndexes, aggregates, accTypes, accSpecs)
   }
 
   private def createRowTypeForKeysAndAggregates(
@@ -1469,4 +1526,26 @@ object AggregateUtil {
   private def gcd(a: Long, b: Long): Long = {
     if (b == 0) a else gcd(b, a % b)
   }
+
+  @throws[Exception]
+  def serialize(stateDescriptor: StateDescriptor[_, _]): String = {
+    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
+    Base64.encodeBase64URLSafeString(byteArray)
+  }
+
+  @throws[Exception]
+  def deserialize(data: String): StateDescriptor[_, _] = {
+    val byteData = Base64.decodeBase64(data)
+    InstantiationUtil.deserializeObject[StateDescriptor[_, _]](
+      byteData,
+      Thread.currentThread.getContextClassLoader)
+  }
+
+  def createDataViewTerm(aggIndex: Int, fieldName: String): String = {
+    s"acc${aggIndex}_${fieldName}_dataview"
+  }
 }
+
+case class DataViewConfig(accSpecs: Array[Seq[DataViewSpec[_]]], isStateBackedDataViews: Boolean)
+
+

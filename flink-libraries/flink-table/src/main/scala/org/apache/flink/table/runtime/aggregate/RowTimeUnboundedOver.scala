@@ -71,6 +71,7 @@ abstract class RowTimeUnboundedOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
 
     output = new CRow(function.createOutputRow(), true)
     sortedTimestamps = new util.LinkedList[Long]()
@@ -150,6 +151,7 @@ abstract class RowTimeUnboundedOver(
         if (noRecordsToProcess) {
           // we clean the state
           cleanupState(rowMapState, accumulatorState)
+          function.cleanup()
         } else {
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
