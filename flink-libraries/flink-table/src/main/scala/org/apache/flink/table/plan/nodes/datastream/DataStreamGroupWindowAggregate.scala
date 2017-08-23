@@ -26,7 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger
-import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, Window => DataStreamWindow}
+import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -42,7 +42,7 @@ import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
 
 class DataStreamGroupWindowAggregate(
     window: LogicalWindow,
@@ -54,9 +54,10 @@ class DataStreamGroupWindowAggregate(
     schema: RowSchema,
     inputSchema: RowSchema,
     grouping: Array[Int])
-  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataStreamRel {
-
-  private val LOG = LoggerFactory.getLogger(this.getClass)
+  extends SingleRel(cluster, traitSet, inputNode)
+    with CommonAggregate
+    with DataStreamRel
+    with Logging {
 
   override def deriveRowType(): RelDataType = schema.logicalType
 

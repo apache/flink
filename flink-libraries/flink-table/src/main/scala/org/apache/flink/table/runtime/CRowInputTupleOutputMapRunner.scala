@@ -22,13 +22,13 @@ import java.lang.{Boolean => JBool}
 
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 
 /**
   * Convert [[CRow]] to a [[JTuple2]]
@@ -38,10 +38,9 @@ class CRowInputJavaTupleOutputMapRunner(
     code: String,
     @transient var returnType: TypeInformation[JTuple2[JBool, Any]])
   extends RichMapFunction[CRow, Any]
-          with ResultTypeQueryable[JTuple2[JBool, Any]]
-          with Compiler[MapFunction[Row, Any]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+    with ResultTypeQueryable[JTuple2[JBool, Any]]
+    with Compiler[MapFunction[Row, Any]]
+    with Logging {
 
   private var function: MapFunction[Row, Any] = _
   private var tupleWrapper: JTuple2[JBool, Any] = _
@@ -72,9 +71,9 @@ class CRowInputScalaTupleOutputMapRunner(
   @transient var returnType: TypeInformation[(Boolean, Any)])
   extends RichMapFunction[CRow, (Boolean, Any)]
     with ResultTypeQueryable[(Boolean, Any)]
-    with Compiler[MapFunction[Row, Any]] {
+    with Compiler[MapFunction[Row, Any]]
+    with Logging {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
 
   private var function: MapFunction[Row, Any] = _
 

@@ -22,7 +22,6 @@ import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state._
@@ -31,7 +30,8 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 
 
 /**
@@ -47,7 +47,8 @@ abstract class RowTimeUnboundedOver(
     inputType: TypeInformation[CRow],
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
   protected var output: CRow = _
   // state to hold the accumulators of the aggregations
@@ -57,7 +58,6 @@ abstract class RowTimeUnboundedOver(
   // list to sort timestamps to access rows in timestamp order
   private var sortedTimestamps: util.LinkedList[Long] = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   protected var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
