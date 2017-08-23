@@ -52,7 +52,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -193,16 +192,17 @@ public class RestClientEndpoint {
 		}
 
 		@Override
-		protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
+		protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
 			if (msg instanceof FullHttpResponse) {
 				readRawResponse((FullHttpResponse) msg);
 			} else {
 				LOG.error("Implementation error: Received a response that wasn't a FullHttpResponse.");
 				jsonFuture.completeExceptionally(new RestClientException("Implementation error: Received a response that wasn't a FullHttpResponse."));
 			}
+			ctx.close();
 		}
 
-		private void readRawResponse(FullHttpResponse msg) throws IOException {
+		private void readRawResponse(FullHttpResponse msg) {
 			ByteBuf content = msg.content();
 
 			JsonNode rawResponse;
@@ -210,9 +210,13 @@ public class RestClientEndpoint {
 				InputStream in = new ByteBufInputStream(content);
 				rawResponse = objectMapper.readTree(in);
 				LOG.debug("Received response {}.", rawResponse);
-			} catch (JsonMappingException | JsonParseException je) {
+			} catch (JsonParseException je) {
 				LOG.error("Response was not valid JSON.", je);
 				jsonFuture.completeExceptionally(new RestClientException("Response was not valid JSON.", je));
+				return;
+			} catch (IOException ioe) {
+				LOG.error("Response could not be read.", ioe);
+				jsonFuture.completeExceptionally(new RestClientException("Response could not be read.", ioe));
 				return;
 			}
 			jsonFuture.complete(rawResponse);
