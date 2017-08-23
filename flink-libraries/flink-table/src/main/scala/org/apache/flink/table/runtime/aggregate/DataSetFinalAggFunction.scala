@@ -23,9 +23,9 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * [[RichGroupReduceFunction]] to compute the final result of a pre-aggregated aggregation
@@ -36,12 +36,11 @@ import org.slf4j.LoggerFactory
 class DataSetFinalAggFunction(
     private val genAggregations: GeneratedAggregationsFunction)
   extends RichGroupReduceFunction[Row, Row]
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations] with Logging {
 
   private var output: Row = _
   private var accumulators: Row = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {

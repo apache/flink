@@ -21,10 +21,10 @@ package org.apache.flink.table.runtime.io
 import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.core.io.GenericInputSplit
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
 
 class ValuesInputFormat(
     name: String,
@@ -33,9 +33,8 @@ class ValuesInputFormat(
   extends GenericInputFormat[Row]
   with NonParallelInput
   with ResultTypeQueryable[Row]
-  with Compiler[GenericInputFormat[Row]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  with Compiler[GenericInputFormat[Row]]
+  with Logging {
 
   private var format: GenericInputFormat[Row] = _
 

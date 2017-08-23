@@ -25,9 +25,9 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * ProcessRunner with [[CRow]] output.
@@ -38,9 +38,8 @@ class CRowOutputProcessRunner(
     @transient var returnType: TypeInformation[CRow])
   extends ProcessFunction[Any, CRow]
   with ResultTypeQueryable[CRow]
-  with Compiler[ProcessFunction[Any, Row]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  with Compiler[ProcessFunction[Any, Row]]
+  with Logging {
 
   private var function: ProcessFunction[Any, Row] = _
   private var cRowWrapper: CRowWrappingCollector = _
