@@ -91,8 +91,6 @@ public class RestEndpointITCase extends TestLogger {
 			}
 			// verify response to first request
 			Assert.assertEquals(1, response1.get().id);
-		} catch (Exception e) {
-			throw e;
 		} finally {
 			clientEndpoint.shutdown();
 			serverEndpoint.shutdown();
