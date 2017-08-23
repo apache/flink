@@ -16,12 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc;
+
+import java.io.Serializable;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Fenced {@link RpcGateway}. This gateway allows to have access to the associated
+ * fencing token.
+ *
+ * @param <F> type of the fencing token
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public interface FencedRpcGateway<F extends Serializable> extends RpcGateway {
+
+	/**
+	 * Get the current fencing token.
+	 *
+	 * @return current fencing token
+	 */
+	F getFencingToken();
 }

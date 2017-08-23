@@ -21,19 +21,20 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
-import akka.japi.Procedure;
 import akka.pattern.Patterns;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
-import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
-import org.apache.flink.runtime.rpc.akka.messages.LocalRpcInvocation;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
+import org.apache.flink.runtime.rpc.messages.CallAsync;
+import org.apache.flink.runtime.rpc.messages.ControlMessage;
+import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
-import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
-import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
+import org.apache.flink.runtime.rpc.messages.RpcInvocation;
+import org.apache.flink.runtime.rpc.messages.RunAsync;
 
-import org.apache.flink.runtime.rpc.akka.messages.Shutdown;
+import org.apache.flink.runtime.rpc.messages.Shutdown;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -70,10 +71,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** the endpoint to invoke the methods on */
-	private final T rpcEndpoint;
+	protected final T rpcEndpoint;
 
 	/** the helper that tracks whether calls come from the main thread */
 	private final MainThreadValidatorUtil mainThreadValidator;
@@ -110,48 +111,63 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	@Override
 	public void onReceive(final Object message) {
 		if (message.equals(Processing.START)) {
-			getContext().become(new Procedure<Object>() {
-				@Override
-				public void apply(Object msg) throws Exception {
+			getContext().become(
+				(Object msg) -> {
 					if (msg.equals(Processing.STOP)) {
 						getContext().unbecome();
 					} else {
-						handleMessage(msg);
+						mainThreadValidator.enterMainThread();
+
+						try {
+							if (msg instanceof ControlMessage) {
+								handleControlMessage(((ControlMessage) msg));
+							} else {
+								handleMessage(msg);
+							}
+						} finally {
+							mainThreadValidator.exitMainThread();
+						}
 					}
-				}
-			});
+				});
 		} else {
-			LOG.info("The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
+			log.info("The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
 				rpcEndpoint.getClass().getName(),
 				message.getClass().getName());
 
-			if (!getSender().equals(ActorRef.noSender())) {
-				// fail a possible future if we have a sender
-				getSender().tell(new Status.Failure(new AkkaRpcException("Discard message, because " +
-					"the rpc endpoint has not been started yet.")), getSelf());
-			}
+			sendErrorIfSender(new AkkaRpcException("Discard message, because " +
+				"the rpc endpoint has not been started yet."));
 		}
 	}
 
-	private void handleMessage(Object message) {
-		mainThreadValidator.enterMainThread();
-		try {
-			if (message instanceof RunAsync) {
-				handleRunAsync((RunAsync) message);
-			} else if (message instanceof CallAsync) {
-				handleCallAsync((CallAsync) message);
-			} else if (message instanceof RpcInvocation) {
-				handleRpcInvocation((RpcInvocation) message);
-			} else if (message instanceof Shutdown) {
-				triggerShutdown();
-			} else {
-				LOG.warn(
-					"Received message of unknown type {} with value {}. Dropping this message!",
-					message.getClass().getName(),
-					message);
-			}
-		} finally {
-			mainThreadValidator.exitMainThread();
+	private void handleControlMessage(ControlMessage controlMessage) {
+		if (controlMessage instanceof Shutdown) {
+			triggerShutdown();
+		} else {
+			log.warn(
+				"Received control message of unknown type {} with value {}. Dropping this control message!",
+				controlMessage.getClass().getName(),
+				controlMessage);
+
+			sendErrorIfSender(new AkkaUnknownMessageException("Received unknown control message " + controlMessage +
+				" of type " + controlMessage.getClass().getSimpleName() + '.'));
+		}
+	}
+
+	protected void handleMessage(Object message) {
+		if (message instanceof RunAsync) {
+			handleRunAsync((RunAsync) message);
+		} else if (message instanceof CallAsync) {
+			handleCallAsync((CallAsync) message);
+		} else if (message instanceof RpcInvocation) {
+			handleRpcInvocation((RpcInvocation) message);
+		} else {
+			log.warn(
+				"Received message of unknown type {} with value {}. Dropping this message!",
+				message.getClass().getName(),
+				message);
+
+			sendErrorIfSender(new AkkaUnknownMessageException("Received unknown message " + message +
+				" of type " + message.getClass().getSimpleName() + '.'));
 		}
 	}
 
@@ -171,17 +187,17 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 			rpcMethod = lookupRpcMethod(methodName, parameterTypes);
 		} catch(ClassNotFoundException e) {
-			LOG.error("Could not load method arguments.", e);
+			log.error("Could not load method arguments.", e);
 
 			RpcConnectionException rpcException = new RpcConnectionException("Could not load method arguments.", e);
 			getSender().tell(new Status.Failure(rpcException), getSelf());
 		} catch (IOException e) {
-			LOG.error("Could not deserialize rpc invocation message.", e);
+			log.error("Could not deserialize rpc invocation message.", e);
 
 			RpcConnectionException rpcException = new RpcConnectionException("Could not deserialize rpc invocation message.", e);
 			getSender().tell(new Status.Failure(rpcException), getSelf());
 		} catch (final NoSuchMethodException e) {
-			LOG.error("Could not find rpc method for rpc invocation.", e);
+			log.error("Could not find rpc method for rpc invocation.", e);
 
 			RpcConnectionException rpcException = new RpcConnectionException("Could not find rpc method for rpc invocation.", e);
 			getSender().tell(new Status.Failure(rpcException), getSelf());
@@ -202,7 +218,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
 					}
 					catch (InvocationTargetException e) {
-						LOG.trace("Reporting back error thrown in remote procedure {}", rpcMethod, e);
+						log.trace("Reporting back error thrown in remote procedure {}", rpcMethod, e);
 
 						// tell the sender about the failure
 						getSender().tell(new Status.Failure(e.getTargetException()), getSelf());
@@ -229,7 +245,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 					}
 				}
 			} catch (Throwable e) {
-				LOG.error("Error while executing remote procedure call {}.", rpcMethod, e);
+				log.error("Error while executing remote procedure call {}.", rpcMethod, e);
 				// tell the sender about the failure
 				getSender().tell(new Status.Failure(e), getSelf());
 			}
@@ -249,9 +265,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				"prior to sending the message. The " + callAsync.getClass().getName() +
 				" is only supported with local communication.";
 
-			LOG.warn(result);
+			log.warn(result);
 
-			getSender().tell(new Status.Failure(new Exception(result)), getSelf());
+			getSender().tell(new Status.Failure(new AkkaRpcException(result)), getSelf());
 		} else {
 			try {
 				Object result = callAsync.getCallable().call();
@@ -271,7 +287,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	 */
 	private void handleRunAsync(RunAsync runAsync) {
 		if (runAsync.getRunnable() == null) {
-			LOG.warn("Received a {} message with an empty runnable field. This indicates " +
+			log.warn("Received a {} message with an empty runnable field. This indicates " +
 				"that this message has been serialized prior to sending the message. The " +
 				"{} is only supported with local communication.",
 				runAsync.getClass().getName(),
@@ -286,7 +302,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				try {
 					runAsync.getRunnable().run();
 				} catch (Throwable t) {
-					LOG.error("Caught exception while executing runnable in main thread.", t);
+					log.error("Caught exception while executing runnable in main thread.", t);
 					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
 				}
 			}
@@ -323,5 +339,16 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	 */
 	private Method lookupRpcMethod(final String methodName, final Class<?>[] parameterTypes) throws NoSuchMethodException {
 		return rpcEndpoint.getClass().getMethod(methodName, parameterTypes);
+	}
+
+	/**
+	 * Send throwable to sender if the sender is specified.
+	 *
+	 * @param throwable to send to the sender
+	 */
+	protected void sendErrorIfSender(Throwable throwable) {
+		if (!getSender().equals(ActorRef.noSender())) {
+			getSender().tell(new Status.Failure(throwable), getSelf());
+		}
 	}
 }

@@ -16,21 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
-
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+package org.apache.flink.runtime.rpc.akka.exceptions;
 
 /**
- * Shut down message used to trigger the shut down of an AkkaRpcActor. This
- * message is only intended for internal use by the {@link AkkaRpcService}.
+ * Exception which indicates that the AkkaRpcActor has received an
+ * unknown message type.
  */
-public final class Shutdown {
+public class AkkaUnknownMessageException extends AkkaRpcException {
 
-	private static Shutdown instance = new Shutdown();
+	private static final long serialVersionUID = 1691338049911020814L;
 
-	public static Shutdown getInstance() {
-		return instance;
+	public AkkaUnknownMessageException(String message) {
+		super(message);
 	}
 
-	private Shutdown() {}
+	public AkkaUnknownMessageException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public AkkaUnknownMessageException(Throwable cause) {
+		super(cause);
+	}
 }

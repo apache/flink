@@ -16,12 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
+
+import org.apache.flink.util.Preconditions;
+
+import java.io.Serializable;
+import java.util.concurrent.Callable;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Message for asynchronous callable invocations
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public final class CallAsync implements Serializable {
+	private static final long serialVersionUID = 2834204738928484060L;
+
+	private transient Callable<?> callable;
+
+	public CallAsync(Callable<?> callable) {
+		this.callable = Preconditions.checkNotNull(callable);
+	}
+
+	public Callable<?> getCallable() {
+		return callable;
+	}
 }

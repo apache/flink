@@ -16,12 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
+
+import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Wrapper class indicating a message which is not required to match the fencing token
+ * as it is used by the {@link FencedMainThreadExecutable} to run code in the main thread without
+ * a valid fencing token. This is required for operations which are not scoped by the current
+ * fencing token (e.g. leadership grants).
+ *
+ * @param <P> type of the payload
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public class UnfencedMessage<P> {
+	private final P payload;
+
+	public UnfencedMessage(P payload) {
+		this.payload = Preconditions.checkNotNull(payload);
+	}
+
+	public P getPayload() {
+		return payload;
+	}
+
+	@Override
+	public String toString() {
+		return "UnfencedMessage(" + payload + ')';
+	}
 }

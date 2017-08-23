@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -26,7 +26,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public final class RunAsync {
 
-	/** The runnable to be executed. Transient, so it gets lost upon serialization */ 
+	/** The runnable to be executed. Transient, so it gets lost upon serialization */
 	private final Runnable runnable;
 
 	/** The delay after which the runnable should be called */

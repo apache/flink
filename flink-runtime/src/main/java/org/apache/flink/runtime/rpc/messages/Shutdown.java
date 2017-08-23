@@ -16,26 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
 
-import org.apache.flink.util.Preconditions;
-
-import java.io.Serializable;
-import java.util.concurrent.Callable;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
 /**
- * Message for asynchronous callable invocations
+ * Shut down message used to trigger the shut down of an AkkaRpcActor. This
+ * message is only intended for internal use by the {@link AkkaRpcService}.
  */
-public final class CallAsync implements Serializable {
-	private static final long serialVersionUID = 2834204738928484060L;
+public final class Shutdown implements ControlMessage {
 
-	private transient Callable<?> callable;
+	private static Shutdown instance = new Shutdown();
 
-	public CallAsync(Callable<?> callable) {
-		this.callable = Preconditions.checkNotNull(callable);
+	public static Shutdown getInstance() {
+		return instance;
 	}
 
-	public Callable<?> getCallable() {
-		return callable;
-	}
+	private Shutdown() {}
 }
