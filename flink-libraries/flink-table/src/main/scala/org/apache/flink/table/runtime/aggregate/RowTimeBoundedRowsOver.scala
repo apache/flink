@@ -84,6 +84,7 @@ class RowTimeBoundedRowsOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
 
     output = new CRow(function.createOutputRow(), true)
 
@@ -168,6 +169,7 @@ class RowTimeBoundedRowsOver(
         if (noRecordsToProcess) {
           // We clean the state
           cleanupState(dataState, accumulatorState, dataCountState, lastTriggeringTsState)
+          function.cleanup()
         } else {
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
@@ -263,6 +265,10 @@ class RowTimeBoundedRowsOver(
 
     // update cleanup timer
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+  }
+
+  override def close(): Unit = {
+    function.close()
   }
 }
 

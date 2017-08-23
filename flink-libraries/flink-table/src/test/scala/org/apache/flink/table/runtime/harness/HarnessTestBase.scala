@@ -170,6 +170,14 @@ class HarnessTestBase {
       |    return new org.apache.flink.types.Row(5);
       |  }
       |
+      |  public void open(org.apache.flink.api.common.functions.RuntimeContext ctx) {
+      |  }
+      |
+      |  public void cleanup() {
+      |  }
+      |
+      |  public void close() {
+      |  }
       |/*******  This test does not use the following methods  *******/
       |  public org.apache.flink.types.Row mergeAccumulatorsPair(
       |    org.apache.flink.types.Row a,
@@ -281,6 +289,15 @@ class HarnessTestBase {
       |
       |  public final void resetAccumulator(
       |    org.apache.flink.types.Row accs) {
+      |  }
+      |
+      |  public void open(org.apache.flink.api.common.functions.RuntimeContext ctx) {
+      |  }
+      |
+      |  public void cleanup() {
+      |  }
+      |
+      |  public void close() {
       |  }
       |}
       |""".stripMargin

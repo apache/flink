@@ -41,8 +41,9 @@ import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 import scala.collection.JavaConversions._
@@ -108,31 +109,31 @@ abstract class CodeGenerator(
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableMemberStatements = mutable.LinkedHashSet[String]()
+  protected val reusableMemberStatements = mutable.LinkedHashSet[String]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableInitStatements = mutable.LinkedHashSet[String]()
+  protected val reusableInitStatements = mutable.LinkedHashSet[String]()
 
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableOpenStatements = mutable.LinkedHashSet[String]()
+  protected val reusableOpenStatements = mutable.LinkedHashSet[String]()
 
   // set of close statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableCloseStatements = mutable.LinkedHashSet[String]()
+  protected val reusableCloseStatements = mutable.LinkedHashSet[String]()
 
   // set of statements that will be added only once per record
   // we use a LinkedHashSet to keep the insertion order
-  private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+  protected val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
-  private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
+  protected val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
+  protected val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
 
   /**
     * @return code block of statements that need to be placed in the member area of the Function
@@ -1458,9 +1459,10 @@ abstract class CodeGenerator(
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
+    * @param contextTerm [[RuntimeContext]] term to access the [[RuntimeContext]]
     * @return member variable term
     */
-  def addReusableFunction(function: UserDefinedFunction): String = {
+  def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
     val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
@@ -1480,10 +1482,15 @@ abstract class CodeGenerator(
 
     reusableInitStatements.add(functionDeserialization)
 
-    val openFunction =
+    val openFunction = if (contextTerm != null) {
+      s"""
+         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}($contextTerm));
+       """.stripMargin
+    } else {
       s"""
          |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
        """.stripMargin
+    }
     reusableOpenStatements.add(openFunction)
 
     val closeFunction =

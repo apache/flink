@@ -24,7 +24,8 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg}
+import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -153,5 +154,43 @@ class AggregateITCase extends StreamingWithStateTestBase {
       "3,2,3,3", "1,2,3,3", "14,2,5,1",
       "12,3,5,1", "5,3,4,2")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testGroupAggregateWithStateBackend(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+    data.+=((6, 3L, "C"))
+    data.+=((7, 4L, "B"))
+    data.+=((8, 4L, "A"))
+    data.+=((9, 4L, "D"))
+    data.+=((10, 4L, "E"))
+    data.+=((11, 5L, "A"))
+    data.+=((12, 5L, "B"))
+
+    val distinct = new CountDistinct
+    val testAgg = new DataViewTestAgg
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .select('b, distinct('c), testAgg('c, 'b))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = List("1,1,2", "2,1,5", "3,1,10", "4,4,20", "5,2,12")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+
+    // verify agg close is called
+    assert(JavaUserDefinedAggFunctions.isCloseCalled)
   }
 }
