@@ -73,7 +73,7 @@ public abstract class RestServerEndpoint {
 	 * This method is called at the beginning of {@link #start()} to setup all handlers that the REST server endpoint
 	 * implementation requires.
 	 */
-	protected abstract Collection<AbstractRestHandler<?, ?>> initializeHandlers();
+	protected abstract Collection<AbstractRestHandler<?, ?, ?>> initializeHandlers();
 
 	/**
 	 * Starts this REST server endpoint.
@@ -126,7 +126,7 @@ public abstract class RestServerEndpoint {
 		log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
 	}
 
-	private <R extends RequestBody, P extends ResponseBody> void registerHandler(AbstractRestHandler<R, P> handler) {
+	private <R extends RequestBody, P extends ResponseBody> void registerHandler(AbstractRestHandler<R, P, ?> handler) {
 		switch (handler.getMessageHeaders().getHttpMethod()) {
 			case GET:
 				router.GET(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);

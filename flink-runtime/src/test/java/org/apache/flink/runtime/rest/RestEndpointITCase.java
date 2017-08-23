@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
@@ -42,7 +42,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -53,8 +52,8 @@ import java.util.concurrent.ExecutionException;
  */
 public class RestEndpointITCase extends TestLogger {
 
-	private static final String PATH_JOB_ID = "1234";
-	private static final String QUERY_JOB_ID = "6789";
+	private static final JobID PATH_JOB_ID = new JobID();
+	private static final JobID QUERY_JOB_ID = new JobID();
 	private static final String JOB_ID_KEY = "jobid";
 
 	@Test
@@ -72,7 +71,7 @@ public class RestEndpointITCase extends TestLogger {
 
 			TestParameters parameters = new TestParameters();
 			parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
-			parameters.jobIDQueryParameter.resolve(QUERY_JOB_ID);
+			parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
 
 			// send first request and wait until the handler blocks
 			CompletableFuture<TestResponse> response1;
@@ -104,12 +103,12 @@ public class RestEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected Collection<AbstractRestHandler<?, ?>> initializeHandlers() {
+		protected Collection<AbstractRestHandler<?, ?, ?>> initializeHandlers() {
 			return Collections.singleton(new TestHandler());
 		}
 	}
 
-	private static class TestHandler extends AbstractRestHandler<TestRequest, TestResponse> {
+	private static class TestHandler extends AbstractRestHandler<TestRequest, TestResponse, TestParameters> {
 
 		public static final Object LOCK = new Object();
 
@@ -118,16 +117,16 @@ public class RestEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest> request) throws RestHandlerException {
-			if (!request.getPathParameters().containsKey(JOB_ID_KEY)) {
+		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request) throws RestHandlerException {
+			if (request.getPathParameter(JobIDPathParameter.class) == null) {
 				throw new RestHandlerException("Path parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			} else {
-				Assert.assertEquals(request.getPathParameters().get(JOB_ID_KEY), PATH_JOB_ID);
+				Assert.assertEquals(request.getPathParameter(JobIDPathParameter.class).getValue(), PATH_JOB_ID);
 			}
-			if (!request.getQueryParameters().containsKey(JOB_ID_KEY)) {
+			if (request.getQueryParameter(JobIDQueryParameter.class) == null) {
 				throw new RestHandlerException("Query parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			} else {
-				Assert.assertEquals(request.getQueryParameters().get(JOB_ID_KEY).get(0), QUERY_JOB_ID);
+				Assert.assertEquals(request.getQueryParameter(JobIDQueryParameter.class).getValue().get(0), QUERY_JOB_ID);
 			}
 
 			if (request.getRequestBody().id == 1) {
@@ -206,20 +205,45 @@ public class RestEndpointITCase extends TestLogger {
 		private final JobIDQueryParameter jobIDQueryParameter = new JobIDQueryParameter();
 
 		@Override
-		public Collection<MessageParameter> getParameters() {
-			return Arrays.asList(jobIDPathParameter, jobIDQueryParameter);
+		public Collection<MessagePathParameter> getPathParameters() {
+			return Collections.singleton(jobIDPathParameter);
+		}
+
+		@Override
+		public Collection<MessageQueryParameter> getQueryParameters() {
+			return Collections.singleton(jobIDQueryParameter);
 		}
 	}
 
-	static class JobIDPathParameter extends MessagePathParameter {
+	static class JobIDPathParameter extends MessagePathParameter<JobID> {
 		JobIDPathParameter() {
 			super(JOB_ID_KEY, MessageParameterRequisiteness.MANDATORY);
 		}
+
+		@Override
+		public JobID convertFromString(String value) {
+			return JobID.fromHexString(value);
+		}
+
+		@Override
+		protected String convertToString(JobID value) {
+			return value.toString();
+		}
 	}
 
-	static class JobIDQueryParameter extends MessageQueryParameter {
+	static class JobIDQueryParameter extends MessageQueryParameter<JobID> {
 		JobIDQueryParameter() {
 			super(JOB_ID_KEY, MessageParameterRequisiteness.MANDATORY);
+		}
+
+		@Override
+		public JobID convertValueFromString(String value) {
+			return JobID.fromHexString(value);
+		}
+
+		@Override
+		public String convertStringToValue(JobID value) {
+			return value.toString();
 		}
 	}
 }

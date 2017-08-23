@@ -18,11 +18,61 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Convenience class for {@link MessageParameter}s that are query parameters.
+ * This class represents query parameters of a request. For example, the URL "/jobs?state=running" has a
+ * "state" query parameter, with "running" being its value string representation.
+ *
+ * <p>Query parameters may both occur multiple times or be of the form "key=value1,value2,value3". If a query parameter
+ * is specified multiple times the individual values are concatenated with {@code ,} and passed as a single value to
+ * {@link #convertToString(List)}.
  */
-public abstract class MessageQueryParameter extends MessageParameter {
+public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>> {
 	protected MessageQueryParameter(String key, MessageParameterRequisiteness requisiteness) {
 		super(key, MessageParameterType.QUERY, requisiteness);
 	}
+
+	@Override
+	public List<X> convertFromString(String values) {
+		String[] splitValues = values.split(",");
+		List<X> list = new ArrayList<>();
+		for (String value : splitValues) {
+			list.add(convertValueFromString(value));
+		}
+		return list;
+	}
+
+	/**
+	 * Converts the given string to a valid value of this parameter.
+	 *
+	 * @param value string representation of parameter value
+	 * @return parameter value
+	 */
+	public abstract X convertValueFromString(String value);
+
+	@Override
+	public String convertToString(List<X> values) {
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for (X value : values) {
+			if (first) {
+				sb.append(convertStringToValue(value));
+				first = false;
+			} else {
+				sb.append(",");
+				sb.append(convertStringToValue(value));
+			}
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * Converts the given value to its string representation.
+	 *
+	 * @param value parameter value
+	 * @return string representation of typed value
+	 */
+	public abstract String convertStringToValue(X value);
 }

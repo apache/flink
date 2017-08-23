@@ -18,24 +18,53 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.util.Preconditions;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 /**
  * Simple container for the request to a handler, that contains the {@link RequestBody} and path/query parameters.
+ *
+ * @param <R> type of the contained request body
+ * @param <M> type of the contained message parameters
  */
-public class HandlerRequest<R extends RequestBody> {
-	private final R requestBody;
-	private final Map<String, String> pathParameters;
-	private final Map<String, List<String>> queryParameters;
+public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
-	public HandlerRequest(R requestBody, Map<String, String> pathParameters, Map<String, List<String>> queryParameters) {
+	private final R requestBody;
+	private final Map<Class<? extends MessagePathParameter>, MessagePathParameter<?>> pathParameters = new HashMap<>();
+	private final Map<Class<? extends MessageQueryParameter>, MessageQueryParameter<?>> queryParameters = new HashMap<>();
+
+	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> pathParameters, Map<String, List<String>> queryParameters) {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
-		this.pathParameters = Preconditions.checkNotNull(pathParameters);
-		this.queryParameters = Preconditions.checkNotNull(queryParameters);
+		Preconditions.checkNotNull(messageParameters);
+		Preconditions.checkNotNull(queryParameters);
+		Preconditions.checkNotNull(pathParameters);
+
+		for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
+			String value = pathParameters.get(pathParameter.getKey());
+			if (value != null) {
+				pathParameter.resolveFromString(value);
+				this.pathParameters.put(pathParameter.getClass(), pathParameter);
+			}
+		}
+
+		for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
+			List<String> values = queryParameters.get(queryParameter.getKey());
+			if (values != null && values.size() > 0) {
+				StringJoiner joiner = new StringJoiner(",");
+				values.forEach(joiner::add);
+				queryParameter.resolveFromString(joiner.toString());
+				this.queryParameters.put(queryParameter.getClass(), queryParameter);
+			}
+
+		}
 	}
 
 	/**
@@ -48,20 +77,28 @@ public class HandlerRequest<R extends RequestBody> {
 	}
 
 	/**
-	 * Returns a map containing all query parameters.
+	 * Returns the {@link MessagePathParameter} for the given class.
 	 *
-	 * @return query parameters
+	 * @param parameterClass class of the parameter
+	 * @param <X>            the value type that the parameter contains
+	 * @param <PP>           type of the path parameter
+	 * @return path parameter for the given class, or null if no parameter value exists for the given class
 	 */
-	public Map<String, List<String>> getQueryParameters() {
-		return queryParameters;
+	@SuppressWarnings("unchecked")
+	public <X, PP extends MessagePathParameter<X>> PP getPathParameter(Class<PP> parameterClass) {
+		return (PP) pathParameters.get(parameterClass);
 	}
 
 	/**
-	 * Returns a map containing all path parameters.
+	 * Returns the {@link MessageQueryParameter} for the given class.
 	 *
-	 * @return path parameters
+	 * @param parameterClass class of the parameter
+	 * @param <X>            the value type that the parameter contains
+	 * @param <QP>           type of the query parameter
+	 * @return query parameter for the given class, or null if no parameter value exists for the given class
 	 */
-	public Map<String, String> getPathParameters() {
-		return pathParameters;
+	@SuppressWarnings("unchecked")
+	public <X, QP extends MessageQueryParameter<X>> QP getQueryParameter(Class<QP> parameterClass) {
+		return (QP) queryParameters.get(parameterClass);
 	}
 }

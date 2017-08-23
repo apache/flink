@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.api.common.JobID;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -33,12 +34,14 @@ public class MessageParametersTest {
 	public void testResolveUrl() {
 		String genericUrl = "/jobs/:jobid/state";
 		TestMessageParameters parameters = new TestMessageParameters();
-		parameters.pathParameter.resolve("1234");
-		parameters.queryParameter.resolve("6789");
+		JobID pathJobID = new JobID();
+		JobID queryJobID = new JobID();
+		parameters.pathParameter.resolve(pathJobID);
+		parameters.queryParameter.resolve(Collections.singletonList(queryJobID));
 
 		String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
 
-		Assert.assertEquals("/jobs/1234/state?jobid=6789", resolvedUrl);
+		Assert.assertEquals("/jobs/" + pathJobID + "/state?jobid=" + queryJobID, resolvedUrl);
 	}
 
 	private static class TestMessageParameters extends MessageParameters {
@@ -46,22 +49,47 @@ public class MessageParametersTest {
 		private final TestQueryParameter queryParameter = new TestQueryParameter();
 
 		@Override
-		public Collection<MessageParameter> getParameters() {
-			return Collections.unmodifiableList(Arrays.asList(pathParameter, queryParameter));
+		public Collection<MessagePathParameter> getPathParameters() {
+			return Collections.singleton(pathParameter);
+		}
+
+		@Override
+		public Collection<MessageQueryParameter> getQueryParameters() {
+			return Collections.singleton(queryParameter);
 		}
 	}
 
-	private static class TestPathParameter extends MessageParameter {
+	private static class TestPathParameter extends MessagePathParameter<JobID> {
 
 		TestPathParameter() {
-			super("jobid", MessageParameterType.PATH, MessageParameterRequisiteness.MANDATORY);
+			super("jobid", MessageParameterRequisiteness.MANDATORY);
+		}
+
+		@Override
+		public JobID convertFromString(String value) {
+			return JobID.fromHexString(value);
+		}
+
+		@Override
+		protected String convertToString(JobID value) {
+			return value.toString();
 		}
 	}
 
-	private static class TestQueryParameter extends MessageParameter {
+	private static class TestQueryParameter extends MessageQueryParameter<JobID> {
 
 		TestQueryParameter() {
-			super("jobid", MessageParameterType.QUERY, MessageParameterRequisiteness.MANDATORY);
+			super("jobid", MessageParameterRequisiteness.MANDATORY);
+		}
+
+		@Override
+		public JobID convertValueFromString(String value) {
+			return JobID.fromHexString(value);
+		}
+
+		@Override
+		public String convertStringToValue(JobID value) {
+			return value.toString();
 		}
 	}
 }

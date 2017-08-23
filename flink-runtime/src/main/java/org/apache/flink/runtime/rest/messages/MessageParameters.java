@@ -28,12 +28,20 @@ import java.util.Collection;
 public abstract class MessageParameters {
 
 	/**
-	 * Returns the collection of {@link MessageParameter} that the request supports. The collection should not be
+	 * Returns the collection of {@link MessagePathParameter} that the request supports. The collection should not be
 	 * modifiable.
 	 *
-	 * @return collection of all supported message parameters
+	 * @return collection of all supported message path parameters
 	 */
-	public abstract Collection<MessageParameter> getParameters();
+	public abstract Collection<MessagePathParameter> getPathParameters();
+
+	/**
+	 * Returns the collection of {@link MessageQueryParameter} that the request supports. The collection should not be
+	 * modifiable.
+	 *
+	 * @return collection of all supported message query parameters
+	 */
+	public abstract Collection<MessageQueryParameter> getQueryParameters();
 
 	/**
 	 * Returns whether all mandatory parameters have been resolved.
@@ -41,7 +49,8 @@ public abstract class MessageParameters {
 	 * @return true, if all mandatory parameters have been resolved, false otherwise
 	 */
 	public final boolean isResolved() {
-		return getParameters().stream().allMatch(parameter -> parameter.isMandatory() && parameter.isResolved());
+		return getPathParameters().stream().allMatch(parameter -> parameter.isMandatory() && parameter.isResolved())
+			&& getQueryParameters().stream().allMatch(parameter -> parameter.isMandatory() && parameter.isResolved());
 	}
 
 	/**
@@ -61,26 +70,24 @@ public abstract class MessageParameters {
 		StringBuilder path = new StringBuilder(genericUrl);
 		StringBuilder queryParameters = new StringBuilder();
 
+		for (MessageParameter pathParameter : parameters.getPathParameters()) {
+			if (pathParameter.isResolved()) {
+				int start = path.indexOf(":" + pathParameter.getKey());
+				path.replace(start, start + pathParameter.getKey().length() + 1, pathParameter.getValueAsString());
+			}
+		}
 		boolean isFirstQueryParameter = true;
-		for (MessageParameter parameter : parameters.getParameters()) {
-			if (parameter.isResolved()) {
-				switch (parameter.getParameterType()) {
-					case PATH:
-						int start = path.indexOf(":" + parameter.getKey());
-						path.replace(start, start + parameter.getKey().length() + 1, parameter.getValue());
-						break;
-					case QUERY:
-						if (isFirstQueryParameter) {
-							queryParameters.append("?");
-							isFirstQueryParameter = false;
-						} else {
-							queryParameters.append("&");
-						}
-						queryParameters.append(parameter.getKey());
-						queryParameters.append("=");
-						queryParameters.append(parameter.getValue());
-						break;
+		for (MessageQueryParameter queryParameter : parameters.getQueryParameters()) {
+			if (parameters.isResolved()) {
+				if (isFirstQueryParameter) {
+					queryParameters.append("?");
+					isFirstQueryParameter = false;
+				} else {
+					queryParameters.append("&");
 				}
+				queryParameters.append(queryParameter.getKey());
+				queryParameters.append("=");
+				queryParameters.append(queryParameter.getValueAsString());
 			}
 		}
 		path.append(queryParameters);

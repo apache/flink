@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
@@ -68,18 +69,18 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVer
  * @param <P> type of outgoing responses
  */
 @ChannelHandler.Sharable
-public abstract class AbstractRestHandler<R extends RequestBody, P extends ResponseBody> extends SimpleChannelInboundHandler<Routed> {
+public abstract class AbstractRestHandler<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends SimpleChannelInboundHandler<Routed> {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private static final ObjectMapper mapper = RestMapperUtils.getStrictObjectMapper();
 
-	private final MessageHeaders<R, P, ?> messageHeaders;
+	private final MessageHeaders<R, P, M> messageHeaders;
 
-	protected AbstractRestHandler(MessageHeaders<R, P, ?> messageHeaders) {
+	protected AbstractRestHandler(MessageHeaders<R, P, M> messageHeaders) {
 		this.messageHeaders = messageHeaders;
 	}
 
-	public MessageHeaders<R, P, ?> getMessageHeaders() {
+	public MessageHeaders<R, P, M> getMessageHeaders() {
 		return messageHeaders;
 	}
 
@@ -121,7 +122,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 
 			CompletableFuture<P> response;
 			try {
-				HandlerRequest<R> handlerRequest = new HandlerRequest<>(request, routed.pathParams(), routed.queryParams());
+				HandlerRequest<R, M> handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
 				response = handleRequest(handlerRequest);
 			} catch (RestHandlerException rhe) {
 				sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getErrorCode(), ctx, httpRequest);
@@ -163,7 +164,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	 * @return future containing a handler response
 	 * @throws RestHandlerException if the handling failed
 	 */
-	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R> request) throws RestHandlerException;
+	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request) throws RestHandlerException;
 
 	private static <P extends ResponseBody> void sendResponse(HttpResponseStatus statusCode, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) {
 		StringWriter sw = new StringWriter();

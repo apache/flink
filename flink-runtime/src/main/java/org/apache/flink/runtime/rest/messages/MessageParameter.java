@@ -26,20 +26,22 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>Parameters are either mandatory or optional, indicating whether the parameter must be resolved for the request.
  *
- * <p>Subclasses are encouraged to provide their own {@code resolve()} method that accepts the parameter value in a more
- * natural fashion (like accepting a JobID), and convert it to a string before calling {@link #resolve(String)}.
+ * <p>All parameters support symmetric conversion from their actual type and string via {@link #convertFromString(String)}
+ * and {@link #convertToString(Object)}. The conversion from {@code X} to string is required on the client to assemble the
+ * URL, whereas the conversion from string to {@code X} is required on the client to provide properly typed parameters
+ * to the handlers.
  *
  * @see MessagePathParameter
  * @see MessageQueryParameter
  */
-public abstract class MessageParameter {
+public abstract class MessageParameter<X> {
 	private boolean resolved = false;
 
 	private final MessageParameterType type;
 	private final MessageParameterRequisiteness requisiteness;
 
 	private final String key;
-	private String value;
+	private X value;
 
 	MessageParameter(String key, MessageParameterType type, MessageParameterRequisiteness requisiteness) {
 		this.key = key;
@@ -61,11 +63,36 @@ public abstract class MessageParameter {
 	 *
 	 * @param value value to resolve this parameter with
 	 */
-	public final void resolve(String value) {
+	public final void resolve(X value) {
 		Preconditions.checkState(!resolved, "This parameter was already resolved.");
 		this.value = value;
 		this.resolved = true;
 	}
+
+	/**
+	 * Resolves this parameter for the given string value representation.
+	 *
+	 * @param value string representation of value to resolve this parameter with
+	 */
+	public final void resolveFromString(String value) {
+		resolve(convertFromString(value));
+	}
+
+	/**
+	 * Converts the given string to a valid value of this parameter.
+	 *
+	 * @param value string representation of parameter value
+	 * @return parameter value
+	 */
+	protected abstract X convertFromString(String value);
+
+	/**
+	 * Converts the given value to its string representation.
+	 *
+	 * @param value parameter value
+	 * @return string representation of typed value
+	 */
+	protected abstract String convertToString(X value);
 
 	/**
 	 * Returns the key of this parameter, e.g. "jobid".
@@ -81,8 +108,19 @@ public abstract class MessageParameter {
 	 *
 	 * @return resolved value, or null if it wasn't resolved yet
 	 */
-	public final String getValue() {
+	public final X getValue() {
 		return value;
+	}
+
+	/**
+	 * Returs the resolved value of this parameter as a string, or {@code null} if it isn't resolved yet.
+	 *
+	 * @return resolved value, or null if it wasn't resolved yet
+	 */
+	final String getValueAsString() {
+		return value == null
+			? null
+			: convertToString(value);
 	}
 
 	/**

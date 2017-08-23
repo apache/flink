@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Convenience class for {@link MessageParameter}s that are path parameters.
+ * This class represents path parameters of a request. For example, the URL "/jobs/:jobid" has a
+ * "jobid" path parameter that is later replaced with an actual value.
  */
-public abstract class MessagePathParameter extends MessageParameter {
+public abstract class MessagePathParameter<X> extends MessageParameter<X> {
 	protected MessagePathParameter(String key, MessageParameterRequisiteness requisiteness) {
 		super(key, MessageParameterType.PATH, requisiteness);
 	}
