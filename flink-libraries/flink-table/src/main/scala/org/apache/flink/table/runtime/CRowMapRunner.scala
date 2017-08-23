@@ -24,8 +24,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
 
 /**
   * MapRunner with [[CRow]] input.
@@ -36,9 +36,8 @@ class CRowMapRunner[OUT](
     @transient var returnType: TypeInformation[OUT])
   extends RichMapFunction[CRow, OUT]
   with ResultTypeQueryable[OUT]
-  with Compiler[MapFunction[Row, OUT]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  with Compiler[MapFunction[Row, OUT]]
+  with Logging {
 
   private var function: MapFunction[Row, OUT] = _
 
