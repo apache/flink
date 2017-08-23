@@ -163,13 +163,12 @@ public class RestClientEndpoint {
 				}
 			})
 			.thenApply((ChannelFuture::channel))
-			.thenCompose((channel -> {
+			.thenCompose(channel -> {
 				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
 				CompletableFuture<JsonNode> future = handler.getJsonFuture();
 				channel.writeAndFlush(httpRequest);
-				return future;
-			}))
-			.thenCompose((rawResponse -> parseResponse(rawResponse, responseClass)));
+				return future.thenCompose(rawResponse -> parseResponse(rawResponse, responseClass));
+			});
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonNode rawResponse, Class<P> responseClass) {
