@@ -1900,7 +1900,7 @@ public class TypeExtractor {
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 
 		if (!Modifier.isPublic(clazz.getModifiers())) {
-			LOG.info("Class " + clazz.getName() + " is not public, cannot treat it as a POJO type. Will be handled as GenericType");
+			LOG.info("Class " + clazz.getName() + " is not public, cannot treat it as a POJO type. Will be handled as GenericType.");
 			return new GenericTypeInfo<OUT>(clazz);
 		}
 
@@ -1915,7 +1915,7 @@ public class TypeExtractor {
 
 		List<Field> fields = getAllDeclaredFields(clazz, false);
 		if (fields.size() == 0) {
-			LOG.info("No fields detected for " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType");
+			LOG.info("No fields detected for " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType.");
 			return new GenericTypeInfo<OUT>(clazz);
 		}
 
@@ -1923,7 +1923,7 @@ public class TypeExtractor {
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
 			if(!isValidPojoField(field, clazz, typeHierarchy)) {
-				LOG.info(clazz + " is not a valid POJO type because not all fields are valid POJO fields.");
+				LOG.info(clazz + " is not a valid POJO type because not all fields are valid POJO fields. Will be handled as GenericType.");
 				return null;
 			}
 			try {
@@ -1964,12 +1964,12 @@ public class TypeExtractor {
 				LOG.info(clazz + " is abstract or an interface, having a concrete " +
 						"type can increase performance.");
 			} else {
-				LOG.info(clazz + " must have a default constructor to be used as a POJO.");
+				LOG.info(clazz + " must have a default constructor to be used as a POJO. Will be handled as GenericType.");
 				return null;
 			}
 		}
 		if(defaultConstructor != null && !Modifier.isPublic(defaultConstructor.getModifiers())) {
-			LOG.info("The default constructor of " + clazz + " should be Public to be used as a POJO.");
+			LOG.info("The default constructor of " + clazz + " should be Public to be used as a POJO. Will be handled as GenericType.");
 			return null;
 		}
 
