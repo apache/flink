@@ -195,14 +195,14 @@ public class RestClientEndpoint {
 		@Override
 		protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
 			if (msg instanceof FullHttpResponse) {
-				readRawRespponse((FullHttpResponse) msg);
+				readRawResponse((FullHttpResponse) msg);
 			} else {
 				LOG.error("Implementation error: Received a response that wasn't a FullHttpResponse.");
 				jsonFuture.completeExceptionally(new RestClientException("Implementation error: Received a response that wasn't a FullHttpResponse."));
 			}
 		}
 
-		private void readRawRespponse(FullHttpResponse msg) throws IOException {
+		private void readRawResponse(FullHttpResponse msg) throws IOException {
 			ByteBuf content = msg.content();
 
 			JsonNode rawResponse;
