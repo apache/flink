@@ -23,16 +23,23 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenMismatchException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 import static org.junit.Assert.*;
 
@@ -43,6 +50,8 @@ public class AsyncCallsTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+
+	private static final Time timeout = Time.seconds(10L);
 
 	private static final AkkaRpcService akkaRpcService =
 			new AkkaRpcService(actorSystem, Time.milliseconds(10000L));
@@ -162,6 +171,119 @@ public class AsyncCallsTest extends TestLogger {
 		assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
 	}
 
+	/**
+	 * Tests that async code is not executed if the fencing token changes.
+	 */
+	@Test
+	public void testRunAsyncWithFencing() throws Exception {
+		final Time shortTimeout = Time.milliseconds(100L);
+		final UUID newFencingToken = UUID.randomUUID();
+		final CompletableFuture<UUID> resultFuture = new CompletableFuture<>();
+
+		testRunAsync(
+			endpoint -> {
+				endpoint.runAsync(
+					() -> resultFuture.complete(endpoint.getFencingToken()));
+
+				return resultFuture;
+			},
+			newFencingToken);
+
+		try {
+			resultFuture.get(shortTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			fail("The async run operation should not complete since it is filtered out due to the changed fencing token.");
+		} catch (TimeoutException ignored) {}
+	}
+
+	/**
+	 * Tests that code can be executed in the main thread without respecting the fencing token.
+	 */
+	@Test
+	public void testRunAsyncWithoutFencing() throws Exception {
+		final CompletableFuture<UUID> resultFuture = new CompletableFuture<>();
+		final UUID newFencingToken = UUID.randomUUID();
+
+		testRunAsync(
+			endpoint -> {
+				endpoint.runAsyncWithoutFencing(
+					() -> resultFuture.complete(endpoint.getFencingToken()));
+				return resultFuture;
+			},
+			newFencingToken);
+
+		assertEquals(newFencingToken, resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+	}
+
+	/**
+	 * Tests that async callables are not executed if the fencing token changes.
+	 */
+	@Test
+	public void testCallAsyncWithFencing() throws Exception {
+		final UUID newFencingToken = UUID.randomUUID();
+
+		CompletableFuture<Boolean> resultFuture = testRunAsync(
+			endpoint -> endpoint.callAsync(() -> true, timeout),
+			newFencingToken);
+
+		try {
+			resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			fail("The async call operation should fail due to the changed fencing token.");
+		} catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+		}
+	}
+
+	/**
+	 * Tests that async callables can be executed in the main thread without checking the fencing token.
+	 */
+	@Test
+	public void testCallAsyncWithoutFencing() throws Exception {
+		final UUID newFencingToken = UUID.randomUUID();
+
+		CompletableFuture<Boolean> resultFuture = testRunAsync(
+			endpoint -> endpoint.callAsyncWithoutFencing(() -> true, timeout),
+			newFencingToken);
+
+		assertTrue(resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+	}
+
+	private static <T> CompletableFuture<T> testRunAsync(Function<FencedTestEndpoint, CompletableFuture<T>> runAsyncCall, UUID newFencingToken) throws Exception {
+		final UUID initialFencingToken = UUID.randomUUID();
+		final OneShotLatch enterSetNewFencingToken = new OneShotLatch();
+		final OneShotLatch triggerSetNewFencingToken = new OneShotLatch();
+		final FencedTestEndpoint fencedTestEndpoint = new FencedTestEndpoint(
+			akkaRpcService,
+			initialFencingToken,
+			enterSetNewFencingToken,
+			triggerSetNewFencingToken);
+		final FencedTestGateway fencedTestGateway = fencedTestEndpoint.getSelfGateway(FencedTestGateway.class);
+
+		try {
+			fencedTestEndpoint.start();
+
+			CompletableFuture<Acknowledge> newFencingTokenFuture = fencedTestGateway.setNewFencingToken(newFencingToken, timeout);
+
+			assertFalse(newFencingTokenFuture.isDone());
+
+			assertEquals(initialFencingToken, fencedTestEndpoint.getFencingToken());
+
+			CompletableFuture<T> result = runAsyncCall.apply(fencedTestEndpoint);
+
+			enterSetNewFencingToken.await();
+
+			triggerSetNewFencingToken.trigger();
+
+			newFencingTokenFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			return result;
+		} finally {
+			fencedTestEndpoint.shutDown();
+			fencedTestEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  test RPC endpoint
 	// ------------------------------------------------------------------------
@@ -207,6 +329,41 @@ public class AsyncCallsTest extends TestLogger {
 
 		public boolean hasConcurrentAccess() {
 			return concurrentAccess;
+		}
+	}
+
+	public interface FencedTestGateway extends FencedRpcGateway<UUID> {
+		CompletableFuture<Acknowledge> setNewFencingToken(UUID fencingToken, @RpcTimeout Time timeout);
+	}
+
+	public static class FencedTestEndpoint extends FencedRpcEndpoint<UUID> implements FencedTestGateway {
+
+		private final OneShotLatch enteringSetNewFencingToken;
+		private final OneShotLatch triggerSetNewFencingToken;
+
+		protected FencedTestEndpoint(
+				RpcService rpcService,
+				UUID initialFencingToken,
+				OneShotLatch enteringSetNewFencingToken,
+				OneShotLatch triggerSetNewFencingToken) {
+			super(rpcService, initialFencingToken);
+
+			this.enteringSetNewFencingToken = enteringSetNewFencingToken;
+			this.triggerSetNewFencingToken = triggerSetNewFencingToken;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> setNewFencingToken(UUID fencingToken, Time timeout) {
+			enteringSetNewFencingToken.trigger();
+			try {
+				triggerSetNewFencingToken.await();
+			} catch (InterruptedException e) {
+				throw new RuntimeException("TriggerSetNewFencingToken OneShotLatch was interrupted.");
+			}
+
+			setFencingToken(fencingToken);
+
+			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
 	}
 }

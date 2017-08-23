@@ -16,12 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
+
+import java.io.Serializable;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Interface for fenced messages.
+ *
+ * @param <F> type of the fencing token
+ * @param <P> type of the payload
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public interface FencedMessage<F extends Serializable, P> {
+
+	F getFencingToken();
+
+	P getPayload();
 }

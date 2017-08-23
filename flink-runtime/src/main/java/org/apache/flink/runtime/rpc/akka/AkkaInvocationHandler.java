@@ -22,17 +22,18 @@ import akka.actor.ActorRef;
 import akka.pattern.Patterns;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
-import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
-import org.apache.flink.runtime.rpc.akka.messages.LocalRpcInvocation;
+import org.apache.flink.runtime.rpc.messages.CallAsync;
+import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
-import org.apache.flink.runtime.rpc.akka.messages.RemoteRpcInvocation;
-import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
-import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
+import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
+import org.apache.flink.runtime.rpc.messages.RpcInvocation;
+import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -72,7 +74,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	private final ActorRef rpcEndpoint;
 
 	// whether the actor ref is local and thus no message serialization is needed
-	private final boolean isLocal;
+	protected final boolean isLocal;
 
 	// default timeout for asks
 	private final Time timeout;
@@ -112,53 +114,13 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 			declaringClass.equals(MainThreadExecutable.class) ||
 			declaringClass.equals(RpcServer.class)) {
 			result = method.invoke(this, args);
+		} else if (declaringClass.equals(FencedRpcGateway.class)) {
+			throw new UnsupportedOperationException("AkkaInvocationHandler does not support the call FencedRpcGateway#" +
+				method.getName() + ". This indicates that you retrieved a FencedRpcGateway without specifying a " +
+				"fencing token. Please use RpcService#connect(RpcService, F, Time) with F being the fencing token to " +
+				"retrieve a properly FencedRpcGateway.");
 		} else {
-			String methodName = method.getName();
-			Class<?>[] parameterTypes = method.getParameterTypes();
-			Annotation[][] parameterAnnotations = method.getParameterAnnotations();
-			Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
-
-			RpcInvocation rpcInvocation;
-
-			if (isLocal) {
-				rpcInvocation = new LocalRpcInvocation(
-					methodName,
-					parameterTypes,
-					args);
-			} else {
-				try {
-					RemoteRpcInvocation remoteRpcInvocation = new RemoteRpcInvocation(
-						methodName,
-						parameterTypes,
-						args);
-
-					if (remoteRpcInvocation.getSize() > maximumFramesize) {
-						throw new IOException("The rpc invocation size exceeds the maximum akka framesize.");
-					} else {
-						rpcInvocation = remoteRpcInvocation;
-					}
-				} catch (IOException e) {
-					LOG.warn("Could not create remote rpc invocation message. Failing rpc invocation because...", e);
-					throw e;
-				}
-			}
-
-			Class<?> returnType = method.getReturnType();
-
-			if (Objects.equals(returnType, Void.TYPE)) {
-				rpcEndpoint.tell(rpcInvocation, ActorRef.noSender());
-
-				result = null;
-			} else if (Objects.equals(returnType,CompletableFuture.class)) {
-				// execute an asynchronous call
-				result = FutureUtils.toJava(Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds()));
-			} else {
-				// execute a synchronous call
-				CompletableFuture<?> futureResult = FutureUtils.toJava(
-					Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds()));
-
-				result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
-			}
+			result = invokeRpc(method, args);
 		}
 
 		return result;
@@ -171,7 +133,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 
 	@Override
 	public void runAsync(Runnable runnable) {
-		scheduleRunAsync(runnable, 0);
+		scheduleRunAsync(runnable, 0L);
 	}
 
 	@Override
@@ -181,7 +143,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 
 		if (isLocal) {
 			long atTimeNanos = delayMillis == 0 ? 0 : System.nanoTime() + (delayMillis * 1_000_000);
-			rpcEndpoint.tell(new RunAsync(runnable, atTimeNanos), ActorRef.noSender());
+			tell(new RunAsync(runnable, atTimeNanos));
 		} else {
 			throw new RuntimeException("Trying to send a Runnable to a remote actor at " +
 				rpcEndpoint.path() + ". This is not supported.");
@@ -192,9 +154,9 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
 		if(isLocal) {
 			@SuppressWarnings("unchecked")
-			scala.concurrent.Future<V> resultFuture = (scala.concurrent.Future<V>) Patterns.ask(rpcEndpoint, new CallAsync(callable), callTimeout.toMilliseconds());
+			CompletableFuture<V> resultFuture = (CompletableFuture<V>) ask(new CallAsync(callable), callTimeout);
 
-			return FutureUtils.toJava(resultFuture);
+			return resultFuture;
 		} else {
 			throw new RuntimeException("Trying to send a Callable to a remote actor at " +
 				rpcEndpoint.path() + ". This is not supported.");
@@ -209,6 +171,88 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	@Override
 	public void stop() {
 		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Private methods
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Invokes a RPC method by sending the RPC invocation details to the rpc endpoint.
+	 *
+	 * @param method to call
+	 * @param args of the method call
+	 * @return result of the RPC
+	 * @throws Exception if the RPC invocation fails
+	 */
+	private Object invokeRpc(Method method, Object[] args) throws Exception {
+		String methodName = method.getName();
+		Class<?>[] parameterTypes = method.getParameterTypes();
+		Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+		Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
+
+		final RpcInvocation rpcInvocation = createRpcInvocationMessage(methodName, parameterTypes, args);
+
+		Class<?> returnType = method.getReturnType();
+
+		final Object result;
+
+		if (Objects.equals(returnType, Void.TYPE)) {
+			tell(rpcInvocation);
+
+			result = null;
+		} else if (Objects.equals(returnType,CompletableFuture.class)) {
+			// execute an asynchronous call
+			result = ask(rpcInvocation, futureTimeout);
+		} else {
+			// execute a synchronous call
+			CompletableFuture<?> futureResult = ask(rpcInvocation, futureTimeout);
+
+			result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
+		}
+
+		return result;
+	}
+
+	/**
+	 * Create the RpcInvocation message for the given RPC.
+	 *
+	 * @param methodName of the RPC
+	 * @param parameterTypes of the RPC
+	 * @param args of the RPC
+	 * @return RpcInvocation message which encapsulates the RPC details
+	 * @throws IOException if we cannot serialize the RPC invocation parameters
+	 */
+	protected RpcInvocation createRpcInvocationMessage(
+			final String methodName,
+			final Class<?>[] parameterTypes,
+			final Object[] args) throws IOException {
+		final RpcInvocation rpcInvocation;
+
+		if (isLocal) {
+			rpcInvocation = new LocalRpcInvocation(
+				methodName,
+				parameterTypes,
+				args);
+		} else {
+			try {
+				RemoteRpcInvocation remoteRpcInvocation = new RemoteRpcInvocation(
+					methodName,
+					parameterTypes,
+					args);
+
+				if (remoteRpcInvocation.getSize() > maximumFramesize) {
+					throw new IOException("The rpc invocation size exceeds the maximum akka framesize.");
+				} else {
+					rpcInvocation = remoteRpcInvocation;
+				}
+			} catch (IOException e) {
+				LOG.warn("Could not create remote rpc invocation message. Failing rpc invocation because...", e);
+				throw e;
+			}
+		}
+
+		return rpcInvocation;
 	}
 
 	// ------------------------------------------------------------------------
@@ -260,6 +304,28 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 		}
 
 		return false;
+	}
+
+	/**
+	 * Sends the message to the RPC endpoint.
+	 *
+	 * @param message to send to the RPC endpoint.
+	 */
+	protected void tell(Object message) {
+		rpcEndpoint.tell(message, ActorRef.noSender());
+	}
+
+	/**
+	 * Sends the message to the RPC endpoint and returns a future containing
+	 * its response.
+	 *
+	 * @param message to send to the RPC endpoint
+	 * @param timeout time to wait until the response future is failed with a {@link TimeoutException}
+	 * @return Response future
+	 */
+	protected CompletableFuture<?> ask(Object message, Time timeout) {
+		return FutureUtils.toJava(
+			Patterns.ask(rpcEndpoint, message, timeout.toMilliseconds()));
 	}
 
 	@Override

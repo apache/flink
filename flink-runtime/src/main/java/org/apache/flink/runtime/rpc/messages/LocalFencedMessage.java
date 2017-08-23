@@ -16,26 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
 
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.concurrent.Callable;
 
 /**
- * Message for asynchronous callable invocations
+ * Local {@link FencedMessage} implementation. This message is used when the communication
+ * is local and thus does not require its payload to be serializable.
+ *
+ * @param <F> type of the fencing token
+ * @param <P> type of the payload
  */
-public final class CallAsync implements Serializable {
-	private static final long serialVersionUID = 2834204738928484060L;
+public class LocalFencedMessage<F extends Serializable, P> implements FencedMessage<F, P> {
 
-	private transient Callable<?> callable;
+	private final F fencingToken;
+	private final P payload;
 
-	public CallAsync(Callable<?> callable) {
-		this.callable = Preconditions.checkNotNull(callable);
+	public LocalFencedMessage(F fencingToken, P payload) {
+		this.fencingToken = Preconditions.checkNotNull(fencingToken);
+		this.payload = Preconditions.checkNotNull(payload);
 	}
 
-	public Callable<?> getCallable() {
-		return callable;
+	@Override
+	public F getFencingToken() {
+		return fencingToken;
+	}
+
+	@Override
+	public P getPayload() {
+		return payload;
+	}
+
+	@Override
+	public String toString() {
+		return "LocalFencedMessage(" + fencingToken + ", " + payload + ')';
 	}
 }

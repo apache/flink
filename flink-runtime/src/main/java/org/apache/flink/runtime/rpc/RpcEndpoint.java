@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -66,14 +67,14 @@ public abstract class RpcEndpoint implements RpcGateway {
 	private final String endpointId;
 
 	/** Interface to access the underlying rpc server */
-	private final RpcServer rpcServer;
+	protected final RpcServer rpcServer;
+
+	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
+	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null);
 
 	/** The main thread executor to be used to execute future callbacks in the main thread
 	 * of the executing rpc server. */
-	private final Executor mainThreadExecutor;
-
-	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
-	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null); 
+	private final MainThreadExecutor mainThreadExecutor;
 
 	/**
 	 * Initializes the RPC endpoint.
@@ -208,7 +209,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 *
 	 * @return Main thread execution context
 	 */
-	protected Executor getMainThreadExecutor() {
+	protected MainThreadExecutor getMainThreadExecutor() {
 		return mainThreadExecutor;
 	}
 
@@ -310,7 +311,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	private static class MainThreadExecutor implements Executor {
+	protected static class MainThreadExecutor implements Executor {
 
 		private final MainThreadExecutable gateway;
 

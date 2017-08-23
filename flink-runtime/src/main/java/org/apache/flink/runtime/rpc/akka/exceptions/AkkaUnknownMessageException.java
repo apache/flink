@@ -16,12 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.akka.exceptions;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Exception which indicates that the AkkaRpcActor has received an
+ * unknown message type.
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public class AkkaUnknownMessageException extends AkkaRpcException {
+
+	private static final long serialVersionUID = 1691338049911020814L;
+
+	public AkkaUnknownMessageException(String message) {
+		super(message);
+	}
+
+	public AkkaUnknownMessageException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public AkkaUnknownMessageException(Throwable cause) {
+		super(cause);
+	}
 }

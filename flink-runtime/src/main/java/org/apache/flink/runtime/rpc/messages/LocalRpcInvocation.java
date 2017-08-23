@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
 
 import org.apache.flink.util.Preconditions;
 
@@ -31,10 +31,14 @@ public final class LocalRpcInvocation implements RpcInvocation {
 	private final Class<?>[] parameterTypes;
 	private final Object[] args;
 
+	private transient String toString;
+
 	public LocalRpcInvocation(String methodName, Class<?>[] parameterTypes, Object[] args) {
 		this.methodName = Preconditions.checkNotNull(methodName);
 		this.parameterTypes = Preconditions.checkNotNull(parameterTypes);
 		this.args = args;
+
+		toString = null;
 	}
 
 	@Override
@@ -50,5 +54,26 @@ public final class LocalRpcInvocation implements RpcInvocation {
 	@Override
 	public Object[] getArgs() {
 		return args;
+	}
+
+	@Override
+	public String toString() {
+		if (toString == null) {
+			StringBuilder paramTypeStringBuilder = new StringBuilder(parameterTypes.length * 5);
+
+			if (parameterTypes.length > 0) {
+				paramTypeStringBuilder.append(parameterTypes[0].getSimpleName());
+
+				for (int i = 1; i < parameterTypes.length; i++) {
+					paramTypeStringBuilder
+						.append(", ")
+						.append(parameterTypes[i].getSimpleName());
+				}
+			}
+
+			toString = "LocalRpcInvocation(" + methodName + '(' + paramTypeStringBuilder + "))";
+		}
+
+		return toString;
 	}
 }

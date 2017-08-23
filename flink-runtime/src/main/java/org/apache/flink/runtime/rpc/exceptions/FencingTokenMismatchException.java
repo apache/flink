@@ -16,12 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.exceptions;
+
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Exception which is thrown if the fencing tokens of a {@link FencedRpcEndpoint} do
+ * not match.
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public class FencingTokenMismatchException extends RpcException {
+	private static final long serialVersionUID = -500634972988881467L;
+
+	public FencingTokenMismatchException(String message) {
+		super(message);
+	}
+
+	public FencingTokenMismatchException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public FencingTokenMismatchException(Throwable cause) {
+		super(cause);
+	}
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
 
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
@@ -24,7 +24,7 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
  * Shut down message used to trigger the shut down of an AkkaRpcActor. This
  * message is only intended for internal use by the {@link AkkaRpcService}.
  */
-public final class Shutdown {
+public final class Shutdown implements ControlMessage {
 
 	private static Shutdown instance = new Shutdown();
 
