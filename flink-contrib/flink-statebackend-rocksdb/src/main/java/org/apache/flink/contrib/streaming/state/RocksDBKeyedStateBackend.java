@@ -904,7 +904,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			// save state data
-			backupPath = new Path(stateBackend.instanceBasePath.getAbsolutePath(), "chk-" + checkpointId);
+			File backupFile = new File(stateBackend.instanceBasePath, "chk-" + checkpointId);
+			String absoluteBackupPath = backupFile.getAbsolutePath();
+			backupPath = new Path(absoluteBackupPath);
 			backupFileSystem = backupPath.getFileSystem();
 			if (backupFileSystem.exists(backupPath)) {
 				throw new IllegalStateException("Unexpected existence of the backup directory.");
@@ -912,7 +914,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// create hard links of living files in the checkpoint path
 			Checkpoint checkpoint = Checkpoint.create(stateBackend.db);
-			checkpoint.createCheckpoint(backupPath.getPath());
+			checkpoint.createCheckpoint(absoluteBackupPath);
 		}
 
 		KeyedStateHandle materializeSnapshot() throws Exception {
@@ -1382,9 +1384,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				boolean hasExtraKeys) throws Exception {
 
 			// read state data
-			Path restoreInstancePath = new Path(
-				stateBackend.instanceBasePath.getAbsolutePath(),
-				UUID.randomUUID().toString());
+			String restoreInstancePathString =  new File(stateBackend.instanceBasePath, UUID.randomUUID().toString()).getAbsolutePath();
+			Path restoreInstancePath = new Path(restoreInstancePathString);
 
 			try {
 				final Map<StateHandleID, StreamStateHandle> sstFiles =
@@ -1416,7 +1417,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
 
 					try (RocksDB restoreDb = stateBackend.openDB(
-							restoreInstancePath.getPath(),
+							restoreInstancePathString,
 							columnFamilyDescriptors,
 							columnFamilyHandles)) {
 
