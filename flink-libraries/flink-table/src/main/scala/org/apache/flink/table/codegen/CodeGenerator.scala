@@ -1204,8 +1204,12 @@ abstract class CodeGenerator(
 
     val wrappedCode = if (nullCheck && !isReference(fieldType)) {
       s"""
-        |$tmpTypeTerm $tmpTerm = $unboxedFieldCode;
-        |boolean $nullTerm = $tmpTerm == null;
+        |$tmpTypeTerm $tmpTerm = $defaultValue;
+        |boolean $nullTerm = $fieldTerm == null;
+        |if(!$nullTerm) {
+        |  $tmpTerm = $unboxedFieldCode;
+        |  $nullTerm = $tmpTerm == null;
+        |}
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
         |  $resultTerm = $defaultValue;
@@ -1216,8 +1220,11 @@ abstract class CodeGenerator(
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
+        |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = $fieldTerm == null;
+        |if (!$nullTerm){
+        |  $resultTerm = $unboxedFieldCode;
+        |}
         |""".stripMargin
     } else {
       s"""
