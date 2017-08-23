@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.response.HandlerResponse;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -119,14 +119,14 @@ public class RestEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected CompletableFuture<HandlerResponse<TestResponse>> handleRequest(@Nonnull HandlerRequest<TestRequest> request) {
+		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest> request) throws RestHandlerException {
 			if (!request.getPathParameters().containsKey(JOB_ID_KEY)) {
-				return CompletableFuture.completedFuture(HandlerResponse.error("Path parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR));
+				throw new RestHandlerException("Path parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			} else {
 				Assert.assertEquals(request.getPathParameters().get(JOB_ID_KEY), PATH_JOB_ID);
 			}
 			if (!request.getQueryParameters().containsKey(JOB_ID_KEY)) {
-				return CompletableFuture.completedFuture(HandlerResponse.error("Query parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR));
+				throw new RestHandlerException("Query parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			} else {
 				Assert.assertEquals(request.getQueryParameters().get(JOB_ID_KEY).get(0), QUERY_JOB_ID);
 			}
@@ -140,7 +140,7 @@ public class RestEndpointITCase extends TestLogger {
 					}
 				}
 			}
-			return CompletableFuture.completedFuture(HandlerResponse.successful(new TestResponse(request.getRequestBody().id)));
+			return CompletableFuture.completedFuture(new TestResponse(request.getRequestBody().id));
 		}
 	}
 

@@ -20,9 +20,6 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rest.handler.response.FailedHandlerResponse;
-import org.apache.flink.runtime.rest.handler.response.HandlerResponse;
-import org.apache.flink.runtime.rest.handler.response.SuccessfulHandlerResponse;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
@@ -122,29 +119,28 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 				}
 			}
 
-			CompletableFuture<HandlerResponse<P>> response;
+			CompletableFuture<P> response;
 			try {
 				HandlerRequest<R> handlerRequest = new HandlerRequest<>(request, routed.pathParams(), routed.queryParams());
 				response = handleRequest(handlerRequest);
+			} catch (RestHandlerException rhe) {
+				sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getErrorCode(), ctx, httpRequest);
+				return;
 			} catch (Exception e) {
 				response = FutureUtils.completedExceptionally(e);
 			}
 
-			response.whenComplete((HandlerResponse<P> resp, Throwable error) -> {
+			response.whenComplete((P resp, Throwable error) -> {
 				if (error != null) {
-					log.error("Implementation error: Unhandled exception.", error);
-					sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
-				} else {
-					if (resp instanceof SuccessfulHandlerResponse) {
-						SuccessfulHandlerResponse<P> success = (SuccessfulHandlerResponse<P>) resp;
-						sendResponse(messageHeaders.getResponseStatusCode(), success.getResponse(), ctx, httpRequest);
-					} else if (resp instanceof FailedHandlerResponse) {
-						FailedHandlerResponse<P> failure = (FailedHandlerResponse<P>) resp;
-						sendErrorResponse(new ErrorResponseBody(failure.getErrorMessage()), failure.getErrorCode(), ctx, httpRequest);
+					if (error instanceof RestHandlerException) {
+						RestHandlerException rhe = (RestHandlerException) error;
+						sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getErrorCode(), ctx, httpRequest);
 					} else {
-						log.error("Implementation error: HandlerResponse did neither implement SuccessfulHandlerResponse nor FailedHandlerResponse.", error);
+						log.error("Implementation error: Unhandled exception.", error);
 						sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
 					}
+				} else {
+					sendResponse(messageHeaders.getResponseStatusCode(), resp, ctx, httpRequest);
 				}
 			});
 		} catch (Exception e) {
@@ -154,13 +150,20 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	}
 
 	/**
-	 * This method is called for every incoming request and returns a {@link HandlerResponse} that either contains a
-	 * {@link ResponseBody} of type {@code P} if the request was handled successfully or an error otherwise.
+	 * This method is called for every incoming request and returns a {@link CompletableFuture} containing a the response.
+	 *
+	 * <p>Implementations may decide whether to throw {@link RestHandlerException}s or fail the returned
+	 * {@link CompletableFuture} with a {@link RestHandlerException}.
+	 *
+	 * <p>Failing the future with another exception type or throwing unchecked exceptions is regarded as an
+	 * implementation error as it does not allow us to provide a meaningful HTTP status code. In this case a
+	 * {@link HttpResponseStatus#INTERNAL_SERVER_ERROR} will be returned.
 	 *
 	 * @param request request that should be handled
 	 * @return future containing a handler response
+	 * @throws RestHandlerException if the handling failed
 	 */
-	protected abstract CompletableFuture<HandlerResponse<P>> handleRequest(@Nonnull HandlerRequest<R> request);
+	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R> request) throws RestHandlerException;
 
 	private static <P extends ResponseBody> void sendResponse(HttpResponseStatus statusCode, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) {
 		StringWriter sw = new StringWriter();

@@ -16,29 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.response;
+package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link HandlerResponse} that contains the result of a successful request handling.
- *
- * @param <P> expected response type for a successful handling
+ * An exception that is thrown if the failure of a REST operation was detected by a handler.
  */
-public class SuccessfulHandlerResponse<P extends ResponseBody> implements HandlerResponse<P> {
+public class RestHandlerException extends Exception {
+	private final String errorMessage;
+	private final HttpResponseStatus errorCode;
 
-	private final P response;
-
-	SuccessfulHandlerResponse(P response) {
-		this.response = response;
+	public RestHandlerException(String errorMessage, HttpResponseStatus errorCode) {
+		this.errorMessage = errorMessage;
+		this.errorCode = errorCode;
 	}
 
-	/**
-	 * Returns the response for the successful processing of a request.
-	 *
-	 * @return response for a successful processing of a request
-	 */
-	public P getResponse() {
-		return response;
+	public String getErrorMessage() {
+		return errorMessage;
+	}
+
+	public HttpResponseStatus getErrorCode() {
+		return errorCode;
 	}
 }
