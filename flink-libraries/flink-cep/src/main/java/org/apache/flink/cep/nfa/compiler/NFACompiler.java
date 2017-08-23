@@ -437,7 +437,8 @@ public class NFACompiler {
 				untilCondition,
 				true);
 
-			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY) &&
+				times.getFrom() != times.getTo()) {
 				if (untilCondition != null) {
 					State<T> sinkStateCopy = copy(sinkState);
 					originalStateMap.put(sinkState.getName(), sinkStateCopy);
@@ -556,7 +557,7 @@ public class NFACompiler {
 			singletonState.addTake(sink, takeCondition);
 
 			// if no element accepted the previous nots are still valid.
-			IterativeCondition<T> proceedCondition = getTrueFunction();
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
 
 			// for the first state of a group pattern, its PROCEED edge should point to the following state of
 			// that group pattern and the edge will be added at the end of creating the NFA for that group pattern
@@ -607,7 +608,7 @@ public class NFACompiler {
 			final State<T> sinkState,
 			final State<T> proceedState,
 			final boolean isOptional) {
-			IterativeCondition<T> proceedCondition = getTrueFunction();
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
 
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
@@ -639,7 +640,7 @@ public class NFACompiler {
 		private State<T> createLoopingGroupPatternState(
 			final GroupPattern<T, ?> groupPattern,
 			final State<T> sinkState) {
-			IterativeCondition<T> proceedCondition = getTrueFunction();
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
 
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
