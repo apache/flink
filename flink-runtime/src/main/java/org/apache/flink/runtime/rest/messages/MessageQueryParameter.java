@@ -31,7 +31,7 @@ import java.util.List;
  */
 public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>> {
 	protected MessageQueryParameter(String key, MessageParameterRequisiteness requisiteness) {
-		super(key, MessageParameterType.QUERY, requisiteness);
+		super(key, requisiteness);
 	}
 
 	@Override

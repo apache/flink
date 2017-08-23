@@ -24,6 +24,6 @@ package org.apache.flink.runtime.rest.messages;
  */
 public abstract class MessagePathParameter<X> extends MessageParameter<X> {
 	protected MessagePathParameter(String key, MessageParameterRequisiteness requisiteness) {
-		super(key, MessageParameterType.PATH, requisiteness);
+		super(key, requisiteness);
 	}
 }

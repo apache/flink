@@ -37,15 +37,13 @@ import org.apache.flink.util.Preconditions;
 public abstract class MessageParameter<X> {
 	private boolean resolved = false;
 
-	private final MessageParameterType type;
 	private final MessageParameterRequisiteness requisiteness;
 
 	private final String key;
 	private X value;
 
-	MessageParameter(String key, MessageParameterType type, MessageParameterRequisiteness requisiteness) {
+	MessageParameter(String key, MessageParameterRequisiteness requisiteness) {
 		this.key = key;
-		this.type = type;
 		this.requisiteness = requisiteness;
 	}
 
@@ -130,23 +128,6 @@ public abstract class MessageParameter<X> {
 	 */
 	public final boolean isMandatory() {
 		return requisiteness == MessageParameterRequisiteness.MANDATORY;
-	}
-
-	/**
-	 * Returns the type of this parameter, i.e. whether it is a path or query parameter.
-	 *
-	 * @return parameter type
-	 */
-	public final MessageParameterType getParameterType() {
-		return type;
-	}
-
-	/**
-	 * Enum for indicating whether a parameter is a path or query parameter.
-	 */
-	public enum MessageParameterType {
-		QUERY,
-		PATH
 	}
 
 	/**
