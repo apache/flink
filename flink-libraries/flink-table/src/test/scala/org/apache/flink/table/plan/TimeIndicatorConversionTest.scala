@@ -48,7 +48,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
-      term("select", "FLOOR(TIME_MATERIALIZATION(rowtime)", "FLAG(DAY)) AS rowtime"),
+      term("select", "FLOOR(CAST(rowtime)", "FLAG(DAY)) AS rowtime"),
       term("where", ">(long, 0)")
     )
 
@@ -65,8 +65,8 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
-      term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime", "long", "int",
-        "TIME_MATERIALIZATION(proctime) AS proctime")
+      term("select", "rowtime", "long", "int",
+        "PROCTIME(proctime) AS proctime")
     )
 
     util.verifyTable(result, expected)
@@ -84,7 +84,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
-      term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime"),
+      term("select", "rowtime"),
       term("where", ">(rowtime, 1990-12-02 12:11:11)")
     )
 
@@ -107,7 +107,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "long", "TIME_MATERIALIZATION(rowtime) AS rowtime")
+          term("select", "long", "CAST(rowtime) AS rowtime")
         ),
         term("groupBy", "rowtime"),
         term("select", "rowtime", "COUNT(long) AS TMP_0")
@@ -134,7 +134,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime", "long")
+          term("select", "CAST(rowtime) AS rowtime", "long")
         ),
         term("groupBy", "long"),
         term("select", "long", "MIN(rowtime) AS TMP_0")
@@ -159,16 +159,13 @@ class TimeIndicatorConversionTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation",
-          s"${func.functionIdentifier}(TIME_MATERIALIZATION($$0), TIME_MATERIALIZATION($$3), '')"),
+          s"${func.functionIdentifier}(CAST($$0):TIMESTAMP(3) NOT NULL, PROCTIME($$3), '')"),
         term("function", func),
         term("rowType", "RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, " +
           "TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) s)"),
         term("joinType", "INNER")
       ),
-      term("select",
-        "TIME_MATERIALIZATION(rowtime) AS rowtime",
-        "TIME_MATERIALIZATION(proctime) AS proctime",
-        "s")
+      term("select", "rowtime", "PROCTIME(proctime) AS proctime", "s")
     )
 
     util.verifyTable(result, expected)
@@ -219,7 +216,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         streamTableNode(0),
         term("union all", "rowtime", "long", "int")
       ),
-      term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime")
+      term("select", "rowtime")
     )
 
     util.verifyTable(result, expected)
@@ -287,7 +284,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "TIME_MATERIALIZATION(proctime) AS proctime", "long")
+          term("select", "PROCTIME(proctime) AS proctime", "long")
         ),
         term("groupBy", "proctime"),
         term("select", "proctime", "COUNT(long) AS EXPR$0")
@@ -312,7 +309,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "long", "TIME_MATERIALIZATION(proctime) AS proctime")
+          term("select", "long", "PROCTIME(proctime) AS proctime")
         ),
         term("groupBy", "long"),
         term("select", "long", "MIN(proctime) AS EXPR$0")
@@ -368,7 +365,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "long", "rowtime", "TIME_MATERIALIZATION(rowtime) AS $f2")
+          term("select", "long", "rowtime", "CAST(rowtime) AS rowtime0")
         ),
         term("groupBy", "long"),
         term(
@@ -377,7 +374,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
             'w$,
             'rowtime,
             100.millis)),
-        term("select", "long", "MIN($f2) AS EXPR$0")
+        term("select", "long", "MIN(rowtime0) AS EXPR$0")
       ),
       term("select", "EXPR$0", "long")
     )

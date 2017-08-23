@@ -54,7 +54,7 @@ class DataStreamWindowJoin(
     with CommonJoin
     with DataStreamRel {
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamWindowJoin(
@@ -76,7 +76,7 @@ class DataStreamWindowJoin(
 
   override def toString: String = {
     joinToString(
-      schema.logicalType,
+      schema.relDataType,
       joinCondition,
       joinType,
       getExpressionString)
@@ -85,7 +85,7 @@ class DataStreamWindowJoin(
   override def explainTerms(pw: RelWriter): RelWriter = {
     joinExplainTerms(
       super.explainTerms(pw),
-      schema.logicalType,
+      schema.relDataType,
       joinCondition,
       joinType,
       getExpressionString)
@@ -117,8 +117,8 @@ class DataStreamWindowJoin(
     WindowJoinUtil.generateJoinFunction(
       config,
       joinType,
-      leftSchema.physicalTypeInfo,
-      rightSchema.physicalTypeInfo,
+      leftSchema.typeInfo,
+      rightSchema.typeInfo,
       schema,
       remainCondition,
       ruleDescription)
@@ -160,13 +160,13 @@ class DataStreamWindowJoin(
       leftKeys: Array[Int],
       rightKeys: Array[Int]): DataStream[CRow] = {
 
-    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
 
     val procInnerJoinFunc = new ProcTimeWindowInnerJoin(
       leftLowerBound,
       leftUpperBound,
-      leftSchema.physicalTypeInfo,
-      rightSchema.physicalTypeInfo,
+      leftSchema.typeInfo,
+      rightSchema.typeInfo,
       joinFunctionName,
       joinFunctionCode)
 

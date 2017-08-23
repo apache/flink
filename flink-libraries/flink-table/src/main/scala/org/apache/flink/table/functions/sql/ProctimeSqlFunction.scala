@@ -15,17 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.functions.sql
 
-package org.apache.flink.table.plan.schema
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.validate.SqlMonotonicity
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.plan.stats.FlinkStatistic
+/**
+  * Function that materializes a processing time attribute.
+  * After materialization the result can be used in regular arithmetical calculations.
+  */
+object ProctimeSqlFunction
+  extends SqlFunction(
+    "PROCTIME",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.TIMESTAMP),
+    SqlFunctionCategory.SYSTEM) {
 
-class DataStreamTable[T](
-    val dataStream: DataStream[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic) {
+  override def getSyntax: SqlSyntax = SqlSyntax.FUNCTION
 
+  override def getMonotonicity(call: SqlOperatorBinding): SqlMonotonicity =
+    SqlMonotonicity.INCREASING
+
+  override def isDeterministic: Boolean = false
 }

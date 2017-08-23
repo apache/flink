@@ -175,11 +175,11 @@ object UserDefinedFunctionUtils {
         }
       }) {
       throw new ValidationException(
-        s"Scala-style variable arguments in '${methodName}' methods are not supported. Please " +
+        s"Scala-style variable arguments in '$methodName' methods are not supported. Please " +
           s"add a @scala.annotation.varargs annotation.")
     } else if (found.length > 1) {
       throw new ValidationException(
-        s"Found multiple '${methodName}' methods which match the signature.")
+        s"Found multiple '$methodName' methods which match the signature.")
     }
     found.headOption
   }
@@ -218,7 +218,7 @@ object UserDefinedFunctionUtils {
     if (methods.isEmpty) {
       throw new ValidationException(
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
-          s"one method named '${methodName}' which is public, not abstract and " +
+          s"one method named '$methodName' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     }
 

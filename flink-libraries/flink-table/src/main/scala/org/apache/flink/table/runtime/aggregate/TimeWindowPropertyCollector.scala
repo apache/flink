@@ -29,7 +29,8 @@ import org.apache.flink.util.Collector
   */
 abstract class TimeWindowPropertyCollector[T](
     windowStartOffset: Option[Int],
-    windowEndOffset: Option[Int])
+    windowEndOffset: Option[Int],
+    windowRowtimeOffset: Option[Int])
   extends Collector[T] {
 
   var wrappedCollector: Collector[T] = _
@@ -55,20 +56,32 @@ abstract class TimeWindowPropertyCollector[T](
         SqlFunctions.internalToTimestamp(windowEnd))
     }
 
+    if (windowRowtimeOffset.isDefined) {
+      output.setField(
+        lastFieldPos + windowRowtimeOffset.get,
+        windowEnd - 1)
+    }
+
     wrappedCollector.collect(record)
   }
 
   override def close(): Unit = wrappedCollector.close()
 }
 
-class RowTimeWindowPropertyCollector(startOffset: Option[Int], endOffset: Option[Int])
-  extends TimeWindowPropertyCollector[Row](startOffset, endOffset) {
+class RowTimeWindowPropertyCollector(
+    startOffset: Option[Int],
+    endOffset: Option[Int],
+    rowtimeOffset: Option[Int])
+  extends TimeWindowPropertyCollector[Row](startOffset, endOffset, rowtimeOffset) {
 
   override def getRow(record: Row): Row = record
 }
 
-class CRowTimeWindowPropertyCollector(startOffset: Option[Int], endOffset: Option[Int])
-  extends TimeWindowPropertyCollector[CRow](startOffset, endOffset) {
+class CRowTimeWindowPropertyCollector(
+    startOffset: Option[Int],
+    endOffset: Option[Int],
+    rowtimeOffset: Option[Int])
+  extends TimeWindowPropertyCollector[CRow](startOffset, endOffset, rowtimeOffset) {
 
   override def getRow(record: CRow): Row = record.row
 }

@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.runtime.conversion
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
 
-class DataStreamTable[T](
-    val dataStream: DataStream[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic) {
+/**
+  * Convert [[CRow]] to a [[Tuple2]].
+  */
+class CRowToScalaTupleMapFunction extends MapFunction[CRow, (Boolean, Row)] {
 
+  override def map(cRow: CRow): (Boolean, Row) = {
+    (cRow.change, cRow.row)
+  }
 }

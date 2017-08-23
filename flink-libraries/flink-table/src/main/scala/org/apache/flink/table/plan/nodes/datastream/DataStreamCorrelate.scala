@@ -50,7 +50,7 @@ class DataStreamCorrelate(
   with CommonCorrelate
   with DataStreamRel {
 
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType() = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(
@@ -78,7 +78,7 @@ class DataStreamCorrelate(
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("function", sqlFunction.getTableFunction.getClass.getCanonicalName)
-      .item("rowType", schema.logicalType)
+      .item("rowType", schema.relDataType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
@@ -130,7 +130,7 @@ class DataStreamCorrelate(
       .process(processFunc)
       // preserve input parallelism to ensure that acc and retract messages remain in order
       .setParallelism(inputParallelism)
-      .name(correlateOpName(rexCall, sqlFunction, schema.logicalType))
+      .name(correlateOpName(rexCall, sqlFunction, schema.relDataType))
   }
 
 }

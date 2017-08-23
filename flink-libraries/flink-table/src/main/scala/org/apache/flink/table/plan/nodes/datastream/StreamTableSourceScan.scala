@@ -30,6 +30,7 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
@@ -46,29 +47,29 @@ class StreamTableSourceScan(
     val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
     val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
 
-    val fieldCnt = fieldNames.length
+    val fields = fieldNames.zip(fieldTypes)
 
-    val rowtime = tableSource match {
+    val withRowtime = tableSource match {
       case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute != null =>
         val rowtimeAttribute = timeSource.getRowtimeAttribute
-        Some((fieldCnt, rowtimeAttribute))
+        fields :+ (rowtimeAttribute, TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
       case _ =>
-        None
+        fields
     }
 
-    val proctime = tableSource match {
+    val withProctime = tableSource match {
       case timeSource: DefinedProctimeAttribute if timeSource.getProctimeAttribute != null =>
         val proctimeAttribute = timeSource.getProctimeAttribute
-        Some((fieldCnt + (if (rowtime.isDefined) 1 else 0), proctimeAttribute))
+        withRowtime :+ (proctimeAttribute, TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
       case _ =>
-        None
+        withRowtime
     }
 
+    val (fieldNamesWithIndicators, fieldTypesWithIndicators) = withProctime.unzip
+
     flinkTypeFactory.buildLogicalRowType(
-      fieldNames,
-      fieldTypes,
-      rowtime,
-      proctime)
+      fieldNamesWithIndicators,
+      fieldTypesWithIndicators)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

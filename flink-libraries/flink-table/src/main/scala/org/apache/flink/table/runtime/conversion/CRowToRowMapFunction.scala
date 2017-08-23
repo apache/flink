@@ -15,27 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions
 
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.validate.SqlMonotonicity
+package org.apache.flink.table.runtime.conversion
+
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
 
 /**
-  * Function that materializes a time attribute to the metadata timestamp. After materialization
-  * the result can be used in regular arithmetical calculations.
+  * Maps a CRow to a Row.
   */
-object TimeMaterializationSqlFunction
-  extends SqlFunction(
-    "TIME_MATERIALIZATION",
-    SqlKind.OTHER_FUNCTION,
-    ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
-    InferTypes.RETURN_TYPE,
-    OperandTypes.family(SqlTypeFamily.TIMESTAMP),
-    SqlFunctionCategory.SYSTEM) {
+class CRowToRowMapFunction extends MapFunction[CRow, Row] {
 
-  override def getSyntax: SqlSyntax = SqlSyntax.FUNCTION
+  override def map(value: CRow): Row = value.row
 
-  override def getMonotonicity(call: SqlOperatorBinding): SqlMonotonicity =
-    SqlMonotonicity.INCREASING
 }

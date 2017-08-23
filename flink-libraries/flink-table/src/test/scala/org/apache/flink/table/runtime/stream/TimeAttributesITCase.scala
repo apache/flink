@@ -63,7 +63,8 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream.toTable(
+      tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
 
     val t = table.select('rowtime.cast(Types.STRING))
 
@@ -123,6 +124,13 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
     val func = new TableFunc
 
+    // we test if this can be executed with any exceptions
+    table.join(func('proctime, 'proctime, 'string) as 's).toAppendStream[Row]
+
+    // we test if this can be executed with any exceptions
+    table.join(func('rowtime, 'rowtime, 'string) as 's).toAppendStream[Row]
+
+    // we can only test rowtime, not proctime
     val t = table.join(func('rowtime, 'proctime, 'string) as 's).select('rowtime, 's)
 
     val results = t.toAppendStream[Row]

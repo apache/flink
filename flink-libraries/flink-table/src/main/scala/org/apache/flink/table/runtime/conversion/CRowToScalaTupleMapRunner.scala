@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime
+package org.apache.flink.table.runtime.conversion
 
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -25,36 +25,32 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
-  * MapRunner with [[CRow]] output.
+  * Convert [[CRow]] to a [[Tuple2]].
   */
-class CRowOutputMapRunner(
-    name: String,
-    code: String,
-    @transient var returnType: TypeInformation[CRow])
-  extends RichMapFunction[Any, CRow]
-  with ResultTypeQueryable[CRow]
-  with Compiler[MapFunction[Any, Row]] {
+class CRowToScalaTupleMapRunner(
+  name: String,
+  code: String,
+  @transient var returnType: TypeInformation[(Boolean, Any)])
+  extends RichMapFunction[CRow, (Boolean, Any)]
+  with ResultTypeQueryable[(Boolean, Any)]
+  with Compiler[MapFunction[Row, Any]] {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
-  private var function: MapFunction[Any, Row] = _
-  private var outCRow: CRow = _
+  private var function: MapFunction[Row, Any] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating MapFunction.")
     function = clazz.newInstance()
-    outCRow = new CRow(null, true)
   }
 
-  override def map(in: Any): CRow = {
-    outCRow.row = function.map(in)
-    outCRow
-  }
+  override def map(in: CRow): (Boolean, Any) =
+    (in.change, function.map(in.row))
 
-  override def getProducedType: TypeInformation[CRow] = returnType
+  override def getProducedType: TypeInformation[(Boolean, Any)] = returnType
 }

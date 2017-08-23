@@ -38,7 +38,7 @@ class DataStreamUnion(
   extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataStreamRel {
 
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType() = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamUnion(
@@ -55,7 +55,7 @@ class DataStreamUnion(
   }
 
   override def toString = {
-    s"Union All(union: (${schema.logicalFieldNames.mkString(", ")}))"
+    s"Union All(union: (${schema.fieldNames.mkString(", ")}))"
   }
 
   override def translateToPlan(
@@ -68,6 +68,6 @@ class DataStreamUnion(
   }
 
   private def unionSelectionToString: String = {
-    schema.logicalFieldNames.mkString(", ")
+    schema.fieldNames.mkString(", ")
   }
 }

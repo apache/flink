@@ -16,16 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.runtime.conversion
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
 
-class DataStreamTable[T](
-    val dataStream: DataStream[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic) {
+import _root_.java.lang.{Boolean => JBool}
 
+/**
+  * Convert [[CRow]] to a [[JTuple2]] containing a [[Row]].
+  */
+class CRowToJavaTupleMapFunction extends MapFunction[CRow, JTuple2[JBool, Row]] {
+
+  val out: JTuple2[JBool, Row] = new JTuple2(true.asInstanceOf[JBool], null.asInstanceOf[Row])
+
+  override def map(cRow: CRow): JTuple2[JBool, Row] = {
+    out.f0 = cRow.change
+    out.f1 = cRow.row
+    out
+  }
 }
