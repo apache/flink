@@ -215,6 +215,7 @@ public class RestClientEndpoint {
 				jsonFuture.completeExceptionally(new RestClientException("Response was not valid JSON.", je));
 				return;
 			}
+			jsonFuture.complete(rawResponse);
 		}
 	}
 }
