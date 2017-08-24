@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -44,7 +44,7 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
-	 * @param jobMasterLeaderId The fencing token for the JobMaster leader
+	 * @param jobMasterId The fencing token for the JobMaster leader
 	 * @param jobMasterResourceId The resource ID of the JobMaster that registers
 	 * @param jobMasterAddress The address of the JobMaster that registers
 	 * @param jobId The Job ID of the JobMaster that registers
@@ -52,7 +52,7 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @return Future registration response
 	 */
 	CompletableFuture<RegistrationResponse> registerJobManager(
-		UUID jobMasterLeaderId,
+		JobMasterId jobMasterId,
 		ResourceID jobMasterResourceId,
 		String jobMasterAddress,
 		JobID jobId,
@@ -61,12 +61,12 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	/**
 	 * Requests a slot from the resource manager.
 	 *
-	 * @param jobMasterLeaderID leader if of the JobMaster
+	 * @param jobMasterId id of the JobMaster
 	 * @param slotRequest The slot to request
 	 * @return The confirmation that the slot gets allocated
 	 */
 	CompletableFuture<Acknowledge> requestSlot(
-		UUID jobMasterLeaderID,
+		JobMasterId jobMasterId,
 		SlotRequest slotRequest,
 		@RpcTimeout Time timeout);
 

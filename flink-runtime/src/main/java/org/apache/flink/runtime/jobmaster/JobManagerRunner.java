@@ -61,22 +61,22 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	// ------------------------------------------------------------------------
 
-	/** Lock to ensure that this runner can deal with leader election event and job completion notifies simultaneously */
+	/** Lock to ensure that this runner can deal with leader election event and job completion notifies simultaneously. */
 	private final Object lock = new Object();
 
-	/** The job graph needs to run */
+	/** The job graph needs to run. */
 	private final JobGraph jobGraph;
 
-	/** The listener to notify once the job completes - either successfully or unsuccessfully */
+	/** The listener to notify once the job completes - either successfully or unsuccessfully. */
 	private final OnCompletionActions toNotifyOnComplete;
 
-	/** The handler to call in case of fatal (unrecoverable) errors */ 
+	/** The handler to call in case of fatal (unrecoverable) errors. */
 	private final FatalErrorHandler errorHandler;
 
-	/** Used to check whether a job needs to be run */
+	/** Used to check whether a job needs to be run. */
 	private final RunningJobsRegistry runningJobsRegistry;
 
-	/** Leader election for this job */
+	/** Leader election for this job. */
 	private final LeaderElectionService leaderElectionService;
 
 	private final JobManagerServices jobManagerServices;
@@ -87,19 +87,18 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	private final Time timeout;
 
-	/** flag marking the runner as shut down */
+	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * 
-	 * <p>Exceptions that occur while creating the JobManager or JobManagerRunner are directly
+	 * Exceptions that occur while creating the JobManager or JobManagerRunner are directly
 	 * thrown and not reported to the given {@code FatalErrorHandler}.
-	 * 
+	 *
 	 * <p>This JobManagerRunner assumes that it owns the given {@code JobManagerServices}.
 	 * It will shut them down on error and on calls to {@link #shutdown()}.
-	 * 
+	 *
 	 * @throws Exception Thrown if the runner cannot be set up, because either one of the
 	 *                   required services could not be started, ot the Job could not be initialized.
 	 */
@@ -231,7 +230,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	//----------------------------------------------------------------------------------------------
 
 	/**
-	 * Job completion notification triggered by JobManager
+	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
 	public void jobFinished(JobExecutionResult result) {
@@ -247,7 +246,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	}
 
 	/**
-	 * Job completion notification triggered by JobManager
+	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
 	public void jobFailed(Throwable cause) {
@@ -263,7 +262,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	}
 
 	/**
-	 * Job completion notification triggered by self
+	 * Job completion notification triggered by self.
 	 */
 	@Override
 	public void jobFinishedByOther() {
@@ -278,7 +277,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	}
 
 	/**
-	 * Job completion notification triggered by JobManager or self
+	 * Job completion notification triggered by JobManager or self.
 	 */
 	@Override
 	public void onFatalError(Throwable exception) {
@@ -305,7 +304,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	/**
 	 * Marks this runner's job as not running. Other JobManager will not recover the job
 	 * after this call.
-	 * 
+	 *
 	 * <p>This method never throws an exception.
 	 */
 	private void unregisterJobFromHighAvailability() {
@@ -359,14 +358,14 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// This will eventually be noticed, but can not be ruled out from the beginning.
 			if (leaderElectionService.hasLeadership()) {
 				try {
-					// Now set the running status is after getting leader ship and 
+					// Now set the running status is after getting leader ship and
 					// set finished status after job in terminated status.
 					// So if finding the job is running, it means someone has already run the job, need recover.
 					if (schedulingStatus == JobSchedulingStatus.PENDING) {
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 
-					CompletableFuture<Acknowledge> startingFuture = jobManager.start(leaderSessionID, timeout);
+					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), timeout);
 
 					startingFuture.whenCompleteAsync(
 						(Acknowledge ack, Throwable throwable) -> {

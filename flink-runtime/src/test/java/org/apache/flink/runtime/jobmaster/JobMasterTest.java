@@ -51,16 +51,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.InetAddress;
 import java.net.URL;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BlobLibraryCacheManager.class)
@@ -79,7 +75,7 @@ public class JobMasterTest extends TestLogger {
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		final String jobManagerAddress = "jm";
-		final UUID jmLeaderId = UUID.randomUUID();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 
 		final String taskManagerAddress = "tm";
@@ -118,7 +114,7 @@ public class JobMasterTest extends TestLogger {
 				testingFatalErrorHandler,
 				new FlinkUserCodeClassLoader(new URL[0]));
 
-			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jmLeaderId, testingTimeout);
+			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
 			// wait for the start to complete
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -127,7 +123,7 @@ public class JobMasterTest extends TestLogger {
 
 			// register task manager will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> registrationResponse = jobMasterGateway
-				.registerTaskManager(taskManagerAddress, taskManagerLocation, jmLeaderId, testingTimeout);
+				.registerTaskManager(taskManagerAddress, taskManagerLocation, testingTimeout);
 
 			// wait for the completion of the registration
 			registrationResponse.get();
@@ -169,7 +165,7 @@ public class JobMasterTest extends TestLogger {
 		final String resourceManagerAddress = "rm";
 		final String jobManagerAddress = "jm";
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-		final UUID jmLeaderId = UUID.randomUUID();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID rmResourceId = new ResourceID(resourceManagerAddress);
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 		final JobGraph jobGraph = new JobGraph();
@@ -188,7 +184,7 @@ public class JobMasterTest extends TestLogger {
 
 		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		when(resourceManagerGateway.registerJobManager(
-			any(UUID.class),
+			any(JobMasterId.class),
 			any(ResourceID.class),
 			anyString(),
 			any(JobID.class),
@@ -219,7 +215,7 @@ public class JobMasterTest extends TestLogger {
 				testingFatalErrorHandler,
 				new FlinkUserCodeClassLoader(new URL[0]));
 
-			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jmLeaderId, testingTimeout);
+			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
 			// wait for the start operation to complete
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -229,7 +225,7 @@ public class JobMasterTest extends TestLogger {
 
 			// register job manager success will trigger monitor heartbeat target between jm and rm
 			verify(resourceManagerGateway, timeout(testingTimeout.toMilliseconds())).registerJobManager(
-				eq(jmLeaderId),
+				eq(jobMasterId),
 				eq(jmResourceId),
 				anyString(),
 				eq(jobGraph.getJobID()),

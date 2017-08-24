@@ -26,6 +26,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -46,7 +47,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -78,16 +78,16 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 	public void testRegisterJobMaster() throws Exception {
 		String jobMasterAddress = "/jobMasterAddress1";
 		JobID jobID = mockJobMaster(jobMasterAddress);
-		UUID jmLeaderID = UUID.randomUUID();
+		JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
-		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jmLeaderID);
+		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(mock(LeaderElectionService.class), jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
 		// test response successful
 		CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
-			jmLeaderID,
+			jobMasterId,
 			jmResourceId,
 			jobMasterAddress,
 			jobID,
@@ -107,9 +107,9 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 	public void testRegisterJobMasterWithUnmatchedLeaderSessionId1() throws Exception {
 		String jobMasterAddress = "/jobMasterAddress1";
 		JobID jobID = mockJobMaster(jobMasterAddress);
-		UUID jmLeaderID = UUID.randomUUID();
+		JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
-		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jmLeaderID);
+		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(mock(LeaderElectionService.class), jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final ResourceManagerGateway wronglyFencedGateway = rpcService.connect(resourceManager.getAddress(), ResourceManagerId.generate(), ResourceManagerGateway.class)
@@ -117,7 +117,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 		// test throw exception when receive a registration from job master which takes unmatched leaderSessionId
 		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = wronglyFencedGateway.registerJobManager(
-			jmLeaderID,
+			jobMasterId,
 			jmResourceId,
 			jobMasterAddress,
 			jobID,
@@ -152,9 +152,9 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 
 		// test throw exception when receive a registration from job master which takes unmatched leaderSessionId
-		UUID differentLeaderSessionID = UUID.randomUUID();
+		JobMasterId differentJobMasterId = JobMasterId.generate();
 		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = rmGateway.registerJobManager(
-			differentLeaderSessionID,
+			differentJobMasterId,
 			jmResourceId,
 			jobMasterAddress,
 			jobID,
@@ -185,7 +185,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		// test throw exception when receive a registration from job master which takes invalid address
 		String invalidAddress = "/jobMasterAddress2";
 		CompletableFuture<RegistrationResponse> invalidAddressFuture = rmGateway.registerJobManager(
-			HighAvailabilityServices.DEFAULT_LEADER_ID,
+			new JobMasterId(HighAvailabilityServices.DEFAULT_LEADER_ID),
 			jmResourceId,
 			invalidAddress,
 			jobID,
@@ -221,7 +221,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 		// this should fail because we try to register a job leader listener for an unknown job id
 		CompletableFuture<RegistrationResponse> registrationFuture = rmGateway.registerJobManager(
-			HighAvailabilityServices.DEFAULT_LEADER_ID,
+			new JobMasterId(HighAvailabilityServices.DEFAULT_LEADER_ID),
 			jmResourceId,
 			jobMasterAddress,
 			unknownJobIDToHAServices,

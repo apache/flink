@@ -47,6 +47,7 @@ import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
@@ -385,7 +386,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			public final ResourceID resourceID;
 			public final String address;
 			public final JobMasterGateway gateway;
-			public final UUID leaderSessionID;
+			public final JobMasterId jobMasterId;
 			public final TestingLeaderRetrievalService leaderRetrievalService;
 
 			MockJobMaster(JobID jobID) {
@@ -393,8 +394,8 @@ public class MesosResourceManagerTest extends TestLogger {
 				this.resourceID = new ResourceID(jobID.toString());
 				this.address = "/" + jobID;
 				this.gateway = mock(JobMasterGateway.class);
-				this.leaderSessionID = UUID.randomUUID();
-				this.leaderRetrievalService = new TestingLeaderRetrievalService(this.address, this.leaderSessionID);
+				this.jobMasterId = JobMasterId.generate();
+				this.leaderRetrievalService = new TestingLeaderRetrievalService(this.address, this.jobMasterId.toUUID());
 			}
 		}
 
@@ -442,7 +443,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		 */
 		public void registerJobMaster(MockJobMaster jobMaster) throws Exception  {
 			CompletableFuture<RegistrationResponse> registration = resourceManager.registerJobManager(
-				jobMaster.leaderSessionID, jobMaster.resourceID, jobMaster.address, jobMaster.jobID, timeout);
+				jobMaster.jobMasterId, jobMaster.resourceID, jobMaster.address, jobMaster.jobID, timeout);
 			assertTrue(registration.get() instanceof JobMasterRegistrationSuccess);
 		}
 
