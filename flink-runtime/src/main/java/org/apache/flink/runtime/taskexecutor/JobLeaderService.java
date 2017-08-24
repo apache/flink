@@ -210,7 +210,7 @@ public class JobLeaderService {
 		private final JobID jobId;
 
 		/** Rpc connection to the job leader */
-		private RegisteredRpcConnection<JobMasterGateway, JMTMRegistrationSuccess> rpcConnection;
+		private RegisteredRpcConnection<UUID, JobMasterGateway, JMTMRegistrationSuccess> rpcConnection;
 
 		/** State of the listener */
 		private volatile boolean stopped;
@@ -299,7 +299,7 @@ public class JobLeaderService {
 		/**
 		 * Rpc connection for the job manager <--> task manager connection.
 		 */
-		private final class JobManagerRegisteredRpcConnection extends RegisteredRpcConnection<JobMasterGateway, JMTMRegistrationSuccess> {
+		private final class JobManagerRegisteredRpcConnection extends RegisteredRpcConnection<UUID, JobMasterGateway, JMTMRegistrationSuccess> {
 
 			JobManagerRegisteredRpcConnection(
 				Logger log,
@@ -310,7 +310,7 @@ public class JobLeaderService {
 			}
 
 			@Override
-			protected RetryingRegistration<JobMasterGateway, JMTMRegistrationSuccess> generateRegistration() {
+			protected RetryingRegistration<UUID, JobMasterGateway, JMTMRegistrationSuccess> generateRegistration() {
 				return new JobLeaderService.JobManagerRetryingRegistration(
 						LOG,
 						rpcService,
@@ -351,7 +351,7 @@ public class JobLeaderService {
 	 * Retrying registration for the job manager <--> task manager connection.
 	 */
 	private static final class JobManagerRetryingRegistration
-			extends RetryingRegistration<JobMasterGateway, JMTMRegistrationSuccess>
+			extends RetryingRegistration<UUID, JobMasterGateway, JMTMRegistrationSuccess>
 	{
 
 		private final String taskManagerRpcAddress;
