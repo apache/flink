@@ -82,7 +82,7 @@ public class CompletedCheckpointTest {
 		operatorStates.put(new OperatorID(), state);
 
 		boolean discardSubsumed = true;
-		CheckpointProperties props = new CheckpointProperties(false, false, discardSubsumed, true, true, true, true);
+		CheckpointProperties props = new CheckpointProperties(false, false, false, discardSubsumed, true, true, true, true);
 		
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				new JobID(), 0, 0, 1,
@@ -122,7 +122,7 @@ public class CompletedCheckpointTest {
 			Mockito.reset(state);
 
 			// Keep
-			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1,
 					new HashMap<>(operatorStates),
@@ -139,7 +139,7 @@ public class CompletedCheckpointTest {
 			assertEquals(true, file.exists());
 
 			// Discard
-			props = new CheckpointProperties(false, false, true, true, true, true, true);
+			props = new CheckpointProperties(false, false, false, true, true, true, true, true);
 			checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1,
 					new HashMap<>(operatorStates),

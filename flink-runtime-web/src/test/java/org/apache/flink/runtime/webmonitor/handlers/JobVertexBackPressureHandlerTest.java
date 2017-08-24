@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
 public class JobVertexBackPressureHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(null, mock(BackPressureStatsTracker.class), 0);
+		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphHolder.class), mock(BackPressureStatsTracker.class), 0);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/backpressure", paths[0]);

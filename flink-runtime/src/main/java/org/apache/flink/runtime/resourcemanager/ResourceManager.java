@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -44,9 +45,9 @@ import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistrat
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActions;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -77,13 +78,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
- *     <li>{@link #registerJobManager(UUID, UUID, ResourceID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
- *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
+ *     <li>{@link #registerJobManager(UUID, UUID, ResourceID, String, JobID, Time)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #requestSlot(UUID, UUID, SlotRequest, Time)} requests a slot from the resource manager</li>
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends Serializable>
-		extends RpcEndpoint<ResourceManagerGateway>
-		implements LeaderContender {
+		extends RpcEndpoint
+		implements ResourceManagerGateway, LeaderContender {
 
 	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
@@ -244,13 +245,14 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	//  RPC methods
 	// ------------------------------------------------------------------------
 
-	@RpcMethod
+	@Override
 	public CompletableFuture<RegistrationResponse> registerJobManager(
 			final UUID resourceManagerLeaderId,
 			final UUID jobManagerLeaderId,
 			final ResourceID jobManagerResourceId,
 			final String jobManagerAddress,
-			final JobID jobId) {
+			final JobID jobId,
+			final Time timeout) {
 
 		checkNotNull(resourceManagerLeaderId);
 		checkNotNull(jobManagerLeaderId);
@@ -352,12 +354,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 *
 	 * @return The response by the ResourceManager.
 	 */
-	@RpcMethod
+	@Override
 	public CompletableFuture<RegistrationResponse> registerTaskExecutor(
 			final UUID resourceManagerLeaderId,
 			final String taskExecutorAddress,
 			final ResourceID taskExecutorResourceId,
-			final SlotReport slotReport) {
+			final SlotReport slotReport,
+			final Time timeout) {
 
 		if (Objects.equals(leaderSessionId, resourceManagerLeaderId)) {
 			CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
@@ -387,22 +390,22 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 
-	@RpcMethod
+	@Override
 	public void heartbeatFromTaskManager(final ResourceID resourceID, final SlotReport slotReport) {
 		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, slotReport);
 	}
 
-	@RpcMethod
+	@Override
 	public void heartbeatFromJobManager(final ResourceID resourceID) {
 		jobManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
 	}
 
-	@RpcMethod
+	@Override
 	public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
 		closeTaskManagerConnection(resourceId, cause);
 	}
 
-	@RpcMethod
+	@Override
 	public void disconnectJobManager(final JobID jobId, final Exception cause) {
 		closeJobManagerConnection(jobId, cause);
 	}
@@ -413,14 +416,15 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param slotRequest Slot request
 	 * @return Slot assignment
 	 */
-	@RpcMethod
-	public Acknowledge requestSlot(
+	@Override
+	public CompletableFuture<Acknowledge> requestSlot(
 			UUID jobMasterLeaderID,
 			UUID resourceManagerLeaderID,
-			SlotRequest slotRequest) throws ResourceManagerException, LeaderSessionIDException {
+			SlotRequest slotRequest,
+			final Time timeout) {
 
 		if (!Objects.equals(resourceManagerLeaderID, leaderSessionId)) {
-			throw new LeaderSessionIDException(resourceManagerLeaderID, leaderSessionId);
+			return FutureUtils.completedExceptionally(new LeaderSessionIDException(resourceManagerLeaderID, leaderSessionId));
 		}
 
 		JobID jobId = slotRequest.getJobId();
@@ -433,15 +437,19 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					slotRequest.getJobId(),
 					slotRequest.getAllocationId());
 
-				slotManager.registerSlotRequest(slotRequest);
+				try {
+					slotManager.registerSlotRequest(slotRequest);
+				} catch (SlotManagerException e) {
+					return FutureUtils.completedExceptionally(e);
+				}
 
-				return Acknowledge.get();
+				return CompletableFuture.completedFuture(Acknowledge.get());
 			} else {
-				throw new LeaderSessionIDException(jobMasterLeaderID, jobManagerRegistration.getLeaderID());
+				return FutureUtils.completedExceptionally(new LeaderSessionIDException(jobMasterLeaderID, jobManagerRegistration.getLeaderID()));
 			}
 
 		} else {
-			throw new ResourceManagerException("Could not find registered job manager for job " + jobId + '.');
+			return FutureUtils.completedExceptionally(new ResourceManagerException("Could not find registered job manager for job " + jobId + '.'));
 		}
 	}
 
@@ -451,7 +459,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param instanceID TaskExecutor's instance id
 	 * @param slotId The slot id of the available slot
 	 */
-	@RpcMethod
+	@Override
 	public void notifySlotAvailable(
 			final UUID resourceManagerLeaderId,
 			final InstanceID instanceID,
@@ -487,7 +495,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 *
 	 * @param address address of infoMessage listener to register to this resource manager
 	 */
-	@RpcMethod
+	@Override
 	public void registerInfoMessageListener(final String address) {
 		if(infoMessageListeners.containsKey(address)) {
 			log.warn("Receive a duplicate registration from info message listener on ({})", address);
@@ -514,7 +522,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param address of the  info message listener to unregister from this resource manager
 	 *
 	 */
-	@RpcMethod
+	@Override
 	public void unRegisterInfoMessageListener(final String address) {
 		infoMessageListeners.remove(address);
 	}
@@ -525,7 +533,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param finalStatus of the Flink application
 	 * @param optionalDiagnostics for the Flink application
 	 */
-	@RpcMethod
+	@Override
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
 		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, optionalDiagnostics);
 
@@ -536,13 +544,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 
-	@RpcMethod
-	public Integer getNumberOfRegisteredTaskManagers(UUID requestLeaderSessionId) throws LeaderIdMismatchException {
+	@Override
+	public CompletableFuture<Integer> getNumberOfRegisteredTaskManagers(UUID requestLeaderSessionId) {
 		if (Objects.equals(leaderSessionId, requestLeaderSessionId)) {
-			return taskExecutors.size();
+			return CompletableFuture.completedFuture(taskExecutors.size());
 		}
 		else {
-			throw new LeaderIdMismatchException(leaderSessionId, requestLeaderSessionId);
+			return FutureUtils.completedExceptionally(new LeaderIdMismatchException(leaderSessionId, requestLeaderSessionId));
 		}
 	}
 
@@ -891,8 +899,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				clearState();
 
 				slotManager.suspend();
-
-				leaderSessionId = null;
 			}
 		});
 	}
@@ -938,7 +944,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	@VisibleForTesting
 	public abstract void startNewWorker(ResourceProfile resourceProfile);
 
-	public abstract void stopWorker(InstanceID instanceId);
+	/**
+	 * Deallocates a resource.
+	 *
+	 * @param resourceID The resource ID
+	 */
+	public abstract void stopWorker(ResourceID resourceID);
 
 	/**
 	 * Callback when a worker was started.
@@ -954,12 +965,36 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void releaseResource(InstanceID instanceId) {
-			stopWorker(instanceId);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					ResourceID resourceID = null;
+
+					for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry : taskExecutors.entrySet()) {
+						if (entry.getValue().getInstanceID().equals(instanceId)) {
+							resourceID = entry.getKey();
+							break;
+						}
+					}
+
+					if (resourceID != null) {
+						stopWorker(resourceID);
+					}
+					else {
+						log.warn("Ignoring request to release TaskManager with instance ID {} (not found).", instanceId);
+					}
+				}
+			});
 		}
 
 		@Override
 		public void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
-			startNewWorker(resourceProfile);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					startNewWorker(resourceProfile);
+				}
+			});
 		}
 
 		@Override

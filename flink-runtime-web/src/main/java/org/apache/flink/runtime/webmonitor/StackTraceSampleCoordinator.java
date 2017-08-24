@@ -27,7 +27,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

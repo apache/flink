@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.client.JobClient;
@@ -26,6 +25,7 @@ import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -145,7 +145,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-nm", "customName",
 				"-Dfancy-configuration-value=veryFancy",
 				"-Dyarn.maximum-failed-containers=3",
-				"-D" + ConfigConstants.YARN_VCORES + "=2"},
+				"-D" + YarnConfigOptions.VCORES.key() + "=2"},
 			"Number of connected TaskManagers changed to 1. Slots available: 3",
 			RunTypes.YARN_SESSION);
 
@@ -186,7 +186,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 			Assert.assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
 			Assert.assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
-			Assert.assertEquals("2", parsedConfig.get(ConfigConstants.YARN_VCORES));
+			Assert.assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
 
 			// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
 			// first, get the hostname/port

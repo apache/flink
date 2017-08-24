@@ -35,11 +35,11 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobListeningContext;
-import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -500,7 +500,12 @@ public abstract class ClusterClient {
 
 		try {
 			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
-			JobClient.submitJobDetached(jobManagerGateway, flinkConfig, jobGraph, timeout, classLoader);
+			JobClient.submitJobDetached(
+				new AkkaJobManagerGateway(jobManagerGateway),
+				flinkConfig,
+				jobGraph,
+				Time.milliseconds(timeout.toMillis()),
+				classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
@@ -525,16 +530,8 @@ public abstract class ClusterClient {
 				fe);
 		}
 
-		ActorGateway jobManagerGateway;
-		try {
-			jobManagerGateway = getJobManagerGateway();
-		} catch (Exception e) {
-			throw new JobRetrievalException(jobID, "Could not retrieve the JobManager Gateway");
-		}
-
 		final JobListeningContext listeningContext = JobClient.attachToRunningJob(
 			jobID,
-			jobManagerGateway,
 			flinkConfig,
 			actorSystem,
 			highAvailabilityServices,
@@ -563,16 +560,8 @@ public abstract class ClusterClient {
 				fe);
 		}
 
-		ActorGateway jobManagerGateway;
-		try {
-			jobManagerGateway = getJobManagerGateway();
-		} catch (Exception e) {
-			throw new JobRetrievalException(jobID, "Could not retrieve the JobManager Gateway", e);
-		}
-
 		return JobClient.attachToRunningJob(
 			jobID,
-			jobManagerGateway,
 			flinkConfig,
 			actorSystem,
 			highAvailabilityServices,

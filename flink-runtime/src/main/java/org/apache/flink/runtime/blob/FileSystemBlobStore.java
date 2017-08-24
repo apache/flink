@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.blob;
 
-import com.google.common.io.Files;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.IOUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.io.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,8 +64,8 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Put ------------------------------------------------------------------
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws IOException {
-		put(localFile, BlobUtils.getRecoveryPath(basePath, blobKey));
+	public void put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+		put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
 	private void put(File fromFile, String toBlobPath) throws IOException {
@@ -78,8 +78,8 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Get ------------------------------------------------------------------
 
 	@Override
-	public void get(BlobKey blobKey, File localFile) throws IOException {
-		get(BlobUtils.getRecoveryPath(basePath, blobKey), localFile);
+	public void get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+		get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile);
 	}
 
 	private void get(String fromBlobPath, File toFile) throws IOException {
@@ -112,13 +112,13 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Delete ---------------------------------------------------------------
 
 	@Override
-	public void delete(BlobKey blobKey) {
-		delete(BlobUtils.getRecoveryPath(basePath, blobKey));
+	public void delete(JobID jobId, BlobKey blobKey) {
+		delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
 	@Override
 	public void deleteAll(JobID jobId) {
-		delete(BlobUtils.getRecoveryPath(basePath, jobId));
+		delete(BlobUtils.getStorageLocationPath(basePath, jobId));
 	}
 
 	private void delete(String blobPath) {

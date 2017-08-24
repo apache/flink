@@ -20,8 +20,6 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
@@ -63,15 +61,6 @@ public class CEPMigration11to13Test {
 	@Test
 	public void testKeyedCEPOperatorMigratation() throws Exception {
 
-		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
-			private static final long serialVersionUID = -4873366487571254798L;
-
-			@Override
-			public Integer getKey(Event value) throws Exception {
-				return value.getId();
-			}
-		};
-
 		final Event startEvent = new Event(42, "start", 1.0);
 		final SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
 		final Event endEvent = new Event(42, "end", 1.0);
@@ -79,7 +68,7 @@ public class CEPMigration11to13Test {
 		// uncomment these lines for regenerating the snapshot on Flink 1.1
 		/*
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
+				new KeyedCepOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
@@ -104,18 +93,8 @@ public class CEPMigration11to13Test {
 		harness.close();
 		*/
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new NFAFactory(),
-								true,
-								null,
-								null),
-						keySelector,
-						BasicTypeInfo.INT_TYPE_INFO);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(
+			CepOperatorTestUtilities.getKeyedCepOpearator(false, new NFAFactory()));
 
 		try {
 			harness.setup();
@@ -159,17 +138,9 @@ public class CEPMigration11to13Test {
 			OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
 			harness.close();
 
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					IntSerializer.INSTANCE,
-					new NFAFactory(),
-					true,
-					null,
-					null),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+			harness = CepOperatorTestUtilities.getCepTestHarness(CepOperatorTestUtilities.getKeyedCepOpearator(
+				false,
+				new NFAFactory()));
 
 			harness.setup();
 			harness.initializeState(snapshot);
@@ -236,17 +207,10 @@ public class CEPMigration11to13Test {
 		NullByteKeySelector keySelector = new NullByteKeySelector();
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				new KeyedOneInputStreamOperatorTestHarness<Byte, Event, Map<String, List<Event>>>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								ByteSerializer.INSTANCE,
-								new NFAFactory(),
-								false,
-								null,
-								null),
-						keySelector,
-						BasicTypeInfo.BYTE_TYPE_INFO);
+			new KeyedOneInputStreamOperatorTestHarness<Byte, Event, Map<String, List<Event>>>(
+				CepOperatorTestUtilities.getKeyedCepOpearator(false, new NFAFactory(), ByteSerializer.INSTANCE, false, null),
+				keySelector,
+				BasicTypeInfo.BYTE_TYPE_INFO);
 
 		try {
 			harness.setup();
@@ -291,14 +255,7 @@ public class CEPMigration11to13Test {
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<Byte, Event, Map<String, List<Event>>>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					ByteSerializer.INSTANCE,
-					new NFAFactory(),
-					false,
-					null,
-					null),
+				CepOperatorTestUtilities.getKeyedCepOpearator(false, new NFAFactory(), ByteSerializer.INSTANCE),
 				keySelector,
 				BasicTypeInfo.BYTE_TYPE_INFO);
 

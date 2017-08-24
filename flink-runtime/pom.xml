@@ -60,6 +60,15 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-netty</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-asm</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -78,18 +87,6 @@ under the License.
 			<!-- Version is set in root POM -->
 		</dependency>
 
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm-all</artifactId>
-			<version>${asm.version}</version>
-		</dependency>
-		
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>

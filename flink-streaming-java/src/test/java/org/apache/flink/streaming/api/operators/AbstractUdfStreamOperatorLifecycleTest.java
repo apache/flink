@@ -25,6 +25,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -84,7 +85,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"UDF::close");
 
 	private static final String ALL_METHODS_STREAM_OPERATOR = "[close[], dispose[], getChainingStrategy[], " +
-			"getMetricGroup[], initializeState[class org.apache.flink.streaming.runtime.tasks.OperatorStateHandles], " +
+			"getMetricGroup[], getOperatorID[], initializeState[class org.apache.flink.runtime.checkpoint.OperatorSubtaskState], " +
 			"notifyOfCompletedCheckpoint[long], open[], setChainingStrategy[class " +
 			"org.apache.flink.streaming.api.operators.ChainingStrategy], setKeyContextElement1[class " +
 			"org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
@@ -132,6 +133,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		MockSourceFunction srcFun = new MockSourceFunction();
 
 		cfg.setStreamOperator(new LifecycleTrackingStreamSource(srcFun, true));
+		cfg.setOperatorID(new OperatorID());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = StreamTaskTest.createTask(SourceStreamTask.class, cfg, taskManagerConfig);
@@ -154,6 +156,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		MockSourceFunction srcFun = new MockSourceFunction();
 		cfg.setStreamOperator(new LifecycleTrackingStreamSource(srcFun, false));
+		cfg.setOperatorID(new OperatorID());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = StreamTaskTest.createTask(SourceStreamTask.class, cfg, taskManagerConfig);

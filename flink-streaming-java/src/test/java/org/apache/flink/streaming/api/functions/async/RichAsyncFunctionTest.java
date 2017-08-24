@@ -31,7 +31,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 
 import org.junit.Test;
 
@@ -55,7 +54,7 @@ public class RichAsyncFunctionTest {
 			private static final long serialVersionUID = -2023923961609455894L;
 
 			@Override
-			public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
+			public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
 				// no op
 			}
 		};
@@ -94,7 +93,7 @@ public class RichAsyncFunctionTest {
 			private static final long serialVersionUID = 1707630162838967972L;
 
 			@Override
-			public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
+			public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
 				// no op
 			}
 		};

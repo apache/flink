@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, SingleElementIterable}
 
@@ -47,7 +48,6 @@ class AggregationCodeGenerator(
     *
     * @param name        Class name of the function.
     *                    Does not need to be unique but has to be a valid Java class identifier.
-    * @param generator   The code generator instance
     * @param physicalInputTypes Physical input row types
     * @param aggregates  All aggregate functions
     * @param aggFields   Indexes of the input fields for all aggregate functions
@@ -68,7 +68,6 @@ class AggregationCodeGenerator(
     */
   def generateAggregations(
     name: String,
-    generator: CodeGenerator,
     physicalInputTypes: Seq[TypeInformation[_]],
     aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
     aggFields: Array[Array[Int]],
@@ -86,28 +85,29 @@ class AggregationCodeGenerator(
     // get unique function name
     val funcName = newName(name)
     // register UDAGGs
-    val aggs = aggregates.map(a => generator.addReusableFunction(a))
+    val aggs = aggregates.map(a => addReusableFunction(a))
     // get java types of accumulators
     val accTypeClasses = aggregates.map { a =>
       a.getClass.getMethod("createAccumulator").getReturnType
     }
     val accTypes = accTypeClasses.map(_.getCanonicalName)
 
-    // get java classes of input fields
-    val javaClasses = physicalInputTypes.map(t => t.getTypeClass)
     // get parameter lists for aggregation functions
-    val parameters = aggFields.map { inFields =>
+    val parametersCode = aggFields.map { inFields =>
       val fields = for (f <- inFields) yield
-        s"(${javaClasses(f).getCanonicalName}) input.getField($f)"
+        s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
       fields.mkString(", ")
     }
-    val methodSignaturesList = aggFields.map {
-      inFields => for (f <- inFields) yield javaClasses(f)
+
+    // get method signatures
+    val classes = UserDefinedFunctionUtils.typeInfoToClass(physicalInputTypes)
+    val methodSignaturesList = aggFields.map { inFields =>
+      inFields.map(classes(_))
     }
 
     // check and validate the needed methods
     aggregates.zipWithIndex.map {
-      case (a, i) => {
+      case (a, i) =>
         getUserDefinedMethod(a, "accumulate", Array(accTypeClasses(i)) ++ methodSignaturesList(i))
         .getOrElse(
           throw new CodeGenException(
@@ -159,7 +159,6 @@ class AggregationCodeGenerator(
                 s"aggregate ${a.getClass.getCanonicalName}'.")
           )
         }
-      }
     }
 
     def genSetAggregationResults: String = {
@@ -208,7 +207,7 @@ class AggregationCodeGenerator(
           j"""
              |    ${aggs(i)}.accumulate(
              |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+             |      ${parametersCode(i)});""".stripMargin
       }.mkString("\n")
 
       j"""$sig {
@@ -229,7 +228,7 @@ class AggregationCodeGenerator(
           j"""
              |    ${aggs(i)}.retract(
              |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+             |      ${parametersCode(i)});""".stripMargin
       }.mkString("\n")
 
       if (needRetract) {

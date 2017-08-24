@@ -19,16 +19,17 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.NotFoundException;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -37,7 +38,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 
-import akka.dispatch.OnComplete;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import javax.annotation.Nullable;
@@ -48,10 +48,9 @@ import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -92,16 +91,16 @@ public class JobCancellationWithSavepointHandlers {
 
 	public JobCancellationWithSavepointHandlers(
 			ExecutionGraphHolder currentGraphs,
-			ExecutionContext executionContext) {
-		this(currentGraphs, executionContext, null);
+			Executor executor) {
+		this(currentGraphs, executor, null);
 	}
 
 	public JobCancellationWithSavepointHandlers(
 			ExecutionGraphHolder currentGraphs,
-			ExecutionContext executionContext,
+			Executor executor,
 			@Nullable String defaultSavepointDirectory) {
 
-		this.triggerHandler = new TriggerHandler(currentGraphs, executionContext);
+		this.triggerHandler = new TriggerHandler(currentGraphs, executor);
 		this.inProgressHandler = new InProgressHandler();
 		this.defaultSavepointDirectory = defaultSavepointDirectory;
 	}
@@ -127,11 +126,11 @@ public class JobCancellationWithSavepointHandlers {
 		private final ExecutionGraphHolder currentGraphs;
 
 		/** Execution context for futures. */
-		private final ExecutionContext executionContext;
+		private final Executor executor;
 
-		public TriggerHandler(ExecutionGraphHolder currentGraphs, ExecutionContext executionContext) {
+		public TriggerHandler(ExecutionGraphHolder currentGraphs, Executor executor) {
 			this.currentGraphs = checkNotNull(currentGraphs);
-			this.executionContext = checkNotNull(executionContext);
+			this.executor = checkNotNull(executor);
 		}
 
 		@Override
@@ -144,35 +143,40 @@ public class JobCancellationWithSavepointHandlers {
 		public FullHttpResponse handleRequest(
 				Map<String, String> pathParams,
 				Map<String, String> queryParams,
-				ActorGateway jobManager) throws Exception {
+				JobManagerGateway jobManagerGateway) throws Exception {
 
 			try {
-				if (jobManager != null) {
+				if (jobManagerGateway != null) {
 					JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
+					final Optional<AccessExecutionGraph> optGraph;
 
-					AccessExecutionGraph graph = currentGraphs.getExecutionGraph(jobId, jobManager);
-					if (graph == null) {
-						throw new Exception("Cannot find ExecutionGraph for job.");
-					} else {
-						CheckpointCoordinator coord = graph.getCheckpointCoordinator();
-						if (coord == null) {
-							throw new Exception("Cannot find CheckpointCoordinator for job.");
-						}
-
-						String targetDirectory = pathParams.get("targetDirectory");
-						if (targetDirectory == null) {
-							if (defaultSavepointDirectory == null) {
-								throw new IllegalStateException("No savepoint directory configured. " +
-										"You can either specify a directory when triggering this savepoint or " +
-										"configure a cluster-wide default via key '" +
-										CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.");
-							} else {
-								targetDirectory = defaultSavepointDirectory;
-							}
-						}
-
-						return handleNewRequest(jobManager, jobId, targetDirectory, coord.getCheckpointTimeout());
+					try {
+						optGraph = currentGraphs.getExecutionGraph(jobId, jobManagerGateway);
+					} catch (Exception e) {
+						throw new FlinkException("Could not retrieve the execution with jobId " + jobId + " from the JobManager.", e);
 					}
+
+					final AccessExecutionGraph graph = optGraph.orElseThrow(
+						() -> new NotFoundException("Could not find ExecutionGraph with jobId " + jobId + '.'));
+
+					CheckpointCoordinator coord = graph.getCheckpointCoordinator();
+					if (coord == null) {
+						throw new Exception("Cannot find CheckpointCoordinator for job.");
+					}
+
+					String targetDirectory = pathParams.get("targetDirectory");
+					if (targetDirectory == null) {
+						if (defaultSavepointDirectory == null) {
+							throw new IllegalStateException("No savepoint directory configured. " +
+									"You can either specify a directory when triggering this savepoint or " +
+									"configure a cluster-wide default via key '" +
+									CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.");
+						} else {
+							targetDirectory = defaultSavepointDirectory;
+						}
+					}
+
+					return handleNewRequest(jobManagerGateway, jobId, targetDirectory, coord.getCheckpointTimeout());
 				} else {
 					throw new Exception("No connection to the leading JobManager.");
 				}
@@ -182,7 +186,7 @@ public class JobCancellationWithSavepointHandlers {
 		}
 
 		@SuppressWarnings("unchecked")
-		private FullHttpResponse handleNewRequest(ActorGateway jobManager, final JobID jobId, String targetDirectory, long checkpointTimeout) throws IOException {
+		private FullHttpResponse handleNewRequest(JobManagerGateway jobManagerGateway, final JobID jobId, String targetDirectory, long checkpointTimeout) throws IOException {
 			// Check whether a request exists
 			final long requestId;
 			final boolean isNewRequest;
@@ -202,35 +206,21 @@ public class JobCancellationWithSavepointHandlers {
 
 				try {
 					// Trigger cancellation
-					Object msg = new CancelJobWithSavepoint(jobId, targetDirectory);
-					Future<Object> cancelFuture = jobManager
-							.ask(msg, FiniteDuration.apply(checkpointTimeout, "ms"));
+					CompletableFuture<String> cancelJobFuture = jobManagerGateway
+						.cancelJobWithSavepoint(jobId, targetDirectory, Time.milliseconds(checkpointTimeout));
 
-					cancelFuture.onComplete(new OnComplete<Object>() {
-						@Override
-						public void onComplete(Throwable failure, Object resp) throws Throwable {
-							synchronized (lock) {
-								try {
-									if (resp != null) {
-										if (resp.getClass() == CancellationSuccess.class) {
-											String path = ((CancellationSuccess) resp).savepointPath();
-											completed.put(requestId, path);
-										} else if (resp.getClass() == CancellationFailure.class) {
-											Throwable cause = ((CancellationFailure) resp).cause();
-											completed.put(requestId, cause);
-										} else {
-											Throwable cause = new IllegalStateException("Unexpected CancellationResponse of type " + resp.getClass());
-											completed.put(requestId, cause);
-										}
-									} else {
-										completed.put(requestId, failure);
-									}
-								} finally {
-									inProgress.remove(jobId);
+					cancelJobFuture.whenCompleteAsync(
+						(String path, Throwable throwable) -> {
+							try {
+								if (throwable != null) {
+									completed.put(requestId, throwable);
+								} else {
+									completed.put(requestId, path);
 								}
+							} finally {
+								inProgress.remove(jobId);
 							}
-						}
-					}, executionContext);
+						}, executor);
 
 					success = true;
 				} finally {
@@ -298,9 +288,9 @@ public class JobCancellationWithSavepointHandlers {
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+		public FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
 			try {
-				if (jobManager != null) {
+				if (jobManagerGateway != null) {
 					JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
 					long requestId = Long.parseLong(pathParams.get("requestId"));
 

@@ -34,6 +34,8 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,7 +45,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static com.google.common.collect.Sets.newHashSet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -143,14 +144,14 @@ public class NFACompilerTest extends TestLogger {
 		State<Event> startState = stateMap.get("start");
 		assertTrue(startState.isStart());
 		final Set<Tuple2<String, StateTransitionAction>> startTransitions = unfoldTransitions(startState);
-		assertEquals(newHashSet(
+		assertEquals(Sets.newHashSet(
 			Tuple2.of("middle", StateTransitionAction.TAKE)
 		), startTransitions);
 
 		assertTrue(stateMap.containsKey("middle"));
 		State<Event> middleState = stateMap.get("middle");
 		final Set<Tuple2<String, StateTransitionAction>> middleTransitions = unfoldTransitions(middleState);
-		assertEquals(newHashSet(
+		assertEquals(Sets.newHashSet(
 			Tuple2.of("middle", StateTransitionAction.IGNORE),
 			Tuple2.of("end", StateTransitionAction.TAKE)
 		), middleTransitions);
@@ -158,7 +159,7 @@ public class NFACompilerTest extends TestLogger {
 		assertTrue(stateMap.containsKey("end"));
 		State<Event> endState = stateMap.get("end");
 		final Set<Tuple2<String, StateTransitionAction>> endTransitions = unfoldTransitions(endState);
-		assertEquals(newHashSet(
+		assertEquals(Sets.newHashSet(
 			Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE)
 		), endTransitions);
 

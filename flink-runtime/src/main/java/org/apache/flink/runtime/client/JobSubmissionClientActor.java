@@ -22,8 +22,11 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
+
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -32,11 +35,14 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.SubmitJobAndWait;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.SerializedThrowable;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -140,12 +146,35 @@ public class JobSubmissionClientActor extends JobClientActor {
 		Futures.future(new Callable<Object>() {
 			@Override
 			public Object call() throws Exception {
-				ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+				final ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+				final AkkaJobManagerGateway akkaJobManagerGateway = new AkkaJobManagerGateway(jobManagerGateway);
 
 				LOG.info("Upload jar files to job manager {}.", jobManager.path());
 
+				final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(
+					akkaJobManagerGateway,
+					Time.milliseconds(timeout.toMillis()));
+				final InetSocketAddress blobServerAddress;
+
 				try {
-					jobGraph.uploadUserJars(jobManagerGateway, timeout, clientConfig);
+					blobServerAddress = blobServerAddressFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				} catch (Exception e) {
+					getSelf().tell(
+						decorateMessage(new JobManagerMessages.JobResultFailure(
+							new SerializedThrowable(
+								new JobSubmissionException(
+									jobGraph.getJobID(),
+									"Could not retrieve BlobServer address.",
+									e)
+							)
+						)),
+						ActorRef.noSender());
+
+					return null;
+				}
+
+				try {
+					jobGraph.uploadUserJars(blobServerAddress, clientConfig);
 				} catch (IOException exception) {
 					getSelf().tell(
 						decorateMessage(new JobManagerMessages.JobResultFailure(
@@ -156,8 +185,9 @@ public class JobSubmissionClientActor extends JobClientActor {
 									exception)
 							)
 						)),
-						ActorRef.noSender()
-					);
+						ActorRef.noSender());
+
+					return null;
 				}
 
 				LOG.info("Submit job to the job manager {}.", jobManager.path());

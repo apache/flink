@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
@@ -27,6 +28,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collection;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the JobPlanHandler.
@@ -48,7 +51,7 @@ public class JobPlanHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		JobPlanHandler handler = new JobPlanHandler(null);
+		JobPlanHandler handler = new JobPlanHandler(mock(ExecutionGraphHolder.class));
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/plan", paths[0]);

@@ -135,7 +135,9 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the resource manager.
+	 * @deprecated Use {@link ResourceManagerOptions#IPC_PORT} instead.
 	 */
+	@Deprecated
 	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
 
 	/**
@@ -176,7 +178,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the cleanup interval of the library cache manager.
+	 *
+	 * @deprecated use {@link BlobServerOptions#CLEANUP_INTERVAL} instead
 	 */
+	@Deprecated
 	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
 
 	/**
@@ -349,12 +354,16 @@ public final class ConfigConstants {
 	/**
 	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
 	 * for other JVM memory usage.
+	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
 	 */
+	@Deprecated
 	public static final String CONTAINERIZED_HEAP_CUTOFF_RATIO = "containerized.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
+	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_MIN} instead.
 	 */
+	@Deprecated
 	public static final String CONTAINERIZED_HEAP_CUTOFF_MIN = "containerized.heap-cutoff-min";
 
 	/**
@@ -362,13 +371,17 @@ public final class ConfigConstants {
 	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
 	 * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
 	 * in the flink-conf.yaml.
+	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_MASTER_ENV_PREFIX} instead.
 	 */
+	@Deprecated
 	public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
 
 	/**
 	 * Similar to the {@see CONTAINERIZED_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables for the workers (TaskManagers)
+	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_TASK_MANAGER_ENV_PREFIX} instead.
 	 */
+	@Deprecated
 	public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX = "containerized.taskmanager.env.";
 
 	
@@ -376,7 +389,9 @@ public final class ConfigConstants {
 
 	/**
 	 * The vcores exposed by YARN.
+	 * @deprecated in favor of {@code YarnConfigOptions#VCORES}.
 	 */
+	@Deprecated
 	public static final String YARN_VCORES = "yarn.containers.vcores";
 
 	/**
@@ -406,7 +421,9 @@ public final class ConfigConstants {
 	 * the YARN session / job on YARN.
 	 *
 	 * By default, we take the number of of initially requested containers.
+	 * @deprecated in favor of {@code YarnConfigOptions#MAX_FAILED_CONTAINERS}.
 	 */
+	@Deprecated
 	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
 
 	/**
@@ -414,14 +431,18 @@ public final class ConfigConstants {
 	 * availability mode. This value is usually limited by YARN.
 	 *
 	 * By default, it's 1 in the standalone case and 2 in the high availability case.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_ATTEMPTS}.
 	 */
+	@Deprecated
 	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
 
 	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 *
 	 * The default value is 5 (seconds).
+	 * @deprecated in favor of {@code YarnConfigOptions#HEARTBEAT_DELAY_SECONDS}.
 	 */
+	@Deprecated
 	public static final String YARN_HEARTBEAT_DELAY_SECONDS = "yarn.heartbeat-delay";
 
 	/**
@@ -429,8 +450,10 @@ public final class ConfigConstants {
 	 * processing slots is written into a properties file, so that the Flink client is able
 	 * to pick those details up.
 	 * This configuration parameter allows changing the default location of that file (for example
-	 * for environments sharing a Flink installation between users)
+	 * for environments sharing a Flink installation between users).
+	 * @deprecated in favor of {@code YarnConfigOptions#PROPERTIES_FILE_LOCATION}.
 	 */
+	@Deprecated
 	public static final String YARN_PROPERTIES_FILE_LOCATION = "yarn.properties-file.location";
 
 	/**
@@ -474,12 +497,16 @@ public final class ConfigConstants {
 	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
 	 *
 	 * Setting the port to 0 will let the OS choose an available port.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_MASTER_PORT}.
 	 */
+	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
 	/**
 	 * A comma-separated list of strings to use as YARN application tags.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_TAGS}.
 	 */
+	@Deprecated
 	public static final String YARN_APPLICATION_TAGS = "yarn.tags";
 
 
@@ -487,7 +514,9 @@ public final class ConfigConstants {
 
 	/**
 	 * The initial number of Mesos tasks to allocate.
+	 * @deprecated in favor of {@code MesosOptions#INITIAL_TASKS}.
 	 */
+	@Deprecated
 	public static final String MESOS_INITIAL_TASKS = "mesos.initial-tasks";
 
 	/**
@@ -495,7 +524,9 @@ public final class ConfigConstants {
 	 * the Mesos session / job on Mesos.
 	 *
 	 * By default, we take the number of of initially requested tasks.
+	 * @deprecated in favor of {@code MesosOptions#MAX_FAILED_TASKS}.
 	 */
+	@Deprecated
 	public static final String MESOS_MAX_FAILED_TASKS = "mesos.maximum-failed-tasks";
 
 	/**
@@ -510,36 +541,53 @@ public final class ConfigConstants {
 	 *     file:///path/to/file (where file contains one of the above)
 	 * }
 	 * </pre>
-	 *
+	 * @deprecated in favor of {@code MesosOptions#MASTER_URL}.
 	 */
+	@Deprecated
 	public static final String MESOS_MASTER_URL = "mesos.master";
 
 	/**
 	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
 	 *
 	 * The default value is 600 (seconds).
+	 * @deprecated in favor of {@code MesosOptions#FAILOVER_TIMEOUT_SECONDS}.
 	 */
+	@Deprecated
 	public static final String MESOS_FAILOVER_TIMEOUT_SECONDS = "mesos.failover-timeout";
 
 	/**
 	 * The config parameter defining the Mesos artifact server port to use.
 	 * Setting the port to 0 will let the OS choose an available port.
+	 * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_PORT_KEY}.
 	 */
+	@Deprecated
 	public static final String MESOS_ARTIFACT_SERVER_PORT_KEY = "mesos.resourcemanager.artifactserver.port";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_NAME}. */
+	@Deprecated
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "mesos.resourcemanager.framework.name";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_ROLE}. */
+	@Deprecated
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "mesos.resourcemanager.framework.role";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_PRINCIPAL}. */
+	@Deprecated
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL = "mesos.resourcemanager.framework.principal";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_SECRET}. */
+	@Deprecated
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET = "mesos.resourcemanager.framework.secret";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_USER}. */
+	@Deprecated
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_USER = "mesos.resourcemanager.framework.user";
 
 	/**
 	 * Config parameter to override SSL support for the Artifact Server
+	 * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_SSL_ENABLED}.
 	 */
+	@Deprecated
 	public static final String MESOS_ARTIFACT_SERVER_SSL_ENABLED = "mesos.resourcemanager.artifactserver.ssl.enabled";
 
 	// ------------------------ Hadoop Configuration ------------------------
@@ -1208,8 +1256,12 @@ public final class ConfigConstants {
 
 	/**
 	 * The default library cache manager cleanup interval in seconds
+	 *
+	 * @deprecated use {@link BlobServerOptions#CLEANUP_INTERVAL} instead
 	 */
-	public static final long DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = 3600;
+	@Deprecated
+	public static final long DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL =
+		BlobServerOptions.CLEANUP_INTERVAL.defaultValue();
 	
 	/**
 	 * The default network port to connect to for communication with the job manager.
@@ -1218,7 +1270,9 @@ public final class ConfigConstants {
 
 	/**
 	 * The default network port of the resource manager.
+	 * @deprecated Use {@link ResourceManagerOptions#IPC_PORT} instead.
 	 */
+	@Deprecated
 	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
 
 	/**
@@ -1378,13 +1432,17 @@ public final class ConfigConstants {
 	/**
 	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
 	 * heap size. We came up with these values experimentally.
+	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_MIN} instead.
 	 */
+	@Deprecated
 	public static final int DEFAULT_YARN_HEAP_CUTOFF = 600;
 
 	/**
 	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
-	 * heap size
+	 * heap size.
+	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
 	 */
+	@Deprecated
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 
 	/**
@@ -1395,31 +1453,49 @@ public final class ConfigConstants {
 
 	/**
 	 * Default port for the application master is 0, which means
-	 * the operating system assigns an ephemeral port
+	 * the operating system assigns an ephemeral port.
+	 * @deprecated in favor of {@code YarnConfigOptions#APPLICATION_MASTER_PORT}.
 	 */
+	@Deprecated
 	public static final String DEFAULT_YARN_JOB_MANAGER_PORT = "0";
 
 	// ------ Mesos-Specific Configuration ------
 	// For more configuration entries please see {@code MesosTaskManagerParameters}.
 
-	/** The default failover timeout provided to Mesos (10 mins) */
+	/**
+	 * The default failover timeout provided to Mesos (10 mins)
+	 * @deprecated in favor of {@code MesosOptions#FAILOVER_TIMEOUT_SECONDS}.
+	 */
+	@Deprecated
 	public static final int DEFAULT_MESOS_FAILOVER_TIMEOUT_SECS = 10 * 60;
 
 	/**
 	 * The default network port to listen on for the Mesos artifact server.
+	 * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_PORT_KEY}.
 	 */
+	@Deprecated
 	public static final int DEFAULT_MESOS_ARTIFACT_SERVER_PORT = 0;
 
 	/**
 	 * The default Mesos framework name for the ResourceManager to use.
+	 * @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_NAME}.
 	 */
+	@Deprecated
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_ROLE}. */
+	@Deprecated
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
 
+	/** @deprecated in favor of {@code MesosOptions#RESOURCEMANAGER_FRAMEWORK_USER}. */
+	@Deprecated
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_USER = "";
 
-	/** Default value to override SSL support for the Artifact Server */
+	/**
+	 * Default value to override SSL support for the Artifact Server.
+	 * @deprecated in favor of {@code MesosOptions#ARTIFACT_SERVER_SSL_ENABLED}.
+	 */
+	@Deprecated
 	public static final boolean DEFAULT_MESOS_ARTIFACT_SERVER_SSL_ENABLED = true;
 
 	// ------------------------ File System Behavior ------------------------
@@ -1659,8 +1735,16 @@ public final class ConfigConstants {
 
 	public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
 
+	/**
+	 * @deprecated Use {@link ResourceManagerOptions#LOCAL_NUMBER_RESOURCE_MANAGER} instead.
+	 */
+	@Deprecated
 	public static final String LOCAL_NUMBER_RESOURCE_MANAGER = "local.number-resourcemanager";
 
+	/**
+	 * @deprecated Use {@link ResourceManagerOptions#LOCAL_NUMBER_RESOURCE_MANAGER} instead.
+	 */
+	@Deprecated
 	public static final int DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER = 1;
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";

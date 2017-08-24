@@ -19,7 +19,6 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
@@ -48,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getKeyedCepOpearator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -100,14 +100,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new NFAFactory(),
-								true,
-								null,
-								null),
+					getKeyedCepOpearator(false, new NFAFactory()),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -152,14 +145,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new NFAFactory(),
-								true,
-								null,
-								null),
+						getKeyedCepOpearator(false, new NFAFactory()),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -223,14 +209,7 @@ public class CEPMigrationTest {
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					IntSerializer.INSTANCE,
-					new NFAFactory(),
-					true,
-					null,
-					null),
+				getKeyedCepOpearator(false, new NFAFactory()),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
@@ -285,14 +264,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new NFAFactory(),
-								true,
-								null,
-								null),
+					getKeyedCepOpearator(false, new NFAFactory()),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -335,14 +307,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new NFAFactory(),
-								true,
-								null,
-								null),
+					getKeyedCepOpearator(false, new NFAFactory()),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -420,14 +385,7 @@ public class CEPMigrationTest {
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					IntSerializer.INSTANCE,
-					new NFAFactory(),
-					true,
-					null,
-					null),
+				getKeyedCepOpearator(false, new NFAFactory()),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
@@ -481,14 +439,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new SinglePatternNFAFactory(),
-								true,
-								null,
-								null),
+						getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -522,14 +473,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						new KeyedCEPPatternOperator<>(
-								Event.createTypeSerializer(),
-								false,
-								IntSerializer.INSTANCE,
-								new SinglePatternNFAFactory(),
-								true,
-								null,
-								null),
+						getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 

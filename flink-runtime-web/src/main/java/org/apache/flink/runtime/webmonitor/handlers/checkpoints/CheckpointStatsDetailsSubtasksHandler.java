@@ -25,8 +25,8 @@ import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.SubtaskStateStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractJobVertexRequestHandler;
@@ -71,8 +71,8 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 	public String handleJsonRequest(
 		Map<String, String> pathParams,
 		Map<String, String> queryParams,
-		ActorGateway jobManager) throws Exception {
-		return super.handleJsonRequest(pathParams, queryParams, jobManager);
+		JobManagerGateway jobManagerGateway) throws Exception {
+		return super.handleJsonRequest(pathParams, queryParams, jobManagerGateway);
 	}
 
 	@Override

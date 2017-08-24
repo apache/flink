@@ -29,9 +29,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class MainThreadValidatorUtil {
 
-	private final RpcEndpoint<?> endpoint;
+	private final RpcEndpoint endpoint;
 
-	public MainThreadValidatorUtil(RpcEndpoint<?> endpoint) {
+	public MainThreadValidatorUtil(RpcEndpoint endpoint) {
 		this.endpoint = checkNotNull(endpoint);
 	}
 

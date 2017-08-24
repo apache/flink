@@ -110,13 +110,13 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 			executor);
 
 		// this should not fulfill the poll, because R3 is behind W1
-		record3.collect(Collections.<Integer>emptyList());
+		record3.complete(Collections.<Integer>emptyList());
 
 		Thread.sleep(10L);
 
 		Assert.assertFalse(firstPoll.isDone());
 
-		record2.collect(Collections.<Integer>emptyList());
+		record2.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(record2, firstPoll.get());
 
@@ -130,15 +130,15 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 			},
 			executor);
 
-		record6.collect(Collections.<Integer>emptyList());
-		record4.collect(Collections.<Integer>emptyList());
+		record6.complete(Collections.<Integer>emptyList());
+		record4.complete(Collections.<Integer>emptyList());
 
 		Thread.sleep(10L);
 
 		// The future should not be completed because R1 has not been completed yet
 		Assert.assertFalse(secondPoll.isDone());
 
-		record1.collect(Collections.<Integer>emptyList());
+		record1.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(record1, secondPoll.get());
 
@@ -180,7 +180,7 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 
 		Assert.assertFalse(thirdPoll.isDone());
 
-		record5.collect(Collections.<Integer>emptyList());
+		record5.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(record5, thirdPoll.get());
 

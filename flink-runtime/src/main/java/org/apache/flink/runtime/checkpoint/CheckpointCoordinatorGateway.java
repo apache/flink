@@ -29,7 +29,7 @@ public interface CheckpointCoordinatorGateway extends RpcGateway {
 			final ExecutionAttemptID executionAttemptID,
 			final long checkpointId,
 			final CheckpointMetrics checkpointMetrics,
-			final SubtaskState subtaskState);
+			final TaskStateSnapshot subtaskState);
 
 	void declineCheckpoint(
 			JobID jobID,

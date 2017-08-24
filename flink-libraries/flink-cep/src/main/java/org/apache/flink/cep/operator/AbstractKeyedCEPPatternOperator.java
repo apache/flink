@@ -19,6 +19,7 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -45,7 +46,7 @@ import org.apache.flink.migration.streaming.runtime.streamrecord.MultiplexingStr
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.CheckpointedRestoringOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -61,6 +62,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,9 +81,10 @@ import java.util.stream.StreamSupport;
  * @param <IN> Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
+ * @param <F> user function that can be applied to matching sequences or timed out sequences
  */
-public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
-	extends AbstractStreamOperator<OUT>
+public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Function>
+	extends AbstractUdfStreamOperator<OUT, F>
 	implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace>, CheckpointedRestoringOperator {
 
 	private static final long serialVersionUID = -4166778210774160757L;
@@ -130,7 +133,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final boolean migratingFromOldKeyedOperator,
 			final EventComparator<IN> comparator,
+			final F function,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
@@ -358,7 +363,18 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 * @param event The current event to be processed
 	 * @param timestamp The timestamp of the event
 	 */
-	protected abstract void processEvent(NFA<IN> nfa, IN event, long timestamp);
+	private void processEvent(NFA<IN> nfa, IN event, long timestamp)  {
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
+			nfa.process(event, timestamp);
+
+		try {
+			processMatchedSequences(patterns.f0, timestamp);
+			processTimedOutSequences(patterns.f1, timestamp);
+		} catch (Exception e) {
+			//rethrow as Runtime, to be able to use processEvent in Stream.
+			throw new RuntimeException(e);
+		}
+	}
 
 	/**
 	 * Advances the time for the given NFA to the given timestamp. This can lead to pruning and
@@ -367,7 +383,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 * @param nfa to advance the time for
 	 * @param timestamp to advance the time to
 	 */
-	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
+	private void advanceTime(NFA<IN> nfa, long timestamp) throws Exception {
+		processEvent(nfa, null, timestamp);
+	}
+
+	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
+
+	protected void processTimedOutSequences(
+			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
+			long timestamp) throws Exception {
+	}
 
 	//////////////////////			Backwards Compatibility			//////////////////////
 
@@ -616,10 +641,10 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 					((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
 
 				CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousElemSerializerAndConfig.f0,
-						UnloadableDummyTypeSerializer.class,
-						previousElemSerializerAndConfig.f1,
-						elementSerializer);
+					previousElemSerializerAndConfig.f0,
+					UnloadableDummyTypeSerializer.class,
+					previousElemSerializerAndConfig.f1,
+					elementSerializer);
 
 				if (!compatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();

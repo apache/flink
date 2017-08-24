@@ -21,17 +21,17 @@ package org.apache.flink.api.java.sca;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.sca.TaggedValue.Tag;
 
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.IntInsnNode;
-import org.objectweb.asm.tree.LdcInsnNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.BasicInterpreter;
-import org.objectweb.asm.tree.analysis.BasicValue;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.AbstractInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.FieldInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.IntInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.LdcInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.TypeInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.BasicInterpreter;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.BasicValue;
 
 import java.util.ArrayList;
 import java.util.Arrays;

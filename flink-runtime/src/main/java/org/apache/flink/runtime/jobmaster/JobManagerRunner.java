@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -93,7 +93,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
-			final BlobService blobService,
+			final BlobServer blobService,
 			final HeartbeatServices heartbeatServices,
 			final OnCompletionActions toNotifyOnComplete,
 			final FatalErrorHandler errorHandler) throws Exception {
@@ -116,7 +116,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
-			final BlobService blobService,
+			final BlobServer blobService,
 			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
@@ -199,6 +199,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				haServices,
 				heartbeatServices,
 				jobManagerServices.executorService,
+				jobManagerServices.blobServer,
 				jobManagerServices.libraryCacheManager,
 				jobManagerServices.restartStrategyFactory,
 				jobManagerServices.rpcAskTimeout,
@@ -433,7 +434,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			jobManager.getSelf().suspendExecution(new Exception("JobManager is no longer the leader."));
+			jobManager.getSelfGateway(JobMasterGateway.class).suspendExecution(new Exception("JobManager is no longer the leader."));
 		}
 	}
 

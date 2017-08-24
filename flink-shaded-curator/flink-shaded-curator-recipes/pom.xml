@@ -41,13 +41,6 @@ under the License.
 			<artifactId>curator-recipes</artifactId>
 			<version>${curator.version}</version>
 		</dependency>
-
-		<!-- Use Flink's Guava version here to avoid too many guava versions in Flink -->
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -66,10 +59,19 @@ under the License.
 							<artifactSet combine.self="override">
 								<includes>
 									<include>com.google.guava:*</include>
-									<include>org.ow2.asm:*</include>
 									<include>org.apache.curator:*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.curator.shaded.com.google</shadedPattern>
+									<excludes>
+										<exclude>com.google.protobuf.**</exclude>
+										<exclude>com.google.inject.**</exclude>
+									</excludes>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

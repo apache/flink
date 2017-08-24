@@ -18,12 +18,15 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -42,7 +45,10 @@ import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -299,8 +305,7 @@ public class YarnApplicationMasterRunner {
 			// try to start the actor system, JobManager and JobManager actor system
 			// using the port range definition from the config.
 			final String amPortRange = config.getString(
-					ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-					ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
+					YarnConfigOptions.APPLICATION_MASTER_PORT);
 
 			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, amPortRange, LOG);
 
@@ -356,15 +361,20 @@ public class YarnApplicationMasterRunner {
 			// 2: the web monitor
 			LOG.debug("Starting Web Frontend");
 
+			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
+
 			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
 				config,
 				highAvailabilityServices,
-				actorSystem,
-				jobManager,
+				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout),
+				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
+				webMonitorTimeout,
+				futureExecutor,
+				AkkaUtils.getAkkaURL(actorSystem, jobManager),
 				LOG);
 
 			String protocol = "http://";
-			if (config.getBoolean(JobManagerOptions.WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
+			if (config.getBoolean(WebOptions.SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
 				protocol = "https://";
 			}
 			final String webMonitorURL = webMonitor == null ? null :
@@ -510,29 +520,21 @@ public class YarnApplicationMasterRunner {
 		}
 
 		// if a web monitor shall be started, set the port to random binding
-		if (configuration.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
-			configuration.setInteger(JobManagerOptions.WEB_PORT, 0);
+		if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
+			configuration.setInteger(WebOptions.PORT, 0);
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the
 		// corresponding generic config keys instead. that way, later code needs not
 		// deal with deprecated config keys
 
-		BootstrapTools.substituteDeprecatedConfigKey(configuration,
-			ConfigConstants.YARN_HEAP_CUTOFF_RATIO,
-			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO);
-
-		BootstrapTools.substituteDeprecatedConfigKey(configuration,
-			ConfigConstants.YARN_HEAP_CUTOFF_MIN,
-			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN);
-
 		BootstrapTools.substituteDeprecatedConfigPrefix(configuration,
 			ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX,
-			ConfigConstants.CONTAINERIZED_MASTER_ENV_PREFIX);
+			ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX);
 
 		BootstrapTools.substituteDeprecatedConfigPrefix(configuration,
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
-			ConfigConstants.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
+			ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
 		return configuration;
 	}

@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Abstract base class for data sources that receive elements from a message queue and
@@ -110,7 +111,8 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 	 *                  means of de-duplicating messages when the acknowledgment after a checkpoint
 	 *                  fails.
 	 */
-	protected final void acknowledgeIDs(long checkpointId, List<UId> uniqueIds) {
+	@Override
+	protected final void acknowledgeIDs(long checkpointId, Set<UId> uniqueIds) {
 		LOG.debug("Acknowledging ids for checkpoint {}", checkpointId);
 		Iterator<Tuple2<Long, List<SessionId>>> iterator = sessionIdsPerSnapshot.iterator();
 		while (iterator.hasNext()) {

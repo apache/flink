@@ -150,7 +150,7 @@ public class StreamElementQueueTest extends TestLogger {
 		Assert.assertEquals(watermarkQueueEntry, queue.poll());
 		Assert.assertEquals(1, queue.size());
 
-		streamRecordQueueEntry.collect(Collections.<Integer>emptyList());
+		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(streamRecordQueueEntry, queue.poll());
 
@@ -191,7 +191,7 @@ public class StreamElementQueueTest extends TestLogger {
 		// but it shouldn't ;-)
 		Assert.assertFalse(putOperation.isDone());
 
-		streamRecordQueueEntry.collect(Collections.<Integer>emptyList());
+		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		// polling the completed head element frees the queue again
 		Assert.assertEquals(streamRecordQueueEntry, queue.poll());
@@ -259,7 +259,7 @@ public class StreamElementQueueTest extends TestLogger {
 
 		Assert.assertFalse(pollOperation.isDone());
 
-		streamRecordQueueEntry.collect(Collections.<Integer>emptyList());
+		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(streamRecordQueueEntry, pollOperation.get());
 

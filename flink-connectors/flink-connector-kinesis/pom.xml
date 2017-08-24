@@ -159,10 +159,6 @@ under the License.
 							<relocations combine.children="override">
 								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
 								<relocation>
-									<pattern>org.objectweb.asm</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.objectweb.asm</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
 								</relocation>

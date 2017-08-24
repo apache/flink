@@ -24,8 +24,9 @@ import java.util.concurrent.{Executor, ScheduledExecutorService}
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
-import org.apache.flink.configuration.{ConfigConstants, Configuration, JobManagerOptions, QueryableStateOptions, TaskManagerOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, JobManagerOptions, QueryableStateOptions, ResourceManagerOptions, TaskManagerOptions}
 import org.apache.flink.core.fs.Path
+import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
@@ -133,6 +134,7 @@ class LocalFlinkMiniCluster(
 
     val (instanceManager,
     scheduler,
+    blobServer,
     libraryCacheManager,
     restartStrategyFactory,
     timeout,
@@ -164,6 +166,7 @@ class LocalFlinkMiniCluster(
         ioExecutor,
         instanceManager,
         scheduler,
+        blobServer,
         libraryCacheManager,
         archive,
         restartStrategyFactory,
@@ -183,11 +186,11 @@ class LocalFlinkMiniCluster(
     val resourceManagerName = getResourceManagerName(index)
 
     val resourceManagerPort = config.getInteger(
-      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+      ResourceManagerOptions.IPC_PORT)
 
     if(resourceManagerPort > 0) {
-      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+      config.setInteger(ResourceManagerOptions.IPC_PORT,
+        resourceManagerPort + index)
     }
 
     val resourceManagerProps = getResourceManagerProps(
@@ -279,6 +282,7 @@ class LocalFlinkMiniCluster(
       ioExecutor: Executor,
       instanceManager: InstanceManager,
       scheduler: Scheduler,
+      blobServer: BlobServer,
       libraryCacheManager: BlobLibraryCacheManager,
       archive: ActorRef,
       restartStrategyFactory: RestartStrategyFactory,
@@ -297,6 +301,7 @@ class LocalFlinkMiniCluster(
       ioExecutor,
       instanceManager,
       scheduler,
+      blobServer,
       libraryCacheManager,
       archive,
       restartStrategyFactory,

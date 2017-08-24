@@ -34,6 +34,7 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
+import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -42,8 +43,8 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava18.com.google.common.base.Predicate;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import javax.annotation.Nullable;
 
@@ -72,7 +73,7 @@ import java.util.Stack;
 /**
  * Non-deterministic finite automaton implementation.
  *
- * <p>The {@link org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator CEP operator}
+ * <p>The {@link AbstractKeyedCEPPatternOperator CEP operator}
  * keeps one NFA per key, for keyed input streams, and a single global NFA for non-keyed ones.
  * When an event gets processed, it updates the NFA's internal state machine.
  *
@@ -269,8 +270,8 @@ public class NFA<T> implements Serializable {
 
 				if (handleTimeout) {
 					// extract the timed out event pattern
-					Map<String, List<T>> timedoutPattern = extractCurrentMatches(computationState);
-					timeoutResult.add(Tuple2.of(timedoutPattern, timestamp));
+					Map<String, List<T>> timedOutPattern = extractCurrentMatches(computationState);
+					timeoutResult.add(Tuple2.of(timedOutPattern, timestamp));
 				}
 
 				eventSharedBuffer.release(

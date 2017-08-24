@@ -25,8 +25,8 @@ import org.apache.flink.runtime.util.DataOutputSerializer;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This class represents serialized checkpoint data for a collection of elements.
@@ -95,7 +95,7 @@ public class SerializedCheckpointData implements java.io.Serializable {
 	 * 
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> SerializedCheckpointData[] fromDeque(ArrayDeque<Tuple2<Long, List<T>>> checkpoints,
+	public static <T> SerializedCheckpointData[] fromDeque(ArrayDeque<Tuple2<Long, Set<T>>> checkpoints,
 												TypeSerializer<T> serializer) throws IOException {
 		return fromDeque(checkpoints, serializer, new DataOutputSerializer(128));
 	}
@@ -111,15 +111,15 @@ public class SerializedCheckpointData implements java.io.Serializable {
 	 *
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> SerializedCheckpointData[] fromDeque(ArrayDeque<Tuple2<Long, List<T>>> checkpoints,
+	public static <T> SerializedCheckpointData[] fromDeque(ArrayDeque<Tuple2<Long, Set<T>>> checkpoints,
 												TypeSerializer<T> serializer,
 												DataOutputSerializer outputBuffer) throws IOException {
 		SerializedCheckpointData[] serializedCheckpoints = new SerializedCheckpointData[checkpoints.size()];
 		
 		int pos = 0;
-		for (Tuple2<Long, List<T>> checkpoint : checkpoints) {
+		for (Tuple2<Long, Set<T>> checkpoint : checkpoints) {
 			outputBuffer.clear();
-			List<T> checkpointIds = checkpoint.f1;
+			Set<T> checkpointIds = checkpoint.f1;
 			
 			for (T id : checkpointIds) {
 				serializer.serialize(id, outputBuffer);
@@ -146,10 +146,9 @@ public class SerializedCheckpointData implements java.io.Serializable {
 	 * 
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> ArrayDeque<Tuple2<Long, List<T>>> toDeque(
-			SerializedCheckpointData[] data, TypeSerializer<T> serializer) throws IOException
-	{
-		ArrayDeque<Tuple2<Long, List<T>>> deque = new ArrayDeque<>(data.length);
+	public static <T> ArrayDeque<Tuple2<Long, Set<T>>> toDeque(
+			SerializedCheckpointData[] data, TypeSerializer<T> serializer) throws IOException {
+		ArrayDeque<Tuple2<Long, Set<T>>> deque = new ArrayDeque<>(data.length);
 		DataInputDeserializer deser = null;
 		
 		for (SerializedCheckpointData checkpoint : data) {
@@ -161,14 +160,14 @@ public class SerializedCheckpointData implements java.io.Serializable {
 				deser.setBuffer(serializedData, 0, serializedData.length);
 			}
 			
-			final List<T> ids = new ArrayList<>(checkpoint.getNumIds());
+			final Set<T> ids = new HashSet<>(checkpoint.getNumIds());
 			final int numIds = checkpoint.getNumIds();
 			
 			for (int i = 0; i < numIds; i++) {
 				ids.add(serializer.deserialize(deser));
 			}
 
-			deque.addLast(new Tuple2<Long, List<T>>(checkpoint.checkpointId, ids));
+			deque.addLast(new Tuple2<Long, Set<T>>(checkpoint.checkpointId, ids));
 		}
 		
 		return deque;

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorSystem;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -136,12 +137,13 @@ public class JobSubmitTest {
 			// upload two dummy bytes and add their keys to the job graph as dependencies
 			BlobKey key1, key2;
 			BlobClient bc = new BlobClient(new InetSocketAddress("localhost", blobPort), jmConfig);
+			JobID jobId = jg.getJobID();
 			try {
-				key1 = bc.put(new byte[10]);
-				key2 = bc.put(new byte[10]);
+				key1 = bc.put(jobId, new byte[10]);
+				key2 = bc.put(jobId, new byte[10]);
 
 				// delete one of the blobs to make sure that the startup failed
-				bc.delete(key2);
+				bc.delete(jobId, key2);
 			}
 			finally {
 				bc.close();

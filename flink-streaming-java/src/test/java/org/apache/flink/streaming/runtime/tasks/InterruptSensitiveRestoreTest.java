@@ -24,8 +24,11 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -40,11 +43,11 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -55,7 +58,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -135,18 +137,18 @@ public class InterruptSensitiveRestoreTest {
 
 		IN_RESTORE_LATCH.reset();
 		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
-		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		StreamConfig streamConfig = new StreamConfig(taskConfig);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		switch (mode) {
 			case OPERATOR_MANAGED:
 			case OPERATOR_RAW:
 			case KEYED_MANAGED:
 			case KEYED_RAW:
-				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
-				cfg.setStreamOperator(new StreamSource<>(new TestSource()));
+				streamConfig.setStateKeySerializer(IntSerializer.INSTANCE);
+				streamConfig.setStreamOperator(new StreamSource<>(new TestSource()));
 				break;
 			case LEGACY:
-				cfg.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
+				streamConfig.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
 				break;
 			default:
 				throw new IllegalArgumentException();
@@ -154,7 +156,7 @@ public class InterruptSensitiveRestoreTest {
 
 		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		Task task = createTask(taskConfig, lockingHandle, mode);
+		Task task = createTask(streamConfig, taskConfig, lockingHandle, mode);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -178,19 +180,20 @@ public class InterruptSensitiveRestoreTest {
 	// ------------------------------------------------------------------------
 
 	private static Task createTask(
-			Configuration taskConfig,
-			StreamStateHandle state,
-			int mode) throws IOException {
+		StreamConfig streamConfig,
+		Configuration taskConfig,
+		StreamStateHandle state,
+		int mode) throws IOException {
 
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
-		ChainedStateHandle<StreamStateHandle> operatorState = null;
-		List<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
-		List<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
-		List<Collection<OperatorStateHandle>> operatorStateBackend = Collections.emptyList();
-		List<Collection<OperatorStateHandle>> operatorStateStream = Collections.emptyList();
+		StreamStateHandle operatorState = null;
+		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
+		Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
+		Collection<OperatorStateHandle> operatorStateBackend = Collections.emptyList();
+		Collection<OperatorStateHandle> operatorStateStream = Collections.emptyList();
 
 		Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetadata = new HashMap<>(1);
 		OperatorStateHandle.StateMetaInfo metaInfo =
@@ -207,10 +210,10 @@ public class InterruptSensitiveRestoreTest {
 
 		switch (mode) {
 			case OPERATOR_MANAGED:
-				operatorStateBackend = Collections.singletonList(operatorStateHandles);
+				operatorStateBackend = operatorStateHandles;
 				break;
 			case OPERATOR_RAW:
-				operatorStateStream = Collections.singletonList(operatorStateHandles);
+				operatorStateStream = operatorStateHandles;
 				break;
 			case KEYED_MANAGED:
 				keyedStateFromBackend = keyedStateHandles;
@@ -219,29 +222,35 @@ public class InterruptSensitiveRestoreTest {
 				keyedStateFromStream = keyedStateHandles;
 				break;
 			case LEGACY:
-				operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
+				operatorState = state;
 				break;
 			default:
 				throw new IllegalArgumentException();
 		}
 
-		TaskStateHandles taskStateHandles = new TaskStateHandles(
+		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
 			operatorState,
 			operatorStateBackend,
 			operatorStateStream,
 			keyedStateFromBackend,
 			keyedStateFromStream);
 
+		JobVertexID jobVertexID = new JobVertexID();
+		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
+		streamConfig.setOperatorID(operatorID);
+
+		TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
+		stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
 			"test job name",
 			new SerializedValue<>(new ExecutionConfig()),
-			new Configuration(),
+			taskConfig,
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList());
 
 		TaskInformation taskInformation = new TaskInformation(
-			new JobVertexID(),
+			jobVertexID,
 			"test task name",
 			1,
 			1,
@@ -258,7 +267,7 @@ public class InterruptSensitiveRestoreTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			taskStateHandles,
+			stateSnapshot,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
@@ -266,6 +275,7 @@ public class InterruptSensitiveRestoreTest {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			mock(BlobCache.class),
 			new FallbackLibraryCacheManager(),
 			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() }),
 			new TestingTaskManagerRuntimeInfo(),
@@ -273,7 +283,6 @@ public class InterruptSensitiveRestoreTest {
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class),
 			mock(Executor.class));
-
 	}
 
 	// ------------------------------------------------------------------------

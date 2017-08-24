@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 
 import java.util.HashMap;
@@ -115,22 +115,20 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		// (1) compute how much memory we subtract from the total memory, to get the Java memory
 
 		final float memoryCutoffRatio = config.getFloat(
-			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO,
-			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
+			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
 
 		final int minCutoff = config.getInteger(
-			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN,
-			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
+			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
 
 		if (memoryCutoffRatio >= 1 || memoryCutoffRatio <= 0) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO + "' must be between 0 and 1. Value given="
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key() + "' must be between 0 and 1. Value given="
 				+ memoryCutoffRatio);
 		}
 
 		if (minCutoff >= containerMemoryMB) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN + "'='" + minCutoff
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key() + "'='" + minCutoff
 				+ "' is larger than the total container memory " + containerMemoryMB);
 		}
 
@@ -147,7 +145,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		// (3) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
-		final String prefix = ConfigConstants.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
+		final String prefix = ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 		
 		for (String key : config.keySet()) {
 			if (key.startsWith(prefix) && key.length() > prefix.length()) {

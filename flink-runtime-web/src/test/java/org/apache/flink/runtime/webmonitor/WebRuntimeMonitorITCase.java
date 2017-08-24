@@ -18,21 +18,25 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.util.TestLogger;
 
@@ -44,11 +48,12 @@ import org.apache.curator.test.TestingServer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.powermock.reflect.Whitebox;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -71,7 +76,9 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(2L, TimeUnit.MINUTES);
+
+	private static final Time TIMEOUT = Time.milliseconds(TEST_TIMEOUT.toMillis());
 
 	private final String mainResourcesPath = getClass().getResource("/web").getPath();
 
@@ -80,7 +87,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	 */
 	@Test
 	public void testStandaloneWebRuntimeMonitor() throws Exception {
-		final Deadline deadline = TestTimeout.fromNow();
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		TestingCluster flink = null;
 		WebRuntimeMonitor webMonitor = null;
@@ -89,7 +96,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			// Flink w/o a web monitor
 			flink = new TestingCluster(new Configuration());
 			flink.start(true);
-			webMonitor = startWebRuntimeMonitor(flink);
+			webMonitor = startWebRuntimeMonitor(flink, TIMEOUT);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expected = new Scanner(new File(mainResourcesPath + "/index.html"))
@@ -129,10 +136,11 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	 */
 	@Test
 	public void testRedirectToLeader() throws Exception {
-		final Deadline deadline = TestTimeout.fromNow();
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		ActorSystem[] jobManagerSystem = new ActorSystem[2];
 		WebRuntimeMonitor[] webMonitor = new WebRuntimeMonitor[2];
+		AkkaJobManagerRetriever[] jobManagerRetrievers = new AkkaJobManagerRetriever[2];
 		HighAvailabilityServices highAvailabilityServices = null;
 
 		try (TestingServer zooKeeper = new TestingServer()) {
@@ -144,8 +152,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-			config.setInteger(JobManagerOptions.WEB_PORT, 0);
-			config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+			config.setInteger(WebOptions.PORT, 0);
+			config.setString(WebOptions.LOG_PATH, logFile.toString());
 
 			highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
 				config,
@@ -157,18 +165,23 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			}
 
 			for (int i = 0; i < webMonitor.length; i++) {
+				jobManagerRetrievers[i] = new AkkaJobManagerRetriever(jobManagerSystem[i], TIMEOUT);
+
 				webMonitor[i] = new WebRuntimeMonitor(
 					config,
 					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 					highAvailabilityServices.createBlobStore(),
-					jobManagerSystem[i]);
+					jobManagerRetrievers[i],
+					new AkkaQueryServiceRetriever(jobManagerSystem[i], TIMEOUT),
+					TIMEOUT,
+					TestingUtils.defaultExecutor());
 			}
 
 			ActorRef[] jobManager = new ActorRef[2];
 			String[] jobManagerAddress = new String[2];
 			for (int i = 0; i < jobManager.length; i++) {
 				Configuration jmConfig = config.clone();
-				jmConfig.setInteger(JobManagerOptions.WEB_PORT,
+				jmConfig.setInteger(WebOptions.PORT,
 						webMonitor[i].getServerPort());
 
 				jobManager[i] = JobManager.startJobManagerActors(
@@ -196,22 +209,18 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			int followerIndex = (leaderIndex + 1) % 2;
 
 			ActorSystem leadingSystem = jobManagerSystem[leaderIndex];
-			ActorSystem followerSystem = jobManagerSystem[followerIndex];
 
 			WebMonitor leadingWebMonitor = webMonitor[leaderIndex];
 			WebMonitor followerWebMonitor = webMonitor[followerIndex];
 
 			// For test stability reason we have to wait until we are sure that both leader
 			// listeners have been notified.
-			JobManagerRetriever leadingRetriever = Whitebox
-					.getInternalState(leadingWebMonitor, "retriever");
-
-			JobManagerRetriever followerRetriever = Whitebox
-					.getInternalState(followerWebMonitor, "retriever");
+			AkkaJobManagerRetriever leadingRetriever = jobManagerRetrievers[leaderIndex];
+			AkkaJobManagerRetriever followerRetriever = jobManagerRetrievers[followerIndex];
 
 			// Wait for the initial notifications
-			waitForLeaderNotification(leadingSystem, jobManager[leaderIndex], leadingRetriever, deadline);
-			waitForLeaderNotification(leadingSystem, jobManager[leaderIndex], followerRetriever, deadline);
+			waitForLeaderNotification(jobManager[leaderIndex].path().toString(), leadingRetriever, deadline);
+			waitForLeaderNotification(AkkaUtils.getAkkaURL(leadingSystem, jobManager[leaderIndex]), followerRetriever, deadline);
 
 			try (
 					HttpTestClient leaderClient = new HttpTestClient(
@@ -241,7 +250,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				leadingSystem.shutdown();
 
 				// Wait for the notification of the follower
-				waitForLeaderNotification(followerSystem, jobManager[followerIndex], followerRetriever, deadline);
+				waitForLeaderNotification(jobManager[followerIndex].path().toString(), followerRetriever, deadline);
 
 				// Same request to the new leader
 				followingClient.sendGetRequest("index.html", deadline.timeLeft());
@@ -282,7 +291,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 	@Test
 	public void testLeaderNotAvailable() throws Exception {
-		final Deadline deadline = TestTimeout.fromNow();
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		ActorSystem actorSystem = null;
 		WebRuntimeMonitor webRuntimeMonitor = null;
@@ -294,8 +303,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
 			final Configuration config = new Configuration();
-			config.setInteger(JobManagerOptions.WEB_PORT, 0);
-			config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+			config.setInteger(WebOptions.PORT, 0);
+			config.setString(WebOptions.LOG_PATH, logFile.toString());
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeper.getConnectString());
 
@@ -305,7 +314,10 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				config,
 				mock(LeaderRetrievalService.class),
 				mock(BlobView.class),
-				actorSystem);
+				new AkkaJobManagerRetriever(actorSystem, TIMEOUT),
+				new AkkaQueryServiceRetriever(actorSystem, TIMEOUT),
+				TIMEOUT,
+				TestingUtils.defaultExecutor());
 
 			webRuntimeMonitor.start("akka://schmakka");
 
@@ -343,7 +355,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	 */
 	@Test
 	public void testNoEscape() throws Exception {
-		final Deadline deadline = TestTimeout.fromNow();
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		TestingCluster flink = null;
 		WebRuntimeMonitor webMonitor = null;
@@ -351,7 +363,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		try {
 			flink = new TestingCluster(new Configuration());
 			flink.start(true);
-			webMonitor = startWebRuntimeMonitor(flink);
+			webMonitor = startWebRuntimeMonitor(flink, TIMEOUT);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
@@ -405,7 +417,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	 */
 	@Test
 	public void testNoCopyFromJar() throws Exception {
-		final Deadline deadline = TestTimeout.fromNow();
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		TestingCluster flink = null;
 		WebRuntimeMonitor webMonitor = null;
@@ -413,7 +425,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		try {
 			flink = new TestingCluster(new Configuration());
 			flink.start(true);
-			webMonitor = startWebRuntimeMonitor(flink);
+			webMonitor = startWebRuntimeMonitor(flink, TIMEOUT);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
@@ -459,7 +471,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	}
 
 	private WebRuntimeMonitor startWebRuntimeMonitor(
-		TestingCluster flink) throws Exception {
+			TestingCluster flink,
+			Time timeout) throws Exception {
 
 		ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
 		ActorRef jmActor = flink.jobManagerActors().get().head();
@@ -473,8 +486,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		// Web frontend on random port
 		Configuration config = new Configuration();
-		config.setInteger(JobManagerOptions.WEB_PORT, 0);
-		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+		config.setInteger(WebOptions.PORT, 0);
+		config.setString(WebOptions.LOG_PATH, logFile.toString());
 
 		HighAvailabilityServices highAvailabilityServices = flink.highAvailabilityServices();
 
@@ -482,7 +495,10 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			config,
 			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			highAvailabilityServices.createBlobStore(),
-			jmActorSystem);
+			new AkkaJobManagerRetriever(jmActorSystem, timeout),
+			new AkkaQueryServiceRetriever(jmActorSystem, timeout),
+			timeout,
+			TestingUtils.defaultExecutor());
 
 		webMonitor.start(jobManagerAddress);
 		flink.waitForActorsToBeAlive();
@@ -492,17 +508,14 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private void waitForLeaderNotification(
-			ActorSystem system,
-			ActorRef expectedLeader,
-			JobManagerRetriever retriever,
+			String expectedJobManagerURL,
+			AkkaJobManagerRetriever retriever,
 			Deadline deadline) throws Exception {
 
-		String expectedJobManagerUrl = AkkaUtils.getAkkaURL(system, expectedLeader);
-
 		while (deadline.hasTimeLeft()) {
-			ActorRef leaderRef = retriever.awaitJobManagerGatewayAndWebPort()._1().actor();
+			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
 
-			if (AkkaUtils.getAkkaURL(system, leaderRef).equals(expectedJobManagerUrl)) {
+			if (optJobManagerGateway.isPresent() && Objects.equals(expectedJobManagerURL, optJobManagerGateway.get().getAddress())) {
 				return;
 			}
 			else {

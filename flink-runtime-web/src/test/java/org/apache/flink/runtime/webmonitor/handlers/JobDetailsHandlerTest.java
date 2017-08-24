@@ -24,13 +24,15 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,6 +40,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the JobDetailsHandler.
@@ -64,7 +68,7 @@ public class JobDetailsHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		JobDetailsHandler handler = new JobDetailsHandler(null, null);
+		JobDetailsHandler handler = new JobDetailsHandler(mock(ExecutionGraphHolder.class), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(2, paths.length);
 		List<String> pathsList = Lists.newArrayList(paths);

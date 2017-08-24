@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 
 /**
  * Configuration object for {@link WebMonitor}.
@@ -37,22 +37,22 @@ public class WebMonitorConfig {
 	}
 
 	public String getWebFrontendAddress() {
-		return config.getValue(JobManagerOptions.WEB_FRONTEND_ADDRESS);
+		return config.getValue(WebOptions.ADDRESS);
 	}
 
 	public int getWebFrontendPort() {
-		return config.getInteger(JobManagerOptions.WEB_PORT);
+		return config.getInteger(WebOptions.PORT);
 	}
 
 	public long getRefreshInterval() {
-		return config.getLong(JobManagerOptions.WEB_REFRESH_INTERVAL);
+		return config.getLong(WebOptions.REFRESH_INTERVAL);
 	}
 
 	public boolean isProgramSubmitEnabled() {
-		return config.getBoolean(JobManagerOptions.WEB_SUBMIT_ENABLE);
+		return config.getBoolean(WebOptions.SUBMIT_ENABLE);
 	}
 
 	public String getAllowOrigin() {
-		return config.getString(JobManagerOptions.WEB_ACCESS_CONTROL_ALLOW_ORIGIN);
+		return config.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN);
 	}
 }

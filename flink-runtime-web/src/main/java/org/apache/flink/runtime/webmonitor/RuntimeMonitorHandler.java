@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
+import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -43,9 +45,7 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
-
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -72,8 +72,8 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			WebMonitorConfig cfg,
 			RequestHandler handler,
 			JobManagerRetriever retriever,
-			Future<String> localJobManagerAddressFuture,
-			FiniteDuration timeout,
+			CompletableFuture<String> localJobManagerAddressFuture,
+			Time timeout,
 			boolean httpsEnabled) {
 
 		super(retriever, localJobManagerAddressFuture, timeout, httpsEnabled);
@@ -87,7 +87,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 	}
 
 	@Override
-	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager) {
+	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, JobManagerGateway jobManagerGateway) {
 		FullHttpResponse response;
 
 		try {
@@ -106,7 +106,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			queryParams.put(WEB_MONITOR_ADDRESS_KEY,
 				(httpsEnabled ? "https://" : "http://") + address.getHostName() + ":" + address.getPort());
 
-			response = handler.handleRequest(pathParams, queryParams, jobManager);
+			response = handler.handleRequest(pathParams, queryParams, jobManagerGateway);
 		}
 		catch (NotFoundException e) {
 			// this should result in a 404 error code (not found)

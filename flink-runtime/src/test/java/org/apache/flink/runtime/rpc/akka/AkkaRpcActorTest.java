@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
@@ -105,7 +104,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 
-		DummyRpcGateway rpcGateway = rpcEndpoint.getSelf();
+		DummyRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(DummyRpcGateway.class);
 
 		// this message should be discarded and completed with an AkkaRpcException
 		CompletableFuture<Integer> result = rpcGateway.foobar();
@@ -192,7 +191,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		ExceptionalEndpoint rpcEndpoint = new ExceptionalEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		ExceptionalGateway rpcGateway = rpcEndpoint.getSelf();
+		ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
 		CompletableFuture<Integer> result = rpcGateway.doStuff();
 
 		try {
@@ -211,7 +210,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		ExceptionalFutureEndpoint rpcEndpoint = new ExceptionalFutureEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		ExceptionalGateway rpcGateway = rpcEndpoint.getSelf();
+		ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
 		CompletableFuture<Integer> result = rpcGateway.doStuff();
 
 		try {
@@ -275,7 +274,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		void tell(String message);
 	}
 
-	private static class DummyRpcEndpoint extends RpcEndpoint<DummyRpcGateway> {
+	private static class DummyRpcEndpoint extends RpcEndpoint implements DummyRpcGateway {
 
 		private volatile int _foobar = 42;
 
@@ -283,9 +282,9 @@ public class AkkaRpcActorTest extends TestLogger {
 			super(rpcService);
 		}
 
-		@RpcMethod
-		public int foobar() {
-			return _foobar;
+		@Override
+		public CompletableFuture<Integer> foobar() {
+			return CompletableFuture.completedFuture(_foobar);
 		}
 
 		public void setFoobar(int value) {
@@ -299,25 +298,25 @@ public class AkkaRpcActorTest extends TestLogger {
 		CompletableFuture<Integer> doStuff();
 	}
 
-	private static class ExceptionalEndpoint extends RpcEndpoint<ExceptionalGateway> {
+	private static class ExceptionalEndpoint extends RpcEndpoint implements ExceptionalGateway {
 
 		protected ExceptionalEndpoint(RpcService rpcService) {
 			super(rpcService);
 		}
 
-		@RpcMethod
-		public int doStuff() {
+		@Override
+		public CompletableFuture<Integer> doStuff() {
 			throw new RuntimeException("my super specific test exception");
 		}
 	}
 
-	private static class ExceptionalFutureEndpoint extends RpcEndpoint<ExceptionalGateway> {
+	private static class ExceptionalFutureEndpoint extends RpcEndpoint implements ExceptionalGateway {
 
 		protected ExceptionalFutureEndpoint(RpcService rpcService) {
 			super(rpcService);
 		}
 
-		@RpcMethod
+		@Override
 		public CompletableFuture<Integer> doStuff() {
 			final CompletableFuture<Integer> future = new CompletableFuture<>();
 
@@ -338,7 +337,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
-	private static class SimpleRpcEndpoint extends RpcEndpoint<RpcGateway> {
+	private static class SimpleRpcEndpoint extends RpcEndpoint implements RpcGateway {
 
 		protected SimpleRpcEndpoint(RpcService rpcService, String endpointId) {
 			super(rpcService, endpointId);
@@ -352,7 +351,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
-	private static class FailingPostStopEndpoint extends RpcEndpoint<RpcGateway> {
+	private static class FailingPostStopEndpoint extends RpcEndpoint implements RpcGateway {
 
 		protected FailingPostStopEndpoint(RpcService rpcService, String endpointId) {
 			super(rpcService, endpointId);

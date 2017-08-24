@@ -51,14 +51,6 @@ under the License.
             <scope>provided</scope>
         </dependency>
 
-        <!-- We need to add this explicitly due to shading -->
-
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-            <version>${asm.version}</version>
-        </dependency>
-
         <!-- the dependencies below are already provided in Flink -->
 
         <dependency>

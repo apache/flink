@@ -172,45 +172,20 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     *
     * @param fieldNames field names
     * @param fieldTypes field types, every element is Flink's [[TypeInformation]]
-    * @param rowtime optional system field to indicate event-time; the index determines the index
-    *                in the final record. If the index is smaller than the number of specified
-    *                fields, it shifts all following fields.
-    * @param proctime optional system field to indicate processing-time; the index determines the
-    *                 index in the final record. If the index is smaller than the number of
-    *                 specified fields, it shifts all following fields.
     * @return a struct type with the input fieldNames, input fieldTypes, and system fields
     */
   def buildLogicalRowType(
       fieldNames: Seq[String],
-      fieldTypes: Seq[TypeInformation[_]],
-      rowtime: Option[(Int, String)],
-      proctime: Option[(Int, String)])
+      fieldTypes: Seq[TypeInformation[_]])
     : RelDataType = {
     val logicalRowTypeBuilder = builder
 
     val fields = fieldNames.zip(fieldTypes)
-
-    var totalNumberOfFields = fields.length
-    if (rowtime.isDefined) {
-      totalNumberOfFields += 1
-    }
-    if (proctime.isDefined) {
-      totalNumberOfFields += 1
-    }
-
-    var addedTimeAttributes = 0
-    for (i <- 0 until totalNumberOfFields) {
-      if (rowtime.isDefined && rowtime.get._1 == i) {
-        logicalRowTypeBuilder.add(rowtime.get._2, createRowtimeIndicatorType())
-        addedTimeAttributes += 1
-      } else if (proctime.isDefined && proctime.get._1 == i) {
-        logicalRowTypeBuilder.add(proctime.get._2, createProctimeIndicatorType())
-        addedTimeAttributes += 1
-      } else {
-        val field = fields(i - addedTimeAttributes)
-        logicalRowTypeBuilder.add(field._1, createTypeFromTypeInfo(field._2, isNullable = true))
-      }
-    }
+    fields.foreach(f => {
+      // time indicators are not nullable
+      val nullable = !FlinkTypeFactory.isTimeIndicatorType(f._2)
+      logicalRowTypeBuilder.add(f._1, createTypeFromTypeInfo(f._2, nullable))
+    })
 
     logicalRowTypeBuilder.build
   }

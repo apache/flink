@@ -20,7 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -54,7 +54,7 @@ public class StandaloneClusterClient extends ClusterClient {
 	@Override
 	public String getWebInterfaceURL() {
 		String host = getJobManagerAddress().getHostString();
-		int port = getFlinkConfiguration().getInteger(JobManagerOptions.WEB_PORT);
+		int port = getFlinkConfiguration().getInteger(WebOptions.PORT);
 		return "http://" +  host + ":" + port;
 	}
 

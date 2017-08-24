@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -85,7 +84,7 @@ public class DispatcherTest extends TestLogger {
 
 			dispatcher.start();
 
-			DispatcherGateway dispatcherGateway = dispatcher.getSelf();
+			DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
 			CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, timeout);
 
@@ -137,7 +136,7 @@ public class DispatcherTest extends TestLogger {
 				Configuration configuration,
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
-				BlobService blobService,
+				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				MetricRegistry metricRegistry,
 				OnCompletionActions onCompleteActions,

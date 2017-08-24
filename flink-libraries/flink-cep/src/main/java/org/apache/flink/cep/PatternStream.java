@@ -18,21 +18,20 @@
 
 package org.apache.flink.cep;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.operator.CEPOperatorUtils;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
-import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 /**
  * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
@@ -109,6 +108,16 @@ public class PatternStream<T> {
 	}
 
 	/**
+	 * Invokes the {@link org.apache.flink.api.java.ClosureCleaner}
+	 * on the given function if closure cleaning is enabled in the {@link ExecutionConfig}.
+	 *
+	 * @return The cleaned Function
+	 */
+	private  <F> F clean(F f) {
+		return inputStream.getExecutionEnvironment().clean(f);
+	}
+
+	/**
 	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
 	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
 	 * exactly one resulting element.
@@ -121,13 +130,94 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
-				CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator);
+		return CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator, clean(patternSelectFunction), outTypeInfo);
+	}
 
-		return patternStream.map(
-			new PatternSelectMapper<>(
-				patternStream.getExecutionEnvironment().clean(patternSelectFunction)))
-			.returns(outTypeInfo);
+	/**
+	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
+	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
+	 * exactly one resulting element.
+	 *
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * partial pattern sequence the provided {@link PatternTimeoutFunction} is called. The pattern
+	 * timeout function can produce exactly one resulting element.
+	 *
+	 * <p>You can get the stream of timed-out data resulting from the
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the select operation
+	 * with the same {@link OutputTag}.
+	 *
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
+	 * @param patternTimeoutFunction The pattern timeout function which is called for each partial
+	 *                               pattern sequence which has timed out.
+	 * @param patternSelectFunction The pattern select function which is called for each detected
+	 *                              pattern sequence.
+	 * @param <L> Type of the resulting timeout elements
+	 * @param <R> Type of the resulting elements
+	 * @return {@link DataStream} which contains the resulting elements with the resulting timeout
+	 * elements in a side output.
+	 */
+	public <L, R> SingleOutputStreamOperator<R> select(
+		final OutputTag<L> timeoutOutputTag,
+		final PatternTimeoutFunction<T, L> patternTimeoutFunction,
+		final PatternSelectFunction<T, R> patternSelectFunction) {
+
+		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+			patternSelectFunction,
+			PatternSelectFunction.class,
+			0,
+			1,
+			new int[]{0, 1, 0},
+			new int[]{},
+			inputStream.getType(),
+			null,
+			false);
+
+		return select(
+			timeoutOutputTag,
+			patternTimeoutFunction,
+			rightTypeInfo,
+			patternSelectFunction);
+	}
+
+	/**
+	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
+	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
+	 * exactly one resulting element.
+	 *
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * partial pattern sequence the provided {@link PatternTimeoutFunction} is called. The pattern
+	 * timeout function can produce exactly one resulting element.
+	 *
+	 * <p>You can get the stream of timed-out data resulting from the
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the select operation
+	 * with the same {@link OutputTag}.
+	 *
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
+	 * @param patternTimeoutFunction The pattern timeout function which is called for each partial
+	 *                               pattern sequence which has timed out.
+	 * @param outTypeInfo Explicit specification of output type.
+	 * @param patternSelectFunction The pattern select function which is called for each detected
+	 *                              pattern sequence.
+	 * @param <L> Type of the resulting timeout elements
+	 * @param <R> Type of the resulting elements
+	 * @return {@link DataStream} which contains the resulting elements with the resulting timeout
+	 * elements in a side output.
+	 */
+	public <L, R> SingleOutputStreamOperator<R> select(
+			final OutputTag<L> timeoutOutputTag,
+			final PatternTimeoutFunction<T, L> patternTimeoutFunction,
+			final TypeInformation<R> outTypeInfo,
+			final PatternSelectFunction<T, R> patternSelectFunction) {
+		return CEPOperatorUtils.createTimeoutPatternStream(
+			inputStream,
+			pattern,
+			comparator,
+			clean(patternSelectFunction),
+			outTypeInfo,
+			timeoutOutputTag,
+			clean(patternTimeoutFunction));
 	}
 
 	/**
@@ -145,26 +235,17 @@ public class PatternStream<T> {
 	 *                              pattern sequence.
 	 * @param <L> Type of the resulting timeout elements
 	 * @param <R> Type of the resulting elements
+	 *
+	 * @deprecated Use {@link PatternStream#select(OutputTag, PatternTimeoutFunction, PatternSelectFunction)}
+	 * that returns timed out events as a side-output
+	 *
 	 * @return {@link DataStream} which contains the resulting elements or the resulting timeout
 	 * elements wrapped in an {@link Either} type.
 	 */
+	@Deprecated
 	public <L, R> SingleOutputStreamOperator<Either<L, R>> select(
 		final PatternTimeoutFunction<T, L> patternTimeoutFunction,
 		final PatternSelectFunction<T, R> patternSelectFunction) {
-
-		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
-				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, comparator);
-
-		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
-			patternTimeoutFunction,
-			PatternTimeoutFunction.class,
-			0,
-			1,
-			new int[]{0, 1, 0},
-			new int[]{},
-			inputStream.getType(),
-			null,
-			false);
 
 		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
@@ -177,14 +258,33 @@ public class PatternStream<T> {
 			null,
 			false);
 
+		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+			patternTimeoutFunction,
+			PatternTimeoutFunction.class,
+			0,
+			1,
+			new int[]{0, 1, 0},
+			new int[]{},
+			inputStream.getType(),
+			null,
+			false);
+
+		final OutputTag<L> outputTag = new OutputTag<L>(UUID.randomUUID().toString(), leftTypeInfo);
+
+		final SingleOutputStreamOperator<R> mainStream = CEPOperatorUtils.createTimeoutPatternStream(
+			inputStream,
+			pattern,
+			comparator,
+			clean(patternSelectFunction),
+			rightTypeInfo,
+			outputTag,
+			clean(patternTimeoutFunction));
+
+		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
+
 		TypeInformation<Either<L, R>> outTypeInfo = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
 
-		return patternStream.map(
-			new PatternSelectTimeoutMapper<>(
-				patternStream.getExecutionEnvironment().clean(patternSelectFunction),
-				patternStream.getExecutionEnvironment().clean(patternTimeoutFunction)
-			)
-		).returns(outTypeInfo);
+		return mainStream.connect(timedOutStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
 	}
 
 	/**
@@ -227,14 +327,99 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
 	 *         function.
 	 */
-	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
-		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
-				CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator);
+	public <R> SingleOutputStreamOperator<R> flatSelect(
+			final PatternFlatSelectFunction<T, R> patternFlatSelectFunction,
+			final TypeInformation<R> outTypeInfo) {
+		return CEPOperatorUtils.createPatternStream(
+			inputStream,
+			pattern,
+			comparator,
+			clean(patternFlatSelectFunction),
+			outTypeInfo);
+	}
 
-		return patternStream.flatMap(
-			new PatternFlatSelectMapper<>(
-				patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction)
-			)).returns(outTypeInfo);
+	/**
+	 * Applies a flat select function to the detected pattern sequence. For each pattern sequence the
+	 * provided {@link PatternFlatSelectFunction} is called. The pattern select function can produce
+	 * exactly one resulting element.
+	 *
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * partial pattern sequence the provided {@link PatternFlatTimeoutFunction} is called. The pattern
+	 * timeout function can produce exactly one resulting element.
+	 *
+	 * <p>You can get the stream of timed-out data resulting from the
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the select operation
+	 * with the same {@link OutputTag}.
+	 *
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
+	 * @param patternFlatTimeoutFunction The pattern timeout function which is called for each partial
+	 *                               pattern sequence which has timed out.
+	 * @param patternFlatSelectFunction The pattern select function which is called for each detected
+	 *                              pattern sequence.
+	 * @param <L> Type of the resulting timeout elements
+	 * @param <R> Type of the resulting elements
+	 * @return {@link DataStream} which contains the resulting elements with the resulting timeout
+	 * elements in a side output.
+	 */
+	public <L, R> SingleOutputStreamOperator<R> flatSelect(
+		final OutputTag<L> timeoutOutputTag,
+		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
+		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
+
+		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+			patternFlatSelectFunction,
+			PatternFlatSelectFunction.class,
+			0,
+			1,
+			new int[]{0, 1, 0},
+			new int[]{1, 0},
+			inputStream.getType(),
+			null,
+			false);
+
+		return flatSelect(timeoutOutputTag, patternFlatTimeoutFunction, rightTypeInfo, patternFlatSelectFunction);
+	}
+
+	/**
+	 * Applies a flat select function to the detected pattern sequence. For each pattern sequence the
+	 * provided {@link PatternFlatSelectFunction} is called. The pattern select function can produce
+	 * exactly one resulting element.
+	 *
+	 * <p>Applies a timeout function to a partial pattern sequence which has timed out. For each
+	 * partial pattern sequence the provided {@link PatternFlatTimeoutFunction} is called. The pattern
+	 * timeout function can produce exactly one resulting element.
+	 *
+	 * <p>You can get the stream of timed-out data resulting from the
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the select operation
+	 * with the same {@link OutputTag}.
+	 *
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
+	 * @param patternFlatTimeoutFunction The pattern timeout function which is called for each partial
+	 *                               pattern sequence which has timed out.
+	 * @param patternFlatSelectFunction The pattern select function which is called for each detected
+	 *                              pattern sequence.
+	 * @param outTypeInfo Explicit specification of output type.
+	 * @param <L> Type of the resulting timeout elements
+	 * @param <R> Type of the resulting elements
+	 * @return {@link DataStream} which contains the resulting elements with the resulting timeout
+	 * elements in a side output.
+	 */
+	public <L, R> SingleOutputStreamOperator<R> flatSelect(
+		final OutputTag<L> timeoutOutputTag,
+		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
+		final TypeInformation<R> outTypeInfo,
+		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
+
+		return CEPOperatorUtils.createTimeoutPatternStream(
+			inputStream,
+			pattern,
+			comparator,
+			clean(patternFlatSelectFunction),
+			outTypeInfo,
+			timeoutOutputTag,
+			clean(patternFlatTimeoutFunction));
 	}
 
 	/**
@@ -252,16 +437,18 @@ public class PatternStream<T> {
 	 *                                  detected pattern sequence.
 	 * @param <L> Type of the resulting timeout events
 	 * @param <R> Type of the resulting events
+	 *
+	 * @deprecated Use {@link PatternStream#flatSelect(OutputTag, PatternFlatTimeoutFunction, PatternFlatSelectFunction)}
+	 * that returns timed out events as a side-output
+	 *
 	 * @return {@link DataStream} which contains the resulting events from the pattern flat select
 	 * function or the resulting timeout events from the pattern flat timeout function wrapped in an
 	 * {@link Either} type.
 	 */
+	@Deprecated
 	public <L, R> SingleOutputStreamOperator<Either<L, R>> flatSelect(
 		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
 		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
-
-		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
-				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, comparator);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatTimeoutFunction,
@@ -285,147 +472,40 @@ public class PatternStream<T> {
 			null,
 			false);
 
+		final OutputTag<L> outputTag = new OutputTag<L>(UUID.randomUUID().toString(), leftTypeInfo);
+
+		final SingleOutputStreamOperator<R> mainStream = CEPOperatorUtils.createTimeoutPatternStream(
+			inputStream,
+			pattern,
+			comparator,
+			clean(patternFlatSelectFunction),
+			rightTypeInfo,
+			outputTag,
+			clean(patternFlatTimeoutFunction));
+
+		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
+
 		TypeInformation<Either<L, R>> outTypeInfo = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
 
-		return patternStream.flatMap(
-			new PatternFlatSelectTimeoutWrapper<>(
-				patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction),
-				patternStream.getExecutionEnvironment().clean(patternFlatTimeoutFunction)
-			)
-		).returns(outTypeInfo);
+		return mainStream.connect(timedOutStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
 	}
 
 	/**
-	 * Wrapper for a {@link PatternSelectFunction}.
-	 *
-	 * @param <T> Type of the input elements
-	 * @param <R> Type of the resulting elements
+	 * Used for joining results from timeout side-output for API backward compatibility.
 	 */
-	private static class PatternSelectMapper<T, R> implements MapFunction<Map<String, List<T>>, R> {
-		private static final long serialVersionUID = 2273300432692943064L;
+	@Internal
+	public static class CoMapTimeout<R, L> implements CoMapFunction<R, L, Either<L, R>> {
 
-		private final PatternSelectFunction<T, R> patternSelectFunction;
+		private static final long serialVersionUID = 2059391566945212552L;
 
-		public PatternSelectMapper(PatternSelectFunction<T, R> patternSelectFunction) {
-			this.patternSelectFunction = patternSelectFunction;
+		@Override
+		public Either<L, R> map1(R value) throws Exception {
+			return Either.Right(value);
 		}
 
 		@Override
-		public R map(Map<String, List<T>> value) throws Exception {
-			return patternSelectFunction.select(value);
-		}
-	}
-
-	private static class PatternSelectTimeoutMapper<T, L, R> implements MapFunction<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>, Either<L, R>> {
-
-		private static final long serialVersionUID = 8259477556738887724L;
-
-		private final PatternSelectFunction<T, R> patternSelectFunction;
-		private final PatternTimeoutFunction<T, L> patternTimeoutFunction;
-
-		public PatternSelectTimeoutMapper(
-			PatternSelectFunction<T, R> patternSelectFunction,
-			PatternTimeoutFunction<T, L> patternTimeoutFunction) {
-
-			this.patternSelectFunction = patternSelectFunction;
-			this.patternTimeoutFunction = patternTimeoutFunction;
-		}
-
-		@Override
-		public Either<L, R> map(Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>> value) throws Exception {
-			if (value.isLeft()) {
-				Tuple2<Map<String, List<T>>, Long> timeout = value.left();
-
-				return Either.Left(patternTimeoutFunction.timeout(timeout.f0, timeout.f1));
-			} else {
-				return Either.Right(patternSelectFunction.select(value.right()));
-			}
-		}
-	}
-
-	private static class PatternFlatSelectTimeoutWrapper<T, L, R> implements FlatMapFunction<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>, Either<L, R>> {
-
-		private static final long serialVersionUID = 7483674669662261667L;
-
-		private final PatternFlatSelectFunction<T, R> patternFlatSelectFunction;
-		private final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction;
-
-		public PatternFlatSelectTimeoutWrapper(
-			PatternFlatSelectFunction<T, R> patternFlatSelectFunction,
-			PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction) {
-			this.patternFlatSelectFunction = patternFlatSelectFunction;
-			this.patternFlatTimeoutFunction = patternFlatTimeoutFunction;
-		}
-
-		@Override
-		public void flatMap(Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>> value, Collector<Either<L, R>> out) throws Exception {
-			if (value.isLeft()) {
-				Tuple2<Map<String, List<T>>, Long> timeout = value.left();
-
-				patternFlatTimeoutFunction.timeout(timeout.f0, timeout.f1, new LeftCollector<>(out));
-			} else {
-				patternFlatSelectFunction.flatSelect(value.right(), new RightCollector(out));
-			}
-		}
-
-		private static class LeftCollector<L, R> implements Collector<L> {
-
-			private final Collector<Either<L, R>> out;
-
-			private LeftCollector(Collector<Either<L, R>> out) {
-				this.out = out;
-			}
-
-			@Override
-			public void collect(L record) {
-				out.collect(Either.<L, R>Left(record));
-			}
-
-			@Override
-			public void close() {
-				out.close();
-			}
-		}
-
-		private static class RightCollector<L, R> implements Collector<R> {
-
-			private final Collector<Either<L, R>> out;
-
-			private RightCollector(Collector<Either<L, R>> out) {
-				this.out = out;
-			}
-
-			@Override
-			public void collect(R record) {
-				out.collect(Either.<L, R>Right(record));
-			}
-
-			@Override
-			public void close() {
-				out.close();
-			}
-		}
-	}
-
-	/**
-	 * Wrapper for a {@link PatternFlatSelectFunction}.
-	 *
-	 * @param <T> Type of the input elements
-	 * @param <R> Type of the resulting elements
-	 */
-	private static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, List<T>>, R> {
-
-		private static final long serialVersionUID = -8610796233077989108L;
-
-		private final PatternFlatSelectFunction<T, R> patternFlatSelectFunction;
-
-		public PatternFlatSelectMapper(PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
-			this.patternFlatSelectFunction = patternFlatSelectFunction;
-		}
-
-		@Override
-		public void flatMap(Map<String, List<T>> value, Collector<R> out) throws Exception {
-			patternFlatSelectFunction.flatSelect(value, out);
+		public Either<L, R> map2(L value) throws Exception {
+			return Either.Left(value);
 		}
 	}
 }

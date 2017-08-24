@@ -26,12 +26,13 @@ import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
-import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration, JobManagerOptions, TaskManagerOptions}
+import org.apache.flink.configuration._
 import org.apache.flink.core.fs.Path
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.akka.{AkkaJobManagerGateway, AkkaUtils}
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
-import org.apache.flink.runtime.concurrent.{Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{FutureUtils, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
+import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.util.NetUtils
 import org.slf4j.LoggerFactory
@@ -167,8 +169,7 @@ abstract class FlinkMiniCluster(
 
   def getNumberOfResourceManagers: Int = {
     originalConfiguration.getInteger(
-      ConfigConstants.LOCAL_NUMBER_RESOURCE_MANAGER,
-      ConfigConstants.DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER
+      ResourceManagerOptions.LOCAL_NUMBER_RESOURCE_MANAGER
     )
   }
 
@@ -225,8 +226,8 @@ abstract class FlinkMiniCluster(
     if (useSingleActorSystem) {
       AkkaUtils.getAkkaConfig(originalConfiguration, None)
     } else {
-      val port = originalConfiguration.getInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
-                                                  ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+      val port = originalConfiguration.getInteger(
+        ResourceManagerOptions.IPC_PORT)
 
       val resolvedPort = if(port != 0) port + index else port
 
@@ -387,7 +388,9 @@ abstract class FlinkMiniCluster(
     : Option[WebMonitor] = {
     if(
       config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false) &&
-        config.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
+        config.getInteger(WebOptions.PORT, 0) >= 0) {
+
+      val flinkTimeout = FutureUtils.toTime(timeout)
 
       LOG.info("Starting JobManger web frontend")
       // start the new web frontend. we need to load this dynamically
@@ -396,7 +399,10 @@ abstract class FlinkMiniCluster(
         WebMonitorUtils.startWebRuntimeMonitor(
           config,
           highAvailabilityServices,
-          actorSystem)
+          new AkkaJobManagerRetriever(actorSystem, flinkTimeout),
+          new AkkaQueryServiceRetriever(actorSystem, flinkTimeout),
+          flinkTimeout,
+          actorSystem.dispatcher)
       )
 
       webServer.foreach(_.start(jobManagerAkkaURL))
@@ -582,10 +588,11 @@ abstract class FlinkMiniCluster(
           e)
       }
 
-    JobClient.submitJobDetached(jobManagerGateway,
+    JobClient.submitJobDetached(
+      new AkkaJobManagerGateway(jobManagerGateway),
       configuration,
       jobGraph,
-      timeout,
+      Time.milliseconds(timeout.toMillis),
       userCodeClassLoader)
 
     new JobSubmissionResult(jobGraph.getJobID)

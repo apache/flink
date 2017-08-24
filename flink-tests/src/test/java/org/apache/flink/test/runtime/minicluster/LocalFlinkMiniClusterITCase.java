@@ -49,7 +49,12 @@ import static org.junit.Assert.fail;
  */
 public class LocalFlinkMiniClusterITCase extends TestLogger {
 
-	private static final String[] ALLOWED_THREAD_PREFIXES = { };
+	private static final String[] ALLOWED_THREAD_PREFIXES = {
+		// This is a daemon thread spawned by netty's ThreadLocalRandom class if no
+		// initialSeedUniquifier is set yet and it is sometimes spawned before this test and
+		// sometimes during this test.
+		"initialSeedUniquifierGenerator"
+	};
 
 	@Test
 	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
