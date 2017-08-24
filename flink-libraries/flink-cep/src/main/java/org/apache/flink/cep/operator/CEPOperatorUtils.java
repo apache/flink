@@ -143,19 +143,19 @@ public class CEPOperatorUtils {
 
 	/**
 	 * Creates a data stream containing results of {@link PatternFlatSelectFunction} to fully matching event patterns and
-	 * also timeouted partially matched with applied {@link PatternFlatTimeoutFunction} as a sideoutput.
+	 * also timed out partially matched with applied {@link PatternFlatTimeoutFunction} as a sideoutput.
 	 *
 	 * @param inputStream stream of input events
 	 * @param pattern pattern to be search for in the stream
 	 * @param selectFunction function to be applied to matching event sequences
 	 * @param outTypeInfo output TypeInformation of selectFunction
-	 * @param outputTag {@link OutputTag} for a side-output with timeouted matches
-	 * @param timeoutFunction function to be applied to timeouted event sequences
+	 * @param outputTag {@link OutputTag} for a side-output with timed out matches
+	 * @param timeoutFunction function to be applied to timed out event sequences
 	 * @param <IN> type of input events
 	 * @param <OUT1> type of fully matched events
-	 * @param <OUT2> type of timeouted events
+	 * @param <OUT2> type of timed out events
 	 * @return Data stream containing fully matched event sequence with applied {@link PatternFlatSelectFunction} that
-	 * contains timeouted patterns with applied {@link PatternFlatTimeoutFunction} as side-output
+	 * contains timed out patterns with applied {@link PatternFlatTimeoutFunction} as side-output
 	 */
 	public static <IN, OUT1, OUT2> SingleOutputStreamOperator<OUT1> createTimeoutPatternStream(
 			final DataStream<IN> inputStream,
@@ -201,19 +201,19 @@ public class CEPOperatorUtils {
 
 	/**
 	 * Creates a data stream containing results of {@link PatternSelectFunction} to fully matching event patterns and
-	 * also timeouted partially matched with applied {@link PatternTimeoutFunction} as a sideoutput.
+	 * also timed out partially matched with applied {@link PatternTimeoutFunction} as a sideoutput.
 	 *
 	 * @param inputStream stream of input events
 	 * @param pattern pattern to be search for in the stream
 	 * @param selectFunction function to be applied to matching event sequences
 	 * @param outTypeInfo output TypeInformation of selectFunction
-	 * @param outputTag {@link OutputTag} for a side-output with timeouted matches
-	 * @param timeoutFunction function to be applied to timeouted event sequences
+	 * @param outputTag {@link OutputTag} for a side-output with timed out matches
+	 * @param timeoutFunction function to be applied to timed out event sequences
 	 * @param <IN> type of input events
 	 * @param <OUT1> type of fully matched events
-	 * @param <OUT2> type of timeouted events
+	 * @param <OUT2> type of timed out events
 	 * @return Data stream containing fully matched event sequence with applied {@link PatternSelectFunction} that
-	 * contains timeouted patterns with applied {@link PatternTimeoutFunction} as side-output
+	 * contains timed out patterns with applied {@link PatternTimeoutFunction} as side-output
 	 */
 	public static <IN, OUT1, OUT2> SingleOutputStreamOperator<OUT1> createTimeoutPatternStream(
 			final DataStream<IN> inputStream,

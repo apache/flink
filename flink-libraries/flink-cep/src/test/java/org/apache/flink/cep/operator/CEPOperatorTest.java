@@ -249,8 +249,8 @@ public class CEPOperatorTest extends TestLogger {
 		final Map<String, List<Event>> expectedSequence = new HashMap<>(2);
 		expectedSequence.put("start", Collections.<Event>singletonList(startEvent));
 
-		final OutputTag<Tuple2<Map<String, List<Event>>, Long>> timeouted =
-			new OutputTag<Tuple2<Map<String, List<Event>>, Long>>("timeouted") {};
+		final OutputTag<Tuple2<Map<String, List<Event>>, Long>> timedOut =
+			new OutputTag<Tuple2<Map<String, List<Event>>, Long>>("timedOut") {};
 		final KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> harness =
 			new KeyedOneInputStreamOperatorTestHarness<>(
 				new SelectTimeoutCepOperator<>(
@@ -274,7 +274,7 @@ public class CEPOperatorTest extends TestLogger {
 							return Tuple2.of(pattern, timeoutTimestamp);
 						}
 					},
-					timeouted
+					timedOut
 				), new KeySelector<Event, Integer>() {
 				@Override
 				public Integer getKey(Event value) throws Exception {
@@ -294,7 +294,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processWatermark(new Watermark(watermarkTimestamp2));
 
 			Queue<Object> result = harness.getOutput();
-			Queue<StreamRecord<Tuple2<Map<String, List<Event>>, Long>>> sideOutput = harness.getSideOutput(timeouted);
+			Queue<StreamRecord<Tuple2<Map<String, List<Event>>, Long>>> sideOutput = harness.getSideOutput(timedOut);
 
 			assertEquals(2L, result.size());
 			assertEquals(1L, sideOutput.size());

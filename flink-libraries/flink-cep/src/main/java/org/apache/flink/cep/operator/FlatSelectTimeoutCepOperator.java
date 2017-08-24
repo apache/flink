@@ -35,13 +35,13 @@ import java.util.Map;
 
 /**
  * Version of {@link AbstractKeyedCEPPatternOperator} that applies given {@link PatternFlatSelectFunction} to fully
- * matched event patterns and {@link PatternFlatTimeoutFunction} to timeouted ones. The timeouted elements are returned
+ * matched event patterns and {@link PatternFlatTimeoutFunction} to timed out ones. The timed out elements are returned
  * as a side-output.
  *
  * @param <IN> Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT1> Type of the output elements
- * @param <OUT2> Type of the timeouted output elements
+ * @param <OUT2> Type of the timed out output elements
  */
 public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 	AbstractKeyedCEPPatternOperator<IN, KEY, OUT1, FlatSelectTimeoutCepOperator.FlatSelectWrapper<IN, OUT1, OUT2>> {
@@ -50,7 +50,7 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 
 	private transient TimestampedSideOutputCollector<OUT2> sideOutputCollector;
 
-	private OutputTag<OUT2> timeoutedOutputTag;
+	private OutputTag<OUT2> timedOutOutputTag;
 
 	public FlatSelectTimeoutCepOperator(
 		TypeSerializer<IN> inputSerializer,
@@ -70,27 +70,27 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 			migratingFromOldKeyedOperator,
 			comparator,
 			new FlatSelectWrapper<>(flatSelectFunction, flatTimeoutFunction));
-		this.timeoutedOutputTag = outputTag;
+		this.timedOutOutputTag = outputTag;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
 		collector = new TimestampedCollector<>(output);
-		sideOutputCollector = new TimestampedSideOutputCollector<>(timeoutedOutputTag, output);
+		sideOutputCollector = new TimestampedSideOutputCollector<>(timedOutOutputTag, output);
 	}
 
 	@Override
 	protected void processMatchedSequences(
-		Iterable<Map<String, List<IN>>> matchesSequence,
+		Iterable<Map<String, List<IN>>> matchingSequences,
 		long timestamp) throws Exception {
-		for (Map<String, List<IN>> match : matchesSequence) {
+		for (Map<String, List<IN>> match : matchingSequences) {
 			getUserFunction().getFlatSelectFunction().flatSelect(match, collector);
 		}
 	}
 
 	@Override
-	protected void processTimeoutedSequence(
+	protected void processTimedOutSequences(
 		Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences, long timestamp) throws Exception {
 		for (Tuple2<Map<String, List<IN>>, Long> match : timedOutSequences) {
 			sideOutputCollector.setAbsoluteTimestamp(timestamp);

@@ -31,6 +31,8 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.OutputTag;
 
+import java.util.UUID;
+
 /**
  * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
  * pattern sequences as a map of events associated with their names. The pattern is detected using a
@@ -145,7 +147,7 @@ public class PatternStream<T> {
 	 * {@link SingleOutputStreamOperator} resulting from the select operation
 	 * with the same {@link OutputTag}.
 	 *
-	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timeouted patterns
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
 	 * @param patternTimeoutFunction The pattern timeout function which is called for each partial
 	 *                               pattern sequence which has timed out.
 	 * @param patternSelectFunction The pattern select function which is called for each detected
@@ -192,7 +194,7 @@ public class PatternStream<T> {
 	 * {@link SingleOutputStreamOperator} resulting from the select operation
 	 * with the same {@link OutputTag}.
 	 *
-	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timeouted patterns
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
 	 * @param patternTimeoutFunction The pattern timeout function which is called for each partial
 	 *                               pattern sequence which has timed out.
 	 * @param outTypeInfo Explicit specification of output type.
@@ -235,7 +237,7 @@ public class PatternStream<T> {
 	 * @param <R> Type of the resulting elements
 	 *
 	 * @deprecated Use {@link PatternStream#select(OutputTag, PatternTimeoutFunction, PatternSelectFunction)}
-	 * that returns timeouted events as a side-output
+	 * that returns timed out events as a side-output
 	 *
 	 * @return {@link DataStream} which contains the resulting elements or the resulting timeout
 	 * elements wrapped in an {@link Either} type.
@@ -267,7 +269,7 @@ public class PatternStream<T> {
 			null,
 			false);
 
-		final OutputTag<L> outputTag = new OutputTag<L>("dummy-timeouted", leftTypeInfo);
+		final OutputTag<L> outputTag = new OutputTag<L>(UUID.randomUUID().toString(), leftTypeInfo);
 
 		final SingleOutputStreamOperator<R> mainStream = CEPOperatorUtils.createTimeoutPatternStream(
 			inputStream,
@@ -278,11 +280,11 @@ public class PatternStream<T> {
 			outputTag,
 			clean(patternTimeoutFunction));
 
-		final DataStream<L> timeoutedStream = mainStream.getSideOutput(outputTag);
+		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
 		TypeInformation<Either<L, R>> outTypeInfo = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
 
-		return mainStream.connect(timeoutedStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
+		return mainStream.connect(timedOutStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
 	}
 
 	/**
@@ -350,7 +352,7 @@ public class PatternStream<T> {
 	 * {@link SingleOutputStreamOperator} resulting from the select operation
 	 * with the same {@link OutputTag}.
 	 *
-	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timeouted patterns
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
 	 * @param patternFlatTimeoutFunction The pattern timeout function which is called for each partial
 	 *                               pattern sequence which has timed out.
 	 * @param patternFlatSelectFunction The pattern select function which is called for each detected
@@ -393,7 +395,7 @@ public class PatternStream<T> {
 	 * {@link SingleOutputStreamOperator} resulting from the select operation
 	 * with the same {@link OutputTag}.
 	 *
-	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timeouted patterns
+	 * @param timeoutOutputTag {@link OutputTag} that identifies side output with timed out patterns
 	 * @param patternFlatTimeoutFunction The pattern timeout function which is called for each partial
 	 *                               pattern sequence which has timed out.
 	 * @param patternFlatSelectFunction The pattern select function which is called for each detected
@@ -437,7 +439,7 @@ public class PatternStream<T> {
 	 * @param <R> Type of the resulting events
 	 *
 	 * @deprecated Use {@link PatternStream#flatSelect(OutputTag, PatternFlatTimeoutFunction, PatternFlatSelectFunction)}
-	 * that returns timeouted events as a side-output
+	 * that returns timed out events as a side-output
 	 *
 	 * @return {@link DataStream} which contains the resulting events from the pattern flat select
 	 * function or the resulting timeout events from the pattern flat timeout function wrapped in an
@@ -470,7 +472,7 @@ public class PatternStream<T> {
 			null,
 			false);
 
-		final OutputTag<L> outputTag = new OutputTag<L>("dummy-timeouted", leftTypeInfo);
+		final OutputTag<L> outputTag = new OutputTag<L>(UUID.randomUUID().toString(), leftTypeInfo);
 
 		final SingleOutputStreamOperator<R> mainStream = CEPOperatorUtils.createTimeoutPatternStream(
 			inputStream,
@@ -481,11 +483,11 @@ public class PatternStream<T> {
 			outputTag,
 			clean(patternFlatTimeoutFunction));
 
-		final DataStream<L> timeoutedStream = mainStream.getSideOutput(outputTag);
+		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
 		TypeInformation<Either<L, R>> outTypeInfo = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
 
-		return mainStream.connect(timeoutedStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
+		return mainStream.connect(timedOutStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
 	}
 
 	/**

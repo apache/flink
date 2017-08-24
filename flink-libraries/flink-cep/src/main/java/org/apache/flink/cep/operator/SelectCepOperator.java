@@ -48,8 +48,8 @@ public class SelectCepOperator<IN, KEY, OUT>
 	}
 
 	@Override
-	protected void processMatchedSequences(Iterable<Map<String, List<IN>>> matchesSequence, long timestamp) throws Exception {
-		for (Map<String, List<IN>> match : matchesSequence) {
+	protected void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception {
+		for (Map<String, List<IN>> match : matchingSequences) {
 			output.collect(new StreamRecord<>(getUserFunction().select(match), timestamp));
 		}
 	}

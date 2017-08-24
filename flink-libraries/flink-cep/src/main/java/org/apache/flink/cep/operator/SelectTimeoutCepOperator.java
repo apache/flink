@@ -34,18 +34,18 @@ import java.util.Map;
 
 /**
  * Version of {@link AbstractKeyedCEPPatternOperator} that applies given {@link PatternSelectFunction} to fully
- * matched event patterns and {@link PatternTimeoutFunction} to timeouted ones. The timeouted elements are returned
+ * matched event patterns and {@link PatternTimeoutFunction} to timed out ones. The timed out elements are returned
  * as a side-output.
  *
  * @param <IN> Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT1> Type of the output elements
- * @param <OUT2> Type of the timeouted output elements
+ * @param <OUT2> Type of the timed out output elements
  */
 public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 	extends AbstractKeyedCEPPatternOperator<IN, KEY, OUT1, SelectTimeoutCepOperator.SelectWrapper<IN, OUT1, OUT2>> {
 
-	private OutputTag<OUT2> timeoutedOutputTag;
+	private OutputTag<OUT2> timedOutOutputTag;
 
 	public SelectTimeoutCepOperator(
 		TypeSerializer<IN> inputSerializer,
@@ -65,21 +65,21 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 			migratingFromOldKeyedOperator,
 			comparator,
 			new SelectWrapper<>(flatSelectFunction, flatTimeoutFunction));
-		this.timeoutedOutputTag = outputTag;
+		this.timedOutOutputTag = outputTag;
 	}
 
 	@Override
-	protected void processMatchedSequences(Iterable<Map<String, List<IN>>> matchesSequence, long timestamp) throws Exception {
-		for (Map<String, List<IN>> match : matchesSequence) {
+	protected void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception {
+		for (Map<String, List<IN>> match : matchingSequences) {
 			output.collect(new StreamRecord<>(getUserFunction().getFlatSelectFunction().select(match), timestamp));
 		}
 	}
 
 	@Override
-	protected void processTimeoutedSequence(
+	protected void processTimedOutSequences(
 		Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences, long timestamp) throws Exception {
 		for (Tuple2<Map<String, List<IN>>, Long> match : timedOutSequences) {
-			output.collect(timeoutedOutputTag,
+			output.collect(timedOutOutputTag,
 				new StreamRecord<>(
 					getUserFunction().getFlatTimeoutFunction().timeout(match.f0, match.f1),
 					timestamp));
@@ -91,7 +91,7 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 	 *
 	 * @param <IN> Type of the input elements
 	 * @param <OUT1> Type of the output elements
-	 * @param <OUT2> Type of the timeouted output elements
+	 * @param <OUT2> Type of the timed out output elements
 	 */
 	@Internal
 	public static class SelectWrapper<IN, OUT1, OUT2> implements Function {

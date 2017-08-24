@@ -249,8 +249,8 @@ public class NFA<T> implements Serializable {
 
 				if (handleTimeout) {
 					// extract the timed out event pattern
-					Map<String, List<T>> timedoutPattern = extractCurrentMatches(computationState);
-					timeoutResult.add(Tuple2.of(timedoutPattern, timestamp));
+					Map<String, List<T>> timedOutPattern = extractCurrentMatches(computationState);
+					timeoutResult.add(Tuple2.of(timedOutPattern, timestamp));
 				}
 
 				eventSharedBuffer.release(

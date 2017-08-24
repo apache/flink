@@ -80,7 +80,7 @@ import java.util.stream.StreamSupport;
  * @param <IN> Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
- * @param <F> user function that can be applied to matching sequences or timeouted sequences
+ * @param <F> user function that can be applied to matching sequences or timed out sequences
  */
 public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Function>
 	extends AbstractUdfStreamOperator<OUT, F>
@@ -359,7 +359,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 		try {
 			processMatchedSequences(patterns.f0, timestamp);
-			processTimeoutedSequence(patterns.f1, timestamp);
+			processTimedOutSequences(patterns.f1, timestamp);
 		} catch (Exception e) {
 			//rethrow as Runtime, to be able to use processEvent in Stream.
 			throw new RuntimeException(e);
@@ -377,9 +377,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		processEvent(nfa, null, timestamp);
 	}
 
-	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchesSequence, long timestamp) throws Exception;
+	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
 
-	protected void processTimeoutedSequence(
+	protected void processTimedOutSequences(
 			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
 			long timestamp) throws Exception {
 	}
