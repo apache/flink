@@ -92,6 +92,65 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
+  @Test
+  def testUnboundedGroupByCollect(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT b, COLLECT(a) FROM MyTable GROUP BY b"
+
+    val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,{1=1}",
+      "2,{2=1, 3=1}",
+      "3,{4=1, 5=1, 6=1}",
+      "4,{7=1, 8=1, 9=1, 10=1}",
+      "5,{11=1, 12=1, 13=1, 14=1, 15=1}",
+      "6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testUnboundedGroupByCollectWithObject(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT b, COLLECT(c) FROM MyTable GROUP BY b"
+
+    val data = List(
+      (1, 1, (12, "45.6")),
+      (2, 2, (12, "45.612")),
+      (3, 2, (13, "41.6")),
+      (4, 3, (14, "45.2136")),
+      (5, 3, (18, "42.6"))
+    )
+
+    tEnv.registerTable("MyTable",
+      env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c))
+
+    val result = tEnv.sql(sqlQuery).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,{(12,45.6)=1}",
+      "2,{(13,41.6)=1, (12,45.612)=1}",
+      "3,{(18,42.6)=1, (14,45.2136)=1}")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
   /** test selection **/
   @Test
   def testSelectExpressionFromTable(): Unit = {

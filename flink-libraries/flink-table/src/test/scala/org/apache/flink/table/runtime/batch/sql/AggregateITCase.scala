@@ -329,6 +329,35 @@ class AggregateITCase(
   }
 
   @Test
+  def testTumbleWindowAggregateWithCollect(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT b, COLLECT(b)" +
+        "FROM T " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,{1=1}",
+      "2,{2=1}", "2,{2=1}",
+      "3,{3=1}", "3,{3=2}",
+      "4,{4=2}", "4,{4=2}",
+      "5,{5=1}", "5,{5=1}", "5,{5=3}",
+      "6,{6=1}", "6,{6=2}", "6,{6=3}"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
   def testHopWindowAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
