@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -176,7 +177,16 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 	public void startRegistration() {
 		try {
 			// trigger resolution of the resource manager address to a callable gateway
-			CompletableFuture<G> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
+			final CompletableFuture<G> resourceManagerFuture;
+
+			if (FencedRpcGateway.class.isAssignableFrom(targetType)) {
+				resourceManagerFuture = (CompletableFuture<G>) rpcService.connect(
+					targetAddress,
+					fencingToken,
+					targetType.asSubclass(FencedRpcGateway.class));
+			} else {
+				resourceManagerFuture = rpcService.connect(targetAddress, targetType);
+			}
 
 			// upon success, start the registration attempts
 			CompletableFuture<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(

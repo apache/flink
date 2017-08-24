@@ -36,6 +36,7 @@ import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -123,12 +124,12 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * Disconnects the resource manager from the job manager because of the given cause.
 	 *
 	 * @param jobManagerLeaderId identifying the job manager leader id
-	 * @param resourceManagerLeaderId identifying the resource manager leader id
+	 * @param resourceManagerId identifying the resource manager leader id
 	 * @param cause of the disconnect
 	 */
 	void disconnectResourceManager(
 		final UUID jobManagerLeaderId,
-		final UUID resourceManagerLeaderId,
+		final ResourceManagerId resourceManagerId,
 		final Exception cause);
 
 	/**

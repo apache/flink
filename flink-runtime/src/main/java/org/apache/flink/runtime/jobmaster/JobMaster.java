@@ -81,6 +81,7 @@ import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -756,17 +757,17 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	@Override
 	public void disconnectResourceManager(
 			final UUID jobManagerLeaderId,
-			final UUID resourceManagerLeaderId,
+			final ResourceManagerId resourceManagerId,
 			final Exception cause) {
 
 		try {
 			validateLeaderSessionId(jobManagerLeaderId);
 		} catch (LeaderIdMismatchException e) {
-			log.warn("Cannot disconnect resource manager " + resourceManagerLeaderId + '.', e);
+			log.warn("Cannot disconnect resource manager " + resourceManagerId + '.', e);
 		}
 
 		if (resourceManagerConnection != null
-				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderId)) {
+				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerId)) {
 			closeResourceManagerConnection(cause);
 		}
 	}
@@ -944,11 +945,11 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		}
 	}
 
-	private void notifyOfNewResourceManagerLeader(final String resourceManagerAddress, final UUID resourceManagerLeaderId) {
+	private void notifyOfNewResourceManagerLeader(final String resourceManagerAddress, final ResourceManagerId resourceManagerId) {
 		if (resourceManagerConnection != null) {
 			if (resourceManagerAddress != null) {
-				if (resourceManagerAddress.equals(resourceManagerConnection.getTargetAddress())
-					&& resourceManagerLeaderId.equals(resourceManagerConnection.getTargetLeaderId())) {
+				if (Objects.equals(resourceManagerAddress, resourceManagerConnection.getTargetAddress())
+					&& Objects.equals(resourceManagerId, resourceManagerConnection.getTargetLeaderId())) {
 					// both address and leader id are not changed, we can keep the old connection
 					return;
 				}
@@ -974,7 +975,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 				getAddress(),
 				leaderSessionID,
 				resourceManagerAddress,
-				resourceManagerLeaderId,
+				resourceManagerId,
 				executor);
 
 			resourceManagerConnection.start();
@@ -982,17 +983,17 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	}
 
 	private void establishResourceManagerConnection(final JobMasterRegistrationSuccess success) {
-		final UUID resourceManagerLeaderId = success.getResourceManagerLeaderId();
+		final ResourceManagerId resourceManagerId = success.getResourceManagerId();
 	
 		// verify the response with current connection
 		if (resourceManagerConnection != null
-				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderId)) {
+				&& Objects.equals(resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) {
 
-			log.info("JobManager successfully registered at ResourceManager, leader id: {}.", resourceManagerLeaderId);
+			log.info("JobManager successfully registered at ResourceManager, leader id: {}.", resourceManagerId);
 
 			final ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
-			slotPoolGateway.connectToResourceManager(resourceManagerLeaderId, resourceManagerGateway);
+			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
 
 			resourceManagerHeartbeatManager.monitorTarget(success.getResourceManagerResourceId(), new HeartbeatTarget<Void>() {
 				@Override
@@ -1005,6 +1006,9 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					// request heartbeat will never be called on the job manager side
 				}
 			});
+		} else {
+			log.debug("Ignoring resource manager connection to {} because its a duplicate or outdated.", resourceManagerId);
+
 		}
 	}
 
@@ -1038,12 +1042,10 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 		@Override
 		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					notifyOfNewResourceManagerLeader(leaderAddress, leaderSessionID);
-				}
-			});
+			runAsync(
+				() -> notifyOfNewResourceManagerLeader(
+					leaderAddress,
+					leaderSessionID != null ? new ResourceManagerId(leaderSessionID) : null));
 		}
 
 		@Override
@@ -1055,7 +1057,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	//----------------------------------------------------------------------------------------------
 
 	private class ResourceManagerConnection
-			extends RegisteredRpcConnection<UUID, ResourceManagerGateway, JobMasterRegistrationSuccess>
+			extends RegisteredRpcConnection<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>
 	{
 		private final JobID jobID;
 
@@ -1074,10 +1076,10 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 				final String jobManagerRpcAddress,
 				final UUID jobManagerLeaderID,
 				final String resourceManagerAddress,
-				final UUID resourceManagerLeaderID,
+				final ResourceManagerId resourceManagerId,
 				final Executor executor)
 		{
-			super(log, resourceManagerAddress, resourceManagerLeaderID, executor);
+			super(log, resourceManagerAddress, resourceManagerId, executor);
 			this.jobID = checkNotNull(jobID);
 			this.jobManagerResourceID = checkNotNull(jobManagerResourceID);
 			this.jobManagerRpcAddress = checkNotNull(jobManagerRpcAddress);
@@ -1085,19 +1087,18 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		}
 
 		@Override
-		protected RetryingRegistration<UUID, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
-			return new RetryingRegistration<UUID, ResourceManagerGateway, JobMasterRegistrationSuccess>(
+		protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
+			return new RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
 					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
 					getTargetAddress(), getTargetLeaderId())
 			{
 				@Override
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
-						ResourceManagerGateway gateway, UUID leaderId, long timeoutMillis) throws Exception
+						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) throws Exception
 				{
 					Time timeout = Time.milliseconds(timeoutMillis);
 
 					return gateway.registerJobManager(
-						leaderId,
 						jobManagerLeaderID,
 						jobManagerResourceID,
 						jobManagerRpcAddress,

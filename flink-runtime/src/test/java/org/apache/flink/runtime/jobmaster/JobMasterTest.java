@@ -37,6 +37,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -167,7 +168,7 @@ public class JobMasterTest extends TestLogger {
 	public void testHeartbeatTimeoutWithResourceManager() throws Exception {
 		final String resourceManagerAddress = "rm";
 		final String jobManagerAddress = "jm";
-		final UUID rmLeaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final UUID jmLeaderId = UUID.randomUUID();
 		final ResourceID rmResourceId = new ResourceID(resourceManagerAddress);
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
@@ -188,13 +189,12 @@ public class JobMasterTest extends TestLogger {
 		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		when(resourceManagerGateway.registerJobManager(
 			any(UUID.class),
-			any(UUID.class),
 			any(ResourceID.class),
 			anyString(),
 			any(JobID.class),
 			any(Time.class)
 		)).thenReturn(CompletableFuture.completedFuture(new JobMasterRegistrationSuccess(
-			heartbeatInterval, rmLeaderId, rmResourceId)));
+			heartbeatInterval, resourceManagerId, rmResourceId)));
 
 		final TestingRpcService rpc = new TestingRpcService();
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
@@ -225,11 +225,10 @@ public class JobMasterTest extends TestLogger {
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// define a leader and see that a registration happens
-			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, rmLeaderId);
+			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, resourceManagerId.toUUID());
 
 			// register job manager success will trigger monitor heartbeat target between jm and rm
 			verify(resourceManagerGateway, timeout(testingTimeout.toMilliseconds())).registerJobManager(
-				eq(rmLeaderId),
 				eq(jmLeaderId),
 				eq(jmResourceId),
 				anyString(),

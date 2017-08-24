@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -39,7 +40,6 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -77,7 +77,7 @@ public class SlotProtocolTest extends TestLogger {
 	public void testSlotsUnavailableRequest() throws Exception {
 		final JobID jobID = new JobID();
 
-		final UUID rmLeaderID = UUID.randomUUID();
+		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
 		try (SlotManager slotManager = new SlotManager(
 			scheduledExecutor,
@@ -103,7 +103,7 @@ public class SlotProtocolTest extends TestLogger {
 			TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 			Mockito.when(
 				taskExecutorGateway
-					.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(UUID.class), any(Time.class)))
+					.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(ResourceManagerId.class), any(Time.class)))
 				.thenReturn(mock(CompletableFuture.class));
 
 			final ResourceID resourceID = ResourceID.generate();
@@ -118,7 +118,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			// 4) Slot becomes available and TaskExecutor gets a SlotRequest
 			verify(taskExecutorGateway, timeout(5000L))
-				.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(UUID.class), any(Time.class));
+				.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(ResourceManagerId.class), any(Time.class));
 		}
 	}
 
@@ -133,12 +133,12 @@ public class SlotProtocolTest extends TestLogger {
 	public void testSlotAvailableRequest() throws Exception {
 		final JobID jobID = new JobID();
 
-		final UUID rmLeaderID = UUID.randomUUID();
+		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		Mockito.when(
 			taskExecutorGateway
-				.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(UUID.class), any(Time.class)))
+				.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(ResourceManagerId.class), any(Time.class)))
 			.thenReturn(mock(CompletableFuture.class));
 
 		try (SlotManager slotManager = new SlotManager(
@@ -171,7 +171,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			// a SlotRequest is routed to the TaskExecutor
 			verify(taskExecutorGateway, timeout(5000))
-				.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(UUID.class), any(Time.class));
+				.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(ResourceManagerId.class), any(Time.class));
 		}
 	}
 }

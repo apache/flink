@@ -82,7 +82,7 @@ public class ResourceManagerHATest extends TestLogger {
 
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
-		CompletableFuture<UUID> revokedLeaderIdFuture = new CompletableFuture<>();
+		CompletableFuture<ResourceManagerId> revokedLeaderIdFuture = new CompletableFuture<>();
 
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
@@ -100,23 +100,28 @@ public class ResourceManagerHATest extends TestLogger {
 				@Override
 				public void revokeLeadership() {
 					super.revokeLeadership();
-					runAsync(
-						() -> revokedLeaderIdFuture.complete(getLeaderSessionId()));
+					runAsyncWithoutFencing(
+						() -> revokedLeaderIdFuture.complete(getFencingToken()));
 				}
 			};
-		resourceManager.start();
-		// before grant leadership, resourceManager's leaderId is null
-		Assert.assertEquals(null, resourceManager.getLeaderSessionId());
-		final UUID leaderId = UUID.randomUUID();
-		leaderElectionService.isLeader(leaderId);
-		// after grant leadership, resourceManager's leaderId has value
-		Assert.assertEquals(leaderId, leaderSessionIdFuture.get());
-		// then revoke leadership, resourceManager's leaderId is null again
-		leaderElectionService.notLeader();
-		Assert.assertEquals(null, revokedLeaderIdFuture.get());
 
-		if (testingFatalErrorHandler.hasExceptionOccurred()) {
-			testingFatalErrorHandler.rethrowError();
+		try {
+			resourceManager.start();
+
+			Assert.assertNotNull(resourceManager.getFencingToken());
+			final UUID leaderId = UUID.randomUUID();
+			leaderElectionService.isLeader(leaderId);
+			// after grant leadership, resourceManager's leaderId has value
+			Assert.assertEquals(leaderId, leaderSessionIdFuture.get());
+			// then revoke leadership, resourceManager's leaderId should be different
+			leaderElectionService.notLeader();
+			Assert.assertNotEquals(leaderId, revokedLeaderIdFuture.get());
+
+			if (testingFatalErrorHandler.hasExceptionOccurred()) {
+				testingFatalErrorHandler.rethrowError();
+			}
+		} finally {
+			rpcService.stopService();
 		}
 	}
 }
