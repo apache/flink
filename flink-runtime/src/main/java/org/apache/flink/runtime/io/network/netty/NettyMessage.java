@@ -18,12 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.nio.ByteBuffer;
-import java.util.List;
-
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -32,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
@@ -42,7 +37,14 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAda
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.MessageToMessageDecoder;
+
 import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  * A simple and generic interface to serialize messages to Netty's buffer space.
@@ -220,8 +222,8 @@ abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
-			Preconditions.checkNotNull(buffer, "When deserializing the buffer should have to be requested first.");
-			
+			Preconditions.checkNotNull(buffer, "No buffer instance to serialize.");
+
 			int length = 16 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
