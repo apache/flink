@@ -312,6 +312,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> optional() {
+		checkIfPreviousPatternGreedy();
 		quantifier.optional();
 		return this;
 	}
@@ -334,6 +335,20 @@ public class Pattern<T, F extends T> {
 		checkIfQuantifierApplied();
 		this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
 		this.times = Times.of(1);
+		return this;
+	}
+
+	/**
+	 * Specifies that this pattern is greedy.
+	 * This means as many events as possible will be matched to this pattern.
+	 *
+	 * @return The same pattern with {@link Quantifier#greedy} set to true.
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> greedy() {
+		checkIfNoNotPattern();
+		checkIfNoGroupPattern();
+		this.quantifier.greedy();
 		return this;
 	}
 
@@ -507,6 +522,18 @@ public class Pattern<T, F extends T> {
 		if (!quantifier.hasProperty(Quantifier.QuantifierProperty.SINGLE)) {
 			throw new MalformedPatternException("Already applied quantifier to this Pattern. " +
 					"Current quantifier is: " + quantifier);
+		}
+	}
+
+	private void checkIfNoGroupPattern() {
+		if (this instanceof GroupPattern) {
+			throw new MalformedPatternException("Option not applicable to group pattern");
+		}
+	}
+
+	private void checkIfPreviousPatternGreedy() {
+		if (previous != null && previous.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+			throw new MalformedPatternException("Optional pattern cannot be preceded by greedy pattern");
 		}
 	}
 }
