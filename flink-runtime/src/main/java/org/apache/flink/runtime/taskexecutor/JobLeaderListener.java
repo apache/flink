@@ -21,8 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-
-import java.util.UUID;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 
 /**
  * Listener for the {@link JobLeaderService}. The listener is notified whenever a job manager
@@ -38,18 +37,17 @@ public interface JobLeaderListener {
 	 *
 	 * @param jobId identifying the job for which the job manager has gained leadership
 	 * @param jobManagerGateway to the job leader
-	 * @param jobLeaderId new leader id of the job leader
 	 * @param registrationMessage containing further registration information
 	 */
-	void jobManagerGainedLeadership(JobID jobId, JobMasterGateway jobManagerGateway, UUID jobLeaderId, JMTMRegistrationSuccess registrationMessage);
+	void jobManagerGainedLeadership(JobID jobId, JobMasterGateway jobManagerGateway, JMTMRegistrationSuccess registrationMessage);
 
 	/**
 	 * Callback if the job leader for the job with the given job id lost its leadership.
 	 *
 	 * @param jobId identifying the job whose leader has lost leadership
-	 * @param jobLeaderId old leader id
+	 * @param jobMasterId old JobMasterId
 	 */
-	void jobManagerLostLeadership(JobID jobId, UUID jobLeaderId);
+	void jobManagerLostLeadership(JobID jobId, JobMasterId jobMasterId);
 
 	/**
 	 * Callback for errors which might occur in the {@link JobLeaderService}.

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -51,7 +52,6 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerException
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -75,8 +75,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
- *     <li>{@link #registerJobManager(UUID, ResourceID, String, JobID, Time)} registers a {@link JobMaster} at the resource manager</li>
- *     <li>{@link #requestSlot(UUID, SlotRequest, Time)} requests a slot from the resource manager</li>
+ *     <li>{@link #registerJobManager(JobMasterId, ResourceID, String, JobID, Time)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #requestSlot(JobMasterId, SlotRequest, Time)} requests a slot from the resource manager</li>
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends Serializable>
@@ -240,13 +240,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	@Override
 	public CompletableFuture<RegistrationResponse> registerJobManager(
-			final UUID jobManagerLeaderId,
+			final JobMasterId jobMasterId,
 			final ResourceID jobManagerResourceId,
 			final String jobManagerAddress,
 			final JobID jobId,
 			final Time timeout) {
 
-		checkNotNull(jobManagerLeaderId);
+		checkNotNull(jobMasterId);
 		checkNotNull(jobManagerResourceId);
 		checkNotNull(jobManagerAddress);
 		checkNotNull(jobId);
@@ -265,12 +265,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			}
 		}
 
-		log.info("Registering job manager {}@{} for job {}.", jobManagerLeaderId, jobManagerAddress, jobId);
+		log.info("Registering job manager {}@{} for job {}.", jobMasterId, jobManagerAddress, jobId);
 
-		CompletableFuture<UUID> jobLeaderIdFuture;
+		CompletableFuture<JobMasterId> jobMasterIdFuture;
 
 		try {
-			jobLeaderIdFuture = jobLeaderIdService.getLeaderId(jobId);
+			jobMasterIdFuture = jobLeaderIdService.getLeaderId(jobId);
 		} catch (Exception e) {
 			// we cannot check the job leader id so let's fail
 			// TODO: Maybe it's also ok to skip this check in case that we cannot check the leader id
@@ -283,21 +283,20 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			return FutureUtils.completedExceptionally(exception);
 		}
 
-		CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = getRpcService().connect(jobManagerAddress, JobMasterGateway.class);
+		CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = getRpcService().connect(jobManagerAddress, jobMasterId, JobMasterGateway.class);
 
 		CompletableFuture<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(
-			jobLeaderIdFuture,
-			(JobMasterGateway jobMasterGateway, UUID jobLeaderId) -> {
-				if (Objects.equals(jobLeaderId, jobManagerLeaderId)) {
+			jobMasterIdFuture,
+			(JobMasterGateway jobMasterGateway, JobMasterId currentJobMasterId) -> {
+				if (Objects.equals(currentJobMasterId, jobMasterId)) {
 					return registerJobMasterInternal(
 						jobMasterGateway,
-						jobLeaderId,
 						jobId,
 						jobManagerAddress,
 						jobManagerResourceId);
 				} else {
-					log.debug("The job manager leader id {} did not match the job " +
-						"leader id {}.", jobManagerLeaderId, jobLeaderId);
+					log.debug("The current JobMaster leader id {} did not match the received " +
+						"JobMaster id {}.", jobMasterId, currentJobMasterId);
 					return new RegistrationResponse.Decline("Job manager leader id did not match.");
 				}
 			},
@@ -308,9 +307,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			(RegistrationResponse registrationResponse, Throwable throwable) -> {
 				if (throwable != null) {
 					if (log.isDebugEnabled()) {
-						log.debug("Registration of job manager {}@{} failed.", jobManagerLeaderId, jobManagerAddress, throwable);
+						log.debug("Registration of job manager {}@{} failed.", jobMasterId, jobManagerAddress, throwable);
 					} else {
-						log.info("Registration of job manager {}@{} failed.", jobManagerLeaderId, jobManagerAddress);
+						log.info("Registration of job manager {}@{} failed.", jobMasterId, jobManagerAddress);
 					}
 
 					return new RegistrationResponse.Decline(throwable.getMessage());
@@ -367,7 +366,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	@Override
 	public CompletableFuture<Acknowledge> requestSlot(
-			UUID jobMasterLeaderID,
+			JobMasterId jobMasterId,
 			SlotRequest slotRequest,
 			final Time timeout) {
 
@@ -375,7 +374,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
 		if (null != jobManagerRegistration) {
-			if (Objects.equals(jobMasterLeaderID, jobManagerRegistration.getLeaderID())) {
+			if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
 				log.info("Request slot with profile {} for job {} with allocation id {}.",
 					slotRequest.getResourceProfile(),
 					slotRequest.getJobId(),
@@ -389,7 +388,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} else {
-				return FutureUtils.completedExceptionally(new LeaderSessionIDException(jobMasterLeaderID, jobManagerRegistration.getLeaderID()));
+				return FutureUtils.completedExceptionally(new ResourceManagerException("The job leader's id " +
+					jobManagerRegistration.getJobMasterId() + " does not match the received id " + jobMasterId + '.'));
 			}
 
 		} else {
@@ -488,7 +488,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * Registers a new JobMaster.
 	 *
 	 * @param jobMasterGateway to communicate with the registering JobMaster
-	 * @param jobLeaderId leader id of the JobMaster
 	 * @param jobId of the job for which the JobMaster is responsible
 	 * @param jobManagerAddress address of the JobMaster
 	 * @param jobManagerResourceId ResourceID of the JobMaster
@@ -496,16 +495,15 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	private RegistrationResponse registerJobMasterInternal(
 		final JobMasterGateway jobMasterGateway,
-		UUID jobLeaderId,
 		JobID jobId,
 		String jobManagerAddress,
 		ResourceID jobManagerResourceId) {
 		if (jobManagerRegistrations.containsKey(jobId)) {
 			JobManagerRegistration oldJobManagerRegistration = jobManagerRegistrations.get(jobId);
 
-			if (oldJobManagerRegistration.getLeaderID().equals(jobLeaderId)) {
+			if (Objects.equals(oldJobManagerRegistration.getJobMasterId(), jobMasterGateway.getFencingToken())) {
 				// same registration
-				log.debug("Job manager {}@{} was already registered.", jobLeaderId, jobManagerAddress);
+				log.debug("Job manager {}@{} was already registered.", jobMasterGateway.getFencingToken(), jobManagerAddress);
 			} else {
 				// tell old job manager that he is no longer the job leader
 				disconnectJobManager(
@@ -515,7 +513,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(
 					jobId,
 					jobManagerResourceId,
-					jobLeaderId,
 					jobMasterGateway);
 				jobManagerRegistrations.put(jobId, jobManagerRegistration);
 				jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
@@ -525,13 +522,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(
 				jobId,
 				jobManagerResourceId,
-				jobLeaderId,
 				jobMasterGateway);
 			jobManagerRegistrations.put(jobId, jobManagerRegistration);
 			jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
 		}
 
-		log.info("Registered job manager {}@{} for job {}.", jobLeaderId, jobManagerAddress, jobId);
+		log.info("Registered job manager {}@{} for job {}.", jobMasterGateway.getFencingToken(), jobManagerAddress, jobId);
 
 		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceId, new HeartbeatTarget<Void>() {
 			@Override
@@ -633,10 +629,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		if (jobManagerRegistration != null) {
 			final ResourceID jobManagerResourceId = jobManagerRegistration.getJobManagerResourceID();
 			final JobMasterGateway jobMasterGateway = jobManagerRegistration.getJobManagerGateway();
-			final UUID jobManagerLeaderId = jobManagerRegistration.getLeaderID();
+			final JobMasterId jobMasterId = jobManagerRegistration.getJobMasterId();
 
 			log.info("Disconnect job manager {}@{} for job {} from the resource manager.",
-				jobManagerLeaderId,
+				jobMasterId,
 				jobMasterGateway.getAddress(),
 				jobId);
 
@@ -645,7 +641,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			jmResourceIdRegistrations.remove(jobManagerResourceId);
 
 			// tell the job manager about the disconnect
-			jobMasterGateway.disconnectResourceManager(jobManagerLeaderId, getFencingToken(), cause);
+			jobMasterGateway.disconnectResourceManager(getFencingToken(), cause);
 		} else {
 			log.debug("There was no registered job manager for job {}.", jobId);
 		}
@@ -687,17 +683,17 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 
-	protected void jobLeaderLostLeadership(JobID jobId, UUID oldJobLeaderId) {
+	protected void jobLeaderLostLeadership(JobID jobId, JobMasterId oldJobMasterId) {
 		if (jobManagerRegistrations.containsKey(jobId)) {
 			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
-			if (Objects.equals(jobManagerRegistration.getLeaderID(), oldJobLeaderId)) {
+			if (Objects.equals(jobManagerRegistration.getJobMasterId(), oldJobMasterId)) {
 				disconnectJobManager(jobId, new Exception("Job leader lost leadership."));
 			} else {
 				log.debug("Discarding job leader lost leadership, because a new job leader was found for job {}. ", jobId);
 			}
 		} else {
-			log.debug("Discard job leader lost leadership for outdated leader {} for job {}.", oldJobLeaderId, jobId);
+			log.debug("Discard job leader lost leadership for outdated leader {} for job {}.", oldJobMasterId, jobId);
 		}
 	}
 
@@ -824,6 +820,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	/**
 	 * Allocates a resource using the resource profile.
+	 *
 	 * @param resourceProfile The resource description
 	 */
 	@VisibleForTesting
@@ -891,11 +888,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private class JobLeaderIdActionsImpl implements JobLeaderIdActions {
 
 		@Override
-		public void jobLeaderLostLeadership(final JobID jobId, final UUID oldJobLeaderId) {
+		public void jobLeaderLostLeadership(final JobID jobId, final JobMasterId oldJobMasterId) {
 			runAsync(new Runnable() {
 				@Override
 				public void run() {
-					ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
+					ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobMasterId);
 				}
 			});
 		}

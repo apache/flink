@@ -55,6 +55,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -190,7 +191,6 @@ public class TaskExecutorTest extends TestLogger {
 		when(jobMasterGateway.registerTaskManager(
 				any(String.class),
 				eq(taskManagerLocation),
-				eq(jmLeaderId),
 				any(Time.class)
 		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getAddress()).thenReturn(jobMasterAddress);
@@ -228,7 +228,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			// register task manager success will trigger monitoring heartbeat target between tm and jm
 			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).registerTaskManager(
-					eq(taskManager.getAddress()), eq(taskManagerLocation), eq(jmLeaderId), any(Time.class));
+					eq(taskManager.getAddress()), eq(taskManagerLocation), any(Time.class));
 
 			// the timeout should trigger disconnecting from the JobManager
 			verify(jobMasterGateway, timeout(heartbeatTimeout * 50L)).disconnectTaskManager(eq(taskManagerLocation.getResourceID()), any(TimeoutException.class));
@@ -657,7 +657,7 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		final UUID jobManagerLeaderId = UUID.randomUUID();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		final JobVertexID jobVertexId = new JobVertexID();
 
 		JobInformation jobInformation = new JobInformation(
@@ -694,11 +694,13 @@ public class TaskExecutorTest extends TestLogger {
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 
+		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+		when(jobMasterGateway.getFencingToken()).thenReturn(jobMasterId);
+
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
 			ResourceID.generate(),
-			mock(JobMasterGateway.class),
-			jobManagerLeaderId,
+			jobMasterGateway,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
 			mock(BlobCache.class),
@@ -755,7 +757,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
-			tmGateway.submitTask(tdd, jobManagerLeaderId, timeout);
+			tmGateway.submitTask(tdd, jobMasterId, timeout);
 
 			CompletableFuture<Boolean> completionFuture = TestInvokable.completableFuture;
 
@@ -833,14 +835,12 @@ public class TaskExecutorTest extends TestLogger {
 		when(jobMasterGateway.registerTaskManager(
 				any(String.class),
 				eq(taskManagerLocation),
-				eq(jobManagerLeaderId),
 				any(Time.class)
 		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 		when(jobMasterGateway.offerSlots(
 			any(ResourceID.class),
 			any(Iterable.class),
-			any(UUID.class),
 			any(Time.class))).thenReturn(mock(CompletableFuture.class, RETURNS_MOCKS));
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
@@ -894,7 +894,6 @@ public class TaskExecutorTest extends TestLogger {
 			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(
 					any(ResourceID.class),
 					(Iterable<SlotOffer>)Matchers.argThat(contains(slotOffer)),
-					eq(jobManagerLeaderId),
 					any(Time.class));
 
 			// check if a concurrent error occurred
@@ -958,13 +957,12 @@ public class TaskExecutorTest extends TestLogger {
 		when(jobMasterGateway.registerTaskManager(
 				any(String.class),
 				eq(taskManagerLocation),
-				eq(jobManagerLeaderId),
 				any(Time.class)
 		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 		when(jobMasterGateway.offerSlots(
-				any(ResourceID.class), any(Iterable.class), eq(jobManagerLeaderId), any(Time.class)))
+				any(ResourceID.class), any(Iterable.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture((Collection<SlotOffer>)Collections.singleton(offer1)));
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
@@ -1163,10 +1161,10 @@ public class TaskExecutorTest extends TestLogger {
 		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
 
 		final String jobManagerAddress = "jm";
-		final UUID jobManagerLeaderId = UUID.randomUUID();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 
 		final LeaderRetrievalService resourceManagerLeaderRetrievalService = new TestingLeaderRetrievalService(resourceManagerAddress, resourceManagerLeaderId);
-		final LeaderRetrievalService jobManagerLeaderRetrievalService = new TestingLeaderRetrievalService(jobManagerAddress, jobManagerLeaderId);
+		final LeaderRetrievalService jobManagerLeaderRetrievalService = new TestingLeaderRetrievalService(jobManagerAddress, jobMasterId.toUUID());
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetrievalService);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetrievalService);
 
@@ -1193,13 +1191,10 @@ public class TaskExecutorTest extends TestLogger {
 		when(jobMasterGateway.registerTaskManager(
 			any(String.class),
 			eq(taskManagerLocation),
-			eq(jobManagerLeaderId),
 			any(Time.class)
 		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
-		when(jobMasterGateway.updateTaskExecutionState(
-			any(UUID.class),
-			any(TaskExecutionState.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		when(jobMasterGateway.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
@@ -1212,7 +1207,6 @@ public class TaskExecutorTest extends TestLogger {
 			jobId,
 			jmResourceId,
 			jobMasterGateway,
-			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
 			mock(BlobCache.class),
@@ -1297,7 +1291,6 @@ public class TaskExecutorTest extends TestLogger {
 				jobMasterGateway.offerSlots(
 					any(ResourceID.class),
 					any(Iterable.class),
-					eq(jobManagerLeaderId),
 					any(Time.class)))
 				.thenReturn(offerResultFuture);
 
@@ -1305,10 +1298,10 @@ public class TaskExecutorTest extends TestLogger {
 			// been properly started. This will also offer the slots to the job master
 			jobLeaderService.addJob(jobId, jobManagerAddress);
 
-			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(any(ResourceID.class), any(Iterable.class), eq(jobManagerLeaderId), any(Time.class));
+			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(any(ResourceID.class), any(Iterable.class), any(Time.class));
 
 			// submit the task without having acknowledge the offered slots
-			tmGateway.submitTask(tdd, jobManagerLeaderId, timeout);
+			tmGateway.submitTask(tdd, jobMasterId, timeout);
 
 			// acknowledge the offered slots
 			offerResultFuture.complete(Collections.singleton(offer1));
@@ -1351,7 +1344,6 @@ public class TaskExecutorTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 		when(jobMasterGateway.getHostname()).thenReturn("localhost");
-		final UUID jobLeaderId = UUID.randomUUID();
 		final JMTMRegistrationSuccess registrationMessage = new JMTMRegistrationSuccess(ResourceID.generate(), 1);
 		final JobManagerTable jobManagerTableMock = spy(new JobManagerTable());
 
@@ -1382,10 +1374,10 @@ public class TaskExecutorTest extends TestLogger {
 
 			JobLeaderListener taskExecutorListener = jobLeaderListenerArgumentCaptor.getValue();
 
-			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, jobLeaderId, registrationMessage);
+			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, registrationMessage);
 
 			// duplicate job manager gained leadership message
-			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, jobLeaderId, registrationMessage);
+			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, registrationMessage);
 
 			ArgumentCaptor<JobManagerConnection> jobManagerConnectionArgumentCaptor = ArgumentCaptor.forClass(JobManagerConnection.class);
 

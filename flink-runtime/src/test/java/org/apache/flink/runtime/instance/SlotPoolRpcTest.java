@@ -25,15 +25,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.util.clock.SystemClock;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +48,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for the SlotPool using a proper RPC setup.
  */
-public class SlotPoolRpcTest {
+public class SlotPoolRpcTest extends TestLogger {
 
 	private static RpcService rpcService;
 
@@ -80,7 +81,7 @@ public class SlotPoolRpcTest {
 				Time.days(1), Time.days(1),
 				Time.milliseconds(100) // this is the timeout for the request tested here
 		);
-		pool.start(UUID.randomUUID(), "foobar");
+		pool.start(JobMasterId.generate(), "foobar");
 
 		CompletableFuture<SimpleSlot> future = pool.allocateSlot(mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, Time.days(1));
 

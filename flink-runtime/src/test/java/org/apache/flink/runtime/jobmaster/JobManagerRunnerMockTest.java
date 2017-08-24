@@ -133,7 +133,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 		assertTrue(!jobCompletion.isJobFailed());
 
-		verify(jobManager).start(any(UUID.class), any(Time.class));
+		verify(jobManager).start(any(JobMasterId.class), any(Time.class));
 		
 		runner.shutdown();
 		verify(leaderElectionService).stop();
@@ -165,9 +165,9 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testJobFinished() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is finished
@@ -185,9 +185,9 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testJobFailed() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is failed
@@ -204,9 +204,9 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testLeadershipRevoked() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
@@ -219,18 +219,18 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testRegainLeadership() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
 		verify(jobManager).suspend(any(Throwable.class), any(Time.class));
 		assertFalse(runner.isShutdown());
 
-		UUID leaderSessionID2 = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID2);
-		verify(jobManager).start(eq(leaderSessionID2), any(Time.class));
+		JobMasterId jobMasterId2 = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId2.toUUID());
+		verify(jobManager).start(eq(jobMasterId2), any(Time.class));
 	}
 
 	private static class TestingOnCompletionActions implements OnCompletionActions, FatalErrorHandler {

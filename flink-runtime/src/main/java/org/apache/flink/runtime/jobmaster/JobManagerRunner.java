@@ -422,7 +422,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 
-					CompletableFuture<Acknowledge> startingFuture = jobManager.start(leaderSessionID, timeout);
+					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), timeout);
 
 					startingFuture.whenCompleteAsync(
 						(Acknowledge ack, Throwable throwable) -> {
