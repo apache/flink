@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
@@ -132,7 +133,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 		assertTrue(!jobCompletion.isJobFailed());
 
-		verify(jobManager).start(any(UUID.class));
+		verify(jobManager).start(any(UUID.class), any(Time.class));
 		
 		runner.shutdown();
 		verify(leaderElectionService).stop();
@@ -166,7 +167,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 		UUID leaderSessionID = UUID.randomUUID();
 		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is finished
@@ -186,7 +187,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 		UUID leaderSessionID = UUID.randomUUID();
 		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is failed
@@ -205,11 +206,11 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 		UUID leaderSessionID = UUID.randomUUID();
 		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
-		verify(jobManager).suspend(any(Throwable.class));
+		verify(jobManager).suspend(any(Throwable.class), any(Time.class));
 		assertFalse(runner.isShutdown());
 	}
 
@@ -220,16 +221,16 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 		UUID leaderSessionID = UUID.randomUUID();
 		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		verify(jobManager).start(eq(leaderSessionID), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
-		verify(jobManager).suspend(any(Throwable.class));
+		verify(jobManager).suspend(any(Throwable.class), any(Time.class));
 		assertFalse(runner.isShutdown());
 
 		UUID leaderSessionID2 = UUID.randomUUID();
 		runner.grantLeadership(leaderSessionID2);
-		verify(jobManager).start(leaderSessionID2);
+		verify(jobManager).start(eq(leaderSessionID2), any(Time.class));
 	}
 
 	private static class TestingOnCompletionActions implements OnCompletionActions, FatalErrorHandler {
