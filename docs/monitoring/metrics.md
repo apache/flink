@@ -424,7 +424,7 @@ of your Flink distribution.
 
 Parameters:
 
-- `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations).
+- `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations). In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
 
 Example configuration:
 
@@ -440,11 +440,11 @@ Flink metric types are mapped to Prometheus metric types as follows:
 | Flink     | Prometheus | Note                                     |
 | --------- |------------|------------------------------------------|
 | Counter   | Gauge      |Prometheus counters cannot be decremented.|
-| Gauge     | Gauge      |                                          |
+| Gauge     | Gauge      |Only numbers and booleans are supported.  |
 | Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
 | Meter     | Gauge      |The gauge exports the meter's rate.       |
 
-All Flink metrics variables, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>` and `<operator_name>`, are exported to Prometheus as labels. 
+All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 

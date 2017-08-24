@@ -42,6 +42,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -62,14 +69,8 @@ under the License.
 
 		<dependency>
 			<groupId>io.prometheus</groupId>
-			<artifactId>simpleclient_servlet</artifactId>
+			<artifactId>simpleclient_httpserver</artifactId>
 			<version>${prometheus.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.nanohttpd</groupId>
-			<artifactId>nanohttpd</artifactId>
-			<version>2.2.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -113,10 +114,6 @@ under the License.
 								<relocation>
 									<pattern>io.prometheus.client</pattern>
 									<shadedPattern>org.apache.flink.shaded.io.prometheus.client</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>fi.iki.elonen</pattern>
-									<shadedPattern>org.apache.flink.shaded.fi.iki.elonen</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
