@@ -2785,9 +2785,9 @@ public class NFAITCase extends TestLogger {
 
 		Map<String, List<Event>> match = resultingPatterns.get(0);
 
-		List<String> expectedOrder = Lists.newArrayList("a","b","aa","bb","ab");
+		List<String> expectedOrder = Lists.newArrayList("a", "b", "aa", "bb", "ab");
 		List<String> resultOrder = new ArrayList<>();
-		for(String key: match.keySet()) {
+		for (String key: match.keySet()) {
 			resultOrder.add(key);
 		}
 

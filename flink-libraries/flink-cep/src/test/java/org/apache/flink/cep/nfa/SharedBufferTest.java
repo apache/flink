@@ -199,11 +199,11 @@ public class SharedBufferTest extends TestLogger {
 		Event[] events = new Event[numberEvents];
 		final long timestamp = 1L;
 
-		for (int i = 0; i < numberEvents; i ++) {
+		for (int i = 0; i < numberEvents; i++) {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
 		}
 
-		Map<String,List<Event>> expectedResult = new LinkedHashMap<>();
+		Map<String, List<Event>> expectedResult = new LinkedHashMap<>();
 		expectedResult.put("a", new ArrayList<>());
 		expectedResult.get("a").add(events[1]);
 		expectedResult.put("b", new ArrayList<>());

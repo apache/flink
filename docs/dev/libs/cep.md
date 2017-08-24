@@ -1173,7 +1173,7 @@ Notice that when using *SKIP_TO_FIRST* and *SKIP_TO_LAST* skip strategy, a valid
 
 Let's take an example: For a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4, ab5, ab6`, the differences between these four skip strategies can be listed as follows:
 
-<table>
+<table class="table table-bordered">
     <tr>
         <th class="text-left" style="width: 25%">Skip Strategy</th>
         <th class="text-center" style="width: 25%">Result</th>
@@ -1218,7 +1218,7 @@ Let's take an example: For a given pattern `a b{2}` and a data stream `ab1, ab2,
 </table>
 
 To specify which skip strategy to use. Just create an `AfterMatchSkipStrategy` by calling:
-<table>
+<table class="table table-bordered">
     <tr>
         <th class="text-left" width="25%">Function</th>
         <th class="text-center">Description</th>
@@ -1241,7 +1241,7 @@ To specify which skip strategy to use. Just create an `AfterMatchSkipStrategy` b
     </tr>
 </table>
 
-And apply the skip strategy to a pattern by calling:
+Then apply the skip strategy to a pattern by calling:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
