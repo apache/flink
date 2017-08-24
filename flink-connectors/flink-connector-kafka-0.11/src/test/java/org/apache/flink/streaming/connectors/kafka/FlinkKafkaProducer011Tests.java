@@ -37,6 +37,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -258,26 +259,61 @@ public class FlinkKafkaProducer011Tests extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(String topic) throws Exception {
-		Properties properties = createProperties();
+	/**
+	 * This tests checks whether FlinkKafkaProducer011 correctly aborts lingering transactions after a failure,
+	 * which happened before first checkpoint and was followed up by reducing the parallelism.
+	 * If such transactions were left alone lingering it consumers would be unable to read committed records
+	 * that were created after this lingering transaction.
+	 */
+	@Test(timeout = 120_000L)
+	public void testScaleDownBeforeFirstCheckpoint() throws Exception {
+		String topic = "scale-down-before-first-checkpoint";
 
-		FlinkKafkaProducer011<Integer> kafkaProducer = new FlinkKafkaProducer011<>(
-			topic,
-			integerKeyedSerializationSchema,
-			properties,
-			FlinkKafkaProducer011.Semantic.EXACTLY_ONCE);
+		List<AutoCloseable> operatorsToClose = new ArrayList<>();
+		int preScaleDownParallelism = Math.max(2, FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR);
+		for (int subtaskIndex = 0; subtaskIndex < preScaleDownParallelism; subtaskIndex++) {
+			OneInputStreamOperatorTestHarness<Integer, Object> preScaleDownOperator = createTestHarness(
+				topic,
+				preScaleDownParallelism,
+				preScaleDownParallelism,
+				subtaskIndex);
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			IntSerializer.INSTANCE);
-	}
+			preScaleDownOperator.setup();
+			preScaleDownOperator.open();
+			preScaleDownOperator.processElement(subtaskIndex * 2, 0);
+			preScaleDownOperator.snapshot(0, 1);
+			preScaleDownOperator.processElement(subtaskIndex * 2 + 1, 2);
 
-	private Properties createProperties() {
-		Properties properties = new Properties();
-		properties.putAll(standardProps);
-		properties.putAll(secureProps);
-		properties.put(FlinkKafkaProducer011.KEY_DISABLE_METRICS, "true");
-		return properties;
+			operatorsToClose.add(preScaleDownOperator);
+		}
+
+		// do not close previous testHarnesses to make sure that closing do not clean up something (in case of failure
+		// there might not be any close)
+
+		// After previous failure simulate restarting application with smaller parallelism
+		OneInputStreamOperatorTestHarness<Integer, Object> postScaleDownOperator1 = createTestHarness(topic, 1, 1, 0);
+
+		postScaleDownOperator1.setup();
+		postScaleDownOperator1.open();
+
+		// write and commit more records, after potentially lingering transactions
+		postScaleDownOperator1.processElement(46, 7);
+		postScaleDownOperator1.snapshot(4, 8);
+		postScaleDownOperator1.processElement(47, 9);
+		postScaleDownOperator1.notifyOfCompletedCheckpoint(4);
+
+		//now we should have:
+		// - records 42, 43, 44 and 45 in aborted transactions
+		// - committed transaction with record 46
+		// - pending transaction with record 47
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(46), 30_000L);
+
+		postScaleDownOperator1.close();
+		// ignore ProducerFencedExceptions, because postScaleDownOperator1 could reuse transactional ids.
+		for (AutoCloseable operatorToClose : operatorsToClose) {
+			closeIgnoringProducerFenced(operatorToClose);
+		}
+		deleteTestTopic(topic);
 	}
 
 	@Test
@@ -362,5 +398,49 @@ public class FlinkKafkaProducer011Tests extends KafkaTestBase {
 			assertEquals(expectedKey, record.key());
 			assertEquals(expectedValue, record.value());
 		}
+	}
+
+	private void closeIgnoringProducerFenced(AutoCloseable autoCloseable) throws Exception {
+		try {
+			autoCloseable.close();
+		}
+		catch (Exception ex) {
+			if (!(ex.getCause() instanceof ProducerFencedException)) {
+				throw ex;
+			}
+		}
+	}
+
+	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(String topic) throws Exception {
+		return createTestHarness(topic, 1, 1, 0);
+	}
+
+	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(
+		String topic,
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex) throws Exception {
+		Properties properties = createProperties();
+
+		FlinkKafkaProducer011<Integer> kafkaProducer = new FlinkKafkaProducer011<>(
+			topic,
+			integerKeyedSerializationSchema,
+			properties,
+			FlinkKafkaProducer011.Semantic.EXACTLY_ONCE);
+
+		return new OneInputStreamOperatorTestHarness<>(
+			new StreamSink<>(kafkaProducer),
+			maxParallelism,
+			parallelism,
+			subtaskIndex,
+			IntSerializer.INSTANCE);
+	}
+
+	private Properties createProperties() {
+		Properties properties = new Properties();
+		properties.putAll(standardProps);
+		properties.putAll(secureProps);
+		properties.put(FlinkKafkaProducer011.KEY_DISABLE_METRICS, "true");
+		return properties;
 	}
 }

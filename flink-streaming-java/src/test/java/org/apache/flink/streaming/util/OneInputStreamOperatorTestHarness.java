@@ -51,6 +51,17 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 
 	public OneInputStreamOperatorTestHarness(
 		OneInputStreamOperator<IN, OUT> operator,
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex,
+		TypeSerializer<IN> typeSerializerIn) throws Exception {
+		this(operator, maxParallelism, parallelism, subtaskIndex);
+
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
+	}
+
+	public OneInputStreamOperatorTestHarness(
+		OneInputStreamOperator<IN, OUT> operator,
 		TypeSerializer<IN> typeSerializerIn,
 		Environment environment) throws Exception {
 		this(operator, environment);
