@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.LambdaUtil;
 
 import java.util.concurrent.RunnableFuture;
 
@@ -49,27 +49,8 @@ public class StateUtil {
 	 * @throws Exception exception that is a collection of all suppressed exceptions that were caught during iteration
 	 */
 	public static void bestEffortDiscardAllStateObjects(
-			Iterable<? extends StateObject> handlesToDiscard) throws Exception {
-
-		if (handlesToDiscard != null) {
-			Exception exception = null;
-
-			for (StateObject state : handlesToDiscard) {
-
-				if (state != null) {
-					try {
-						state.discardState();
-					}
-					catch (Exception ex) {
-						exception = ExceptionUtils.firstOrSuppressed(ex, exception);
-					}
-				}
-			}
-
-			if (exception != null) {
-				throw exception;
-			}
-		}
+		Iterable<? extends StateObject> handlesToDiscard) throws Exception {
+		LambdaUtil.applyToAllWhileSuppressingExceptions(handlesToDiscard, StateObject::discardState);
 	}
 
 	/**
