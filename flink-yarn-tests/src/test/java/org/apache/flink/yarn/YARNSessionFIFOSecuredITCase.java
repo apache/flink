@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
 
@@ -32,6 +33,7 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.concurrent.Callable;
 
 /**
@@ -62,10 +64,16 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL,
 				SecureTestEnvironment.getHadoopServicePrincipal());
 
-		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig,
-			YARN_CONFIGURATION);
+		SecurityUtils.SecurityConfiguration securityConfig =
+			new SecurityUtils.SecurityConfiguration(
+				flinkConfig,
+				Collections.singletonList(securityConfig1 -> {
+					// manually override the Hadoop Configuration
+					return new HadoopModule(securityConfig1, YARN_CONFIGURATION);
+				}));
+
 		try {
-			TestingSecurityContext.install(ctx, SecureTestEnvironment.getClientSecurityConfigurationMap());
+			TestingSecurityContext.install(securityConfig, SecureTestEnvironment.getClientSecurityConfigurationMap());
 
 			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
