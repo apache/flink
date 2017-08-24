@@ -32,20 +32,20 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.util.NetUtils;
 
-import fi.iki.elonen.NanoHTTPD;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
+import io.prometheus.client.exporter.HTTPServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +59,7 @@ public class PrometheusReporter implements MetricReporter {
 	private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporter.class);
 
 	static final String ARG_PORT = "port";
-	private static final int DEFAULT_PORT = 9249;
+	private static final String DEFAULT_PORT = "9249";
 
 	private static final Pattern UNALLOWED_CHAR_PATTERN = Pattern.compile("[^a-zA-Z0-9:_]");
 	private static final CharacterFilter CHARACTER_FILTER = new CharacterFilter() {
@@ -72,7 +72,7 @@ public class PrometheusReporter implements MetricReporter {
 	private static final char SCOPE_SEPARATOR = '_';
 	private static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
 
-	private PrometheusEndpoint prometheusEndpoint;
+	private HTTPServer httpServer;
 	private final Map<String, Collector> collectorsByMetricName = new HashMap<>();
 
 	@VisibleForTesting
@@ -84,21 +84,30 @@ public class PrometheusReporter implements MetricReporter {
 
 	@Override
 	public void open(MetricConfig config) {
-		int port = config.getInteger(ARG_PORT, DEFAULT_PORT);
-		LOG.info("Using port {}.", port);
-		prometheusEndpoint = new PrometheusEndpoint(port);
-		try {
-			prometheusEndpoint.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true);
-		} catch (IOException e) {
-			final String msg = "Could not start PrometheusEndpoint on port " + port;
-			LOG.warn(msg, e);
-			throw new RuntimeException(msg, e);
+		String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
+
+		if (portsConfig != null) {
+			Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
+
+			while (ports.hasNext()) {
+				int port = ports.next();
+				try {
+					httpServer = new HTTPServer(port);
+					LOG.info("Started PrometheusReporter HTTP server on port " + port + ".");
+					break;
+				} catch (IOException ioe) { //assume port conflict
+					LOG.debug("Could not start PrometheusReporter HTTP server on port " + port + ".", ioe);
+				}
+			}
+			if (httpServer == null) {
+				throw new RuntimeException("Could not start PrometheusReporter HTTP server on any configured port. Ports: " + portsConfig);
+			}
 		}
 	}
 
 	@Override
 	public void close() {
-		prometheusEndpoint.stop();
+		httpServer.stop();
 		CollectorRegistry.defaultRegistry.clear();
 	}
 
@@ -130,7 +139,11 @@ public class PrometheusReporter implements MetricReporter {
 				metric.getClass().getName());
 			return;
 		}
-		collector.register();
+		try {
+			collector.register();
+		} catch (Exception e) {
+			LOG.warn("There was a problem registering metric {}: {}", metricName, e);
+		}
 		collectorsByMetricName.put(metricName, collector);
 	}
 
@@ -196,29 +209,6 @@ public class PrometheusReporter implements MetricReporter {
 
 	private static HistogramSummaryProxy createSummary(final Histogram histogram, final String name, final String identifier, final List<String> dimensionKeys, final List<String> dimensionValues) {
 		return new HistogramSummaryProxy(histogram, name, identifier, dimensionKeys, dimensionValues);
-	}
-
-	static class PrometheusEndpoint extends NanoHTTPD {
-		static final String MIME_TYPE = "plain/text";
-
-		PrometheusEndpoint(int port) {
-			super(port);
-		}
-
-		@Override
-		public Response serve(IHTTPSession session) {
-			if (session.getUri().equals("/metrics")) {
-				StringWriter writer = new StringWriter();
-				try {
-					TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
-				} catch (IOException e) {
-					return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_TYPE, "Unable to output metrics");
-				}
-				return newFixedLengthResponse(Response.Status.OK, TextFormat.CONTENT_TYPE_004, writer.toString());
-			} else {
-				return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_TYPE, "Not found");
-			}
-		}
 	}
 
 	private static class HistogramSummaryProxy extends Collector {

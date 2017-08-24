@@ -50,6 +50,7 @@ import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
 import static org.apache.flink.runtime.metrics.scope.ScopeFormat.SCOPE_SEPARATOR;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -70,7 +71,7 @@ public class PrometheusReporterTest extends TestLogger {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private final MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter()));
+	private final MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "" + NON_DEFAULT_PORT)));
 	private final MetricReporter reporter = registry.getReporters().get(0);
 
 	@Test
@@ -79,13 +80,7 @@ public class PrometheusReporterTest extends TestLogger {
 		Counter testCounter = new SimpleCounter();
 		testCounter.inc(7);
 
-		String counterName = "testCounter";
-		String gaugeName = SCOPE_PREFIX + counterName;
-
-		assertThat(addMetricAndPollResponse(testCounter, counterName),
-			equalTo(HELP_PREFIX + gaugeName + " " + getFullMetricName(counterName) + "\n" +
-				TYPE_PREFIX + gaugeName + " gauge" + "\n" +
-				gaugeName + DEFAULT_LABELS + " 7.0" + "\n"));
+		assertThatGaugeIsExported(testCounter, "testCounter", "7.0");
 	}
 
 	@Test
@@ -97,13 +92,22 @@ public class PrometheusReporterTest extends TestLogger {
 			}
 		};
 
-		String gaugeName = "testGauge";
-		String prometheusGaugeName = SCOPE_PREFIX + gaugeName;
+		assertThatGaugeIsExported(testGauge, "testGauge", "1.0");
+	}
 
-		assertThat(addMetricAndPollResponse(testGauge, gaugeName),
-			equalTo(HELP_PREFIX + prometheusGaugeName + " " + getFullMetricName(gaugeName) + "\n" +
-				TYPE_PREFIX + prometheusGaugeName + " gauge" + "\n" +
-				prometheusGaugeName + DEFAULT_LABELS + " 1.0" + "\n"));
+	@Test
+	public void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
+		Meter testMeter = new TestMeter();
+
+		assertThatGaugeIsExported(testMeter, "testMeter", "5.0");
+	}
+
+	private void assertThatGaugeIsExported(Metric metric, String name, String expectedValue) throws UnirestException {
+		final String prometheusName = SCOPE_PREFIX + name;
+		assertThat(addMetricAndPollResponse(metric, name),
+			containsString(HELP_PREFIX + prometheusName + " " + getFullMetricName(name) + "\n" +
+				TYPE_PREFIX + prometheusName + " gauge" + "\n" +
+				prometheusName + DEFAULT_LABELS + " " + expectedValue + "\n"));
 	}
 
 	@Test
@@ -121,19 +125,6 @@ public class PrometheusReporterTest extends TestLogger {
 			assertThat(response, containsString(
 				summaryName + "{" + DIMENSIONS + ",quantile=\"" + quantile + "\",} " + quantile + "\n"));
 		}
-	}
-
-	@Test
-	public void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
-		Meter testMeter = new TestMeter();
-
-		String meterName = "testMeter";
-		String counterName = SCOPE_PREFIX + meterName;
-
-		assertThat(addMetricAndPollResponse(testMeter, meterName),
-			equalTo(HELP_PREFIX + counterName + " " + getFullMetricName(meterName) + "\n" +
-				TYPE_PREFIX + counterName + " gauge" + "\n" +
-				counterName + DEFAULT_LABELS + " 5.0" + "\n"));
 	}
 
 	@Test
@@ -160,6 +151,43 @@ public class PrometheusReporterTest extends TestLogger {
 		assertThat(PrometheusReporter.replaceInvalidChars("a,=;:?'b,=;:?'c"), equalTo("a___:__b___:__c"));
 	}
 
+	@Test
+	public void registeringSameMetricTwiceDoesNotThrowException() {
+		Counter counter = new SimpleCounter();
+		counter.inc();
+		String counterName = "testCounter";
+		final FrontMetricGroup<TaskManagerMetricGroup> group = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
+
+		reporter.notifyOfAddedMetric(counter, counterName, group);
+		reporter.notifyOfAddedMetric(counter, counterName, group);
+	}
+
+	@Test
+	public void cannotStartTwoReportersOnSamePort() {
+		final MetricRegistry fixedPort1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "12345")));
+		final MetricRegistry fixedPort2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "12345")));
+		assertThat(fixedPort1.getReporters(), hasSize(1));
+		assertThat(fixedPort2.getReporters(), hasSize(0));
+	}
+
+	@Test
+	public void canStartTwoReportersWhenUsingPortRange() {
+		final MetricRegistry portRange1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9249-9252")));
+		final MetricRegistry portRange2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9249-9252")));
+		assertThat(portRange1.getReporters(), hasSize(1));
+		assertThat(portRange2.getReporters(), hasSize(1));
+	}
+
+	@Test
+	public void cannotStartThreeReportersWhenPortRangeIsTooSmall() {
+		final MetricRegistry smallPortRange1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9253-9254")));
+		final MetricRegistry smallPortRange2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9253-9254")));
+		final MetricRegistry smallPortRange3 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test3", "9253-9254")));
+		assertThat(smallPortRange1.getReporters(), hasSize(1));
+		assertThat(smallPortRange2.getReporters(), hasSize(1));
+		assertThat(smallPortRange3.getReporters(), hasSize(0));
+	}
+
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
 		reporter.notifyOfAddedMetric(metric, metricName, new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER)));
 		return pollMetrics().getBody();
@@ -173,12 +201,11 @@ public class PrometheusReporterTest extends TestLogger {
 		return HOST_NAME + SCOPE_SEPARATOR + "taskmanager" + SCOPE_SEPARATOR + TASK_MANAGER + SCOPE_SEPARATOR + metricName;
 	}
 
-	private static Configuration createConfigWithOneReporter() {
+	private static Configuration createConfigWithOneReporter(String reporterName, String portString) {
 		Configuration cfg = new Configuration();
-		cfg.setString(MetricOptions.REPORTERS_LIST, "test1");
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." +
-			ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ARG_PORT, "" + NON_DEFAULT_PORT);
+		cfg.setString(MetricOptions.REPORTERS_LIST, reporterName);
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + "." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + "." + ARG_PORT, portString);
 		return cfg;
 	}
 
