@@ -53,7 +53,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -351,10 +351,6 @@ public class SavepointITCase extends TestLogger {
 					OperatorSubtaskState subtaskState = operatorState.getState(tdd.getSubtaskIndex());
 
 					assertNotNull(subtaskState);
-
-					errMsg = "Initial operator state mismatch.";
-					assertEquals(errMsg, subtaskState.getLegacyOperatorState(),
-						tdd.getTaskStateHandles().getSubtaskStateByOperatorID(operatorState.getOperatorID()).getLegacyOperatorState());
 				}
 			}
 
@@ -377,17 +373,18 @@ public class SavepointITCase extends TestLogger {
 			assertTrue(errMsg, resp.getClass() == getDisposeSavepointSuccess().getClass());
 
 			// - Verification START -------------------------------------------
-
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
 			for (OperatorState stateForTaskGroup : savepoint.getOperatorStates()) {
 				for (OperatorSubtaskState subtaskState : stateForTaskGroup.getStates()) {
-					StreamStateHandle streamTaskState = subtaskState.getLegacyOperatorState();
+					Collection<OperatorStateHandle> streamTaskState = subtaskState.getManagedOperatorState();
 
-					if (streamTaskState != null) {
-						FileStateHandle fileStateHandle = (FileStateHandle) streamTaskState;
-						checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
+					if (streamTaskState != null && !streamTaskState.isEmpty()) {
+						for (OperatorStateHandle osh : streamTaskState) {
+							FileStateHandle fileStateHandle = (FileStateHandle) osh.getDelegateStateHandle();
+							checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
+						}
 					}
 				}
 			}

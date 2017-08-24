@@ -64,7 +64,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -75,7 +74,6 @@ import org.junit.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
@@ -106,12 +104,6 @@ public class InterruptSensitiveRestoreTest {
 	private static final int OPERATOR_RAW = 1;
 	private static final int KEYED_MANAGED = 2;
 	private static final int KEYED_RAW = 3;
-	private static final int LEGACY = 4;
-
-	@Test
-	public void testRestoreWithInterruptLegacy() throws Exception {
-		testRestoreWithInterrupt(LEGACY);
-	}
 
 	@Test
 	public void testRestoreWithInterruptOperatorManaged() throws Exception {
@@ -137,18 +129,15 @@ public class InterruptSensitiveRestoreTest {
 
 		IN_RESTORE_LATCH.reset();
 		Configuration taskConfig = new Configuration();
-		StreamConfig streamConfig = new StreamConfig(taskConfig);
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		StreamConfig cfg = new StreamConfig(taskConfig);
+		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		switch (mode) {
 			case OPERATOR_MANAGED:
 			case OPERATOR_RAW:
 			case KEYED_MANAGED:
 			case KEYED_RAW:
-				streamConfig.setStateKeySerializer(IntSerializer.INSTANCE);
-				streamConfig.setStreamOperator(new StreamSource<>(new TestSource()));
-				break;
-			case LEGACY:
-				streamConfig.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
+				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
+				cfg.setStreamOperator(new StreamSource<>(new TestSource(mode)));
 				break;
 			default:
 				throw new IllegalArgumentException();
@@ -156,7 +145,7 @@ public class InterruptSensitiveRestoreTest {
 
 		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		Task task = createTask(streamConfig, taskConfig, lockingHandle, mode);
+		Task task = createTask(cfg, taskConfig, lockingHandle, mode);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -180,16 +169,15 @@ public class InterruptSensitiveRestoreTest {
 	// ------------------------------------------------------------------------
 
 	private static Task createTask(
-		StreamConfig streamConfig,
-		Configuration taskConfig,
-		StreamStateHandle state,
-		int mode) throws IOException {
+			StreamConfig streamConfig,
+			Configuration taskConfig,
+			StreamStateHandle state,
+			int mode) throws IOException {
 
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
-		StreamStateHandle operatorState = null;
 		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
 		Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
 		Collection<OperatorStateHandle> operatorStateBackend = Collections.emptyList();
@@ -206,7 +194,7 @@ public class InterruptSensitiveRestoreTest {
 				Collections.singletonList(new OperatorStateHandle(operatorStateMetadata, state));
 
 		List<KeyedStateHandle> keyedStateHandles =
-				Collections.<KeyedStateHandle>singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
+				Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
 
 		switch (mode) {
 			case OPERATOR_MANAGED:
@@ -221,15 +209,11 @@ public class InterruptSensitiveRestoreTest {
 			case KEYED_RAW:
 				keyedStateFromStream = keyedStateHandles;
 				break;
-			case LEGACY:
-				operatorState = state;
-				break;
 			default:
 				throw new IllegalArgumentException();
 		}
 
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			operatorState,
 			operatorStateBackend,
 			operatorStateStream,
 			keyedStateFromBackend,
@@ -238,14 +222,13 @@ public class InterruptSensitiveRestoreTest {
 		JobVertexID jobVertexID = new JobVertexID();
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 		streamConfig.setOperatorID(operatorID);
-
 		TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
 		stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
 			"test job name",
 			new SerializedValue<>(new ExecutionConfig()),
-			taskConfig,
+			new Configuration(),
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList());
 
@@ -302,11 +285,11 @@ public class InterruptSensitiveRestoreTest {
 			FSDataInputStream is = new FSDataInputStream() {
 
 				@Override
-				public void seek(long desired) throws IOException {
+				public void seek(long desired) {
 				}
 
 				@Override
-				public long getPos() throws IOException {
+				public long getPos() {
 					return 0;
 				}
 
@@ -358,31 +341,13 @@ public class InterruptSensitiveRestoreTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class TestSourceLegacy implements SourceFunction<Object>, Checkpointed<Serializable> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void run(SourceContext<Object> ctx) throws Exception {
-			fail("should never be called");
-		}
-
-		@Override
-		public void cancel() {}
-
-		@Override
-		public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			fail("should never be called");
-			return null;
-		}
-
-		@Override
-		public void restoreState(Serializable state) throws Exception {
-			fail("should never be called");
-		}
-	}
-
 	private static class TestSource implements SourceFunction<Object>, CheckpointedFunction {
 		private static final long serialVersionUID = 1L;
+		private final int testType;
+
+		public TestSource(int testType) {
+			this.testType = testType;
+		}
 
 		@Override
 		public void run(SourceContext<Object> ctx) throws Exception {
@@ -399,6 +364,8 @@ public class InterruptSensitiveRestoreTest {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
+			// raw keyed state is already read by timer service, all others to initialize the context...we only need to
+			// trigger this manually.
 			((StateInitializationContext) context).getRawOperatorStateInputs().iterator().next().getStream().read();
 		}
 	}

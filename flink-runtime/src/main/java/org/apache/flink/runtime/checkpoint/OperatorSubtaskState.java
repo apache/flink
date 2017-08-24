@@ -18,21 +18,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,16 +58,6 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorSubtaskState.class);
 
 	private static final long serialVersionUID = -2394696997971923995L;
-
-	/**
-	 * Legacy (non-repartitionable) operator state.
-	 *
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@Deprecated
-	@Nullable
-	private final StreamStateHandle legacyOperatorState;
 
 	/**
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
@@ -103,39 +90,30 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 */
 	private final long stateSize;
 
-	@VisibleForTesting
-	public OperatorSubtaskState(StreamStateHandle legacyOperatorState) {
-
-		this(legacyOperatorState,
-			Collections.<OperatorStateHandle>emptyList(),
-			Collections.<OperatorStateHandle>emptyList(),
-			Collections.<KeyedStateHandle>emptyList(),
-			Collections.<KeyedStateHandle>emptyList());
-	}
-
 	/**
 	 * Empty state.
 	 */
 	public OperatorSubtaskState() {
-		this(null);
+		this(
+			Collections.emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList());
 	}
 
 	public OperatorSubtaskState(
-		StreamStateHandle legacyOperatorState,
 		Collection<OperatorStateHandle> managedOperatorState,
 		Collection<OperatorStateHandle> rawOperatorState,
 		Collection<KeyedStateHandle> managedKeyedState,
 		Collection<KeyedStateHandle> rawKeyedState) {
 
-		this.legacyOperatorState = legacyOperatorState;
 		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
 		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
 		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
 		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
 
 		try {
-			long calculateStateSize = getSizeNullSafe(legacyOperatorState);
-			calculateStateSize += sumAllSizes(managedOperatorState);
+			long calculateStateSize = sumAllSizes(managedOperatorState);
 			calculateStateSize += sumAllSizes(rawOperatorState);
 			calculateStateSize += sumAllSizes(managedKeyedState);
 			calculateStateSize += sumAllSizes(rawKeyedState);
@@ -150,13 +128,12 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Collections (except for legacy state).
 	 */
 	public OperatorSubtaskState(
-		StreamStateHandle legacyOperatorState,
 		OperatorStateHandle managedOperatorState,
 		OperatorStateHandle rawOperatorState,
 		KeyedStateHandle managedKeyedState,
 		KeyedStateHandle rawKeyedState) {
 
-		this(legacyOperatorState,
+		this(
 			singletonOrEmptyOnNull(managedOperatorState),
 			singletonOrEmptyOnNull(rawOperatorState),
 			singletonOrEmptyOnNull(managedKeyedState),
@@ -181,16 +158,6 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@Deprecated
-	@Nullable
-	public StreamStateHandle getLegacyOperatorState() {
-		return legacyOperatorState;
-	}
 
 	/**
 	 * Returns a handle to the managed operator state.
@@ -228,12 +195,11 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	public void discardState() {
 		try {
 			List<StateObject> toDispose =
-				new ArrayList<>(1 +
-					managedOperatorState.size() +
-					rawOperatorState.size() +
-					managedKeyedState.size() +
-					rawKeyedState.size());
-			toDispose.add(legacyOperatorState);
+				new ArrayList<>(
+						managedOperatorState.size() +
+						rawOperatorState.size() +
+						managedKeyedState.size() +
+						rawKeyedState.size());
 			toDispose.addAll(managedOperatorState);
 			toDispose.addAll(rawOperatorState);
 			toDispose.addAll(managedKeyedState);
@@ -281,9 +247,6 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		if (getStateSize() != that.getStateSize()) {
 			return false;
 		}
-		if (getLegacyOperatorState() != null ? !getLegacyOperatorState().equals(that.getLegacyOperatorState()) : that.getLegacyOperatorState() != null) {
-			return false;
-		}
 		if (!getManagedOperatorState().equals(that.getManagedOperatorState())) {
 			return false;
 		}
@@ -298,8 +261,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
 	@Override
 	public int hashCode() {
-		int result = getLegacyOperatorState() != null ? getLegacyOperatorState().hashCode() : 0;
-		result = 31 * result + getManagedOperatorState().hashCode();
+		int result = getManagedOperatorState().hashCode();
 		result = 31 * result + getRawOperatorState().hashCode();
 		result = 31 * result + getManagedKeyedState().hashCode();
 		result = 31 * result + getRawKeyedState().hashCode();
@@ -310,8 +272,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	@Override
 	public String toString() {
 		return "SubtaskState{" +
-			"legacyState=" + legacyOperatorState +
-			", operatorStateFromBackend=" + managedOperatorState +
+			"operatorStateFromBackend=" + managedOperatorState +
 			", operatorStateFromStream=" + rawOperatorState +
 			", keyedStateFromBackend=" + managedKeyedState +
 			", keyedStateFromStream=" + rawKeyedState +
@@ -320,8 +281,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	}
 
 	public boolean hasState() {
-		return legacyOperatorState != null
-			|| hasState(managedOperatorState)
+		return hasState(managedOperatorState)
 			|| hasState(rawOperatorState)
 			|| hasState(managedKeyedState)
 			|| hasState(rawKeyedState);

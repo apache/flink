@@ -712,38 +712,6 @@ public class FlinkKinesisConsumerTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testFetcherShouldBeCorrectlySeededIfRestoringFromLegacyCheckpoint() throws Exception {
-		HashMap<StreamShardHandle, SequenceNumber> fakeRestoredState = getFakeRestoredStore("all");
-		HashMap<KinesisStreamShard, SequenceNumber> legacyFakeRestoredState = new HashMap<>();
-		for (Map.Entry<StreamShardHandle, SequenceNumber> kv : fakeRestoredState.entrySet()) {
-			legacyFakeRestoredState.put(new KinesisStreamShard(kv.getKey().getStreamName(), kv.getKey().getShard()), kv.getValue());
-		}
-
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
-		List<StreamShardHandle> shards = new ArrayList<>();
-		shards.addAll(fakeRestoredState.keySet());
-		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
-
-		// assume the given config is correct
-		PowerMockito.mockStatic(KinesisConfigUtil.class);
-		PowerMockito.doNothing().when(KinesisConfigUtil.class);
-
-		TestableFlinkKinesisConsumer consumer = new TestableFlinkKinesisConsumer(
-			"fakeStream", new Properties(), 10, 2);
-		consumer.restoreState(legacyFakeRestoredState);
-		consumer.open(new Configuration());
-		consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
-
-		for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
-			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredShard.getKey()),
-					restoredShard.getKey(), restoredShard.getValue()));
-		}
-	}
-
-	@Test
-	@SuppressWarnings("unchecked")
 	public void testFetcherShouldBeCorrectlySeededIfRestoringFromCheckpoint() throws Exception {
 
 		// ----------------------------------------------------------------------

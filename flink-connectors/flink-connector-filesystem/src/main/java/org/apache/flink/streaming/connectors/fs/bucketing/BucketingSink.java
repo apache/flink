@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.fs.Clock;
@@ -154,8 +153,7 @@ import java.util.UUID;
  */
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
-		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener,
-					CheckpointedRestoring<RollingSink.BucketState>, ProcessingTimeCallback {
+		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
 
@@ -870,25 +868,6 @@ public class BucketingSink<T>
 				}
 			}
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Backwards compatibility with Flink 1.1
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void restoreState(RollingSink.BucketState state) throws Exception {
-		LOG.info("{} (taskIdx={}) restored bucket state from the RollingSink an older Flink version: {}",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), state);
-
-		try {
-			initFileSystem();
-		} catch (IOException e) {
-			LOG.error("Error while creating FileSystem when restoring the state of the BucketingSink.", e);
-			throw new RuntimeException("Error while creating FileSystem when restoring the state of the BucketingSink.", e);
-		}
-
-		handleRestoredRollingSinkState(state);
 	}
 
 	// --------------------------------------------------------------------------------------------

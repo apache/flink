@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0;
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -30,13 +29,18 @@ import java.util.Map;
  */
 public class SavepointSerializers {
 
+	/** If this flag is true, restoring a savepoint fails if it contains legacy state (<= Flink 1.1 format) */
+	static boolean FAIL_WHEN_LEGACY_STATE_DETECTED = true;
 
 	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(2);
 
 	static {
-		SERIALIZERS.put(SavepointV0.VERSION, SavepointV0Serializer.INSTANCE);
 		SERIALIZERS.put(SavepointV1.VERSION, SavepointV1Serializer.INSTANCE);
 		SERIALIZERS.put(SavepointV2.VERSION, SavepointV2Serializer.INSTANCE);
+	}
+
+	private SavepointSerializers() {
+		throw new AssertionError();
 	}
 
 	// ------------------------------------------------------------------------
@@ -77,4 +81,12 @@ public class SavepointSerializers {
 		}
 	}
 
+	/**
+	 * This is only visible as a temporary solution to keep the stateful job migration it cases working from binary
+	 * savepoints that still contain legacy state (<= Flink 1.1).
+	 */
+	@VisibleForTesting
+	public static void setFailWhenLegacyStateDetected(boolean fail) {
+		FAIL_WHEN_LEGACY_STATE_DETECTED = fail;
+	}
 }

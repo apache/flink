@@ -26,8 +26,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -50,7 +48,6 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
@@ -451,7 +448,7 @@ public class RocksDBAsyncSnapshotTest {
 
 	private static class AsyncCheckpointOperator
 		extends AbstractStreamOperator<String>
-		implements OneInputStreamOperator<String, String>, StreamCheckpointedOperator {
+		implements OneInputStreamOperator<String, String> {
 
 		@Override
 		public void open() throws Exception {
@@ -477,17 +474,5 @@ public class RocksDBAsyncSnapshotTest {
 
 			state.update(element.getValue());
 		}
-
-		@Override
-		public void snapshotState(
-				FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-			// do nothing so that we don't block
-		}
-
-		@Override
-		public void restoreState(FSDataInputStream in) throws Exception {
-			// do nothing so that we don't block
-		}
-
 	}
 }

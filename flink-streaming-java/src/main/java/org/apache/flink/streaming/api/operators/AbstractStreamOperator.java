@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
@@ -55,7 +54,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -251,42 +249,6 @@ public abstract class AbstractStreamOperator<OUT>
 				getContainingTask().getCancelables()); // access to register streams for canceling
 
 		initializeState(initializationContext);
-
-		if (restoring) {
-
-			// finally restore the legacy state in case we are
-			// migrating from a previous Flink version.
-
-			restoreStreamCheckpointed(stateHandles);
-		}
-	}
-
-	/**
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@Deprecated
-	private void restoreStreamCheckpointed(OperatorSubtaskState stateHandles) throws Exception {
-		StreamStateHandle state = stateHandles.getLegacyOperatorState();
-		if (null != state) {
-			if (this instanceof CheckpointedRestoringOperator) {
-
-				LOG.debug("Restore state of task {} in operator with id ({}).",
-					getContainingTask().getName(), getOperatorID());
-
-				FSDataInputStream is = state.openInputStream();
-				try {
-					getContainingTask().getCancelables().registerClosable(is);
-					((CheckpointedRestoringOperator) this).restoreState(is);
-				} finally {
-					getContainingTask().getCancelables().unregisterClosable(is);
-					is.close();
-				}
-			} else {
-				throw new Exception(
-						"Found legacy operator state for operator that does not implement StreamCheckpointedOperator.");
-			}
-		}
 	}
 
 	/**
@@ -447,35 +409,6 @@ public abstract class AbstractStreamOperator<OUT>
 						"might have prevented deleting some state data.", getOperatorName(), closeException);
 				}
 			}
-		}
-	}
-
-	/**
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@SuppressWarnings("deprecation")
-	@Deprecated
-	@Override
-	public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
-		if (this instanceof StreamCheckpointedOperator) {
-			CheckpointStreamFactory factory = getCheckpointStreamFactory(checkpointOptions);
-
-			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-				factory.createCheckpointStateOutputStream(checkpointId, timestamp);
-
-			getContainingTask().getCancelables().registerClosable(outStream);
-
-			try {
-				((StreamCheckpointedOperator) this).snapshotState(outStream, checkpointId, timestamp);
-				return outStream.closeAndGetHandle();
-			}
-			finally {
-				getContainingTask().getCancelables().unregisterClosable(outStream);
-				outStream.close();
-			}
-		} else {
-			return null;
 		}
 	}
 

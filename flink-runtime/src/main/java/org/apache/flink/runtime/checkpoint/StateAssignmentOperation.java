@@ -28,7 +28,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -162,8 +161,6 @@ public class StateAssignmentOperation {
 			Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[subTaskIndex]
 				.getCurrentExecutionAttempt();
 
-			List<StreamStateHandle> subNonPartitionableState = new ArrayList<>();
-
 			Tuple2<Collection<KeyedStateHandle>, Collection<KeyedStateHandle>> subKeyedState = null;
 
 			List<Collection<OperatorStateHandle>> subManagedOperatorState = new ArrayList<>();
@@ -173,15 +170,6 @@ public class StateAssignmentOperation {
 			for (int operatorIndex = 0; operatorIndex < operatorIDs.size(); operatorIndex++) {
 				OperatorState operatorState = operatorStates.get(operatorIndex);
 				int oldParallelism = operatorState.getParallelism();
-
-				// NonPartitioned State
-
-				reAssignSubNonPartitionedStates(
-					operatorState,
-					subTaskIndex,
-					newParallelism,
-					oldParallelism,
-					subNonPartitionableState);
 
 				// PartitionedState
 				reAssignSubPartitionableState(
@@ -204,8 +192,7 @@ public class StateAssignmentOperation {
 			}
 
 			// check if a stateless task
-			if (!allElementsAreNull(subNonPartitionableState) ||
-				!allElementsAreNull(subManagedOperatorState) ||
+			if (!allElementsAreNull(subManagedOperatorState) ||
 				!allElementsAreNull(subRawOperatorState) ||
 				subKeyedState != null) {
 
@@ -226,7 +213,6 @@ public class StateAssignmentOperation {
 
 					OperatorSubtaskState operatorSubtaskState =
 						new OperatorSubtaskState(
-							subNonPartitionableState.get(i),
 							subManagedOperatorState.get(i),
 							subRawOperatorState.get(i),
 							managedKeyed,
@@ -312,24 +298,6 @@ public class StateAssignmentOperation {
 			}
 		}
 		return true;
-	}
-
-
-	private void reAssignSubNonPartitionedStates(
-			OperatorState operatorState,
-			int subTaskIndex,
-			int newParallelism,
-			int oldParallelism,
-		List<StreamStateHandle> subNonPartitionableState) {
-		if (oldParallelism == newParallelism) {
-			if (operatorState.getState(subTaskIndex) != null) {
-				subNonPartitionableState.add(operatorState.getState(subTaskIndex).getLegacyOperatorState());
-			} else {
-				subNonPartitionableState.add(null);
-			}
-		} else {
-			subNonPartitionableState.add(null);
-		}
 	}
 
 	private void reDistributePartitionableStates(
@@ -523,19 +491,6 @@ public class StateAssignmentOperation {
 					executionJobVertex.getMaxParallelism() + ") changed. This " +
 					"is currently not supported.");
 			}
-		}
-
-		//----------------------------------------parallelism preconditions-----------------------------------------
-
-		final int oldParallelism = operatorState.getParallelism();
-		final int newParallelism = executionJobVertex.getParallelism();
-
-		if (operatorState.hasNonPartitionedState() && (oldParallelism != newParallelism)) {
-			throw new IllegalStateException("Cannot restore the latest checkpoint because " +
-				"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
-				"state and its parallelism changed. The operator " + executionJobVertex.getJobVertexId() +
-				" has parallelism " + newParallelism + " whereas the corresponding " +
-				"state object has a parallelism of " + oldParallelism);
 		}
 	}
 

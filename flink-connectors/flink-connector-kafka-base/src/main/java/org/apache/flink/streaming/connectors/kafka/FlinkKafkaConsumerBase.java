@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -78,8 +77,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T> implements
 		CheckpointListener,
 		ResultTypeQueryable<T>,
-		CheckpointedFunction,
-		CheckpointedRestoring<HashMap<KafkaTopicPartition, Long>> {
+		CheckpointedFunction {
 
 	private static final long serialVersionUID = -6272159445203409112L;
 
@@ -764,22 +762,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			}
 		}
-	}
-
-	@Override
-	public final void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
-		LOG.info("{} (taskIdx={}) restoring offsets from an older version: {}",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoredOffsets);
-
-		restoredFromOldState = true;
-
-		if (restoredOffsets.size() > 0 && discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
-			throw new IllegalArgumentException(
-				"Topic / partition discovery cannot be enabled if the job is restored from a savepoint from Flink 1.1.x.");
-		}
-
-		restoredState = new TreeMap<>(new KafkaTopicPartition.Comparator());
-		restoredState.putAll(restoredOffsets);
 	}
 
 	@Override

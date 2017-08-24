@@ -29,12 +29,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
 
 import org.hamcrest.BaseMatcher;
@@ -67,7 +65,6 @@ public class CheckpointStateRestoreTest {
 	public void testSetState() {
 		try {
 
-			final ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest.generateChainedStateHandle(new SerializableObject());
 			KeyGroupRange keyGroupRange = KeyGroupRange.of(0,0);
 			List<SerializableObject> testStates = Collections.singletonList(new SerializableObject());
 			final KeyedStateHandle serializedKeyGroupStates = CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRange, testStates);
@@ -125,7 +122,6 @@ public class CheckpointStateRestoreTest {
 			subtaskStates.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(statefulId),
 				new OperatorSubtaskState(
-					serializedState.get(0),
 					Collections.<OperatorStateHandle>emptyList(),
 					Collections.<OperatorStateHandle>emptyList(),
 					Collections.singletonList(serializedKeyGroupStates),
@@ -249,17 +245,13 @@ public class CheckpointStateRestoreTest {
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY);
 
-		StreamStateHandle serializedState = CheckpointCoordinatorTest
-				.generateChainedStateHandle(new SerializableObject())
-				.get(0);
-
 		// --- (2) Checkpoint misses state for a jobVertex (should work) ---
 		Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();
 		{
 			OperatorState taskState = new OperatorState(operatorId1, 3, 3);
-			taskState.putState(0, new OperatorSubtaskState(serializedState));
-			taskState.putState(1, new OperatorSubtaskState(serializedState));
-			taskState.putState(2, new OperatorSubtaskState(serializedState));
+			taskState.putState(0, new OperatorSubtaskState());
+			taskState.putState(1, new OperatorSubtaskState());
+			taskState.putState(2, new OperatorSubtaskState());
 
 			checkpointTaskStates.put(operatorId1, taskState);
 		}
@@ -286,7 +278,7 @@ public class CheckpointStateRestoreTest {
 		// There is no task for this
 		{
 			OperatorState taskState = new OperatorState(newOperatorID, 1, 1);
-			taskState.putState(0, new OperatorSubtaskState(serializedState));
+			taskState.putState(0, new OperatorSubtaskState());
 
 			checkpointTaskStates.put(newOperatorID, taskState);
 		}

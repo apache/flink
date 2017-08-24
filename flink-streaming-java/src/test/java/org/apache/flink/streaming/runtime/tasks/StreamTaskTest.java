@@ -81,7 +81,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -139,7 +138,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
@@ -307,9 +305,9 @@ public class StreamTaskTest extends TestLogger {
 		streamTask.setEnvironment(mockEnvironment);
 
 		// mock the operators
-		StreamOperator<?> streamOperator1 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
-		StreamOperator<?> streamOperator2 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
-		StreamOperator<?> streamOperator3 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+		StreamOperator<?> streamOperator1 = mock(StreamOperator.class);
+		StreamOperator<?> streamOperator2 = mock(StreamOperator.class);
+		StreamOperator<?> streamOperator3 = mock(StreamOperator.class);
 
 		// mock the returned snapshots
 		OperatorSnapshotResult operatorSnapshotResult1 = mock(OperatorSnapshotResult.class);
@@ -320,15 +318,6 @@ public class StreamTaskTest extends TestLogger {
 		when(streamOperator1.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(operatorSnapshotResult1);
 		when(streamOperator2.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(operatorSnapshotResult2);
 		when(streamOperator3.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenThrow(testException);
-
-		// mock the returned legacy snapshots
-		StreamStateHandle streamStateHandle1 = mock(StreamStateHandle.class);
-		StreamStateHandle streamStateHandle2 = mock(StreamStateHandle.class);
-		StreamStateHandle streamStateHandle3 = mock(StreamStateHandle.class);
-
-		when(streamOperator1.snapshotLegacyOperatorState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(streamStateHandle1);
-		when(streamOperator2.snapshotLegacyOperatorState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(streamStateHandle2);
-		when(streamOperator3.snapshotLegacyOperatorState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(streamStateHandle3);
 
 		OperatorID operatorID1 = new OperatorID();
 		OperatorID operatorID2 = new OperatorID();
@@ -359,10 +348,6 @@ public class StreamTaskTest extends TestLogger {
 
 		verify(operatorSnapshotResult1).cancel();
 		verify(operatorSnapshotResult2).cancel();
-
-		verify(streamStateHandle1).discardState();
-		verify(streamStateHandle2).discardState();
-		verify(streamStateHandle3).discardState();
 	}
 
 	/**
@@ -384,12 +369,12 @@ public class StreamTaskTest extends TestLogger {
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 		streamTask.setEnvironment(mockEnvironment);
 
-		StreamOperator<?> streamOperator1 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
-		StreamOperator<?> streamOperator2 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
-		StreamOperator<?> streamOperator3 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+		// mock the operators
+		StreamOperator<?> streamOperator1 = mock(StreamOperator.class);
+		StreamOperator<?> streamOperator2 = mock(StreamOperator.class);
+		StreamOperator<?> streamOperator3 = mock(StreamOperator.class);
 
-		// mock the new state handles / futures
-
+		// mock the new state operator snapshots
 		OperatorSnapshotResult operatorSnapshotResult1 = mock(OperatorSnapshotResult.class);
 		OperatorSnapshotResult operatorSnapshotResult2 = mock(OperatorSnapshotResult.class);
 		OperatorSnapshotResult operatorSnapshotResult3 = mock(OperatorSnapshotResult.class);
@@ -402,15 +387,6 @@ public class StreamTaskTest extends TestLogger {
 		when(streamOperator1.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(operatorSnapshotResult1);
 		when(streamOperator2.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(operatorSnapshotResult2);
 		when(streamOperator3.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(operatorSnapshotResult3);
-
-		// mock the legacy state snapshot
-		StreamStateHandle streamStateHandle1 = mock(StreamStateHandle.class);
-		StreamStateHandle streamStateHandle2 = mock(StreamStateHandle.class);
-		StreamStateHandle streamStateHandle3 = mock(StreamStateHandle.class);
-
-		when(streamOperator1.snapshotLegacyOperatorState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(streamStateHandle1);
-		when(streamOperator2.snapshotLegacyOperatorState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(streamStateHandle2);
-		when(streamOperator3.snapshotLegacyOperatorState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenReturn(streamStateHandle3);
 
 		OperatorID operatorID1 = new OperatorID();
 		OperatorID operatorID2 = new OperatorID();
@@ -438,10 +414,6 @@ public class StreamTaskTest extends TestLogger {
 		verify(operatorSnapshotResult1).cancel();
 		verify(operatorSnapshotResult2).cancel();
 		verify(operatorSnapshotResult3).cancel();
-
-		verify(streamStateHandle1).discardState();
-		verify(streamStateHandle2).discardState();
-		verify(streamStateHandle3).discardState();
 	}
 
 	/**
@@ -481,7 +453,7 @@ public class StreamTaskTest extends TestLogger {
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 		streamTask.setEnvironment(mockEnvironment);
 
-		StreamOperator<?> streamOperator = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+		StreamOperator<?> streamOperator = mock(StreamOperator.class);
 
 		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
@@ -581,7 +553,6 @@ public class StreamTaskTest extends TestLogger {
 
 		whenNew(OperatorSubtaskState.class).
 			withArguments(
-				any(StreamStateHandle.class),
 				anyCollectionOf(OperatorStateHandle.class),
 				anyCollectionOf(OperatorStateHandle.class),
 				anyCollectionOf(KeyedStateHandle.class),
@@ -593,11 +564,10 @@ public class StreamTaskTest extends TestLogger {
 				completeSubtask.await();
 				Object[] arguments = invocation.getArguments();
 				return new OperatorSubtaskState(
-					(StreamStateHandle) arguments[0],
+					(OperatorStateHandle) arguments[0],
 					(OperatorStateHandle) arguments[1],
-					(OperatorStateHandle) arguments[2],
-					(KeyedStateHandle) arguments[3],
-					(KeyedStateHandle) arguments[4]
+					(KeyedStateHandle) arguments[2],
+					(KeyedStateHandle) arguments[3]
 				);
 			}
 		});
@@ -606,7 +576,7 @@ public class StreamTaskTest extends TestLogger {
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 		streamTask.setEnvironment(mockEnvironment);
 
-		final StreamOperator<?> streamOperator = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+		final StreamOperator<?> streamOperator = mock(StreamOperator.class);
 		final OperatorID operatorID = new OperatorID();
 		when(streamOperator.getOperatorID()).thenReturn(operatorID);
 
@@ -717,7 +687,7 @@ public class StreamTaskTest extends TestLogger {
 
 		// mock the operators
 		StreamOperator<?> statelessOperator =
-				mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+				mock(StreamOperator.class);
 
 		final OperatorID operatorID = new OperatorID();
 		when(statelessOperator.getOperatorID()).thenReturn(operatorID);

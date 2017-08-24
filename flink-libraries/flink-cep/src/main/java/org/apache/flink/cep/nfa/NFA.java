@@ -43,11 +43,6 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Predicate;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
-import javax.annotation.Nullable;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -55,7 +50,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OptionalDataException;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -716,9 +710,7 @@ public class NFA<T> implements Serializable {
 		return result;
 	}
 
-	//////////////////////			Fault-Tolerance / Migration			//////////////////////
-
-	private static final String BEGINNING_STATE_NAME = "$beginningState$";
+	//////////////////////			Fault-Tolerance			//////////////////////
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
@@ -729,101 +721,13 @@ public class NFA<T> implements Serializable {
 
 		final List<ComputationState<T>> readComputationStates = new ArrayList<>(numberComputationStates);
 
-		boolean afterMigration = false;
 		for (int i = 0; i < numberComputationStates; i++) {
 			ComputationState<T> computationState = readComputationState(ois);
-			if (computationState.getState().getName().equals(BEGINNING_STATE_NAME)) {
-				afterMigration = true;
-			}
-
 			readComputationStates.add(computationState);
 		}
 
-		if (afterMigration && !readComputationStates.isEmpty()) {
-			try {
-				//Backwards compatibility
-				this.computationStates.addAll(migrateNFA(readComputationStates));
-				final Field newSharedBufferField = NFA.class.getDeclaredField("eventSharedBuffer");
-				final Field sharedBufferField = NFA.class.getDeclaredField("sharedBuffer");
-				sharedBufferField.setAccessible(true);
-				newSharedBufferField.setAccessible(true);
-				newSharedBufferField.set(this, SharedBuffer.migrateSharedBuffer(this.sharedBuffer));
-				sharedBufferField.set(this, null);
-				sharedBufferField.setAccessible(false);
-				newSharedBufferField.setAccessible(false);
-			} catch (Exception e) {
-				throw new IllegalStateException("Could not migrate from earlier version", e);
-			}
-		} else {
-			this.computationStates.addAll(readComputationStates);
-		}
-
+		this.computationStates.addAll(readComputationStates);
 		nonDuplicatingTypeSerializer.clearReferences();
-	}
-
-	/**
-	 * Needed for backward compatibility. First migrates the {@link State} graph see {@link NFACompiler#migrateGraph(State)}.
-	 * Than recreates the {@link ComputationState}s with the new {@link State} graph.
-	 * @param readStates computation states read from snapshot
-	 * @return collection of migrated computation states
-	 */
-	private Collection<ComputationState<T>> migrateNFA(Collection<ComputationState<T>> readStates) {
-		final ArrayList<ComputationState<T>> computationStates = new ArrayList<>();
-
-		final State<T> startState = Iterators.find(
-			readStates.iterator(),
-			new Predicate<ComputationState<T>>() {
-				@Override
-				public boolean apply(@Nullable ComputationState<T> input) {
-					return input != null && input.getState().getName().equals(BEGINNING_STATE_NAME);
-				}
-			}).getState();
-
-		final Map<String, State<T>> convertedStates = NFACompiler.migrateGraph(startState);
-
-		for (ComputationState<T> readState : readStates) {
-			if (!readState.isStartState()) {
-				final String previousName = readState.getState().getName();
-				final String currentName = Iterators.find(
-					readState.getState().getStateTransitions().iterator(),
-					new Predicate<StateTransition<T>>() {
-						@Override
-						public boolean apply(@Nullable StateTransition<T> input) {
-							return input != null && input.getAction() == StateTransitionAction.TAKE;
-						}
-					}).getTargetState().getName();
-
-				final State<T> previousState = convertedStates.get(previousName);
-
-				computationStates.add(ComputationState.createState(
-					this,
-					convertedStates.get(currentName),
-					previousState,
-					readState.getEvent(),
-					0,
-					readState.getTimestamp(),
-					readState.getVersion(),
-					readState.getStartTimestamp()
-				));
-			}
-		}
-
-		final String startName = Iterators.find(convertedStates.values().iterator(), new Predicate<State<T>>() {
-			@Override
-			public boolean apply(@Nullable State<T> input) {
-				return input != null && input.isStart();
-			}
-		}).getName();
-
-		computationStates.add(ComputationState.createStartState(
-			this,
-			convertedStates.get(startName),
-			new DeweyNumber(this.startEventCounter)));
-
-		this.states.clear();
-		this.states.addAll(convertedStates.values());
-
-		return computationStates;
 	}
 
 	@SuppressWarnings("unchecked")

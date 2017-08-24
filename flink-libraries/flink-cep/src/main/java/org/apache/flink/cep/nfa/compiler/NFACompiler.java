@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.nfa.compiler;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
@@ -35,11 +34,6 @@ import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
-
-import org.apache.flink.shaded.guava18.com.google.common.base.Predicate;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
-import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -855,114 +849,6 @@ public class NFACompiler {
 					new AndCondition<>(stateTransition.getCondition(), new NotCondition<>(takeCondition)));
 			}
 		}
-	}
-
-	/**
-	 * Used for migrating CEP graphs prior to 1.3. It removes the dummy start, adds the dummy end, and translates all
-	 * states to consuming ones by moving all TAKEs and IGNOREs to the next state. This method assumes each state
-	 * has at most one TAKE and one IGNORE and name of each state is unique. No PROCEED transition is allowed!
-	 *
-	 * @param oldStartState dummy start state of old graph
-	 * @param <T>           type of events
-	 * @return map of new states, where key is the name of a state and value is the state itself
-	 */
-	@Internal
-	public static <T> Map<String, State<T>> migrateGraph(State<T> oldStartState) {
-		State<T> oldFirst = oldStartState;
-		State<T> oldSecond = oldStartState.getStateTransitions().iterator().next().getTargetState();
-
-		StateTransition<T> oldFirstToSecondTake = Iterators.find(
-			oldFirst.getStateTransitions().iterator(),
-			new Predicate<StateTransition<T>>() {
-				@Override
-				public boolean apply(@Nullable StateTransition<T> input) {
-					return input != null && input.getAction() == StateTransitionAction.TAKE;
-				}
-
-			});
-
-		StateTransition<T> oldFirstIgnore = Iterators.find(
-			oldFirst.getStateTransitions().iterator(),
-			new Predicate<StateTransition<T>>() {
-				@Override
-				public boolean apply(@Nullable StateTransition<T> input) {
-					return input != null && input.getAction() == StateTransitionAction.IGNORE;
-				}
-
-			}, null);
-
-		StateTransition<T> oldSecondToThirdTake = Iterators.find(
-			oldSecond.getStateTransitions().iterator(),
-			new Predicate<StateTransition<T>>() {
-				@Override
-				public boolean apply(@Nullable StateTransition<T> input) {
-					return input != null && input.getAction() == StateTransitionAction.TAKE;
-				}
-
-			}, null);
-
-		final Map<String, State<T>> convertedStates = new HashMap<>();
-		State<T> newSecond;
-		State<T> newFirst = new State<>(oldSecond.getName(), State.StateType.Start);
-		convertedStates.put(newFirst.getName(), newFirst);
-		while (oldSecondToThirdTake != null) {
-
-			newSecond = new State<T>(oldSecondToThirdTake.getTargetState().getName(), State.StateType.Normal);
-			convertedStates.put(newSecond.getName(), newSecond);
-			newFirst.addTake(newSecond, oldFirstToSecondTake.getCondition());
-
-			if (oldFirstIgnore != null) {
-				newFirst.addIgnore(oldFirstIgnore.getCondition());
-			}
-
-			oldFirst = oldSecond;
-
-			oldFirstToSecondTake = Iterators.find(
-				oldFirst.getStateTransitions().iterator(),
-				new Predicate<StateTransition<T>>() {
-					@Override
-					public boolean apply(@Nullable StateTransition<T> input) {
-						return input != null && input.getAction() == StateTransitionAction.TAKE;
-					}
-
-				});
-
-			oldFirstIgnore = Iterators.find(
-				oldFirst.getStateTransitions().iterator(),
-				new Predicate<StateTransition<T>>() {
-					@Override
-					public boolean apply(@Nullable StateTransition<T> input) {
-						return input != null && input.getAction() == StateTransitionAction.IGNORE;
-					}
-
-				}, null);
-
-			oldSecond = oldSecondToThirdTake.getTargetState();
-
-			oldSecondToThirdTake = Iterators.find(
-				oldSecond.getStateTransitions().iterator(),
-				new Predicate<StateTransition<T>>() {
-					@Override
-					public boolean apply(@Nullable StateTransition<T> input) {
-						return input != null && input.getAction() == StateTransitionAction.TAKE;
-					}
-
-				}, null);
-
-			newFirst = newSecond;
-		}
-
-		final State<T> endingState = new State<>(ENDING_STATE_NAME, State.StateType.Final);
-
-		newFirst.addTake(endingState, oldFirstToSecondTake.getCondition());
-
-		if (oldFirstIgnore != null) {
-			newFirst.addIgnore(oldFirstIgnore.getCondition());
-		}
-
-		convertedStates.put(endingState.getName(), endingState);
-
-		return convertedStates;
 	}
 
 	/**

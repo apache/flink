@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -256,13 +257,8 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
 		dos.writeLong(-1);
 
-		StreamStateHandle nonPartitionableState = subtaskState.getLegacyOperatorState();
-
-		int len = nonPartitionableState != null ? 1 : 0;
+		int len = 0;
 		dos.writeInt(len);
-		if (len == 1) {
-			serializeStreamStateHandle(nonPartitionableState, dos);
-		}
 
 		OperatorStateHandle operatorStateBackend = extractSingleton(subtaskState.getManagedOperatorState());
 
@@ -288,11 +284,23 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	}
 
 	private static OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
-		// Duration field has been removed from SubtaskState
+		// Duration field has been removed from SubtaskState, do not remove
 		long ignoredDuration = dis.readLong();
 
+		// for compatibility, do not remove
 		int len = dis.readInt();
-		StreamStateHandle nonPartitionableState = len == 0 ? null : deserializeStreamStateHandle(dis);
+
+		if (SavepointSerializers.FAIL_WHEN_LEGACY_STATE_DETECTED) {
+			Preconditions.checkState(len == 0,
+				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
+					"no longer supported starting from Flink 1.4. Please rewrite your job to use " +
+					"'CheckpointedFunction' instead!");
+		} else {
+			for (int i = 0; i < len; ++i) {
+				// absorb bytes from stream and ignore result
+				deserializeStreamStateHandle(dis);
+			}
+		}
 
 		len = dis.readInt();
 		OperatorStateHandle operatorStateBackend = len == 0 ? null : deserializeOperatorStateHandle(dis);
@@ -305,7 +313,6 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
 		return new OperatorSubtaskState(
-				nonPartitionableState,
 				operatorStateBackend,
 				operatorStateStream,
 				keyedStateBackend,

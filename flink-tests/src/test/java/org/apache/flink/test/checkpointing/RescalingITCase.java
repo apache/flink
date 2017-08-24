@@ -44,7 +44,6 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -975,7 +974,7 @@ public class RescalingITCase extends TestLogger {
 		}
 	}
 
-	private static class PartitionedStateSource extends StateSourceBase implements CheckpointedFunction, CheckpointedRestoring<Integer> {
+	private static class PartitionedStateSource extends StateSourceBase implements CheckpointedFunction {
 
 		private static final long serialVersionUID = -359715965103593462L;
 		private static final int NUM_PARTITIONS = 7;
@@ -1029,11 +1028,6 @@ public class RescalingITCase extends TestLogger {
 				}
 				checkCorrectRestore[getRuntimeContext().getIndexOfThisSubtask()] = counter;
 			}
-		}
-
-		@Override
-		public void restoreState(Integer state) throws Exception {
-			counterPartitions.add(state);
 		}
 	}
 }

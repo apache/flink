@@ -61,6 +61,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -72,6 +73,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -98,6 +100,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -560,7 +563,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			TaskStateSnapshot taskStateHandles) throws Exception {
 			int subtaskIndex = getIndexInSubtaskGroup();
 			if (subtaskIndex < recoveredStates.length) {
-				try (FSDataInputStream in = taskStateHandles.getSubtaskStateMappings().iterator().next().getValue().getLegacyOperatorState().openInputStream()) {
+				OperatorStateHandle operatorStateHandle = extractSingletonOperatorState(taskStateHandles);
+				try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
 					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
 				}
 			}
@@ -572,11 +576,21 @@ public class JobManagerHARecoveryTest extends TestLogger {
 					String.valueOf(UUID.randomUUID()),
 					InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
 
+			Map<String, OperatorStateHandle.StateMetaInfo> stateNameToPartitionOffsets = new HashMap<>(1);
+			stateNameToPartitionOffsets.put(
+				"test-state",
+				new OperatorStateHandle.StateMetaInfo(new long[]{0L}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+
+			OperatorStateHandle operatorStateHandle = new OperatorStateHandle(stateNameToPartitionOffsets, byteStreamStateHandle);
+
 			TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
 			checkpointStateHandles.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),
-				new OperatorSubtaskState(byteStreamStateHandle)
-			);
+				new OperatorSubtaskState(
+					Collections.singletonList(operatorStateHandle),
+					Collections.emptyList(),
+					Collections.emptyList(),
+					Collections.emptyList()));
 
 			getEnvironment().acknowledgeCheckpoint(
 					checkpointMetaData.getCheckpointId(),
@@ -613,6 +627,18 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 		public static long[] getRecoveredStates() {
 			return recoveredStates;
+		}
+
+		private static OperatorStateHandle extractSingletonOperatorState(TaskStateSnapshot taskStateHandles) {
+			Set<Map.Entry<OperatorID, OperatorSubtaskState>> subtaskStateMappings = taskStateHandles.getSubtaskStateMappings();
+			Preconditions.checkNotNull(subtaskStateMappings);
+			Preconditions.checkState(subtaskStateMappings.size()  == 1);
+			OperatorSubtaskState subtaskState = subtaskStateMappings.iterator().next().getValue();
+			Collection<OperatorStateHandle> managedOperatorState =
+				Preconditions.checkNotNull(subtaskState).getManagedOperatorState();
+			Preconditions.checkNotNull(managedOperatorState);
+			Preconditions.checkState(managedOperatorState.size()  == 1);
+			return managedOperatorState.iterator().next();
 		}
 	}
 }

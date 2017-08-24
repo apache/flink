@@ -41,17 +41,12 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
-import org.apache.flink.streaming.api.datastream.LegacyWindowOperatorType;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -61,8 +56,6 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
@@ -70,16 +63,9 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.math3.util.ArithmeticUtils;
-
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -180,34 +166,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected transient InternalTimerService<W> internalTimerService;
 
-	// ------------------------------------------------------------------------
-	// State restored in case of migration from an older version (backwards compatibility)
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A flag indicating if we are migrating from a regular {@link WindowOperator}
-	 * or one of the deprecated {@link AccumulatingProcessingTimeWindowOperator} and
-	 * {@link AggregatingProcessingTimeWindowOperator}.
-	 */
-	private final LegacyWindowOperatorType legacyWindowOperatorType;
-
-	/**
-	 * The elements restored when migrating from an older, deprecated
-	 * {@link AccumulatingProcessingTimeWindowOperator} or
-	 * {@link AggregatingProcessingTimeWindowOperator}. */
-	private transient PriorityQueue<StreamRecord<IN>> restoredFromLegacyAlignedOpRecords;
-
-	/**
-	 * The restored processing time timers when migrating from an
-	 * older version of the {@link WindowOperator}.
-	 */
-	private transient PriorityQueue<Timer<K, W>> restoredFromLegacyProcessingTimeTimers;
-
-	/** The restored event time timer when migrating from an
-	 * older version of the {@link WindowOperator}.
-	 */
-	private transient PriorityQueue<Timer<K, W>> restoredFromLegacyEventTimeTimers;
-
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
@@ -221,25 +179,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
 			OutputTag<IN> lateDataOutputTag) {
-
-		this(windowAssigner, windowSerializer, keySelector, keySerializer,
-			windowStateDescriptor, windowFunction, trigger, allowedLateness, lateDataOutputTag, LegacyWindowOperatorType.NONE);
-	}
-
-	/**
-	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
-	 */
-	public WindowOperator(
-			WindowAssigner<? super IN, W> windowAssigner,
-			TypeSerializer<W> windowSerializer,
-			KeySelector<IN, K> keySelector,
-			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
-			Trigger<? super IN, ? super W> trigger,
-			long allowedLateness,
-			OutputTag<IN> lateDataOutputTag,
-			LegacyWindowOperatorType legacyWindowOperatorType) {
 
 		super(windowFunction);
 
@@ -261,7 +200,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
 		this.lateDataOutputTag = lateDataOutputTag;
-		this.legacyWindowOperatorType = legacyWindowOperatorType;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
@@ -321,8 +259,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, mergingSetsStateDescriptor);
 			mergingSetsState.setCurrentNamespace(VoidNamespace.INSTANCE);
 		}
-
-		registerRestoredLegacyStateState();
 	}
 
 	@Override
@@ -1034,256 +970,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				", window=" + window +
 				'}';
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Restoring / Migrating from an older Flink version.
-	// ------------------------------------------------------------------------
-
-	private static final int BEGIN_OF_STATE_MAGIC_NUMBER = 0x0FF1CE42;
-
-	private static final int BEGIN_OF_PANE_MAGIC_NUMBER = 0xBADF00D5;
-
-	@Override
-	public void restoreState(FSDataInputStream in) throws Exception {
-		super.restoreState(in);
-
-		LOG.info("{} (taskIdx={}) restoring {} state from an older Flink version.",
-			getClass().getSimpleName(), legacyWindowOperatorType, getRuntimeContext().getIndexOfThisSubtask());
-
-		DataInputViewStreamWrapper streamWrapper = new DataInputViewStreamWrapper(in);
-
-		switch (legacyWindowOperatorType) {
-			case NONE:
-				restoreFromLegacyWindowOperator(streamWrapper);
-				break;
-			case FAST_ACCUMULATING:
-			case FAST_AGGREGATING:
-				restoreFromLegacyAlignedWindowOperator(streamWrapper);
-				break;
-		}
-	}
-
-	public void registerRestoredLegacyStateState() throws Exception {
-
-		switch (legacyWindowOperatorType) {
-			case NONE:
-				reregisterStateFromLegacyWindowOperator();
-				break;
-			case FAST_ACCUMULATING:
-			case FAST_AGGREGATING:
-				reregisterStateFromLegacyAlignedWindowOperator();
-				break;
-		}
-	}
-
-	private void restoreFromLegacyAlignedWindowOperator(DataInputViewStreamWrapper in) throws IOException {
-		Preconditions.checkArgument(legacyWindowOperatorType != LegacyWindowOperatorType.NONE);
-
-		final long nextEvaluationTime = in.readLong();
-		final long nextSlideTime = in.readLong();
-
-		validateMagicNumber(BEGIN_OF_STATE_MAGIC_NUMBER, in.readInt());
-
-		restoredFromLegacyAlignedOpRecords = new PriorityQueue<>(42,
-			new Comparator<StreamRecord<IN>>() {
-				@Override
-				public int compare(StreamRecord<IN> o1, StreamRecord<IN> o2) {
-					return Long.compare(o1.getTimestamp(), o2.getTimestamp());
-				}
-			}
-		);
-
-		switch (legacyWindowOperatorType) {
-			case FAST_ACCUMULATING:
-				restoreElementsFromLegacyAccumulatingAlignedWindowOperator(in, nextSlideTime);
-				break;
-			case FAST_AGGREGATING:
-				restoreElementsFromLegacyAggregatingAlignedWindowOperator(in, nextSlideTime);
-				break;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} (taskIdx={}) restored {} events from legacy {}.",
-				getClass().getSimpleName(),
-				getRuntimeContext().getIndexOfThisSubtask(),
-				restoredFromLegacyAlignedOpRecords.size(),
-				legacyWindowOperatorType);
-		}
-	}
-
-	private void restoreElementsFromLegacyAccumulatingAlignedWindowOperator(DataInputView in, long nextSlideTime) throws IOException {
-		int numPanes = in.readInt();
-		final long paneSize = getPaneSize();
-		long nextElementTimestamp = nextSlideTime - (numPanes * paneSize);
-
-		@SuppressWarnings("unchecked")
-		ArrayListSerializer<IN> ser = new ArrayListSerializer<>((TypeSerializer<IN>) getStateDescriptor().getSerializer());
-
-		while (numPanes > 0) {
-			validateMagicNumber(BEGIN_OF_PANE_MAGIC_NUMBER, in.readInt());
-
-			nextElementTimestamp += paneSize - 1; // the -1 is so that the elements fall into the correct time-frame
-
-			final int numElementsInPane = in.readInt();
-			for (int i = numElementsInPane - 1; i >= 0; i--) {
-				K key = keySerializer.deserialize(in);
-
-				@SuppressWarnings("unchecked")
-				List<IN> valueList = ser.deserialize(in);
-				for (IN record: valueList) {
-					restoredFromLegacyAlignedOpRecords.add(new StreamRecord<>(record, nextElementTimestamp));
-				}
-			}
-			numPanes--;
-		}
-	}
-
-	private void restoreElementsFromLegacyAggregatingAlignedWindowOperator(DataInputView in, long nextSlideTime) throws IOException {
-		int numPanes = in.readInt();
-		final long paneSize = getPaneSize();
-		long nextElementTimestamp = nextSlideTime - (numPanes * paneSize);
-
-		while (numPanes > 0) {
-			validateMagicNumber(BEGIN_OF_PANE_MAGIC_NUMBER, in.readInt());
-
-			nextElementTimestamp += paneSize - 1; // the -1 is so that the elements fall into the correct time-frame
-
-			final int numElementsInPane = in.readInt();
-			for (int i = numElementsInPane - 1; i >= 0; i--) {
-				K key = keySerializer.deserialize(in);
-
-				@SuppressWarnings("unchecked")
-				IN value = (IN) getStateDescriptor().getSerializer().deserialize(in);
-				restoredFromLegacyAlignedOpRecords.add(new StreamRecord<>(value, nextElementTimestamp));
-			}
-			numPanes--;
-		}
-	}
-
-	private long getPaneSize() {
-		Preconditions.checkArgument(
-			legacyWindowOperatorType == LegacyWindowOperatorType.FAST_ACCUMULATING ||
-				legacyWindowOperatorType == LegacyWindowOperatorType.FAST_AGGREGATING);
-
-		final long paneSlide;
-		if (windowAssigner instanceof SlidingProcessingTimeWindows) {
-			SlidingProcessingTimeWindows timeWindows = (SlidingProcessingTimeWindows) windowAssigner;
-			paneSlide = ArithmeticUtils.gcd(timeWindows.getSize(), timeWindows.getSlide());
-		} else {
-			TumblingProcessingTimeWindows timeWindows = (TumblingProcessingTimeWindows) windowAssigner;
-			paneSlide = timeWindows.getSize(); // this is valid as windowLength == windowSlide == timeWindows.getSize
-		}
-		return paneSlide;
-	}
-
-	private static void validateMagicNumber(int expected, int found) throws IOException {
-		if (expected != found) {
-			throw new IOException("Corrupt state stream - wrong magic number. " +
-				"Expected '" + Integer.toHexString(expected) +
-				"', found '" + Integer.toHexString(found) + '\'');
-		}
-	}
-
-	private void restoreFromLegacyWindowOperator(DataInputViewStreamWrapper in) throws IOException {
-		Preconditions.checkArgument(legacyWindowOperatorType == LegacyWindowOperatorType.NONE);
-
-		int numWatermarkTimers = in.readInt();
-		this.restoredFromLegacyEventTimeTimers = new PriorityQueue<>(Math.max(numWatermarkTimers, 1));
-
-		for (int i = 0; i < numWatermarkTimers; i++) {
-			K key = keySerializer.deserialize(in);
-			W window = windowSerializer.deserialize(in);
-			long timestamp = in.readLong();
-
-			Timer<K, W> timer = new Timer<>(timestamp, key, window);
-			restoredFromLegacyEventTimeTimers.add(timer);
-		}
-
-		int numProcessingTimeTimers = in.readInt();
-		this.restoredFromLegacyProcessingTimeTimers = new PriorityQueue<>(Math.max(numProcessingTimeTimers, 1));
-
-		for (int i = 0; i < numProcessingTimeTimers; i++) {
-			K key = keySerializer.deserialize(in);
-			W window = windowSerializer.deserialize(in);
-			long timestamp = in.readLong();
-
-			Timer<K, W> timer = new Timer<>(timestamp, key, window);
-			restoredFromLegacyProcessingTimeTimers.add(timer);
-		}
-
-		// just to read all the rest, although we do not really use this information.
-		int numProcessingTimeTimerTimestamp = in.readInt();
-		for (int i = 0; i < numProcessingTimeTimerTimestamp; i++) {
-			in.readLong();
-			in.readInt();
-		}
-
-		if (LOG.isDebugEnabled()) {
-			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-
-			if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
-				LOG.debug("{} (taskIdx={}) restored {} event time timers from an older Flink version: {}",
-					getClass().getSimpleName(), subtaskIdx,
-					restoredFromLegacyEventTimeTimers.size(),
-					restoredFromLegacyEventTimeTimers);
-			}
-
-			if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
-				LOG.debug("{} (taskIdx={}) restored {} processing time timers from an older Flink version: {}",
-					getClass().getSimpleName(), subtaskIdx,
-					restoredFromLegacyProcessingTimeTimers.size(),
-					restoredFromLegacyProcessingTimeTimers);
-			}
-		}
-	}
-
-	public void reregisterStateFromLegacyWindowOperator() {
-		// if we restore from an older version,
-		// we have to re-register the recovered state.
-
-		if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
-
-			LOG.info("{} (taskIdx={}) re-registering event-time timers from an older Flink version.",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
-
-			for (Timer<K, W> timer : restoredFromLegacyEventTimeTimers) {
-				setCurrentKey(timer.key);
-				internalTimerService.registerEventTimeTimer(timer.window, timer.timestamp);
-			}
-		}
-
-		if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
-
-			LOG.info("{} (taskIdx={}) re-registering processing-time timers from an older Flink version.",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
-
-			for (Timer<K, W> timer : restoredFromLegacyProcessingTimeTimers) {
-				setCurrentKey(timer.key);
-				internalTimerService.registerProcessingTimeTimer(timer.window, timer.timestamp);
-			}
-		}
-
-		// gc friendliness
-		restoredFromLegacyEventTimeTimers = null;
-		restoredFromLegacyProcessingTimeTimers = null;
-	}
-
-	public void reregisterStateFromLegacyAlignedWindowOperator() throws Exception {
-		if (restoredFromLegacyAlignedOpRecords != null && !restoredFromLegacyAlignedOpRecords.isEmpty()) {
-
-			LOG.info("{} (taskIdx={}) re-registering timers from legacy {} from an older Flink version.",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), legacyWindowOperatorType);
-
-			while (!restoredFromLegacyAlignedOpRecords.isEmpty()) {
-				StreamRecord<IN> record = restoredFromLegacyAlignedOpRecords.poll();
-				setCurrentKey(keySelector.getKey(record.getValue()));
-				processElement(record);
-			}
-		}
-
-		// gc friendliness
-		restoredFromLegacyAlignedOpRecords = null;
 	}
 
 	// ------------------------------------------------------------------------

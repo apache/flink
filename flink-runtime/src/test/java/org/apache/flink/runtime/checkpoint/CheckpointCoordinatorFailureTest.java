@@ -29,7 +29,6 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -92,15 +91,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
-
-		StreamStateHandle legacyHandle = mock(StreamStateHandle.class);
 		KeyedStateHandle managedKeyedHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedHandle = mock(KeyedStateHandle.class);
 		OperatorStateHandle managedOpHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOpHandle = mock(OperatorStateHandle.class);
 
 		final OperatorSubtaskState operatorSubtaskState = spy(new OperatorSubtaskState(
-			legacyHandle,
 			managedOpHandle,
 			rawOpHandle,
 			managedKeyedHandle,
@@ -126,7 +122,6 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		// make sure that the subtask state has been discarded after we could not complete it.
 		verify(operatorSubtaskState).discardState();
-		verify(operatorSubtaskState.getLegacyOperatorState()).discardState();
 		verify(operatorSubtaskState.getManagedOperatorState().iterator().next()).discardState();
 		verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
 		verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();

@@ -44,8 +44,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -836,8 +834,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final Map<OperatorID, OperatorSnapshotResult> operatorSnapshotsInProgress;
 
-		private Map<OperatorID, StreamStateHandle> nonPartitionedStateHandles;
-
 		private final CheckpointMetaData checkpointMetaData;
 		private final CheckpointMetrics checkpointMetrics;
 
@@ -848,7 +844,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		AsyncCheckpointRunnable(
 				StreamTask<?, ?> owner,
-				Map<OperatorID, StreamStateHandle> nonPartitionedStateHandles,
 				Map<OperatorID, OperatorSnapshotResult> operatorSnapshotsInProgress,
 				CheckpointMetaData checkpointMetaData,
 				CheckpointMetrics checkpointMetrics,
@@ -858,7 +853,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			this.operatorSnapshotsInProgress = Preconditions.checkNotNull(operatorSnapshotsInProgress);
 			this.checkpointMetaData = Preconditions.checkNotNull(checkpointMetaData);
 			this.checkpointMetrics = Preconditions.checkNotNull(checkpointMetrics);
-			this.nonPartitionedStateHandles = nonPartitionedStateHandles;
 			this.asyncStartNanos = asyncStartNanos;
 		}
 
@@ -876,7 +870,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					OperatorSnapshotResult snapshotInProgress = entry.getValue();
 
 					OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-						nonPartitionedStateHandles.get(operatorID),
 						FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()),
 						FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()),
 						FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getKeyedStateManagedFuture()),
@@ -968,13 +961,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					}
 				}
 
-				// discard non partitioned state handles
-				try {
-					StateUtil.bestEffortDiscardAllStateObjects(nonPartitionedStateHandles.values());
-				} catch (Exception discardException) {
-					exception = ExceptionUtils.firstOrSuppressed(discardException, exception);
-				}
-
 				if (null != exception) {
 					throw exception;
 				}
@@ -1008,7 +994,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		// ------------------------
 
-		private final Map<OperatorID, StreamStateHandle> nonPartitionedStates;
 		private final Map<OperatorID, OperatorSnapshotResult> operatorSnapshotsInProgress;
 
 		public CheckpointingOperation(
@@ -1022,7 +1007,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			this.checkpointOptions = Preconditions.checkNotNull(checkpointOptions);
 			this.checkpointMetrics = Preconditions.checkNotNull(checkpointMetrics);
 			this.allOperators = owner.operatorChain.getAllOperators();
-			this.nonPartitionedStates = new HashMap<>(allOperators.length);
 			this.operatorSnapshotsInProgress = new HashMap<>(allOperators.length);
 		}
 
@@ -1068,18 +1052,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						}
 					}
 
-					// Cleanup non partitioned state handles
-					for (StreamStateHandle nonPartitionedState : nonPartitionedStates.values()) {
-						if (nonPartitionedState != null) {
-							try {
-								nonPartitionedState.discardState();
-							} catch (Exception e) {
-								LOG.warn("Could not properly discard a non partitioned " +
-									"state. This might leave some orphaned files behind.", e);
-							}
-						}
-					}
-
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
 								"Alignment duration: {} ms, snapshot duration {} ms",
@@ -1094,20 +1066,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		@SuppressWarnings("deprecation")
 		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
 			if (null != op) {
-				// first call the legacy checkpoint code paths
-				StreamStateHandle legacyOperatorState = op.snapshotLegacyOperatorState(
-					checkpointMetaData.getCheckpointId(),
-					checkpointMetaData.getTimestamp(),
-					checkpointOptions);
-
-				OperatorID operatorID = op.getOperatorID();
-				nonPartitionedStates.put(operatorID, legacyOperatorState);
 
 				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp(),
 						checkpointOptions);
-				operatorSnapshotsInProgress.put(operatorID, snapshotInProgress);
+				operatorSnapshotsInProgress.put(op.getOperatorID(), snapshotInProgress);
 			}
 		}
 
@@ -1115,7 +1079,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			AsyncCheckpointRunnable asyncCheckpointRunnable = new AsyncCheckpointRunnable(
 					owner,
-					nonPartitionedStates,
 					operatorSnapshotsInProgress,
 					checkpointMetaData,
 					checkpointMetrics,

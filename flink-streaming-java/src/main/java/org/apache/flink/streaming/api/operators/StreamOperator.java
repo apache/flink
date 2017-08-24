@@ -22,7 +22,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -100,21 +99,6 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * @throws Exception exception that happened during snapshotting.
 	 */
 	OperatorSnapshotResult snapshotState(
-		long checkpointId,
-		long timestamp,
-		CheckpointOptions checkpointOptions) throws Exception;
-
-	/**
-	 * Takes a snapshot of the legacy operator state defined via {@link StreamCheckpointedOperator}.
-	 *
-	 * @return The handle to the legacy operator state, or null, if no state was snapshotted.
-	 * @throws Exception This method should forward any type of exception that happens during snapshotting.
-	 *
-	 * @deprecated This method will be removed as soon as no more operators use the legacy state code paths
-	 */
-	@SuppressWarnings("deprecation")
-	@Deprecated
-	StreamStateHandle snapshotLegacyOperatorState(
 		long checkpointId,
 		long timestamp,
 		CheckpointOptions checkpointOptions) throws Exception;
