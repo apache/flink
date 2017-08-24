@@ -65,9 +65,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			int maxParallelism,
-			int numTubtasks,
+			int parallelism,
 			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, numTubtasks, subtaskIndex);
+		super(operator, maxParallelism, parallelism, subtaskIndex);
 
 		this.oneInputOperator = operator;
 	}
