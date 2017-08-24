@@ -47,6 +47,7 @@ import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -67,12 +68,53 @@ abstract class NettyMessage {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Allocates a new (header and contents) buffer and adds some header information for the frame
+	 * decoder.
+	 *
+	 * <p>Before sending the buffer, you must write the actual length after adding the contents as
+	 * an integer to position <tt>0</tt>!
+	 *
+	 * @param allocator
+	 * 		byte buffer allocator to use
+	 * @param id
+	 * 		{@link NettyMessage} subclass ID
+	 *
+	 * @return a newly allocated direct buffer with header data written for {@link
+	 * NettyMessageDecoder}
+	 */
 	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id) {
-		return allocateBuffer(allocator, id, 0);
+		return allocateBuffer(allocator, id, -1);
 	}
 
+	/**
+	 * Allocates a new (header and contents) buffer and adds some header information for the frame
+	 * decoder.
+	 *
+	 * <p>If the <tt>length</tt> is unknown, you must write the actual length after adding the
+	 * contents as an integer to position <tt>0</tt>!
+	 *
+	 * @param allocator
+	 * 		byte buffer allocator to use
+	 * @param id
+	 * 		{@link NettyMessage} subclass ID
+	 * @param length
+	 * 		content length (or <tt>-1</tt> if unknown)
+	 *
+	 * @return a newly allocated direct buffer with header data written for {@link
+	 * NettyMessageDecoder}
+	 */
 	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id, int length) {
-		final ByteBuf buffer = length != 0 ? allocator.directBuffer(HEADER_LENGTH + length) : allocator.directBuffer();
+		checkArgument(length <= Integer.MAX_VALUE - HEADER_LENGTH);
+
+		final ByteBuf buffer;
+		if (length != -1) {
+			buffer = allocator.directBuffer(HEADER_LENGTH + length);
+		} else {
+			// content length unknown -> start with the default initial size (rather than HEADER_LENGTH only):
+			buffer = allocator.directBuffer();
+		}
+
 		buffer.writeInt(HEADER_LENGTH + length);
 		buffer.writeInt(MAGIC_NUMBER);
 		buffer.writeByte(id);
