@@ -193,7 +193,6 @@ public class TaskExecutorITCase extends TestLogger {
 			rmLeaderRetrievalService.notifyListener(rmAddress, rmLeaderId);
 
 			CompletableFuture<RegistrationResponse> registrationResponseFuture = rmGateway.registerJobManager(
-				rmLeaderId,
 				jmLeaderId,
 				jmResourceId,
 				jmAddress,
@@ -204,7 +203,7 @@ public class TaskExecutorITCase extends TestLogger {
 
 			assertTrue(registrationResponse instanceof JobMasterRegistrationSuccess);
 
-			CompletableFuture<Acknowledge> slotAck = rmGateway.requestSlot(jmLeaderId, rmLeaderId, slotRequest, timeout);
+			CompletableFuture<Acknowledge> slotAck = rmGateway.requestSlot(jmLeaderId, slotRequest, timeout);
 
 			slotAck.get();
 

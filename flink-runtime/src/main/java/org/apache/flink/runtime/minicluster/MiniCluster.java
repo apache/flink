@@ -38,6 +38,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -419,14 +420,14 @@ public class MiniCluster {
 			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
 
 			final ResourceManagerGateway resourceManager = 
-					commonRpcService.connect(addressAndId.leaderAddress(), ResourceManagerGateway.class).get();
+					commonRpcService.connect(addressAndId.leaderAddress(), new ResourceManagerId(addressAndId.leaderId()), ResourceManagerGateway.class).get();
 
 			final int numTaskManagersToWaitFor = taskManagers.length;
 
 			// poll and wait until enough TaskManagers are available
 			while (true) {
 				int numTaskManagersAvailable = 
-						resourceManager.getNumberOfRegisteredTaskManagers(addressAndId.leaderId()).get();
+						resourceManager.getNumberOfRegisteredTaskManagers().get();
 
 				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
 					break;

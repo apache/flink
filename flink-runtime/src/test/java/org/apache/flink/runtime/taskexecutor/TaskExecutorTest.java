@@ -65,6 +65,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
@@ -252,7 +253,7 @@ public class TaskExecutorTest extends TestLogger {
 		// register the mock resource manager gateway
 		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
 		when(rmGateway.registerTaskExecutor(
-			any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
+			anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 			.thenReturn(
 				CompletableFuture.completedFuture(
 					new TaskExecutorRegistrationSuccess(
@@ -327,7 +328,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			// register resource manager success will trigger monitoring heartbeat target between tm and rm
 			verify(rmGateway, Mockito.timeout(timeout.toMilliseconds()).atLeast(1)).registerTaskExecutor(
-					eq(rmLeaderId), eq(taskManager.getAddress()), eq(tmResourceId), any(SlotReport.class), any(Time.class));
+					eq(taskManager.getAddress()), eq(tmResourceId), any(SlotReport.class), any(Time.class));
 
 			// heartbeat timeout should trigger disconnect TaskManager from ResourceManager
 			verify(rmGateway, timeout(heartbeatTimeout * 50L)).disconnectTaskManager(eq(taskManagerLocation.getResourceID()), any(TimeoutException.class));
@@ -356,7 +357,7 @@ public class TaskExecutorTest extends TestLogger {
 		// register the mock resource manager gateway
 		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
 		when(rmGateway.registerTaskExecutor(
-			any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
+			anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 			.thenReturn(
 				CompletableFuture.completedFuture(
 					new TaskExecutorRegistrationSuccess(
@@ -448,7 +449,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			// register resource manager success will trigger monitoring heartbeat target between tm and rm
 			verify(rmGateway, timeout(verificationTimeout).atLeast(1)).registerTaskExecutor(
-				eq(rmLeaderId), eq(taskManager.getAddress()), eq(tmResourceId), eq(slotReport1), any(Time.class));
+				eq(taskManager.getAddress()), eq(tmResourceId), eq(slotReport1), any(Time.class));
 
 			verify(heartbeatManager, timeout(verificationTimeout)).monitorTarget(any(ResourceID.class), any(HeartbeatTarget.class));
 
@@ -489,7 +490,7 @@ public class TaskExecutorTest extends TestLogger {
 		// register a mock resource manager gateway
 		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
 		when(rmGateway.registerTaskExecutor(
-			any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
+					anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
 				new InstanceID(), resourceManagerResourceId, 10L)));
 
@@ -535,7 +536,7 @@ public class TaskExecutorTest extends TestLogger {
 			String taskManagerAddress = taskManager.getAddress();
 
 			verify(rmGateway, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					any(UUID.class), eq(taskManagerAddress), eq(resourceID), eq(slotReport), any(Time.class));
+					eq(taskManagerAddress), eq(resourceID), eq(slotReport), any(Time.class));
 
 			// check if a concurrent error occurred
 			testingFatalErrorHandler.rethrowError();
@@ -562,11 +563,11 @@ public class TaskExecutorTest extends TestLogger {
 		ResourceManagerGateway rmGateway2 = mock(ResourceManagerGateway.class);
 
 		when(rmGateway1.registerTaskExecutor(
-			any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
+					anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(
 				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId1, 10L)));
 		when(rmGateway2.registerTaskExecutor(
-			any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
+					anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(
 				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId2, 10L)));
 
@@ -624,7 +625,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address1, leaderId1);
 
 			verify(rmGateway1, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					eq(leaderId1), eq(taskManagerAddress), eq(tmResourceID), any(SlotReport.class), any(Time.class));
+					eq(taskManagerAddress), eq(tmResourceID), any(SlotReport.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// cancel the leader 
@@ -634,7 +635,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					eq(leaderId2), eq(taskManagerAddress), eq(tmResourceID), eq(slotReport), any(Time.class));
+					eq(taskManagerAddress), eq(tmResourceID), eq(slotReport), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// check if a concurrent error occurred
@@ -810,14 +811,13 @@ public class TaskExecutorTest extends TestLogger {
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetrievalService);
 
 		final String resourceManagerAddress = "rm";
-		final UUID resourceManagerLeaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerLeaderId = ResourceManagerId.generate();
 		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
 
 		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		final InstanceID registrationId = new InstanceID();
 
 		when(resourceManagerGateway.registerTaskExecutor(
-			eq(resourceManagerLeaderId),
 			any(String.class),
 			eq(resourceId),
 			any(SlotReport.class),
@@ -874,7 +874,7 @@ public class TaskExecutorTest extends TestLogger {
 			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
 			// tell the task manager about the rm leader
-			resourceManagerLeaderRetrievalService.notifyListener(resourceManagerAddress, resourceManagerLeaderId);
+			resourceManagerLeaderRetrievalService.notifyListener(resourceManagerAddress, resourceManagerLeaderId.toUUID());
 
 			// request slots from the task manager under the given allocation id
 			CompletableFuture<Acknowledge> slotRequestAck = tmGateway.requestSlot(
@@ -940,7 +940,6 @@ public class TaskExecutorTest extends TestLogger {
 		final InstanceID registrationId = new InstanceID();
 
 		when(resourceManagerGateway.registerTaskExecutor(
-			eq(resourceManagerLeaderId),
 			any(String.class),
 			eq(resourceId),
 			any(SlotReport.class),
@@ -1000,7 +999,6 @@ public class TaskExecutorTest extends TestLogger {
 			jobLeaderService.addJob(jobId, jobManagerAddress);
 
 			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).notifySlotAvailable(
-				eq(resourceManagerLeaderId),
 				eq(registrationId),
 				eq(new SlotID(resourceId, 1)),
 				eq(allocationId2));
@@ -1029,7 +1027,7 @@ public class TaskExecutorTest extends TestLogger {
 		final ResourceID resourceID = ResourceID.generate();
 
 		final String address1 = "/resource/manager/address/one";
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final JobID jobId = new JobID();
 		final String jobManagerAddress = "foobar";
 
@@ -1055,7 +1053,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(new SlotReport());
 		when(taskSlotTable.getCurrentAllocation(1)).thenReturn(new AllocationID());
 
-		when(rmGateway1.registerTaskExecutor(any(UUID.class), anyString(), eq(resourceID), any(SlotReport.class), any(Time.class))).thenReturn(
+			when(rmGateway1.registerTaskExecutor(anyString(), eq(resourceID), any(SlotReport.class), any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), 1000L)));
 
 		TaskExecutor taskManager = new TaskExecutor(
@@ -1087,15 +1085,15 @@ public class TaskExecutorTest extends TestLogger {
 			assertNull(taskManager.getResourceManagerConnection());
 
 			// define a leader and see that a registration happens
-			testLeaderService.notifyListener(address1, leaderId);
+			testLeaderService.notifyListener(address1, resourceManagerId.toUUID());
 
 			verify(rmGateway1, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-				eq(leaderId), eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
+				eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// test that allocating a slot works
 			final SlotID slotID = new SlotID(resourceID, 0);
-			tmGateway.requestSlot(slotID, jobId, new AllocationID(), jobManagerAddress, leaderId, timeout);
+			tmGateway.requestSlot(slotID, jobId, new AllocationID(), jobManagerAddress, resourceManagerId, timeout);
 
 			// TODO: Figure out the concrete allocation behaviour between RM and TM. Maybe we don't need the SlotID...
 			// test that we can't allocate slots which are blacklisted due to pending confirmation of the RM
@@ -1106,7 +1104,7 @@ public class TaskExecutorTest extends TestLogger {
 				jobId,
 				new AllocationID(),
 				jobManagerAddress,
-				leaderId,
+				resourceManagerId,
 				timeout);
 
 			try {
@@ -1119,8 +1117,8 @@ public class TaskExecutorTest extends TestLogger {
 
 			// re-register
 			verify(rmGateway1, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-				eq(leaderId), eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
-			testLeaderService.notifyListener(address1, leaderId);
+				eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
+			testLeaderService.notifyListener(address1, resourceManagerId.toUUID());
 
 			// now we should be successful because the slots status has been synced
 			// test that we can't allocate slots which are blacklisted due to pending confirmation of the RM
@@ -1129,7 +1127,7 @@ public class TaskExecutorTest extends TestLogger {
 				jobId,
 				new AllocationID(),
 				jobManagerAddress,
-				leaderId,
+				resourceManagerId,
 				timeout);
 
 			// check if a concurrent error occurred
@@ -1176,7 +1174,6 @@ public class TaskExecutorTest extends TestLogger {
 		final InstanceID registrationId = new InstanceID();
 
 		when(resourceManagerGateway.registerTaskExecutor(
-			eq(resourceManagerLeaderId),
 			any(String.class),
 			eq(resourceId),
 			any(SlotReport.class),
@@ -1317,7 +1314,6 @@ public class TaskExecutorTest extends TestLogger {
 			offerResultFuture.complete(Collections.singleton(offer1));
 
 			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).notifySlotAvailable(
-				eq(resourceManagerLeaderId),
 				eq(registrationId),
 				eq(new SlotID(resourceId, 1)),
 				any(AllocationID.class));

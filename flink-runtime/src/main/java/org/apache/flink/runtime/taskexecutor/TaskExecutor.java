@@ -59,6 +59,7 @@ import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -585,29 +586,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// Slot allocation RPCs
 	// ----------------------------------------------------------------------
 
-	/**
-	 * Requests a slot from the TaskManager
-	 *
-	 * @param slotId identifying the requested slot
-	 * @param jobId identifying the job for which the request is issued
-	 * @param allocationId id for the request
-	 * @param targetAddress of the job manager requesting the slot
-	 * @param rmLeaderId current leader id of the ResourceManager
-	 * @throws SlotAllocationException if the slot allocation fails
-	 * @return answer to the slot request
-	 */
 	@Override
 	public CompletableFuture<Acknowledge> requestSlot(
 		final SlotID slotId,
 		final JobID jobId,
 		final AllocationID allocationId,
 		final String targetAddress,
-		final UUID rmLeaderId,
+		final ResourceManagerId resourceManagerId,
 		final Time timeout) {
 		// TODO: Filter invalid requests from the resource manager by using the instance/registration Id
 
 		log.info("Receive slot request {} for job {} from resource manager with leader id {}.",
-			allocationId, jobId, rmLeaderId);
+			allocationId, jobId, resourceManagerId);
 
 		try {
 			if (resourceManagerConnection == null) {
@@ -616,8 +606,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new SlotAllocationException(message);
 			}
 
-			if (!resourceManagerConnection.getTargetLeaderId().equals(rmLeaderId)) {
-				final String message = "The leader id " + rmLeaderId +
+			if (!Objects.equals(resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) {
+				final String message = "The leader id " + resourceManagerId +
 					" does not match with the leader id of the connected resource manager " +
 					resourceManagerConnection.getTargetLeaderId() + '.';
 
@@ -692,7 +682,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	//  Internal resource manager connection methods
 	// ------------------------------------------------------------------------
 
-	private void notifyOfNewResourceManagerLeader(String newLeaderAddress, UUID newLeaderId) {
+	private void notifyOfNewResourceManagerLeader(String newLeaderAddress, ResourceManagerId newResourceManagerId) {
 		if (resourceManagerConnection != null) {
 			if (newLeaderAddress != null) {
 				// the resource manager switched to a new leader
@@ -723,7 +713,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					getResourceID(),
 					taskSlotTable.createSlotReport(getResourceID()),
 					newLeaderAddress,
-					newLeaderId,
+					newResourceManagerId,
 					getMainThreadExecutor(),
 					new ResourceManagerRegistrationListener());
 			resourceManagerConnection.start();
@@ -1079,7 +1069,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
 				resourceManagerGateway.notifySlotAvailable(
-					resourceManagerConnection.getTargetLeaderId(),
 					resourceManagerConnection.getRegistrationId(),
 					new SlotID(getResourceID(), freedSlotIndex),
 					allocationId);
@@ -1169,12 +1158,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					notifyOfNewResourceManagerLeader(leaderAddress, leaderSessionID);
-				}
-			});
+			runAsync(
+				() -> notifyOfNewResourceManagerLeader(
+					leaderAddress,
+					leaderSessionID != null ? new ResourceManagerId(leaderSessionID) : null));
 		}
 
 		@Override

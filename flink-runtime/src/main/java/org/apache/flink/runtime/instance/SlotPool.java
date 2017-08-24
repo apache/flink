@@ -121,9 +121,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	/** the leader id of job manager */
 	private UUID jobManagerLeaderId;
 
-	/** The leader id of resource manager */
-	private UUID resourceManagerLeaderId;
-
 	/** The gateway to communicate with resource manager */
 	private ResourceManagerGateway resourceManagerGateway;
 
@@ -199,7 +196,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 		// do not accept any requests
 		jobManagerLeaderId = null;
-		resourceManagerLeaderId = null;
 		resourceManagerGateway = null;
 
 		// Clear (but not release!) the available slots. The TaskManagers should re-register them
@@ -240,8 +236,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void connectToResourceManager(UUID resourceManagerLeaderId, ResourceManagerGateway resourceManagerGateway) {
-		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
+	public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {
 		this.resourceManagerGateway = checkNotNull(resourceManagerGateway);
 
 		// work on all slots waiting for this connection
@@ -255,7 +250,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 	@Override
 	public void disconnectResourceManager() {
-		this.resourceManagerLeaderId = null;
 		this.resourceManagerGateway = null;
 	}
 
@@ -319,7 +313,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
-			jobManagerLeaderId, resourceManagerLeaderId,
+			jobManagerLeaderId,
 			new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
 			resourceManagerRequestsTimeout);
 

@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -325,7 +326,7 @@ public class JobLeaderService {
 			@Override
 			protected void onRegistrationSuccess(JMTMRegistrationSuccess success) {
 				// filter out old registration attempts
-				if (getTargetLeaderId().equals(currentLeaderId)) {
+				if (Objects.equals(getTargetLeaderId(), currentLeaderId)) {
 					log.info("Successful registration at job manager {} for job {}.", getTargetAddress(), jobId);
 
 					jobLeaderListener.jobManagerGainedLeadership(jobId, getTargetGateway(), getTargetLeaderId(), success);
@@ -337,8 +338,8 @@ public class JobLeaderService {
 			@Override
 			protected void onRegistrationFailure(Throwable failure) {
 				// filter out old registration attempts
-				if (getTargetLeaderId().equals(currentLeaderId)) {
-					log.info("Failed to register at job manager {} for job {}.", getTargetAddress(), jobId);
+				if (Objects.equals(getTargetLeaderId(), currentLeaderId)) {
+					log.info("Failed to register at job  manager {} for job {}.", getTargetAddress(), jobId);
 					jobLeaderListener.handleError(failure);
 				} else {
 					log.debug("Obsolete JobManager registration failure from {} with leader session ID {}.", getTargetAddress(), getTargetLeaderId(), failure);

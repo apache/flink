@@ -49,6 +49,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -532,7 +533,6 @@ public class ResourceManagerTest extends TestLogger {
 			final SlotReport slotReport = new SlotReport();
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerTaskExecutor(
-				rmLeaderSessionId,
 				taskManagerAddress,
 				taskManagerResourceID,
 				slotReport,
@@ -576,7 +576,7 @@ public class ResourceManagerTest extends TestLogger {
 		final String jobMasterAddress = "jm";
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 		final ResourceID rmResourceId = ResourceID.generate();
-		final UUID rmLeaderId = UUID.randomUUID();
+		final ResourceManagerId rmLeaderId = ResourceManagerId.generate();
 		final UUID jmLeaderId = UUID.randomUUID();
 		final JobID jobId = new JobID();
 
@@ -629,11 +629,10 @@ public class ResourceManagerTest extends TestLogger {
 
 			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
-			rmLeaderElectionService.isLeader(rmLeaderId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			rmLeaderElectionService.isLeader(rmLeaderId.toUUID()).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
-				rmLeaderId,
 				jmLeaderId,
 				jmResourceId,
 				jobMasterAddress,
