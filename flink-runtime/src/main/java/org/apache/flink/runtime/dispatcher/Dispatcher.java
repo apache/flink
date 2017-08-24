@@ -28,7 +28,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
@@ -40,7 +39,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -60,7 +59,7 @@ import java.util.concurrent.CompletableFuture;
  * the jobs and to recover them in case of a master failure. Furthermore, it knows
  * about the state of the Flink session cluster.
  */
-public abstract class Dispatcher extends RpcEndpoint implements DispatcherGateway, LeaderContender {
+public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements DispatcherGateway, LeaderContender {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
@@ -80,8 +79,6 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 
 	private final LeaderElectionService leaderElectionService;
 
-	private volatile UUID leaderSessionId;
-
 	protected Dispatcher(
 			RpcService rpcService,
 			String endpointId,
@@ -91,7 +88,7 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		super(rpcService, endpointId);
+		super(rpcService, endpointId, DispatcherId.generate());
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
@@ -106,9 +103,6 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 		jobManagerRunners = new HashMap<>(16);
 
 		leaderElectionService = highAvailabilityServices.getDispatcherLeaderElectionService();
-
-		// we are not the leader when this object is created
-		leaderSessionId = null;
 	}
 
 	//------------------------------------------------------
@@ -156,13 +150,7 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 	//------------------------------------------------------
 
 	@Override
-	public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, UUID leaderSessionId, Time timeout) {
-
-		try {
-			validateLeaderSessionId(leaderSessionId);
-		} catch (LeaderIdMismatchException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
+	public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
 
 		final JobID jobId = jobGraph.getJobID();
 
@@ -274,8 +262,6 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 	private void recoverJobs() {
 		log.info("Recovering all persisted jobs.");
 
-		final UUID currentLeaderSessionId = leaderSessionId;
-
 		getRpcService().execute(
 			() -> {
 				final Collection<JobID> jobIds;
@@ -291,7 +277,7 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 					try {
 						SubmittedJobGraph submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
 
-						runAsync(() -> submitJob(submittedJobGraph.getJobGraph(), currentLeaderSessionId, RpcUtils.INF_TIMEOUT));
+						runAsync(() -> submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT));
 					} catch (Exception e) {
 						log.error("Could not recover the job graph for " + jobId + '.', e);
 					}
@@ -302,12 +288,6 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 	private void onFatalError(Throwable throwable) {
 		log.error("Fatal error occurred in dispatcher {}.", getAddress(), throwable);
 		fatalErrorHandler.onFatalError(throwable);
-	}
-
-	private void validateLeaderSessionId(UUID leaderSessionID) throws LeaderIdMismatchException {
-		if (this.leaderSessionId == null || !this.leaderSessionId.equals(leaderSessionID)) {
-			throw new LeaderIdMismatchException(this.leaderSessionId, leaderSessionID);
-		}
 	}
 
 	protected abstract JobManagerRunner createJobManagerRunner(
@@ -333,16 +313,18 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		runAsync(
+		runAsyncWithoutFencing(
 			() -> {
-				log.info("Dispatcher {} was granted leadership with leader session ID {}", getAddress(), newLeaderSessionID);
+				final DispatcherId dispatcherId = new DispatcherId(newLeaderSessionID);
+
+				log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), dispatcherId);
 
 				// clear the state if we've been the leader before
-				if (leaderSessionId != null) {
+				if (getFencingToken() != null) {
 					clearState();
 				}
 
-				leaderSessionId = newLeaderSessionID;
+				setFencingToken(dispatcherId);
 
 				// confirming the leader session ID might be blocking,
 				getRpcService().execute(
@@ -357,10 +339,12 @@ public abstract class Dispatcher extends RpcEndpoint implements DispatcherGatewa
 	 */
 	@Override
 	public void revokeLeadership() {
-		runAsync(
+		runAsyncWithoutFencing(
 			() -> {
 				log.info("Dispatcher {} was revoked leadership.", getAddress());
 				clearState();
+
+				setFencingToken(DispatcherId.generate());
 			});
 	}
 

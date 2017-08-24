@@ -113,7 +113,7 @@ public class DispatcherTest extends TestLogger {
 
 			DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-			CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, HighAvailabilityServices.DEFAULT_LEADER_ID, timeout);
+			CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, timeout);
 
 			acknowledgeFuture.get();
 
