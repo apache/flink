@@ -18,32 +18,39 @@
 
 package org.apache.flink.runtime.rpc.messages;
 
-import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
+
 /**
- * Wrapper class indicating a message which is not required to match the fencing token
- * as it is used by the {@link FencedMainThreadExecutable} to run code in the main thread without
- * a valid fencing token. This is required for operations which are not scoped by the current
- * fencing token (e.g. leadership grants).
+ * Local {@link FencedMessage} implementation. This message is used when the communication
+ * is local and thus does not require its payload to be serializable.
  *
- * <p>IMPORTANT: This message is only intended to be send locally.
- *
+ * @param <F> type of the fencing token
  * @param <P> type of the payload
  */
-public class UnfencedMessage<P> {
+public class LocalFencedMessage<F extends Serializable, P> implements FencedMessage<F, P> {
+
+	private final F fencingToken;
 	private final P payload;
 
-	public UnfencedMessage(P payload) {
+	public LocalFencedMessage(F fencingToken, P payload) {
+		this.fencingToken = Preconditions.checkNotNull(fencingToken);
 		this.payload = Preconditions.checkNotNull(payload);
 	}
 
+	@Override
+	public F getFencingToken() {
+		return fencingToken;
+	}
+
+	@Override
 	public P getPayload() {
 		return payload;
 	}
 
 	@Override
 	public String toString() {
-		return "UnfencedMessage(" + payload + ')';
+		return "LocalFencedMessage(" + fencingToken + ", " + payload + ')';
 	}
 }

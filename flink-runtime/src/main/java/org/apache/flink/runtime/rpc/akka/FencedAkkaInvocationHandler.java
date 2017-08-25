@@ -25,6 +25,8 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
+import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
+import org.apache.flink.runtime.rpc.messages.RemoteFencedMessage;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.runtime.rpc.messages.UnfencedMessage;
 import org.apache.flink.util.Preconditions;
@@ -126,6 +128,18 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
 	}
 
 	private <P> FencedMessage<F, P> fenceMessage(P message) {
-		return new FencedMessage<>(fencingTokenSupplier.get(), message);
+		if (isLocal) {
+			return new LocalFencedMessage<>(fencingTokenSupplier.get(), message);
+		} else {
+			if (message instanceof Serializable) {
+				@SuppressWarnings("unchecked")
+				FencedMessage<F, P> result = (FencedMessage<F, P>) new RemoteFencedMessage<>(fencingTokenSupplier.get(), (Serializable) message);
+
+				return result;
+			} else {
+				throw new RuntimeException("Trying to send a non-serializable message " + message + " to a remote " +
+					"RpcEndpoint. Please make sure that the message implements java.io.Serializable.");
+			}
+		}
 	}
 }

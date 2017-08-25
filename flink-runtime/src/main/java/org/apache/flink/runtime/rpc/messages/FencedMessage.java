@@ -18,37 +18,17 @@
 
 package org.apache.flink.runtime.rpc.messages;
 
-import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
-import org.apache.flink.util.Preconditions;
-
 import java.io.Serializable;
 
 /**
- * Wrapper class for fenced messages used by the {@link FencedRpcEndpoint}.
+ * Interface for fenced messages.
  *
  * @param <F> type of the fencing token
  * @param <P> type of the payload
  */
-public class FencedMessage<F extends Serializable, P> {
-	private final F fencingToken;
-	private final P payload;
+public interface FencedMessage<F extends Serializable, P> {
 
+	F getFencingToken();
 
-	public FencedMessage(F fencingToken, P payload) {
-		this.fencingToken = Preconditions.checkNotNull(fencingToken);
-		this.payload = Preconditions.checkNotNull(payload);
-	}
-
-	public F getFencingToken() {
-		return fencingToken;
-	}
-
-	public P getPayload() {
-		return payload;
-	}
-
-	@Override
-	public String toString() {
-		return "FencedMessage(" + fencingToken + ", " + payload + ')';
-	}
+	P getPayload();
 }
