@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 
 import java.nio.ByteBuffer;
@@ -210,4 +211,9 @@ public interface Buffer {
 	 * @param allocator netty buffer allocator
 	 */
 	void setAllocator(ByteBufAllocator allocator);
+
+	/**
+	 * @return self as ByteBuf implementation.
+	 */
+	ByteBuf asByteBuf();
 }

@@ -196,4 +196,8 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 		((Buffer) unwrap()).setAllocator(allocator);
 	}
 
+	@Override
+	public ByteBuf asByteBuf() {
+		return this;
+	}
 }

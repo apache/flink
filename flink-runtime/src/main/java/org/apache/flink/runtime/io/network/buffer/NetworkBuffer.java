@@ -529,4 +529,9 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 			.append(')');
 		return buf.toString();
 	}
+
+	@Override
+	public ByteBuf asByteBuf() {
+		return this;
+	}
 }
