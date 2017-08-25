@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.dataview
 
-import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -31,7 +30,6 @@ import org.apache.flink.table.api.dataview.ListView
   * @param elementType element type information
   * @tparam T element type
   */
-@PublicEvolving
 class  ListViewTypeInfo[T](val elementType: TypeInformation[T])
   extends TypeInformation[ListView[T]] {
 
@@ -47,7 +45,6 @@ class  ListViewTypeInfo[T](val elementType: TypeInformation[T])
 
   override def isKeyType: Boolean = false
 
-  @PublicEvolving
   override def createSerializer(config: ExecutionConfig): TypeSerializer[ListView[T]] = {
     val typeSer = elementType.createSerializer(config)
     new ListViewSerializer[T](new ListSerializer[T](typeSer))

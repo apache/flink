@@ -266,6 +266,10 @@ class RowTimeBoundedRowsOver(
     // update cleanup timer
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
+
+  override def close(): Unit = {
+    function.close()
+  }
 }
 
 

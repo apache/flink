@@ -100,4 +100,8 @@ class ProcTimeUnboundedOver(
       function.cleanup()
     }
   }
+  
+  override def close(): Unit = {
+    function.close()
+  }
 }

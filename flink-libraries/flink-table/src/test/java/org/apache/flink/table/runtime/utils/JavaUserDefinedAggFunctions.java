@@ -163,7 +163,11 @@ public class JavaUserDefinedAggFunctions {
 		//Overloaded accumulate method
 		public void accumulate(CountDistinctAccum accumulator, String id) {
 			try {
-				if (!accumulator.map.contains(id)) {
+				Integer cnt = accumulator.map.get(id);
+				if (cnt != null) {
+					cnt += 1;
+					accumulator.map.put(id, cnt);
+				} else {
 					accumulator.map.put(id, 1);
 					accumulator.count += 1;
 				}
@@ -175,7 +179,11 @@ public class JavaUserDefinedAggFunctions {
 		//Overloaded accumulate method
 		public void accumulate(CountDistinctAccum accumulator, long id) {
 			try {
-				if (!accumulator.map.contains(String.valueOf(id))) {
+				Integer cnt = accumulator.map.get(String.valueOf(id));
+				if (cnt != null) {
+					cnt += 1;
+					accumulator.map.put(String.valueOf(id), cnt);
+				} else {
 					accumulator.map.put(String.valueOf(id), 1);
 					accumulator.count += 1;
 				}
@@ -203,11 +211,14 @@ public class JavaUserDefinedAggFunctions {
 				acc.count += mergeAcc.count;
 
 				try {
-					Iterator<String> mapItr = mergeAcc.map.keys().iterator();
-					while (mapItr.hasNext()) {
-						String key = mapItr.next();
-						if (!acc.map.contains(key)) {
-							acc.map.put(key, 1);
+					Iterator<String> itrMap = mergeAcc.map.keys().iterator();
+					while (itrMap.hasNext()) {
+						String key = itrMap.next();
+						Integer cnt = mergeAcc.map.get(key);
+						if (acc.map.contains(key)) {
+							acc.map.put(key, acc.map.get(key) + cnt);
+						} else {
+							acc.map.put(key, cnt);
 						}
 					}
 				} catch (Exception e) {
@@ -237,9 +248,13 @@ public class JavaUserDefinedAggFunctions {
 		//Overloaded retract method
 		public void retract(CountDistinctAccum accumulator, long id) {
 			try {
-				if (!accumulator.map.contains(String.valueOf(id))) {
-					accumulator.map.remove(String.valueOf(id));
-					accumulator.count -= 1;
+				Integer cnt = accumulator.map.get(String.valueOf(id));
+				if (cnt != null) {
+					cnt -= 1;
+					if (cnt <= 0) {
+						accumulator.map.remove(String.valueOf(id));
+						accumulator.count -= 1;
+					}
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -258,7 +273,7 @@ public class JavaUserDefinedAggFunctions {
 	 */
 	public static class DataViewTestAccum {
 		public MapView<String, Integer> map;
-		public MapView<String, Integer> map2;
+		public MapView<String, Integer> map2; // for test not initialized
 		public long count;
 		private ListView<Long> list = new ListView<>(Types.LONG);
 
@@ -271,11 +286,12 @@ public class JavaUserDefinedAggFunctions {
 		}
 	}
 
+	public static boolean isCloseCalled = false;
+
 	/**
 	 * Aggregate for test DataView.
 	 */
 	public static class DataViewTestAgg extends AggregateFunction<Long, DataViewTestAccum> {
-
 		@Override
 		public DataViewTestAccum createAccumulator() {
 			DataViewTestAccum accum = new DataViewTestAccum();
@@ -309,6 +325,11 @@ public class JavaUserDefinedAggFunctions {
 				e.printStackTrace();
 			}
 			return sum;
+		}
+
+		@Override
+		public void close() {
+			isCloseCalled = true;
 		}
 	}
 }

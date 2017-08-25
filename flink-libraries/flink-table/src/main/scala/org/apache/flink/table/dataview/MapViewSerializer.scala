@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.dataview
 
-import java.util
-
-import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.base.{MapSerializer, MapSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -30,7 +27,7 @@ import org.apache.flink.table.api.dataview.MapView
   * A serializer for [[MapView]]. The serializer relies on a key serializer and a value
   * serializer for the serialization of the map's key-value pairs.
   *
-  * <p>The serialization format for the map is as follows: four bytes for the length of the map,
+  * The serialization format for the map is as follows: four bytes for the length of the map,
   * followed by the serialized representation of each key-value pair. To allow null values,
   * each value is prefixed by a null marker.
   *
@@ -38,7 +35,6 @@ import org.apache.flink.table.api.dataview.MapView
   * @tparam K The type of the keys in the map.
   * @tparam V The type of the values in the map.
   */
-@Internal
 class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
   extends TypeSerializer[MapView[K, V]] {
 
@@ -50,13 +46,13 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
 
   override def createInstance(): MapView[K, V] = {
     val mapview = new MapView[K, V]
-    mapview.putAll(mapSerializer.createInstance())
+    mapview.map = mapSerializer.createInstance()
     mapview
   }
 
   override def copy(from: MapView[K, V]): MapView[K, V] = {
     val mapview = new MapView[K, V]
-    mapview.putAll(mapSerializer.copy(from.map))
+    mapview.map = mapSerializer.copy(from.map)
     mapview
   }
 
@@ -70,7 +66,7 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
 
   override def deserialize(source: DataInputView): MapView[K, V] = {
     val mapview = new MapView[K, V]
-    mapview.putAll(mapSerializer.deserialize(source))
+    mapview.map = mapSerializer.deserialize(source)
     mapview
   }
 

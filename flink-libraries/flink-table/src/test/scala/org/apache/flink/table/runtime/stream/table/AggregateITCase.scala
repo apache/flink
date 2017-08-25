@@ -25,7 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg}
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -189,5 +189,8 @@ class AggregateITCase extends StreamingWithStateTestBase {
 
     val expected = List("1,1,2", "2,1,5", "3,1,10", "4,4,20", "5,2,12")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+
+    // verify agg close is called
+    assert(JavaUserDefinedAggFunctions.isCloseCalled)
   }
 }

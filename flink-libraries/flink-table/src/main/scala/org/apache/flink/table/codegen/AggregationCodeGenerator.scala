@@ -23,13 +23,13 @@ import java.lang.{Iterable => JIterable}
 import org.apache.flink.api.common.state.StateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.dataview.{ListView, MapView}
+import org.apache.flink.table.api.dataview.{DataViewSpec, ListView, MapView}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
-import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataViewConfig, GeneratedAggregations, SingleElementIterable}
+import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GeneratedAggregations, SingleElementIterable}
 
 import scala.collection.mutable
 
@@ -96,7 +96,7 @@ class AggregationCodeGenerator(
     needRetract: Boolean,
     needMerge: Boolean,
     needReset: Boolean,
-    accConfig: DataViewConfig)
+    accConfig: Option[Array[Seq[DataViewSpec[_]]]] = None)
   : GeneratedAggregationsFunction = {
 
     // get unique function name
@@ -183,36 +183,47 @@ class AggregationCodeGenerator(
     }
 
     /**
+      * Create DataView Term, for example, acc1_map_dataview.
+      *
+      * @param aggIndex index of aggregate function
+      * @param fieldName field name of DataView
+      * @return term to access [[MapView]] or [[ListView]]
+      */
+    def createDataViewTerm(aggIndex: Int, fieldName: String): String = {
+      s"acc${aggIndex}_${fieldName}_dataview"
+    }
+
+    /**
       * Adds a reusable [[org.apache.flink.table.api.dataview.DataView]] to the open, cleanup,
       * close and member area of the generated function.
       *
       */
     def addReusableDataViews: Unit = {
-      if (accConfig != null && accConfig.isStateBackedDataViews) {
-        val descMapping: Map[String, StateDescriptor[_, _]] = accConfig.accSpecs
+      if (accConfig.isDefined) {
+        val descMapping: Map[String, StateDescriptor[_, _]] = accConfig.get
           .flatMap(specs => specs.map(s => (s.id, s.toStateDescriptor)))
           .toMap[String, StateDescriptor[_, _]]
 
         for (i <- aggs.indices) yield {
-          for (spec <- accConfig.accSpecs(i)) yield {
+          for (spec <- accConfig.get(i)) yield {
             val dataViewField = spec.field
             val dataViewTypeTerm = dataViewField.getType.getCanonicalName
             val desc = descMapping.getOrElse(spec.id,
-              throw new CodeGenException(s"Can not find ListView in accumulator by id: ${spec.id}"))
+              throw new CodeGenException(s"Can not find DataView in accumulator by id: ${spec.id}"))
 
             // define the DataView variables
             val serializedData = AggregateUtil.serialize(desc)
-            val dataViewFieldTerm = AggregateUtil.createDataViewTerm(i, dataViewField.getName)
+            val dataViewFieldTerm = createDataViewTerm(i, dataViewField.getName)
             val field =
               s"""
-                 |transient $dataViewTypeTerm $dataViewFieldTerm = null;
-                 |""".stripMargin
+                 |    transient $dataViewTypeTerm $dataViewFieldTerm = null;
+              """.stripMargin
             reusableMemberStatements.add(field)
 
             // create DataViews
             val descFieldTerm = s"${dataViewFieldTerm}_desc"
             val descClassQualifier = classOf[StateDescriptor[_, _]].getCanonicalName
-            val descDeserialize =
+            val descDeserializeCode =
               s"""
                  |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
                  |      ${AggregateUtil.getClass.getName.stripSuffix("$")}
@@ -220,18 +231,18 @@ class AggregationCodeGenerator(
              """.stripMargin
             val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
               s"""
-                 |    $descDeserialize
+                 |    $descDeserializeCode
                  |    $dataViewFieldTerm = new org.apache.flink.table.dataview.StateMapView(
                  |      $contextTerm.getMapState((
-                 |        org.apache.flink.api.common.state.MapStateDescriptor)$descFieldTerm));
-           """.stripMargin
+                 |      org.apache.flink.api.common.state.MapStateDescriptor)$descFieldTerm));
+              """.stripMargin
             } else if (dataViewField.getType == classOf[ListView[_]]) {
               s"""
-                 |    $descDeserialize
+                 |    $descDeserializeCode
                  |    $dataViewFieldTerm = new org.apache.flink.table.dataview.StateListView(
                  |      $contextTerm.getListState((
-                 |        org.apache.flink.api.common.state.ListStateDescriptor)$descFieldTerm));
-           """.stripMargin
+                 |      org.apache.flink.api.common.state.ListStateDescriptor)$descFieldTerm));
+              """.stripMargin
             } else {
               throw new CodeGenException(s"Unsupported dataview type: $dataViewTypeTerm")
             }
@@ -256,10 +267,10 @@ class AggregationCodeGenerator(
       * @return data view field set statements
       */
     def genDataViewFieldSetter(accTerm: String, aggIndex: Int): String = {
-      if (accConfig != null && accConfig.isStateBackedDataViews) {
-        val setters = for (spec <- accConfig.accSpecs(aggIndex)) yield {
+      if (accConfig.isDefined) {
+        val setters = for (spec <- accConfig.get(aggIndex)) yield {
           val field = spec.field
-          val dataViewTerm = AggregateUtil.createDataViewTerm(aggIndex, field.getName)
+          val dataViewTerm = createDataViewTerm(aggIndex, field.getName)
           val fieldSetter = if (Modifier.isPublic(field.getModifiers)) {
             s"$accTerm.${field.getName} = $dataViewTerm;"
           } else {
@@ -294,12 +305,11 @@ class AggregationCodeGenerator(
                |      ${aggMapping(i)},
                |      (${accTypes(i)}) accs.getField($i));""".stripMargin
           } else {
-            val setDataView = genDataViewFieldSetter(s"acc$i", i)
             j"""
                |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
                |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-               |    $setDataView
+               |    ${genDataViewFieldSetter(s"acc$i", i)}
                |    output.setField(
                |      ${aggMapping(i)},
                |      baseClass$i.getValue(acc$i));""".stripMargin
@@ -322,10 +332,9 @@ class AggregationCodeGenerator(
 
       val accumulate: String = {
         for (i <- aggs.indices) yield {
-          val setDataView = genDataViewFieldSetter(s"acc$i", i)
           j"""
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-             |    $setDataView
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.accumulate(
              |      acc$i,
              |      ${parametersCode(i)});""".stripMargin
@@ -347,10 +356,9 @@ class AggregationCodeGenerator(
 
       val retract: String = {
         for (i <- aggs.indices) yield {
-          val setDataView = genDataViewFieldSetter(s"acc$i", i)
           j"""
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-             |    $setDataView
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.retract(
              |      acc$i,
              |      ${parametersCode(i)});""".stripMargin
@@ -382,10 +390,9 @@ class AggregationCodeGenerator(
         .stripMargin
       val create: String = {
         for (i <- aggs.indices) yield {
-          val setDataView = genDataViewFieldSetter(s"acc$i", i)
           j"""
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
-             |    $setDataView
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    accs.setField(
              |      $i,
              |      acc$i);"""
@@ -486,8 +493,9 @@ class AggregationCodeGenerator(
            """.stripMargin
 
       if (needMerge) {
-        if (accConfig != null && accConfig.isStateBackedDataViews) {
-          throw new CodeGenException("DataView doesn't support merge when the backend uses state.")
+        if (accConfig.isDefined) {
+          throw new CodeGenException("DataView doesn't support merge when the backend uses " +
+            s"state when generate aggregation for $funcName.")
         }
         j"""
            |$sig {
@@ -522,10 +530,9 @@ class AggregationCodeGenerator(
 
       val reset: String = {
         for (i <- aggs.indices) yield {
-          val setDataView = genDataViewFieldSetter(s"acc$i", i)
           j"""
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-             |    $setDataView
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.resetAccumulator(acc$i);""".stripMargin
         }
       }.mkString("\n")

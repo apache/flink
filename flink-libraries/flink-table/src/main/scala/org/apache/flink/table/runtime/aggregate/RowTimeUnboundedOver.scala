@@ -243,6 +243,9 @@ abstract class RowTimeUnboundedOver(
     lastAccumulator: Row,
     out: Collector[CRow]): Unit
 
+  override def close(): Unit = {
+    function.close()
+  }
 }
 
 /**

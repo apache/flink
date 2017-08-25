@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.dataview
 
-import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -33,31 +32,23 @@ import org.apache.flink.table.api.dataview.MapView
   * @tparam K key type
   * @tparam V value type
   */
-@PublicEvolving
 class  MapViewTypeInfo[K, V](
     val keyType: TypeInformation[K],
     val valueType: TypeInformation[V])
   extends TypeInformation[MapView[K, V]] {
 
-  @PublicEvolving
   override def isBasicType = false
 
-  @PublicEvolving
   override def isTupleType = false
 
-  @PublicEvolving
   override def getArity = 1
 
-  @PublicEvolving
   override def getTotalFields = 1
 
-  @PublicEvolving
   override def getTypeClass: Class[MapView[K, V]] = classOf[MapView[K, V]]
 
-  @PublicEvolving
   override def isKeyType: Boolean = false
 
-  @PublicEvolving
   override def createSerializer(config: ExecutionConfig): TypeSerializer[MapView[K, V]] = {
     val keySer = keyType.createSerializer(config)
     val valueSer = valueType.createSerializer(config)

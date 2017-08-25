@@ -265,9 +265,10 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello,1,1,1,1", "Hello,1,2,2,1", "Hello,1,3,3,1",
       "Hello,2,3,4,2", "Hello,2,3,5,2", "Hello,2,3,6,2",
       "Hello,3,3,7,3", "Hello,4,3,9,4", "Hello,5,3,12,5",
-      "Hello,6,3,15,6",
+      "Hello,6,3,15,5",
       "Hello World,7,1,7,1", "Hello World,7,2,14,1", "Hello World,7,3,21,1",
       "Hello World,7,3,21,1", "Hello World,8,3,22,2", "Hello World,20,3,35,3")
+
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -330,13 +331,13 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello,2,6,9,2", "Hello,3,6,9,2", "Hello,2,6,9,2",
       "Hello,3,4,9,3",
       "Hello,4,2,7,4",
-      "Hello,5,2,9,5",
-      "Hello,6,2,11,6", "Hello,65,2,12,6",
-      "Hello,9,2,12,6", "Hello,9,2,12,6", "Hello,18,3,18,6",
+      "Hello,5,2,9,4",
+      "Hello,6,2,11,4", "Hello,65,2,12,3",
+      "Hello,9,2,12,3", "Hello,9,2,12,3", "Hello,18,3,18,3",
       "Hello World,7,1,7,1", "Hello World,17,3,21,1",
       "Hello World,77,3,21,1", "Hello World,18,1,7,1",
       "Hello World,8,2,15,2",
-      "Hello World,20,1,20,3")
+      "Hello World,20,1,20,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

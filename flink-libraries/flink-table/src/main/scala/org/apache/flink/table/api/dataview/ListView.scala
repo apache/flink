@@ -32,7 +32,7 @@ import org.apache.flink.table.dataview.ListViewTypeInfoFactory
   * which the function is used.
   *
   * At runtime `ListView` will be replaced by a [[org.apache.flink.table.dataview.StateListView]]
-  * when use state backend..
+  * if it is backed by a state backend.
   *
   * Example:
   * {{{
@@ -81,7 +81,7 @@ class ListView[T](
 
   def this() = this(null)
 
-  private[flink] val list = new util.ArrayList[T]()
+  private[flink] var list: util.List[T] = new util.ArrayList[T]()
 
   /**
     * Returns an iterable of the list.
@@ -124,7 +124,7 @@ class ListView[T](
   override def clear(): Unit = list.clear()
 
   override def equals(other: Any): Boolean = other match {
-    case that: ListView[_] =>
+    case that: ListView[T] =>
       list.equals(that.list)
     case _ => false
   }

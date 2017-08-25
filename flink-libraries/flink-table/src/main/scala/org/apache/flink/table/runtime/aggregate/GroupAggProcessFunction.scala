@@ -166,4 +166,7 @@ class GroupAggProcessFunction(
     }
   }
 
+  override def close(): Unit = {
+    function.close()
+  }
 }

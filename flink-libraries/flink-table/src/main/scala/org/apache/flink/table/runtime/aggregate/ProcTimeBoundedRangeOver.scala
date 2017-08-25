@@ -201,4 +201,7 @@ class ProcTimeBoundedRangeOver(
     accumulatorState.update(accumulators)
   }
 
+  override def close(): Unit = {
+    function.close()
+  }
 }

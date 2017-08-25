@@ -32,7 +32,7 @@ import org.apache.flink.table.dataview.MapViewTypeInfoFactory
   * which the function is used.
   *
   * At runtime `MapView` will be replaced by a [[org.apache.flink.table.dataview.StateMapView]]
-  * when use state backend.
+  * if it is backed by a state backend.
   *
   * Example:
   * {{{
@@ -84,7 +84,7 @@ class MapView[K, V](
 
   def this() = this(null, null)
 
-  private[flink] var map = new util.HashMap[K, V]()
+  private[flink] var map: util.Map[K, V] = new util.HashMap[K, V]()
 
   /**
     * Returns the value to which the specified key is mapped, or { @code null } if this map
@@ -179,7 +179,7 @@ class MapView[K, V](
   override def clear(): Unit = map.clear()
 
   override def equals(other: Any): Boolean = other match {
-    case that: MapView[_, _] =>
+    case that: MapView[K, V] =>
         map.equals(that.map)
     case _ => false
   }

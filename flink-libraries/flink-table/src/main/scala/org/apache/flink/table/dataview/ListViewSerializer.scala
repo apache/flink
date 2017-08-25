@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.dataview
 
-import java.util
-
-import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.base.{CollectionSerializerConfigSnapshot, ListSerializer}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -30,13 +27,12 @@ import org.apache.flink.table.api.dataview.ListView
   * A serializer for [[ListView]]. The serializer relies on an element
   * serializer for the serialization of the list's elements.
   *
-  * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
+  * The serialization format for the list is as follows: four bytes for the length of the list,
   * followed by the serialized representation of each element.
   *
   * @param listSerializer List serializer.
   * @tparam T The type of element in the list.
   */
-@Internal
 class ListViewSerializer[T](val listSerializer: ListSerializer[T])
   extends TypeSerializer[ListView[T]] {
 
@@ -47,14 +43,12 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
   }
 
   override def createInstance(): ListView[T] = {
-    val listview = new ListView[T]
-    listview.addAll(listSerializer.createInstance())
-    listview
+    new ListView[T]
   }
 
   override def copy(from: ListView[T]): ListView[T] = {
     val listview = new ListView[T]
-    listview.addAll(listSerializer.copy(from.list))
+    listview.list = from.list
     listview
   }
 
@@ -68,7 +62,7 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
 
   override def deserialize(source: DataInputView): ListView[T] = {
     val listview = new ListView[T]
-    listview.addAll(listSerializer.deserialize(source))
+    listview.list = listSerializer.deserialize(source)
     listview
   }
 
