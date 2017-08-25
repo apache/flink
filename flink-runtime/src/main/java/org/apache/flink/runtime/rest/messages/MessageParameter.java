@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>All parameters support symmetric conversion from their actual type and string via {@link #convertFromString(String)}
  * and {@link #convertToString(Object)}. The conversion from {@code X} to string is required on the client to assemble the
- * URL, whereas the conversion from string to {@code X} is required on the client to provide properly typed parameters
+ * URL, whereas the conversion from string to {@code X} is required on the server to provide properly typed parameters
  * to the handlers.
  *
  * @see MessagePathParameter
@@ -43,8 +43,8 @@ public abstract class MessageParameter<X> {
 	private X value;
 
 	MessageParameter(String key, MessageParameterRequisiteness requisiteness) {
-		this.key = key;
-		this.requisiteness = requisiteness;
+		this.key = Preconditions.checkNotNull(key);
+		this.requisiteness = Preconditions.checkNotNull(requisiteness);
 	}
 
 	/**
@@ -63,7 +63,7 @@ public abstract class MessageParameter<X> {
 	 */
 	public final void resolve(X value) {
 		Preconditions.checkState(!resolved, "This parameter was already resolved.");
-		this.value = value;
+		this.value = Preconditions.checkNotNull(value);
 		this.resolved = true;
 	}
 
@@ -102,7 +102,7 @@ public abstract class MessageParameter<X> {
 	}
 
 	/**
-	 * Returs the resolved value of this parameter, or {@code null} if it isn't resolved yet.
+	 * Returns the resolved value of this parameter, or {@code null} if it isn't resolved yet.
 	 *
 	 * @return resolved value, or null if it wasn't resolved yet
 	 */
@@ -111,7 +111,7 @@ public abstract class MessageParameter<X> {
 	}
 
 	/**
-	 * Returs the resolved value of this parameter as a string, or {@code null} if it isn't resolved yet.
+	 * Returns the resolved value of this parameter as a string, or {@code null} if it isn't resolved yet.
 	 *
 	 * @return resolved value, or null if it wasn't resolved yet
 	 */

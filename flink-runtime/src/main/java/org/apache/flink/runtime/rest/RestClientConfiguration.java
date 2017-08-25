@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -30,37 +29,15 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 /**
- * A configuration object for {@link RestClientEndpoint}s.
+ * A configuration object for {@link RestClient}s.
  */
-public final class RestClientEndpointConfiguration {
+public final class RestClientConfiguration {
 
-	private final String targetRestEndpointAddress;
-	private final int targetRestEndpointPort;
 	@Nullable
 	private final SSLEngine sslEngine;
 
-	private RestClientEndpointConfiguration(String targetRestEndpointAddress, int targetRestEndpointPort, @Nullable SSLEngine sslEngine) {
-		this.targetRestEndpointAddress = Preconditions.checkNotNull(targetRestEndpointAddress);
-		this.targetRestEndpointPort = targetRestEndpointPort;
+	private RestClientConfiguration(@Nullable SSLEngine sslEngine) {
 		this.sslEngine = sslEngine;
-	}
-
-	/**
-	 * Returns the address of the REST server endpoint to connect to.
-	 *
-	 * @return REST server endpoint address
-	 */
-	public String getTargetRestEndpointAddress() {
-		return targetRestEndpointAddress;
-	}
-
-	/**
-	 * Returns the por tof the REST server endpoint to connect to.
-	 *
-	 * @return REST server endpoint port
-	 */
-	public int getTargetRestEndpointPort() {
-		return targetRestEndpointPort;
 	}
 
 	/**
@@ -74,22 +51,15 @@ public final class RestClientEndpointConfiguration {
 	}
 
 	/**
-	 * Creates and returns a new {@link RestClientEndpointConfiguration} from the given {@link Configuration}.
+	 * Creates and returns a new {@link RestClientConfiguration} from the given {@link Configuration}.
 	 *
 	 * @param config configuration from which the REST client endpoint configuration should be created from
 	 * @return REST client endpoint configuration
 	 * @throws ConfigurationException if SSL was configured incorrectly
 	 */
 
-	public static RestClientEndpointConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
+	public static RestClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		Preconditions.checkNotNull(config);
-		String address = config.getString(RestOptions.REST_ADDRESS);
-		if (address == null) {
-			throw new ConfigurationException("The address of the REST server was not configured under " + RestOptions.REST_ADDRESS.key() + ".");
-		}
-
-		int port = config.getInteger(RestOptions.REST_PORT);
-		Preconditions.checkArgument(0 <= port && port <= 65536, "Port " + port + " is out of valid port range (0-65536).");
 
 		SSLEngine sslEngine = null;
 		boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
@@ -106,6 +76,6 @@ public final class RestClientEndpointConfiguration {
 			}
 		}
 
-		return new RestClientEndpointConfiguration(address, port, sslEngine);
+		return new RestClientConfiguration(sslEngine);
 	}
 }

@@ -86,7 +86,10 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 
 	@Override
 	protected void channelRead0(final ChannelHandlerContext ctx, Routed routed) throws Exception {
-		log.debug("Received request.");
+		if (log.isDebugEnabled()) {
+			log.debug("Received request " + routed.request().getUri() + '.');
+		}
+
 		final HttpRequest httpRequest = routed.request();
 
 		try {
@@ -124,9 +127,6 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 			try {
 				HandlerRequest<R, M> handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
 				response = handleRequest(handlerRequest);
-			} catch (RestHandlerException rhe) {
-				sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getErrorCode(), ctx, httpRequest);
-				return;
 			} catch (Exception e) {
 				response = FutureUtils.completedExceptionally(e);
 			}

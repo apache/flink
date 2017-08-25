@@ -38,30 +38,36 @@ import java.util.StringJoiner;
 public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
 	private final R requestBody;
-	private final Map<Class<? extends MessagePathParameter>, MessagePathParameter<?>> pathParameters = new HashMap<>();
-	private final Map<Class<? extends MessageQueryParameter>, MessageQueryParameter<?>> queryParameters = new HashMap<>();
+	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
+	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
 
-	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> pathParameters, Map<String, List<String>> queryParameters) {
+	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters) {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
 		Preconditions.checkNotNull(messageParameters);
-		Preconditions.checkNotNull(queryParameters);
-		Preconditions.checkNotNull(pathParameters);
+		Preconditions.checkNotNull(receivedQueryParameters);
+		Preconditions.checkNotNull(receivedPathParameters);
 
 		for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
-			String value = pathParameters.get(pathParameter.getKey());
+			String value = receivedPathParameters.get(pathParameter.getKey());
 			if (value != null) {
 				pathParameter.resolveFromString(value);
-				this.pathParameters.put(pathParameter.getClass(), pathParameter);
+
+				@SuppressWarnings("unchecked")
+				Class<? extends MessagePathParameter<?>> clazz = (Class<? extends MessagePathParameter<?>>) pathParameter.getClass();
+				pathParameters.put(clazz, pathParameter);
 			}
 		}
 
 		for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
-			List<String> values = queryParameters.get(queryParameter.getKey());
-			if (values != null && values.size() > 0) {
+			List<String> values = receivedQueryParameters.get(queryParameter.getKey());
+			if (values != null && !values.isEmpty()) {
 				StringJoiner joiner = new StringJoiner(",");
 				values.forEach(joiner::add);
 				queryParameter.resolveFromString(joiner.toString());
-				this.queryParameters.put(queryParameter.getClass(), queryParameter);
+
+				@SuppressWarnings("unchecked")
+				Class<? extends MessageQueryParameter<?>> clazz = (Class<? extends MessageQueryParameter<?>>) queryParameter.getClass();
+				queryParameters.put(clazz, queryParameter);
 			}
 
 		}

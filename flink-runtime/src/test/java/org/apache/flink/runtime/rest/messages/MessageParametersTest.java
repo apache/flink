@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,7 +30,7 @@ import java.util.Collections;
 /**
  * Tests for {@link MessageParameters}.
  */
-public class MessageParametersTest {
+public class MessageParametersTest extends TestLogger {
 	@Test
 	public void testResolveUrl() {
 		String genericUrl = "/jobs/:jobid/state";
@@ -49,12 +50,12 @@ public class MessageParametersTest {
 		private final TestQueryParameter queryParameter = new TestQueryParameter();
 
 		@Override
-		public Collection<MessagePathParameter> getPathParameters() {
+		public Collection<MessagePathParameter<?>> getPathParameters() {
 			return Collections.singleton(pathParameter);
 		}
 
 		@Override
-		public Collection<MessageQueryParameter> getQueryParameters() {
+		public Collection<MessageQueryParameter<?>> getQueryParameters() {
 			return Collections.singleton(queryParameter);
 		}
 	}

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
@@ -57,7 +58,6 @@ public abstract class RestServerEndpoint {
 	private final String configuredAddress;
 	private final int configuredPort;
 	private final SSLEngine sslEngine;
-	private final Router router = new Router();
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
@@ -80,8 +80,10 @@ public abstract class RestServerEndpoint {
 	 */
 	public void start() {
 		log.info("Starting rest endpoint.");
-		initializeHandlers()
-			.forEach(this::registerHandler);
+
+		final Router router = new Router();
+
+		initializeHandlers().forEach(handler -> registerHandler(router, handler));
 
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
@@ -111,30 +113,19 @@ public abstract class RestServerEndpoint {
 			.channel(NioServerSocketChannel.class)
 			.childHandler(initializer);
 
-		ChannelFuture ch;
+		final ChannelFuture channel;
 		if (configuredAddress == null) {
-			ch = bootstrap.bind(configuredPort);
+			channel = bootstrap.bind(configuredPort);
 		} else {
-			ch = bootstrap.bind(configuredAddress, configuredPort);
+			channel = bootstrap.bind(configuredAddress, configuredPort);
 		}
-		serverChannel = ch.syncUninterruptibly().channel();
+		serverChannel = channel.syncUninterruptibly().channel();
 
 		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 		String address = bindAddress.getAddress().getHostAddress();
 		int port = bindAddress.getPort();
 
 		log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
-	}
-
-	private <R extends RequestBody, P extends ResponseBody> void registerHandler(AbstractRestHandler<R, P, ?> handler) {
-		switch (handler.getMessageHeaders().getHttpMethod()) {
-			case GET:
-				router.GET(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
-				break;
-			case POST:
-				router.POST(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
-				break;
-		}
 	}
 
 	/**
@@ -158,7 +149,7 @@ public abstract class RestServerEndpoint {
 	/**
 	 * Stops this REST server endpoint.
 	 */
-	public void shutdown() {
+	public void shutdown(Time timeout) {
 		log.info("Shutting down rest endpoint.");
 
 		CompletableFuture<?> channelFuture = new CompletableFuture<>();
@@ -171,22 +162,36 @@ public abstract class RestServerEndpoint {
 		channelFuture.thenRun(() -> {
 			if (bootstrap != null) {
 				if (bootstrap.group() != null) {
-					bootstrap.group().shutdownGracefully(0, 5, TimeUnit.SECONDS)
+					bootstrap.group().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
 						.addListener(ignored -> groupFuture.complete(null));
 				}
 				if (bootstrap.childGroup() != null) {
-					bootstrap.childGroup().shutdownGracefully(0, 5, TimeUnit.SECONDS)
+					bootstrap.childGroup().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
 						.addListener(ignored -> childGroupFuture.complete(null));
 				}
+			} else {
+				// complete the group futures since there is nothing to stop
+				groupFuture.complete(null);
+				childGroupFuture.complete(null);
 			}
 		});
 
 		try {
-			CompletableFuture.allOf(groupFuture, childGroupFuture)
-				.get(10, TimeUnit.SECONDS);
+			CompletableFuture.allOf(groupFuture, childGroupFuture).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			log.info("Rest endpoint shutdown complete.");
 		} catch (Exception e) {
 			log.warn("Rest endpoint shutdown failed.", e);
+		}
+	}
+
+	private static <R extends RequestBody, P extends ResponseBody> void registerHandler(Router router, AbstractRestHandler<R, P, ?> handler) {
+		switch (handler.getMessageHeaders().getHttpMethod()) {
+			case GET:
+				router.GET(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				break;
+			case POST:
+				router.POST(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				break;
 		}
 	}
 }

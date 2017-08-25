@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -63,25 +64,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
  * This client is the counter-part to the {@link RestServerEndpoint}.
  */
-public class RestClientEndpoint {
-	private static final Logger LOG = LoggerFactory.getLogger(RestClientEndpoint.class);
+public class RestClient {
+	private static final Logger LOG = LoggerFactory.getLogger(RestClient.class);
 
 	private static final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 
-	private final String configuredTargetAddress;
-	private final int configuredTargetPort;
+	// used to open connections to a rest server endpoint
+	private final Executor executor;
 
 	private Bootstrap bootstrap;
 
-	public RestClientEndpoint(RestClientEndpointConfiguration configuration) {
+	public RestClient(RestClientConfiguration configuration, Executor executor) {
 		Preconditions.checkNotNull(configuration);
-		this.configuredTargetAddress = configuration.getTargetRestEndpointAddress();
-		this.configuredTargetPort = configuration.getTargetRestEndpointPort();
+		this.executor = Preconditions.checkNotNull(executor);
 
 		SSLEngine sslEngine = configuration.getSslEngine();
 		ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
@@ -110,25 +111,27 @@ public class RestClientEndpoint {
 		LOG.info("Rest client endpoint started.");
 	}
 
-	public void shutdown() {
+	public void shutdown(Time timeout) {
 		LOG.info("Shutting down rest endpoint.");
 		CompletableFuture<?> groupFuture = new CompletableFuture<>();
 		if (bootstrap != null) {
 			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully(0, 5, TimeUnit.SECONDS)
+				bootstrap.group().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
 					.addListener(ignored -> groupFuture.complete(null));
 			}
 		}
 
 		try {
-			groupFuture.get(5, TimeUnit.SECONDS);
+			groupFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			LOG.info("Rest endpoint shutdown complete.");
 		} catch (Exception e) {
 			LOG.warn("Rest endpoint shutdown failed.", e);
 		}
 	}
 
-	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request) throws IOException {
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters, R request) throws IOException {
+		Preconditions.checkNotNull(targetAddress);
+		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);
@@ -147,14 +150,14 @@ public class RestClientEndpoint {
 		httpRequest.headers()
 			.add(HttpHeaders.Names.CONTENT_LENGTH, payload.capacity())
 			.add(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=" + ConfigConstants.DEFAULT_CHARSET.name())
-			.set(HttpHeaders.Names.HOST, configuredTargetAddress + ":" + configuredTargetPort)
+			.set(HttpHeaders.Names.HOST, targetAddress + ":" + targetPort)
 			.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		return submitRequest(httpRequest, messageHeaders.getResponseClass());
+		return submitRequest(targetAddress, targetPort, httpRequest, messageHeaders.getResponseClass());
 	}
 
-	private <P extends ResponseBody> CompletableFuture<P> submitRequest(FullHttpRequest httpRequest, Class<P> responseClass) {
-		return CompletableFuture.supplyAsync(() -> bootstrap.connect(configuredTargetAddress, configuredTargetPort))
+	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, Class<P> responseClass) {
+		return CompletableFuture.supplyAsync(() -> bootstrap.connect(targetAddress, targetPort), executor)
 			.thenApply((channel) -> {
 				try {
 					return channel.sync();
@@ -167,7 +170,7 @@ public class RestClientEndpoint {
 				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
 				CompletableFuture<JsonNode> future = handler.getJsonFuture();
 				channel.writeAndFlush(httpRequest);
-				return future.thenCompose(rawResponse -> parseResponse(rawResponse, responseClass));
+				return future.thenComposeAsync(rawResponse -> parseResponse(rawResponse, responseClass), executor);
 			});
 	}
 
@@ -186,8 +189,8 @@ public class RestClientEndpoint {
 			} catch (JsonProcessingException jpe2) {
 				// if this fails it is either the expected type or response type was wrong, most likely caused
 				// by a client/search MessageHeaders mismatch
-				LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", responseClass, rawResponse);
-				responseFuture.completeExceptionally(new RestClientException("Response was neither of the expected type(" + responseClass + ") nor an error."));
+				LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", responseClass, rawResponse, jpe2);
+				responseFuture.completeExceptionally(new RestClientException("Response was neither of the expected type(" + responseClass + ") nor an error.", jpe2));
 			}
 		}
 		return responseFuture;

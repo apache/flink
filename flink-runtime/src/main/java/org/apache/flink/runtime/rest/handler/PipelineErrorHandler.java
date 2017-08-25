@@ -44,12 +44,12 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<HttpReques
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, HttpRequest message) {
 		// we can't deal with this message. No one in the pipeline handled it. Log it.
-		logger.debug("Unknown message received: {}", message);
+		logger.warn("Unknown message received: {}", message);
 		AbstractRestHandler.sendErrorResponse(new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST, ctx, message);
 	}
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-		logger.debug("Unhandled exception: {}", cause);
+		logger.warn("Unhandled exception", cause);
 	}
 }

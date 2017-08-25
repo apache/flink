@@ -40,9 +40,11 @@ public final class RestServerEndpointConfiguration {
 	@Nullable
 	private final SSLEngine sslEngine;
 
-	private RestServerEndpointConfiguration(@Nullable String restBindAddress, int targetRestEndpointPort, @Nullable SSLEngine sslEngine) {
+	private RestServerEndpointConfiguration(@Nullable String restBindAddress, int restBindPort, @Nullable SSLEngine sslEngine) {
 		this.restBindAddress = restBindAddress;
-		this.restBindPort = targetRestEndpointPort;
+
+		Preconditions.checkArgument(0 <= restBindPort && restBindPort < 65536, "The bing rest port " + restBindPort + " is out of range (0, 65536[");
+		this.restBindPort = restBindPort;
 		this.sslEngine = sslEngine;
 	}
 
@@ -85,7 +87,6 @@ public final class RestServerEndpointConfiguration {
 		String address = config.getString(RestOptions.REST_ADDRESS);
 
 		int port = config.getInteger(RestOptions.REST_PORT);
-		Preconditions.checkArgument(0 <= port && port <= 65536, "Port " + port + " is out of valid port range (0-65536).");
 
 		SSLEngine sslEngine = null;
 		boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
@@ -48,23 +50,24 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * IT cases for {@link RestClientEndpoint} and {@link RestServerEndpoint}.
+ * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
  */
 public class RestEndpointITCase extends TestLogger {
 
 	private static final JobID PATH_JOB_ID = new JobID();
 	private static final JobID QUERY_JOB_ID = new JobID();
 	private static final String JOB_ID_KEY = "jobid";
+	private static final Time timeout = Time.seconds(10L);
 
 	@Test
 	public void testEndpoints() throws ConfigurationException, IOException, InterruptedException, ExecutionException {
 		Configuration config = new Configuration();
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
-		RestClientEndpointConfiguration clientConfig = RestClientEndpointConfiguration.fromConfiguration(config);
+		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
 		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig);
-		RestClientEndpoint clientEndpoint = new TestRestClientEndpoint(clientConfig);
+		RestClient clientEndpoint = new TestRestClient(clientConfig);
 
 		try {
 			serverEndpoint.start();
@@ -76,12 +79,22 @@ public class RestEndpointITCase extends TestLogger {
 			// send first request and wait until the handler blocks
 			CompletableFuture<TestResponse> response1;
 			synchronized (TestHandler.LOCK) {
-				response1 = clientEndpoint.sendRequest(new TestHeaders(), parameters, new TestRequest(1));
+				response1 = clientEndpoint.sendRequest(
+					serverConfig.getEndpointBindAddress(),
+					serverConfig.getEndpointBindPort(),
+					new TestHeaders(),
+					parameters,
+					new TestRequest(1));
 				TestHandler.LOCK.wait();
 			}
 
 			// send second request and verify response
-			CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(new TestHeaders(), parameters, new TestRequest(2));
+			CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(
+				serverConfig.getEndpointBindAddress(),
+				serverConfig.getEndpointBindPort(),
+				new TestHeaders(),
+				parameters,
+				new TestRequest(2));
 			Assert.assertEquals(2, response2.get().id);
 
 			// wake up blocked handler
@@ -91,8 +104,8 @@ public class RestEndpointITCase extends TestLogger {
 			// verify response to first request
 			Assert.assertEquals(1, response1.get().id);
 		} finally {
-			clientEndpoint.shutdown();
-			serverEndpoint.shutdown();
+			clientEndpoint.shutdown(timeout);
+			serverEndpoint.shutdown(timeout);
 		}
 	}
 
@@ -142,10 +155,10 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
-	private static class TestRestClientEndpoint extends RestClientEndpoint {
+	private static class TestRestClient extends RestClient {
 
-		TestRestClientEndpoint(RestClientEndpointConfiguration configuration) {
-			super(configuration);
+		TestRestClient(RestClientConfiguration configuration) {
+			super(configuration, TestingUtils.defaultExecutor());
 		}
 	}
 
@@ -205,12 +218,12 @@ public class RestEndpointITCase extends TestLogger {
 		private final JobIDQueryParameter jobIDQueryParameter = new JobIDQueryParameter();
 
 		@Override
-		public Collection<MessagePathParameter> getPathParameters() {
+		public Collection<MessagePathParameter<?>> getPathParameters() {
 			return Collections.singleton(jobIDPathParameter);
 		}
 
 		@Override
-		public Collection<MessageQueryParameter> getQueryParameters() {
+		public Collection<MessageQueryParameter<?>> getQueryParameters() {
 			return Collections.singleton(jobIDQueryParameter);
 		}
 	}

@@ -24,6 +24,9 @@ import org.apache.flink.util.FlinkException;
  * An exception that is thrown if the failure of a REST operation was detected on the client.
  */
 public class RestClientException extends FlinkException {
+
+	private static final long serialVersionUID = 937914622022344423L;
+
 	public RestClientException(String message) {
 		super(message);
 	}
