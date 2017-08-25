@@ -312,50 +312,6 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Analyze the constructor to get the type information of the MapView or ListView type variables
-    * inside the accumulate.
-    *
-    * @param aggFun aggregate function
-    * @return the data view specification
-    */
-  def getDataViewTypeInfoFromConstructor(
-    aggFun: AggregateFunction[_, _])
-  : mutable.HashMap[String, TypeInformation[_]] = {
-
-    val resultMap = new mutable.HashMap[String, TypeInformation[_]]
-    val acc = aggFun.createAccumulator()
-    val fields: util.List[Field] = TypeExtractor.getAllDeclaredFields(acc.getClass, true)
-    for (i <- 0 until fields.size()) {
-      val field = fields.get(i)
-      field.setAccessible(true)
-      if (classOf[DataView].isAssignableFrom(field.getType)) {
-        if (field.getType == classOf[MapView[_, _]]) {
-          val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
-          if (mapView != null) {
-            val keyTypeInfo = mapView.keyTypeInfo
-            val valueTypeInfo = mapView.valueTypeInfo
-
-            if (keyTypeInfo != null && valueTypeInfo != null) {
-              resultMap.put(field.getName, new MapViewTypeInfo(keyTypeInfo, valueTypeInfo))
-            }
-          } else {
-            resultMap.put(field.getName, null)
-          }
-        } else if (field.getType == classOf[ListView[_]]) {
-          val listView = field.get(acc).asInstanceOf[ListView[_]]
-          val elementTypeInfo = listView.elementTypeInfo
-
-          if (elementTypeInfo != null) {
-            resultMap.put(field.getName, new ListViewTypeInfo(elementTypeInfo))
-          }
-        }
-      }
-    }
-
-    resultMap
-  }
-
-  /**
     * Remove StateView fields from accumulator type information.
     *
     * @param index index of aggregate function
