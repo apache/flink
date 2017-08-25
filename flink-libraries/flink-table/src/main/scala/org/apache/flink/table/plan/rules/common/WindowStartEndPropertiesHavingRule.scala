@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.plan.rules.common
 
-import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.expressions.{WindowEnd, WindowStart}
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 
+import scala.collection.JavaConversions._
 
 object WindowStartEndPropertiesHavingRule {
   private val WINDOW_EXPRESSION_RULE_PREDICATE =
@@ -30,18 +33,38 @@ object WindowStartEndPropertiesHavingRule {
         RelOptRule.operand(classOf[LogicalProject],
           RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none()))))
 
-  private val PROJECT_OPERAND_INDEX = 0
-  private val INNER_PROJECT_OPERAND_INDEX = 2
-  private val LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX = 3
-
   val INSTANCE = new WindowStartEndPropertiesRule("WindowStartEndPropertiesRule" ,
     WINDOW_EXPRESSION_RULE_PREDICATE) {
+    override def onMatch(call: RelOptRuleCall): Unit = {
 
-    override private[table] def getProjectOperandIndex =
-      PROJECT_OPERAND_INDEX
-    override private[table] def getInnerProjectOperandIndex =
-      INNER_PROJECT_OPERAND_INDEX
-    override private[table] def getLogicalWindowAggregateOperandIndex =
-      LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX
+      val project = call.rel(0).asInstanceOf[LogicalProject]
+      val filter = call.rel(1).asInstanceOf[LogicalFilter]
+      val innerProject = call.rel(2).asInstanceOf[LogicalProject]
+      val agg = call.rel(3).asInstanceOf[LogicalWindowAggregate]
+
+      // Retrieve window start and end properties
+      val transformed = call.builder()
+      transformed.push(LogicalWindowAggregate.create(
+        agg.getWindow,
+        Seq(
+          NamedWindowProperty("w$start", WindowStart(agg.getWindow.aliasAttribute)),
+          NamedWindowProperty("w$end", WindowEnd(agg.getWindow.aliasAttribute))
+        ), agg)
+      )
+
+      // forward window start and end properties
+      transformed.project(
+        innerProject.getProjects ++ Seq(transformed.field("w$start"), transformed.field("w$end")))
+
+      transformed.filter(filter.getChildExps)
+
+      // replace window auxiliary function by access to window properties
+      transformed.project(
+        project.getProjects.map(x => replaceGroupAuxiliaries(x, transformed))
+      )
+      val res = transformed.build()
+      call.transformTo(res)
+    }
+
   }
 }

@@ -22,6 +22,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions.{WindowEnd, WindowStart}
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
@@ -47,51 +48,22 @@ abstract class WindowStartEndPropertiesRule(ruleName: String, rulePredicate: Rel
     project.getProjects.exists(hasGroupAuxiliaries)
   }
 
-  override def onMatch(call: RelOptRuleCall): Unit = {
-
-    val project = call.rel(getProjectOperandIndex).asInstanceOf[LogicalProject]
-    val innerProject = call.rel(getInnerProjectOperandIndex).asInstanceOf[LogicalProject]
-    val agg = call.rel(getLogicalWindowAggregateOperandIndex).asInstanceOf[LogicalWindowAggregate]
-
-    // Retrieve window start and end properties
-    val transformed = call.builder()
-    val rexBuilder = transformed.getRexBuilder
-    transformed.push(LogicalWindowAggregate.create(
-      agg.getWindow,
-      Seq(
-        NamedWindowProperty("w$start", WindowStart(agg.getWindow.aliasAttribute)),
-        NamedWindowProperty("w$end", WindowEnd(agg.getWindow.aliasAttribute))
-      ), agg)
-    )
-
-    // forward window start and end properties
-    transformed.project(
-      innerProject.getProjects ++ Seq(transformed.field("w$start"), transformed.field("w$end")))
-
-    def replaceGroupAuxiliaries(node: RexNode): RexNode = {
-      node match {
-        case c: RexCall if isWindowStart(c) =>
-          // replace expression by access to window start
-          rexBuilder.makeCast(c.getType, transformed.field("w$start"), false)
-        case c: RexCall if isWindowEnd(c) =>
-          // replace expression by access to window end
-          rexBuilder.makeCast(c.getType, transformed.field("w$end"), false)
-        case c: RexCall =>
-          // replace expressions in children
-          val newOps = c.getOperands.map(replaceGroupAuxiliaries)
-          c.clone(c.getType, newOps)
-        case x =>
-          // preserve expression
-          x
-      }
+  def replaceGroupAuxiliaries(node: RexNode, transformed: RelBuilder): RexNode = {
+    node match {
+      case c: RexCall if isWindowStart(c) =>
+        // replace expression by access to window start
+        transformed.getRexBuilder.makeCast(c.getType, transformed.field("w$start"), false)
+      case c: RexCall if isWindowEnd(c) =>
+        // replace expression by access to window end
+        transformed.getRexBuilder.makeCast(c.getType, transformed.field("w$end"), false)
+      case c: RexCall =>
+        // replace expressions in children
+        val newOps = c.getOperands.map(x => replaceGroupAuxiliaries(x, transformed))
+        c.clone(c.getType, newOps)
+      case x =>
+        // preserve expression
+        x
     }
-
-    // replace window auxiliary function by access to window properties
-    transformed.project(
-      project.getProjects.map(replaceGroupAuxiliaries)
-    )
-    val res = transformed.build()
-    call.transformTo(res)
   }
 
   /** Checks if a RexNode is a window start auxiliary function. */
@@ -123,12 +95,6 @@ abstract class WindowStartEndPropertiesRule(ruleName: String, rulePredicate: Rel
       case _ => false
     }
   }
-
-  private[table] def getProjectOperandIndex: Int
-
-  private[table] def getInnerProjectOperandIndex: Int
-
-  private[table] def getLogicalWindowAggregateOperandIndex: Int
 }
 
 object WindowStartEndPropertiesRule {
@@ -137,18 +103,35 @@ object WindowStartEndPropertiesRule {
       RelOptRule.operand(classOf[LogicalProject],
         RelOptRule.operand(classOf[LogicalWindowAggregate], RelOptRule.none())))
 
-  private val PROJECT_OPERAND_INDEX = 0
-  private val INNER_PROJECT_OPERAND_INDEX = 1
-  private val LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX = 2
-
   val INSTANCE = new WindowStartEndPropertiesRule("WindowStartEndPropertiesRule" ,
     WINDOW_EXPRESSION_RULE_PREDICATE) {
+    override def onMatch(call: RelOptRuleCall): Unit = {
 
-    override private[table] def getProjectOperandIndex =
-      PROJECT_OPERAND_INDEX
-    override private[table] def getInnerProjectOperandIndex =
-      INNER_PROJECT_OPERAND_INDEX
-    override private[table] def getLogicalWindowAggregateOperandIndex =
-      LOGICAL_WINDOW_AGGREGATION_OPERAND_INDEX
+      val project = call.rel(0).asInstanceOf[LogicalProject]
+      val innerProject = call.rel(1).asInstanceOf[LogicalProject]
+      val agg = call.rel(2).asInstanceOf[LogicalWindowAggregate]
+
+      // Retrieve window start and end properties
+      val transformed = call.builder()
+      val rexBuilder = transformed.getRexBuilder
+      transformed.push(LogicalWindowAggregate.create(
+        agg.getWindow,
+        Seq(
+          NamedWindowProperty("w$start", WindowStart(agg.getWindow.aliasAttribute)),
+          NamedWindowProperty("w$end", WindowEnd(agg.getWindow.aliasAttribute))
+        ), agg)
+      )
+
+      // forward window start and end properties
+      transformed.project(
+        innerProject.getProjects ++ Seq(transformed.field("w$start"), transformed.field("w$end")))
+
+      // replace window auxiliary function by access to window properties
+      transformed.project(
+        project.getProjects.map(x => replaceGroupAuxiliaries(x, transformed))
+      )
+      val res = transformed.build()
+      call.transformTo(res)
+    }
   }
 }

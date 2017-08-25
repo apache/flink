@@ -170,7 +170,8 @@ class GroupWindowTest extends TableTestBase {
             "start('w$) AS w$start",
             "end('w$) AS w$end")
         ),
-        term("select", "EXPR$0", "w$start")
+        term("select", "EXPR$0", "w$start"),
+        term("where", ">($f1, 0)")
       )
 
     streamUtil.verifySql(sql, expected)

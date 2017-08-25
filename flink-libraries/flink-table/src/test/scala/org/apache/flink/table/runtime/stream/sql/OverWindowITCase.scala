@@ -877,8 +877,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "Hello,2,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0",
-      "Hi,1,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0"
+      "Hello,2,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0"
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
