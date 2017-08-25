@@ -294,10 +294,10 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				}
 
 				while (true) {
-					NetworkBuffer buffer = (NetworkBuffer) bufferProvider.requestBuffer();
+					Buffer buffer = bufferProvider.requestBuffer();
 
 					if (buffer != null) {
-						nettyBuffer.readBytes(buffer, receivedSize);
+						nettyBuffer.readBytes(buffer.asByteBuf(), receivedSize);
 
 						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -369,7 +369,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	 */
 	private class BufferListenerTask implements BufferListener, Runnable {
 
-		private final AtomicReference<NetworkBuffer> availableBuffer = new AtomicReference<>();
+		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<>();
 
 		private NettyMessage.BufferResponse stagedBufferResponse;
 
@@ -414,7 +414,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			boolean success = false;
 
 			try {
-				if (availableBuffer.compareAndSet(null, (NetworkBuffer) buffer)) {
+				if (availableBuffer.compareAndSet(null, buffer)) {
 					ctx.channel().eventLoop().execute(this);
 
 					success = true;
@@ -447,7 +447,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		public void run() {
 			boolean success = false;
 
-			NetworkBuffer buffer = null;
+			Buffer buffer = null;
 
 			try {
 				if ((buffer = availableBuffer.getAndSet(null)) == null) {
@@ -455,7 +455,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				}
 
 				ByteBuf nettyBuffer = stagedBufferResponse.getNettyBuffer();
-				nettyBuffer.readBytes(buffer, nettyBuffer.readableBytes());
+				nettyBuffer.readBytes(buffer.asByteBuf(), nettyBuffer.readableBytes());
 				stagedBufferResponse.releaseBuffer();
 
 				RemoteInputChannel inputChannel = inputChannels.get(stagedBufferResponse.receiverId);

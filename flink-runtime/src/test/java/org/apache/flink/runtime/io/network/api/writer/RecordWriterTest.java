@@ -465,6 +465,64 @@ public class RecordWriterTest {
 		assertTrue(buffer.isRecycled());
 	}
 
+	/**
+	 * Tests that broadcasted events' buffers are independent (in their (reader) indices) once they
+	 * are put into the queue for Netty when broadcasting events to multiple channels.
+	 */
+	@Test
+	public void testBroadcastEventBufferIndependence() throws Exception {
+		@SuppressWarnings("unchecked")
+		ArrayDeque<Buffer>[] queues =
+			new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
+
+		ResultPartitionWriter partition =
+			new CollectingPartitionWriter(queues, new TestPooledBufferProvider(Integer.MAX_VALUE));
+		RecordWriter<?> writer = new RecordWriter<>(partition);
+
+		writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);
+
+		// Verify added to all queues
+		assertEquals(1, queues[0].size());
+		assertEquals(1, queues[1].size());
+
+		// these two buffers may share the memory but not the indices!
+		Buffer buffer1 = queues[0].remove();
+		Buffer buffer2 = queues[1].remove();
+		assertEquals(0, buffer1.getReaderIndex());
+		assertEquals(0, buffer2.getReaderIndex());
+		buffer1.setReaderIndex(1);
+		assertEquals("Buffer 2 shares the same reader index as buffer 1", 0, buffer2.getReaderIndex());
+	}
+	/**
+	 * Tests that broadcasted records' buffers are independent (in their (reader) indices) once they
+	 * are put into the queue for Netty when broadcasting events to multiple channels.
+	 */
+	@Test
+	public void testBroadcastEmitBufferIndependence() throws Exception {
+		@SuppressWarnings("unchecked")
+		ArrayDeque<Buffer>[] queues =
+			new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
+
+		ResultPartitionWriter partition =
+			new CollectingPartitionWriter(queues, new TestPooledBufferProvider(Integer.MAX_VALUE));
+		RecordWriter<IntValue> writer = new RecordWriter<>(partition);
+
+		writer.broadcastEmit(new IntValue(0));
+		writer.flush();
+
+		// Verify added to all queues
+		assertEquals(1, queues[0].size());
+		assertEquals(1, queues[1].size());
+
+		// these two buffers may share the memory but not the indices!
+		Buffer buffer1 = queues[0].remove();
+		Buffer buffer2 = queues[1].remove();
+		assertEquals(0, buffer1.getReaderIndex());
+		assertEquals(0, buffer2.getReaderIndex());
+		buffer1.setReaderIndex(1);
+		assertEquals("Buffer 2 shares the same reader index as buffer 1", 0, buffer2.getReaderIndex());
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------------

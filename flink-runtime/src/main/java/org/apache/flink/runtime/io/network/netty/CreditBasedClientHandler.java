@@ -305,9 +305,9 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 					return;
 				}
 
-				NetworkBuffer buffer = (NetworkBuffer) inputChannel.requestBuffer();
+				Buffer buffer = inputChannel.requestBuffer();
 				if (buffer != null) {
-					nettyBuffer.readBytes(buffer, size);
+					nettyBuffer.readBytes(buffer.asByteBuf(), size);
 
 					inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 				} else if (inputChannel.isReleased()) {

@@ -155,8 +155,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					}
 
 					// retain the buffer so that it can be recycled by each channel of targetPartition
-					eventBuffer.retainBuffer();
-					targetPartition.writeBuffer(eventBuffer, targetChannel);
+					targetPartition.writeBuffer(eventBuffer.readOnlySlice().retainBuffer(), targetChannel);
 				}
 			}
 		} finally {
