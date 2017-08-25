@@ -219,6 +219,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 							//
 							for (Buffer buf : buffers) {
 								buf.recycle();
+								assertTrue(buf.isRecycled());
 							}
 
 							// Wait for all buffers to be available. The tasks
@@ -276,10 +277,6 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 				TestingUtils.stopActor(taskManager);
 
 				highAvailabilityServices.closeAndCleanupAllData();
-
-				for (Buffer buf : buffers) {
-					buf.recycle();
-				}
 
 				testBufferPool.lazyDestroy();
 			}
