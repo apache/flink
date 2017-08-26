@@ -913,7 +913,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
 			useSnapshotCompression,
-			codeGenerationForSorterEnabled);
+			codeGenerationForSorterEnabled
 		);
 	}
 

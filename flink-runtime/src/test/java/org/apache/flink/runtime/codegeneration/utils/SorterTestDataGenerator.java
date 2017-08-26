@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.codegeneration.utils;
 
 /**
- * Helper interface for data generator
+ * Helper interface for data generator.
  * @param <T>
  */
 public interface SorterTestDataGenerator<T> {

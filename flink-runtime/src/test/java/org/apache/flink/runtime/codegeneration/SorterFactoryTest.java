@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.codegeneration;
 
-import freemarker.template.TemplateException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -34,7 +33,11 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+
+import freemarker.template.TemplateException;
+
 import org.codehaus.commons.compiler.CompileException;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -46,7 +49,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Random;
 
-
+/*** Test SorterFactory's functionalities.
+ */
 public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 
 	@Test
@@ -60,7 +64,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 			LongSerializer.INSTANCE, IntSerializer.INSTANCE
 		};
 
-		TupleSerializer<Tuple2<Long,Integer>> serializer = new TupleSerializer<>(
+		TupleSerializer<Tuple2<Long, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Long, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
 
@@ -89,7 +93,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 			LongSerializer.INSTANCE, IntSerializer.INSTANCE
 		};
 
-		TupleSerializer<Tuple2<Long,Integer>> serializer = new TupleSerializer<>(
+		TupleSerializer<Tuple2<Long, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Long, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
 
@@ -136,7 +140,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 		byte[] data = Files.readAllBytes(filePath);
 		String str = new String(data, "UTF-8");
 
-		Assert.assertTrue("TemplateManager serves sorter from cache for the 2nd call", str.contains(token) );
+		Assert.assertTrue("TemplateManager serves sorter from cache for the 2nd call", str.contains(token));
 
 		this.memoryManager.release(memory);
 	}

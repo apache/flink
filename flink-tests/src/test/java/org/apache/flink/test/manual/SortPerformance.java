@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.manual;
 
-import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,6 +27,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.util.SplittableIterator;
 
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,10 +36,9 @@ import java.util.Iterator;
 import java.util.Random;
 
 /**
- * This is for testing the performance of sorting, with and without code generation
+ * This is for testing the performance of sorting, with and without code generation.
  */
 public class SortPerformance {
-	
 	public static void main(String[] args) throws Exception {
 
 		final int numElements  = 10_000_000;
@@ -46,35 +46,35 @@ public class SortPerformance {
 		final int rounds       = 20;
 		final int warmupRounds = 5;
 
+		HashMap<String, SummaryStatistics> statCollection = new HashMap<>();
 
-		HashMap<String,SummaryStatistics> statCollection = new HashMap<>();
-
-		for(boolean codeGeneration : new boolean[]{ false, true }) {
+		for (boolean codeGeneration : new boolean[]{ false, true }){
 
 			SummaryStatistics stat = new SummaryStatistics();
-			for( int i = 0; i < rounds + warmupRounds; i++ ){
+			for (int i = 0; i < rounds + warmupRounds; i++){
 				int keys = keyRange;
 				int elements = numElements;
 
-				if( i < warmupRounds ) {
+				if (i < warmupRounds){
 					keys = 1000;
 					elements = 10000;
 				}
+
 				long executionTime = testSortPerformance(new TupleIntIntIterator(keys),
 					TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class), elements, codeGeneration);
 
-				if( i >= warmupRounds ) {
+				if (i >= warmupRounds) {
 					stat.addValue(executionTime);
 				}
 			}
 			statCollection.put(buildTestCaseKey("TupleIntIntIterator", codeGeneration), stat);
 
 			stat = new SummaryStatistics();
-			for( int i = 0; i < rounds + warmupRounds; i++ ){
+			for (int i = 0; i < rounds + warmupRounds; i++){
 				int keys = keyRange;
 				int elements = numElements;
 
-				if( i < warmupRounds ) {
+				if (i < warmupRounds){
 					keys = 1000;
 					elements = 10000;
 				}
@@ -82,13 +82,12 @@ public class SortPerformance {
 				long executionTime = testSortPerformance(new TupleStringIntIterator(keys),
 					TupleTypeInfo.<Tuple2<String, Integer>>getBasicTupleTypeInfo(String.class, Integer.class), elements, codeGeneration);
 
-				if( i >= warmupRounds ) {
+				if (i >= warmupRounds){
 					stat.addValue(executionTime);
 				}
 			}
 			statCollection.put(buildTestCaseKey("TupleStringIntIterator", codeGeneration), stat);
 		}
-
 
 		String[] keys = new String[statCollection.keySet().size()];
 
@@ -99,7 +98,7 @@ public class SortPerformance {
 		System.out.println("------------------------------------------------------------------");
 		System.out.println(String.format("Collected from %d runs with %d items, key range %d", rounds, numElements, keyRange));
 		System.out.println("------------------------------------------------------------------");
-		for( String k : keys ){
+		for (String k : keys){
 			SummaryStatistics stat = statCollection.get(k);
 			String line = String.format("%s : avg execution time : %10.4fms std. %.4f", k, stat.getMean(), stat.getStandardDeviation());
 			System.out.println(line);
@@ -156,7 +155,7 @@ public class SortPerformance {
 			int rem = numElements % numPartitions;
 			SplittableRandomIterator<T, B>[] res = new SplittableRandomIterator[numPartitions];
 			for (int i = 0; i < numPartitions; i++) {
-				res[i] = new SplittableRandomIterator<T, B>(i < rem ? splitSize : splitSize + 1, (B)baseIterator.copy());
+				res[i] = new SplittableRandomIterator<>(i < rem ? splitSize : splitSize + 1, (B) baseIterator.copy());
 			}
 			return res;
 		}
@@ -176,9 +175,7 @@ public class SortPerformance {
 		CopyableIterator<T> copy();
 	}
 
-
 	private static final class TupleIntIntIterator implements CopyableIterator<Tuple2<Integer, Integer>>, Serializable {
-
 		private final int keyRange;
 		private Tuple2<Integer, Integer> reuse = new Tuple2<Integer, Integer>();
 
@@ -219,9 +216,7 @@ public class SortPerformance {
 		}
 	}
 
-
 	private static final class TupleStringIntIterator implements CopyableIterator<Tuple2<String, Integer>>, Serializable {
-
 		private final int keyRange;
 		private Tuple2<String, Integer> reuse = new Tuple2<>();
 
@@ -261,7 +256,6 @@ public class SortPerformance {
 			return new TupleStringIntIterator(keyRange, rndSeed + rnd.nextInt(10000));
 		}
 	}
-
 
 	private static final class SumReducer<K> implements ReduceFunction<Tuple2<K, Integer>> {
 		@Override

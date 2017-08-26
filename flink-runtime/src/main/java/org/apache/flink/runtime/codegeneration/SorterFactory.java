@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.codegeneration;
 
-import freemarker.template.TemplateException;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -26,6 +25,9 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+
+import freemarker.template.TemplateException;
+
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
@@ -39,7 +41,7 @@ import java.util.List;
 
 /**
  * {@link SorterFactory} is a singleton class that provides functionalities to create the most suitable sorter
- * for underlying data based on {@link TypeComparator}
+ * for underlying data based on {@link TypeComparator}.
  */
 public class SorterFactory {
 	// ------------------------------------------------------------------------
@@ -60,7 +62,7 @@ public class SorterFactory {
 	private HashMap<String, Constructor> constructorCache;
 
 	/**
-	 * Constructor
+	 * Constructor.
 	 * @throws IOException
 	 */
 	public SorterFactory(TaskManagerConfiguration conf) throws IOException {
@@ -71,13 +73,13 @@ public class SorterFactory {
 
 	/**
 	 * A method to get a singleton instance
-	 * or create one if it has been created yet
+	 * or create one if it has been created yet.
 	 * @return
 	 * @throws IOException
 	 */
 	public static SorterFactory getInstance(TaskManagerConfiguration conf) throws IOException {
-		if( sorterFactory == null ){
-			synchronized(SorterFactory.class){
+		if (sorterFactory == null){
+			synchronized (SorterFactory.class){
 				sorterFactory = new SorterFactory(conf);
 			}
 		}
@@ -88,7 +90,7 @@ public class SorterFactory {
 
 	/**
 	 * Create a sorter for the given type comparator and
-	 * assign serializer, comparator and memory to the sorter
+	 * assign serializer, comparator and memory to the sorter.
 	 * @param serializer
 	 * @param comparator
 	 * @param memory
@@ -101,17 +103,17 @@ public class SorterFactory {
 	 * @throws NoSuchMethodException
 	 * @throws InvocationTargetException
 	 */
-	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory ) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
+	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 
 		InMemorySorter sorter = null;
 
-		if(config.isCodeGenerationForSorterEnabled()){
+		if (config.isCodeGenerationForSorterEnabled()){
 			SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
 
 			Constructor sorterConstructor = null;
 
 			synchronized (this){
-				if( constructorCache.getOrDefault( sorterModel.getSorterName(), null) != null ){
+				if (constructorCache.getOrDefault(sorterModel.getSorterName(), null) != null) {
 					sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 				} else {
 					String sorterName = this.templateManager.getGeneratedCode(sorterModel);
@@ -125,16 +127,14 @@ public class SorterFactory {
 				}
 			}
 
-			sorter = (InMemorySorter)sorterConstructor.newInstance(serializer, comparator, memory);
+			sorter = (InMemorySorter) sorterConstructor.newInstance(serializer, comparator, memory);
 
-
-			if(LOG.isInfoEnabled()){
+			if (LOG.isInfoEnabled()){
 				LOG.info("Using a custom sorter : " + sorter.toString());
 			}
 		} else {
 			sorter = new NormalizedKeySorter(serializer, comparator, memory);
 		}
-
 
 		return sorter;
 	}

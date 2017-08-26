@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,24 +32,25 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 
+/*** Test SorterTemplateModel's functionalities.
+ */
 public class SorterTemplateModelTest extends TestLogger {
 
 	@Test
 	public void testGeneratedSequenceFixedByteOperators() throws Exception {
 
-
 		HashMap<Integer[], Integer[]> testCases = new HashMap<>();
 
-		testCases.put(new Integer[]{NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN+1,8},  new Integer[]{8,8,8});
+		testCases.put(new Integer[]{NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN + 1, 8}, new Integer[]{8, 8, 8});
 		// first 8 bytes is offset
-		testCases.put(new Integer[]{8,8}, new Integer[]{8,8,8});
-		testCases.put(new Integer[]{8,7}, new Integer[]{8,8,4,2,1});
-		testCases.put(new Integer[]{8,6}, new Integer[]{8,8,4,2});
-		testCases.put(new Integer[]{7},  new Integer[]{8,4,2,1});
-		testCases.put(new Integer[]{3},  new Integer[]{8,2,1});
-		testCases.put(new Integer[]{1},  new Integer[]{8,1});
+		testCases.put(new Integer[]{8, 8}, new Integer[]{8, 8, 8});
+		testCases.put(new Integer[]{8, 7}, new Integer[]{8, 8, 4, 2, 1});
+		testCases.put(new Integer[]{8, 6}, new Integer[]{8, 8, 4, 2});
+		testCases.put(new Integer[]{7},  new Integer[]{8, 4, 2, 1});
+		testCases.put(new Integer[]{3},  new Integer[]{8, 2, 1});
+		testCases.put(new Integer[]{1},  new Integer[]{8, 1});
 
-		for( Integer[] keyBytes: testCases.keySet() ) {
+		for (Integer[] keyBytes: testCases.keySet()){
 
 			SorterTemplateModel model = new SorterTemplateModel(createTypeComparatorWithCustomKeysize(keyBytes));
 
@@ -67,7 +69,7 @@ public class SorterTemplateModelTest extends TestLogger {
 	private TypeComparator createTypeComparatorWithCustomKeysize(final Integer[] keyBytes) {
 
 		int sum = 0;
-		for( Integer i : keyBytes ){
+		for (Integer i : keyBytes){
 			sum += i;
 		}
 

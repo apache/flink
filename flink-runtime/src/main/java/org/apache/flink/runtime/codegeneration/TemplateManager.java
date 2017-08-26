@@ -18,19 +18,21 @@
 
 package org.apache.flink.runtime.codegeneration;
 
+import org.apache.flink.util.FileUtils;
+
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
-import org.apache.flink.util.FileUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -57,7 +59,7 @@ public class TemplateManager {
 	private final String dirForGeneratedCode;
 
 	/**
-	 * Constructor
+	 * Constructor.
 	 * @throws IOException
 	 */
 	public TemplateManager(String generatedCodeDir) throws IOException {
@@ -72,12 +74,12 @@ public class TemplateManager {
 
 	/**
 	 * A method to get a singleton instance
-	 * or create one if it has been created yet
+	 * or create one if it has been created yet.
 	 * @return
 	 * @throws IOException
 	 */
 	public static TemplateManager getInstance(String temporaryDir) throws IOException {
-		if( templateManager == null ) {
+		if (templateManager == null){
 			synchronized (TemplateManager.class){
 				templateManager = new TemplateManager(temporaryDir);
 			}
@@ -89,8 +91,8 @@ public class TemplateManager {
 
 	/**
 	 * Render sorter template with generated code provided by SorterTemplateModel and write the content to a file
-	 * and cache the result for later calls
-	 * @param SorterTemplateModel object
+	 * and cache the result for later calls.
+	 * @param sorterTemplateModel
 	 * @return name of the generated sorter
 	 * @throws IOException
 	 * @throws TemplateException
@@ -117,20 +119,21 @@ public class TemplateManager {
 	}
 
 	/**
-	 * Prepare directory for storing generated code
-	 * @return path of the directory */
+	 * Prepare directory for storing generated code.
+	 * @return path of the directory
+	 */
 	private String prepareDirectoryGeneratedCode(String generatedCodeDir) throws IOException {
 
 		File dirForGeneratedCode = new File(generatedCodeDir + "/flink-codegeneration");
 
-		if (!dirForGeneratedCode.exists()) {
-			LOG.debug("Creating diretory for generated code at : "+ dirForGeneratedCode.getAbsolutePath());
+		if (!dirForGeneratedCode.exists()){
+			LOG.debug("Creating diretory for generated code at : " + dirForGeneratedCode.getAbsolutePath());
 			boolean res = dirForGeneratedCode.mkdir();
-			if(!res){
+			if (!res){
 				throw new IOException("Can't create temporary directory for generated code : " + dirForGeneratedCode.getAbsolutePath());
 			}
 		} else {
-			LOG.debug( dirForGeneratedCode.getAbsolutePath() +" already exists, so just clean it up");
+			LOG.debug(dirForGeneratedCode.getAbsolutePath() + " already exists, so just clean it up");
 			FileUtils.cleanDirectory(dirForGeneratedCode);
 		}
 
@@ -139,7 +142,7 @@ public class TemplateManager {
 
 	/**
 	 * Utility method to get the File object of the given filename
-	 * return an object of File of the given file
+	 * return an object of File of the given file.
 	 */
 	public File getPathToGeneratedCode(String filename){
 		return new File(this.dirForGeneratedCode + "/" + filename + ".java");

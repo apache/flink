@@ -28,14 +28,16 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
-import org.junit.*;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.List;
 import java.util.Random;
 
-
+/*** Test functionalities of generated NormalizedKeySorter.
+ */
 public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorterBaseTest {
-	
 
 	@Test
 	public void testWriteAndRead() throws Exception {
@@ -79,7 +81,7 @@ public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorter
 		sorter.dispose();
 		this.memoryManager.release(memory);
 	}
-//
+
 	@Test
 	public void testWriteAndIterator() throws Exception {
 		List<MemorySegment> memory = createMemory();
@@ -254,7 +256,6 @@ public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorter
 		int num = -1;
 		do {
 			generator.next(record);
-//			System.out.println(record.f0);
 			num++;
 		}
 		while (sorter.write(record));
