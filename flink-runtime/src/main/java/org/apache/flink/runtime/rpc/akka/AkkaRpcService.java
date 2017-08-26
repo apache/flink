@@ -42,7 +42,6 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.messages.Shutdown;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -297,7 +296,7 @@ public class AkkaRpcService implements RpcService {
 			if (fromThisService) {
 				ActorRef selfActorRef = akkaClient.getRpcEndpoint();
 				LOG.info("Trigger shut down of RPC endpoint {}.", selfActorRef.path());
-				selfActorRef.tell(Shutdown.getInstance(), ActorRef.noSender());
+				actorSystem.stop(selfActorRef);
 			} else {
 				LOG.debug("RPC endpoint {} already stopped or from different RPC service");
 			}
@@ -314,11 +313,14 @@ public class AkkaRpcService implements RpcService {
 			}
 
 			stopped = true;
+
 			actorSystem.shutdown();
 			actors.clear();
 		}
 
 		actorSystem.awaitTermination();
+
+		LOG.info("Stopped Akka RPC service.");
 	}
 
 	@Override

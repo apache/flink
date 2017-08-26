@@ -22,9 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -36,10 +36,10 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,53 +91,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	private volatile boolean shutdown;
 
 	// ------------------------------------------------------------------------
-
-	public JobManagerRunner(
-			final ResourceID resourceId,
-			final JobGraph jobGraph,
-			final Configuration configuration,
-			final RpcService rpcService,
-			final HighAvailabilityServices haServices,
-			final BlobServer blobService,
-			final HeartbeatServices heartbeatServices,
-			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception {
-		this(
-			resourceId,
-			jobGraph,
-			configuration,
-			rpcService,
-			haServices,
-			blobService,
-			heartbeatServices,
-			new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)),
-			toNotifyOnComplete,
-			errorHandler);
-	}
-
-	public JobManagerRunner(
-			final ResourceID resourceId,
-			final JobGraph jobGraph,
-			final Configuration configuration,
-			final RpcService rpcService,
-			final HighAvailabilityServices haServices,
-			final BlobServer blobService,
-			final HeartbeatServices heartbeatServices,
-			final MetricRegistry metricRegistry,
-			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception {
-		this(
-			resourceId,
-			jobGraph,
-			configuration,
-			rpcService,
-			haServices,
-			heartbeatServices,
-			JobManagerServices.fromConfiguration(configuration, blobService),
-			metricRegistry,
-			toNotifyOnComplete,
-			errorHandler);
-	}
 
 	/**
 	 * 
@@ -217,12 +170,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		}
 		catch (Throwable t) {
 			// clean up everything
-			try {
-				jobManagerServices.shutdown();
-			} catch (Throwable tt) {
-				log.error("Error while shutting down JobManager services", tt);
-			}
-
 			if (jobManagerMetrics != null) {
 				jobManagerMetrics.close();
 			}
@@ -245,40 +192,37 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		}
 	}
 
-	public void shutdown() {
-		shutdownInternally();
+	public void shutdown() throws Exception {
+		shutdownInternally().get();
 	}
 
-	private void shutdownInternally() {
+	private CompletableFuture<Void> shutdownInternally() {
 		synchronized (lock) {
 			shutdown = true;
 
-			if (leaderElectionService != null) {
-				try {
-					leaderElectionService.stop();
-				} catch (Throwable t) {
-					log.error("Could not properly shutdown the leader election service", t);
-				}
-			}
+			jobManager.shutDown();
 
-			try {
-				jobManager.shutDown();
-			} catch (Throwable t) {
-				log.error("Error shutting down JobManager", t);
-			}
+			return jobManager.getTerminationFuture()
+				.thenAccept(
+					ignored -> {
+						Throwable exception = null;
+						try {
+							leaderElectionService.stop();
+						} catch (Throwable t) {
+							exception = ExceptionUtils.firstOrSuppressed(t, exception);
+						}
 
-			try {
-				jobManagerServices.shutdown();
-			} catch (Throwable t) {
-				log.error("Error shutting down JobManager services", t);
-			}
+						// make all registered metrics go away
+						try {
+							jobManagerMetricGroup.close();
+						} catch (Throwable t) {
+							exception = ExceptionUtils.firstOrSuppressed(t, exception);
+						}
 
-			// make all registered metrics go away
-			try {
-				jobManagerMetricGroup.close();
-			} catch (Throwable t) {
-				log.error("Error while unregistering metrics", t);
-			}
+						if (exception != null) {
+							throw new FlinkFutureException("Could not properly shut down the JobManagerRunner.", exception);
+						}
+					});
 		}
 	}
 

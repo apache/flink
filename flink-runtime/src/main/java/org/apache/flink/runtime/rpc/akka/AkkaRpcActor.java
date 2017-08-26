@@ -18,30 +18,25 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorRef;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
-import akka.pattern.Patterns;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
-import org.apache.flink.runtime.rpc.messages.CallAsync;
-import org.apache.flink.runtime.rpc.messages.ControlMessage;
-import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.runtime.rpc.messages.CallAsync;
+import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
-
-import org.apache.flink.runtime.rpc.messages.Shutdown;
-import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.ExceptionUtils;
+
+import akka.actor.ActorRef;
+import akka.actor.Status;
+import akka.actor.UntypedActor;
+import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -49,6 +44,9 @@ import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.impl.Promise;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -73,38 +71,47 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	/** the endpoint to invoke the methods on */
+	/** the endpoint to invoke the methods on. */
 	protected final T rpcEndpoint;
 
-	/** the helper that tracks whether calls come from the main thread */
+	/** the helper that tracks whether calls come from the main thread. */
 	private final MainThreadValidatorUtil mainThreadValidator;
 
 	private final CompletableFuture<Void> terminationFuture;
-
-	/** Throwable which might have been thrown by the postStop method */
-	private Throwable shutdownThrowable;
 
 	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Void> terminationFuture) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 		this.terminationFuture = checkNotNull(terminationFuture);
-
-		this.shutdownThrowable = null;
 	}
 
 	@Override
 	public void postStop() throws Exception {
-		super.postStop();
+		mainThreadValidator.enterMainThread();
 
-		// IMPORTANT: This only works if we don't use a restarting supervisor strategy. Otherwise
-		// we would complete the future and let the actor system restart the actor with a completed
-		// future.
-		// Complete the termination future so that others know that we've stopped.
+		try {
+			Throwable shutdownThrowable = null;
 
-		if (shutdownThrowable != null) {
-			terminationFuture.completeExceptionally(shutdownThrowable);
-		} else {
-			terminationFuture.complete(null);
+			try {
+				rpcEndpoint.postStop();
+			} catch (Throwable throwable) {
+				shutdownThrowable = throwable;
+			}
+
+			super.postStop();
+
+			// IMPORTANT: This only works if we don't use a restarting supervisor strategy. Otherwise
+			// we would complete the future and let the actor system restart the actor with a completed
+			// future.
+			// Complete the termination future so that others know that we've stopped.
+
+			if (shutdownThrowable != null) {
+				terminationFuture.completeExceptionally(shutdownThrowable);
+			} else {
+				terminationFuture.complete(null);
+			}
+		} finally {
+			mainThreadValidator.exitMainThread();
 		}
 	}
 
@@ -119,11 +126,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						mainThreadValidator.enterMainThread();
 
 						try {
-							if (msg instanceof ControlMessage) {
-								handleControlMessage(((ControlMessage) msg));
-							} else {
-								handleMessage(msg);
-							}
+							handleMessage(msg);
 						} finally {
 							mainThreadValidator.exitMainThread();
 						}
@@ -136,20 +139,6 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 			sendErrorIfSender(new AkkaRpcException("Discard message, because " +
 				"the rpc endpoint has not been started yet."));
-		}
-	}
-
-	private void handleControlMessage(ControlMessage controlMessage) {
-		if (controlMessage instanceof Shutdown) {
-			triggerShutdown();
-		} else {
-			log.warn(
-				"Received control message of unknown type {} with value {}. Dropping this control message!",
-				controlMessage.getClass().getName(),
-				controlMessage);
-
-			sendErrorIfSender(new AkkaUnknownMessageException("Received unknown control message " + controlMessage +
-				" of type " + controlMessage.getClass().getSimpleName() + '.'));
 		}
 	}
 
@@ -186,7 +175,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			Class<?>[] parameterTypes = rpcInvocation.getParameterTypes();
 
 			rpcMethod = lookupRpcMethod(methodName, parameterTypes);
-		} catch(ClassNotFoundException e) {
+		} catch (ClassNotFoundException e) {
 			log.error("Could not load method arguments.", e);
 
 			RpcConnectionException rpcException = new RpcConnectionException("Could not load method arguments.", e);
@@ -294,7 +283,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				runAsync.getClass().getName());
 		}
 		else {
-			final long timeToRun = runAsync.getTimeNanos(); 
+			final long timeToRun = runAsync.getTimeNanos();
 			final long delayNanos;
 
 			if (timeToRun == 0 || (delayNanos = timeToRun - System.nanoTime()) <= 0) {
@@ -307,7 +296,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				}
 			}
 			else {
-				// schedule for later. send a new message after the delay, which will then be immediately executed 
+				// schedule for later. send a new message after the delay, which will then be immediately executed
 				FiniteDuration delay = new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS);
 				RunAsync message = new RunAsync(runAsync.getRunnable(), timeToRun);
 
@@ -315,17 +304,6 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						getContext().dispatcher(), ActorRef.noSender());
 			}
 		}
-	}
-
-	private void triggerShutdown() {
-		try {
-			rpcEndpoint.postStop();
-		} catch (Throwable throwable) {
-			shutdownThrowable = throwable;
-		}
-
-		// now stop the actor which will stop processing of any further messages
-		getContext().system().stop(getSelf());
 	}
 
 	/**
