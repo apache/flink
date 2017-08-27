@@ -102,7 +102,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				new TestEnvironment(cluster, 4, true).setAsContext();
 				break;
 			case CLUSTER_WITH_CODEGENERATION_ENABLED:
-				TestEnvironment env = new TestEnvironment(cluster, 4);
+				TestEnvironment env = new TestEnvironment(cluster, 4, false);
 				env.setAsContext();
 				env.getConfig().setCodeGenerationForSorterEnabled(true);
 				break;
