@@ -635,6 +635,10 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 - `historyserver.web.ssl.enabled`: Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true (DEFAULT: `false`).
 
+### Connectors
+
+- `connector.avro.output.codec`: Default codec to use when writing Avro datasets. One of `NULL`, `SNAPPY`, `BZIP2`, `DEFLATE`, `XZ` (DEFAULT: unset).
+
 ## Background
 
 

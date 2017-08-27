@@ -20,6 +20,8 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 
 import org.apache.avro.Schema;
@@ -29,6 +31,8 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -40,6 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <E>
  */
 public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializable {
+	private static final Logger LOGGER = LoggerFactory.getLogger(AvroOutputFormat.class);
 
 	/**
 	 * Wrapper which encapsulates the supported codec and a related serialization byte.
@@ -59,6 +64,15 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 		Codec(final byte codecByte, final CodecFactory codecFactory) {
 			this.codecByte = codecByte;
 			this.codecFactory = codecFactory;
+		}
+
+		private static Codec getIfPresent(String codecName) {
+			for (Codec candidate : Codec.values()) {
+				if (candidate.name().equals(codecName)) {
+					return candidate;
+				}
+			}
+			return null;
 		}
 
 		private byte getCodecByte() {
@@ -81,6 +95,30 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 
 	private static final long serialVersionUID = 1L;
 
+	private static Codec defaultCodec;
+
+	static {
+		initDefaultsFromConfiguration(GlobalConfiguration.loadConfiguration());
+	}
+
+	/**
+	 * Initialize default codec for output format.
+	 *
+	 * @param configuration The configuration to load defaults from
+	 */
+	private static void initDefaultsFromConfiguration(Configuration configuration) {
+		final String configuredCodecName = configuration.getString(AvroOptions.OUTPUT_CODEC);
+
+		final Codec codec = Codec.getIfPresent(configuredCodecName);
+
+		if (codec == null) {
+			LOGGER.warn("Could not find Avro codec named {}, reverting to unspecified default codec",
+				configuredCodecName);
+		}
+		LOGGER.debug("Using codec {} as default Avro codec", codec);
+		defaultCodec = codec;
+	}
+
 	private final Class<E> avroValueType;
 
 	private transient Schema userDefinedSchema = null;
@@ -92,10 +130,12 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 	public AvroOutputFormat(Path filePath, Class<E> type) {
 		super(filePath);
 		this.avroValueType = type;
+		this.codec = defaultCodec;
 	}
 
 	public AvroOutputFormat(Class<E> type) {
 		this.avroValueType = type;
+		this.codec = defaultCodec;
 	}
 
 	@Override
