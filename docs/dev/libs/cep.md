@@ -1252,7 +1252,7 @@ pattern.within(Time.seconds(10))
 
 ### After Match Skip Strategy
 
-For a given pattern, there can be many successful matches as data stream flows. In order to control how to restart the match process after a successful match, we need to specify the skip strategy called `AfterMatchSkipStrategy`. There're four types of skip strategy, listed as follows:
+For a given pattern, there can be many successful matches as data stream flows. In order to control how to restart the match process after a successful match, we need to specify the skip strategy called `AfterMatchSkipStrategy`. There're four types of skip strategies, listed as follows:
 
 * <strong>*SKIP_TO_NEXT_EVENT*</strong>: Restart a new match process after the first event of the current match.
 * <strong>*SKIP_PAST_LAST_EVENT*</strong>: Restart a new match process after after the last event of the current match.
@@ -1307,7 +1307,7 @@ Let's take an example: For a given pattern `a b{2}` and a data stream `ab1, ab2,
     </tr>
 </table>
 
-To specify which skip strategy to use. Just create an `AfterMatchSkipStrategy` by calling:
+To specify which skip strategy to use, just create an `AfterMatchSkipStrategy` by calling:
 <table class="table table-bordered">
     <tr>
         <th class="text-left" width="25%">Function</th>
