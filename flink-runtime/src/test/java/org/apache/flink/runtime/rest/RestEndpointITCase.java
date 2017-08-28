@@ -131,16 +131,8 @@ public class RestEndpointITCase extends TestLogger {
 
 		@Override
 		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request) throws RestHandlerException {
-			if (request.getPathParameter(JobIDPathParameter.class) == null) {
-				throw new RestHandlerException("Path parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
-			} else {
-				Assert.assertEquals(request.getPathParameter(JobIDPathParameter.class).getValue(), PATH_JOB_ID);
-			}
-			if (request.getQueryParameter(JobIDQueryParameter.class) == null) {
-				throw new RestHandlerException("Query parameter was missing.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
-			} else {
-				Assert.assertEquals(request.getQueryParameter(JobIDQueryParameter.class).getValue().get(0), QUERY_JOB_ID);
-			}
+			Assert.assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
+			Assert.assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
 			if (request.getRequestBody().id == 1) {
 				synchronized (LOCK) {

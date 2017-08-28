@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,28 +84,36 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 	}
 
 	/**
-	 * Returns the {@link MessagePathParameter} for the given class.
+	 * Returns the value of the {@link MessagePathParameter} for the given class.
 	 *
 	 * @param parameterClass class of the parameter
 	 * @param <X>            the value type that the parameter contains
 	 * @param <PP>           type of the path parameter
-	 * @return path parameter for the given class, or null if no parameter value exists for the given class
+	 * @return path parameter value for the given class
+	 * @throws IllegalStateException if no value is defined for the given parameter class
 	 */
-	@SuppressWarnings("unchecked")
-	public <X, PP extends MessagePathParameter<X>> PP getPathParameter(Class<PP> parameterClass) {
-		return (PP) pathParameters.get(parameterClass);
+	public <X, PP extends MessagePathParameter<X>> X getPathParameter(Class<PP> parameterClass) {
+		@SuppressWarnings("unchecked")
+		PP pathParameter = (PP) pathParameters.get(parameterClass);
+		Preconditions.checkState(pathParameter != null, "No parameter could be found for the given class.");
+		return pathParameter.getValue();
 	}
 
 	/**
-	 * Returns the {@link MessageQueryParameter} for the given class.
+	 * Returns the value of the {@link MessageQueryParameter} for the given class.
 	 *
 	 * @param parameterClass class of the parameter
 	 * @param <X>            the value type that the parameter contains
 	 * @param <QP>           type of the query parameter
-	 * @return query parameter for the given class, or null if no parameter value exists for the given class
+	 * @return query parameter value for the given class, or an empty list if no parameter value exists for the given class
 	 */
-	@SuppressWarnings("unchecked")
-	public <X, QP extends MessageQueryParameter<X>> QP getQueryParameter(Class<QP> parameterClass) {
-		return (QP) queryParameters.get(parameterClass);
+	public <X, QP extends MessageQueryParameter<X>> List<X> getQueryParameter(Class<QP> parameterClass) {
+		@SuppressWarnings("unchecked")
+		QP queryParameter = (QP) queryParameters.get(parameterClass);
+		if (queryParameter == null) {
+			return Collections.emptyList();
+		} else {
+			return queryParameter.getValue();
+		}
 	}
 }
