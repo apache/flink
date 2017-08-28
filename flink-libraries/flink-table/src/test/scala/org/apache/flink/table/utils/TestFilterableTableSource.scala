@@ -89,6 +89,7 @@ class TestFilterableTableSource(
               iterator.remove()
             case (_, _) =>
           }
+        case _ =>
       }
     }
 
