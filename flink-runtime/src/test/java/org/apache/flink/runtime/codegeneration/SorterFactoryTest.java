@@ -49,7 +49,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Random;
 
-/*** Test SorterFactory's functionalities.
+/**
+ * Test SorterFactory's functionalities.
  */
 public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 
@@ -64,6 +65,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 			LongSerializer.INSTANCE, IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Long, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Long, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
@@ -93,6 +95,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 			LongSerializer.INSTANCE, IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Long, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Long, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
@@ -115,8 +118,8 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 	public void testSorterIsGeneratedOnlyOnceForSameComparator() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
 
 		List<MemorySegment> memory = createMemory();
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		// 1st creation for this comparator
 		createSorter(serializer, comparator, memory);

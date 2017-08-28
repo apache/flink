@@ -44,20 +44,21 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Random;
 
-/*** Test whether generated sorters return correct results.
+/**
+ * Test whether generated sorters return correct results.
  */
 public class SortingTest extends CodeGenerationSorterBaseTest {
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSortIntKeys() throws Exception {
 		// Tuple<Int,String> and sort by int
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 
@@ -77,15 +78,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSortString5BytesKeys() throws Exception {
 		// Tuple<Int,String> and sort by string
 		int keyPos = 1;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{keyPos}, new boolean[]{true}, 0, null);
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{keyPos}, new boolean[]{true}, 0, null);
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 
@@ -105,15 +106,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSortStringVariableLengthKeys() throws Exception {
 		// Tuple<Int,String> and sort by string
 		int keyPos = 1;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{keyPos}, new boolean[]{true}, 0, null);
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{keyPos}, new boolean[]{true}, 0, null);
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 
@@ -133,11 +134,11 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSortLongKeys() throws Exception {
 		// Tuple<Long, Int>
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
 		TypeSerializer[] insideSerializers = {
@@ -174,15 +175,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 		// Tuple<<Int,Long>, Int>
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer keySerializer = new TupleSerializer(Tuple2.class, new TypeSerializer[]{
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Tuple2<Integer, Long>> keySerializer = new TupleSerializer<>((Class<Tuple2<Integer, Long>>) (Class<?>) Tuple2.class, new TypeSerializer[]{
 			IntSerializer.INSTANCE,
 			LongSerializer.INSTANCE
 		});
 
-		TypeComparator keyComparator = new TupleComparator(
+		TypeComparator<Tuple2<Integer, Long>> keyComparator = new TupleComparator<>(
 			new int[]{0, 1},
 			new TypeComparator[]{
 				new IntComparator(true),
@@ -196,6 +197,7 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 			IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Tuple2<Integer, Long>, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Tuple2<Integer, Long>, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
@@ -211,7 +213,7 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 
 		testSorting(new SorterTestDataGenerator<Tuple2<Tuple2<Integer, Long>, Integer>>() {
 			@Override
-			public Tuple2<Tuple2<Integer, Long>, Integer> generate(Tuple2<Tuple2 <Integer, Long>, Integer> record) {
+			public Tuple2<Tuple2<Integer, Long>, Integer> generate(Tuple2<Tuple2<Integer, Long>, Integer> record) {
 				Tuple2<Integer, Long> insideTp = new Tuple2<>();
 				insideTp.setFields(randomGenerator.nextInt(), randomGenerator.nextLong());
 				record.setFields(insideTp, randomGenerator.nextInt());
@@ -229,15 +231,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 		// Tuple<<Long,Int>, Int>
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
+		@SuppressWarnings("unchecked")
 		TypeSerializer keySerializer = new TupleSerializer(Tuple2.class, new TypeSerializer[]{
 			LongSerializer.INSTANCE,
 			IntSerializer.INSTANCE
 		});
 
-		TypeComparator keyComparator = new TupleComparator(
+		TypeComparator<Tuple2<Long, Integer>> keyComparator = new TupleComparator<>(
 			new int[]{0, 1},
 			new TypeComparator[]{
 				new LongComparator(true),
@@ -251,6 +253,7 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 			IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Tuple2<Long, Integer>, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Tuple2<Long, Integer>, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
@@ -284,15 +287,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 		// Tuple<<Int, Short>, Int>
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer keySerializer = new TupleSerializer(Tuple2.class, new TypeSerializer[]{
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Tuple2<Integer, Short>> keySerializer = new TupleSerializer<>((Class<Tuple2<Integer, Short>>) (Class<?>) Tuple2.class, new TypeSerializer[]{
 			IntSerializer.INSTANCE,
 			ShortSerializer.INSTANCE
 		});
 
-		TypeComparator keyComparator = new TupleComparator(
+		TypeComparator<Tuple2<Integer, Short>> keyComparator = new TupleComparator<>(
 			new int[]{0, 1},
 			new TypeComparator[]{
 				new IntComparator(true),
@@ -306,6 +309,7 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 			IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Tuple2<Integer, Short>, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Tuple2<Integer, Short>, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
@@ -339,15 +343,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 		// Tuple<<Short, Int>, Int>
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer keySerializer = new TupleSerializer(Tuple2.class, new TypeSerializer[]{
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Tuple2<Short, Integer>> keySerializer = new TupleSerializer<>((Class<Tuple2<Short, Integer>>) (Class<?>) Tuple2.class, new TypeSerializer[]{
 			ShortSerializer.INSTANCE,
 			IntSerializer.INSTANCE
 		});
 
-		TypeComparator keyComparator = new TupleComparator(
+		TypeComparator<Tuple2<Short, Integer>> keyComparator = new TupleComparator<>(
 			new int[]{0, 1},
 			new TypeComparator[]{
 				new ShortComparator(true),
@@ -361,6 +365,7 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 			IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Tuple2<Short, Integer>, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Tuple2<Short, Integer>, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);
@@ -394,15 +399,15 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 		// Tuple<<Int, Byte>, Int>
 		int keyPos = 0;
 
-		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
 
-		TypeSerializer keySerializer = new TupleSerializer(Tuple2.class, new TypeSerializer[]{
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Tuple2<Integer, Byte>> keySerializer = new TupleSerializer<>((Class<Tuple2<Integer, Byte>>) (Class<?>) Tuple2.class, new TypeSerializer[]{
 			IntSerializer.INSTANCE,
 			ByteSerializer.INSTANCE
 		});
 
-		TypeComparator keyComparator = new TupleComparator(
+		TypeComparator<Tuple2<Integer, Byte>> keyComparator = new TupleComparator<>(
 			new int[]{0, 1},
 			new TypeComparator[]{
 				new IntComparator(true),
@@ -416,6 +421,7 @@ public class SortingTest extends CodeGenerationSorterBaseTest {
 			IntSerializer.INSTANCE
 		};
 
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple2<Tuple2<Integer, Byte>, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Tuple2<Integer, Byte>, Integer>>) (Class<?>) Tuple2.class, insideSerializers
 		);

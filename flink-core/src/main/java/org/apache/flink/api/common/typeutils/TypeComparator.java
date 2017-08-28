@@ -157,7 +157,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 *
 	 * @param first The first record.
 	 * @param second The second record.
-	 * @return An integer defining the oder among the objects in the same way as {@link java.util.Comparator#compare(Object, Object)}.
+	 * @return An integer defining the order among the objects in the same way as {@link java.util.Comparator#compare(Object, Object)}.
 	 * 
 	 *  @see java.util.Comparator#compare(Object, Object)
 	 */

@@ -35,15 +35,16 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Random;
 
-/*** Test functionalities of generated NormalizedKeySorter.
+/**
+ * Test functionalities of generated NormalizedKeySorter.
  */
 public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorterBaseTest {
 
 	@Test
 	public void testWriteAndRead() throws Exception {
 		List<MemorySegment> memory = createMemory();
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
@@ -85,8 +86,8 @@ public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorter
 	@Test
 	public void testWriteAndIterator() throws Exception {
 		List<MemorySegment> memory = createMemory();
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
@@ -125,8 +126,8 @@ public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorter
 	@Test
 	public void testReset() throws Exception {
 		List<MemorySegment> memory = createMemory();
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 
@@ -188,8 +189,8 @@ public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorter
 	@Test
 	public void testSwap() throws Exception {
 		List<MemorySegment> memory = createMemory();
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 
@@ -243,8 +244,8 @@ public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorter
 	@Test
 	public void testCompare() throws Exception {
 		List<MemorySegment> memory = createMemory();
-		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
 
 		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 

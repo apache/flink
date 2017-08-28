@@ -103,7 +103,7 @@ public class SorterFactory {
 	 * @throws NoSuchMethodException
 	 * @throws InvocationTargetException
 	 */
-	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
+	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 
 		InMemorySorter sorter;
 
@@ -133,7 +133,7 @@ public class SorterFactory {
 				LOG.info("Using a custom sorter : " + sorter.toString());
 			}
 		} else {
-			sorter = new NormalizedKeySorter(serializer, comparator, memory);
+			sorter = new NormalizedKeySorter<>(serializer, comparator, memory);
 		}
 
 		return sorter;

@@ -46,9 +46,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 
-/*** Base class for code-generation related tests.
+/**
+ * Base class for code-generation related tests.
  */
 public class CodeGenerationSorterBaseTest {
+
 	protected static final long SEED = 649180756312423613L;
 
 	protected static final long SEED2 = 97652436586326573L;
@@ -66,7 +68,8 @@ public class CodeGenerationSorterBaseTest {
 	private static final QuickSort quickSort = new QuickSort();
 
 	protected MemoryManager memoryManager;
-	protected SorterFactory sorterFactory;
+
+	private SorterFactory sorterFactory;
 
 	protected ExecutionConfig executionConfig = new ExecutionConfig(){
 		{
@@ -95,7 +98,7 @@ public class CodeGenerationSorterBaseTest {
 		}
 	}
 
-	protected InMemorySorter createSorter(TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory) throws IllegalAccessException, TemplateException, IOException, InstantiationException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException, MemoryAllocationException, CompileException {
+	protected <T> InMemorySorter<T> createSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) throws IllegalAccessException, TemplateException, IOException, InstantiationException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException, MemoryAllocationException, CompileException {
 		return this.sorterFactory.createSorter(
 			executionConfig,
 			serializer,
@@ -106,20 +109,18 @@ public class CodeGenerationSorterBaseTest {
 
 	protected List<MemorySegment> createMemory() throws MemoryAllocationException {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
-
-		return memory;
+		return this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 	}
 
-	protected <K, V> void testSorting(SorterTestDataGenerator generator, InMemorySorter sorter, TypeComparator comparator, int keyPos) throws IOException {
-		// Fill data phrase
+	protected <K, V> void testSorting(SorterTestDataGenerator<Tuple2<K, V>> generator, InMemorySorter<Tuple2<K, V>> sorter, TypeComparator<K> comparator, int keyPos) throws IOException {
+		// Fill data phase
 		HashMap<Object, Integer> expectedKeyCounts = new HashMap<>();
 
 		long totalRecords = 0;
 
-		Tuple2 reusedRecord = new Tuple2();
+		Tuple2<K, V> reusedRecord = new Tuple2<>();
 		while (totalRecords < MAXIMUM_RECORDS){
-			generator.generate(reusedRecord);
+			reusedRecord = generator.generate(reusedRecord);
 
 			if (sorter.write(reusedRecord)){
 				int count = expectedKeyCounts.getOrDefault(reusedRecord.getField(keyPos), 0);
@@ -130,7 +131,7 @@ public class CodeGenerationSorterBaseTest {
 			}
 		}
 
-		// Sorting phrase
+		// Sorting phase
 		quickSort.sort(sorter);
 
 		MutableObjectIterator<Tuple2<K, V>> iter = sorter.getIterator();
@@ -138,15 +139,15 @@ public class CodeGenerationSorterBaseTest {
 		int actualTotalRecords = 0;
 
 		Tuple2<K, V> readTarget	= iter.next();
-		K last = (K) readTarget.getField(keyPos);
+		K last = readTarget.getField(keyPos);
 		actualKeyCounts.put(last, 1);
 		actualTotalRecords++;
 
 		// Verify order
 		while ((readTarget = iter.next()) != null) {
-			K current = (K) readTarget.getField(keyPos);
+			K current = readTarget.getField(keyPos);
 
-			int count   = actualKeyCounts.getOrDefault(current, 0);
+			int count = actualKeyCounts.getOrDefault(current, 0);
 			actualKeyCounts.put(current, count + 1);
 
 			final int cmp = comparator.compare(last, current);

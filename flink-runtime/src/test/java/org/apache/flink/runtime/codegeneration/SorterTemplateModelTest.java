@@ -32,7 +32,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 
-/*** Test SorterTemplateModel's functionalities.
+/**
+ * Test SorterTemplateModel's functionalities.
  */
 public class SorterTemplateModelTest extends TestLogger {
 
