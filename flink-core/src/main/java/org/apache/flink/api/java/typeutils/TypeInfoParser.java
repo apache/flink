@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-                                           
+
 package org.apache.flink.api.java.typeutils;
 
 import java.lang.reflect.Field;
@@ -31,6 +31,10 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Value;
 
+/**
+ * @deprecated Use {@link org.apache.flink.api.common.typeinfo.Types} instead.
+ */
+@Deprecated
 @Public
 public class TypeInfoParser {
 	private static final String TUPLE_PACKAGE = "org.apache.flink.api.java.tuple";

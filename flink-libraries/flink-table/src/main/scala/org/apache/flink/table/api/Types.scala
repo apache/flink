@@ -38,7 +38,7 @@ object Types {
   val LONG = JTypes.LONG
   val FLOAT = JTypes.FLOAT
   val DOUBLE = JTypes.DOUBLE
-  val DECIMAL = JTypes.DECIMAL
+  val DECIMAL = JTypes.BIG_DEC
 
   val SQL_DATE = JTypes.SQL_DATE
   val SQL_TIME = JTypes.SQL_TIME
@@ -56,7 +56,7 @@ object Types {
     * @param types types of row fields; e.g. Types.STRING, Types.INT
     */
   @varargs
-  def ROW(types: TypeInformation[_]*): TypeInformation[Row] = {
+  def ROW(types: TypeInformation[_]*): TypeInformation[_] = {
     JTypes.ROW(types: _*)
   }
 
@@ -68,7 +68,7 @@ object Types {
     * @param names names of row fields, e.g. "userid", "name"
     * @param types types of row fields; e.g. Types.STRING, Types.INT
     */
-  def ROW(names: Array[String], types: Array[TypeInformation[_]]): TypeInformation[Row] = {
+  def ROW(names: Array[String], types: Array[TypeInformation[_]]): TypeInformation[_] = {
     JTypes.ROW_NAMED(names, types: _*)
   }
 
