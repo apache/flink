@@ -20,12 +20,13 @@ package org.apache.flink.table.plan
 
 import java.math.BigDecimal
 
-import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.util.RexProgramExtractor
+import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
 import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.validate.FunctionCatalog
 import org.hamcrest.CoreMatchers.is
@@ -33,6 +34,7 @@ import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat}
 import org.junit.Test
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class RexProgramExtractorTest extends RexProgramTestBase {
 
@@ -137,6 +139,146 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       ExpressionParser.parseExpression("amount < 100 || price == 100"),
       ExpressionParser.parseExpression("id > 100 || price == 100"),
       ExpressionParser.parseExpression("!(amount <= id)"))
+    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertEquals(0, unconvertedRexNodes.length)
+  }
+
+  @Test
+  def testExtractORForPredicatePushDown(): Unit = {
+    val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
+    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
+
+    // amount
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
+    // id
+    val t1 = rexBuilder.makeInputRef(allFieldTypes.get(1), 1)
+    // price
+    val t2 = rexBuilder.makeInputRef(allFieldTypes.get(3), 3)
+    // 100
+    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
+
+    // a = amount < 100
+    val a = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t0, t3))
+    // b = id > 100
+    val b = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t3))
+    // c = price == 100
+    val c = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3))
+    // d = amount <= id
+    val d = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, t0, t1))
+
+    // a OR b OR c OR d
+    val or = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.OR, List(a, b, c, d).asJava))
+
+    builder.addCondition(builder.addExpr(or))
+
+    val program = builder.getProgram
+    val relBuilder = new RexBuilder(typeFactory)
+    val (convertedExpressions, unconvertedRexNodes) =
+      RexProgramExtractor.extractConjunctiveConditions(
+        program,
+        relBuilder,
+        functionCatalog)
+
+    val expected: Array[Expression] = Array(
+      ExpressionParser.parseExpression("amount < 100 || id > 100 || price === 100 || amount <= id"))
+
+    assertExpressionArrayEquals(expected, convertedExpressions.toArray)
+    assertEquals(0, unconvertedRexNodes.length)
+  }
+
+  @Test
+  def testExtractNonCnfANDForPredicatePushDown(): Unit = {
+    val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
+    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
+
+    // amount
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
+    // id
+    val t1 = rexBuilder.makeInputRef(allFieldTypes.get(1), 1)
+    // price
+    val t2 = rexBuilder.makeInputRef(allFieldTypes.get(3), 3)
+    // 100
+    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
+
+    // a = amount < 100
+    val a = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t0, t3))
+    // b = id > 100
+    val b = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t3))
+    // c = price == 100
+    val c = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3))
+    // d = amount <= id
+    val d = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, t0, t1))
+
+    // a AND b AND c AND d
+    val and = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(a, b, c, d).asJava))
+
+    builder.addCondition(builder.addExpr(and))
+
+    val program = builder.getProgram
+    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+
+    val expanded = program.expandLocalRef(program.getCondition)
+
+    var convertedExpressions = new mutable.ArrayBuffer[Expression]
+    val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
+    val inputNames = program.getInputRowType.getFieldNames.asScala.toArray
+    val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog)
+
+    expanded.accept(converter) match {
+      case Some(expression) =>
+        convertedExpressions += expression
+      case None => unconvertedRexNodes += expanded
+    }
+
+    val expected: Array[Expression] = Array(
+      ExpressionParser.parseExpression("amount < 100 && id > 100 && price === 100 && amount <= id"))
+
+    assertExpressionArrayEquals(expected, convertedExpressions.toArray)
+    assertEquals(0, unconvertedRexNodes.length)
+  }
+
+  @Test
+  def testExtractCnfANDForPredicatePushDown(): Unit = {
+    val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
+    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
+
+    // amount
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
+    // id
+    val t1 = rexBuilder.makeInputRef(allFieldTypes.get(1), 1)
+    // price
+    val t2 = rexBuilder.makeInputRef(allFieldTypes.get(3), 3)
+    // 100
+    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
+
+    // a = amount < 100
+    val a = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t0, t3))
+    // b = id > 100
+    val b = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t3))
+    // c = price == 100
+    val c = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3))
+    // d = amount <= id
+    val d = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, t0, t1))
+
+    // a AND b AND c AND d
+    val and = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(a, b, c, d).asJava))
+
+    builder.addCondition(builder.addExpr(and))
+
+    val program = builder.getProgram
+    val relBuilder = new RexBuilder(typeFactory)
+    val (convertedExpressions, unconvertedRexNodes) =
+      RexProgramExtractor.extractConjunctiveConditions(
+        program,
+        relBuilder,
+        functionCatalog)
+
+    val expected = Array(
+      ExpressionParser.parseExpression("amount < 100"),
+      ExpressionParser.parseExpression("id > 100"),
+      ExpressionParser.parseExpression("price === 100"),
+      ExpressionParser.parseExpression("amount <= id")
+    )
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
