@@ -29,13 +29,13 @@ import java.util.Map;
 /**
  * {@link SorterTemplateModel} is a class that implements code generation logic for given {@link TypeComparator}.
  */
-public class SorterTemplateModel {
+class SorterTemplateModel {
 
 	// ------------------------------------------------------------------------
 	//                                   Constants
 	// ------------------------------------------------------------------------
 
-	public static final String TEMPLATE_NAME = "sorter.ftlh";
+	static final String TEMPLATE_NAME = "sorter.ftlh";
 
 	/* POSSIBLE_FIXEDBYTE_OPERATORS must be in descending order,
 	 * because methods that using it are using greedy approach.
@@ -108,9 +108,9 @@ public class SorterTemplateModel {
 	 * Generate suitable sequence of operators for creating custom NormalizedKeySorter.
 	 * @return map of procedures and corresponding code
 	 */
-	public Map<String, String> getTemplateVariables() {
+	Map<String, String> getTemplateVariables() {
 
-		Map<String, String> templateVariables = new HashMap();
+		Map<String, String> templateVariables = new HashMap<>();
 
 		templateVariables.put("name", this.sorterName);
 
@@ -129,7 +129,7 @@ public class SorterTemplateModel {
 	 * Getter for sorterName which instantiated from constructor.
 	 * @return name of the sorter
 	 */
-	public String getSorterName(){
+	String getSorterName(){
 		return this.sorterName;
 	}
 
@@ -139,9 +139,9 @@ public class SorterTemplateModel {
 
 	/**
 	 * Getter for fixedByteChunks.
-	 * this method is made for testing proposed
+	 * this method is for testing purposes
 	 */
-	protected ArrayList<Integer> getBytesOperators(){
+	ArrayList<Integer> getBytesOperators(){
 		return fixedByteChunks;
 	}
 
@@ -321,7 +321,7 @@ public class SorterTemplateModel {
 
 	/**
 	 * Generate name of the sorter based on fixed-size chunks and determinant of the key.
-	 * @param array of fixed-byte chunks
+	 * @param chunks array of fixed-byte chunks
 	 * @return a suitable name of sorter for particular type-comparator
 	 */
 	private String generateCodeFilename(ArrayList<Integer> chunks, boolean normalizedKeyFullyDetermines) {

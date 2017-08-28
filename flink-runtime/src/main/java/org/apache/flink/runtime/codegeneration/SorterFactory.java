@@ -57,7 +57,7 @@ public class SorterFactory {
 	// ------------------------------------------------------------------------
 	//                                   Attributes
 	// ------------------------------------------------------------------------
-	private SimpleCompiler classComplier;
+	private SimpleCompiler classCompiler;
 	private TemplateManager templateManager;
 	private HashMap<String, Constructor> constructorCache;
 
@@ -65,9 +65,9 @@ public class SorterFactory {
 	 * Constructor.
 	 * @throws IOException
 	 */
-	public SorterFactory(TaskManagerConfiguration conf) throws IOException {
+	private SorterFactory(TaskManagerConfiguration conf) throws IOException {
 		this.templateManager = TemplateManager.getInstance(conf.getFirstTmpDirectory());
-		this.classComplier = new SimpleCompiler();
+		this.classCompiler = new SimpleCompiler();
 		this.constructorCache = new HashMap<>();
 	}
 
@@ -105,21 +105,21 @@ public class SorterFactory {
 	 */
 	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 
-		InMemorySorter sorter = null;
+		InMemorySorter sorter;
 
 		if (config.isCodeGenerationForSorterEnabled()){
 			SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
 
-			Constructor sorterConstructor = null;
+			Constructor sorterConstructor;
 
 			synchronized (this){
 				if (constructorCache.getOrDefault(sorterModel.getSorterName(), null) != null) {
 					sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 				} else {
 					String sorterName = this.templateManager.getGeneratedCode(sorterModel);
-					this.classComplier.cookFile(this.templateManager.getPathToGeneratedCode(sorterName));
+					this.classCompiler.cookFile(this.templateManager.getPathToGeneratedCode(sorterName));
 
-					sorterConstructor = this.classComplier.getClassLoader().loadClass(sorterName).getConstructor(
+					sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
 						TypeSerializer.class, TypeComparator.class, List.class
 					);
 

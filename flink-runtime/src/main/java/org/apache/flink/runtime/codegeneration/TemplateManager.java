@@ -74,7 +74,7 @@ public class TemplateManager {
 
 	/**
 	 * A method to get a singleton instance
-	 * or create one if it has been created yet.
+	 * or create one if it hasn't been created yet.
 	 * @return
 	 * @throws IOException
 	 */
@@ -92,14 +92,14 @@ public class TemplateManager {
 	/**
 	 * Render sorter template with generated code provided by SorterTemplateModel and write the content to a file
 	 * and cache the result for later calls.
-	 * @param sorterTemplateModel
+	 * @param model
 	 * @return name of the generated sorter
 	 * @throws IOException
 	 * @throws TemplateException
 	 */
-	public String getGeneratedCode(SorterTemplateModel model) throws IOException, TemplateException {
+	String getGeneratedCode(SorterTemplateModel model) throws IOException, TemplateException {
 
-		Template template = templateConf.getTemplate(model.TEMPLATE_NAME);
+		Template template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
 
 		String generatedFilename = model.getSorterName();
 
@@ -127,7 +127,7 @@ public class TemplateManager {
 		File dirForGeneratedCode = new File(generatedCodeDir + "/flink-codegeneration");
 
 		if (!dirForGeneratedCode.exists()){
-			LOG.debug("Creating diretory for generated code at : " + dirForGeneratedCode.getAbsolutePath());
+			LOG.debug("Creating directory for generated code at : " + dirForGeneratedCode.getAbsolutePath());
 			boolean res = dirForGeneratedCode.mkdir();
 			if (!res){
 				throw new IOException("Can't create temporary directory for generated code : " + dirForGeneratedCode.getAbsolutePath());
