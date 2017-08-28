@@ -23,7 +23,7 @@ package org.apache.flink.runtime.rest.messages;
  * "jobid" path parameter that is later replaced with an actual value.
  */
 public abstract class MessagePathParameter<X> extends MessageParameter<X> {
-	protected MessagePathParameter(String key, MessageParameterRequisiteness requisiteness) {
-		super(key, requisiteness);
+	protected MessagePathParameter(String key) {
+		super(key, MessageParameterRequisiteness.MANDATORY);
 	}
 }

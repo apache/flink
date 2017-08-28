@@ -230,7 +230,7 @@ public class RestEndpointITCase extends TestLogger {
 
 	static class JobIDPathParameter extends MessagePathParameter<JobID> {
 		JobIDPathParameter() {
-			super(JOB_ID_KEY, MessageParameterRequisiteness.MANDATORY);
+			super(JOB_ID_KEY);
 		}
 
 		@Override

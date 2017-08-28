@@ -63,7 +63,7 @@ public class MessageParametersTest extends TestLogger {
 	private static class TestPathParameter extends MessagePathParameter<JobID> {
 
 		TestPathParameter() {
-			super("jobid", MessageParameterRequisiteness.MANDATORY);
+			super("jobid");
 		}
 
 		@Override
