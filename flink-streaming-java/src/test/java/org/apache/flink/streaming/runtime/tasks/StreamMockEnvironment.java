@@ -34,6 +34,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -106,6 +107,8 @@ public class StreamMockEnvironment implements Environment {
 	private final ExecutionConfig executionConfig;
 
 	private volatile boolean wasFailedExternally = false;
+
+	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 								long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
@@ -301,6 +304,11 @@ public class StreamMockEnvironment implements Environment {
 		InputGate[] gates = new InputGate[inputs.size()];
 		inputs.toArray(gates);
 		return gates;
+	}
+
+	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
 	}
 
 	@Override

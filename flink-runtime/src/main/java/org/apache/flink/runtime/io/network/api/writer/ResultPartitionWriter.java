@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 
@@ -34,11 +31,9 @@ import java.io.IOException;
  * The {@link ResultPartitionWriter} is the runtime API for producing results. It
  * supports two kinds of data to be sent: buffers and events.
  */
-public class ResultPartitionWriter implements EventListener<TaskEvent> {
+public class ResultPartitionWriter {
 
 	private final ResultPartition partition;
-
-	private final TaskEventHandler taskEventHandler = new TaskEventHandler();
 
 	public ResultPartitionWriter(ResultPartition partition) {
 		this.partition = partition;
@@ -93,18 +88,5 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 			// (it will be recycled after the last channel stops using it)
 			eventBuffer.recycle();
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	// Event handling
-	// ------------------------------------------------------------------------
-
-	public void subscribeToEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
-		taskEventHandler.subscribe(eventListener, eventType);
-	}
-
-	@Override
-	public void onEvent(TaskEvent event) {
-		taskEventHandler.publish(event);
 	}
 }
