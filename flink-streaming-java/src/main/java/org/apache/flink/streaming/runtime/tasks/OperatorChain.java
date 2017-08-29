@@ -25,7 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
@@ -370,7 +370,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		LOG.debug("Using partitioner {} for output {} of task ", outputPartitioner, outputIndex, taskName);
 
-		ResultPartitionWriter bufferWriter = taskEnvironment.getWriter(outputIndex);
+		ResultPartition bufferWriter = taskEnvironment.getOutputPartition(outputIndex);
 
 		// we initialize the partitioner here with the number of key groups (aka max. parallelism)
 		if (outputPartitioner instanceof ConfigurableStreamPartitioner) {

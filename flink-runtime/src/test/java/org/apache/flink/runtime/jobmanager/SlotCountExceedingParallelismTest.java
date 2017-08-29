@@ -124,7 +124,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getOutputPartition(0));
 			final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 
 			final IntValue subtaskIndex = new IntValue(

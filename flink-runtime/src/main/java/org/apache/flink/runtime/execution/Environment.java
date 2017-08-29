@@ -30,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -203,9 +203,9 @@ public interface Environment {
 	//  Fields relevant to the I/O system. Should go into Task
 	// --------------------------------------------------------------------------------------------
 
-	ResultPartitionWriter getWriter(int index);
+	ResultPartition getOutputPartition(int index);
 
-	ResultPartitionWriter[] getAllWriters();
+	ResultPartition[] getAllOutputPartitions();
 
 	InputGate getInputGate(int index);
 

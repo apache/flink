@@ -2074,7 +2074,7 @@ public class TaskManagerTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			final Object o = new Object();
-			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getOutputPartition(0));
 
 			for (int i = 0; i < 1024; i++) {
 				recordWriter.emit(new IntValue(42));

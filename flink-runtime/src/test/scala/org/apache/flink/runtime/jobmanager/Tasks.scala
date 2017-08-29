@@ -29,7 +29,7 @@ object Tasks {
   class Sender extends AbstractInvokable{
 
     override def invoke(): Unit = {
-      val writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
+      val writer = new RecordWriter[IntValue](getEnvironment.getOutputPartition(0))
 
       try{
         writer.emit(new IntValue(42))
@@ -49,7 +49,7 @@ object Tasks {
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
       
-      val writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
+      val writer = new RecordWriter[IntValue](getEnvironment.getOutputPartition(0))
 
       try {
         while (true) {

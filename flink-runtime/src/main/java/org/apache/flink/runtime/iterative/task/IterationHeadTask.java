@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
@@ -94,7 +94,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 	private TypeSerializerFactory<X> solutionTypeSerializer;
 
-	private ResultPartitionWriter toSync;
+	private ResultPartition toSync;
 
 	private int feedbackDataInput; // workset or bulk partial solution
 
@@ -129,7 +129,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
 		}
 		// now, we can instantiate the sync gate
-		this.toSync = getEnvironment().getWriter(syncGateIndex);
+		this.toSync = getEnvironment().getOutputPartition(syncGateIndex);
 	}
 
 	/**
@@ -441,6 +441,6 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
 		}
 
-		this.toSync.writeBufferToAllChannels(EventSerializer.toBuffer(event));
+		this.toSync.addToAllChannels(EventSerializer.toBuffer(event));
 	}
 }

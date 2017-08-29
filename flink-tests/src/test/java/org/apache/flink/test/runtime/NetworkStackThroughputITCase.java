@@ -174,7 +174,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getOutputPartition(0));
 
 			try {
 				// Determine the amount of data to send per subtask
@@ -219,7 +219,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 					SpeedTestRecord.class,
 					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
-			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getOutputPartition(0));
 
 			try {
 				SpeedTestRecord record;

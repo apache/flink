@@ -158,7 +158,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		public Integer getValue() {
 			int totalBuffers = 0;
 
-			for (ResultPartition producedPartition : task.getProducedPartitions()) {
+			for (ResultPartition producedPartition : task.getAllOutputPartitions()) {
 				totalBuffers += producedPartition.getNumberOfQueuedBuffers();
 			}
 
@@ -211,7 +211,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 			int usedBuffers = 0;
 			int bufferPoolSize = 0;
 
-			for (ResultPartition resultPartition : task.getProducedPartitions()) {
+			for (ResultPartition resultPartition : task.getAllOutputPartitions()) {
 				usedBuffers += resultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers();
 				bufferPoolSize += resultPartition.getBufferPool().getNumBuffers();
 			}

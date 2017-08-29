@@ -22,7 +22,6 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -110,11 +109,11 @@ public class PartialConsumePipelinedResultTest {
 
 		@Override
 		public void invoke() throws Exception {
-			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
+			final ResultPartition writer = getEnvironment().getOutputPartition(0);
 
 			for (int i = 0; i < 8; i++) {
 				final Buffer buffer = writer.getBufferProvider().requestBufferBlocking();
-				writer.writeBuffer(buffer, 0);
+				writer.add(buffer, 0);
 
 				Thread.sleep(50);
 			}

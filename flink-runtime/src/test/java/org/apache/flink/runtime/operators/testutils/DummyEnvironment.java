@@ -31,7 +31,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -171,12 +171,12 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public ResultPartitionWriter getWriter(int index) {
+	public ResultPartition getOutputPartition(int index) {
 		return null;
 	}
 
 	@Override
-	public ResultPartitionWriter[] getAllWriters() {
+	public ResultPartition[] getAllOutputPartitions() {
 		return null;
 	}
 

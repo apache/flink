@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -194,7 +194,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			Thread producer = new ProducerThread(getEnvironment().getWriter(0));
+			Thread producer = new ProducerThread(getEnvironment().getOutputPartition(0));
 
 			// Publish the async producer for the main test Thread
 			ASYNC_PRODUCER_THREAD = producer;
@@ -218,7 +218,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 			private final RecordWriter<LongValue> recordWriter;
 
-			public ProducerThread(ResultPartitionWriter partitionWriter) {
+			public ProducerThread(ResultPartition partitionWriter) {
 				this.recordWriter = new RecordWriter<>(partitionWriter);
 			}
 

@@ -35,10 +35,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -87,7 +87,7 @@ public class MockEnvironment implements Environment {
 
 	private final List<InputGate> inputs;
 
-	private final List<ResultPartitionWriter> outputs;
+	private final List<ResultPartition> outputs;
 
 	private final JobID jobID = new JobID();
 
@@ -159,7 +159,7 @@ public class MockEnvironment implements Environment {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
 		this.inputs = new LinkedList<InputGate>();
-		this.outputs = new LinkedList<ResultPartitionWriter>();
+		this.outputs = new LinkedList<>();
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
@@ -203,8 +203,8 @@ public class MockEnvironment implements Environment {
 				}
 			});
 
-			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			ResultPartition mockWriter = mock(ResultPartition.class);
+			when(mockWriter.getNumberOfSubpartitions()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
 			final Record record = new Record();
@@ -234,7 +234,7 @@ public class MockEnvironment implements Environment {
 
 					return null;
 				}
-			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
+			}).when(mockWriter).add(any(Buffer.class), anyInt());
 
 			outputs.add(mockWriter);
 		}
@@ -305,13 +305,13 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public ResultPartitionWriter getWriter(int index) {
+	public ResultPartition getOutputPartition(int index) {
 		return outputs.get(index);
 	}
 
 	@Override
-	public ResultPartitionWriter[] getAllWriters() {
-		return outputs.toArray(new ResultPartitionWriter[outputs.size()]);
+	public ResultPartition[] getAllOutputPartitions() {
+		return outputs.toArray(new ResultPartition[outputs.size()]);
 	}
 
 	@Override
