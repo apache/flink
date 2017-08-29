@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -167,5 +170,46 @@ public class NetworkBufferPoolTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testRequestAndRecycleMemorySegments() throws Exception {
+		final int numBuffers = 10;
+
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
+
+		List<MemorySegment> segments = null;
+		// request buffers from global pool with illegal argument
+		try {
+			segments = globalPool.requestMemorySegments(0);
+			fail("Should throw an IllegalArgumentException");
+		} catch (IllegalArgumentException e) {
+			assertNull(segments);
+			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+		}
+
+		// common case to request buffers less than the total capacity of global pool
+		final int numRequiredBuffers = 8;
+		segments = globalPool.requestMemorySegments(numRequiredBuffers);
+
+		assertNotNull(segments);
+		assertEquals(segments.size(), numRequiredBuffers);
+
+		// recycle all the requested buffers to global pool
+		globalPool.recycleMemorySegments(segments);
+
+		assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+
+		// uncommon case to request buffers exceeding the total capacity of global pool
+		try {
+			segments = null;
+			segments = globalPool.requestMemorySegments(11);
+			fail("Should throw an IOException");
+		} catch (IOException e) {
+			assertNull(segments);
+			// recycle all the requested buffers to global pool after exception
+			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+		}
+
 	}
 }

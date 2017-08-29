@@ -22,6 +22,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -134,6 +136,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	}
 
 	public List<MemorySegment> requestMemorySegments(int numRequiredBuffers) throws IOException {
+		checkArgument(numRequiredBuffers > 0, "The number of required buffers should be larger than 0.");
+
 		synchronized (factoryLock) {
 			if (isDestroyed) {
 				throw new IllegalStateException("Network buffer pool has already been destroyed.");
@@ -156,12 +160,19 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			this.numTotalRequiredBuffers += numRequiredBuffers;
 
 			final List<MemorySegment> segments = new ArrayList<>(numRequiredBuffers);
-
 			for (int i = 0 ; i < numRequiredBuffers ; i++) {
 				segments.add(availableMemorySegments.poll());
 			}
 
-			redistributeBuffers();
+			try {
+				redistributeBuffers();
+			} catch (IOException e) {
+				if (segments.size() > 0) {
+					recycleMemorySegments(segments);
+				}
+
+				ExceptionUtils.rethrowIOException(e);
+			}
 
 			return segments;
 		}

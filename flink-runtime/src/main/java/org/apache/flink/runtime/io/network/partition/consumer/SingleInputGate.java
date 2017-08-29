@@ -287,39 +287,18 @@ public class SingleInputGate implements InputGate {
 	 * @param networkBuffersPerChannel The number of exclusive buffers for each channel
 	 */
 	public void assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
+		checkState(this.networkBufferPool == null, "Bug in input gate setup logic: global buffer pool has" +
+			"already been set for this input gate.");
+
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				if (inputChannel instanceof RemoteInputChannel) {
-					((RemoteInputChannel) inputChannel).assignExclusiveSegments(requestExclusiveSegments());
+					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
+						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
 				}
-			}
-		}
-	}
-
-	/**
-	 * Request exclusive segments from global pool directly for input channel, and the requested
-	 * segments should be recycled to global pool after exception to avoid resource leak.
-	 *
-	 * @return The exclusive segments owned by each input channel
-	 */
-	private List<MemorySegment> requestExclusiveSegments() throws IOException{
-		List<MemorySegment> segments = null;
-		try {
-			segments = networkBufferPool.requestMemorySegments(networkBuffersPerChannel);
-
-			return segments;
-		} catch (Throwable t) {
-			if (segments != null && segments.size() > 0) {
-				networkBufferPool.recycleMemorySegments(segments);
-			}
-
-			if (t instanceof IOException) {
-				throw (IOException) t;
-			} else {
-				throw new IOException(t.getMessage(), t);
 			}
 		}
 	}
@@ -369,7 +348,8 @@ public class SingleInputGate implements InputGate {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
 
 					if (getConsumedPartitionType().isCreditBased()) {
-						((RemoteInputChannel)newChannel).assignExclusiveSegments(requestExclusiveSegments());
+						((RemoteInputChannel)newChannel).assignExclusiveSegments(
+							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
 					}
 				}
 				else {

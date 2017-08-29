@@ -35,7 +35,13 @@ public enum ResultPartitionType {
 	 * For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
 	 * no checkpoint barriers.
 	 */
-	PIPELINED_BOUNDED(true, true, true, false);
+	PIPELINED_BOUNDED(true, true, true, false),
+
+	/**
+	 * Pipelined partitions with a bounded (local) buffer pool for floating buffers in input gate, and a number
+	 * of exclusive buffers per input channel. The producer transfers data based on consumer's available credits.
+	 */
+	PIPELINED_CREDIT_BASED(true, true, true, true);
 
 	/** Can the partition be consumed while being produced? */
 	private final boolean isPipelined;
@@ -80,6 +86,11 @@ public enum ResultPartitionType {
 		return isBounded;
 	}
 
+	/**
+	 * Whether this partition uses the credit-based mode to transfer data or not.
+	 *
+	 * @return <tt>true</tt> if the data is transferred based on consumer's credit
+	 */
 	public boolean isCreditBased() {
 		return isCreditBased;
 	}
