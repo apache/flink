@@ -20,40 +20,96 @@ package org.apache.flink.table.api
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation, Types => JTypes}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-import org.apache.flink.types.Row
 
 import _root_.scala.annotation.varargs
 
 /**
-  * This class enumerates all supported types of the Table API.
+  * This class enumerates all supported types of the Table API & SQL.
   */
 object Types {
 
-  val STRING = JTypes.STRING
-  val BOOLEAN = JTypes.BOOLEAN
+  /**
+    * Returns type information for a Table API string or SQL VARCHAR type.
+    */
+  val STRING: TypeInformation[_] = JTypes.STRING
 
-  val BYTE = JTypes.BYTE
-  val SHORT = JTypes.SHORT
-  val INT = JTypes.INT
-  val LONG = JTypes.LONG
-  val FLOAT = JTypes.FLOAT
-  val DOUBLE = JTypes.DOUBLE
-  val DECIMAL = JTypes.BIG_DEC
+  /**
+    * Returns type information for a Table API boolean or SQL BOOLEAN type.
+    */
+  val BOOLEAN: TypeInformation[_] = JTypes.BOOLEAN
 
+  /**
+    * Returns type information for a Table API byte or SQL TINYINT type.
+    */
+  val BYTE: TypeInformation[_] = JTypes.BYTE
+
+  /**
+    * Returns type information for a Table API short or SQL SMALLINT type.
+    */
+  val SHORT: TypeInformation[_] = JTypes.SHORT
+
+  /**
+    * Returns type information for a Table API integer or SQL INT/INTEGER type.
+    */
+  val INT: TypeInformation[_] = JTypes.INT
+
+  /**
+    * Returns type information for a Table API long or SQL BIGINT type.
+    */
+  val LONG: TypeInformation[_] = JTypes.LONG
+
+  /**
+    * Returns type information for a Table API float or SQL FLOAT/REAL type.
+    */
+  val FLOAT: TypeInformation[_] = JTypes.FLOAT
+
+  /**
+    * Returns type information for a Table API integer or SQL DOUBLE type.
+    */
+  val DOUBLE: TypeInformation[_] = JTypes.DOUBLE
+
+  /**
+    * Returns type information for a Table API big decimal or SQL DECIMAL type.
+    */
+  val DECIMAL: TypeInformation[_] = JTypes.BIG_DEC
+
+  /**
+    * Returns type information for a Table API SQL date or SQL DATE type.
+    */
   val SQL_DATE = JTypes.SQL_DATE
+
+  /**
+    * Returns type information for a Table API SQL time or SQL TIME type.
+    */
   val SQL_TIME = JTypes.SQL_TIME
+
+  /**
+    * Returns type information for a Table API SQL timestamp or SQL TIMESTAMP type.
+    */
   val SQL_TIMESTAMP = JTypes.SQL_TIMESTAMP
+
+  /**
+    * Returns type information for a Table API interval of months.
+    */
   val INTERVAL_MONTHS = TimeIntervalTypeInfo.INTERVAL_MONTHS
+
+  /**
+    * Returns type information for a Table API interval milliseconds.
+    */
   val INTERVAL_MILLIS = TimeIntervalTypeInfo.INTERVAL_MILLIS
 
   /**
-    * Generates row type information.
+    * Returns type information for [[org.apache.flink.types.Row]] with fields of the given types.
     *
-    * A row type consists of zero or more fields with a field name and a corresponding type.
+    * A row is a variable-length, null-aware composite type for storing multiple values in a
+    * deterministic field order. Every field can be null independent of the field's type.
+    * Fields of a row are untyped; therefore, it is required to pass type information whenever
+    * a row is used.
     *
-    * The fields have the default names (f0, f1, f2 ..).
+    * This method generates type information with fields of the given types; the fields have
+    * the default names (f0, f1, f2 ..).
     *
-    * @param types types of row fields; e.g. Types.STRING, Types.INT
+    * @param types The types of the row fields, e.g., Types.STRING, Types.INT
     */
   @varargs
   def ROW(types: TypeInformation[_]*): TypeInformation[_] = {
@@ -61,19 +117,26 @@ object Types {
   }
 
   /**
-    * Generates row type information.
+    * Returns type information for [[org.apache.flink.types.Row]] with fields of the given types
+    * and with given names.
     *
-    * A row type consists of zero or more fields with a field name and a corresponding type.
+    * A row is a variable-length, null-aware composite type for storing multiple values in a
+    * deterministic field order. Every field can be null independent of the field's type.
+    * Fields of a row are untyped; therefore, it is required to pass type information whenever
+    * a row is used.
     *
-    * @param names names of row fields, e.g. "userid", "name"
-    * @param types types of row fields; e.g. Types.STRING, Types.INT
+    * Example use: `Types.ROW(Array("name", "number"), Array(Types.STRING, Types.INT))`.
+    *
+    * @param fieldNames array of field names
+    * @param types      array of field types
     */
-  def ROW(names: Array[String], types: Array[TypeInformation[_]]): TypeInformation[_] = {
-    JTypes.ROW_NAMED(names, types: _*)
+  def ROW(fieldNames: Array[String], types: Array[TypeInformation[_]]): TypeInformation[_] = {
+    JTypes.ROW_NAMED(fieldNames, types: _*)
   }
 
   /**
-    * Generates type information for an array consisting of Java primitive elements.
+    * Generates type information for an array consisting of Java primitive elements. The elements
+    * do not support null values.
     *
     * @param elementType type of the array elements; e.g. Types.INT
     */
@@ -93,7 +156,8 @@ object Types {
   }
 
   /**
-    * Generates type information for an array consisting of Java object elements.
+    * Generates type information for an array consisting of Java object elements. Null values for
+    * elements are supported.
     *
     * @param elementType type of the array elements; e.g. Types.STRING or Types.INT
     */

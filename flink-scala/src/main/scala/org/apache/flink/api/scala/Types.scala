@@ -42,7 +42,7 @@ import _root_.scala.util.Try
   * specialized `Types` class.
   *
   * Scala macros allow to determine type information of classes and type parameters. You can
-  * use [[Types.of]] to let type information this feature.
+  * use [[Types.of]] to let type information be determined automatically.
   */
 @PublicEvolving
 object Types {
