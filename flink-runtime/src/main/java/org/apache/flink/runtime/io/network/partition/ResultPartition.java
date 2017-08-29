@@ -293,6 +293,27 @@ public class ResultPartition implements BufferPoolOwner {
 	}
 
 	/**
+	 * Writes the given buffer to all available target channels.
+	 *
+	 * <p>The buffer is taken over and used for each of the channels. It will be recycled afterwards.
+	 *
+	 * @param buffer the buffer to write
+	 */
+	public void addToAllChannels(Buffer buffer) throws IOException {
+		try {
+			for (int targetChannel = 0; targetChannel < subpartitions.length; targetChannel++) {
+				// retain the buffer so that it can be recycled by each channel of targetPartition
+				buffer.retain();
+				add(buffer, targetChannel);
+			}
+		} finally {
+			// we do not need to further retain the buffer
+			// (it will be recycled after the last channel stops using it)
+			buffer.recycle();
+		}
+	}
+
+	/**
 	 * Finishes the result partition.
 	 *
 	 * <p> After this operation, it is not possible to add further data to the result partition.
