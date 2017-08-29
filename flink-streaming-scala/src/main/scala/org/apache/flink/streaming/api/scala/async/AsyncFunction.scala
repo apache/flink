@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala.async
 
 import org.apache.flink.annotation.PublicEvolving
+import org.apache.flink.api.common.functions.Function
 
 /**
   * A function to trigger async I/O operations.
@@ -36,7 +37,7 @@ import org.apache.flink.annotation.PublicEvolving
   * @tparam OUT The type of the output elements
   */
 @PublicEvolving
-trait AsyncFunction[IN, OUT] {
+trait AsyncFunction[IN, OUT] extends Function {
 
   /**
     * Trigger the async operation for each stream input
