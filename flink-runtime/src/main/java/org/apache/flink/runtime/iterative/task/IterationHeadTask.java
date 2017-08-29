@@ -27,10 +27,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -223,8 +225,10 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 	private SuperstepBarrier initSuperstepBarrier() {
 		SuperstepBarrier barrier = new SuperstepBarrier(getUserCodeClassLoader());
-		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
-		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
+		TaskEventDispatcher taskEventDispatcher = getEnvironment().getTaskEventDispatcher();
+		ResultPartitionID partitionId = this.toSync.getPartitionId();
+		taskEventDispatcher.subscribeToEvent(partitionId, barrier, AllWorkersDoneEvent.class);
+		taskEventDispatcher.subscribeToEvent(partitionId, barrier, TerminationEvent.class);
 		return barrier;
 	}
 

@@ -665,7 +665,7 @@ public class Task implements Runnable, TaskActions {
 				jobConfiguration, taskConfiguration, userCodeClassLoader,
 				memoryManager, ioManager, broadcastVariableManager,
 				accumulatorRegistry, kvStateRegistry, inputSplitProvider,
-				distributedCacheEntries, writers, inputGates,
+				distributedCacheEntries, writers, inputGates, network.getTaskEventDispatcher(),
 				checkpointResponder, taskManagerConfig, metrics, this);
 
 			// let the task code create its readers and writers

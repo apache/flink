@@ -322,9 +322,10 @@ public class SingleInputGateTest {
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
 
+		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 		NetworkEnvironment netEnv = mock(NetworkEnvironment.class);
 		when(netEnv.getResultPartitionManager()).thenReturn(new ResultPartitionManager());
-		when(netEnv.getTaskEventDispatcher()).thenReturn(new TaskEventDispatcher());
+		when(netEnv.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 		when(netEnv.getPartitionRequestInitialBackoff()).thenReturn(initialBackoff);
 		when(netEnv.getPartitionRequestMaxBackoff()).thenReturn(maxBackoff);
 		when(netEnv.getConnectionManager()).thenReturn(new LocalConnectionManager());
