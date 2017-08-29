@@ -26,13 +26,10 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.codegeneration.utils.CodeGenerationSorterBaseTest;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
-import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 
 import freemarker.template.TemplateException;
 
@@ -43,11 +40,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Test SorterFactory's functionalities.
