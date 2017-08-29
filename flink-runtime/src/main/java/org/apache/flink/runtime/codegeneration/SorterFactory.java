@@ -42,6 +42,8 @@ import java.util.List;
 /**
  * {@link SorterFactory} is a singleton class that provides functionalities to create the most suitable sorter
  * for underlying data based on {@link TypeComparator}.
+ * Note: the generated code can be inspected by configuring Janino to write the code that is being compiled
+ * to a file, see http://janino-compiler.github.io/janino/#debugging
  */
 public class SorterFactory {
 	// ------------------------------------------------------------------------
@@ -114,8 +116,9 @@ public class SorterFactory {
 				if (constructorCache.getOrDefault(sorterModel.getSorterName(), null) != null) {
 					sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 				} else {
-					String sorterName = this.templateManager.getGeneratedCode(sorterModel);
-					this.classCompiler.cookFile(this.templateManager.getPathToGeneratedCode(sorterName));
+					String sorterName = sorterModel.getSorterName();
+					String generatedCode = this.templateManager.getGeneratedCode(sorterModel);
+					this.classCompiler.cook(generatedCode);
 
 					sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
 						TypeSerializer.class, TypeComparator.class, List.class

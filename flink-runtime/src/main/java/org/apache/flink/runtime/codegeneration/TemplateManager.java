@@ -29,9 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Map;
 
@@ -62,7 +61,7 @@ public class TemplateManager {
 	 * Constructor.
 	 * @throws IOException
 	 */
-	public TemplateManager(String generatedCodeDir) throws IOException {
+	private TemplateManager(String generatedCodeDir) throws IOException {
 		templateConf = new Configuration();
 		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
@@ -91,7 +90,7 @@ public class TemplateManager {
 	 * Render sorter template with generated code provided by SorterTemplateModel and write the content to a file
 	 * and cache the result for later calls.
 	 * @param model
-	 * @return name of the generated sorter
+	 * @return the generated code
 	 * @throws IOException
 	 * @throws TemplateException
 	 */
@@ -99,21 +98,17 @@ public class TemplateManager {
 
 		Template template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
 
-		String generatedFilename = model.getSorterName();
+		Writer output = new StringWriter();
 
 		synchronized (this){
 
-			FileOutputStream fs = new FileOutputStream(this.getPathToGeneratedCode(generatedFilename));
-
-			Writer output = new OutputStreamWriter(fs);
 			Map templateVariables = model.getTemplateVariables();
 			template.process(templateVariables, output);
 
-			fs.close();
 			output.close();
 		}
 
-		return generatedFilename;
+		return output.toString();
 	}
 
 	/**
