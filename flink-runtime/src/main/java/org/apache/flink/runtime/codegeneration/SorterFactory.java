@@ -77,11 +77,9 @@ public class SorterFactory {
 	 * @return
 	 * @throws IOException
 	 */
-	public static SorterFactory getInstance(TaskManagerConfiguration conf) throws IOException {
+	public static synchronized SorterFactory getInstance(TaskManagerConfiguration conf) throws IOException {
 		if (sorterFactory == null){
-			synchronized (SorterFactory.class){
-				sorterFactory = new SorterFactory(conf);
-			}
+			sorterFactory = new SorterFactory(conf);
 		}
 
 		return sorterFactory;

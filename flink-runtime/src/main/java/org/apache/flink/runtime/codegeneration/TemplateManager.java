@@ -78,11 +78,9 @@ public class TemplateManager {
 	 * @return
 	 * @throws IOException
 	 */
-	public static TemplateManager getInstance(String temporaryDir) throws IOException {
+	public static synchronized TemplateManager getInstance(String temporaryDir) throws IOException {
 		if (templateManager == null){
-			synchronized (TemplateManager.class){
-				templateManager = new TemplateManager(temporaryDir);
-			}
+			templateManager = new TemplateManager(temporaryDir);
 		}
 
 		return templateManager;
