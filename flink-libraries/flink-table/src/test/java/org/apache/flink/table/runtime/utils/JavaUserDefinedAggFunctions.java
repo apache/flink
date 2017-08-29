@@ -254,6 +254,8 @@ public class JavaUserDefinedAggFunctions {
 					if (cnt <= 0) {
 						accumulator.map.remove(String.valueOf(id));
 						accumulator.count -= 1;
+					} else {
+						accumulator.map.put(String.valueOf(id), cnt);
 					}
 				}
 			} catch (Exception e) {

@@ -393,7 +393,6 @@ object UserDefinedFunctionUtils {
         (new PojoTypeInfo(accType.getTypeClass, newPojoFields), Some(accumulatorSpecs))
 
       case _ if !hasDataView => (accType, None)
-      case _ => throw new TableException("MapView and ListView only support in PoJo class")
     }
   }
 

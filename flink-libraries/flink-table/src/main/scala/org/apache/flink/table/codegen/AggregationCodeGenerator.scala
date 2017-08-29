@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen
 import java.lang.reflect.{Modifier, ParameterizedType}
 import java.lang.{Iterable => JIterable}
 
+import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.StateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
@@ -29,7 +30,8 @@ import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWrit
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
-import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GeneratedAggregations, SingleElementIterable}
+import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, SingleElementIterable}
+import org.apache.flink.util.InstantiationUtil
 
 import scala.collection.mutable
 
@@ -52,7 +54,7 @@ class AggregationCodeGenerator(
 
   /**
     * @return code block of statements that need to be placed in the cleanup() method of
-    *         RichFunction
+    *         [[GeneratedAggregations]]
     */
   def reuseCleanupCode(): String = {
     reusableCleanupStatements.mkString("", "\n", "\n")
@@ -198,7 +200,7 @@ class AggregationCodeGenerator(
       * close and member area of the generated function.
       *
       */
-    def addReusableDataViews: Unit = {
+    def addReusableDataViews(): Unit = {
       if (accConfig.isDefined) {
         val descMapping: Map[String, StateDescriptor[_, _]] = accConfig.get
           .flatMap(specs => specs.map(s => (s.id, s.toStateDescriptor)))
@@ -212,7 +214,7 @@ class AggregationCodeGenerator(
               throw new CodeGenException(s"Can not find DataView in accumulator by id: ${spec.id}"))
 
             // define the DataView variables
-            val serializedData = AggregateUtil.serialize(desc)
+            val serializedData = serializeStateDescriptor(desc)
             val dataViewFieldTerm = createDataViewTerm(i, dataViewField.getName)
             val field =
               s"""
@@ -226,8 +228,9 @@ class AggregationCodeGenerator(
             val descDeserializeCode =
               s"""
                  |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
-                 |      ${AggregateUtil.getClass.getName.stripSuffix("$")}
-                 |      .deserialize("$serializedData");
+                 |      org.apache.flink.util.InstantiationUtil.deserializeObject(
+                 |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
+                 |      $contextTerm.getUserCodeClassLoader());
              """.stripMargin
             val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
               s"""
@@ -590,4 +593,9 @@ class AggregationCodeGenerator(
     GeneratedAggregationsFunction(funcName, funcCode)
   }
 
+  @throws[Exception]
+  def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
+    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
+    Base64.encodeBase64URLSafeString(byteArray)
+  }
 }

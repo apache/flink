@@ -79,12 +79,15 @@ import org.apache.flink.table.dataview.MapViewTypeInfoFactory
 @TypeInfo(classOf[MapViewTypeInfoFactory[_, _]])
 class MapView[K, V](
     @transient private[flink] val keyTypeInfo: TypeInformation[K],
-    @transient private[flink] val valueTypeInfo: TypeInformation[V])
+    @transient private[flink] val valueTypeInfo: TypeInformation[V],
+    private[flink] val map: util.Map[K, V])
   extends DataView {
 
-  def this() = this(null, null)
+  def this(keyTypeInfo: TypeInformation[K], valueTypeInfo: TypeInformation[V]) {
+    this(keyTypeInfo, valueTypeInfo, new util.HashMap[K, V]())
+  }
 
-  private[flink] var map: util.Map[K, V] = new util.HashMap[K, V]()
+  def this() = this(null, null)
 
   /**
     * Returns the value to which the specified key is mapped, or { @code null } if this map

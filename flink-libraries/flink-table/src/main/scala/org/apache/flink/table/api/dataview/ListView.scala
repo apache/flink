@@ -76,12 +76,15 @@ import org.apache.flink.table.dataview.ListViewTypeInfoFactory
   */
 @TypeInfo(classOf[ListViewTypeInfoFactory[_]])
 class ListView[T](
-    @transient private[flink] val elementTypeInfo: TypeInformation[T])
+    @transient private[flink] val elementTypeInfo: TypeInformation[T],
+    private[flink] val list: util.List[T])
   extends DataView {
 
-  def this() = this(null)
+  def this(elementTypeInfo: TypeInformation[T]) {
+    this(elementTypeInfo, new util.ArrayList[T]())
+  }
 
-  private[flink] var list: util.List[T] = new util.ArrayList[T]()
+  def this() = this(null)
 
   /**
     * Returns an iterable of the list.

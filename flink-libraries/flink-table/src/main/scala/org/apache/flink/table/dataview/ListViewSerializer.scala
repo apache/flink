@@ -47,9 +47,7 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
   }
 
   override def copy(from: ListView[T]): ListView[T] = {
-    val listview = new ListView[T]
-    listview.list = from.list
-    listview
+    new ListView[T](null, listSerializer.copy(from.list))
   }
 
   override def copy(from: ListView[T], reuse: ListView[T]): ListView[T] = copy(from)
@@ -61,9 +59,7 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
   }
 
   override def deserialize(source: DataInputView): ListView[T] = {
-    val listview = new ListView[T]
-    listview.list = listSerializer.deserialize(source)
-    listview
+    new ListView[T](null, listSerializer.deserialize(source))
   }
 
   override def deserialize(reuse: ListView[T], source: DataInputView): ListView[T] =

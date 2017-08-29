@@ -25,9 +25,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
-import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
-import org.apache.flink.api.common.state.StateDescriptor
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -50,7 +48,6 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
-import org.apache.flink.util.InstantiationUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -258,7 +255,7 @@ object AggregateUtil {
       outputArity,
       needRetract,
       needMerge = false,
-      needReset = true,
+      needReset = false,
       accConfig = Some(accSpecs)
     )
 
@@ -1426,7 +1423,6 @@ object AggregateUtil {
           accTypes(index) = accType
         } else {
           accSpecs(index) = Seq()
-          accTypes(index) = getAccumulatorTypeOfAggregateFunction(agg)
         }
       } else {
         accSpecs(index) = Seq()
@@ -1498,20 +1494,4 @@ object AggregateUtil {
   private def gcd(a: Long, b: Long): Long = {
     if (b == 0) a else gcd(b, a % b)
   }
-
-  @throws[Exception]
-  def serialize(stateDescriptor: StateDescriptor[_, _]): String = {
-    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
-    Base64.encodeBase64URLSafeString(byteArray)
-  }
-
-  @throws[Exception]
-  def deserialize(data: String): StateDescriptor[_, _] = {
-    val byteData = Base64.decodeBase64(data)
-    InstantiationUtil.deserializeObject[StateDescriptor[_, _]](
-      byteData,
-      Thread.currentThread.getContextClassLoader)
-  }
 }
-
-

@@ -45,15 +45,11 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
       mapSerializer.duplicate().asInstanceOf[MapSerializer[K, V]])
 
   override def createInstance(): MapView[K, V] = {
-    val mapview = new MapView[K, V]
-    mapview.map = mapSerializer.createInstance()
-    mapview
+    new MapView[K, V](null, null, mapSerializer.createInstance())
   }
 
   override def copy(from: MapView[K, V]): MapView[K, V] = {
-    val mapview = new MapView[K, V]
-    mapview.map = mapSerializer.copy(from.map)
-    mapview
+    new MapView[K, V](null, null, mapSerializer.copy(from.map))
   }
 
   override def copy(from: MapView[K, V], reuse: MapView[K, V]): MapView[K, V] = copy(from)
@@ -65,9 +61,7 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
   }
 
   override def deserialize(source: DataInputView): MapView[K, V] = {
-    val mapview = new MapView[K, V]
-    mapview.map = mapSerializer.deserialize(source)
-    mapview
+    new MapView[K, V](null, null, mapSerializer.deserialize(source))
   }
 
   override def deserialize(reuse: MapView[K, V], source: DataInputView): MapView[K, V] =
