@@ -55,7 +55,6 @@ public class TemplateManager {
 	//                                   Attributes
 	// ------------------------------------------------------------------------
 	private final Configuration templateConf;
-	private final String dirForGeneratedCode;
 
 	/**
 	 * Constructor.
@@ -66,8 +65,6 @@ public class TemplateManager {
 		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
-
-		dirForGeneratedCode = prepareDirectoryGeneratedCode(generatedCodeDir);
 	}
 
 
@@ -109,35 +106,5 @@ public class TemplateManager {
 		}
 
 		return output.toString();
-	}
-
-	/**
-	 * Prepare directory for storing generated code.
-	 * @return path of the directory
-	 */
-	private String prepareDirectoryGeneratedCode(String generatedCodeDir) throws IOException {
-
-		File dirForGeneratedCode = new File(generatedCodeDir + "/flink-codegeneration");
-
-		if (!dirForGeneratedCode.exists()){
-			LOG.debug("Creating directory for generated code at : " + dirForGeneratedCode.getAbsolutePath());
-			boolean res = dirForGeneratedCode.mkdir();
-			if (!res){
-				throw new IOException("Can't create temporary directory for generated code : " + dirForGeneratedCode.getAbsolutePath());
-			}
-		} else {
-			LOG.debug(dirForGeneratedCode.getAbsolutePath() + " already exists, so just clean it up");
-			FileUtils.cleanDirectory(dirForGeneratedCode);
-		}
-
-		return dirForGeneratedCode.getAbsolutePath();
-	}
-
-	/**
-	 * Utility method to get the File object of the given filename
-	 * return an object of File of the given file.
-	 */
-	public File getPathToGeneratedCode(String filename){
-		return new File(this.dirForGeneratedCode + "/" + filename + ".java");
 	}
 }
