@@ -75,7 +75,7 @@ public class SorterFactory {
 
 	/**
 	 * A method to get a singleton instance
-	 * or create one if it has been created yet.
+	 * or create one if it hasn't been created yet.
 	 * @return
 	 * @throws IOException
 	 */

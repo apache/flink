@@ -113,38 +113,4 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 		sorter.dispose();
 		this.memoryManager.release(memory);
 	}
-
-	@Test
-	public void testSorterIsGeneratedOnlyOnceForSameComparator() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
-
-		List<MemorySegment> memory = createMemory();
-		TypeSerializer<Tuple2<Integer, String>> serializer  = TestData.getIntStringTupleSerializer();
-		TypeComparator<Tuple2<Integer, String>> comparator  = TestData.getIntStringTupleComparator();
-
-		// 1st creation for this comparator
-		createSorter(serializer, comparator, memory);
-
-		SorterTemplateModel templateModel = new SorterTemplateModel(comparator);
-
-		TaskManagerConfiguration taskConf = TaskManagerConfiguration.fromConfiguration(new Configuration());
-		String sorterName = templateModel.getSorterName();
-		Path filePath     = TemplateManager.getInstance(taskConf.getFirstTmpDirectory()).getPathToGeneratedCode(sorterName).toPath();
-
-		Random randomGenerator = new Random();
-
-		// write a unique token to created sorter
-		String token = "// Testing token:" + randomGenerator.nextInt();
-		Files.write(filePath, token.getBytes(), StandardOpenOption.APPEND);
-
-		// 2nd creation for this comparator
-		createSorter(serializer, comparator, memory);
-
-		// read that file back and check whether the token is still there.
-		byte[] data = Files.readAllBytes(filePath);
-		String str = new String(data, "UTF-8");
-
-		Assert.assertTrue("TemplateManager serves sorter from cache for the 2nd call", str.contains(token));
-
-		this.memoryManager.release(memory);
-	}
 }

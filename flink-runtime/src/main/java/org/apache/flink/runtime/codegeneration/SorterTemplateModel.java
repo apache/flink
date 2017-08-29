@@ -71,7 +71,7 @@ class SorterTemplateModel {
 	 * @param typeComparator
 	 * 		  The type information of underlying data
 	 */
-	public SorterTemplateModel(TypeComparator typeComparator){
+	SorterTemplateModel(TypeComparator typeComparator){
 		this.typeComparator = typeComparator;
 
 		// compute no. bytes for sorting records and check whether this bytes is just prefix or not.
