@@ -41,6 +41,7 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -273,10 +274,12 @@ public class TaskTest extends TestLogger {
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 			ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 			PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
+			TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 			Executor executor = mock(Executor.class);
 			NetworkEnvironment network = mock(NetworkEnvironment.class);
 			when(network.getResultPartitionManager()).thenReturn(partitionManager);
 			when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
+			when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 			doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
 
 			Task task = createTask(TestInvokableCorrect.class, blobService, libCache, network, consumableNotifier, partitionProducerStateChecker, executor);
@@ -629,6 +632,7 @@ public class TaskTest extends TestLogger {
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 
 		PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
+		TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
@@ -636,6 +640,7 @@ public class TaskTest extends TestLogger {
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 			.thenReturn(mock(TaskKvStateRegistry.class));
+		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		createTask(InvokableBlockingInInvoke.class, blobService, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
 
@@ -933,12 +938,14 @@ public class TaskTest extends TestLogger {
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
+		TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 		Executor executor = mock(Executor.class);
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(partitionManager);
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
+		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		return createTask(invokable, blobService, libCache, network, consumableNotifier, partitionProducerStateChecker, executor, config, execConfig);
 	}

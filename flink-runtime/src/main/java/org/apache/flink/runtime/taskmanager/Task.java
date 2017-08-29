@@ -667,12 +667,28 @@ public class Task implements Runnable, TaskActions {
 					.createKvStateTaskRegistry(jobId, getJobVertexId());
 
 			Environment env = new RuntimeEnvironment(
-				jobId, vertexId, executionId, executionConfig, taskInfo,
-				jobConfiguration, taskConfiguration, userCodeClassLoader,
-				memoryManager, ioManager, broadcastVariableManager,
-				accumulatorRegistry, kvStateRegistry, inputSplitProvider,
-				distributedCacheEntries, writers, inputGates,
-				checkpointResponder, taskManagerConfig, metrics, this);
+				jobId,
+				vertexId,
+				executionId,
+				executionConfig,
+				taskInfo,
+				jobConfiguration,
+				taskConfiguration,
+				userCodeClassLoader,
+				memoryManager,
+				ioManager,
+				broadcastVariableManager,
+				accumulatorRegistry,
+				kvStateRegistry,
+				inputSplitProvider,
+				distributedCacheEntries,
+				writers,
+				inputGates,
+				network.getTaskEventDispatcher(),
+				checkpointResponder,
+				taskManagerConfig,
+				metrics,
+				this);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
