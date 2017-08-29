@@ -26,8 +26,10 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.VersionPathParameter;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -135,9 +137,16 @@ public class RestClient {
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);
+
+		VersionPathParameter versionPathParameter = messageParameters.versionPathParameter;
+		// allow requests to specify a specific version themselves
+		if (!versionPathParameter.isResolved()) {
+			versionPathParameter.resolve(RestAPIVersion.getLatestVersion(messageHeaders.getSupportedAPIVersions()));
+		}
 		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
 
-		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
+		String versionedHandlerURL = "/:" + VersionPathParameter.REST_PATH_KEY_VERSION + messageHeaders.getTargetRestEndpointURL();
+		String targetUrl = MessageParameters.resolveUrl(versionedHandlerURL, messageParameters);
 
 		LOG.debug("Sending request of class {} to {}", request.getClass(), targetUrl);
 		// serialize payload

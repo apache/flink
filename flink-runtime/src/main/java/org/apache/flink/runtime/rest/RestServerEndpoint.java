@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.VersionPathParameter;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -185,12 +186,14 @@ public abstract class RestServerEndpoint {
 	}
 
 	private static <R extends RequestBody, P extends ResponseBody> void registerHandler(Router router, AbstractRestHandler<R, P, ?> handler) {
+		String handlerURL = handler.getMessageHeaders().getTargetRestEndpointURL();
+		String versionedHandlerURL = "/:" + VersionPathParameter.REST_PATH_KEY_VERSION + handlerURL;
 		switch (handler.getMessageHeaders().getHttpMethod()) {
 			case GET:
-				router.GET(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				router.GET(versionedHandlerURL, handler);
 				break;
 			case POST:
-				router.POST(handler.getMessageHeaders().getTargetRestEndpointURL(), handler);
+				router.POST(versionedHandlerURL, handler);
 				break;
 		}
 	}

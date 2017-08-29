@@ -24,12 +24,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.EmptyParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.EmptyRequest;
+import org.apache.flink.runtime.rest.messages.EmptyResponse;
+import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
@@ -46,10 +51,14 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
@@ -123,6 +132,40 @@ public class RestEndpointITCase extends TestLogger {
 		Assert.assertEquals(1, response1.get().id);
 	}
 
+	@Test
+	public void testVersioning() throws IOException, ExecutionException, InterruptedException, TimeoutException {
+		EmptyParameters invalidVersionParameters = new EmptyParameters();
+		invalidVersionParameters.versionPathParameter.resolve(RestAPIVersion.V0);
+
+		CompletableFuture<EmptyResponse> invalidVersionResponse = clientEndpoint.sendRequest(
+			serverConfig.getEndpointBindAddress(),
+			serverConfig.getEndpointBindPort(),
+			new VersionTestHeaders(),
+			invalidVersionParameters,
+			new EmptyRequest()
+		);
+
+		try {
+			invalidVersionResponse.get(5, TimeUnit.SECONDS);
+			Assert.fail();
+		} catch (ExecutionException ee) {
+			RestClientException rce = (RestClientException) ee.getCause();
+			Assert.assertEquals("[Not Found.]", rce.getMessage());
+		}
+
+		EmptyParameters unspecifiedVersionParameters = new EmptyParameters();
+
+		CompletableFuture<EmptyResponse> unspecifiedVersionResponse = clientEndpoint.sendRequest(
+			serverConfig.getEndpointBindAddress(),
+			serverConfig.getEndpointBindPort(),
+			new VersionTestHeaders(),
+			unspecifiedVersionParameters,
+			new EmptyRequest()
+		);
+
+		unspecifiedVersionResponse.get(5, TimeUnit.SECONDS);
+	}
+
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
 
 		TestRestServerEndpoint(RestServerEndpointConfiguration configuration) {
@@ -131,7 +174,60 @@ public class RestEndpointITCase extends TestLogger {
 
 		@Override
 		protected Collection<AbstractRestHandler<?, ?, ?>> initializeHandlers() {
-			return Collections.singleton(new InterleavingTestHandler());
+			List<AbstractRestHandler<?, ?, ?>> handlers = new ArrayList<>();
+			handlers.add(new InterleavingTestHandler());
+			handlers.add(new TestHandler());
+			return Collections.unmodifiableList(handlers);
+		}
+	}
+
+	private static class TestHandler extends AbstractRestHandler<EmptyRequest, EmptyResponse, EmptyParameters> {
+
+		TestHandler() {
+			super(new VersionTestHeaders());
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponse> handleRequest(@Nonnull HandlerRequest<EmptyRequest, EmptyParameters> request) throws RestHandlerException {
+			return CompletableFuture.completedFuture(new EmptyResponse());
+		}
+	}
+
+	private static class VersionTestHeaders implements MessageHeaders<EmptyRequest, EmptyResponse, EmptyParameters> {
+
+		@Override
+		public Class<EmptyRequest> getRequestClass() {
+			return EmptyRequest.class;
+		}
+
+		@Override
+		public HttpMethodWrapper getHttpMethod() {
+			return HttpMethodWrapper.GET;
+		}
+
+		@Override
+		public String getTargetRestEndpointURL() {
+			return "/test/versioning";
+		}
+
+		@Override
+		public Class<EmptyResponse> getResponseClass() {
+			return EmptyResponse.class;
+		}
+
+		@Override
+		public HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		public EmptyParameters getUnresolvedMessageParameters() {
+			return new EmptyParameters();
+		}
+
+		@Override
+		public Collection<RestAPIVersion> getSupportedAPIVersions() {
+			return Collections.singleton(RestAPIVersion.V1);
 		}
 	}
 
@@ -192,6 +288,11 @@ public class RestEndpointITCase extends TestLogger {
 		public TestParameters getUnresolvedMessageParameters() {
 			return new TestParameters();
 		}
+
+		@Override
+		public Collection<RestAPIVersion> getSupportedAPIVersions() {
+			return Collections.singleton(RestAPIVersion.V1);
+		}
 	}
 
 	private static class TestRequest implements RequestBody {
@@ -217,13 +318,13 @@ public class RestEndpointITCase extends TestLogger {
 		private final JobIDQueryParameter jobIDQueryParameter = new JobIDQueryParameter();
 
 		@Override
-		public Collection<MessagePathParameter<?>> getPathParameters() {
-			return Collections.singleton(jobIDPathParameter);
+		protected void addPathParameters(Collection<MessagePathParameter<?>> pathParameters) {
+			pathParameters.add(jobIDPathParameter);
 		}
 
 		@Override
-		public Collection<MessageQueryParameter<?>> getQueryParameters() {
-			return Collections.singleton(jobIDQueryParameter);
+		protected void addQueryParameters(Collection<MessageQueryParameter<?>> queryParameters) {
+			queryParameters.add(jobIDQueryParameter);
 		}
 	}
 
