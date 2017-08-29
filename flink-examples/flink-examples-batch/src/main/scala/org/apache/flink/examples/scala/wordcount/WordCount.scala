@@ -22,6 +22,8 @@ import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.wordcount.util.WordCountData
 
+import scala.collection.mutable
+
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram
  * over text files. 
@@ -48,6 +50,8 @@ object WordCount {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
+
+    val t = Types.of[Either[String, Nothing]]
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment

@@ -308,8 +308,8 @@ object Types {
     * @param leftType type information of left side / [[Left]]
     * @param rightType type information of right side / [[Right]]
     */
-  def EITHER(leftType: TypeInformation[_], rightType: TypeInformation[_]): TypeInformation[_] = {
-    new EitherTypeInfo(classOf[Either[_, _]], leftType, rightType)
+  def EITHER[A, B](leftType: TypeInformation[A], rightType: TypeInformation[B]): TypeInformation[_] = {
+    new EitherTypeInfo(classOf[Either[A, B]], leftType, rightType)
   }
 
   /**
@@ -349,7 +349,8 @@ object Types {
   }
 
   /**
-    * Returns type information for Scala collections that implement [[Traversable]].
+    * Returns type information for Scala collections that implement [[Traversable]]. Null values
+    * are not supported.
     */
   def TRAVERSABLE[T: TypeInformation]: TypeInformation[_] = {
     val t = Types.of[T]
