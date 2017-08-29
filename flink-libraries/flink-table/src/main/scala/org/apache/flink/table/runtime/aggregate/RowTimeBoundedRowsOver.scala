@@ -29,9 +29,9 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
-import org.slf4j.{Logger, LoggerFactory}
 
 /**
  * Process Function for ROWS clause event-time bounded OVER window
@@ -49,12 +49,11 @@ class RowTimeBoundedRowsOver(
     rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
-
-  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
   private var output: CRow = _
 

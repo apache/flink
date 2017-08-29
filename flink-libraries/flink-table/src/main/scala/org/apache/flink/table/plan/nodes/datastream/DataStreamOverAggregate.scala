@@ -20,23 +20,23 @@ package org.apache.flink.table.plan.nodes.datastream
 import java.util.{List => JList}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
+import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.nodes.OverAggregate
-import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.table.codegen.AggregationCodeGenerator
+import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -47,8 +47,8 @@ class DataStreamOverAggregate(
     inputSchema: RowSchema)
   extends SingleRel(cluster, traitSet, inputNode)
   with OverAggregate
-  with DataStreamRel {
-  private val LOG = LoggerFactory.getLogger(this.getClass)
+  with DataStreamRel
+  with Logging {
 
   override def deriveRowType(): RelDataType = schema.relDataType
 

@@ -21,10 +21,10 @@ package org.apache.flink.table.runtime
 import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatJoinFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 class FlatJoinRunner[IN1, IN2, OUT](
     name: String,
@@ -32,9 +32,8 @@ class FlatJoinRunner[IN1, IN2, OUT](
     @transient var returnType: TypeInformation[OUT])
   extends RichFlatJoinFunction[IN1, IN2, OUT]
   with ResultTypeQueryable[OUT]
-  with Compiler[FlatJoinFunction[IN1, IN2, OUT]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  with Compiler[FlatJoinFunction[IN1, IN2, OUT]]
+  with Logging {
 
   private var function: FlatJoinFunction[IN1, IN2, OUT] = null
 
