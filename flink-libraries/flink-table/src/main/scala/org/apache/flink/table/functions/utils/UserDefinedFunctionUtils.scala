@@ -19,8 +19,9 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
 import java.lang.{Integer => JInt, Long => JLong}
-import java.lang.reflect.{Method, Modifier}
+import java.lang.reflect.{Field, Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.codec.binary.Base64
@@ -29,7 +30,9 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.dataview._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions._
@@ -37,6 +40,8 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
+
+import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
 
@@ -305,6 +310,91 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
   // Utilities for user-defined functions
   // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Remove StateView fields from accumulator type information.
+    *
+    * @param index index of aggregate function
+    * @param aggFun aggregate function
+    * @param accType accumulator type information, only support pojo type
+    * @param isStateBackedDataViews is data views use state backend
+    * @return mapping of accumulator type information and data view config which contains id,
+    *         field name and state descriptor
+    */
+  def removeStateViewFieldsFromAccTypeInfo(
+    index: Int,
+    aggFun: AggregateFunction[_, _],
+    accType: TypeInformation[_],
+    isStateBackedDataViews: Boolean)
+  : (TypeInformation[_], Option[Seq[DataViewSpec[_]]]) = {
+
+    var hasDataView = false
+    val acc = aggFun.createAccumulator()
+    accType match {
+      case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
+        val arity = pojoType.getArity
+        val newPojoFields = new util.ArrayList[PojoField]()
+        val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec[_]]
+        for (i <- 0 until arity) {
+          val pojoField = pojoType.getPojoFieldAt(i)
+          val field = pojoField.getField
+          val fieldName = field.getName
+          field.setAccessible(true)
+
+          pojoField.getTypeInformation match {
+            case map: MapViewTypeInfo[Any, Any] =>
+              val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
+              if (mapView != null) {
+                val keyTypeInfo = mapView.keyTypeInfo
+                val valueTypeInfo = mapView.valueTypeInfo
+                val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
+                  hasDataView = true
+                  new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
+                } else {
+                  map
+                }
+
+                var spec = MapViewSpec(
+                  "agg" + index + "$" + fieldName, // generate unique name to be used as state name
+                  field,
+                  newTypeInfo)
+
+                accumulatorSpecs += spec
+                if (!isStateBackedDataViews) { // add data view field which not use state backend
+                  newPojoFields.add(new PojoField(field, newTypeInfo))
+                }
+              }
+
+            case list: ListViewTypeInfo[Any] =>
+              val listView = field.get(acc).asInstanceOf[ListView[_]]
+              if (listView != null) {
+                val elementTypeInfo = listView.elementTypeInfo
+                val newTypeInfo = if (elementTypeInfo != null) {
+                  hasDataView = true
+                  new ListViewTypeInfo(elementTypeInfo)
+                } else {
+                  list
+                }
+
+                var spec = ListViewSpec(
+                  "agg" + index + "$" + fieldName, // generate unique name to be used as state name
+                  field,
+                  newTypeInfo)
+
+                accumulatorSpecs += spec
+                if (!isStateBackedDataViews) { // add data view field which not use state backend
+                  newPojoFields.add(new PojoField(field, newTypeInfo))
+                }
+              }
+
+            case _ => newPojoFields.add(pojoField)
+          }
+        }
+        (new PojoTypeInfo(accType.getTypeClass, newPojoFields), Some(accumulatorSpecs))
+
+      case _ if !hasDataView => (accType, None)
+    }
+  }
 
   /**
     * Tries to infer the TypeInformation of an AggregateFunction's return type.
