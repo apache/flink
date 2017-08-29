@@ -49,7 +49,7 @@ import java.util.Map;
  * <p>Depending on the API you are using (e.g. Scala API or Table API), there might be a more
  * specialized <code>Types</code> class.
  *
- * <p>An more convenient alternative might be a {@link TypeHint}.
+ * <p>A more convenient alternative might be a {@link TypeHint}.
  *
  * @see TypeInformation#of(Class) specify type information based on a class that will be analyzed
  * @see TypeInformation#of(TypeHint) specify type information based on a {@link TypeHint}
