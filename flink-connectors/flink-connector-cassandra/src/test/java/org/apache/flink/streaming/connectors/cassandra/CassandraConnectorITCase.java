@@ -36,6 +36,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 
 import com.datastax.driver.core.Cluster;
@@ -459,7 +460,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		sink.open(new Configuration());
 		for (scala.Tuple3<String, Integer, Integer> value : scalaTupleCollection) {
-			sink.invoke(value);
+			sink.invoke(value, SinkContextUtil.forTimestamp(0));
 		}
 		sink.close();
 
