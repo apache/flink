@@ -43,13 +43,8 @@ public class SinkContextUtil {
 			}
 
 			@Override
-			public long timestamp() {
+			public Long timestamp() {
 				return timestamp;
-			}
-
-			@Override
-			public boolean hasTimestamp() {
-				return true;
 			}
 		};
 	}

@@ -31,22 +31,22 @@ import java.io.Serializable;
 public interface SinkFunction<IN> extends Function, Serializable {
 
 	/**
-	 * Function for standard sink behaviour. This function is called for every record.
-	 *
-	 * @param value The input record.
-	 * @throws Exception
 	 * @deprecated Use {@link #invoke(Object, Context)}.
 	 */
 	@Deprecated
-	default void invoke(IN value) throws Exception {
-	}
+	default void invoke(IN value) throws Exception {}
 
 	/**
 	 * Writes the given value to the sink. This function is called for every record.
 	 *
+	 * <p>You have to override this method when implementing a {@code SinkFunction}, this is a
+	 * {@code default} method for backward compatibility with the old-style method only.
+	 *
 	 * @param value The input record.
 	 * @param context Additional context about the input record.
-	 * @throws Exception
+	 *
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
 	 */
 	default void invoke(IN value, Context context) throws Exception {
 		invoke(value);
@@ -72,15 +72,9 @@ public interface SinkFunction<IN> extends Function, Serializable {
 		long currentWatermark();
 
 		/**
-		 * Returns the timestamp of the current input record.
+		 * Returns the timestamp of the current input record or {@code null} if the element does not
+		 * have an assigned timestamp.
 		 */
-		long timestamp();
-
-		/**
-		 * Checks whether this record has a timestamp.
-		 *
-		 * @return True if the record has a timestamp, false if not.
-		 */
-		boolean hasTimestamp();
+		Long timestamp();
 	}
 }

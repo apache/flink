@@ -215,6 +215,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	 * This test sets KafkaProducer so that it will not automatically flush the data and
 	 * simulate network failure between Flink and Kafka to check whether FlinkKafkaProducer
 	 * flushed records manually on snapshotState.
+	 *
+	 * <p>Due to legacy reasons there are two different ways of instantiating a Kafka 0.10 sink. The
+	 * parameter controls which method is used.
 	 */
 	protected void testOneToOneAtLeastOnce(boolean regularSink) throws Exception {
 		final String topic = regularSink ? "oneToOneTopicRegularSink" : "oneToOneTopicCustomOperator";

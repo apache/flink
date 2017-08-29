@@ -96,7 +96,8 @@ public class StreamSinkOperatorTest extends TestLogger {
 		@Override
 		public void invoke(
 			T value, Context context) throws Exception {
-			if (context.hasTimestamp()) {
+			Long timestamp = context.timestamp();
+			if (timestamp != null) {
 				data.add(
 					new Tuple4<>(
 						context.currentWatermark(),

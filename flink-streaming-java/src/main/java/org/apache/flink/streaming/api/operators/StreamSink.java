@@ -91,19 +91,11 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
 		}
 
 		@Override
-		public long timestamp() {
-			if (!element.hasTimestamp()) {
-				throw new IllegalStateException(
-					"Record has no timestamp. Is the time characteristic set to 'ProcessingTime', or " +
-							"did you forget to call 'DataStream.assignTimestampsAndWatermarks(...)'?");
-
+		public Long timestamp() {
+			if (element.hasTimestamp()) {
+				return element.getTimestamp();
 			}
-			return element.getTimestamp();
+			return null;
 		}
-
-		public boolean hasTimestamp() {
-			return element.hasTimestamp();
-		}
-
 	}
 }
