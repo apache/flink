@@ -35,6 +35,52 @@ public interface SinkFunction<IN> extends Function, Serializable {
 	 *
 	 * @param value The input record.
 	 * @throws Exception
+	 * @deprecated Use {@link #invoke(Object, Context)}.
 	 */
-	void invoke(IN value) throws Exception;
+	@Deprecated
+	default void invoke(IN value) throws Exception {
+	}
+
+	/**
+	 * Writes the given value to the sink. This function is called for every record.
+	 *
+	 * @param value The input record.
+	 * @param context Additional context about the input record.
+	 * @throws Exception
+	 */
+	default void invoke(IN value, Context context) throws Exception {
+		invoke(value);
+	}
+
+	/**
+	 * Context that {@link SinkFunction SinkFunctions } can use for getting additional data about
+	 * an input record.
+	 *
+	 * <p>The context is only valid for the duration of a
+	 * {@link SinkFunction#invoke(Object, Context)} call. Do not store the context and use
+	 * afterwards!
+	 *
+	 * @param <T> The type of elements accepted by the sink.
+	 */
+	@Public // Interface might be extended in the future with additional methods.
+	interface Context<T> {
+
+		/** Returns the current processing time. */
+		long currentProcessingTime();
+
+		/** Returns the current event-time watermark. */
+		long currentWatermark();
+
+		/**
+		 * Returns the timestamp of the current input record.
+		 */
+		long timestamp();
+
+		/**
+		 * Checks whether this record has a timestamp.
+		 *
+		 * @return True if the record has a timestamp, false if not.
+		 */
+		boolean hasTimestamp();
+	}
 }

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.rabbitmq.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.connectors.rabbitmq.RMQSink;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
@@ -91,7 +92,7 @@ public class RMQSinkTest {
 	public void invokePublishBytesToQueue() throws Exception {
 		RMQSink<String> rmqSink = createRMQSink();
 
-		rmqSink.invoke(MESSAGE_STR);
+		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
 		verify(serializationSchema).serialize(MESSAGE_STR);
 		verify(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
 	}
@@ -101,7 +102,7 @@ public class RMQSinkTest {
 		RMQSink<String> rmqSink = createRMQSink();
 
 		doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
-		rmqSink.invoke("msg");
+		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
 	}
 
 	@Test
@@ -110,7 +111,7 @@ public class RMQSinkTest {
 		rmqSink.setLogFailuresOnly(true);
 
 		doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
-		rmqSink.invoke("msg");
+		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
 	}
 
 	@Test
