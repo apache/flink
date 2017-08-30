@@ -26,13 +26,17 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.util.Preconditions;
 
 import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.VMTaskFitnessCalculator;
 import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.BalancedHostAttrConstraint;
 import com.netflix.fenzo.plugins.HostAttrValueConstraint;
+
 import org.apache.mesos.Protos;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import scala.Option;
@@ -90,6 +94,10 @@ public class MesosTaskManagerParameters {
 		key("mesos.constraints.hard.hostattribute")
 		.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_CONSTRAINTS_SOFT_BALANCED =
+		key("mesos.constraints.soft.balanced")
+		.noDefaultValue();
+
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -111,6 +119,10 @@ public class MesosTaskManagerParameters {
 
 	private final List<ConstraintEvaluator> constraints;
 
+	private List<VMTaskFitnessCalculator> softConstraints;
+
+	private final List<MesosTaskManagerParameters.BalancedHostAttrConstraintParams> balancedConstraintParams;
+
 	private final String command;
 
 	private final Option<String> bootstrapCommand;
@@ -124,6 +136,7 @@ public class MesosTaskManagerParameters {
 			ContaineredTaskManagerParameters containeredParameters,
 			List<Protos.Volume> containerVolumes,
 			List<ConstraintEvaluator> constraints,
+			List<MesosTaskManagerParameters.BalancedHostAttrConstraintParams> balancedConstraintParams,
 			String command,
 			Option<String> bootstrapCommand,
 			Option<String> taskManagerHostname) {
@@ -134,6 +147,7 @@ public class MesosTaskManagerParameters {
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
 		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
 		this.constraints = Preconditions.checkNotNull(constraints);
+		this.balancedConstraintParams = Preconditions.checkNotNull(balancedConstraintParams);
 		this.command = Preconditions.checkNotNull(command);
 		this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
 		this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
@@ -184,6 +198,25 @@ public class MesosTaskManagerParameters {
 	}
 
 	/**
+	 * Get the balanced constraints parameters.
+	 */
+	public List<MesosTaskManagerParameters.BalancedHostAttrConstraintParams> balancedConstraintParams() {
+		return balancedConstraintParams;
+	}
+
+	/**
+	 * Get the placement soft constraints.
+	 */
+	public List<VMTaskFitnessCalculator> softConstraints() {
+		List<VMTaskFitnessCalculator> softConstraints = new ArrayList<>();
+		for (MesosTaskManagerParameters.BalancedHostAttrConstraintParams param : balancedConstraintParams) {
+			BalancedHostAttrConstraint aConstraint = new BalancedHostAttrConstraint(param.coTasksGetter, param.hostAttr, Integer.parseInt(param.numOfExpectedUniqueValues));
+			softConstraints.add(aConstraint.asSoftConstraint());
+		}
+		return softConstraints;
+	}
+
+	/**
 	 * Get the taskManager hostname.
 	 */
 	public Option<String> getTaskManagerHostname() {
@@ -213,6 +246,7 @@ public class MesosTaskManagerParameters {
 			", containeredParameters=" + containeredParameters +
 			", containerVolumes=" + containerVolumes +
 			", constraints=" + constraints +
+			", softConstraints=" + softConstraints +
 			", taskManagerHostName=" + taskManagerHostname +
 			", command=" + command +
 			", bootstrapCommand=" + bootstrapCommand +
@@ -227,6 +261,8 @@ public class MesosTaskManagerParameters {
 	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
 		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
+		List<MesosTaskManagerParameters.BalancedHostAttrConstraintParams> balancedConstraintParams =
+			parseSoftConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_SOFT_BALANCED));
 		// parse the common parameters
 		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
 			flinkConfig,
@@ -276,6 +312,7 @@ public class MesosTaskManagerParameters {
 			containeredParameters,
 			containerVolumes,
 			constraints,
+			balancedConstraintParams,
 			tmCommand,
 			tmBootstrapCommand,
 			taskManagerHostname);
@@ -310,6 +347,28 @@ public class MesosTaskManagerParameters {
 				return constraintValue;
 			}
 		}));
+	}
+
+	private static List<MesosTaskManagerParameters.BalancedHostAttrConstraintParams> parseSoftConstraints(String mesosConstraints) {
+
+		if (mesosConstraints == null || mesosConstraints.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			List<MesosTaskManagerParameters.BalancedHostAttrConstraintParams> constraints = new ArrayList<>();
+
+			for (String constraint : mesosConstraints.split(",")) {
+				if (constraint.isEmpty()) {
+					continue;
+				}
+				final String[] constraintList = constraint.split("=");
+				if (constraintList.length != 2) {
+					continue;
+				}
+				constraints.add(new MesosTaskManagerParameters.BalancedHostAttrConstraintParams(constraintList[0], constraintList[1]));
+			}
+
+			return constraints;
+		}
 	}
 
 	/**
@@ -362,6 +421,34 @@ public class MesosTaskManagerParameters {
 				}
 			}
 			return volumes;
+		}
+	}
+
+	/**
+	 * Internal class that stores the parsed information about soft constraint
+	 * It encapsulates fields:
+	 * 	1. Host attribute name
+	 * 	2. Expected number of unique values for given host attribute
+	 *	3. A callback coTaskGetter used while evaluating balancing constraint
+	 */
+	static class BalancedHostAttrConstraintParams {
+		String hostAttr;
+		String numOfExpectedUniqueValues;
+
+		Func1<java.lang.String, java.util.Set<java.lang.String>> coTasksGetter;
+
+		public BalancedHostAttrConstraintParams(String hostAttr, String numOfExpectedUniqueValues) {
+			this.hostAttr = hostAttr;
+			this.numOfExpectedUniqueValues = numOfExpectedUniqueValues;
+		}
+
+		public void setCoTasksGetter(Func1<String, Set<String>> coTasksGetter) {
+			this.coTasksGetter = coTasksGetter;
+		}
+
+		@Override
+		public String toString() {
+			return "{ Host Attribute: " + this.hostAttr + ", Number of expected unique values: " + this.numOfExpectedUniqueValues + "}";
 		}
 	}
 

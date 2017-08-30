@@ -55,6 +55,7 @@ import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskScheduler;
 import com.netflix.fenzo.VirtualMachineLease;
 import com.netflix.fenzo.functions.Action1;
+import com.netflix.fenzo.functions.Func1;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.SchedulerDriver;
@@ -63,8 +64,10 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import scala.Option;
 
@@ -663,6 +666,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	// ------------------------------------------------------------------------
 
 	private LaunchableMesosWorker createLaunchableMesosWorker(Protos.TaskID taskID) {
+		setCoTaskGetter();
 		LaunchableMesosWorker launchable =
 			new LaunchableMesosWorker(
 				artifactResolver,
@@ -672,6 +676,42 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 				mesosConfig);
 
 		return launchable;
+	}
+
+	/**
+	 * Sets a coTaskGetter callback for evaluating balancing constraint.
+	 */
+	private void setCoTaskGetter() {
+		for (MesosTaskManagerParameters.BalancedHostAttrConstraintParams param : taskManagerParameters.balancedConstraintParams()) {
+			param.setCoTasksGetter(new Func1<String, Set<String>>() {
+				@Override
+				public Set<String> call(String s) {
+					Map<String, Set<String>> taskToCoTasksMap = new HashMap<>();
+					Set <String> taskIds = getTaskIdsSet();
+					for (String taskId : taskIds) {
+						Set <String> coTaskIds = new HashSet<>(taskIds);
+						coTaskIds.remove(taskId);
+						taskToCoTasksMap.put(taskId, coTaskIds);
+					}
+					return taskToCoTasksMap.get(s);
+				}
+			});
+		}
+	}
+
+	/**
+	 * Compiles the set of task IDs in new/launch state.
+	 * @return The unique TaskIDs
+	 */
+	private Set<String> getTaskIdsSet() {
+		Set<String> taskIds = new HashSet<String>();
+		List <MesosWorkerStore.Worker> workers = new ArrayList<MesosWorkerStore.Worker>();
+		workers.addAll(this.workersInNew.values());
+		workers.addAll(this.workersInLaunch.values());
+		for (MesosWorkerStore.Worker worker : workers) {
+			taskIds.add(worker.taskID().getValue());
+		}
+		return taskIds;
 	}
 
 	/**

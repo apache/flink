@@ -155,7 +155,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public List<? extends VMTaskFitnessCalculator> getSoftConstraints() {
-			return null;
+			return params.softConstraints();
 		}
 
 		@Override

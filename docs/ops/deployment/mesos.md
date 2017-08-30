@@ -226,6 +226,10 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target
 mesos agents.  Example: `az:eu-west-1a,series:t2`
 
+`mesos.constraints.soft.balanced`: Soft Constraints for balancing the tasks across mesos based on agent attributes (**DEFAULT**: None).
+Takes a comma-separated list of key=value pairs. Key corresponds to host attribute and value is number of expected unique values for given host attribute.
+Example: `az=3,rack_id=4`
+
 `mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
 May be set to -1 to disable this feature.
 
