@@ -121,10 +121,10 @@ class LaunchCoordinatorTest
       .setId(offerID)
       .setSlaveId(slave._1)
       .setHostname(slave._2)
-      .addResources(scalar("cpus", 0.75))
-      .addResources(scalar("mem", 4096.0))
-      .addResources(scalar("disk", 1024.0))
-      .addResources(ranges("ports", range(9000, 9001)))
+      .addResources(scalar("cpus", "*", 0.75))
+      .addResources(scalar("mem", "*", 4096.0))
+      .addResources(scalar("disk", "*", 1024.0))
+      .addResources(ranges("ports", "*", range(9000, 9001)))
       .build()
   }
 
