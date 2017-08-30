@@ -17,24 +17,84 @@
 
 package org.apache.flink.contrib.streaming;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.api.windowing.windows.WindowTypeInformation;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A collection of utilities for {@link DataStream DataStreams}.
  */
 public final class DataStreamUtils {
+
+	/**
+	 * Setups a aggregation with pre aggregation stop on a given {@link WindowedStream} using a
+	 * {@link PreAggregationOperator}. Please check {@link PreAggregationOperator} for more specific information
+	 * (including limitations).
+	 *
+	 * <p>Supplied {@link AggregateFunction} and {@link WindowAssigner} will be decomposed into two separate steps,
+	 * one for pre aggregation and second for final aggregation. In final aggregation step only merging of previously
+	 * created windows and accumulators will happen.
+	 */
+	public static <K, IN, ACC, OUT, W extends Window> SingleOutputStreamOperator<OUT> aggregateWithPreAggregation(
+			DataStream<IN> input,
+			KeySelector<IN, K> keySelector,
+			AggregateFunction<IN, ACC, OUT> aggregateFunction,
+			WindowAssigner<? super IN, W> windowAssigner,
+			boolean flushAllOnWatermarks) {
+
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input.getType());
+		TypeInformation<W> windowType = new WindowTypeInformation<>(windowAssigner);
+		TypeInformation<ACC> accumulatorType = TypeExtractor.getAggregateFunctionAccumulatorType(
+			aggregateFunction, input.getType(), null, false);
+		TupleTypeInfo<Tuple3<K, W, ACC>> intermediateResultType = new TupleTypeInfo<>(
+			keyType,
+			windowType,
+			accumulatorType);
+		TypeInformation<OUT> resultType = TypeExtractor.getAggregateFunctionReturnType(
+			aggregateFunction, input.getType(), null, false);
+
+		PreAggregationOperator<K, IN, ACC, W> preAggregationOperator = new PreAggregationOperator<>(
+			aggregateFunction,
+			keySelector,
+			keyType,
+			accumulatorType,
+			windowAssigner,
+			flushAllOnWatermarks);
+
+		return input
+			.transform(preAggregationOperator.toString(), intermediateResultType, preAggregationOperator)
+			.keyBy(0)
+			.window(new FinalAggregationWindowAssigner<>(windowAssigner))
+			.aggregate(new FinalAggregationFunction<>(aggregateFunction), accumulatorType, resultType);
+	}
 
 	/**
 	 * Returns an iterator to iterate over the elements of the DataStream.
@@ -98,6 +158,73 @@ public final class DataStreamUtils {
 			catch (Throwable t) {
 				toNotify.notifyOfError(t);
 			}
+		}
+	}
+
+	/**
+	 * This wraps the supplied {@link WindowAssigner}, so that it can be used on final aggregation step after
+	 * {@link PreAggregationOperator}.
+	 */
+	@PublicEvolving
+	public static class FinalAggregationWindowAssigner<W extends Window> extends WindowAssigner<Tuple3<?, W, ?>, W> {
+		private WindowAssigner<?, W> preAggregationWindowAssigner;
+
+		public FinalAggregationWindowAssigner(WindowAssigner<?, W> preAggregationWindowAssigner) {
+			this.preAggregationWindowAssigner = preAggregationWindowAssigner;
+		}
+
+		@Override
+		public Collection<W> assignWindows(Tuple3<?, W, ?> element, long timestamp, WindowAssignerContext context) {
+			return Collections.singleton(element.f1);
+		}
+
+		@Override
+		public Trigger<Tuple3<?, W, ?>, W> getDefaultTrigger(StreamExecutionEnvironment env) {
+			return (Trigger<Tuple3<?, W, ?>, W>) preAggregationWindowAssigner.getDefaultTrigger(env);
+		}
+
+		@Override
+		public TypeSerializer<W> getWindowSerializer(ExecutionConfig executionConfig) {
+			return preAggregationWindowAssigner.getWindowSerializer(executionConfig);
+		}
+
+		@Override
+		public boolean isEventTime() {
+			return preAggregationWindowAssigner.isEventTime();
+		}
+	}
+
+	/**
+	 * This wraps the supplied {@link AggregateFunction}, so that it can be used on final aggregation step after
+	 * {@link PreAggregationOperator}.
+	 */
+	@PublicEvolving
+	public static class FinalAggregationFunction<K, W extends Window, ACC, OUT>
+			implements AggregateFunction<Tuple3<K, W, ACC>, ACC, OUT> {
+		private AggregateFunction<?, ACC, OUT> aggregateFunction;
+
+		public FinalAggregationFunction(AggregateFunction<?, ACC, OUT> aggregateFunction) {
+			this.aggregateFunction = checkNotNull(aggregateFunction);
+		}
+
+		@Override
+		public ACC createAccumulator() {
+			return aggregateFunction.createAccumulator();
+		}
+
+		@Override
+		public ACC add(Tuple3<K, W, ACC> value, ACC accumulator) {
+			return aggregateFunction.merge(value.f2, accumulator);
+		}
+
+		@Override
+		public OUT getResult(ACC accumulator) {
+			return aggregateFunction.getResult(accumulator);
+		}
+
+		@Override
+		public ACC merge(ACC a, ACC b) {
+			return aggregateFunction.merge(a, b);
 		}
 	}
 
