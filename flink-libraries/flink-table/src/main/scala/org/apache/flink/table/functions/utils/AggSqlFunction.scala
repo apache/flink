@@ -95,7 +95,9 @@ object AggSqlFunction {
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
           .getOrElse(
             throw new ValidationException(
-              s"Operand types of ${signatureToString(operandTypeInfo)} could not be inferred."))
+              s"Given parameters of function do not match any signature. \n" +
+                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
           .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
