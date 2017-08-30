@@ -29,7 +29,8 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, Ta
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
-import org.apache.flink.table.runtime.join.{ProcTimeWindowInnerJoin, WindowJoinUtil}
+import org.apache.flink.table.runtime.join.{JoinTimeIndicator, ProcTimeWindowInnerJoin, TimeBoundedStreamInnerJoin, WindowJoinUtil}
+import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
@@ -48,6 +49,8 @@ class DataStreamWindowJoin(
     isRowTime: Boolean,
     leftLowerBound: Long,
     leftUpperBound: Long,
+    leftTimeIdx: Int,
+    rightTimeIdx: Int,
     remainCondition: Option[RexNode],
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
@@ -70,6 +73,8 @@ class DataStreamWindowJoin(
       isRowTime,
       leftLowerBound,
       leftUpperBound,
+      leftTimeIdx,
+      rightTimeIdx,
       remainCondition,
       ruleDescription)
   }
@@ -127,8 +132,14 @@ class DataStreamWindowJoin(
       case JoinRelType.INNER =>
         if (isRowTime) {
           // RowTime JoinCoProcessFunction
-          throw new TableException(
-            "RowTime inner join between stream and stream is not supported yet.")
+          createRowTimeInnerJoinFunction(
+            leftDataStream,
+            rightDataStream,
+            joinFunction.name,
+            joinFunction.code,
+            leftKeys,
+            rightKeys
+          )
         } else {
           // Proctime JoinCoProcessFunction
           createProcTimeInnerJoinFunction(
@@ -179,6 +190,56 @@ class DataStreamWindowJoin(
       leftDataStream.connect(rightDataStream)
         .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow]())
         .process(procInnerJoinFunc)
+        .setParallelism(1)
+        .setMaxParallelism(1)
+        .returns(returnTypeInfo)
+    }
+  }
+
+  def createRowTimeInnerJoinFunction(
+    leftDataStream: DataStream[CRow],
+    rightDataStream: DataStream[CRow],
+    joinFunctionName: String,
+    joinFunctionCode: String,
+    leftKeys: Array[Int],
+    rightKeys: Array[Int]): DataStream[CRow] = {
+
+    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
+
+    val rowTimeInnerJoinFunc = new TimeBoundedStreamInnerJoin(
+      leftLowerBound,
+      leftUpperBound,
+      0L,
+      leftSchema.typeInfo,
+      rightSchema.typeInfo,
+      joinFunctionName,
+      joinFunctionCode,
+      leftTimeIdx,
+      rightTimeIdx,
+      JoinTimeIndicator.ROWTIME
+    )
+
+    if (!leftKeys.isEmpty) {
+      leftDataStream
+        .connect(rightDataStream)
+        .keyBy(leftKeys, rightKeys)
+        .transform(
+          "rowTimeInnerJoinFunc",
+          returnTypeInfo,
+          new KeyedCoProcessOperatorWithWatermarkDelay[CRow, CRow, CRow, CRow](
+            rowTimeInnerJoinFunc,
+            rowTimeInnerJoinFunc.getMaxOutputDelay)
+        ).returns(returnTypeInfo)
+    } else {
+      leftDataStream.connect(rightDataStream)
+        .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow])
+        .transform(
+          "rowTimeInnerJoinFunc",
+          returnTypeInfo,
+          new KeyedCoProcessOperatorWithWatermarkDelay[CRow, CRow, CRow, CRow](
+            rowTimeInnerJoinFunc,
+            rowTimeInnerJoinFunc.getMaxOutputDelay)
+        )
         .setParallelism(1)
         .setMaxParallelism(1)
         .returns(returnTypeInfo)
