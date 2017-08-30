@@ -264,6 +264,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
 		recoveredStreamElements = context
 			.getOperatorStateStore()
 			.getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
