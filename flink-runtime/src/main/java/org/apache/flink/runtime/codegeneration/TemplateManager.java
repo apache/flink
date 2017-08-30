@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.codegeneration;
 
-import org.apache.flink.util.FileUtils;
-
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -28,7 +26,6 @@ import freemarker.template.TemplateExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -60,7 +57,7 @@ public class TemplateManager {
 	 * Constructor.
 	 * @throws IOException
 	 */
-	private TemplateManager(String generatedCodeDir) throws IOException {
+	private TemplateManager() throws IOException {
 		templateConf = new Configuration();
 		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
@@ -74,9 +71,9 @@ public class TemplateManager {
 	 * @return
 	 * @throws IOException
 	 */
-	public static synchronized TemplateManager getInstance(String temporaryDir) throws IOException {
+	public static synchronized TemplateManager getInstance() throws IOException {
 		if (templateManager == null){
-			templateManager = new TemplateManager(temporaryDir);
+			templateManager = new TemplateManager();
 		}
 
 		return templateManager;

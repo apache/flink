@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.codegeneration.SorterFactory;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.util.MutableObjectIterator;
 
 import freemarker.template.TemplateException;
@@ -80,8 +78,7 @@ public class CodeGenerationSorterBaseTest {
 	@Before
 	public void beforeTest() throws IOException {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
-		TaskManagerConfiguration taskConf = TaskManagerConfiguration.fromConfiguration(new Configuration());
-		this.sorterFactory = SorterFactory.getInstance(taskConf);
+		this.sorterFactory = SorterFactory.getInstance();
 
 		Assert.assertTrue("Code generation for sorter is enabled", executionConfig.isCodeGenerationForSorterEnabled());
 	}
