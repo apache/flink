@@ -53,7 +53,7 @@ class GroupWindowTest extends TableTestBase {
         term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
         term("select",
           "COUNT(*) AS EXPR$0, " +
-            "weightedAvg(c, a) AS wAvg, " +
+            "myWeightedAvg(c, a) AS wAvg, " +
             "start('w$) AS w$start, " +
             "end('w$) AS w$end")
       )
@@ -81,7 +81,7 @@ class GroupWindowTest extends TableTestBase {
         term("window", SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)),
         term("select",
           "COUNT(*) AS EXPR$0, " +
-            "weightedAvg(c, a) AS wAvg, " +
+            "myWeightedAvg(c, a) AS wAvg, " +
             "start('w$) AS w$start, " +
             "end('w$) AS w$end")
       )
@@ -110,7 +110,7 @@ class GroupWindowTest extends TableTestBase {
         term("window", SessionGroupWindow('w$, 'proctime, 900000.millis)),
         term("select",
           "COUNT(*) AS EXPR$0, " +
-            "weightedAvg(c, a) AS wAvg, " +
+            "myWeightedAvg(c, a) AS wAvg, " +
             "start('w$) AS w$start, " +
             "end('w$) AS w$end")
       )

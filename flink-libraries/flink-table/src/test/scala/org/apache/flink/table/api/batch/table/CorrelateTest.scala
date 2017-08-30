@@ -21,7 +21,6 @@ package org.apache.flink.table.api.batch.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.runtime.utils._
 import org.apache.flink.table.utils.{TableFunc1, TableTestBase}
 import org.junit.Test
 
@@ -41,7 +40,8 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("function", function),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
+        term("select", "a,b,c,s"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -61,7 +61,8 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
-        term("function", function),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c,'$$'))"),
+        term("select", "a,b,c,s"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -86,7 +87,8 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("function", function),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
+        term("select", "a,b,c,s"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "LEFT")

@@ -238,7 +238,7 @@ class TableSourceTest extends TableTestBase {
         Array("name", "id", "amount", "price"),
         "'amount > 2"),
       term("select", "price", "id", "amount"),
-      term("where", s"<(${func.functionIdentifier}(amount), 32)")
+      term("where", s"<(${Func0.getClass.getSimpleName}(amount), 32)")
     )
 
     util.verifyTable(result, expected)

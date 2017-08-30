@@ -183,17 +183,25 @@ trait CommonCorrelate {
   }
 
   private[flink] def correlateOpName(
+      inputType: RelDataType,
       rexCall: RexCall,
       sqlFunction: TableSqlFunction,
-      rowType: RelDataType)
+      rowType: RelDataType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String)
     : String = {
 
-    s"correlate: ${correlateToString(rexCall, sqlFunction)}, select: ${selectToString(rowType)}"
+    s"correlate: ${correlateToString(inputType, rexCall, sqlFunction, expression)}," +
+      s" select: ${selectToString(rowType)}"
   }
 
-  private[flink] def correlateToString(rexCall: RexCall, sqlFunction: TableSqlFunction): String = {
-    val udtfName = sqlFunction.getName
-    val operands = rexCall.getOperands.asScala.map(_.toString).mkString(",")
+  private[flink] def correlateToString(
+      inputType: RelDataType,
+      rexCall: RexCall,
+      sqlFunction: TableSqlFunction,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    val inFields = inputType.getFieldNames.asScala.toList
+    val udtfName = sqlFunction.toString
+    val operands = rexCall.getOperands.asScala.map(expression(_, inFields, None)).mkString(",")
     s"table($udtfName($operands))"
   }
 

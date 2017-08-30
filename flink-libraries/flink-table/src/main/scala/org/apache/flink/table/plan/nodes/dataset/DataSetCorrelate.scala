@@ -76,7 +76,7 @@ class DataSetCorrelate(
   override def toString: String = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(rexCall, sqlFunction)
+    correlateToString(joinRowType, rexCall, sqlFunction, getExpressionString)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -84,7 +84,11 @@ class DataSetCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
-      .item("function", sqlFunction.getTableFunction.getClass.getCanonicalName)
+      .item("correlate", correlateToString(
+        inputNode.getRowType,
+        rexCall, sqlFunction,
+        getExpressionString))
+      .item("select", selectToString(relRowType))
       .item("rowType", relRowType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
@@ -102,8 +106,6 @@ class DataSetCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = Some(sqlFunction.getPojoFieldMapping)
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
-
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val flatMap = generateFunction(
       config,
@@ -131,6 +133,14 @@ class DataSetCorrelate(
       collector.code,
       flatMap.returnType)
 
-    inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
+    inputDS
+      .flatMap(mapFunc)
+      .name(correlateOpName(
+        inputNode.getRowType,
+        rexCall,
+        sqlFunction,
+        relRowType,
+        getExpressionString)
+      )
   }
 }

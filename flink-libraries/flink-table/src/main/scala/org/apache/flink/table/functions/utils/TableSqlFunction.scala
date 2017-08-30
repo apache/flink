@@ -66,6 +66,8 @@ class TableSqlFunction(
   def getPojoFieldMapping: Array[Int] = functionImpl.fieldIndexes
 
   override def isDeterministic: Boolean = tableFunction.isDeterministic
+
+  override def toString: String = tableFunction.toString
 }
 
 object TableSqlFunction {

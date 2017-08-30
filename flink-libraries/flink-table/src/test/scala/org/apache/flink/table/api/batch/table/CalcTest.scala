@@ -88,10 +88,10 @@ class CalcTest extends TableTestBase {
       "DataSetCalc",
       batchTableNode(0),
       term("select",
-        s"${giveMeCaseClass.functionIdentifier}().my AS _c0",
-        s"${giveMeCaseClass.functionIdentifier}().clazz AS _c1",
-        s"${giveMeCaseClass.functionIdentifier}().my AS _c2",
-        s"${giveMeCaseClass.functionIdentifier}().clazz AS _c3"
+        "giveMeCaseClass$().my AS _c0",
+        "giveMeCaseClass$().clazz AS _c1",
+        "giveMeCaseClass$().my AS _c2",
+        "giveMeCaseClass$().clazz AS _c3"
       )
     )
 
@@ -171,7 +171,7 @@ class CalcTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select", s"${MyHashCode.functionIdentifier}(c) AS _c0", "b")
+      term("select", "MyHashCode$(c) AS _c0", "b")
     )
 
     util.verifyTable(resultTable, expected)
@@ -283,7 +283,7 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", s"${MyHashCode.functionIdentifier}(c) AS k")
+            term("select", "a", "c", "MyHashCode$(c) AS k")
           ),
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
