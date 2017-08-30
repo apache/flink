@@ -38,7 +38,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -59,54 +61,66 @@ public class RestEndpointITCase extends TestLogger {
 	private static final String JOB_ID_KEY = "jobid";
 	private static final Time timeout = Time.seconds(10L);
 
-	@Test
-	public void testEndpoints() throws ConfigurationException, IOException, InterruptedException, ExecutionException {
+	private static RestServerEndpointConfiguration serverConfig;
+	private static TestRestServerEndpoint serverEndpoint;
+	private static RestClient clientEndpoint;
+
+	@BeforeClass
+	public static void startEndpoints() throws ConfigurationException {
 		Configuration config = new Configuration();
 
-		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+		serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
-		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig);
-		RestClient clientEndpoint = new TestRestClient(clientConfig);
+		serverEndpoint = new TestRestServerEndpoint(serverConfig);
+		clientEndpoint = new RestClient(clientConfig, TestingUtils.defaultExecutor());
 
-		try {
-			serverEndpoint.start();
+		serverEndpoint.start();
+	}
 
-			TestParameters parameters = new TestParameters();
-			parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
-			parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
-
-			// send first request and wait until the handler blocks
-			CompletableFuture<TestResponse> response1;
-			synchronized (TestHandler.LOCK) {
-				response1 = clientEndpoint.sendRequest(
-					serverConfig.getEndpointBindAddress(),
-					serverConfig.getEndpointBindPort(),
-					new TestHeaders(),
-					parameters,
-					new TestRequest(1));
-				TestHandler.LOCK.wait();
-			}
-
-			// send second request and verify response
-			CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(
-				serverConfig.getEndpointBindAddress(),
-				serverConfig.getEndpointBindPort(),
-				new TestHeaders(),
-				parameters,
-				new TestRequest(2));
-			Assert.assertEquals(2, response2.get().id);
-
-			// wake up blocked handler
-			synchronized (TestHandler.LOCK) {
-				TestHandler.LOCK.notifyAll();
-			}
-			// verify response to first request
-			Assert.assertEquals(1, response1.get().id);
-		} finally {
-			clientEndpoint.shutdown(timeout);
+	@AfterClass
+	public static void shutdownEndpoints() {
+		if (serverEndpoint != null) {
 			serverEndpoint.shutdown(timeout);
 		}
+		if (clientEndpoint != null) {
+			clientEndpoint.shutdown(timeout);
+		}
+	}
+
+	@Test
+	public void testInterleavingRequests() throws ConfigurationException, IOException, InterruptedException, ExecutionException {
+		TestParameters parameters = new TestParameters();
+		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
+		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+
+		// send first request and wait until the handler blocks
+		CompletableFuture<TestResponse> response1;
+		synchronized (InterleavingTestHandler.LOCK) {
+			response1 = clientEndpoint.sendRequest(
+				serverConfig.getEndpointBindAddress(),
+				serverConfig.getEndpointBindPort(),
+				new InterleavingTestHeaders(),
+				parameters,
+				new TestRequest(1));
+			InterleavingTestHandler.LOCK.wait();
+		}
+
+		// send second request and verify response
+		CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(
+			serverConfig.getEndpointBindAddress(),
+			serverConfig.getEndpointBindPort(),
+			new InterleavingTestHeaders(),
+			parameters,
+			new TestRequest(2));
+		Assert.assertEquals(2, response2.get().id);
+
+		// wake up blocked handler
+		synchronized (InterleavingTestHandler.LOCK) {
+			InterleavingTestHandler.LOCK.notifyAll();
+		}
+		// verify response to first request
+		Assert.assertEquals(1, response1.get().id);
 	}
 
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
@@ -117,16 +131,16 @@ public class RestEndpointITCase extends TestLogger {
 
 		@Override
 		protected Collection<AbstractRestHandler<?, ?, ?>> initializeHandlers() {
-			return Collections.singleton(new TestHandler());
+			return Collections.singleton(new InterleavingTestHandler());
 		}
 	}
 
-	private static class TestHandler extends AbstractRestHandler<TestRequest, TestResponse, TestParameters> {
+	private static class InterleavingTestHandler extends AbstractRestHandler<TestRequest, TestResponse, TestParameters> {
 
 		public static final Object LOCK = new Object();
 
-		TestHandler() {
-			super(new TestHeaders());
+		InterleavingTestHandler() {
+			super(new InterleavingTestHeaders());
 		}
 
 		@Override
@@ -147,32 +161,7 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
-	private static class TestRestClient extends RestClient {
-
-		TestRestClient(RestClientConfiguration configuration) {
-			super(configuration, TestingUtils.defaultExecutor());
-		}
-	}
-
-	private static class TestRequest implements RequestBody {
-		public final int id;
-
-		@JsonCreator
-		public TestRequest(@JsonProperty("id") int id) {
-			this.id = id;
-		}
-	}
-
-	private static class TestResponse implements ResponseBody {
-		public final int id;
-
-		@JsonCreator
-		public TestResponse(@JsonProperty("id") int id) {
-			this.id = id;
-		}
-	}
-
-	private static class TestHeaders implements MessageHeaders<TestRequest, TestResponse, TestParameters> {
+	private static class InterleavingTestHeaders implements MessageHeaders<TestRequest, TestResponse, TestParameters> {
 
 		@Override
 		public HttpMethodWrapper getHttpMethod() {
@@ -181,7 +170,7 @@ public class RestEndpointITCase extends TestLogger {
 
 		@Override
 		public String getTargetRestEndpointURL() {
-			return "/test/:jobid";
+			return "/test/interleaving/:jobid";
 		}
 
 		@Override
@@ -202,6 +191,24 @@ public class RestEndpointITCase extends TestLogger {
 		@Override
 		public TestParameters getUnresolvedMessageParameters() {
 			return new TestParameters();
+		}
+	}
+
+	private static class TestRequest implements RequestBody {
+		public final int id;
+
+		@JsonCreator
+		public TestRequest(@JsonProperty("id") int id) {
+			this.id = id;
+		}
+	}
+
+	private static class TestResponse implements ResponseBody {
+		public final int id;
+
+		@JsonCreator
+		public TestResponse(@JsonProperty("id") int id) {
+			this.id = id;
 		}
 	}
 
