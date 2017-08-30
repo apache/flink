@@ -56,8 +56,6 @@ abstract class ScalarFunction extends UserDefinedFunction {
     ScalarFunctionCall(this, params)
   }
 
-  override def toString: String = getClass.getCanonicalName
-
   // ----------------------------------------------------------------------------------------------
 
   /**
