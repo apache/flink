@@ -29,12 +29,14 @@ import java.io.IOException;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 /**
  * This class contains unit tests for the {@link BlobKey} class.
  */
-public final class BlobKeyTest {
+public final class BlobKeyTest extends TestLogger {
 	/**
 	 * The first key array to be used during the unit tests.
 	 */

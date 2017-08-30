@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -31,8 +32,9 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
-import akka.actor.ActorSystem;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -47,6 +49,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Utilities for the web runtime monitor. This class contains for example methods to build
@@ -79,14 +82,14 @@ public final class WebMonitorUtils {
 
 			if (logFilePath == null) {
 				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-				logFilePath = config.getString(JobManagerOptions.WEB_LOG_PATH);
+				logFilePath = config.getString(WebOptions.LOG_PATH);
 			}
 
 			// not configured, cannot serve log files
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, JobManagerOptions.WEB_LOG_PATH.key());
+					logEnv, WebOptions.LOG_PATH);
 				return new LogFileLocation(null, null);
 			}
 
@@ -119,27 +122,39 @@ public final class WebMonitorUtils {
 	 *
 	 * @param config The configuration for the runtime monitor.
 	 * @param highAvailabilityServices HighAvailabilityServices used to start the WebRuntimeMonitor
-	 * @param actorSystem ActorSystem used to connect to the JobManager
-	 *
+	 * @param jobManagerRetriever which retrieves the currently leading JobManager
+	 * @param queryServiceRetriever which retrieves the query service
+	 * @param timeout for asynchronous operations
+	 * @param executor to run asynchronous operations
 	 */
 	public static WebMonitor startWebRuntimeMonitor(
 			Configuration config,
 			HighAvailabilityServices highAvailabilityServices,
-			ActorSystem actorSystem) {
+			JobManagerRetriever jobManagerRetriever,
+			MetricQueryServiceRetriever queryServiceRetriever,
+			Time timeout,
+			Executor executor) {
 		// try to load and instantiate the class
 		try {
 			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
 			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
 
-			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(Configuration.class,
+			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(
+				Configuration.class,
 				LeaderRetrievalService.class,
 				BlobView.class,
-				ActorSystem.class);
+				JobManagerRetriever.class,
+				MetricQueryServiceRetriever.class,
+				Time.class,
+				Executor.class);
 			return constructor.newInstance(
 				config,
 				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 				highAvailabilityServices.createBlobStore(),
-				actorSystem);
+				jobManagerRetriever,
+				queryServiceRetriever,
+				timeout,
+				executor);
 		} catch (ClassNotFoundException e) {
 			LOG.error("Could not load web runtime monitor. " +
 					"Probably reason: flink-runtime-web is not in the classpath");

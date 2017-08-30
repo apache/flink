@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import scala.concurrent.ExecutionContext;
 
 import static org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler.PARAMETER_JOB_ID;
 import static org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler.PARAMETER_VERTEX_ID;
@@ -50,7 +50,11 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 
 	@Test
 	public void getMapFor() throws Exception {
-		MetricFetcher fetcher = new MetricFetcher(mock(ActorSystem.class), mock(JobManagerRetriever.class), mock(ExecutionContext.class));
+		MetricFetcher fetcher = new MetricFetcher(
+			mock(JobManagerRetriever.class),
+			mock(MetricQueryServiceRetriever.class),
+			Executors.directExecutor(),
+			TestingUtils.TIMEOUT());
 		MetricStore store = MetricStoreTest.setupStore(fetcher.getMetricStore());
 
 		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);
@@ -68,7 +72,11 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 
 	@Test
 	public void getMapForNull() {
-		MetricFetcher fetcher = new MetricFetcher(mock(ActorSystem.class), mock(JobManagerRetriever.class), mock(ExecutionContext.class));
+		MetricFetcher fetcher = new MetricFetcher(
+			mock(JobManagerRetriever.class),
+			mock(MetricQueryServiceRetriever.class),
+			Executors.directExecutor(),
+			TestingUtils.TIMEOUT());
 		MetricStore store = fetcher.getMetricStore();
 
 		JobVertexMetricsHandler handler = new JobVertexMetricsHandler(fetcher);

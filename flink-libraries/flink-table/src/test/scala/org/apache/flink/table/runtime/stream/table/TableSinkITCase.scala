@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.stream.table
 
 import java.io.File
 import java.lang.{Boolean => JBool}
+import java.sql.Timestamp
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -28,19 +29,22 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.runtime.utils.StreamTestData
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
@@ -199,8 +203,6 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
   }
 
-
-
   @Test
   def testUpsertSinkOnAppendingTableWithFullKey1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -347,6 +349,136 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       "6,4",
       "6,2").sorted
     assertEquals(expected, retracted)
+  }
+
+  @Test
+  def testToAppendStreamRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get3TupleDataStream(env)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+
+    val r = t
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('num, 'w)
+      .select('num, 'w.rowtime, 'w.rowtime.cast(Types.LONG))
+
+    r.toAppendStream[Row]
+      .process(new ProcessFunction[Row, Row] {
+        override def processElement(
+          row: Row,
+          ctx: ProcessFunction[Row, Row]#Context,
+          out: Collector[Row]): Unit = {
+
+          val rowTS: Long = row.getField(2).asInstanceOf[Long]
+          if (ctx.timestamp() == rowTS) {
+            out.collect(row)
+          }
+        }
+      }).addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = List(
+      "1,1970-01-01 00:00:00.004,4",
+      "2,1970-01-01 00:00:00.004,4",
+      "3,1970-01-01 00:00:00.004,4",
+      "3,1970-01-01 00:00:00.009,9",
+      "4,1970-01-01 00:00:00.009,9",
+      "4,1970-01-01 00:00:00.014,14",
+      "5,1970-01-01 00:00:00.014,14",
+      "5,1970-01-01 00:00:00.019,19",
+      "6,1970-01-01 00:00:00.019,19",
+      "6,1970-01-01 00:00:00.024,24")
+
+    assertEquals(expected, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testToRetractStreamRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get3TupleDataStream(env)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+
+    val r = t
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('num, 'w)
+      .select('num, 'w.rowtime, 'w.rowtime.cast(Types.LONG))
+
+    r.toRetractStream[Row]
+      .process(new ProcessFunction[(Boolean, Row), Row] {
+        override def processElement(
+          row: (Boolean, Row),
+          ctx: ProcessFunction[(Boolean, Row), Row]#Context,
+          out: Collector[Row]): Unit = {
+
+          val rowTs = row._2.getField(2).asInstanceOf[Long]
+          if (ctx.timestamp() == rowTs) {
+            out.collect(row._2)
+          }
+        }
+      }).addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = List(
+      "1,1970-01-01 00:00:00.004,4",
+      "2,1970-01-01 00:00:00.004,4",
+      "3,1970-01-01 00:00:00.004,4",
+      "3,1970-01-01 00:00:00.009,9",
+      "4,1970-01-01 00:00:00.009,9",
+      "4,1970-01-01 00:00:00.014,14",
+      "5,1970-01-01 00:00:00.014,14",
+      "5,1970-01-01 00:00:00.019,19",
+      "6,1970-01-01 00:00:00.019,19",
+      "6,1970-01-01 00:00:00.024,24")
+
+    assertEquals(expected, StreamITCase.testResults.sorted)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testToAppendStreamMultiRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = StreamTestData.get3TupleDataStream(env)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+
+    val r = t
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('num, 'w)
+      .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
+
+    r.toAppendStream[Row]
+  }
+
+  @Test(expected = classOf[TableException])
+  def testToRetractStreamMultiRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = StreamTestData.get3TupleDataStream(env)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+
+    val r = t
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('num, 'w)
+      .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
+
+    r.toRetractStream[Row]
   }
 
   /** Converts a list of retraction messages into a list of final results. */

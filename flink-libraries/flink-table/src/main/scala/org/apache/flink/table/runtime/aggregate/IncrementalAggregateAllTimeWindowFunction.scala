@@ -29,13 +29,15 @@ import org.apache.flink.util.Collector
   *
   * Computes the final aggregate value from incrementally computed aggregates.
   *
-  * @param windowStartPos the start position of window
-  * @param windowEndPos   the end position of window
+  * @param windowStartOffset the offset of the window start property
+  * @param windowEndOffset   the offset of the window end property
+  * @param windowRowtimeOffset the offset of the window rowtime property
   * @param finalRowArity  The arity of the final output row.
   */
 class IncrementalAggregateAllTimeWindowFunction(
-    private val windowStartPos: Option[Int],
-    private val windowEndPos: Option[Int],
+    private val windowStartOffset: Option[Int],
+    private val windowEndOffset: Option[Int],
+    private val windowRowtimeOffset: Option[Int],
     private val finalRowArity: Int)
   extends IncrementalAggregateAllWindowFunction[TimeWindow](
     finalRowArity) {
@@ -43,7 +45,10 @@ class IncrementalAggregateAllTimeWindowFunction(
   private var collector: CRowTimeWindowPropertyCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    collector = new CRowTimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new CRowTimeWindowPropertyCollector(
+      windowStartOffset,
+      windowEndOffset,
+      windowRowtimeOffset)
     super.open(parameters)
   }
 

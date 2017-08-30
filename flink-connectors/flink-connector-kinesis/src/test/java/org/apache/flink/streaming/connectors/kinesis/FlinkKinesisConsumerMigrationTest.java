@@ -18,100 +18,133 @@
 package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 
-import com.amazonaws.services.kinesis.model.Shard;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
-import java.net.URL;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for checking whether {@link FlinkKinesisConsumer} can restore from snapshots that were
- * done using the Flink 1.1 {@code FlinkKinesisConsumer}.
+ * done using an older {@code FlinkKinesisConsumer}.
+ *
+ * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the corresponding
+ * Flink release-* branch.
  */
+@RunWith(Parameterized.class)
 public class FlinkKinesisConsumerMigrationTest {
 
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on the writeSnapshot() method to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
+
+	private static final HashMap<StreamShardMetadata, SequenceNumber> TEST_STATE = new HashMap<>();
+	static {
+		StreamShardMetadata shardMetadata = new StreamShardMetadata();
+		shardMetadata.setStreamName("fakeStream1");
+		shardMetadata.setShardId(KinesisShardIdGenerator.generateFromShardOrder(0));
+
+		TEST_STATE.put(shardMetadata, new SequenceNumber("987654321"));
+	}
+
+	private final MigrationVersion testMigrateVersion;
+
+	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
+	public static Collection<MigrationVersion> parameters () {
+		return Arrays.asList(MigrationVersion.v1_3);
+	}
+
+	public FlinkKinesisConsumerMigrationTest(MigrationVersion testMigrateVersion) {
+		this.testMigrateVersion = testMigrateVersion;
+	}
+
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	public void testRestoreFromFlink11WithEmptyState() throws Exception {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+	public void writeSnapshot() throws Exception {
+		writeSnapshot("src/test/resources/kinesis-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-snapshot", TEST_STATE);
 
-		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(testConfig);
+		// write empty state snapshot
+		writeSnapshot("src/test/resources/kinesis-consumer-migration-test-flink" + flinkGenerateSavepointVersion + "-empty-snapshot", new HashMap<>());
+	}
 
-		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator = new StreamSource<>(consumerFunction);
+	@Test
+	public void testRestoreWithEmptyState() throws Exception {
+		final DummyFlinkKinesisConsumer<String> consumerFunction = new DummyFlinkKinesisConsumer<>(mock(KinesisDataFetcher.class));
+
+		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator = new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
 			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
 
-		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
 		testHarness.setup();
-		// restore state from binary snapshot file using legacy method
-		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kinesis-consumer-migration-test-flink1.1-empty-snapshot"));
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-empty-snapshot", testMigrateVersion);
 		testHarness.open();
 
 		// assert that no state was restored
-		assertEquals(null, consumerFunction.getRestoredState());
+		assertTrue(consumerFunction.getRestoredState().isEmpty());
 
 		consumerOperator.close();
 		consumerOperator.cancel();
 	}
 
 	@Test
-	public void testRestoreFromFlink11() throws Exception {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+	public void testRestore() throws Exception {
+		final DummyFlinkKinesisConsumer<String> consumerFunction = new DummyFlinkKinesisConsumer<>(mock(KinesisDataFetcher.class));
 
-		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(testConfig);
-
-		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
+		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator =
 			new StreamSource<>(consumerFunction);
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
 			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
 
-		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
 		testHarness.setup();
-		// restore state from binary snapshot file using legacy method
-		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kinesis-consumer-migration-test-flink1.1-snapshot"));
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-snapshot", testMigrateVersion);
 		testHarness.open();
 
-		// the expected state in "kafka-consumer-migration-test-flink1.1-snapshot"
-		final HashMap<StreamShardMetadata, SequenceNumber> expectedState = new HashMap<>();
-		expectedState.put(KinesisStreamShard.convertToStreamShardMetadata(new KinesisStreamShard("fakeStream1",
-				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)))),
-			new SequenceNumber("987654321"));
-
-		// assert that state is correctly restored from legacy checkpoint
+		// assert that state is correctly restored
 		assertNotEquals(null, consumerFunction.getRestoredState());
 		assertEquals(1, consumerFunction.getRestoredState().size());
-		assertEquals(expectedState, consumerFunction.getRestoredState());
+		assertEquals(TEST_STATE, consumerFunction.getRestoredState());
 
 		consumerOperator.close();
 		consumerOperator.cancel();
@@ -119,31 +152,87 @@ public class FlinkKinesisConsumerMigrationTest {
 
 	// ------------------------------------------------------------------------
 
-	private static String getResourceFilename(String filename) {
-		ClassLoader cl = FlinkKinesisConsumerMigrationTest.class.getClassLoader();
-		URL resource = cl.getResource(filename);
-		if (resource == null) {
-			throw new NullPointerException("Missing snapshot resource.");
+	@SuppressWarnings("unchecked")
+	private void writeSnapshot(String path, HashMap<StreamShardMetadata, SequenceNumber> state) throws Exception {
+		final OneShotLatch latch = new OneShotLatch();
+
+		final KinesisDataFetcher<String> fetcher = mock(KinesisDataFetcher.class);
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				latch.trigger();
+				return null;
+			}
+		}).when(fetcher).runFetcher();
+		when(fetcher.snapshotState()).thenReturn(state);
+
+		final DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(fetcher);
+
+		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator = new StreamSource<>(consumer);
+
+		final AbstractStreamOperatorTestHarness<String> testHarness =
+				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+
+		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
+		testHarness.setup();
+		testHarness.open();
+
+		final AtomicReference<Throwable> error = new AtomicReference<>();
+
+		// run the source asynchronously
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					consumer.run(mock(SourceFunction.SourceContext.class));
+				} catch (Throwable t) {
+					t.printStackTrace();
+					error.set(t);
+				}
+			}
+		};
+		runner.start();
+
+		if (!latch.isTriggered()) {
+			latch.await();
 		}
-		return resource.getFile();
+
+		final OperatorStateHandles snapshot;
+		synchronized (testHarness.getCheckpointLock()) {
+			snapshot = testHarness.snapshot(0L, 0L);
+		}
+
+		OperatorSnapshotUtil.writeStateHandle(snapshot, path);
+
+		consumerOperator.close();
+		runner.join();
 	}
 
-	private static class DummyFlinkKafkaConsumer<T> extends FlinkKinesisConsumer<T> {
-		private static final long serialVersionUID = 1L;
+	private static class DummyFlinkKinesisConsumer<T> extends FlinkKinesisConsumer<T> {
 
-		@SuppressWarnings("unchecked")
-		DummyFlinkKafkaConsumer(Properties properties) {
-			super("test", mock(KinesisDeserializationSchema.class), properties);
+		private KinesisDataFetcher<T> mockFetcher;
+
+		private static Properties dummyConfig = new Properties();
+		static {
+			dummyConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+			dummyConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+			dummyConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		}
+
+		DummyFlinkKinesisConsumer(KinesisDataFetcher<T> mockFetcher) {
+			super("dummy-topic", mock(KinesisDeserializationSchema.class), dummyConfig);
+			this.mockFetcher = mockFetcher;
 		}
 
 		@Override
 		protected KinesisDataFetcher<T> createFetcher(
 				List<String> streams,
-				SourceFunction.SourceContext<T> sourceContext,
+				SourceContext<T> sourceContext,
 				RuntimeContext runtimeContext,
 				Properties configProps,
-				KinesisDeserializationSchema<T> deserializationSchema) {
-			return mock(KinesisDataFetcher.class);
+				KinesisDeserializationSchema<T> deserializer) {
+			return mockFetcher;
 		}
 	}
 }

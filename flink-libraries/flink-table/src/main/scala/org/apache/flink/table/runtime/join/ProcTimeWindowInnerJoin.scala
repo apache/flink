@@ -30,9 +30,9 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * A CoProcessFunction to support stream join stream, currently just support inner-join
@@ -55,7 +55,8 @@ class ProcTimeWindowInnerJoin(
     private val genJoinFuncName: String,
     private val genJoinFuncCode: String)
   extends CoProcessFunction[CRow, CRow, CRow]
-    with Compiler[FlatJoinFunction[Row, Row, Row]]{
+    with Compiler[FlatJoinFunction[Row, Row, Row]]
+    with Logging {
 
   private var cRowWrapper: CRowWrappingCollector = _
 
@@ -79,8 +80,6 @@ class ProcTimeWindowInnerJoin(
   // window size of -1 means rows do not need to be put into state.
   private val leftStreamWinSize: Long = if (leftLowerBound <= 0) -leftLowerBound else -1
   private val rightStreamWinSize: Long = if (leftUpperBound >= 0) leftUpperBound else -1
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +

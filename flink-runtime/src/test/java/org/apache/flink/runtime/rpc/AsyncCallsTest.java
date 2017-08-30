@@ -67,7 +67,7 @@ public class AsyncCallsTest extends TestLogger {
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService, lock);
 		testEndpoint.start();
-		TestGateway gateway = testEndpoint.getSelf();
+		TestGateway gateway = testEndpoint.getSelfGateway(TestGateway.class);
 
 		// a bunch of gateway calls
 		gateway.someCall();
@@ -108,7 +108,7 @@ public class AsyncCallsTest extends TestLogger {
 		assertFalse("Rpc Endpoint had concurrent access", testEndpoint.hasConcurrentAccess());
 		assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
 
-		akkaRpcService.stopServer(testEndpoint.getSelf());
+		testEndpoint.shutDown();
 	}
 
 	@Test
@@ -174,7 +174,7 @@ public class AsyncCallsTest extends TestLogger {
 	}
 
 	@SuppressWarnings("unused")
-	public static class TestEndpoint extends RpcEndpoint<TestGateway> {
+	public static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
 		private final ReentrantLock lock;
 
@@ -185,7 +185,7 @@ public class AsyncCallsTest extends TestLogger {
 			this.lock = lock;
 		}
 
-		@RpcMethod
+		@Override
 		public void someCall() {
 			boolean holdsLock = lock.tryLock();
 			if (holdsLock) {
@@ -195,7 +195,7 @@ public class AsyncCallsTest extends TestLogger {
 			}
 		}
 
-		@RpcMethod
+		@Override
 		public void anotherCall() {
 			boolean holdsLock = lock.tryLock();
 			if (holdsLock) {

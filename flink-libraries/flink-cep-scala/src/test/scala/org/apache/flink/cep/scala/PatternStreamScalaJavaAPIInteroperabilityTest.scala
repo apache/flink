@@ -21,14 +21,16 @@ import org.apache.flink.api.common.functions.util.ListCollector
 import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap}
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation}
 import org.apache.flink.util.{Collector, TestLogger}
 import org.apache.flink.types.{Either => FEither}
 import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
-
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 import java.util.{List => JList}
+
+import org.apache.flink.cep.operator.{FlatSelectCepOperator, FlatSelectTimeoutCepOperator, SelectCepOperator}
+import org.apache.flink.streaming.api.functions.co.CoMapFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
@@ -51,8 +53,8 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
         assertEquals(param, pattern)
         param.get("begin").get(0)
       })
-    val out = extractUserFunction[StreamMap[JMap[String, JList[(Int, Int)]], (Int, Int)]](result)
-      .getUserFunction.map(param.mapValues(_.asJava).asJava)
+    val out = extractUserFunction[SelectCepOperator[(Int, Int), Byte, (Int, Int)]](result)
+      .getUserFunction.select(param.mapValues(_.asJava).asJava)
     //verifies output parameter forwarding
     assertEquals(param.get("begin").get(0), out)
   }
@@ -77,8 +79,8 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
         out.collect(pattern.get("begin").get.head)
       })
 
-    extractUserFunction[StreamFlatMap[java.util.Map[String, JList[List[Int]]], List[Int]]](result).
-      getUserFunction.flatMap(inParam.mapValues(_.asJava).asJava, outParam)
+    extractUserFunction[FlatSelectCepOperator[List[Int], Byte, List[Int]]](result).
+      getUserFunction.flatSelect(inParam.mapValues(_.asJava).asJava, outParam)
     //verify output parameter forwarding and that flatMap function was actually called
     assertEquals(inList, outList.get(0))
   }
@@ -96,28 +98,26 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
     val expectedOutput = List(Right("match"), Right("barfoo"), Left("timeout"), Left("barfoo"))
       .asJava
 
-    val result: DataStream[Either[String, String]] = pStream.flatSelect {
-        (pattern: Map[String, Iterable[String]], timestamp: Long, out: Collector[String]) =>
-          out.collect("timeout")
-          out.collect(pattern("begin").head)
+    val outputTag = OutputTag[Either[String, String]]("timeouted")
+    val result: DataStream[Either[String, String]] = pStream.flatSelect(outputTag) {
+        (pattern: Map[String, Iterable[String]], timestamp: Long,
+         out: Collector[Either[String, String]]) =>
+          out.collect(Left("timeout"))
+          out.collect(Left(pattern("begin").head))
       } {
-        (pattern: Map[String, Iterable[String]], out: Collector[String]) =>
+        (pattern: Map[String, Iterable[String]], out: Collector[Either[String, String]]) =>
           //verifies input parameter forwarding
           assertEquals(inParam, pattern)
-          out.collect("match")
-          out.collect(pattern("begin").head)
+          out.collect(Right("match"))
+          out.collect(Right(pattern("begin").head))
       }
 
-    val fun = extractUserFunction[
-      StreamFlatMap[
-        FEither[
-          FTuple2[JMap[String, JList[String]], JLong],
-          JMap[String, JList[String]]],
-        Either[String, String]]](result)
+    val fun = extractUserFunction[FlatSelectTimeoutCepOperator[String, Either[String, String],
+      Either[String, String], Byte]](
+      result).getUserFunction
 
-    fun.getUserFunction.flatMap(FEither.Right(inParam.mapValues(_.asJava).asJava), output)
-    fun.getUserFunction.flatMap(FEither.Left(FTuple2.of(inParam.mapValues(_.asJava).asJava, 42L)),
-                                output)
+    fun.getFlatSelectFunction.flatSelect(inParam.mapValues(_.asJava).asJava, output)
+    fun.getFlatTimeoutFunction.timeout(inParam.mapValues(_.asJava).asJava, 42L, output)
 
     assertEquals(expectedOutput, outList)
   }
@@ -129,4 +129,5 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
       .getOperator
       .asInstanceOf[T]
   }
+
 }

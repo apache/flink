@@ -87,7 +87,7 @@ class DataStreamWindowJoinRule
     val (windowBounds, remainCondition) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
         joinInfo.getRemaining(join.getCluster.getRexBuilder),
-        leftRowSchema.logicalArity,
+        leftRowSchema.arity,
         join.getRowType,
         join.getCluster.getRexBuilder,
         TableConfig.DEFAULT)

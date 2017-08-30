@@ -192,7 +192,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	protected ActorRef createTaskRouter() {
 		return context().actorOf(
-			Tasks.createActorProps(Tasks.class, config, schedulerDriver, TaskMonitor.class),
+			Tasks.createActorProps(Tasks.class, self(), config, schedulerDriver, TaskMonitor.class),
 			"tasks");
 	}
 

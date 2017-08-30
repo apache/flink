@@ -305,6 +305,16 @@ public class FutureUtils {
 		return new FiniteDuration(time.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
+	/**
+	 * Converts {@link FiniteDuration} into Flink time.
+	 *
+	 * @param finiteDuration to convert into Flink time
+	 * @return Flink time with the length of the given finite duration
+	 */
+	public static Time toTime(FiniteDuration finiteDuration) {
+		return Time.milliseconds(finiteDuration.toMillis());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Converting futures
 	// ------------------------------------------------------------------------

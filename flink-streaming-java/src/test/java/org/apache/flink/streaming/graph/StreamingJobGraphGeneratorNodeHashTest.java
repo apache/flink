@@ -437,7 +437,8 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		StreamGraph streamGraph = env.getStreamGraph();
 		int idx = 1;
 		for (JobVertex jobVertex : streamGraph.getJobGraph().getVertices()) {
-			Assert.assertEquals(jobVertex.getIdAlternatives().get(1).toString(), userHashes.get(idx));
+			List<JobVertexID> idAlternatives = jobVertex.getIdAlternatives();
+			Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
 			--idx;
 		}
 	}

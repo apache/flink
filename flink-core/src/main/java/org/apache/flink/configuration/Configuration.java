@@ -79,7 +79,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns the class associated with the given key as a string.
 	 * 

@@ -163,8 +163,9 @@ In FlinkCEP, looping patterns can be specified using these methods: `pattern.one
 more occurrences of a given event (e.g. the `b+` mentioned previously); and `pattern.times(#ofTimes)`, for patterns that
 expect a specific number of occurrences of a given type of event, e.g. 4 `a`'s; and `pattern.times(#fromTimes, #toTimes)`,
 for patterns that expect a specific minimum number of occurrences and maximum number of occurrences of a given type of event,
-e.g. 2-4 `a`s. All patterns, looping or not, can be made optional using the `pattern.optional()` method. For a pattern
-named `start`, the following are valid quantifiers:
+e.g. 2-4 `a`s. Looping patterns can be made greedy using the `pattern.greedy()` method and group pattern cannot be made greedy
+currently. All patterns, looping or not, can be made optional using the `pattern.optional()` method.
+For a pattern named `start`, the following are valid quantifiers:
 
  <div class="codetabs" markdown="1">
  <div data-lang="java" markdown="1">
@@ -178,14 +179,35 @@ named `start`, the following are valid quantifiers:
  // expecting 2, 3 or 4 occurrences
  start.times(2, 4);
 
+ // expecting 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).greedy();
+
  // expecting 0, 2, 3 or 4 occurrences
  start.times(2, 4).optional();
+
+ // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).optional().greedy();
 
  // expecting 1 or more occurrences
  start.oneOrMore();
 
+ // expecting 1 or more occurrences and repeating as many as possible
+ start.oneOrMore().greedy();
+
  // expecting 0 or more occurrences
  start.oneOrMore().optional();
+
+ // expecting 0 or more occurrences and repeating as many as possible
+ start.oneOrMore().optional().greedy();
+
+ // expecting 2 or more occurrences
+ start.timesOrMore(2);
+
+ // expecting 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).greedy();
+
+ // expecting 0, 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).optional().greedy();
  {% endhighlight %}
  </div>
 
@@ -200,14 +222,38 @@ named `start`, the following are valid quantifiers:
  // expecting 2, 3 or 4 occurrences
  start.times(2, 4);
 
+ // expecting 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).greedy();
+
  // expecting 0, 2, 3 or 4 occurrences
  start.times(2, 4).optional();
+
+ // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+ start.times(2, 4).optional().greedy();
 
  // expecting 1 or more occurrences
  start.oneOrMore()
 
+ // expecting 1 or more occurrences and repeating as many as possible
+ start.oneOrMore().greedy();
+
  // expecting 0 or more occurrences
  start.oneOrMore().optional()
+
+ // expecting 0 or more occurrences and repeating as many as possible
+ start.oneOrMore().optional().greedy();
+
+ // expecting 2 or more occurrences
+ start.timesOrMore(2);
+
+ // expecting 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).greedy();
+
+ // expecting 0, 2 or more occurrences
+ start.timesOrMore(2).optional();
+
+ // expecting 0, 2 or more occurrences and repeating as many as possible
+ start.timesOrMore(2).optional().greedy();
  {% endhighlight %}
  </div>
  </div>
@@ -477,6 +523,18 @@ pattern.oneOrMore();
 {% endhighlight %}
           </td>
        </tr>
+           <tr>
+              <td><strong>timesOrMore(#times)</strong></td>
+              <td>
+                  <p>Specifies that this pattern expects at least <strong>#times</strong> occurrences
+                  of a matching event.</p>
+                  <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
+                  internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
+{% highlight java %}
+pattern.timesOrMore(2);
+{% endhighlight %}
+           </td>
+       </tr>
        <tr>
           <td><strong>times(#ofTimes)</strong></td>
           <td>
@@ -507,6 +565,16 @@ pattern.times(2, 4);
               aforementioned quantifiers.</p>
 {% highlight java %}
 pattern.oneOrMore().optional();
+{% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>greedy()</strong></td>
+          <td>
+              <p>Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
+              to quantifiers and it does not support group pattern currently.</p>
+{% highlight java %}
+pattern.oneOrMore().greedy();
 {% endhighlight %}
           </td>
        </tr>
@@ -648,6 +716,18 @@ pattern.oneOrMore()
           </td>
        </tr>
        <tr>
+          <td><strong>timesOrMore(#times)</strong></td>
+          <td>
+              <p>Specifies that this pattern expects at least <strong>#times</strong> occurrences
+              of a matching event.</p>
+              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
+              internal contiguity see <a href="#consecutive_scala">consecutive</a>.</p>
+{% highlight scala %}
+pattern.timesOrMore(2)
+{% endhighlight %}
+           </td>
+       </tr>
+       <tr>
                  <td><strong>times(#ofTimes)</strong></td>
                  <td>
                      <p>Specifies that this pattern expects an exact number of occurrences of a matching event.</p>
@@ -677,6 +757,16 @@ pattern.times(2, 4);
                            aforementioned quantifiers.</p>
 {% highlight scala %}
 pattern.oneOrMore().optional()
+{% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>greedy()</strong></td>
+          <td>
+             <p>Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
+             to quantifiers and it does not support group pattern currently.</p>
+{% highlight scala %}
+pattern.oneOrMore().greedy()
 {% endhighlight %}
           </td>
        </tr>
@@ -1279,63 +1369,75 @@ and `flatSelect` API calls allow a timeout handler to be specified. This timeout
 partial event sequence. The timeout handler receives all the events that have been matched so far by the pattern, and
 the timestamp when the timeout was detected.
 
+In order to treat partial patterns, the `select` and `flatSelect` API calls offer an overloaded version which takes as
+parameters
+
+ * `PatternTimeoutFunction`/`PatternFlatTimeoutFunction`
+ * [OutputTag]({{ site.baseurl }}/dev/stream/side_output.html) for the side output in which the timeouted matches will be returned
+ * and the known `PatternSelectFunction`/`PatternFlatSelectFunction`.
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-In order to treat partial patterns, the `select` and `flatSelect` API calls offer an overloaded version which takes as
-the first parameter a `PatternTimeoutFunction`/`PatternFlatTimeoutFunction` and as second parameter the known
-`PatternSelectFunction`/`PatternFlatSelectFunction`. The return type of the timeout function can be different from the
-select function. The timeout event and the select event are wrapped in `Either.Left` and `Either.Right` respectively
-so that the resulting data stream is of type `org.apache.flink.types.Either`.
 
-{% highlight java %}
+~~~java
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
-DataStream<Either<TimeoutEvent, ComplexEvent>> result = patternStream.select(
+OutputTag<String> outputTag = new OutputTag<String>("side-output"){};
+
+SingleOutputStreamOperator<ComplexEvent> result = patternStream.select(
     new PatternTimeoutFunction<Event, TimeoutEvent>() {...},
+    outputTag,
     new PatternSelectFunction<Event, ComplexEvent>() {...}
 );
 
-DataStream<Either<TimeoutEvent, ComplexEvent>> flatResult = patternStream.flatSelect(
+DataStream<TimeoutEvent> timeoutResult = result.getSideOutput(outputTag);
+
+SingleOutputStreamOperator<ComplexEvent> flatResult = patternStream.flatSelect(
     new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {...},
+    outputTag,
     new PatternFlatSelectFunction<Event, ComplexEvent>() {...}
 );
-{% endhighlight %}
+
+DataStream<TimeoutEvent> timeoutFlatResult = flatResult.getSideOutput(outputTag);
+~~~
 
 </div>
 
 <div data-lang="scala" markdown="1">
-In order to treat partial patterns, the `select` API call offers an overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
-The timeout function is called with a map of string-event pairs of the partial match which has timed out and a long indicating when the timeout occurred.
-The string is defined by the name of the pattern to which the event has been matched.
-The timeout function returns exactly one result per call.
-The return type of the timeout function can be different from the select function.
-The timeout event and the select event are wrapped in `Left` and `Right` respectively so that the resulting data stream is of type `Either`.
 
-{% highlight scala %}
+~~~scala
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
-DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.select{
+val outputTag = OutputTag[String]("side-output")
+
+val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.select(outputTag){
     (pattern: Map[String, Iterable[Event]], timestamp: Long) => TimeoutEvent()
 } {
     pattern: Map[String, Iterable[Event]] => ComplexEvent()
 }
-{% endhighlight %}
+
+val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag);
+~~~
 
 The `flatSelect` API call offers the same overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
 In contrast to the `select` functions, the `flatSelect` functions are called with a `Collector`.
 The collector can be used to emit an arbitrary number of events.
 
-{% highlight scala %}
+~~~scala
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
-DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect{
+val outputTag = OutputTag[String]("side-output")
+
+val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(outputTag){
     (pattern: Map[String, Iterable[Event]], timestamp: Long, out: Collector[TimeoutEvent]) =>
         out.collect(TimeoutEvent())
 } {
     (pattern: mutable.Map[String, Iterable[Event]], out: Collector[ComplexEvent]) =>
         out.collect(ComplexEvent())
 }
-{% endhighlight %}
+
+val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag);
+~~~
 
 </div>
 </div>

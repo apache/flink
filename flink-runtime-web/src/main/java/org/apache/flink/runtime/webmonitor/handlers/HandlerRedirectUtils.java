@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
@@ -30,13 +31,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import scala.Tuple2;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,35 +45,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class HandlerRedirectUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HandlerRedirectUtils.class);
-
-	/** Pattern to extract the host from an remote Akka URL. */
-	private static final Pattern LeaderAddressHostPattern = Pattern.compile("^.+@(.+):([0-9]+)/user/.+$");
-
 	public static String getRedirectAddress(
 			String localJobManagerAddress,
-			Tuple2<ActorGateway, Integer> leader) throws Exception {
+			JobManagerGateway jobManagerGateway,
+			Time timeout) throws Exception {
 
-		final String leaderAddress = leader._1().path();
-		final int webMonitorPort = leader._2();
+		final String leaderAddress = jobManagerGateway.getAddress();
 
 		final String jobManagerName = localJobManagerAddress.substring(localJobManagerAddress.lastIndexOf("/") + 1);
 
 		if (!localJobManagerAddress.equals(leaderAddress) &&
 			!leaderAddress.equals(AkkaUtils.getLocalAkkaURL(jobManagerName))) {
 			// We are not the leader and need to redirect
-			Matcher matcher = LeaderAddressHostPattern.matcher(leaderAddress);
+			final String hostname = jobManagerGateway.getHostname();
 
-			if (matcher.matches()) {
-				String redirectAddress = String.format("%s:%d", matcher.group(1), webMonitorPort);
-				return redirectAddress;
-			}
-			else {
-				LOG.warn("Unexpected leader address pattern {}. Cannot extract host.", leaderAddress);
-			}
+			final CompletableFuture<Integer> webMonitorPortFuture = jobManagerGateway.requestWebPort(timeout);
+			final int webMonitorPort = webMonitorPortFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			return String.format("%s:%d", hostname, webMonitorPort);
+		} else {
+			return null;
 		}
-
-		return null;
 	}
 
 	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) throws Exception {

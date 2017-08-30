@@ -21,7 +21,6 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1Serializer;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 
 import java.io.DataInputStream;
@@ -53,7 +52,8 @@ public class OperatorSnapshotUtil {
 
 			dos.writeInt(state.getOperatorChainIndex());
 
-			SavepointV1Serializer.serializeStreamStateHandle(state.getLegacyOperatorState(), dos);
+			// still required for compatibility
+			SavepointV1Serializer.serializeStreamStateHandle(null, dos);
 
 			Collection<OperatorStateHandle> rawOperatorState = state.getRawOperatorState();
 			if (rawOperatorState != null) {
@@ -108,7 +108,8 @@ public class OperatorSnapshotUtil {
 		try (DataInputStream dis = new DataInputStream(in)) {
 			int index = dis.readInt();
 
-			StreamStateHandle legacyState = SavepointV1Serializer.deserializeStreamStateHandle(dis);
+			// still required for compatibility to consume the bytes.
+			SavepointV1Serializer.deserializeStreamStateHandle(dis);
 
 			List<OperatorStateHandle> rawOperatorState = null;
 			int numRawOperatorStates = dis.readInt();
@@ -154,7 +155,12 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
-			return new OperatorStateHandles(index, legacyState, managedKeyedState, rawKeyedState, managedOperatorState, rawOperatorState);
+			return new OperatorStateHandles(
+				index,
+				managedKeyedState,
+				rawKeyedState,
+				managedOperatorState,
+				rawOperatorState);
 		}
 	}
 }

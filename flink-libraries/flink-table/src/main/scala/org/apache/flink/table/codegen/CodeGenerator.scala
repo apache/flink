@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -36,11 +37,13 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.codegen.calls.{BuiltInMethods, FunctionGenerator}
-import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.functions.{FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
+
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 import scala.collection.JavaConversions._
@@ -55,10 +58,11 @@ import scala.collection.mutable
   * @param nullableInput input(s) can be null.
   * @param input1 type information about the first input of the Function
   * @param input2 type information about the second input if the Function is binary
-  * @param input1FieldMapping additional mapping information for input1
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
-  * @param input2FieldMapping additional mapping information for input2
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
+  * @param input1FieldMapping additional mapping information for input1.
+  *   POJO types have no deterministic field order and some input fields might not be read.
+  *   The input1FieldMapping is also used to inject time indicator attributes.
+  * @param input2FieldMapping additional mapping information for input2.
+  *   POJO types have no deterministic field order and some input fields might not be read.
   */
 abstract class CodeGenerator(
     config: TableConfig,
@@ -105,31 +109,31 @@ abstract class CodeGenerator(
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableMemberStatements = mutable.LinkedHashSet[String]()
+  protected val reusableMemberStatements = mutable.LinkedHashSet[String]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableInitStatements = mutable.LinkedHashSet[String]()
+  protected val reusableInitStatements = mutable.LinkedHashSet[String]()
 
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableOpenStatements = mutable.LinkedHashSet[String]()
+  protected val reusableOpenStatements = mutable.LinkedHashSet[String]()
 
   // set of close statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableCloseStatements = mutable.LinkedHashSet[String]()
+  protected val reusableCloseStatements = mutable.LinkedHashSet[String]()
 
   // set of statements that will be added only once per record
   // we use a LinkedHashSet to keep the insertion order
-  private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+  protected val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
-  private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
+  protected val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  private val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
+  protected val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
 
   /**
     * @return code block of statements that need to be placed in the member area of the Function
@@ -244,16 +248,23 @@ abstract class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
-    val input1AccessExprs = input1Mapping.map { idx =>
-      generateInputAccess(input1, input1Term, idx)
+
+    val input1AccessExprs = input1Mapping.map {
+      case TimeIndicatorTypeInfo.ROWTIME_MARKER =>
+        // attribute is a rowtime indicator. Access event-time timestamp in StreamRecord.
+        generateRowtimeAccess()
+      case TimeIndicatorTypeInfo.PROCTIME_MARKER =>
+        // attribute is proctime indicator.
+        // We use a null literal and generate a timestamp when we need it.
+        generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
+      case idx =>
+        // regular attribute. Access attribute in input data type.
+        generateInputAccess(input1, input1Term, idx)
     }
 
     val input2AccessExprs = input2 match {
       case Some(ti) =>
-        input2Mapping.map { idx =>
-          generateInputAccess(ti, input2Term, idx)
-        }.toSeq
-
+        input2Mapping.map(idx => generateInputAccess(ti, input2Term, idx)).toSeq
       case None => Seq() // add nothing
     }
 
@@ -318,13 +329,13 @@ abstract class CodeGenerator(
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException(
-        s"Arity[${returnType.getArity}] of result type[$returnType] does not match " +
-        s"number[${fieldExprs.length}] of expressions[$fieldExprs].")
+        s"Arity [${returnType.getArity}] of result type [$returnType] does not match " +
+        s"number [${fieldExprs.length}] of expressions [$fieldExprs].")
     }
     if (resultFieldNames.length != fieldExprs.length) {
       throw new CodeGenException(
-        s"Arity[${resultFieldNames.length}] of result field names[$resultFieldNames] does not " +
-        s"match number[${fieldExprs.length}] of expressions[$fieldExprs].")
+        s"Arity [${resultFieldNames.length}] of result field names [$resultFieldNames] does not " +
+        s"match number [${fieldExprs.length}] of expressions [$fieldExprs].")
     }
     // type check
     returnType match {
@@ -332,8 +343,8 @@ abstract class CodeGenerator(
         fieldExprs.zipWithIndex foreach {
           case (fieldExpr, i) if fieldExpr.resultType != pt.getTypeAt(resultFieldNames(i)) =>
             throw new CodeGenException(
-              s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
-              s"[${fieldExpr.resultType}], result type is [${pt.getTypeAt(resultFieldNames(i))}]")
+              s"Incompatible types of expression and result type. Expression [$fieldExpr] type is" +
+              s" [${fieldExpr.resultType}], result type is [${pt.getTypeAt(resultFieldNames(i))}]")
 
           case _ => // ok
         }
@@ -349,7 +360,7 @@ abstract class CodeGenerator(
 
       case at: AtomicType[_] if at != fieldExprs.head.resultType =>
         throw new CodeGenException(
-          s"Incompatible types of expression and result type. Expression[${fieldExprs.head}] " +
+          s"Incompatible types of expression and result type. Expression [${fieldExprs.head}] " +
           s"type is [${fieldExprs.head.resultType}], result type is [$at]")
 
       case _ => // ok
@@ -669,7 +680,8 @@ abstract class CodeGenerator(
         generateNonNullLiteral(resultType, decimalField)
 
       case VARCHAR | CHAR =>
-        generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
+        val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(value.toString)
+        generateNonNullLiteral(resultType, "\"" + escapedValue + "\"")
 
       case SYMBOL =>
         generateSymbol(value.asInstanceOf[Enum[_]])
@@ -722,10 +734,8 @@ abstract class CodeGenerator(
   override def visitCall(call: RexCall): GeneratedExpression = {
 
     // special case: time materialization
-    if (call.getOperator == TimeMaterializationSqlFunction) {
-      return generateRecordTimestamp(
-        FlinkTypeFactory.isRowtimeIndicatorType(call.getOperands.get(0).getType)
-      )
+    if (call.getOperator == ProctimeSqlFunction) {
+      return generateProctimeTimestamp()
     }
 
     val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
@@ -965,10 +975,10 @@ abstract class CodeGenerator(
         generateArrayElement(this, array)
 
       case ScalarSqlFunctions.CONCAT =>
-        generateConcat(BuiltInMethods.CONCAT, operands)
+        generateConcat(this.nullCheck, operands)
 
       case ScalarSqlFunctions.CONCAT_WS =>
-        generateConcat(BuiltInMethods.CONCAT_WS, operands)
+        generateConcatWs(operands)
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
@@ -1201,21 +1211,27 @@ abstract class CodeGenerator(
     }
 
     val wrappedCode = if (nullCheck && !isReference(fieldType)) {
+      // assumes that fieldType is a boxed primitive.
       s"""
-        |$tmpTypeTerm $tmpTerm = $unboxedFieldCode;
-        |boolean $nullTerm = $tmpTerm == null;
+        |boolean $nullTerm = $fieldTerm == null;
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
         |  $resultTerm = $defaultValue;
         |}
         |else {
-        |  $resultTerm = $tmpTerm;
+        |  $resultTerm = $fieldTerm;
         |}
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
         |boolean $nullTerm = $fieldTerm == null;
+        |$resultTypeTerm $resultTerm;
+        |if ($nullTerm) {
+        |  $resultTerm = $defaultValue;
+        |}
+        |else {
+        |  $resultTerm = $unboxedFieldCode;
+        |}
         |""".stripMargin
     } else {
       s"""
@@ -1268,27 +1284,31 @@ abstract class CodeGenerator(
     }
   }
 
-  private[flink] def generateRecordTimestamp(isEventTime: Boolean): GeneratedExpression = {
+  private[flink] def generateRowtimeAccess(): GeneratedExpression = {
     val resultTerm = newName("result")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+    val nullTerm = newName("isNull")
 
-    val resultCode = if (isEventTime) {
+    val accessCode =
       s"""
-        |$resultTypeTerm $resultTerm;
-        |if ($contextTerm.timestamp() == null) {
+        |Long $resultTerm = $contextTerm.timestamp();
+        |if ($resultTerm == null) {
         |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a proper " +
         |    "TimestampAssigner is defined and the stream environment uses the EventTime time " +
         |    "characteristic.");
         |}
-        |else {
-        |  $resultTerm = $contextTerm.timestamp();
-        |}
-        |""".stripMargin
-    } else {
+        |boolean $nullTerm = false;
+       """.stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, accessCode, TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+  }
+
+  private[flink] def generateProctimeTimestamp(): GeneratedExpression = {
+    val resultTerm = newName("result")
+
+    val resultCode =
       s"""
-        |$resultTypeTerm $resultTerm = $contextTerm.timerService().currentProcessingTime();
+        |long $resultTerm = $contextTerm.timerService().currentProcessingTime();
         |""".stripMargin
-    }
     GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
   }
 
@@ -1439,9 +1459,10 @@ abstract class CodeGenerator(
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
+    * @param contextTerm [[RuntimeContext]] term to access the [[RuntimeContext]]
     * @return member variable term
     */
-  def addReusableFunction(function: UserDefinedFunction): String = {
+  def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
     val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
@@ -1461,10 +1482,15 @@ abstract class CodeGenerator(
 
     reusableInitStatements.add(functionDeserialization)
 
-    val openFunction =
+    val openFunction = if (contextTerm != null) {
+      s"""
+         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}($contextTerm));
+       """.stripMargin
+    } else {
       s"""
          |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
        """.stripMargin
+    }
     reusableOpenStatements.add(openFunction)
 
     val closeFunction =

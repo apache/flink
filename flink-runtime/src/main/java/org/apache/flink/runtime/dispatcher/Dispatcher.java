@@ -20,11 +20,12 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -37,7 +38,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible
@@ -54,7 +55,7 @@ import java.util.Map;
  * the jobs and to recover them in case of a master failure. Furthermore, it knows
  * about the state of the Flink session cluster.
  */
-public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
+public abstract class Dispatcher extends RpcEndpoint implements DispatcherGateway {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
@@ -131,8 +132,8 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 	// RPCs
 	//------------------------------------------------------
 
-	@RpcMethod
-	public Acknowledge submitJob(JobGraph jobGraph) throws JobSubmissionException {
+	@Override
+	public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
 		final JobID jobId = jobGraph.getJobID();
 
 		log.info("Submitting job {} ({}).", jobGraph.getJobID(), jobGraph.getName());
@@ -143,7 +144,8 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 			jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
 		} catch (IOException e) {
 			log.warn("Cannot retrieve job status for {}.", jobId, e);
-			throw new JobSubmissionException(jobId, "Could not retrieve the job status.", e);
+			return FutureUtils.completedExceptionally(
+				new JobSubmissionException(jobId, "Could not retrieve the job status.", e));
 		}
 
 		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.PENDING) {
@@ -151,7 +153,8 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 				submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
 			} catch (Exception e) {
 				log.warn("Cannot persist JobGraph.", e);
-				throw new JobSubmissionException(jobId, "Could not persist JobGraph.", e);
+				return FutureUtils.completedExceptionally(
+					new JobSubmissionException(jobId, "Could not persist JobGraph.", e));
 			}
 
 			final JobManagerRunner jobManagerRunner;
@@ -180,22 +183,24 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 					e.addSuppressed(t);
 				}
 
-				throw new JobSubmissionException(jobId, "Could not start JobManager.", e);
+				return FutureUtils.completedExceptionally(
+					new JobSubmissionException(jobId, "Could not start JobManager.", e));
 			}
 
 			jobManagerRunners.put(jobId, jobManagerRunner);
 
-			return Acknowledge.get();
+			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {
-			throw new JobSubmissionException(jobId, "Job has already been submitted and " +
-				"is currently in state " + jobSchedulingStatus + '.');
+			return FutureUtils.completedExceptionally(
+				new JobSubmissionException(jobId, "Job has already been submitted and " +
+					"is currently in state " + jobSchedulingStatus + '.'));
 		}
 	}
 
-	@RpcMethod
-	public Collection<JobID> listJobs() {
+	@Override
+	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
 		// TODO: return proper list of running jobs
-		return jobManagerRunners.keySet();
+		return CompletableFuture.completedFuture(jobManagerRunners.keySet());
 	}
 
 	/**
@@ -225,7 +230,7 @@ public abstract class Dispatcher extends RpcEndpoint<DispatcherGateway> {
 		Configuration configuration,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
-		BlobService blobService,
+		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
 		OnCompletionActions onCompleteActions,

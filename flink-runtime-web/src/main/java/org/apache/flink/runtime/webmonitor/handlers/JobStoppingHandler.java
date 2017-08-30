@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
@@ -33,17 +34,23 @@ public class JobStoppingHandler extends AbstractJsonRequestHandler {
 	private static final String JOB_STOPPING_REST_PATH = "/jobs/:jobid/stop";
 	private static final String JOB_STOPPING_YARN_REST_PATH = "/jobs/:jobid/yarn-stop";
 
+	private final Time timeout;
+
+	public JobStoppingHandler(Time timeout) {
+		this.timeout = Preconditions.checkNotNull(timeout);
+	}
+
 	@Override
 	public String[] getPaths() {
 		return new String[]{JOB_STOPPING_REST_PATH, JOB_STOPPING_YARN_REST_PATH};
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
 		try {
-			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
-			if (jobManager != null) {
-				jobManager.tell(new JobManagerMessages.StopJob(jobid));
+			JobID jobId = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
+			if (jobManagerGateway != null) {
+				jobManagerGateway.stopJob(jobId, timeout);
 				return "{}";
 			}
 			else {

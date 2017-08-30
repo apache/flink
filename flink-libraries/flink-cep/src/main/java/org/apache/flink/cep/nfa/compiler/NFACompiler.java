@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.nfa.compiler;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
@@ -35,11 +34,6 @@ import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
-
-import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -117,6 +111,7 @@ public class NFACompiler {
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
 		private Pattern<T, ?> followingPattern;
+		private Map<String, State<T>> originalStateMap = new HashMap<>();
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
@@ -291,13 +286,9 @@ public class NFACompiler {
 				final State<T> looping = createLooping(sink);
 
 				setCurrentGroupPatternFirstOfLoop(true);
-				if (!quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-					lastSink = createInitMandatoryStateOfOneOrMore(looping);
-				} else {
-					lastSink = createInitOptionalStateOfZeroOrMore(looping, sinkState);
-				}
+				lastSink = createTimesState(looping, sinkState, currentPattern.getTimes());
 			} else if (quantifier.hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-				lastSink = createTimesState(sinkState, currentPattern.getTimes());
+				lastSink = createTimesState(sinkState, sinkState, currentPattern.getTimes());
 			} else {
 				lastSink = createSingletonState(sinkState);
 			}
@@ -386,6 +377,21 @@ public class NFACompiler {
 			return copyOfSink;
 		}
 
+		private State<T> copy(final State<T> state) {
+			final State<T> copyOfState = createState(
+				NFAStateNameHandler.getOriginalNameFromInternal(state.getName()),
+				state.getStateType());
+			for (StateTransition<T> tStateTransition : state.getStateTransitions()) {
+				copyOfState.addStateTransition(
+					tStateTransition.getAction(),
+					tStateTransition.getTargetState().equals(tStateTransition.getSourceState())
+							? copyOfState
+							: tStateTransition.getTargetState(),
+					tStateTransition.getCondition());
+			}
+			return copyOfState;
+		}
+
 		private void addStopStates(final State<T> state) {
 			for (Tuple2<IterativeCondition<T>, String> notCondition: getCurrentNotCondition()) {
 				final State<T> stopState = createStopState(notCondition.f0, notCondition.f1);
@@ -407,16 +413,35 @@ public class NFACompiler {
 		 * same {@link IterativeCondition}.
 		 *
 		 * @param sinkState the state that the created state should point to
+		 * @param proceedState state that the state being converted should proceed to
 		 * @param times     number of times the state should be copied
 		 * @return the first state of the "complex" state, next state should point to it
 		 */
-		private State<T> createTimesState(final State<T> sinkState, Times times) {
+		@SuppressWarnings("unchecked")
+		private State<T> createTimesState(final State<T> sinkState, final State<T> proceedState, Times times) {
 			State<T> lastSink = sinkState;
 			setCurrentGroupPatternFirstOfLoop(false);
-			final IterativeCondition<T> takeCondition = getTakeCondition(currentPattern);
-			final IterativeCondition<T> innerIgnoreCondition = getInnerIgnoreCondition(currentPattern);
+			final IterativeCondition<T> untilCondition = (IterativeCondition<T>) currentPattern.getUntilCondition();
+			final IterativeCondition<T> innerIgnoreCondition = extendWithUntilCondition(
+				getInnerIgnoreCondition(currentPattern),
+				untilCondition,
+				false);
+			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
+				getTakeCondition(currentPattern),
+				untilCondition,
+				true);
+
+			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY) &&
+				times.getFrom() != times.getTo()) {
+				if (untilCondition != null) {
+					State<T> sinkStateCopy = copy(sinkState);
+					originalStateMap.put(sinkState.getName(), sinkStateCopy);
+				}
+				updateWithGreedyCondition(sinkState, takeCondition);
+			}
+
 			for (int i = times.getFrom(); i < times.getTo(); i++) {
-				lastSink = createSingletonState(lastSink, sinkState, takeCondition, innerIgnoreCondition, true);
+				lastSink = createSingletonState(lastSink, proceedState, takeCondition, innerIgnoreCondition, true);
 				addStopStateToLooping(lastSink);
 			}
 			for (int i = 0; i < times.getFrom() - 1; i++) {
@@ -427,7 +452,7 @@ public class NFACompiler {
 			setCurrentGroupPatternFirstOfLoop(true);
 			return createSingletonState(
 				lastSink,
-				sinkState,
+				proceedState,
 				takeCondition,
 				getIgnoreCondition(currentPattern),
 				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
@@ -520,18 +545,32 @@ public class NFACompiler {
 				return createGroupPatternState((GroupPattern) currentPattern, sinkState, proceedState, isOptional);
 			}
 
-			final IterativeCondition<T> trueFunction = getTrueFunction();
-
 			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal);
 			// if event is accepted then all notPatterns previous to the optional states are no longer valid
 			final State<T> sink = copyWithoutTransitiveNots(sinkState);
 			singletonState.addTake(sink, takeCondition);
 
+			// if no element accepted the previous nots are still valid.
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
+
 			// for the first state of a group pattern, its PROCEED edge should point to the following state of
 			// that group pattern and the edge will be added at the end of creating the NFA for that group pattern
 			if (isOptional && !headOfGroup(currentPattern)) {
-				// if no element accepted the previous nots are still valid.
-				singletonState.addProceed(proceedState, trueFunction);
+				if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+					final IterativeCondition<T> untilCondition =
+						(IterativeCondition<T>) currentPattern.getUntilCondition();
+					if (untilCondition != null) {
+						singletonState.addProceed(
+							originalStateMap.get(proceedState.getName()),
+							new AndCondition<>(proceedCondition, untilCondition));
+					}
+					singletonState.addProceed(proceedState,
+						untilCondition != null
+							? new AndCondition<>(proceedCondition, new NotCondition<>(untilCondition))
+							: proceedCondition);
+				} else {
+					singletonState.addProceed(proceedState, proceedCondition);
+				}
 			}
 
 			if (ignoreCondition != null) {
@@ -563,11 +602,12 @@ public class NFACompiler {
 			final State<T> sinkState,
 			final State<T> proceedState,
 			final boolean isOptional) {
-			final IterativeCondition<T> trueFunction = getTrueFunction();
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
 
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
 			GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
+
 			State<T> lastSink = sinkState;
 			currentGroupPattern = groupPattern;
 			currentPattern = groupPattern.getRawPattern();
@@ -576,7 +616,7 @@ public class NFACompiler {
 			if (isOptional) {
 				// for the first state of a group pattern, its PROCEED edge should point to
 				// the following state of that group pattern
-				lastSink.addProceed(proceedState, trueFunction);
+				lastSink.addProceed(proceedState, proceedCondition);
 			}
 			currentPattern = oldCurrentPattern;
 			followingPattern = oldFollowingPattern;
@@ -594,19 +634,20 @@ public class NFACompiler {
 		private State<T> createLoopingGroupPatternState(
 			final GroupPattern<T, ?> groupPattern,
 			final State<T> sinkState) {
-			final IterativeCondition<T> trueFunction = getTrueFunction();
+			final IterativeCondition<T> proceedCondition = getTrueFunction();
 
 			Pattern<T, ?> oldCurrentPattern = currentPattern;
 			Pattern<T, ?> oldFollowingPattern = followingPattern;
 			GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
+
 			final State<T> dummyState = createState(currentPattern.getName(), State.StateType.Normal);
 			State<T> lastSink = dummyState;
 			currentGroupPattern = groupPattern;
 			currentPattern = groupPattern.getRawPattern();
 			lastSink = createMiddleStates(lastSink);
 			lastSink = convertPattern(lastSink);
-			lastSink.addProceed(sinkState, trueFunction);
-			dummyState.addProceed(lastSink, trueFunction);
+			lastSink.addProceed(sinkState, proceedCondition);
+			dummyState.addProceed(lastSink, proceedCondition);
 			currentPattern = oldCurrentPattern;
 			followingPattern = oldFollowingPattern;
 			currentGroupPattern = oldGroupPattern;
@@ -637,9 +678,23 @@ public class NFACompiler {
 				untilCondition,
 				true);
 
-			final IterativeCondition<T> proceedCondition = getTrueFunction();
+			IterativeCondition<T> proceedCondition = getTrueFunction();
 			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
-			loopingState.addProceed(sinkState, proceedCondition);
+
+			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+				if (untilCondition != null) {
+					State<T> sinkStateCopy = copy(sinkState);
+					loopingState.addProceed(sinkStateCopy, new AndCondition<>(proceedCondition, untilCondition));
+					originalStateMap.put(sinkState.getName(), sinkStateCopy);
+				}
+				loopingState.addProceed(sinkState,
+					untilCondition != null
+						? new AndCondition<>(proceedCondition, new NotCondition<>(untilCondition))
+						: proceedCondition);
+				updateWithGreedyCondition(sinkState, getTakeCondition(currentPattern));
+			} else {
+				loopingState.addProceed(sinkState, proceedCondition);
+			}
 			loopingState.addTake(takeCondition);
 
 			addStopStateToLooping(loopingState);
@@ -653,46 +708,6 @@ public class NFACompiler {
 				addStopStateToLooping(ignoreState);
 			}
 			return loopingState;
-		}
-
-		/**
-		 * Patterns with quantifiers AT_LEAST_ONE_* are created as a pair of states: a singleton state and
-		 * looping state. This method creates the first of the two.
-		 *
-		 * @param sinkState the state the newly created state should point to, it should be a looping state
-		 * @return the newly created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
-			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				getTakeCondition(currentPattern),
-				(IterativeCondition<T>) currentPattern.getUntilCondition(),
-				true
-			);
-
-			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
-
-			return createSingletonState(sinkState, null, takeCondition, ignoreCondition, false);
-		}
-
-		/**
-		 * Creates a pair of states that enables relaxed strictness before a zeroOrMore looping state.
-		 *
-		 * @param loopingState the first state of zeroOrMore complex state
-		 * @param lastSink     the state that the looping one points to
-		 * @return the newly created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
-			final IterativeCondition<T> takeCondition = extendWithUntilCondition(
-				getTakeCondition(currentPattern),
-				(IterativeCondition<T>) currentPattern.getUntilCondition(),
-				true
-			);
-
-			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
-
-			return createSingletonState(loopingState, lastSink, takeCondition, ignoreFunction, true);
 		}
 
 		/**
@@ -825,114 +840,15 @@ public class NFACompiler {
 			}
 			return trueCondition;
 		}
-	}
 
-	/**
-	 * Used for migrating CEP graphs prior to 1.3. It removes the dummy start, adds the dummy end, and translates all
-	 * states to consuming ones by moving all TAKEs and IGNOREs to the next state. This method assumes each state
-	 * has at most one TAKE and one IGNORE and name of each state is unique. No PROCEED transition is allowed!
-	 *
-	 * @param oldStartState dummy start state of old graph
-	 * @param <T>           type of events
-	 * @return map of new states, where key is the name of a state and value is the state itself
-	 */
-	@Internal
-	public static <T> Map<String, State<T>> migrateGraph(State<T> oldStartState) {
-		State<T> oldFirst = oldStartState;
-		State<T> oldSecond = oldStartState.getStateTransitions().iterator().next().getTargetState();
-
-		StateTransition<T> oldFirstToSecondTake = Iterators.find(
-			oldFirst.getStateTransitions().iterator(),
-			new Predicate<StateTransition<T>>() {
-				@Override
-				public boolean apply(@Nullable StateTransition<T> input) {
-					return input != null && input.getAction() == StateTransitionAction.TAKE;
-				}
-
-			});
-
-		StateTransition<T> oldFirstIgnore = Iterators.find(
-			oldFirst.getStateTransitions().iterator(),
-			new Predicate<StateTransition<T>>() {
-				@Override
-				public boolean apply(@Nullable StateTransition<T> input) {
-					return input != null && input.getAction() == StateTransitionAction.IGNORE;
-				}
-
-			}, null);
-
-		StateTransition<T> oldSecondToThirdTake = Iterators.find(
-			oldSecond.getStateTransitions().iterator(),
-			new Predicate<StateTransition<T>>() {
-				@Override
-				public boolean apply(@Nullable StateTransition<T> input) {
-					return input != null && input.getAction() == StateTransitionAction.TAKE;
-				}
-
-			}, null);
-
-		final Map<String, State<T>> convertedStates = new HashMap<>();
-		State<T> newSecond;
-		State<T> newFirst = new State<>(oldSecond.getName(), State.StateType.Start);
-		convertedStates.put(newFirst.getName(), newFirst);
-		while (oldSecondToThirdTake != null) {
-
-			newSecond = new State<T>(oldSecondToThirdTake.getTargetState().getName(), State.StateType.Normal);
-			convertedStates.put(newSecond.getName(), newSecond);
-			newFirst.addTake(newSecond, oldFirstToSecondTake.getCondition());
-
-			if (oldFirstIgnore != null) {
-				newFirst.addIgnore(oldFirstIgnore.getCondition());
+		private void updateWithGreedyCondition(
+			State<T> state,
+			IterativeCondition<T> takeCondition) {
+			for (StateTransition<T> stateTransition : state.getStateTransitions()) {
+				stateTransition.setCondition(
+					new AndCondition<>(stateTransition.getCondition(), new NotCondition<>(takeCondition)));
 			}
-
-			oldFirst = oldSecond;
-
-			oldFirstToSecondTake = Iterators.find(
-				oldFirst.getStateTransitions().iterator(),
-				new Predicate<StateTransition<T>>() {
-					@Override
-					public boolean apply(@Nullable StateTransition<T> input) {
-						return input != null && input.getAction() == StateTransitionAction.TAKE;
-					}
-
-				});
-
-			oldFirstIgnore = Iterators.find(
-				oldFirst.getStateTransitions().iterator(),
-				new Predicate<StateTransition<T>>() {
-					@Override
-					public boolean apply(@Nullable StateTransition<T> input) {
-						return input != null && input.getAction() == StateTransitionAction.IGNORE;
-					}
-
-				}, null);
-
-			oldSecond = oldSecondToThirdTake.getTargetState();
-
-			oldSecondToThirdTake = Iterators.find(
-				oldSecond.getStateTransitions().iterator(),
-				new Predicate<StateTransition<T>>() {
-					@Override
-					public boolean apply(@Nullable StateTransition<T> input) {
-						return input != null && input.getAction() == StateTransitionAction.TAKE;
-					}
-
-				}, null);
-
-			newFirst = newSecond;
 		}
-
-		final State<T> endingState = new State<>(ENDING_STATE_NAME, State.StateType.Final);
-
-		newFirst.addTake(endingState, oldFirstToSecondTake.getCondition());
-
-		if (oldFirstIgnore != null) {
-			newFirst.addIgnore(oldFirstIgnore.getCondition());
-		}
-
-		convertedStates.put(endingState.getName(), endingState);
-
-		return convertedStates;
 	}
 
 	/**

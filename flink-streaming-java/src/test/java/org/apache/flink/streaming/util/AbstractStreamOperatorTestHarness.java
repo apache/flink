@@ -25,26 +25,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
-import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.migration.util.MigrationInstantiationUtil;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -52,7 +47,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -70,7 +64,6 @@ import org.apache.flink.util.Preconditions;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -88,7 +81,7 @@ import static org.mockito.Mockito.when;
 /**
  * Base class for {@code AbstractStreamOperator} test harnesses.
  */
-public class AbstractStreamOperatorTestHarness<OUT> {
+public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	protected final StreamOperator<OUT> operator;
 
@@ -154,6 +147,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		Configuration underlyingConfig = environment.getTaskConfiguration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
+		this.config.setOperatorID(new OperatorID());
 		this.executionConfig = environment.getExecutionConfig();
 		this.closableRegistry = new CloseableRegistry();
 		this.checkpointLock = new Object();
@@ -305,38 +299,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		setupCalled = true;
 	}
 
-	public void initializeStateFromLegacyCheckpoint(String checkpointFilename) throws Exception {
-
-		FileInputStream fin = new FileInputStream(checkpointFilename);
-		StreamTaskState state = MigrationInstantiationUtil.deserializeObject(fin, ClassLoader.getSystemClassLoader());
-		fin.close();
-
-		if (!setupCalled) {
-			setup();
-		}
-
-		StreamStateHandle stateHandle = SavepointV0Serializer.convertOperatorAndFunctionState(state);
-
-		List<KeyedStateHandle> keyGroupStatesList = new ArrayList<>();
-		if (state.getKvStates() != null) {
-			KeyGroupsStateHandle keyedStateHandle = SavepointV0Serializer.convertKeyedBackendState(
-					state.getKvStates(),
-					environment.getTaskInfo().getIndexOfThisSubtask(),
-					0);
-			keyGroupStatesList.add(keyedStateHandle);
-		}
-
-		// finally calling the initializeState() with the legacy operatorStateHandles
-		initializeState(new OperatorStateHandles(0,
-				stateHandle,
-				keyGroupStatesList,
-				Collections.<KeyedStateHandle>emptyList(),
-				Collections.<OperatorStateHandle>emptyList(),
-				Collections.<OperatorStateHandle>emptyList()));
-	}
-
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorSubtaskState)}.
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
 	 * if it was not called before.
 	 *
@@ -393,19 +357,21 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 					rawOperatorState,
 					numSubtasks).get(subtaskIndex);
 
-			OperatorStateHandles massagedOperatorStateHandles = new OperatorStateHandles(
-					0,
-					operatorStateHandles.getLegacyOperatorState(),
-					localManagedKeyGroupState,
-					localRawKeyGroupState,
-					localManagedOperatorState,
-					localRawOperatorState);
+			OperatorSubtaskState massagedOperatorStateHandles = new OperatorSubtaskState(
+				nullToEmptyCollection(localManagedOperatorState),
+				nullToEmptyCollection(localRawOperatorState),
+				nullToEmptyCollection(localManagedKeyGroupState),
+				nullToEmptyCollection(localRawKeyGroupState));
 
 			operator.initializeState(massagedOperatorStateHandles);
 		} else {
 			operator.initializeState(null);
 		}
 		initializeCalled = true;
+	}
+
+	private static <T> Collection<T> nullToEmptyCollection(Collection<T> collection) {
+		return collection != null ? collection : Collections.<T>emptyList();
 	}
 
 	/**
@@ -467,7 +433,6 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		return new OperatorStateHandles(
 			0,
-			null,
 			mergedManagedKeyedState,
 			mergedRawKeyedState,
 			mergedManagedOperatorState,
@@ -491,8 +456,6 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 */
 	public OperatorStateHandles snapshot(long checkpointId, long timestamp) throws Exception {
 
-		CheckpointStreamFactory streamFactory = stateBackend.createStreamFactory(new JobID(), "test_op");
-
 		OperatorSnapshotResult operatorStateResult = operator.snapshotState(
 			checkpointId,
 			timestamp,
@@ -504,21 +467,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
 
-		// also snapshot legacy state, if any
-		StreamStateHandle legacyStateHandle = null;
-
-		if (operator instanceof StreamCheckpointedOperator) {
-
-			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-					streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
-
-				((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
-				legacyStateHandle = outStream.closeAndGetHandle();
-		}
-
 		return new OperatorStateHandles(
 			0,
-			legacyStateHandle,
 			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
 			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
 			opManaged != null ? Collections.singletonList(opManaged) : null,
@@ -526,44 +476,10 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Calls {@link StreamCheckpointedOperator#snapshotState(FSDataOutputStream, long, long)} if
-	 * the operator implements this interface.
-	 */
-	@Deprecated
-	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
-
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
-				new JobID(),
-				"test_op").createCheckpointStateOutputStream(checkpointId, timestamp);
-		if (operator instanceof StreamCheckpointedOperator) {
-			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
-			return outStream.closeAndGetHandle();
-		} else {
-			throw new RuntimeException("Operator is not StreamCheckpointedOperator");
-		}
-	}
-
-	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#notifyOfCompletedCheckpoint(long)} ()}.
 	 */
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		operator.notifyOfCompletedCheckpoint(checkpointId);
-	}
-
-	/**
-	 * Calls {@link StreamCheckpointedOperator#restoreState(FSDataInputStream)} if
-	 * the operator implements this interface.
-	 */
-	@Deprecated
-	@SuppressWarnings("deprecation")
-	public void restore(StreamStateHandle snapshot) throws Exception {
-		if (operator instanceof StreamCheckpointedOperator) {
-			try (FSDataInputStream in = snapshot.openInputStream()) {
-				((StreamCheckpointedOperator) operator).restoreState(in);
-			}
-		} else {
-			throw new RuntimeException("Operator is not StreamCheckpointedOperator");
-		}
 	}
 
 	/**

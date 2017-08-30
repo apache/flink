@@ -220,9 +220,14 @@ under the License.
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
 			separatly in the flink-shaded-hadoop module).
-			We can use all guava versions everywhere by adding it directly as a dependency to each project.
 		-->
 		<dependencies>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-guava</artifactId>
+				<version>18.0-1.0</version>
+			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
 			<dependency>
@@ -1259,19 +1264,8 @@ under the License.
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
 									-->
 									<include>org.apache.flink:force-shading</include>
-									<include>com.google.guava:*</include>
 								</includes>
 							</artifactSet>
-							<relocations>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
-									<excludes>
-										<exclude>com.google.protobuf.**</exclude>
-										<exclude>com.google.inject.**</exclude>
-									</excludes>
-								</relocation>
-							</relocations>
 							<transformers>
 								<!-- The service transformer is needed to merge META-INF/services files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>

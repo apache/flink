@@ -38,7 +38,7 @@ import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils._
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
@@ -48,26 +48,23 @@ import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableE
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, ExpressionReducer, GeneratedFunction}
-import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference, _}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 
-import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable.HashMap
 import _root_.scala.annotation.varargs
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -108,10 +105,10 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
   // registered external catalog names -> catalog
-  private val externalCatalogs = new HashMap[String, ExternalCatalog]
+  private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
 
   /** Returns the table config to define the runtime behavior of the Table API. */
-  def getConfig = config
+  def getConfig: TableConfig = config
 
   /**
     * Returns the operator table for this environment including a custom Calcite configuration.
@@ -692,7 +689,7 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
-      case r: RowTypeInfo => {
+      case r: RowTypeInfo =>
         exprs.zipWithIndex flatMap {
           case (UnresolvedFieldReference(name), idx) =>
             Some((idx, name))
@@ -707,8 +704,7 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
-        
-      }
+
       case tpe => throw new TableException(
         s"Source of type $tpe cannot be converted into Table.")
     }
@@ -719,33 +715,47 @@ abstract class TableEnvironment(val config: TableConfig) {
       throw new TableException("Field name can not be '*'.")
     }
 
-    (fieldNames.toArray, fieldIndexes.toArray)
+    (fieldNames.toArray, fieldIndexes.toArray) // build fails in Scala 2.10 if not converted
   }
 
   protected def generateRowConverterFunction[OUT](
       inputTypeInfo: TypeInformation[Row],
       schema: RowSchema,
       requestedTypeInfo: TypeInformation[OUT],
-      functionName: String):
-    GeneratedFunction[MapFunction[Row, OUT], OUT] = {
+      functionName: String)
+    : Option[GeneratedFunction[MapFunction[Row, OUT], OUT]] = {
 
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
-    if (schema.physicalTypeInfo != inputTypeInfo) {
+    if (schema.typeInfo != inputTypeInfo) {
       throw TableException(
         s"The field types of physical and logical row types do not match. " +
-        s"Physical type is [${schema.physicalTypeInfo}], Logical type is [${inputTypeInfo}]. " +
+        s"Physical type is [${schema.typeInfo}], Logical type is [$inputTypeInfo]. " +
         s"This is a bug and should not happen. Please file an issue.")
     }
 
-    val fieldTypes = schema.physicalFieldTypeInfo
-    val fieldNames = schema.physicalFieldNames
+    // generic row needs no conversion
+    if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
+        requestedTypeInfo.getTypeClass == classOf[Row]) {
+      return None
+    }
 
-    // validate requested type
+    val fieldTypes = schema.fieldTypeInfos
+    val fieldNames = schema.fieldNames
+
+    // check for valid type info
     if (requestedTypeInfo.getArity != fieldTypes.length) {
       throw new TableException(
-        s"Arity[${fieldTypes.length}] of result[${fieldTypes}] does not match " +
-        s"the number[${requestedTypeInfo.getArity}] of requested type[${requestedTypeInfo}].")
+        s"Arity [${fieldTypes.length}] of result [$fieldTypes] does not match " +
+        s"the number[${requestedTypeInfo.getArity}] of requested type [$requestedTypeInfo].")
+    }
+
+    // check requested types
+
+    def validateFieldType(fieldType: TypeInformation[_]): Unit = fieldType match {
+      case _: TimeIndicatorTypeInfo =>
+        throw new TableException("The time indicator type is an internal type only.")
+      case _ => // ok
     }
 
     requestedTypeInfo match {
@@ -758,9 +768,10 @@ abstract class TableEnvironment(val config: TableConfig) {
               throw new TableException(s"POJO does not define field name: $fName")
             }
             val requestedTypeInfo = pt.getTypeAt(pojoIdx)
+            validateFieldType(requestedTypeInfo)
             if (fType != requestedTypeInfo) {
               throw new TableException(s"Result field does not match requested type. " +
-                s"requested: $requestedTypeInfo; Actual: $fType")
+                s"Requested: $requestedTypeInfo; Actual: $fType")
             }
         }
 
@@ -769,6 +780,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         fieldTypes.zipWithIndex foreach {
           case (fieldTypeInfo, i) =>
             val requestedTypeInfo = tt.getTypeAt(i)
+            validateFieldType(requestedTypeInfo)
             if (fieldTypeInfo != requestedTypeInfo) {
               throw new TableException(s"Result field does not match requested type. " +
                 s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
@@ -781,10 +793,11 @@ abstract class TableEnvironment(val config: TableConfig) {
           throw new TableException(s"Requested result type is an atomic type but " +
             s"result[$fieldTypes] has more or less than a single field.")
         }
-        val fieldTypeInfo = fieldTypes.head
-        if (fieldTypeInfo != at) {
+        val requestedTypeInfo = fieldTypes.head
+        validateFieldType(requestedTypeInfo)
+        if (requestedTypeInfo != at) {
           throw new TableException(s"Result field does not match requested type. " +
-            s"Requested: $at; Actual: $fieldTypeInfo")
+            s"Requested: $at; Actual: $requestedTypeInfo")
         }
 
       case _ =>
@@ -809,11 +822,13 @@ abstract class TableEnvironment(val config: TableConfig) {
          |return ${conversion.resultTerm};
          |""".stripMargin
 
-    generator.generateFunction(
+    val generated = generator.generateFunction(
       functionName,
       classOf[MapFunction[Row, OUT]],
       body,
       requestedTypeInfo)
+
+    Some(generated)
   }
 }
 
@@ -972,7 +987,7 @@ object TableEnvironment {
     validateType(inputType)
 
     inputType match {
-      case t: CompositeType[_] => 0.until(t.getArity).map(t.getTypeAt(_)).toArray
+      case t: CompositeType[_] => 0.until(t.getArity).map(i => t.getTypeAt(i)).toArray
       case a: AtomicType[_] => Array(a.asInstanceOf[TypeInformation[_]])
       case tpe =>
         throw new TableException(s"Currently only CompositeType and AtomicType are supported.")

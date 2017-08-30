@@ -196,6 +196,13 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `blob.storage.directory`: Directory for storing blobs (such as user JARs) on the TaskManagers.
 
+- `blob.service.cleanup.interval`: Cleanup interval (in seconds) of the blob caches (DEFAULT: 1 hour).
+Whenever a job is not referenced at the cache anymore, we set a TTL and let the periodic cleanup task
+(executed every `blob.service.cleanup.interval` seconds) remove its blob files after this TTL has passed.
+This means that a blob will be retained at most <tt>2 * `blob.service.cleanup.interval`</tt> seconds after
+not being referenced anymore. Therefore, a recovery still has the chance to use existing files rather
+than to download them again.
+
 - `blob.server.port`: Port definition for the blob server (serving user JARs) on the TaskManagers. By default the port is set to 0, which means that the operating system is picking an ephemeral port. Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running on the same machine.
 
 - `blob.service.ssl.enabled`: Flag to enable ssl for the blob client/server communication. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: true).
@@ -367,27 +374,29 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 - `taskmanager.net.transport`: The Netty transport type, either "nio" or "epoll" (DEFAULT: **nio**).
 
-### JobManager Web Frontend
+### Web Frontend
 
-- `jobmanager.web.port`: Port of the JobManager's web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
+- `web.port`: Port of the web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
 
-- `jobmanager.web.history`: The number of latest jobs that the JobManager's web front-end in its history (DEFAULT: 5).
+- `web.history`: The number of latest jobs that the web front-end in its history (DEFAULT: 5).
 
-- `jobmanager.web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
+- `web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
 
-- `jobmanager.web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
+- `web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
 
-- `jobmanager.web.backpressure.cleanup-interval`: Time after which cached stats are cleaned up if not accessed (DEFAULT: `600000`, 10 mins).
+- `web.backpressure.cleanup-interval`: Time after which cached stats are cleaned up if not accessed (DEFAULT: `600000`, 10 mins).
 
-- `jobmanager.web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
+- `web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
 
-- `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
+- `web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
 
-- `jobmanager.web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
+- `web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
 
-- `jobmanager.web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
+- `web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
 
-- `jobmanager.web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
+- `web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
+
+- `web.timeout`: Timeout for asynchronous operation executed by the web frontend in milliseconds (DEFAULT: `10000`, 10 s)
 
 ### File Systems
 

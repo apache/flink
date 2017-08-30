@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.time.Time;
+
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tests for the ClusterOverviewHandler.
@@ -31,7 +29,7 @@ import scala.concurrent.duration.FiniteDuration;
 public class ClusterOverviewHandlerTest {
 	@Test
 	public void testGetPaths() {
-		ClusterOverviewHandler handler = new ClusterOverviewHandler(new FiniteDuration(0, TimeUnit.SECONDS));
+		ClusterOverviewHandler handler = new ClusterOverviewHandler(Time.seconds(0L));
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/overview", paths[0]);

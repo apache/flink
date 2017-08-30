@@ -74,7 +74,7 @@ Assuming one has an asynchronous client for the target database, three parts are
 with asynchronous I/O against the database:
 
   - An implementation of `AsyncFunction` that dispatches the requests
-  - A *callback* that takes the result of the operation and hands it to the `AsyncCollector`
+  - A *callback* that takes the result of the operation and hands it to the `ResultFuture`
   - Applying the async I/O operation on a DataStream as a transformation
 
 The following code example illustrates the basic pattern:
@@ -104,16 +104,16 @@ class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, Stri
     }
 
     @Override
-    public void asyncInvoke(final String str, final AsyncCollector<Tuple2<String, String>> asyncCollector) throws Exception {
+    public void asyncInvoke(final String str, final ResultFuture<Tuple2<String, String>> resultFuture) throws Exception {
 
         // issue the asynchronous request, receive a future for result
         Future<String> resultFuture = client.query(str);
 
         // set the callback to be executed once the request by the client is complete
-        // the callback simply forwards the result to the collector
+        // the callback simply forwards the result to the result future
         resultFuture.thenAccept( (String result) -> {
 
-            asyncCollector.collect(Collections.singleton(new Tuple2<>(str, result)));
+            resultFuture.complete(Collections.singleton(new Tuple2<>(str, result)));
          
         });
     }
@@ -142,15 +142,15 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
     implicit lazy val executor: ExecutionContext = ExecutionContext.fromExecutor(Executors.directExecutor())
 
 
-    override def asyncInvoke(str: String, asyncCollector: AsyncCollector[(String, String)]): Unit = {
+    override def asyncInvoke(str: String, resultFutre: ResultFuture[(String, String)]): Unit = {
 
         // issue the asynchronous request, receive a future for the result
         val resultFuture: Future[String] = client.query(str)
 
         // set the callback to be executed once the request by the client is complete
-        // the callback simply forwards the result to the collector
+        // the callback simply forwards the result to the result future
         resultFuture.onSuccess {
-            case result: String => asyncCollector.collect(Iterable((str, result)));
+            case result: String => resultFuture.complete(Iterable((str, result)));
         }
     }
 }
@@ -166,8 +166,8 @@ val resultStream: DataStream[(String, String)] =
 </div>
 </div>
 
-**Important note**: The `AsyncCollector` is completed with the first call of `AsyncCollector.collect`.
-All subsequent `collect` calls will be ignored.
+**Important note**: The `ResultFuture` is completed with the first call of `ResultFuture.complete`.
+All subsequent `complete` calls will be ignored.
 
 The following two parameters control the asynchronous operations:
 
@@ -229,7 +229,7 @@ asynchronous requests in checkpoints and restores/re-triggers the requests when 
 
 For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggets to use a `DirectExecutor`, because the
 callback typically does minimal work, and a `DirectExecutor` avoids an additional thread-to-thread handover overhead. The callback typically only hands
-the result to the `AsyncCollector`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
+the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
 with the checkpoint bookkeepting happens in a dedicated thread-pool anyways.
 
 A `DirectExecutor` can be obtained via `org.apache.flink.runtime.concurrent.Executors.directExecutor()` or

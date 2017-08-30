@@ -110,15 +110,15 @@ public class OrderedStreamElementQueueTest extends TestLogger {
 
 		Assert.assertFalse(pollOperation.isDone());
 
-		entry2.collect(Collections.<Integer>emptyList());
+		entry2.complete(Collections.<Integer>emptyList());
 
-		entry4.collect(Collections.<Integer>emptyList());
+		entry4.complete(Collections.<Integer>emptyList());
 
 		Thread.sleep(10L);
 
 		Assert.assertEquals(4, queue.size());
 
-		entry1.collect(Collections.<Integer>emptyList());
+		entry1.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(expected, pollOperation.get());
 

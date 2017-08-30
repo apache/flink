@@ -40,6 +40,7 @@ import java.sql.SQLException;
  */
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
+	static final int DEFAULT_BATCH_INTERVAL = 5000;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -48,7 +49,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private String drivername;
 	private String dbURL;
 	private String query;
-	private int batchInterval = 5000;
+	private int batchInterval = DEFAULT_BATCH_INTERVAL;
 
 	private Connection dbConn;
 	private PreparedStatement upload;
@@ -206,13 +207,21 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		if (batchCount >= batchInterval) {
 			// execute batch
-			try {
-				upload.executeBatch();
-				batchCount = 0;
-			} catch (SQLException e) {
-				throw new RuntimeException("Execution of JDBC statement failed.", e);
-			}
+			flush();
 		}
+	}
+
+	void flush() {
+		try {
+			upload.executeBatch();
+			batchCount = 0;
+		} catch (SQLException e) {
+			throw new RuntimeException("Execution of JDBC statement failed.", e);
+		}
+	}
+
+	int[] getTypesArray() {
+		return typesArray;
 	}
 
 	/**
@@ -223,12 +232,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	@Override
 	public void close() throws IOException {
 		if (upload != null) {
-			// execute last batch
-			try {
-				upload.executeBatch();
-			} catch (SQLException e) {
-				throw new RuntimeException("Execution of JDBC statement failed.", e);
-			}
+			flush();
 			// close the connection
 			try {
 				upload.close();
@@ -238,7 +242,6 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 				upload = null;
 			}
 		}
-		batchCount = 0;
 
 		if (dbConn != null) {
 			try {
@@ -307,19 +310,19 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		 */
 		public JDBCOutputFormat finish() {
 			if (format.username == null) {
-				LOG.info("Username was not supplied separately.");
+				LOG.info("Username was not supplied.");
 			}
 			if (format.password == null) {
-				LOG.info("Password was not supplied separately.");
+				LOG.info("Password was not supplied.");
 			}
 			if (format.dbURL == null) {
-				throw new IllegalArgumentException("No dababase URL supplied.");
+				throw new IllegalArgumentException("No database URL supplied.");
 			}
 			if (format.query == null) {
-				throw new IllegalArgumentException("No query suplied");
+				throw new IllegalArgumentException("No query supplied.");
 			}
 			if (format.drivername == null) {
-				throw new IllegalArgumentException("No driver supplied");
+				throw new IllegalArgumentException("No driver supplied.");
 			}
 
 			return format;

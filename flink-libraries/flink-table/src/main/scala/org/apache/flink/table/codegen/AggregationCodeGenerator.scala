@@ -17,16 +17,23 @@
  */
 package org.apache.flink.table.codegen
 
-import java.lang.reflect.ParameterizedType
+import java.lang.reflect.{Modifier, ParameterizedType}
 import java.lang.{Iterable => JIterable}
 
+import org.apache.commons.codec.binary.Base64
+import org.apache.flink.api.common.state.{State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.codegen.CodeGenUtils.newName
+import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, SingleElementIterable}
+import org.apache.flink.util.InstantiationUtil
+
+import scala.collection.mutable
 
 /**
   * A code generator for generating [[GeneratedAggregations]].
@@ -41,13 +48,24 @@ class AggregationCodeGenerator(
     input: TypeInformation[_ <: Any])
   extends CodeGenerator(config, nullableInput, input) {
 
+  // set of statements for cleanup dataview that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableCleanupStatements = mutable.LinkedHashSet[String]()
+
+  /**
+    * @return code block of statements that need to be placed in the cleanup() method of
+    *         [[GeneratedAggregations]]
+    */
+  def reuseCleanupCode(): String = {
+    reusableCleanupStatements.mkString("", "\n", "\n")
+  }
+
   /**
     * Generates a [[org.apache.flink.table.runtime.aggregate.GeneratedAggregations]] that can be
     * passed to a Java compiler.
     *
     * @param name        Class name of the function.
     *                    Does not need to be unique but has to be a valid Java class identifier.
-    * @param generator   The code generator instance
     * @param physicalInputTypes Physical input row types
     * @param aggregates  All aggregate functions
     * @param aggFields   Indexes of the input fields for all aggregate functions
@@ -68,7 +86,6 @@ class AggregationCodeGenerator(
     */
   def generateAggregations(
     name: String,
-    generator: CodeGenerator,
     physicalInputTypes: Seq[TypeInformation[_]],
     aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
     aggFields: Array[Array[Int]],
@@ -80,34 +97,40 @@ class AggregationCodeGenerator(
     outputArity: Int,
     needRetract: Boolean,
     needMerge: Boolean,
-    needReset: Boolean)
+    needReset: Boolean,
+    accConfig: Option[Array[Seq[DataViewSpec[_]]]])
   : GeneratedAggregationsFunction = {
 
     // get unique function name
     val funcName = newName(name)
     // register UDAGGs
-    val aggs = aggregates.map(a => generator.addReusableFunction(a))
+    val aggs = aggregates.map(a => addReusableFunction(a, contextTerm))
+
     // get java types of accumulators
     val accTypeClasses = aggregates.map { a =>
       a.getClass.getMethod("createAccumulator").getReturnType
     }
     val accTypes = accTypeClasses.map(_.getCanonicalName)
 
-    // get java classes of input fields
-    val javaClasses = physicalInputTypes.map(t => t.getTypeClass)
     // get parameter lists for aggregation functions
-    val parameters = aggFields.map { inFields =>
+    val parametersCode = aggFields.map { inFields =>
       val fields = for (f <- inFields) yield
-        s"(${javaClasses(f).getCanonicalName}) input.getField($f)"
+        s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
       fields.mkString(", ")
     }
-    val methodSignaturesList = aggFields.map {
-      inFields => for (f <- inFields) yield javaClasses(f)
+
+    // get method signatures
+    val classes = UserDefinedFunctionUtils.typeInfoToClass(physicalInputTypes)
+    val methodSignaturesList = aggFields.map { inFields =>
+      inFields.map(classes(_))
     }
+
+    // initialize and create data views
+    addReusableDataViews()
 
     // check and validate the needed methods
     aggregates.zipWithIndex.map {
-      case (a, i) => {
+      case (a, i) =>
         getUserDefinedMethod(a, "accumulate", Array(accTypeClasses(i)) ++ methodSignaturesList(i))
         .getOrElse(
           throw new CodeGenException(
@@ -159,6 +182,113 @@ class AggregationCodeGenerator(
                 s"aggregate ${a.getClass.getCanonicalName}'.")
           )
         }
+    }
+
+    /**
+      * Create DataView Term, for example, acc1_map_dataview.
+      *
+      * @param aggIndex index of aggregate function
+      * @param fieldName field name of DataView
+      * @return term to access [[MapView]] or [[ListView]]
+      */
+    def createDataViewTerm(aggIndex: Int, fieldName: String): String = {
+      s"acc${aggIndex}_${fieldName}_dataview"
+    }
+
+    /**
+      * Adds a reusable [[org.apache.flink.table.api.dataview.DataView]] to the open, cleanup,
+      * close and member area of the generated function.
+      *
+      */
+    def addReusableDataViews(): Unit = {
+      if (accConfig.isDefined) {
+        val descMapping: Map[String, StateDescriptor[_, _]] = accConfig.get
+          .flatMap(specs => specs.map(s => (s.stateId, s.toStateDescriptor)))
+          .toMap[String, StateDescriptor[_ <: State, _]]
+
+        for (i <- aggs.indices) yield {
+          for (spec <- accConfig.get(i)) yield {
+            val dataViewField = spec.field
+            val dataViewTypeTerm = dataViewField.getType.getCanonicalName
+            val desc = descMapping.getOrElse(spec.stateId,
+              throw new CodeGenException(
+                s"Can not find DataView in accumulator by id: ${spec.stateId}"))
+
+            // define the DataView variables
+            val serializedData = serializeStateDescriptor(desc)
+            val dataViewFieldTerm = createDataViewTerm(i, dataViewField.getName)
+            val field =
+              s"""
+                 |    transient $dataViewTypeTerm $dataViewFieldTerm = null;
+                 |""".stripMargin
+            reusableMemberStatements.add(field)
+
+            // create DataViews
+            val descFieldTerm = s"${dataViewFieldTerm}_desc"
+            val descClassQualifier = classOf[StateDescriptor[_, _]].getCanonicalName
+            val descDeserializeCode =
+              s"""
+                 |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
+                 |      org.apache.flink.util.InstantiationUtil.deserializeObject(
+                 |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
+                 |      $contextTerm.getUserCodeClassLoader());
+                 |""".stripMargin
+            val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
+              s"""
+                 |    $descDeserializeCode
+                 |    $dataViewFieldTerm = new org.apache.flink.table.dataview.StateMapView(
+                 |      $contextTerm.getMapState((
+                 |      org.apache.flink.api.common.state.MapStateDescriptor)$descFieldTerm));
+                 |""".stripMargin
+            } else if (dataViewField.getType == classOf[ListView[_]]) {
+              s"""
+                 |    $descDeserializeCode
+                 |    $dataViewFieldTerm = new org.apache.flink.table.dataview.StateListView(
+                 |      $contextTerm.getListState((
+                 |      org.apache.flink.api.common.state.ListStateDescriptor)$descFieldTerm));
+                 |""".stripMargin
+            } else {
+              throw new CodeGenException(s"Unsupported dataview type: $dataViewTypeTerm")
+            }
+            reusableOpenStatements.add(createDataView)
+
+            // cleanup DataViews
+            val cleanup =
+              s"""
+                 |    $dataViewFieldTerm.clear();
+                 |""".stripMargin
+            reusableCleanupStatements.add(cleanup)
+          }
+        }
+      }
+    }
+
+    /**
+      * Generate statements to set data view field when use state backend.
+      *
+      * @param accTerm aggregation term
+      * @param aggIndex index of aggregation
+      * @return data view field set statements
+      */
+    def genDataViewFieldSetter(accTerm: String, aggIndex: Int): String = {
+      if (accConfig.isDefined) {
+        val setters = for (spec <- accConfig.get(aggIndex)) yield {
+          val field = spec.field
+          val dataViewTerm = createDataViewTerm(aggIndex, field.getName)
+          val fieldSetter = if (Modifier.isPublic(field.getModifiers)) {
+            s"$accTerm.${field.getName} = $dataViewTerm;"
+          } else {
+            val fieldTerm = addReusablePrivateFieldAccess(field.getDeclaringClass, field.getName)
+            s"${reflectiveFieldWriteAccess(fieldTerm, field, accTerm, dataViewTerm)};"
+          }
+
+          s"""
+             |    $fieldSetter
+          """.stripMargin
+        }
+        setters.mkString("\n")
+      } else {
+        ""
       }
     }
 
@@ -168,7 +298,7 @@ class AggregationCodeGenerator(
         j"""
            |  public final void setAggregationResults(
            |    org.apache.flink.types.Row accs,
-           |    org.apache.flink.types.Row output)""".stripMargin
+           |    org.apache.flink.types.Row output) throws Exception """.stripMargin
 
       val setAggs: String = {
         for (i <- aggs.indices) yield
@@ -182,10 +312,11 @@ class AggregationCodeGenerator(
             j"""
                |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
                |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-               |
+               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |    ${genDataViewFieldSetter(s"acc$i", i)}
                |    output.setField(
                |      ${aggMapping(i)},
-               |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+               |      baseClass$i.getValue(acc$i));""".stripMargin
           }
       }.mkString("\n")
 
@@ -201,14 +332,17 @@ class AggregationCodeGenerator(
         j"""
            |  public final void accumulate(
            |    org.apache.flink.types.Row accs,
-           |    org.apache.flink.types.Row input)""".stripMargin
+           |    org.apache.flink.types.Row input) throws Exception """.stripMargin
 
       val accumulate: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
           j"""
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.accumulate(
-             |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+             |      acc$i,
+             |      ${parametersCode(i)});""".stripMargin
+        }
       }.mkString("\n")
 
       j"""$sig {
@@ -222,14 +356,17 @@ class AggregationCodeGenerator(
         j"""
            |  public final void retract(
            |    org.apache.flink.types.Row accs,
-           |    org.apache.flink.types.Row input)""".stripMargin
+           |    org.apache.flink.types.Row input) throws Exception """.stripMargin
 
       val retract: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
           j"""
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.retract(
-             |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+             |      acc$i,
+             |      ${parametersCode(i)});""".stripMargin
+        }
       }.mkString("\n")
 
       if (needRetract) {
@@ -248,7 +385,7 @@ class AggregationCodeGenerator(
 
       val sig: String =
         j"""
-           |  public final org.apache.flink.types.Row createAccumulators()
+           |  public final org.apache.flink.types.Row createAccumulators() throws Exception
            |    """.stripMargin
       val init: String =
         j"""
@@ -256,12 +393,15 @@ class AggregationCodeGenerator(
            |          new org.apache.flink.types.Row(${aggs.length});"""
         .stripMargin
       val create: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
           j"""
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    accs.setField(
              |      $i,
-             |      ${aggs(i)}.createAccumulator());"""
-          .stripMargin
+             |      acc$i);"""
+            .stripMargin
+        }
       }.mkString("\n")
       val ret: String =
         j"""
@@ -357,6 +497,10 @@ class AggregationCodeGenerator(
            """.stripMargin
 
       if (needMerge) {
+        if (accConfig.isDefined) {
+          throw new CodeGenException("DataView doesn't support merge when the backend uses " +
+            s"state when generate aggregation for $funcName.")
+        }
         j"""
            |$sig {
            |$merge
@@ -386,13 +530,15 @@ class AggregationCodeGenerator(
       val sig: String =
         j"""
            |  public final void resetAccumulator(
-           |    org.apache.flink.types.Row accs)""".stripMargin
+           |    org.apache.flink.types.Row accs) throws Exception """.stripMargin
 
       val reset: String = {
-        for (i <- aggs.indices) yield
+        for (i <- aggs.indices) yield {
           j"""
-             |    ${aggs(i)}.resetAccumulator(
-             |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
+             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+             |    ${genDataViewFieldSetter(s"acc$i", i)}
+             |    ${aggs(i)}.resetAccumulator(acc$i);""".stripMargin
+        }
       }.mkString("\n")
 
       if (needReset) {
@@ -404,6 +550,17 @@ class AggregationCodeGenerator(
            |  }""".stripMargin
       }
     }
+
+    val aggFuncCode = Seq(
+      genSetAggregationResults,
+      genAccumulate,
+      genRetract,
+      genCreateAccumulators,
+      genSetForwardedFields,
+      genSetConstantFlags,
+      genCreateOutputRow,
+      genMergeAccumulatorsPair,
+      genResetAccumulator).mkString("\n")
 
     val generatedAggregationsClass = classOf[GeneratedAggregations].getCanonicalName
     var funcCode =
@@ -417,20 +574,29 @@ class AggregationCodeGenerator(
          |  }
          |  ${reuseConstructorCode(funcName)}
          |
+         |  public final void open(
+         |    org.apache.flink.api.common.functions.RuntimeContext $contextTerm) throws Exception {
+         |    ${reuseOpenCode()}
+         |  }
+         |
+         |  $aggFuncCode
+         |
+         |  public final void cleanup() throws Exception {
+         |    ${reuseCleanupCode()}
+         |  }
+         |
+         |  public final void close() throws Exception {
+         |    ${reuseCloseCode()}
+         |  }
+         |}
          """.stripMargin
-
-    funcCode += genSetAggregationResults + "\n"
-    funcCode += genAccumulate + "\n"
-    funcCode += genRetract + "\n"
-    funcCode += genCreateAccumulators + "\n"
-    funcCode += genSetForwardedFields + "\n"
-    funcCode += genSetConstantFlags + "\n"
-    funcCode += genCreateOutputRow + "\n"
-    funcCode += genMergeAccumulatorsPair + "\n"
-    funcCode += genResetAccumulator + "\n"
-    funcCode += "}"
 
     GeneratedAggregationsFunction(funcName, funcCode)
   }
 
+  @throws[Exception]
+  def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
+    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
+    Base64.encodeBase64URLSafeString(byteArray)
+  }
 }

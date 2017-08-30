@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getKeyedCepOpearator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -372,13 +373,10 @@ public class CEPRescalingTest {
 
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 		return new KeyedOneInputStreamOperatorTestHarness<>(
-			new KeyedCEPPatternOperator<>(
-				Event.createTypeSerializer(),
+			getKeyedCepOpearator(
 				false,
-				BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				new NFAFactory(),
-				true,
-				null),
+				BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig())),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO,
 			maxParallelism,

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 abstract class FlinkTable[T](
     val typeInfo: TypeInformation[T],
@@ -49,12 +50,15 @@ abstract class FlinkTable[T](
     typeInfo match {
       case cType: CompositeType[_] =>
         // it is ok to leave out fields
-        if (fieldNames.length > cType.getArity) {
+        if (fieldIndexes.count(_ >= 0) > cType.getArity) {
           throw new TableException(
           s"Arity of type (" + cType.getFieldNames.deep + ") " +
             "must not be greater than number of field names " + fieldNames.deep + ".")
         }
-        fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
+        fieldIndexes.map {
+          case TimeIndicatorTypeInfo.ROWTIME_MARKER => TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+          case TimeIndicatorTypeInfo.PROCTIME_MARKER => TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+          case i => cType.getTypeAt(i).asInstanceOf[TypeInformation[_]]}
       case aType: AtomicType[_] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
           throw new TableException(
@@ -65,7 +69,7 @@ abstract class FlinkTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes, None, None)
+    flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes)
   }
 
   /**

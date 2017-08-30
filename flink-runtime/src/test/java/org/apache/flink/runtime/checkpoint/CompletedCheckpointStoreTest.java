@@ -331,7 +331,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		boolean discarded;
 
 		public TestOperatorSubtaskState() {
-			super(null, null, null, null, null);
+			super();
 			this.registered = false;
 			this.discarded = false;
 		}

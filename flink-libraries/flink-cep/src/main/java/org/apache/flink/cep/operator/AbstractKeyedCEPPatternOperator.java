@@ -19,51 +19,34 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.migration.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.CheckpointedRestoringOperator;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Migration;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -79,20 +62,15 @@ import java.util.stream.StreamSupport;
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
  */
-public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
-	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace>, CheckpointedRestoringOperator {
+public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Function>
+	extends AbstractUdfStreamOperator<OUT, F>
+	implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
 	private static final long serialVersionUID = -4166778210774160757L;
-
-	private static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
 
 	private final boolean isProcessingTime;
 
 	private final TypeSerializer<IN> inputSerializer;
-
-	// necessary to serialize the set of seen keys
-	private final TypeSerializer<KEY> keySerializer;
 
 	///////////////			State			//////////////
 
@@ -112,12 +90,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 */
 	private long lastWatermark;
 
-	/**
-	 * A flag used in the case of migration that indicates if
-	 * we are restoring from an old keyed or non-keyed operator.
-	 */
-	private final boolean migratingFromOldKeyedOperator;
-
 	private final EventComparator<IN> comparator;
 
 	public AbstractKeyedCEPPatternOperator(
@@ -126,14 +98,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final boolean migratingFromOldKeyedOperator,
-			final EventComparator<IN> comparator) {
+			final EventComparator<IN> comparator,
+			final F function) {
+		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
-
-		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 		this.comparator = comparator;
 	}
 
@@ -348,7 +319,18 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 * @param event The current event to be processed
 	 * @param timestamp The timestamp of the event
 	 */
-	protected abstract void processEvent(NFA<IN> nfa, IN event, long timestamp);
+	private void processEvent(NFA<IN> nfa, IN event, long timestamp)  {
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
+			nfa.process(event, timestamp);
+
+		try {
+			processMatchedSequences(patterns.f0, timestamp);
+			processTimedOutSequences(patterns.f1, timestamp);
+		} catch (Exception e) {
+			//rethrow as Runtime, to be able to use processEvent in Stream.
+			throw new RuntimeException(e);
+		}
+	}
 
 	/**
 	 * Advances the time for the given NFA to the given timestamp. This can lead to pruning and
@@ -357,295 +339,15 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 * @param nfa to advance the time for
 	 * @param timestamp to advance the time to
 	 */
-	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
-
-	//////////////////////			Backwards Compatibility			//////////////////////
-
-	@Override
-	public void restoreState(FSDataInputStream in) throws Exception {
-		if (in instanceof Migration) {
-			// absorb the introduced byte from the migration stream
-			int hasUdfState = in.read();
-			if (hasUdfState == 1) {
-				throw new Exception("Found UDF state but CEPOperator is not an UDF operator.");
-			}
-		}
-
-		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(in);
-		timerService = getInternalTimerService(
-				"watermark-callbacks",
-				VoidNamespaceSerializer.INSTANCE,
-				this);
-
-		// this is with the old serializer so that we can read the state.
-		ValueState<NFA<IN>> oldNfaOperatorState = getRuntimeContext().getState(
-				new ValueStateDescriptor<>("nfaOperatorState", new NFA.Serializer<IN>()));
-
-		ValueState<PriorityQueue<StreamRecord<IN>>> oldPriorityQueueOperatorState =
-				getRuntimeContext().getState(
-					new ValueStateDescriptor<>(
-							"priorityQueueStateName",
-							new PriorityQueueSerializer<>(
-									((TypeSerializer) new StreamElementSerializer<>(inputSerializer)),
-									new PriorityQueueStreamRecordFactory<IN>()
-							)
-					)
-			);
-
-		if (migratingFromOldKeyedOperator) {
-			int numberEntries = inputView.readInt();
-			for (int i = 0; i < numberEntries; i++) {
-				KEY key = keySerializer.deserialize(inputView);
-				setCurrentKey(key);
-				saveRegisterWatermarkTimer();
-
-				NFA<IN> nfa = oldNfaOperatorState.value();
-				oldNfaOperatorState.clear();
-				nfaOperatorState.update(nfa);
-
-				PriorityQueue<StreamRecord<IN>> priorityQueue = oldPriorityQueueOperatorState.value();
-				if (priorityQueue != null && !priorityQueue.isEmpty()) {
-					Map<Long, List<IN>> elementMap = new HashMap<>();
-					for (StreamRecord<IN> record: priorityQueue) {
-						long timestamp = record.getTimestamp();
-						IN element = record.getValue();
-
-						List<IN> elements = elementMap.get(timestamp);
-						if (elements == null) {
-							elements = new ArrayList<>();
-							elementMap.put(timestamp, elements);
-						}
-						elements.add(element);
-					}
-
-					// write the old state into the new one.
-					for (Map.Entry<Long, List<IN>> entry: elementMap.entrySet()) {
-						elementQueueState.put(entry.getKey(), entry.getValue());
-					}
-
-					// clear the old state
-					oldPriorityQueueOperatorState.clear();
-				}
-			}
-		} else {
-
-			final ObjectInputStream ois = new ObjectInputStream(in);
-
-			// retrieve the NFA
-			@SuppressWarnings("unchecked")
-			NFA<IN> nfa = (NFA<IN>) ois.readObject();
-
-			// retrieve the elements that were pending in the priority queue
-			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
-
-			Map<Long, List<IN>> elementMap = new HashMap<>();
-			int entries = ois.readInt();
-			for (int i = 0; i < entries; i++) {
-				StreamElement streamElement = recordSerializer.deserialize(inputView);
-				StreamRecord<IN> record = streamElement.<IN>asRecord();
-
-				long timestamp = record.getTimestamp();
-				IN element = record.getValue();
-
-				List<IN> elements = elementMap.get(timestamp);
-				if (elements == null) {
-					elements = new ArrayList<>();
-					elementMap.put(timestamp, elements);
-				}
-				elements.add(element);
-			}
-
-			// finally register the retrieved state with the new keyed state.
-			setCurrentKey((byte) 0);
-			nfaOperatorState.update(nfa);
-
-			// write the priority queue to the new map state.
-			for (Map.Entry<Long, List<IN>> entry: elementMap.entrySet()) {
-				elementQueueState.put(entry.getKey(), entry.getValue());
-			}
-
-			if (!isProcessingTime) {
-				// this is relevant only for event/ingestion time
-				setCurrentKey((byte) 0);
-				saveRegisterWatermarkTimer();
-			}
-			ois.close();
-		}
+	private void advanceTime(NFA<IN> nfa, long timestamp) throws Exception {
+		processEvent(nfa, null, timestamp);
 	}
 
-	//////////////////////			Utility Classes			//////////////////////
+	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
 
-	/**
-	 * Custom type serializer implementation to serialize priority queues.
-	 *
-	 * @param <T> Type of the priority queue's elements
-	 */
-	private static class PriorityQueueSerializer<T> extends TypeSerializer<PriorityQueue<T>> {
-
-		private static final long serialVersionUID = -231980397616187715L;
-
-		private final TypeSerializer<T> elementSerializer;
-		private final PriorityQueueFactory<T> factory;
-
-		PriorityQueueSerializer(final TypeSerializer<T> elementSerializer, final PriorityQueueFactory<T> factory) {
-			this.elementSerializer = elementSerializer;
-			this.factory = factory;
-		}
-
-		@Override
-		public boolean isImmutableType() {
-			return false;
-		}
-
-		@Override
-		public TypeSerializer<PriorityQueue<T>> duplicate() {
-			return new PriorityQueueSerializer<>(elementSerializer.duplicate(), factory);
-		}
-
-		@Override
-		public PriorityQueue<T> createInstance() {
-			return factory.createPriorityQueue();
-		}
-
-		@Override
-		public PriorityQueue<T> copy(PriorityQueue<T> from) {
-			PriorityQueue<T> result = factory.createPriorityQueue();
-
-			for (T element: from) {
-				result.offer(elementSerializer.copy(element));
-			}
-
-			return result;
-		}
-
-		@Override
-		public PriorityQueue<T> copy(PriorityQueue<T> from, PriorityQueue<T> reuse) {
-			reuse.clear();
-
-			for (T element: from) {
-				reuse.offer(elementSerializer.copy(element));
-			}
-
-			return reuse;
-		}
-
-		@Override
-		public int getLength() {
-			return 0;
-		}
-
-		@Override
-		public void serialize(PriorityQueue<T> record, DataOutputView target) throws IOException {
-			target.writeInt(record.size());
-
-			for (T element: record) {
-				elementSerializer.serialize(element, target);
-			}
-		}
-
-		@Override
-		public PriorityQueue<T> deserialize(DataInputView source) throws IOException {
-			PriorityQueue<T> result = factory.createPriorityQueue();
-
-			return deserialize(result, source);
-		}
-
-		@Override
-		public PriorityQueue<T> deserialize(PriorityQueue<T> reuse, DataInputView source) throws IOException {
-			reuse.clear();
-
-			int numberEntries = source.readInt();
-
-			for (int i = 0; i < numberEntries; i++) {
-				reuse.offer(elementSerializer.deserialize(source));
-			}
-
-			return reuse;
-		}
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof PriorityQueueSerializer) {
-				@SuppressWarnings("unchecked")
-				PriorityQueueSerializer<T> other = (PriorityQueueSerializer<T>) obj;
-
-				return factory.equals(other.factory) && elementSerializer.equals(other.elementSerializer);
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof PriorityQueueSerializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(factory, elementSerializer);
-		}
-
-		// --------------------------------------------------------------------------------------------
-		// Serializer configuration snapshotting & compatibility
-		// --------------------------------------------------------------------------------------------
-
-		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new CollectionSerializerConfigSnapshot<>(elementSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-					((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
-
-				CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousElemSerializerAndConfig.f0,
-						UnloadableDummyTypeSerializer.class,
-						previousElemSerializerAndConfig.f1,
-						elementSerializer);
-
-				if (!compatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				} else if (compatResult.getConvertDeserializer() != null) {
-					return CompatibilityResult.requiresMigration(
-						new PriorityQueueSerializer<>(
-							new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), factory));
-				}
-			}
-
-			return CompatibilityResult.requiresMigration();
-		}
-	}
-
-	private interface PriorityQueueFactory<T> extends Serializable {
-		PriorityQueue<T> createPriorityQueue();
-	}
-
-	private static class PriorityQueueStreamRecordFactory<T> implements PriorityQueueFactory<StreamRecord<T>> {
-
-		private static final long serialVersionUID = 1254766984454616593L;
-
-		@Override
-		public PriorityQueue<StreamRecord<T>> createPriorityQueue() {
-			return new PriorityQueue<StreamRecord<T>>(INITIAL_PRIORITY_QUEUE_CAPACITY, new StreamRecordComparator<T>());
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof PriorityQueueStreamRecordFactory;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
+	protected void processTimedOutSequences(
+			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
+			long timestamp) throws Exception {
 	}
 
 	//////////////////////			Testing Methods			//////////////////////

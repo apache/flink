@@ -41,25 +41,20 @@ These templates help you to set up the project structure and to create the initi
 
 ### Create Project
 
+You can scafold a new project via either of the following two methods:
+
 <ul class="nav nav-tabs" style="border-bottom: none;">
-    <li class="active"><a href="#giter8" data-toggle="tab">Use <strong>Giter8</strong></a></li>
-    <li><a href="#clone-repository" data-toggle="tab">Clone <strong>repository</strong></a></li>
+    <li class="active"><a href="#sbt_template" data-toggle="tab">Use the <strong>sbt template</strong></a></li>
     <li><a href="#quickstart-script-sbt" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
 </ul>
 
 <div class="tab-content">
-    <div class="tab-pane active" id="giter8">
+    <div class="tab-pane active" id="sbt_template">
     {% highlight bash %}
-    $ g8 tillrohrmann/flink-project
+    $ sbt new tillrohrmann/flink-project.g8
     {% endhighlight %}
-    This will create a Flink project in the <strong>specified</strong> project directory from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
-    If you haven't installed <a href="https://github.com/n8han/giter8">giter8</a>, then please follow this <a href="https://github.com/n8han/giter8#installation">installation guide</a>.
-    </div>
-    <div class="tab-pane" id="clone-repository">
-    {% highlight bash %}
-    $ git clone https://github.com/tillrohrmann/flink-project.git
-    {% endhighlight %}
-    This will create the Flink project in the directory <strong>flink-project</strong>.
+    This will will prompt you for a couple of parameters (project name, flink version...) and then create a Flink project from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
+    You need sbt >= 0.13.13 to execute this command. You can follow this <a href="http://www.scala-sbt.org/download.html">installation guide</a> to obtain it if necessary.
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
     {% highlight bash %}

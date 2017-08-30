@@ -19,6 +19,7 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
 import java.lang.{Integer => JInt, Long => JLong}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
@@ -29,7 +30,10 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.dataview._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions._
@@ -37,6 +41,8 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
+
+import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
 
@@ -175,11 +181,11 @@ object UserDefinedFunctionUtils {
         }
       }) {
       throw new ValidationException(
-        s"Scala-style variable arguments in '${methodName}' methods are not supported. Please " +
+        s"Scala-style variable arguments in '$methodName' methods are not supported. Please " +
           s"add a @scala.annotation.varargs annotation.")
     } else if (found.length > 1) {
       throw new ValidationException(
-        s"Found multiple '${methodName}' methods which match the signature.")
+        s"Found multiple '$methodName' methods which match the signature.")
     }
     found.headOption
   }
@@ -218,7 +224,7 @@ object UserDefinedFunctionUtils {
     if (methods.isEmpty) {
       throw new ValidationException(
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
-          s"one method named '${methodName}' which is public, not abstract and " +
+          s"one method named '$methodName' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     }
 
@@ -305,6 +311,111 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
   // Utilities for user-defined functions
   // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Remove StateView fields from accumulator type information.
+    *
+    * @param index index of aggregate function
+    * @param aggFun aggregate function
+    * @param accType accumulator type information, only support pojo type
+    * @param isStateBackedDataViews is data views use state backend
+    * @return mapping of accumulator type information and data view config which contains id,
+    *         field name and state descriptor
+    */
+  def removeStateViewFieldsFromAccTypeInfo(
+      index: Int,
+      aggFun: AggregateFunction[_, _],
+      accType: TypeInformation[_],
+      isStateBackedDataViews: Boolean)
+    : (TypeInformation[_], Option[Seq[DataViewSpec[_]]]) = {
+
+    /** Recursively checks if composite type includes a data view type. */
+    def includesDataView(ct: CompositeType[_]): Boolean = {
+      (0 until ct.getArity).exists(i =>
+        ct.getTypeAt(i) match {
+          case nestedCT: CompositeType[_] => includesDataView(nestedCT)
+          case t: TypeInformation[_] if t.getTypeClass == classOf[ListView[_]] => true
+          case t: TypeInformation[_] if t.getTypeClass == classOf[MapView[_, _]] => true
+          case _ => false
+        }
+      )
+    }
+
+    val acc = aggFun.createAccumulator()
+    accType match {
+      case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
+        val arity = pojoType.getArity
+        val newPojoFields = new util.ArrayList[PojoField]()
+        val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec[_]]
+        for (i <- 0 until arity) {
+          val pojoField = pojoType.getPojoFieldAt(i)
+          val field = pojoField.getField
+          val fieldName = field.getName
+          field.setAccessible(true)
+
+          pojoField.getTypeInformation match {
+            case ct: CompositeType[_] if includesDataView(ct) =>
+              throw new TableException(
+                "MapView and ListView only supported at first level of accumulators of Pojo type.")
+            case map: MapViewTypeInfo[_, _] =>
+              val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
+              if (mapView != null) {
+                val keyTypeInfo = mapView.keyTypeInfo
+                val valueTypeInfo = mapView.valueTypeInfo
+                val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
+                  new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
+                } else {
+                  map
+                }
+
+                // create map view specs with unique id (used as state name)
+                var spec = MapViewSpec(
+                  "agg" + index + "$" + fieldName,
+                  field,
+                  newTypeInfo)
+
+                accumulatorSpecs += spec
+                if (!isStateBackedDataViews) {
+                  // add data view field if it is not backed by a state backend.
+                  // data view fields which are backed by state backend are not serialized.
+                  newPojoFields.add(new PojoField(field, newTypeInfo))
+                }
+              }
+
+            case list: ListViewTypeInfo[_] =>
+              val listView = field.get(acc).asInstanceOf[ListView[_]]
+              if (listView != null) {
+                val elementTypeInfo = listView.elementTypeInfo
+                val newTypeInfo = if (elementTypeInfo != null) {
+                  new ListViewTypeInfo(elementTypeInfo)
+                } else {
+                  list
+                }
+
+                // create list view specs with unique is (used as state name)
+                var spec = ListViewSpec(
+                  "agg" + index + "$" + fieldName,
+                  field,
+                  newTypeInfo)
+
+                accumulatorSpecs += spec
+                if (!isStateBackedDataViews) {
+                  // add data view field if it is not backed by a state backend.
+                  // data view fields which are backed by state backend are not serialized.
+                  newPojoFields.add(new PojoField(field, newTypeInfo))
+                }
+              }
+
+            case _ => newPojoFields.add(pojoField)
+          }
+        }
+        (new PojoTypeInfo(accType.getTypeClass, newPojoFields), Some(accumulatorSpecs))
+      case ct: CompositeType[_] if includesDataView(ct) =>
+        throw new TableException(
+          "MapView and ListView only supported in accumulators of POJO type.")
+      case _ => (accType, None)
+    }
+  }
 
   /**
     * Tries to infer the TypeInformation of an AggregateFunction's return type.

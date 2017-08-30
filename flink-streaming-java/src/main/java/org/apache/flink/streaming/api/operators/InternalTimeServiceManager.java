@@ -44,7 +44,7 @@ import java.util.Map;
  * @param <N> The type of namespace used for the timers.
  */
 @Internal
-class InternalTimeServiceManager<K, N> {
+public class InternalTimeServiceManager<K, N> {
 
 	private final int totalKeyGroups;
 	private final KeyGroupsList localKeyGroupRange;

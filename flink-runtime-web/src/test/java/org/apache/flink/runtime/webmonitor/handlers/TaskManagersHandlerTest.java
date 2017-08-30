@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.api.common.time.Time;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tests for the TaskManagersHandler.
@@ -33,7 +33,7 @@ import scala.concurrent.duration.FiniteDuration;
 public class TaskManagersHandlerTest {
 	@Test
 	public void testGetPaths() {
-		TaskManagersHandler handler = new TaskManagersHandler(new FiniteDuration(0, TimeUnit.SECONDS), null);
+		TaskManagersHandler handler = new TaskManagersHandler(Time.seconds(0L), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(2, paths.length);
 		List<String> pathsList = Lists.newArrayList(paths);

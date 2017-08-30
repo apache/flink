@@ -45,13 +45,13 @@ import org.apache.flink.streaming.util.serialization.TypeInformationSerializatio
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.collect.ImmutableSet;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -285,7 +285,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 				properties,
 				topic,
 				partition,
-				ImmutableSet.copyOf(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot)),
+				Collections.unmodifiableSet(new HashSet<>(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot))),
 				30000L);
 
 		deleteTestTopic(topic);

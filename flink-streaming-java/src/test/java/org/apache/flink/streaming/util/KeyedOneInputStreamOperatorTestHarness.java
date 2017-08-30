@@ -23,33 +23,23 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.util.Migration;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.anyInt;
@@ -139,61 +129,6 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			}).when(mockTask).createKeyedStateBackend(any(TypeSerializer.class), anyInt(), any(KeyGroupRange.class));
 		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
-
-	/**
-	 *
-	 */
-	@Override
-	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
-		// simply use an in-memory handle
-		MemoryStateBackend backend = new MemoryStateBackend();
-
-		CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-				streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
-
-		if (operator instanceof StreamCheckpointedOperator) {
-			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
-		}
-
-		if (keyedStateBackend != null) {
-			RunnableFuture<KeyedStateHandle> keyedSnapshotRunnable = keyedStateBackend.snapshot(
-					checkpointId,
-					timestamp,
-					streamFactory,
-					CheckpointOptions.forFullCheckpoint());
-			if (!keyedSnapshotRunnable.isDone()) {
-				Thread runner = new Thread(keyedSnapshotRunnable);
-				runner.start();
-			}
-			outStream.write(1);
-			ObjectOutputStream oos = new ObjectOutputStream(outStream);
-			oos.writeObject(keyedSnapshotRunnable.get());
-			oos.flush();
-		} else {
-			outStream.write(0);
-		}
-		return outStream.closeAndGetHandle();
-	}
-
-	/**
-	 *
-	 */
-	@Override
-	public void restore(StreamStateHandle snapshot) throws Exception {
-		try (FSDataInputStream inStream = snapshot.openInputStream()) {
-
-			if (operator instanceof StreamCheckpointedOperator) {
-				((StreamCheckpointedOperator) operator).restoreState(inStream);
-			}
-
-			byte keyedStatePresent = (byte) inStream.read();
-			if (keyedStatePresent == 1) {
-				ObjectInputStream ois = new ObjectInputStream(inStream);
-				this.restoredKeyedState = Collections.singletonList((KeyedStateHandle) ois.readObject());
-			}
 		}
 	}
 

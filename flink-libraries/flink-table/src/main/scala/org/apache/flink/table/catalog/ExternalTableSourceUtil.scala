@@ -27,9 +27,9 @@ import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMat
 import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.util.InstantiationUtil
 import org.reflections.Reflections
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -37,12 +37,10 @@ import scala.collection.mutable
 /**
   * The utility class is used to convert ExternalCatalogTable to TableSourceTable.
   */
-object ExternalTableSourceUtil {
+object ExternalTableSourceUtil extends Logging {
 
   // config file to specify scan package to search TableSourceConverter
   private val tableSourceConverterConfigFileName = "tableSourceConverter.properties"
-
-  private val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
   // registered table type with the TableSourceConverter.
   // Key is table type name, Value is set of converter class.

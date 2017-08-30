@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -38,6 +37,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -50,23 +50,25 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <IN> Input type for {@link SinkFunction}.
  * @param <TXN> Transaction to store all of the information required to handle a transaction.
+ * @param <CONTEXT> Context that will be shared across all invocations for the given {@link TwoPhaseCommitSinkFunction}
+ *                 instance. Context is created once
  */
 @PublicEvolving
-public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
+public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		extends RichSinkFunction<IN>
 		implements CheckpointedFunction, CheckpointListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwoPhaseCommitSinkFunction.class);
 
-	protected final ListStateDescriptor<List<Tuple2<Long, TXN>>> pendingCommitTransactionsDescriptor;
-	protected final ListStateDescriptor<TXN> pendingTransactionsDescriptor;
+	protected final ListStateDescriptor<State<TXN, CONTEXT>> stateDescriptor;
 
 	protected final LinkedHashMap<Long, TXN> pendingCommitTransactions = new LinkedHashMap<>();
 
 	@Nullable
 	protected TXN currentTransaction;
-	protected ListState<TXN> pendingTransactionsState;
-	protected ListState<List<Tuple2<Long, TXN>>> pendingCommitTransactionsState;
+	protected Optional<CONTEXT> userContext;
+
+	protected ListState<State<TXN, CONTEXT>> state;
 
 	/**
 	 * Use default {@link ListStateDescriptor} for internal state serialization. Helpful utilities for using this
@@ -74,32 +76,30 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 	 * {@link TypeInformation#of(TypeHint)}. Example:
 	 * <pre>
 	 * {@code
-	 * TwoPhaseCommitSinkFunction(
-	 *     TypeInformation.of(TXN.class),
-	 *     TypeInformation.of(new TypeHint<TransactionAndCheckpoint<TXN>>() {}));
+	 * TwoPhaseCommitSinkFunction(TypeInformation.of(new TypeHint<State<TXN, CONTEXT>>() {}));
 	 * }
 	 * </pre>
-	 * @param txnTypeInformation {@link TypeInformation} for transaction POJO.
-	 * @param checkpointToTxnTypeInformation {@link TypeInformation} for mapping between checkpointId and transaction.
+	 * @param stateTypeInformation {@link TypeInformation} for POJO holding state of opened transactions.
 	 */
-	public TwoPhaseCommitSinkFunction(
-			TypeInformation<TXN> txnTypeInformation,
-			TypeInformation<List<Tuple2<Long, TXN>>> checkpointToTxnTypeInformation) {
-		this(new ListStateDescriptor<>("pendingTransactions", txnTypeInformation),
-			new ListStateDescriptor<>("pendingCommitTransactions", checkpointToTxnTypeInformation));
+	public TwoPhaseCommitSinkFunction(TypeInformation<State<TXN, CONTEXT>> stateTypeInformation) {
+		this(new ListStateDescriptor<State<TXN, CONTEXT>>("state", stateTypeInformation));
 	}
 
 	/**
 	 * Instantiate {@link TwoPhaseCommitSinkFunction} with custom state descriptors.
 	 *
-	 * @param pendingTransactionsDescriptor descriptor for transaction POJO.
-	 * @param pendingCommitTransactionsDescriptor descriptor for mapping between checkpointId and transaction POJO.
+	 * @param stateDescriptor descriptor for transactions POJO.
 	 */
-	public TwoPhaseCommitSinkFunction(
-			ListStateDescriptor<TXN> pendingTransactionsDescriptor,
-			ListStateDescriptor<List<Tuple2<Long, TXN>>> pendingCommitTransactionsDescriptor) {
-		this.pendingTransactionsDescriptor = requireNonNull(pendingTransactionsDescriptor, "pendingTransactionsDescriptor is null");
-		this.pendingCommitTransactionsDescriptor = requireNonNull(pendingCommitTransactionsDescriptor, "pendingCommitTransactionsDescriptor is null");
+	public TwoPhaseCommitSinkFunction(ListStateDescriptor<State<TXN, CONTEXT>> stateDescriptor) {
+		this.stateDescriptor = requireNonNull(stateDescriptor, "stateDescriptor is null");
+	}
+
+	protected Optional<CONTEXT> initializeUserContext() {
+		return Optional.empty();
+	}
+
+	protected Optional<CONTEXT> getUserContext() {
+		return userContext;
 	}
 
 	// ------ methods that should be implemented in child class to support two phase commit algorithm ------
@@ -154,6 +154,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		abort(transaction);
 	}
 
+	protected void finishRecoveringContext() {
+	}
+
 	// ------ entry points for above methods implementing {@CheckPointedFunction} and {@CheckpointListener} ------
 
 	@Override
@@ -196,11 +199,11 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		// ==> There should never be a case where we have no pending transaction here
 		//
 
-		Iterator<Map.Entry<Long, TXN>> pendingTransactionsIterator = pendingCommitTransactions.entrySet().iterator();
-		checkState(pendingTransactionsIterator.hasNext(), "checkpoint completed, but no transaction pending");
+		Iterator<Map.Entry<Long, TXN>> pendingTransactionIterator = pendingCommitTransactions.entrySet().iterator();
+		checkState(pendingTransactionIterator.hasNext(), "checkpoint completed, but no transaction pending");
 
-		while (pendingTransactionsIterator.hasNext()) {
-			Map.Entry<Long, TXN> entry = pendingTransactionsIterator.next();
+		while (pendingTransactionIterator.hasNext()) {
+			Map.Entry<Long, TXN> entry = pendingTransactionIterator.next();
 			Long pendingTransactionCheckpointId = entry.getKey();
 			TXN pendingTransaction = entry.getValue();
 			if (pendingTransactionCheckpointId > checkpointId) {
@@ -214,12 +217,12 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 
 			LOG.debug("{} - committed checkpoint transaction {}", name(), pendingTransaction);
 
-			pendingTransactionsIterator.remove();
+			pendingTransactionIterator.remove();
 		}
 	}
 
 	@Override
-	public final void snapshotState(FunctionSnapshotContext context) throws Exception {
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		// this is like the pre-commit of a 2-phase-commit transaction
 		// we are ready to commit and remember the transaction
 
@@ -235,17 +238,15 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		currentTransaction = beginTransaction();
 		LOG.debug("{} - started new transaction '{}'", name(), currentTransaction);
 
-		pendingCommitTransactionsState.clear();
-		pendingCommitTransactionsState.add(toTuple2List(pendingCommitTransactions));
-
-		pendingTransactionsState.clear();
-		// in case of failure we might not be able to abort currentTransaction. Let's store it into the state
-		// so it can be aborted after a restart/crash
-		pendingTransactionsState.add(currentTransaction);
+		state.clear();
+		state.add(new State<>(
+			this.currentTransaction,
+			new ArrayList<>(pendingCommitTransactions.values()),
+			userContext));
 	}
 
 	@Override
-	public final void initializeState(FunctionInitializationContext context) throws Exception {
+	public void initializeState(FunctionInitializationContext context) throws Exception {
 		// when we are restoring state with pendingCommitTransactions, we don't really know whether the
 		// transactions were already committed, or whether there was a failure between
 		// completing the checkpoint on the master, and notifying the writer here.
@@ -260,27 +261,33 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 		// we can have more than one transaction to check in case of a scale-in event, or
 		// for the reasons discussed in the 'notifyCheckpointComplete()' method.
 
-		pendingTransactionsState = context.getOperatorStateStore().getListState(pendingTransactionsDescriptor);
-		pendingCommitTransactionsState = context.getOperatorStateStore().getListState(pendingCommitTransactionsDescriptor);
+		state = context.getOperatorStateStore().getListState(stateDescriptor);
 
 		if (context.isRestored()) {
 			LOG.info("{} - restoring state", name());
 
-			for (List<Tuple2<Long, TXN>> recoveredTransactions : pendingCommitTransactionsState.get()) {
-				for (Tuple2<Long, TXN> recoveredTransaction : recoveredTransactions) {
+			for (State<TXN, CONTEXT> operatorState : state.get()) {
+				userContext = operatorState.getContext();
+				List<TXN> recoveredTransactions = operatorState.getPendingCommitTransactions();
+				for (TXN recoveredTransaction : recoveredTransactions) {
 					// If this fails, there is actually a data loss
-					recoverAndCommit(recoveredTransaction.f1);
+					recoverAndCommit(recoveredTransaction);
 					LOG.info("{} committed recovered transaction {}", name(), recoveredTransaction);
 				}
-			}
 
-			// Explicitly abort transactions that could be not closed cleanly
-			for (TXN pendingTransaction : pendingTransactionsState.get()) {
-				recoverAndAbort(pendingTransaction);
-				LOG.info("{} aborted recovered transaction {}", name(), pendingTransaction);
+				recoverAndAbort(operatorState.getPendingTransaction());
+				LOG.info("{} aborted recovered transaction {}", name(), operatorState.getPendingTransaction());
+
+				if (userContext.isPresent()) {
+					finishRecoveringContext();
+				}
 			}
-		} else {
-			LOG.info("{} - no state to restore {}", name());
+		}
+		// if in restore we didn't get any userContext or we are initializing from scratch
+		if (userContext == null) {
+			LOG.info("{} - no state to restore", name());
+
+			userContext = initializeUserContext();
 		}
 		this.pendingCommitTransactions.clear();
 
@@ -306,11 +313,45 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN>
 			getRuntimeContext().getNumberOfParallelSubtasks());
 	}
 
-	private List<Tuple2<Long, TXN>> toTuple2List(LinkedHashMap<Long, TXN> transactions) {
-		List<Tuple2<Long, TXN>> result = new ArrayList<>();
-		for (Map.Entry<Long, TXN> entry : transactions.entrySet()) {
-			result.add(Tuple2.of(entry.getKey(), entry.getValue()));
+	/**
+	 * State POJO class coupling pendingTransaction, context and pendingCommitTransactions.
+	 */
+	public static class State<TXN, CONTEXT> {
+		protected TXN pendingTransaction;
+		protected List<TXN> pendingCommitTransactions = new ArrayList<>();
+		protected Optional<CONTEXT> context;
+
+		public State() {
 		}
-		return result;
+
+		public State(TXN pendingTransaction, List<TXN> pendingCommitTransactions, Optional<CONTEXT> context) {
+			this.context = requireNonNull(context, "context is null");
+			this.pendingTransaction = requireNonNull(pendingTransaction, "pendingTransaction is null");
+			this.pendingCommitTransactions = requireNonNull(pendingCommitTransactions, "pendingCommitTransactions is null");
+		}
+
+		public TXN getPendingTransaction() {
+			return pendingTransaction;
+		}
+
+		public void setPendingTransaction(TXN pendingTransaction) {
+			this.pendingTransaction = pendingTransaction;
+		}
+
+		public List<TXN> getPendingCommitTransactions() {
+			return pendingCommitTransactions;
+		}
+
+		public void setPendingCommitTransactions(List<TXN> pendingCommitTransactions) {
+			this.pendingCommitTransactions = pendingCommitTransactions;
+		}
+
+		public Optional<CONTEXT> getContext() {
+			return context;
+		}
+
+		public void setContext(Optional<CONTEXT> context) {
+			this.context = context;
+		}
 	}
 }

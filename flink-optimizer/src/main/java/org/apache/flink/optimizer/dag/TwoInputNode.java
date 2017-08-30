@@ -58,7 +58,7 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
-import com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 /**
  * A node in the optimizer plan that represents an operator with a two different inputs, such as Join,

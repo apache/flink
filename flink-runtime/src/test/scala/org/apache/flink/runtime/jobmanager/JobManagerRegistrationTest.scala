@@ -264,14 +264,15 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       components._1,
       components._2,
       components._3,
-      ActorRef.noSender,
       components._4,
+      ActorRef.noSender,
       components._5,
+      components._6,
       highAvailabilityServices.getJobManagerLeaderElectionService(
         HighAvailabilityServices.DEFAULT_JOB_ID),
       highAvailabilityServices.getSubmittedJobGraphStore(),
       highAvailabilityServices.getCheckpointRecoveryFactory(),
-      components._8,
+      components._9,
       None)
 
     _system.actorOf(props)

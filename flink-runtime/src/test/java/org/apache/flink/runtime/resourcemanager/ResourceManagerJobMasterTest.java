@@ -32,7 +32,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -50,11 +50,13 @@ import static org.mockito.Mockito.*;
 
 public class ResourceManagerJobMasterTest extends TestLogger {
 
-	private TestingSerialRpcService rpcService;
+	private TestingRpcService rpcService;
+
+	private final Time timeout = Time.seconds(10L);
 
 	@Before
 	public void setup() throws Exception {
-		rpcService = new TestingSerialRpcService();
+		rpcService = new TestingRpcService();
 	}
 
 	@After
@@ -75,16 +77,18 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jmLeaderID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
+		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 
 		// test response successful
-		CompletableFuture<RegistrationResponse> successfulFuture = resourceManager.registerJobManager(
+		CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
 			rmLeaderSessionId,
 			jmLeaderID,
 			jmResourceId,
 			jobMasterAddress,
-			jobID);
-		RegistrationResponse response = successfulFuture.get(5L, TimeUnit.SECONDS);
+			jobID,
+			timeout);
+		RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		assertTrue(response instanceof JobMasterRegistrationSuccess);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -105,16 +109,18 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jmLeaderID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
+		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 
 		// test throw exception when receive a registration from job master which takes unmatched leaderSessionId
 		UUID differentLeaderSessionID = UUID.randomUUID();
-		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = resourceManager.registerJobManager(
+		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = rmGateway.registerJobManager(
 			differentLeaderSessionID,
 			jmLeaderID,
 			jmResourceId,
 			jobMasterAddress,
-			jobID);
+			jobID,
+			timeout);
 		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -135,18 +141,20 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
+		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 		final UUID jmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 
 		// test throw exception when receive a registration from job master which takes unmatched leaderSessionId
 		UUID differentLeaderSessionID = UUID.randomUUID();
-		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = resourceManager.registerJobManager(
+		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = rmGateway.registerJobManager(
 			rmLeaderSessionId,
 			differentLeaderSessionID,
 			jmResourceId,
 			jobMasterAddress,
-			jobID);
+			jobID,
+			timeout);
 		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -167,18 +175,20 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
+		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 		final UUID jmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 
 		// test throw exception when receive a registration from job master which takes invalid address
 		String invalidAddress = "/jobMasterAddress2";
-		CompletableFuture<RegistrationResponse> invalidAddressFuture = resourceManager.registerJobManager(
+		CompletableFuture<RegistrationResponse> invalidAddressFuture = rmGateway.registerJobManager(
 			rmLeaderSessionId,
 			jmLeaderSessionId,
 			jmResourceId,
 			invalidAddress,
-			jobID);
+			jobID,
+			timeout);
 		assertTrue(invalidAddressFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -198,20 +208,26 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			"localhost",
 			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
-		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
+		final ResourceManager<?> resourceManager = createAndStartResourceManager(
+			resourceManagerLeaderElectionService,
+			jobID,
+			jobMasterLeaderRetrievalService,
+			testingFatalErrorHandler);
+		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 		final UUID jmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 
 		JobID unknownJobIDToHAServices = new JobID();
 		// verify return RegistrationResponse.Decline when failed to start a job master Leader retrieval listener
-		CompletableFuture<RegistrationResponse> declineFuture = resourceManager.registerJobManager(
+		CompletableFuture<RegistrationResponse> declineFuture = rmGateway.registerJobManager(
 			rmLeaderSessionId,
 			jmLeaderSessionId,
 			jmResourceId,
 			jobMasterAddress,
-			unknownJobIDToHAServices);
-		RegistrationResponse response = declineFuture.get(5, TimeUnit.SECONDS);
+			unknownJobIDToHAServices,
+			timeout);
+		RegistrationResponse response = declineFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		assertTrue(response instanceof RegistrationResponse.Decline);
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {

@@ -312,6 +312,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> optional() {
+		checkIfPreviousPatternGreedy();
 		quantifier.optional();
 		return this;
 	}
@@ -326,13 +327,28 @@ public class Pattern<T, F extends T> {
 	 * {@code A1 A2 B} appears, this will generate patterns:
 	 * {@code A1 B} and {@code A1 A2 B}. See also {@link #allowCombinations()}.
 	 *
-	 * @return The same pattern with a {@link Quantifier#oneOrMore(ConsumingStrategy)} quantifier applied.
+	 * @return The same pattern with a {@link Quantifier#looping(ConsumingStrategy)} quantifier applied.
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> oneOrMore() {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
-		this.quantifier = Quantifier.oneOrMore(quantifier.getConsumingStrategy());
+		this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
+		this.times = Times.of(1);
+		return this;
+	}
+
+	/**
+	 * Specifies that this pattern is greedy.
+	 * This means as many events as possible will be matched to this pattern.
+	 *
+	 * @return The same pattern with {@link Quantifier#greedy} set to true.
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> greedy() {
+		checkIfNoNotPattern();
+		checkIfNoGroupPattern();
+		this.quantifier.greedy();
 		return this;
 	}
 
@@ -375,7 +391,23 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Applicable only to {@link Quantifier#oneOrMore(ConsumingStrategy)} and
+	 * Specifies that this pattern can occur the specified times at least.
+	 * This means at least the specified times and at most infinite number of events can
+	 * be matched to this pattern.
+	 *
+	 * @return The same pattern with a {@link Quantifier#looping(ConsumingStrategy)} quantifier applied.
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> timesOrMore(int times) {
+		checkIfNoNotPattern();
+		checkIfQuantifierApplied();
+		this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
+		this.times = Times.of(times);
+		return this;
+	}
+
+	/**
+	 * Applicable only to {@link Quantifier#looping(ConsumingStrategy)} and
 	 * {@link Quantifier#times(ConsumingStrategy)} patterns, this option allows more flexibility to the matching events.
 	 *
 	 * <p>If {@code allowCombinations()} is not applied for a
@@ -490,6 +522,18 @@ public class Pattern<T, F extends T> {
 		if (!quantifier.hasProperty(Quantifier.QuantifierProperty.SINGLE)) {
 			throw new MalformedPatternException("Already applied quantifier to this Pattern. " +
 					"Current quantifier is: " + quantifier);
+		}
+	}
+
+	private void checkIfNoGroupPattern() {
+		if (this instanceof GroupPattern) {
+			throw new MalformedPatternException("Option not applicable to group pattern");
+		}
+	}
+
+	private void checkIfPreviousPatternGreedy() {
+		if (previous != null && previous.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+			throw new MalformedPatternException("Optional pattern cannot be preceded by greedy pattern");
 		}
 	}
 }
