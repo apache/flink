@@ -39,6 +39,7 @@ public class TemplateManager {
 	// ------------------------------------------------------------------------
 	//                                   Constants
 	// ------------------------------------------------------------------------
+
 	public static final String TEMPLATE_ENCODING  = "UTF-8";
 
 	private static final Logger LOG = LoggerFactory.getLogger(TemplateManager.class);
@@ -46,29 +47,33 @@ public class TemplateManager {
 	// ------------------------------------------------------------------------
 	//                                   Singleton Attribute
 	// ------------------------------------------------------------------------
+
 	private static TemplateManager templateManager;
 
 	// ------------------------------------------------------------------------
 	//                                   Attributes
 	// ------------------------------------------------------------------------
-	private final Configuration templateConf;
+
+	private final Template template;
 
 	/**
 	 * Constructor.
 	 * @throws IOException
 	 */
 	private TemplateManager() throws IOException {
+		Configuration templateConf;
 		templateConf = new Configuration();
 		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
+		template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
 	}
 
 
 	/**
 	 * A method to get a singleton instance
 	 * or create one if it hasn't been created yet.
-	 * @return
+	 * @return The singleton instance.
 	 * @throws IOException
 	 */
 	public static synchronized TemplateManager getInstance() throws IOException {
@@ -81,26 +86,20 @@ public class TemplateManager {
 
 
 	/**
-	 * Render sorter template with generated code provided by SorterTemplateModel and write the content to a file
-	 * and cache the result for later calls.
+	 * Render sorter template with generated code provided by SorterTemplateModel.
 	 * @param model
 	 * @return the generated code
 	 * @throws IOException
 	 * @throws TemplateException
 	 */
-	String getGeneratedCode(SorterTemplateModel model) throws IOException, TemplateException {
-
-		Template template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
+	synchronized String getGeneratedCode(SorterTemplateModel model) throws IOException, TemplateException {
 
 		Writer output = new StringWriter();
 
-		synchronized (this){
+		Map templateVariables = model.getTemplateVariables();
+		template.process(templateVariables, output);
 
-			Map templateVariables = model.getTemplateVariables();
-			template.process(templateVariables, output);
-
-			output.close();
-		}
+		output.close();
 
 		return output.toString();
 	}
