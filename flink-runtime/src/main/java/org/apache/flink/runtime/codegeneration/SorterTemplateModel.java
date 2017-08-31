@@ -27,7 +27,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * {@link SorterTemplateModel} is a class that implements code generation logic for given {@link TypeComparator}.
+ * {@link SorterTemplateModel} is a class that implements code generation logic for a given
+ * {@link TypeComparator}.
+ *
+ * <p>The swap and compare methods in {@link NormalizedKeySorter} work on a sequence of bytes.
+ * We speed up these operations by splitting this sequence of bytes into chunks that can
+ * be handled by primitive operations such as Integer and Long operations.</p>
  */
 class SorterTemplateModel {
 
@@ -59,12 +64,21 @@ class SorterTemplateModel {
 	// ------------------------------------------------------------------------
 	//                                   Attributes
 	// ------------------------------------------------------------------------
+
 	private final TypeComparator typeComparator;
+
+	/**
+	 * Sizes of the chunks. Empty, if we are not splitting to chunks. (See calculateChunks())
+	 */
 	private final ArrayList<Integer> primitiveChunks;
+
 	private final String sorterName;
 
-	// used to determine whether order of records can completely determined by normalized sorting key
-	// or the sorter has to also deserialize records if their keys are equal to really confirm the order
+	/**
+	 * Shows whether the order of records can be completely determined by the normalized
+	 * sorting key, or the sorter has to also deserialize records if their keys are equal to
+	 * really confirm the order.
+	 */
 	private final boolean normalizedKeyFullyDetermines;
 
 	/**
@@ -129,7 +143,7 @@ class SorterTemplateModel {
 	}
 
 	/**
-	 * Getter for sorterName which instantiated from constructor.
+	 * Getter for sorterName (generated in the constructor).
 	 * @return name of the sorter
 	 */
 	String getSorterName(){
@@ -179,15 +193,40 @@ class SorterTemplateModel {
 				i++;
 			}
 		}
+
+		// generateCompareProcedures and generateWriteProcedures skip the
+		// first 8 bytes, because it contains the pointer.
+		// They do this by skipping the first entry of primitiveChunks, because that
+		// should always be 8 in this case.
+		if (!(NormalizedKeySorter.OFFSET_LEN == 8 && chunks.get(0).equals(8))) {
+			throw new RuntimeException("Bug: Incorrect OFFSET_LEN or primitiveChunks");
+		}
+
 		return chunks;
 	}
 
 	/**
 	 * Based on primitiveChunks variable, generate the most suitable operators
 	 * for swapping function.
-	 * @return string of a sequence operators used in swapping process
+	 *
+	 * @return code used in the swap method
 	 */
 	private String generateSwapProcedures(){
+		/* Example generated code, for 20 bytes (8+8+4):
+
+		long temp1 = segI.getLong(segmentOffsetI);
+		long temp2 = segI.getLong(segmentOffsetI+8);
+		int temp3 = segI.getInt(segmentOffsetI+16);
+
+		segI.putLong(segmentOffsetI, segJ.getLong(segmentOffsetJ));
+		segI.putLong(segmentOffsetI+8, segJ.getLong(segmentOffsetJ+8));
+		segI.putInt(segmentOffsetI+16, segJ.getInt(segmentOffsetJ+16));
+
+		segJ.putLong(segmentOffsetJ, temp1);
+		segJ.putLong(segmentOffsetJ+8, temp2);
+		segJ.putInt(segmentOffsetJ+16, temp3);
+		 */
+
 		String procedures = "";
 
 		if (this.primitiveChunks.size() > 0) {
@@ -234,13 +273,23 @@ class SorterTemplateModel {
 	 * Based on primitiveChunks variable, generate reverse byte operators for little endian machine
 	 * for writing a record to MemorySegment, such that later during comparison
 	 * we can directly use native byte order to do unsigned comparison.
-	 * @return string of a sequence operators used in writing process
+	 *
+	 * @return code used in the write method
 	 */
 	private String generateWriteProcedures(){
+		/* Example generated code, for 12 bytes (8+4):
+
+		long temp1 = Long.reverseBytes(this.currentSortIndexSegment.getLong(this.currentSortIndexOffset+8));
+		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset + 8, temp1);
+		int temp2 = Integer.reverseBytes(this.currentSortIndexSegment.getInt(this.currentSortIndexOffset+16));
+		this.currentSortIndexSegment.putInt(this.currentSortIndexOffset + 16, temp2);
+		 */
+
 		StringBuilder procedures = new StringBuilder();
-		// skip first operator for prefix
+		// skip the first chunk, which is the pointer before the key
 		if (primitiveChunks.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
 			int offset = 0;
+			// starts from 1 because of skipping the first chunk
 			for (int i = 1; i < primitiveChunks.size(); i++){
 				int noBytes = primitiveChunks.get(i);
 				if (noBytes == 1){
@@ -263,7 +312,7 @@ class SorterTemplateModel {
 					primitiveType, i, reverseBytesMethod, primitiveClass, offset
 				));
 
-				procedures.append(String.format("this.currentSortIndexSegment.put%s( this.currentSortIndexOffset + %d, temp%d);\n",
+				procedures.append(String.format("this.currentSortIndexSegment.put%s(this.currentSortIndexOffset + %d, temp%d);\n",
 					primitiveClass, offset, i
 				));
 
@@ -273,16 +322,34 @@ class SorterTemplateModel {
 	}
 
 	/**
-	 * Based on primitiveChunks variable, generate the most suitable operators
-	 * for comparing 2 records. Nothing that, we are generating procedures that use
-	 * native-order byte methods here regardless endianness of the machine as we compensate
-	 * the order already in writing process.
-	 * @return string of a sequence operators used in comparing processes
+	 * Based on primitiveChunks, generate the most suitable operators
+	 * for comparing two records. Note that we generate procedures that use
+	 * native byte-order here, regardless of the endianness of the
+	 * machine, as we compensate the order already during writing the key.
+	 *
+	 * @return code used in the compare method
 	 */
 	private String generateCompareProcedures(){
+		/* Example generated code for 12 bytes (8+4):
+
+		long l_1_1  = segI.getLong(segmentOffsetI + 8);
+		long l_1_2  = segJ.getLong(segmentOffsetJ + 8);
+		if( l_1_1 != l_1_2 ) {
+		  return ((l_1_1 < l_1_2) ^ ( l_1_1 < 0 ) ^ ( l_1_2 < 0 ) ? -1 : 1);
+		}
+
+		int l_2_1  = segI.getInt(segmentOffsetI + 16);
+		int l_2_2  = segJ.getInt(segmentOffsetJ + 16);
+		if( l_2_1 != l_2_2 ) {
+		  return ((l_2_1 < l_2_2) ^ ( l_2_1 < 0 ) ^ ( l_2_2 < 0 ) ? -1 : 1);
+		}
+
+		return 0;
+		 */
+
 		StringBuilder procedures = new StringBuilder();
 
-		// skip first operator for prefix
+		// skip the first chunk, which is the pointer before the key
 		if (primitiveChunks.size() > 1){
 			String sortOrder = "";
 			if (this.typeComparator.invertNormalizedKey()){
@@ -291,6 +358,7 @@ class SorterTemplateModel {
 
 			int offset = 0;
 
+			// starts from 1 because of skipping the first chunk
 			for (int i = 1; i < primitiveChunks.size(); i++){
 
 				offset += primitiveChunks.get(i - 1);
@@ -305,7 +373,7 @@ class SorterTemplateModel {
 					primitiveType, var2, primitiveClass, offset));
 
 				procedures.append(String.format("if( %s != %s ) {\n", var1, var2));
-				procedures.append(String.format("return %s((%s < %s) ^ ( %s < 0 ) ^ ( %s < 0 ) ? -1 : 1);\n",
+				procedures.append(String.format("  return %s((%s < %s) ^ ( %s < 0 ) ^ ( %s < 0 ) ? -1 : 1);\n",
 					sortOrder, var1, var2, var1, var2));
 				procedures.append("}\n\n");
 

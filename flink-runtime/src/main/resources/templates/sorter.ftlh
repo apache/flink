@@ -36,7 +36,8 @@ import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.operators.sort.LargeRecordHandler;
 
 /**
- * This code is generated on ${.now}
+ * This code is generated on ${.now} by
+ * org.apache.flink.runtime.codegeneration.SorterTemplateModel.
  */
 public final class ${name}<T> extends NormalizedKeySorter<T> {
 
