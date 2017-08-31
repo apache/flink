@@ -475,7 +475,13 @@ are other constructor variants that allow providing the following:
  
 ### Kafka Producers and Fault Tolerance
 
-With Flink's checkpointing enabled, the Flink Kafka Producer can provide
+#### Kafka 0.8
+
+Before 0.9 Kafka did not provide any mechanisms to guarantee at-least-once or exactly-once semantics.
+
+#### Kafka 0.9 and 0.10
+
+With Flink's checkpointing enabled, the `FlinkKafkaProducer010` can provide
 at-least-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you should also configure the setter
@@ -498,6 +504,20 @@ we recommend setting the number of retries to a higher value.
 
 **Note**: There is currently no transactional producer for Kafka, so Flink can not guarantee exactly-once delivery
 into a Kafka topic.
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> Depending on your Kafka configuration, even after Kafka acknowledges
+  writes you can still experience data losses. In particular keep in mind about following properties
+  in Kafka config:
+  <ul>
+    <li><tt>acks</tt></li>
+    <li><tt>log.flush.interval.messages</tt></li>
+    <li><tt>log.flush.interval.ms</tt></li>
+    <li><tt>log.flush.*</tt></li>
+  </ul>
+  Default values for above options are easily prone to data losses. Please refer to Kafka documentation
+  for more explanation.
+</div>
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 
