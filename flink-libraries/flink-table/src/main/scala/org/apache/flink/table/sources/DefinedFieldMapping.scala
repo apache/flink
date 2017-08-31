@@ -22,6 +22,7 @@ import java.util.{Map => JMap}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 
 /**
   * The [[DefinedFieldMapping]] interface provides a mapping for the fields of the table schema

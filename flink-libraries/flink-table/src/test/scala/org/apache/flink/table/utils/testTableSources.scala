@@ -30,6 +30,8 @@ import org.apache.flink.table.api.Types.{DOUBLE, INT, LONG, STRING}
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.sources._
+import org.apache.flink.table.sources.tsextractors.ExistingField
+import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
@@ -63,7 +65,7 @@ class TestTableSourceWithTime[T](
       Collections.singletonList(new RowtimeAttributeDescriptor(
         rowtime,
         new ExistingField(rowtime),
-        new AscendingWatermarks))
+        new AscendingTimestamps))
     } else {
       Collections.EMPTY_LIST.asInstanceOf[util.List[RowtimeAttributeDescriptor]]
     }

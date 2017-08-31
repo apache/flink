@@ -18,12 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.types.Row;
 
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -34,38 +36,159 @@ import java.util.Properties;
  *
  * <p>The field names are used to parse the JSON file and so are the types.
  */
-public abstract class KafkaJsonTableSource extends KafkaTableSource {
+public abstract class KafkaJsonTableSource extends KafkaTableSource implements DefinedFieldMapping {
+
+	private TableSchema jsonSchema;
+
+	private Map<String, String> fieldMapping;
+
+	private boolean failOnMissingField;
 
 	/**
 	 * Creates a generic Kafka JSON {@link StreamTableSource}.
 	 *
-	 * @param topic      Kafka topic to consume.
-	 * @param properties Properties for the Kafka consumer.
-	 * @param typeInfo   Type information describing the result type. The field names are used
-	 *                   to parse the JSON file and so are the types.
+	 * @param topic       Kafka topic to consume.
+	 * @param properties  Properties for the Kafka consumer.
+	 * @param tableSchema The schema of the table.
+	 * @param jsonSchema  The schema of the JSON messages to decode from Kafka.
 	 */
-	KafkaJsonTableSource(
-			String topic,
-			Properties properties,
-			TypeInformation<Row> typeInfo) {
+	protected KafkaJsonTableSource(
+		String topic,
+		Properties properties,
+		TableSchema tableSchema,
+		TableSchema jsonSchema) {
 
-		super(topic, properties, createDeserializationSchema(typeInfo), typeInfo);
+		super(
+			topic,
+			properties,
+			tableSchema,
+			jsonSchemaToReturnType(jsonSchema));
+
+		this.jsonSchema = jsonSchema;
+	}
+
+	@Override
+	public Map<String, String> getFieldMapping() {
+		return fieldMapping;
+	}
+
+	@Override
+	protected JsonRowDeserializationSchema getDeserializationSchema() {
+		JsonRowDeserializationSchema deserSchema = new JsonRowDeserializationSchema(jsonSchemaToReturnType(jsonSchema));
+		deserSchema.setFailOnMissingField(failOnMissingField);
+		return deserSchema;
+	}
+
+	@Override
+	public String explainSource() {
+		return "KafkaJSONTableSource";
+	}
+
+	//////// SETTERS FOR OPTIONAL PARAMETERS
+
+	/**
+	 * Sets the flag that specifies the behavior in case of missing fields.
+	 * TableSource will fail for missing fields if set to true. If set to false, the missing field is set to null.
+	 *
+	 * @param failOnMissingField Flag that specifies the TableSource behavior in case of missing fields.
+	 */
+	protected void setFailOnMissingField(boolean failOnMissingField) {
+		this.failOnMissingField = failOnMissingField;
 	}
 
 	/**
-	 * Configures the failure behaviour if a JSON field is missing.
+	 * Sets the mapping from table schema fields to JSON schema fields.
 	 *
-	 * <p>By default, a missing field is ignored and the field is set to null.
-	 *
-	 * @param failOnMissingField Flag indicating whether to fail or not on a missing field.
+	 * @param fieldMapping The mapping from table schema fields to JSON schema fields.
 	 */
-	public void setFailOnMissingField(boolean failOnMissingField) {
-		JsonRowDeserializationSchema deserializationSchema = (JsonRowDeserializationSchema) getDeserializationSchema();
-		deserializationSchema.setFailOnMissingField(failOnMissingField);
+	protected void setFieldMapping(Map<String, String> fieldMapping) {
+		this.fieldMapping = fieldMapping;
 	}
 
-	private static JsonRowDeserializationSchema createDeserializationSchema(TypeInformation<Row> typeInfo) {
+	//////// HELPER METHODS
 
-		return new JsonRowDeserializationSchema(typeInfo);
+	/** Converts the JSON schema into into the return type. */
+	private static RowTypeInfo jsonSchemaToReturnType(TableSchema jsonSchema) {
+		return new RowTypeInfo(jsonSchema.getTypes(), jsonSchema.getColumnNames());
+	}
+
+	/**
+	 * Abstract builder for a {@link KafkaJsonTableSource} to be extended by builders of subclasses of
+	 * KafkaJsonTableSource.
+	 *
+	 * @param <T> Type of the KafkaJsonTableSource produced by the builder.
+	 * @param <B> Type of the KafkaJsonTableSource.Builder subclass.
+	 */
+	protected abstract static class Builder<T extends KafkaJsonTableSource, B extends KafkaJsonTableSource.Builder>
+		extends KafkaTableSource.Builder<T, B> {
+
+		private TableSchema jsonSchema;
+
+		private Map<String, String> fieldMapping;
+
+		private boolean failOnMissingField = false;
+
+		/**
+		 * Sets the schema of the JSON-encoded Kafka messages.
+		 * If not set, the JSON messages are decoded with the table schema.
+		 *
+		 * @param jsonSchema The schema of the JSON-encoded Kafka messages.
+		 * @return The builder.
+		 */
+		public B forJsonSchema(TableSchema jsonSchema) {
+			this.jsonSchema = jsonSchema;
+			return builder();
+		}
+
+		/**
+		 * Sets a mapping from schema fields to fields of the JSON schema.
+		 *
+		 * <p>A field mapping is required if the fields of produced tables should be named different than
+		 * the fields of the JSON records.
+		 * The key of the provided Map refers to the field of the table schema,
+		 * the value to the field in the JSON schema.</p>
+		 *
+		 * @param tableToJsonMapping A mapping from table schema fields to JSON schema fields.
+		 * @return The builder.
+		 */
+		public B withTableToJsonMapping(Map<String, String> tableToJsonMapping) {
+			this.fieldMapping = tableToJsonMapping;
+			return builder();
+		}
+
+		/**
+		 * Sets flag whether to fail if a field is missing or not.
+		 *
+		 * @param failOnMissingField If set to true, the TableSource fails if a missing fields.
+		 *                           If set to false, a missing field is set to null.
+		 * @return The builder.
+		 */
+		public B failOnMissingField(boolean failOnMissingField) {
+			this.failOnMissingField = failOnMissingField;
+			return builder();
+		}
+
+		/**
+		 * Returns the configured JSON schema. If no JSON schema was configured, the table schema
+		 * is returned.
+		 *
+		 * @return The JSON schema for the TableSource.
+		 */
+		protected TableSchema getJsonSchema() {
+			if (jsonSchema != null) {
+				return this.jsonSchema;
+			} else {
+				return getTableSchema();
+			}
+		}
+
+		@Override
+		protected void configureTableSource(T source) {
+			super.configureTableSource(source);
+			// configure field mapping
+			source.setFieldMapping(this.fieldMapping);
+			// configure missing field behavior
+			source.setFailOnMissingField(this.failOnMissingField);
+		}
 	}
 }
