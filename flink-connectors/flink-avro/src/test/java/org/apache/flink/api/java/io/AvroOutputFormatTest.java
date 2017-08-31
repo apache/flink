@@ -24,7 +24,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.Test;
 import org.mockito.internal.util.reflection.Whitebox;
@@ -37,6 +39,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import static org.apache.flink.api.java.io.AvroOutputFormat.Codec;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -162,6 +165,16 @@ public class AvroOutputFormatTest {
 		outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 		outputFormat.setSchema(schema);
 		output(outputFormat, schema);
+
+		GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
+		DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(new File(outputPath.getPath()), reader);
+
+		while (dataFileReader.hasNext()) {
+			GenericRecord record = dataFileReader.next();
+			assertEquals(record.get("user_name").toString(), "testUser");
+			assertEquals(record.get("favorite_number"), 1);
+			assertEquals(record.get("favorite_color").toString(), "blue");
+		}
 
 		//cleanup
 		FileSystem fs = FileSystem.getLocalFileSystem();
