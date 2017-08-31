@@ -18,25 +18,18 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.types.Row;
 
-import java.util.Properties;
-
 /**
  * Tests for the {@link Kafka011AvroTableSource}.
  */
-public class Kafka011AvroTableSourceTest extends KafkaTableSourceTestBase {
+public class Kafka011AvroTableSourceTest extends KafkaAvroTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
-
-		return new Kafka011AvroTableSource(
-			topic,
-			properties,
-			AvroSpecificRecord.class);
+	protected KafkaTableSource.Builder getBuilder() {
+		return Kafka011AvroTableSource.builder();
 	}
 
 	@Override

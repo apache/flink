@@ -20,6 +20,8 @@ package org.apache.flink.table.api
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 
+import _root_.scala.collection.mutable.ArrayBuffer
+
 /**
   * A TableSchema represents a Table's structure.
   */
@@ -154,4 +156,24 @@ object TableSchema {
     }
   }
 
+  def builder(): TableSchemaBuilder = {
+    new TableSchemaBuilder
+  }
+
+}
+
+class TableSchemaBuilder {
+
+  private val fieldNames: ArrayBuffer[String] = new ArrayBuffer[String]()
+  private val fieldTypes: ArrayBuffer[TypeInformation[_]] = new ArrayBuffer[TypeInformation[_]]()
+
+  def field(name: String, tpe: TypeInformation[_]): TableSchemaBuilder = {
+    fieldNames.append(name)
+    fieldTypes.append(tpe)
+    this
+  }
+
+  def build(): TableSchema = {
+    new TableSchema(fieldNames.toArray, fieldTypes.toArray)
+  }
 }

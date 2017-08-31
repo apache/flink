@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.sources.wmstrategies
 
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.types.Row
@@ -59,43 +59,4 @@ abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
     * @return The watermark for this row or null if no watermark should be generated.
     */
   def getWatermark(row: Row, timestamp: Long): Watermark
-}
-
-/**
-  * A watermark assigner for ascending rowtime attributes.
-  *
-  * Emits a watermark of the maximum observed timestamp so far minus 1.
-  * Rows that have a timestamp equal to the max timestamp are not late.
-  */
-class AscendingWatermarks extends PeriodicWatermarkAssigner {
-
-  var maxTimestamp: Long = Long.MinValue + 1
-
-  override def nextTimestamp(timestamp: Long): Unit = {
-    if (timestamp > maxTimestamp) {
-      maxTimestamp = timestamp
-    }
-  }
-
-  override def getWatermark: Watermark = new Watermark(maxTimestamp - 1)
-}
-
-/**
-  * A watermark assigner for rowtime attributes which are out-of-order by a bounded time interval.
-  *
-  * Emits watermarks which are the maximum observed timestamp minus the specified delay.
-  *
-  * @param delay The delay by which watermarks are behind the maximum observed timestamp.
-  */
-class BoundedOutOfOrderWatermarks(val delay: Long) extends PeriodicWatermarkAssigner {
-
-  var maxTimestamp: Long = Long.MinValue + delay
-
-  override def nextTimestamp(timestamp: Long): Unit = {
-    if (timestamp > maxTimestamp) {
-      maxTimestamp = timestamp
-    }
-  }
-
-  override def getWatermark: Watermark = new Watermark(maxTimestamp - delay)
 }

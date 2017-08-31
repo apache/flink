@@ -18,20 +18,27 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.testutils.AvroTestUtils;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.sources.tsextractors.ExistingField;
+import org.apache.flink.table.sources.tsextractors.StreamRecordTimestamp;
+import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
 
-import org.apache.avro.Schema;
-import org.apache.avro.specific.SpecificRecordBase;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Properties;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -43,69 +50,155 @@ import static org.mockito.Mockito.verify;
  */
 public abstract class KafkaTableSourceTestBase {
 
+	static final String[] FIELD_NAMES =
+		new String[]{"field1", "field2", "time1", "time2", "field3"};
+	static final TypeInformation[] FIELD_TYPES =
+		new TypeInformation[]{Types.LONG(), Types.STRING(), Types.SQL_TIMESTAMP(), Types.SQL_TIMESTAMP(), Types.DOUBLE()};
+
 	private static final String TOPIC = "testTopic";
-	private static final String[] FIELD_NAMES = new String[] { "mylong", "mystring", "myboolean", "mydouble", "missingField" };
-	private static final TypeInformation<?>[] FIELD_TYPES = new TypeInformation<?>[] {
-		BasicTypeInfo.LONG_TYPE_INFO,
-		BasicTypeInfo.STRING_TYPE_INFO,
-		BasicTypeInfo.BOOLEAN_TYPE_INFO,
-		BasicTypeInfo.DOUBLE_TYPE_INFO,
-		BasicTypeInfo.LONG_TYPE_INFO };
-	private static final Properties PROPERTIES = createSourceProperties();
-
-	/**
-	 * Avro record that matches above schema.
-	 */
-	public static class AvroSpecificRecord extends SpecificRecordBase {
-
-		//CHECKSTYLE.OFF: StaticVariableNameCheck - Avro accesses this field by name via reflection.
-		public static Schema SCHEMA$ = AvroTestUtils.createFlatAvroSchema(FIELD_NAMES, FIELD_TYPES);
-		//CHECKSTYLE.ON: StaticVariableNameCheck
-
-		public Long mylong;
-		public String mystring;
-		public Boolean myboolean;
-		public Double mydouble;
-		public Long missingField;
-
-		@Override
-		public Schema getSchema() {
-			return null;
-		}
-
-		@Override
-		public Object get(int field) {
-			return null;
-		}
-
-		@Override
-		public void put(int field, Object value) {
-
-		}
-	}
+	private static final TableSchema SCHEMA = new TableSchema(FIELD_NAMES, FIELD_TYPES);
+	private static final Properties PROPS = createSourceProperties();
 
 	@Test
-	public void testKafkaTableSource() {
-		KafkaTableSource kafkaTableSource = spy(createTableSource());
+	public void testKafkaConsumer() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+
+		// assert that correct
+		KafkaTableSource observed = spy(b.build());
 		StreamExecutionEnvironment env = mock(StreamExecutionEnvironment.class);
-		kafkaTableSource.getDataStream(env);
+		observed.getDataStream(env);
 
 		verify(env).addSource(any(getFlinkKafkaConsumer()));
 
-		verify(kafkaTableSource).getKafkaConsumer(
+		verify(observed).getKafkaConsumer(
 			eq(TOPIC),
-			eq(PROPERTIES),
+			eq(PROPS),
 			any(getDeserializationSchema()));
 	}
 
-	protected abstract KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo);
+	@Test
+	public void testTableSchema() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+
+		KafkaTableSource source = b.build();
+
+		// check table schema
+		TableSchema schema = source.getTableSchema();
+		assertNotNull(schema);
+		assertEquals(5, schema.getColumnNames().length);
+		// check table fields
+		assertEquals("field1", schema.getColumnNames()[0]);
+		assertEquals("field2", schema.getColumnNames()[1]);
+		assertEquals("time1", schema.getColumnNames()[2]);
+		assertEquals("time2", schema.getColumnNames()[3]);
+		assertEquals("field3", schema.getColumnNames()[4]);
+		assertEquals(Types.LONG(), schema.getTypes()[0]);
+		assertEquals(Types.STRING(), schema.getTypes()[1]);
+		assertEquals(Types.SQL_TIMESTAMP(), schema.getTypes()[2]);
+		assertEquals(Types.SQL_TIMESTAMP(), schema.getTypes()[3]);
+		assertEquals(Types.DOUBLE(), schema.getTypes()[4]);
+	}
+
+	@Test
+	public void testNoTimeAttributes() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+
+		KafkaTableSource source = b.build();
+
+		// assert no proctime
+		assertNull(source.getProctimeAttribute());
+		// assert no rowtime
+		assertNotNull(source.getRowtimeAttributeDescriptors());
+		assertTrue(source.getRowtimeAttributeDescriptors().isEmpty());
+	}
+
+	@Test
+	public void testProctimeAttribute() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+		b.withProctimeAttribute("time1");
+
+		KafkaTableSource source = b.build();
+
+		// assert correct proctime field
+		assertEquals(source.getProctimeAttribute(), "time1");
+
+		// assert no rowtime
+		assertNotNull(source.getRowtimeAttributeDescriptors());
+		assertTrue(source.getRowtimeAttributeDescriptors().isEmpty());
+	}
+
+	@Test
+	public void testRowtimeAttribute() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+		b.withRowtimeAttribute("time2", new ExistingField("time2"), new AscendingTimestamps());
+
+		KafkaTableSource source = b.build();
+
+		// assert no proctime
+		assertNull(source.getProctimeAttribute());
+
+		// assert correct rowtime descriptor
+		List<RowtimeAttributeDescriptor> descs = source.getRowtimeAttributeDescriptors();
+		assertNotNull(descs);
+		assertEquals(1, descs.size());
+		RowtimeAttributeDescriptor desc = descs.get(0);
+		assertEquals("time2", desc.getAttributeName());
+		// assert timestamp extractor
+		assertTrue(desc.getTimestampExtractor() instanceof ExistingField);
+		assertEquals(1, desc.getTimestampExtractor().getArgumentFields().length);
+		assertEquals("time2", desc.getTimestampExtractor().getArgumentFields()[0]);
+		// assert watermark strategy
+		assertTrue(desc.getWatermarkStrategy() instanceof AscendingTimestamps);
+	}
+
+	@Test
+	public void testKafkaTSRowtimeAttribute() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+
+		try {
+			b.withKafkaTimestampAsRowtimeAttribute("time2", new AscendingTimestamps());
+
+			KafkaTableSource source = b.build();
+
+			// assert no proctime
+			assertNull(source.getProctimeAttribute());
+
+			// assert correct rowtime descriptor
+			List<RowtimeAttributeDescriptor> descs = source.getRowtimeAttributeDescriptors();
+			assertNotNull(descs);
+			assertEquals(1, descs.size());
+			RowtimeAttributeDescriptor desc = descs.get(0);
+			assertEquals("time2", desc.getAttributeName());
+			// assert timestamp extractor
+			assertTrue(desc.getTimestampExtractor() instanceof StreamRecordTimestamp);
+			assertTrue(desc.getTimestampExtractor().getArgumentFields().length == 0);
+			// assert watermark strategy
+			assertTrue(desc.getWatermarkStrategy() instanceof AscendingTimestamps);
+		} catch (Exception e) {
+			if (b.supportsKafkaTimestamps()) {
+				// builder should support Kafka timestamps
+				fail();
+			}
+		}
+	}
+
+	protected abstract KafkaTableSource.Builder getBuilder();
 
 	protected abstract Class<DeserializationSchema<Row>> getDeserializationSchema();
 
 	protected abstract Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer();
 
-	private KafkaTableSource createTableSource() {
-		return createTableSource(TOPIC, PROPERTIES, Types.ROW(FIELD_NAMES, FIELD_TYPES));
+	protected void configureBuilder(KafkaTableSource.Builder builder) {
+		builder
+			.forTopic(TOPIC)
+			.withKafkaProperties(PROPS)
+			.withSchema(SCHEMA);
 	}
 
 	private static Properties createSourceProperties() {
@@ -114,4 +207,5 @@ public abstract class KafkaTableSourceTestBase {
 		properties.setProperty("group.id", "dummy");
 		return properties;
 	}
+
 }

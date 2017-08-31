@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
+import org.apache.flink.table.sources.tsextractors.ExistingField
+import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
 import org.apache.flink.table.utils.TestTableSourceWithTime
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -188,7 +190,7 @@ class TableSourceValidationTest {
           Collections.singletonList(new RowtimeAttributeDescriptor(
             "rtime",
             new ExistingField("doesNotExist"),
-            new AscendingWatermarks))
+            new AscendingTimestamps))
         }
     }
 

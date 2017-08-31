@@ -22,6 +22,8 @@ import java.util
 
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.sources.tsextractors.TimestampExtractor
+import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy
 
 /**
   * Extends a [[TableSource]] to specify a processing time attribute.
