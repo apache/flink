@@ -70,7 +70,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 		InMemorySorter<Tuple2<Long, Integer>> sorter = createSorter(serializer, comparators, memory);
 
 		String actualClass    = sorter.getClass().toString();
-		String expectedClass  = "class LongLongAscFullyDeterminingNormalizedKeySorter";
+		String expectedClass  = "class LongLong_Asc_FullyDetermining_NormalizedKeySorter";
 		Assert.assertEquals(expectedClass, actualClass);
 
 		sorter.dispose();

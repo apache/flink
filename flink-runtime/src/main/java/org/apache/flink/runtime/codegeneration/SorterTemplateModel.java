@@ -37,6 +37,9 @@ class SorterTemplateModel {
 
 	static final String TEMPLATE_NAME = "sorter.ftlh";
 
+	/** We don't split to chunks above this size. */
+	private static final int SPLITTING_THRESHOLD = 32;
+
 	/* POSSIBLE_FIXEDBYTE_OPERATORS must be in descending order,
 	 * because methods that using it are using greedy approach.
 	 */
@@ -59,9 +62,6 @@ class SorterTemplateModel {
 	private final ArrayList<Integer> fixedByteChunks;
 	private final String sorterName;
 
-	// no. bytes of a sorting key
-	private final int numKeyBytes;
-
 	// used to determine whether order of records can completely determined by normalized sorting key
 	// or the sorter has to also deserialize records if their keys are equal to really confirm the order
 	private final boolean normalizedKeyFullyDetermines;
@@ -74,7 +74,10 @@ class SorterTemplateModel {
 	SorterTemplateModel(TypeComparator typeComparator){
 		this.typeComparator = typeComparator;
 
-		// compute no. bytes for sorting records and check whether this bytes is just prefix or not.
+		// number of bytes of the sorting key
+		int numKeyBytes;
+
+		// compute no. bytes for sorting records and check whether these bytes are just a prefix or not.
 		if (this.typeComparator.supportsNormalizedKey()) {
 			// compute the max normalized key length
 			int numPartialKeys;
@@ -86,16 +89,16 @@ class SorterTemplateModel {
 
 			int maxLen = Math.min(NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN, NormalizedKeySorter.MAX_NORMALIZED_KEY_LEN_PER_ELEMENT * numPartialKeys);
 
-			this.numKeyBytes = Math.min(this.typeComparator.getNormalizeKeyLen(), maxLen);
-			this.normalizedKeyFullyDetermines = !this.typeComparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
+			numKeyBytes = Math.min(this.typeComparator.getNormalizeKeyLen(), maxLen);
+			this.normalizedKeyFullyDetermines = !this.typeComparator.isNormalizedKeyPrefixOnly(numKeyBytes);
 		}
 		else {
-			this.numKeyBytes = 0;
+			numKeyBytes = 0;
 			this.normalizedKeyFullyDetermines = false;
 		}
 
 		// split key into fixed-byte chunks
-		this.fixedByteChunks = generatedSequenceFixedByteChunks(this.numKeyBytes);
+		this.fixedByteChunks = generatedSequenceFixedByteChunks(numKeyBytes);
 
 		this.sorterName = generateCodeFilename(this.fixedByteChunks, this.normalizedKeyFullyDetermines);
 	}
@@ -157,11 +160,11 @@ class SorterTemplateModel {
 		ArrayList<Integer> chunks = new ArrayList<>();
 
 		// if no. of bytes is too large, we don't split
-		if (numKeyBytes > NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN) {
+		if (numKeyBytes > SPLITTING_THRESHOLD) {
 			return chunks;
 		}
 
-		// also include offset
+		// also include the offset because of the pointer
 		numKeyBytes += NormalizedKeySorter.OFFSET_LEN;
 
 		// greedy finding fixed-byte operators
@@ -286,6 +289,7 @@ class SorterTemplateModel {
 			}
 
 			int offset = 0;
+
 			for (int i = 1; i < fixedByteChunks.size(); i++){
 
 				offset += fixedByteChunks.get(i - 1);
@@ -333,18 +337,18 @@ class SorterTemplateModel {
 		}
 
 		if (typeComparator.invertNormalizedKey()){
-			name.append("Desc");
+			name.append("_Desc_");
 		} else {
-			name.append("Asc");
+			name.append("_Asc_");
 		}
 
 		if (normalizedKeyFullyDetermines){
-			name.append("FullyDeterminingNormalizedKey");
+			name.append("FullyDetermining_");
 		} else {
-			name.append("NonFullyDeterminingNormalizedKey");
+			name.append("NonFullyDetermining_");
 		}
 
-		name.append("Sorter");
+		name.append("NormalizedKeySorter");
 
 		return name.toString();
 	}

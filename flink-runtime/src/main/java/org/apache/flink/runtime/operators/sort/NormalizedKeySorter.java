@@ -161,7 +161,6 @@ public class NormalizedKeySorter<T> implements InMemorySorter<T> {
 			this.normalizedKeyFullyDetermines = !this.comparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
 		}
 		else {
-			// TODO: Is this part  necessary? seems the condtion  always holds
 			this.numKeyBytes = 0;
 			this.normalizedKeyFullyDetermines = false;
 		}

@@ -106,9 +106,10 @@ public class SorterFactory {
 	 * @throws NoSuchMethodException
 	 * @throws InvocationTargetException
 	 */
+	@SuppressWarnings("unchecked")
 	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 
-		InMemorySorter sorter;
+		InMemorySorter<T> sorter;
 
 		if (config.isCodeGenerationForSorterEnabled()){
 			SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
@@ -131,7 +132,7 @@ public class SorterFactory {
 				}
 			}
 
-			sorter = (InMemorySorter) sorterConstructor.newInstance(serializer, comparator, memory);
+			sorter = (InMemorySorter<T>) sorterConstructor.newInstance(serializer, comparator, memory);
 
 			if (LOG.isInfoEnabled()){
 				LOG.info("Using a custom sorter : " + sorter.toString());

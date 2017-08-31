@@ -47,7 +47,7 @@ import java.util.Random;
 /**
  * Test whether generated sorters return correct results.
  */
-public class SortingTest extends CodeGenerationSorterBaseTest {
+public class CodegenSortingTest extends CodeGenerationSorterBaseTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
