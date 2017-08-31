@@ -57,11 +57,11 @@ public class CodeGenerationSorterBaseTest {
 
 	protected static final int VALUE_LENGTH = 118;
 
-	private static final int MEMORY_SIZE = 1024 * 1024 * 64;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
 
-	private static final int MEMORY_PAGE_SIZE = 32 * 1024;
+	private static final int MEMORY_PAGE_SIZE = 8 * 1024;
 
-	private static final long MAXIMUM_RECORDS = 559273;
+	private static final long MAXIMUM_RECORDS = 130000;
 
 	private static final QuickSort quickSort = new QuickSort();
 
