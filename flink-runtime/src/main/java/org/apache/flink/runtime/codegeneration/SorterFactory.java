@@ -139,7 +139,12 @@ public class SorterFactory {
 		} else {
 			// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 			if (comparator.supportsSerializationWithKeyNormalization() &&
-					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
+					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING &&
+					comparator.isNormalizedKeyPrefixOnly(comparator.getNormalizeKeyLen())) {
+				// Note about the last part of the condition:
+				// FixedLengthRecordSorter doesn't do an additional check after the bytewise comparison, so
+				// we cannot choose that if the normalized key doesn't always determine the order.
+				// (cf. the part of NormalizedKeySorter.compare after the if)
 				sorter = new FixedLengthRecordSorter<>(serializer, comparator.duplicate(), memory);
 			} else {
 				sorter = new NormalizedKeySorter<>(serializer, comparator.duplicate(), memory);
