@@ -43,7 +43,7 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 	private static final String nonExistingHostname = "foo.bar.com.invalid";
 
 	@BeforeClass
-	public static void check() {
+	public static void setup() {
 		checkPreconditions();
 	}
 

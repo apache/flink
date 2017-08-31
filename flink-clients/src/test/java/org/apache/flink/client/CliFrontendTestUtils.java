@@ -45,7 +45,7 @@ public class CliFrontendTestUtils {
 		File f = new File("target/maven-test-jar.jar");
 		if (!f.exists()) {
 			throw new FileNotFoundException("Test jar not present. Invoke tests using maven "
-					+ "or build the jar using 'mvn process-test-classes' in flink-clients");
+				+ "or build the jar using 'mvn process-test-classes' in flink-clients");
 		}
 		return f.getAbsolutePath();
 	}
@@ -71,7 +71,8 @@ public class CliFrontendTestUtils {
 
 	private static final class BlackholeOutputSteam extends java.io.OutputStream {
 		@Override
-		public void write(int b){}
+		public void write(int b) {
+		}
 	}
 
 	public static void checkJobManagerAddress(Configuration config, String expectedAddress, int expectedPort) {
@@ -81,8 +82,4 @@ public class CliFrontendTestUtils {
 		assertEquals(expectedAddress, jobManagerAddress);
 		assertEquals(expectedPort, jobManagerPort);
 	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private CliFrontendTestUtils() {}
 }

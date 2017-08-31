@@ -32,6 +32,7 @@ import org.junit.rules.TemporaryFolder;
 import java.net.InetSocketAddress;
 
 import static org.apache.flink.client.CliFrontendTestUtils.checkJobManagerAddress;
+import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -44,8 +45,8 @@ public class CliFrontendAddressConfigurationTest {
 	public TemporaryFolder folder = new TemporaryFolder();
 
 	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
+	public static void setup() {
+		pipeSystemOutToNull();
 	}
 
 	@Test

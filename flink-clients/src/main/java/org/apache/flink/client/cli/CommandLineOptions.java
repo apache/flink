@@ -35,11 +35,14 @@ public abstract class CommandLineOptions {
 
 	private final boolean printHelp;
 
+	private final String[] args;
+
 	protected CommandLineOptions(CommandLine line) {
 		this.commandLine = line;
 		this.printHelp = line.hasOption(HELP_OPTION.getOpt());
 		this.jobManagerAddress = line.hasOption(ADDRESS_OPTION.getOpt()) ?
-				line.getOptionValue(ADDRESS_OPTION.getOpt()) : null;
+			line.getOptionValue(ADDRESS_OPTION.getOpt()) : null;
+		this.args = line.getArgs();
 	}
 
 	public CommandLine getCommandLine() {
@@ -52,5 +55,9 @@ public abstract class CommandLineOptions {
 
 	public String getJobManagerAddress() {
 		return jobManagerAddress;
+	}
+
+	public String[] getArgs() {
+		return args;
 	}
 }

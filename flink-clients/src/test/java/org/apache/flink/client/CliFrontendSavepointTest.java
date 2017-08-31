@@ -24,6 +24,8 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
 import akka.dispatch.Futures;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -48,6 +50,7 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepo
 import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -71,9 +74,7 @@ public class CliFrontendSavepointTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testTriggerSavepointSuccess() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testTriggerSavepointSuccess() {
 		try {
 			JobID jobId = new JobID();
 			ActorGateway jobManager = mock(ActorGateway.class);
@@ -102,15 +103,14 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(buffer.toString().contains("expectedSavepointPath"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testTriggerSavepointFailure() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testTriggerSavepointFailure() {
 		try {
 			JobID jobId = new JobID();
 			ActorGateway jobManager = mock(ActorGateway.class);
@@ -139,15 +139,14 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testTriggerSavepointFailureIllegalJobID() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testTriggerSavepointFailureIllegalJobID() {
 		try {
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 
@@ -157,15 +156,14 @@ public class CliFrontendSavepointTest {
 			assertTrue(returnCode != 0);
 			assertTrue(buffer.toString().contains("not a valid ID"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testTriggerSavepointFailureUnknownResponse() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testTriggerSavepointFailureUnknownResponse() {
 		try {
 			JobID jobId = new JobID();
 			ActorGateway jobManager = mock(ActorGateway.class);
@@ -194,8 +192,9 @@ public class CliFrontendSavepointTest {
 			assertTrue(errMsg.contains("IllegalStateException"));
 			assertTrue(errMsg.contains("Unknown JobManager response"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
@@ -204,9 +203,7 @@ public class CliFrontendSavepointTest {
 	 * forwarded correctly to the JM.
 	 */
 	@Test
-	public void testTriggerSavepointCustomTarget() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testTriggerSavepointCustomTarget() {
 		try {
 			JobID jobId = new JobID();
 			Option<String> customTarget = Option.apply("customTargetDirectory");
@@ -234,8 +231,9 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(buffer.toString().contains("expectedSavepointPath"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
@@ -244,9 +242,7 @@ public class CliFrontendSavepointTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testDisposeSavepointSuccess() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testDisposeSavepointSuccess() {
 		try {
 			String savepointPath = "expectedSavepointPath";
 			ActorGateway jobManager = mock(ActorGateway.class);
@@ -274,8 +270,9 @@ public class CliFrontendSavepointTest {
 			assertTrue(outMsg.contains(savepointPath));
 			assertTrue(outMsg.contains("disposed"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
@@ -284,9 +281,7 @@ public class CliFrontendSavepointTest {
 	 * note about the JAR option.
 	 */
 	@Test
-	public void testDisposeClassNotFoundException() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testDisposeClassNotFoundException() {
 		try {
 			Future<Object> classNotFoundFailure = Futures
 					.<Object>successful(new DisposeSavepointFailure(new ClassNotFoundException("Test exception")));
@@ -305,8 +300,10 @@ public class CliFrontendSavepointTest {
 			String out = buffer.toString();
 			assertTrue(out.contains("Please provide the program jar with which you have created " +
 					"the savepoint via -j <JAR> for disposal"));
-		} finally {
-			restoreStdOutAndStdErr();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
@@ -314,9 +311,7 @@ public class CliFrontendSavepointTest {
 	 * Tests disposal with a JAR file.
 	 */
 	@Test
-	public void testDisposeWithJar() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testDisposeWithJar() {
 		try {
 			ActorGateway jobManager = mock(ActorGateway.class);
 			when(jobManager.ask(any(DisposeSavepoint.class), any(FiniteDuration.class)))
@@ -333,15 +328,15 @@ public class CliFrontendSavepointTest {
 
 			int returnCode = frontend.savepoint(parameters);
 			assertEquals(0, returnCode);
-		} finally {
-			restoreStdOutAndStdErr();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testDisposeSavepointFailure() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testDisposeSavepointFailure() {
 		try {
 			String savepointPath = "expectedSavepointPath";
 			ActorGateway jobManager = mock(ActorGateway.class);
@@ -370,15 +365,14 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testDisposeSavepointFailureUnknownResponse() throws Exception {
-		replaceStdOutAndStdErr();
-
+	public void testDisposeSavepointFailureUnknownResponse() {
 		try {
 			String savepointPath = "expectedSavepointPath";
 			ActorGateway jobManager = mock(ActorGateway.class);
@@ -407,11 +401,10 @@ public class CliFrontendSavepointTest {
 			assertTrue(errMsg.contains("IllegalStateException"));
 			assertTrue(errMsg.contains("Unknown JobManager response"));
 		}
-		finally {
-			restoreStdOutAndStdErr();
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
-
-		replaceStdOutAndStdErr();
 	}
 
 	// ------------------------------------------------------------------------
@@ -431,7 +424,8 @@ public class CliFrontendSavepointTest {
 		}
 	}
 
-	private static void replaceStdOutAndStdErr() {
+	@Before
+	public void replaceStdOutAndStdErr() {
 		stdOut = System.out;
 		stdErr = System.err;
 		buffer = new ByteArrayOutputStream();
@@ -440,7 +434,8 @@ public class CliFrontendSavepointTest {
 		System.setErr(capture);
 	}
 
-	private static void restoreStdOutAndStdErr() {
+	@After
+	public void restoreStdOutAndStdErr() {
 		System.setOut(stdOut);
 		System.setErr(stdErr);
 	}

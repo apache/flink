@@ -56,7 +56,7 @@ import static org.mockito.Mockito.when;
 public class CliFrontendPackageProgramTest {
 
 	@BeforeClass
-	public static void init() {
+	public static void setup() {
 		pipeSystemOutToNull();
 	}
 

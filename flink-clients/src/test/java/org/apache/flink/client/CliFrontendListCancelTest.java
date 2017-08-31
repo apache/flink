@@ -61,11 +61,6 @@ public class CliFrontendListCancelTest {
 		actorSystem = null;
 	}
 
-	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-	}
-
 	@Test
 	public void testCancel() {
 		try {
@@ -228,7 +223,6 @@ public class CliFrontendListCancelTest {
 			}
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail("Program caused an exception: " + e.getMessage());
 		}
