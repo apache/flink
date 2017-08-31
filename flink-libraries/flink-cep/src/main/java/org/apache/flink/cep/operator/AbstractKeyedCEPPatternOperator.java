@@ -176,10 +176,10 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			IN value = element.getValue();
 
 			// In event-time processing we assume correctness of the watermark.
-			// Events with timestamp smaller than the last seen watermark are considered late.
+			// Events with timestamp smaller than or equal with the last seen watermark are considered late.
 			// Late events are put in a dedicated side output, if the user has specified one.
 
-			if (timestamp >= lastWatermark) {
+			if (timestamp > lastWatermark) {
 
 				// we have an event with a valid timestamp, so
 				// we buffer it until we receive the proper watermark.
