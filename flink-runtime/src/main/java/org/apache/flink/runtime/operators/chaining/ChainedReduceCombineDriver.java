@@ -32,7 +32,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.hash.InPlaceMutableHashTable;
-import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.util.Collector;
@@ -50,10 +49,6 @@ import java.util.List;
 public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ChainedReduceCombineDriver.class);
-
-	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
-	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
-
 
 	private AbstractInvokable parent;
 
@@ -118,14 +113,8 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 		switch (strategy) {
 			case SORTED_PARTIAL_REDUCE:
-				// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-				if (comparator.supportsSerializationWithKeyNormalization() &&
-					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
-					sorter = new FixedLengthRecordSorter<T>(serializer, comparator.duplicate(), memory);
-				} else {
-					sorter = SorterFactory.getInstance()
-						.createSorter(this.parent.getExecutionConfig(), serializer, comparator.duplicate(), memory);
-				}
+				sorter = SorterFactory.getInstance()
+					.createSorter(this.parent.getExecutionConfig(), serializer, comparator.duplicate(), memory);
 				break;
 			case HASHED_PARTIAL_REDUCE:
 				table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);

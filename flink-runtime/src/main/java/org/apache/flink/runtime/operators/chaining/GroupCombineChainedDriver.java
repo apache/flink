@@ -31,7 +31,6 @@ import org.apache.flink.runtime.codegeneration.SorterFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
@@ -57,9 +56,6 @@ import java.util.List;
 public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GroupCombineChainedDriver.class);
-
-	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
-	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -113,15 +109,8 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
 		this.memory = memManager.allocatePages(this.parent, numMemoryPages);
 
-		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
-			this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
-		{
-			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
-		} else {
-			this.sorter = SorterFactory.getInstance()
-				.createSorter(this.executionConfig, this.serializer, sortingComparator.duplicate(), memory);
-		}
+		this.sorter = SorterFactory.getInstance()
+			.createSorter(this.executionConfig, this.serializer, sortingComparator.duplicate(), memory);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SynchronousChainedCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");

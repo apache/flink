@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.codegeneration.SorterFactory;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
@@ -58,9 +57,6 @@ import java.util.List;
 public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFunction<IN, OUT>, OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceCombineDriver.class);
-
-	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
-	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
 	private TaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
 
@@ -131,15 +127,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
 		this.memory = memManager.allocatePages(this.taskContext.getContainingTask(), numMemoryPages);
 
-		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
-				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
-		{
-			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
-		} else {
-			this.sorter = SorterFactory.getInstance()
+		this.sorter = SorterFactory.getInstance()
 				.createSorter(taskContext.getExecutionConfig(), this.serializer, sortingComparator.duplicate(), memory);
-		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();

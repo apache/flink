@@ -70,9 +70,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	/** Logging. */
 	private static final Logger LOG = LoggerFactory.getLogger(UnilateralSortMerger.class);
 	
-	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
-	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
-	
 	/** The minimal number of buffers to use by the writers. */
 	protected static final int MIN_NUM_WRITE_BUFFERS = 2;
 	
@@ -342,16 +339,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			
 			final TypeComparator<E> comp = comparator.duplicate();
 			final InMemorySorter<E> buffer;
-			
-			// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-			if (comp.supportsSerializationWithKeyNormalization() &&
-					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
-			{
-				buffer = new FixedLengthRecordSorter<E>(serializerFactory.getSerializer(), comp, sortSegments);
-			} else {
-				buffer = SorterFactory.getInstance()
-					.createSorter(parentTask.getExecutionConfig(), serializerFactory.getSerializer(), comp, sortSegments);
-			}
+
+			buffer = SorterFactory.getInstance()
+				.createSorter(parentTask.getExecutionConfig(), serializerFactory.getSerializer(), comp, sortSegments);
 
 			// add to empty queue
 			CircularElement<E> element = new CircularElement<E>(i, buffer, sortSegments);

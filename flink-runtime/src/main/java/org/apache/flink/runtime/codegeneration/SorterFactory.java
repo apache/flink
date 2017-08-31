@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 
@@ -49,6 +50,9 @@ public class SorterFactory {
 	//                                   Constants
 	// ------------------------------------------------------------------------
 	private static final Logger LOG = LoggerFactory.getLogger(SorterFactory.class);
+
+	/** Fixed length records with a length below this threshold will be in-place sorted, if possible. */
+	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
 	// ------------------------------------------------------------------------
 	//                                   Singleton Attribute
@@ -133,7 +137,13 @@ public class SorterFactory {
 				LOG.info("Using a custom sorter : " + sorter.toString());
 			}
 		} else {
-			sorter = new NormalizedKeySorter<>(serializer, comparator, memory);
+			// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
+			if (comparator.supportsSerializationWithKeyNormalization() &&
+					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
+				sorter = new FixedLengthRecordSorter<>(serializer, comparator.duplicate(), memory);
+			} else {
+				sorter = new NormalizedKeySorter<>(serializer, comparator.duplicate(), memory);
+			}
 		}
 
 		return sorter;
