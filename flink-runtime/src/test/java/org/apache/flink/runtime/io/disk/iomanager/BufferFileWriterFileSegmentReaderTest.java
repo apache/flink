@@ -22,7 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.testutils.DiscardingRecycler;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -44,7 +44,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 	private static final int BUFFER_SIZE = 32 * 1024;
 
-	private static final BufferRecycler BUFFER_RECYCLER = new DiscardingRecycler();
+	private static final BufferRecycler BUFFER_RECYCLER = FreeingBufferRecycler.INSTANCE;
 
 	private static final Random random = new Random();
 
@@ -154,7 +154,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 			fileSegment.getFileChannel().read(buffer, fileSegment.getPosition());
 
 			currentNumber = verifyBufferFilledWithAscendingNumbers(
-					new Buffer(MemorySegmentFactory.wrap(buffer.array()), BUFFER_RECYCLER), 
+					new Buffer(MemorySegmentFactory.wrap(buffer.array()), BUFFER_RECYCLER),
 					currentNumber, fileSegment.getLength());
 		}
 
