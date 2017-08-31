@@ -106,7 +106,7 @@ class GroupWindowTest extends TableTestBase {
           term("select", "ts, b, a")
         ),
         term("window", TumblingGroupWindow('w$, 'ts, 240000.millis)),
-        term("select", "myWeightedAvg(b, a) AS wAvg")
+        term("select", "weightedAvg(b, a) AS wAvg")
       )
 
     util.verifySql(sql, expected)

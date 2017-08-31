@@ -262,6 +262,7 @@ case class AggFunctionCall(
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     AggSqlFunction(
       aggregateFunction.functionIdentifier,
+      aggregateFunction.toString,
       aggregateFunction,
       resultType,
       accTypeInfo,

@@ -35,11 +35,13 @@ import scala.collection.JavaConverters._
   * Calcite wrapper for user-defined scalar functions.
   *
   * @param name function name (used by SQL parser)
+  * @param displayName name to be displayed in operator name
   * @param scalarFunction scalar function to be called
   * @param typeFactory type factory for converting Flink's between Calcite's types
   */
 class ScalarSqlFunction(
     name: String,
+    displayName: String,
     scalarFunction: ScalarFunction,
     typeFactory: FlinkTypeFactory)
   extends SqlFunction(
@@ -54,7 +56,7 @@ class ScalarSqlFunction(
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
-  override def toString: String = scalarFunction.toString
+  override def toString: String = displayName
 }
 
 object ScalarSqlFunction {
