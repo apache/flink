@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.Func0
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
@@ -36,8 +36,8 @@ class UserDefinedFunctionValidationTest extends TableTestBase {
         "Expected: (int)")
     val util = streamTestUtil()
     util.addTable[(Int, String)]("t", 'a, 'b)
-    util.tableEnv.registerFunction("func",Func0)
-    util.verifySql("select func(b) from t","n/a")
+    util.tableEnv.registerFunction("func", Func0)
+    util.verifySql("select func(b) from t", "n/a")
   }
 
   @Test
@@ -46,15 +46,14 @@ class UserDefinedFunctionValidationTest extends TableTestBase {
     thrown.expectMessage(
       "Given parameters of function do not match any signature. \n" +
         "Actual: (java.lang.String, java.lang.Integer) \n" +
-        "Expected: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions." +
-        "WeightedAvgAccum, int, int), (org.apache.flink.table.runtime.utils." +
-        "JavaUserDefinedAggFunctions.WeightedAvgAccum, long, int)")
+        "Expected: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
+        ".Accumulator0, long, int)")
 
     val util = streamTestUtil()
-    val weightAvgFun = new WeightedAvg
+    val agg = new OverAgg0
     util.addTable[(Int, String)]("t", 'a, 'b)
-    util.tableEnv.registerFunction("agg",weightAvgFun)
-    util.verifySql("select agg(b, a) from t","n/a")
+    util.tableEnv.registerFunction("agg", agg)
+    util.verifySql("select agg(b, a) from t", "n/a")
   }
 
 }
