@@ -55,7 +55,7 @@ public class SorterTemplateModelTest extends TestLogger {
 
 			SorterTemplateModel model = new SorterTemplateModel(createTypeComparatorWithCustomKeysize(keyBytes));
 
-			Object[] actual = model.getBytesOperators().toArray();
+			Object[] actual = model.getPrimitiveChunks().toArray();
 			String caseName = Arrays.toString(keyBytes);
 			Assert.assertArrayEquals(
 				"Case : " + caseName + " bytes : ",

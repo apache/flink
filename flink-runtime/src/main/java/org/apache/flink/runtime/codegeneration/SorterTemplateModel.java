@@ -40,12 +40,13 @@ class SorterTemplateModel {
 	/** We don't split to chunks above this size. */
 	private static final int SPLITTING_THRESHOLD = 32;
 
-	/* POSSIBLE_FIXEDBYTE_OPERATORS must be in descending order,
+	/**
+	 * POSSIBLE_CHUNK_SIZES must be in descending order,
 	 * because methods that using it are using greedy approach.
 	 */
-	private static final Integer[] POSSIBLE_FIXEDBYTE_OPERATORS = {8, 4, 2, 1};
+	private static final Integer[] POSSIBLE_CHUNK_SIZES = {8, 4, 2, 1};
 
-	// mapping between fixed-byte chunk to fixed-byte operator
+	/** Mapping from chunk sizes to primitive operators. */
 	private static final HashMap<Integer, String> byteOperatorMapping = new HashMap<Integer, String>(){
 		{
 			put(8, "Long");
@@ -59,7 +60,7 @@ class SorterTemplateModel {
 	//                                   Attributes
 	// ------------------------------------------------------------------------
 	private final TypeComparator typeComparator;
-	private final ArrayList<Integer> fixedByteChunks;
+	private final ArrayList<Integer> primitiveChunks;
 	private final String sorterName;
 
 	// used to determine whether order of records can completely determined by normalized sorting key
@@ -97,10 +98,9 @@ class SorterTemplateModel {
 			this.normalizedKeyFullyDetermines = false;
 		}
 
-		// split key into fixed-byte chunks
-		this.fixedByteChunks = generatedSequenceFixedByteChunks(numKeyBytes);
+		this.primitiveChunks = calculateChunks(numKeyBytes);
 
-		this.sorterName = generateCodeFilename(this.fixedByteChunks, this.normalizedKeyFullyDetermines);
+		this.sorterName = generateCodeFilename(this.primitiveChunks, this.normalizedKeyFullyDetermines);
 	}
 
 	// ------------------------------------------------------------------------
@@ -141,11 +141,11 @@ class SorterTemplateModel {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Getter for fixedByteChunks.
+	 * Getter for primitiveChunks.
 	 * this method is for testing purposes
 	 */
-	ArrayList<Integer> getBytesOperators(){
-		return fixedByteChunks;
+	ArrayList<Integer> getPrimitiveChunks(){
+		return primitiveChunks;
 	}
 
 	// ------------------------------------------------------------------------
@@ -153,10 +153,11 @@ class SorterTemplateModel {
 	// ------------------------------------------------------------------------
 
 	/**
-	 *  Given no. of bytes, break it into fixed-byte chunks
-	 *  @return array of fixed-byte chunks
+	 *  Given no. of bytes, break it into chunks that can be handled by
+	 *  primitive operations (e.g., integer or long operations)
+	 *  @return ArrayList of chunk sizes
 	 */
-	private ArrayList<Integer> generatedSequenceFixedByteChunks(int numKeyBytes){
+	private ArrayList<Integer> calculateChunks(int numKeyBytes){
 		ArrayList<Integer> chunks = new ArrayList<>();
 
 		// if no. of bytes is too large, we don't split
@@ -167,10 +168,10 @@ class SorterTemplateModel {
 		// also include the offset because of the pointer
 		numKeyBytes += NormalizedKeySorter.OFFSET_LEN;
 
-		// greedy finding fixed-byte operators
+		// greedy finding of chunk sizes
 		int i = 0;
 		while (numKeyBytes > 0) {
-			int bytes = POSSIBLE_FIXEDBYTE_OPERATORS[i];
+			int bytes = POSSIBLE_CHUNK_SIZES[i];
 			if (bytes <= numKeyBytes) {
 				chunks.add(bytes);
 				numKeyBytes -= bytes;
@@ -182,21 +183,21 @@ class SorterTemplateModel {
 	}
 
 	/**
-	 * Based on fixedByteChunks variable, generate the most suitable operators
+	 * Based on primitiveChunks variable, generate the most suitable operators
 	 * for swapping function.
 	 * @return string of a sequence operators used in swapping process
 	 */
 	private String generateSwapProcedures(){
 		String procedures = "";
 
-		if (this.fixedByteChunks.size() > 0) {
+		if (this.primitiveChunks.size() > 0) {
 			StringBuilder temporaryString 	  = new StringBuilder();
 			StringBuilder firstSegmentString  = new StringBuilder();
 			StringBuilder secondSegmentString = new StringBuilder();
 
 			int accOffset = 0;
-			for (int i = 0; i  < fixedByteChunks.size(); i++){
-				int numberByte = fixedByteChunks.get(i);
+			for (int i = 0; i  < primitiveChunks.size(); i++){
+				int numberByte = primitiveChunks.get(i);
 				int varIndex = i + 1;
 
 				String primitiveClass = byteOperatorMapping.get(numberByte);
@@ -204,7 +205,7 @@ class SorterTemplateModel {
 
 				String offsetString = "";
 				if (i > 0) {
-					accOffset += fixedByteChunks.get(i - 1);
+					accOffset += primitiveChunks.get(i - 1);
 					offsetString = "+" + accOffset;
 				}
 
@@ -230,7 +231,7 @@ class SorterTemplateModel {
 	}
 
 	/**
-	 * Based on fixedByteChunks variable, generate reverse byte operators for little endian machine
+	 * Based on primitiveChunks variable, generate reverse byte operators for little endian machine
 	 * for writing a record to MemorySegment, such that later during comparison
 	 * we can directly use native byte order to do unsigned comparison.
 	 * @return string of a sequence operators used in writing process
@@ -238,10 +239,10 @@ class SorterTemplateModel {
 	private String generateWriteProcedures(){
 		StringBuilder procedures = new StringBuilder();
 		// skip first operator for prefix
-		if (fixedByteChunks.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
+		if (primitiveChunks.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
 			int offset = 0;
-			for (int i = 1; i < fixedByteChunks.size(); i++){
-				int noBytes = fixedByteChunks.get(i);
+			for (int i = 1; i < primitiveChunks.size(); i++){
+				int noBytes = primitiveChunks.get(i);
 				if (noBytes == 1){
 					/* 1-byte chunk doesn't need to be reversed and it always comes last,
 					 * so we can finish the loop early here
@@ -251,7 +252,7 @@ class SorterTemplateModel {
 				String primitiveClass = byteOperatorMapping.get(noBytes);
 				String primitiveType  = primitiveClass.toLowerCase();
 
-				offset += fixedByteChunks.get(i - 1);
+				offset += primitiveChunks.get(i - 1);
 
 				String reverseBytesMethod = primitiveClass;
 				if (primitiveClass.equals("Int")){
@@ -272,7 +273,7 @@ class SorterTemplateModel {
 	}
 
 	/**
-	 * Based on fixedByteChunks variable, generate the most suitable operators
+	 * Based on primitiveChunks variable, generate the most suitable operators
 	 * for comparing 2 records. Nothing that, we are generating procedures that use
 	 * native-order byte methods here regardless endianness of the machine as we compensate
 	 * the order already in writing process.
@@ -282,7 +283,7 @@ class SorterTemplateModel {
 		StringBuilder procedures = new StringBuilder();
 
 		// skip first operator for prefix
-		if (fixedByteChunks.size() > 1){
+		if (primitiveChunks.size() > 1){
 			String sortOrder = "";
 			if (this.typeComparator.invertNormalizedKey()){
 				sortOrder = "-";
@@ -290,10 +291,10 @@ class SorterTemplateModel {
 
 			int offset = 0;
 
-			for (int i = 1; i < fixedByteChunks.size(); i++){
+			for (int i = 1; i < primitiveChunks.size(); i++){
 
-				offset += fixedByteChunks.get(i - 1);
-				String primitiveClass = byteOperatorMapping.get(fixedByteChunks.get(i));
+				offset += primitiveChunks.get(i - 1);
+				String primitiveClass = byteOperatorMapping.get(primitiveChunks.get(i));
 				String primitiveType  = primitiveClass.toLowerCase();
 
 				String var1 = "l_" + i + "_1";
@@ -324,8 +325,8 @@ class SorterTemplateModel {
 	}
 
 	/**
-	 * Generate name of the sorter based on fixed-size chunks and determinant of the key.
-	 * @param chunks array of fixed-byte chunks
+	 * Generate name of the sorter based on the chunk sizes and determinant of the key.
+	 * @param chunks array of chunk sizes
 	 * @return a suitable name of sorter for particular type-comparator
 	 */
 	private String generateCodeFilename(ArrayList<Integer> chunks, boolean normalizedKeyFullyDetermines) {
