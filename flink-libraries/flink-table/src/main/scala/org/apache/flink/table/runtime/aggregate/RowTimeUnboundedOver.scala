@@ -114,7 +114,7 @@ abstract class RowTimeUnboundedOver(
     val curWatermark = ctx.timerService().currentWatermark()
 
     // discard late record
-    if (timestamp >= curWatermark) {
+    if (timestamp > curWatermark) {
       // ensure every key just registers one timer
       ctx.timerService.registerEventTimeTimer(curWatermark + 1)
 

@@ -712,6 +712,9 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.processWatermark(20000)
     testHarness.processElement(new StreamRecord(
+      CRow(Row.of(20000L: JLong, "ccc", 1L: JLong), change = true))) // test for late data
+
+    testHarness.processElement(new StreamRecord(
       CRow(Row.of(20001L: JLong, "ccc", 1L: JLong), change = true))) // clean-up 5000
     testHarness.setProcessingTime(2500)
     testHarness.processElement(new StreamRecord(
@@ -844,6 +847,9 @@ class OverWindowHarnessTest extends HarnessTestBase{
     assert(testHarness.numKeyedStateEntries() == 0)
 
     testHarness.processWatermark(20000)
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(20000L: JLong, "ccc", 2L: JLong), change = true))) // test for late data
+
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(20001L: JLong, "ccc", 1L: JLong), change = true))) // clean-up 5000
     testHarness.setProcessingTime(2500)
