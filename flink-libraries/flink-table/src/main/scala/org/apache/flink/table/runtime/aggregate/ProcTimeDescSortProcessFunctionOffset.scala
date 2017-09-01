@@ -44,7 +44,7 @@ class ProcTimeDescSortProcessFunctionOffset(
   Preconditions.checkNotNull(rowComparator)
 
   private var bufferedEvents: ListState[Row] = _
-  private var bufferedEventsRetract: ListState[Row] = _
+  private var bufferedEventsLeftover: ListState[Row] = _
   private val sortBuffer: ArrayList[Row] = new ArrayList[Row]
   
   private var outputC: CRow = _
@@ -56,11 +56,10 @@ class ProcTimeDescSortProcessFunctionOffset(
     bufferedEvents = getRuntimeContext.getListState(sortDescriptor)
     val sortDescriptorRetract = new ListStateDescriptor[Row]("sortStateRetract",
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
-    bufferedEventsRetract = getRuntimeContext.getListState(sortDescriptorRetract)
+    bufferedEventsLeftover = getRuntimeContext.getListState(sortDescriptorRetract)
 
     val arity:Integer = inputRowType.getArity
     outputC = new CRow()
-    outputR = new CRow(Row.of(arity), false)
     
   }
 
@@ -94,14 +93,13 @@ class ProcTimeDescSortProcessFunctionOffset(
     
     Collections.sort(sortBuffer, rowComparator)
             
-    //retract previous emitted results
+    //add potential leftovers events from last time
     var element: Row = null
-    iter = bufferedEventsRetract.get.iterator()
+    iter = bufferedEventsLeftover.get.iterator()
     while (iter.hasNext) {
-      outputR.row = iter.next()   
-      out.collect(outputR)
+      sortBuffer.add(iter.next())
     }
-    bufferedEventsRetract.clear()
+    bufferedEventsLeftover.clear()
     
     //we need to build the output and emit the events in order
     var i = 0
@@ -110,7 +108,8 @@ class ProcTimeDescSortProcessFunctionOffset(
       if (i >= offset ) {
         outputC.row = sortBuffer.get(i)   
         out.collect(outputC)
-        bufferedEventsRetract.add(sortBuffer.get(i))
+      } else {
+         bufferedEventsLeftover.add(sortBuffer.get(i))
       }
       i += 1
     }

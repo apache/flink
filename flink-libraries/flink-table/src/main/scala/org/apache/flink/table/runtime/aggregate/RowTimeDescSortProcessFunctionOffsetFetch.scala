@@ -17,10 +17,7 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.state.MapState
-import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.api.common.state.{ListState, ListStateDescriptor, MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
@@ -56,6 +53,7 @@ class RowTimeDescSortProcessFunctionOffsetFetch(
   
   // the state which keeps the last triggering timestamp to filter late events
   private var lastTriggeringTsState: ValueState[Long] = _
+  private var bufferedEventsLeftover: ListState[Row] = _
   
   private var outputC: CRow = _
   private var outputR: CRow = _
@@ -73,8 +71,11 @@ class RowTimeDescSortProcessFunctionOffsetFetch(
         "dataState",
         keyTypeInformation,
         valueTypeInformation)
-
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
+
+    val sortDescriptorLeftRetract = new ListStateDescriptor[Row]("sortStateLeftOverRetract",
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    bufferedEventsLeftover = getRuntimeContext.getListState(sortDescriptorLeftRetract)
     
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
@@ -126,42 +127,56 @@ class RowTimeDescSortProcessFunctionOffsetFetch(
     var inputs: JList[Row] = dataState.get(lastTriggeringTs)
     var i = 0
     
-    if (null != inputs) {
-      while (i < inputs.size) {
-        if (i >= offset && i < adjustedFetchLimit) {
-          outputR.row = inputs.get(i)   
-          out.collect(outputR)
-        }
-        i += 1
-      }
-    }
-    
     // gets all rows for the triggering timestamps
     inputs = dataState.get(timestamp)
 
     if (null != inputs) {
+      
+      var retractionList = dataState.get(lastTriggeringTs)
+      if (retractionList == null) {
+        retractionList = new JArrayList[Row] 
+      }
 
       // sort rows on secondary fields if necessary
       if (rowComparator.isDefined) {
         Collections.sort(inputs, rowComparator.get)
       }
+      
+       //add leftover events
+      var iter = bufferedEventsLeftover.get.iterator()
+      while (iter.hasNext()) {
+        inputs.add(iter.next())
+      }
+      bufferedEventsLeftover.clear()
     
       //we need to build the output and emit the events in order
       i = 0
       while (i < inputs.size) {
         if (i >= offset && (fetch == -1 || i < adjustedFetchLimit)) {
+          
+          //for each element we emit we need to retract one ...if fetch is not infinite
+          if (fetch!= -1 && retractionList.size() >= fetch) {
+            outputR.row = retractionList.get(0)
+            retractionList.remove(0)
+            out.collect(outputR)
+          }
+          
           outputC.row = inputs.get(i)  
           out.collect(outputC)
+          retractionList.add(inputs.get(i))
+        } else if (i < offset ){
+          //add for future use
+          bufferedEventsLeftover.add(inputs.get(i))
         }
         i += 1
       }
     
       //we need to  clear the events processed and keep the sort list for order-retract next time
-      dataState.put(timestamp, inputs)
+      dataState.put(timestamp, retractionList)
+      // remove emitted rows from state
+      dataState.remove(lastTriggeringTs)
     }
     
-    // remove emitted rows from state
-    dataState.remove(lastTriggeringTs)
     lastTriggeringTsState.update(timestamp)
   }
   

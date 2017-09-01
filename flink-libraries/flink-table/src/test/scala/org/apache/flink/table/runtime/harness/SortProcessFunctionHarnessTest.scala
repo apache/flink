@@ -130,16 +130,13 @@ class SortProcessFunctionHarnessTest {
       Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
     expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong),true), 4))
-    //retract  
-    expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),false), 1006))
-    expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),false), 1006))
-    expectedOutput.add(new StreamRecord(new CRow(
-      Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong),false), 1006))
-    //update
+    //second round
     expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 13L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong),true), 1006))
       
     TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
         expectedOutput, result, new RowResultSortComparator(6))
@@ -206,7 +203,7 @@ class SortProcessFunctionHarnessTest {
     testHarness.processElement(new StreamRecord(new CRow(
         Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2004))
     testHarness.processElement(new StreamRecord(new CRow(
-        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+        Row.of(1: JInt, 10L: JLong, 1: JInt, "aaa", 11L: JLong), true), 2006))
 
     //move the timestamp to ensure the execution
     testHarness.setProcessingTime(1005)
@@ -238,6 +235,8 @@ class SortProcessFunctionHarnessTest {
     //update
     expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 10L: JLong, 1: JInt, "aaa", 11L: JLong),true), 1006))
       
     TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
         expectedOutput, result, new RowResultSortComparator(6))
@@ -352,6 +351,14 @@ class SortProcessFunctionHarnessTest {
     //move the timestamp to ensure the execution
     testHarness.setProcessingTime(1005)
     
+     testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 13L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2004))
+    testHarness.processElement(new StreamRecord(new CRow(
+        Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", 11L: JLong), true), 2006))
+
+    //move the timestamp to ensure the execution
+    testHarness.setProcessingTime(1008)
+    
     val result = testHarness.getOutput
     
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -363,6 +370,17 @@ class SortProcessFunctionHarnessTest {
       Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 4))
     expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 4))
+      
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong),false), 1006))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 13L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+    
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),false), 1006))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 14L: JLong, 0: JInt, "aaa", 11L: JLong),true), 1006))
+    
       
     TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
         expectedOutput, result, new RowResultSortComparator(6))
@@ -443,6 +461,8 @@ class SortProcessFunctionHarnessTest {
       Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong),true), 2002))
     expectedOutput.add(new StreamRecord(new CRow(
       Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong),true), 2002))
+    expectedOutput.add(new StreamRecord(new CRow(
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong),true), 2002))
     expectedOutput.add(new Watermark(2007))
     
     TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",

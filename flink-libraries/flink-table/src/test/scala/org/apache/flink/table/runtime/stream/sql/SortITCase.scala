@@ -52,31 +52,7 @@ class SortITCase extends StreamingWithStateTestBase {
       Left((2000L, (2L, 3, "Hello"))),
       Left((3000L, (3L, 3, "Hello"))),
       Left((2000L, (3L, 1, "Hello"))),
-      Right(2000L),
-      Left((4000L, (4L, 4, "Hello"))),
-      Right(3000L),
-      Left((5000L, (5L, 5, "Hello"))),
-      Right(5000L),
-      Left((6000L, (6L, 65, "Hello"))),
-      Left((6000L, (6L, 6, "Hello"))),
-      Left((6000L, (6L, 67, "Hello"))),
-      Left((6000L, (6L, -1, "Hello"))),
-      Left((6000L, (6L, 6, "Hello"))),
-      Right(7000L),
-      Left((9000L, (6L, 9, "Hello"))),
-      Left((8500L, (6L, 18, "Hello"))),
-      Left((9000L, (6L, 7, "Hello"))),
-      Right(10000L),
-      Left((10000L, (7L, 7, "Hello World"))),
-      Left((11000L, (7L, 77, "Hello World"))),
-      Left((11000L, (7L, 17, "Hello World"))),
-      Right(12000L),
-      Left((14000L, (7L, 18, "Hello World"))),
-      Right(14000L),
-      Left((15000L, (8L, 8, "Hello World"))),
-      Right(17000L),
-      Left((20000L, (20L, 20, "Hello World"))), 
-      Right(19000L))
+      Right(2000L))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
@@ -98,9 +74,9 @@ class SortITCase extends StreamingWithStateTestBase {
     env.execute()
     
     val expected = mutable.MutableList(
-      "2", "3",
-      "2", "3", "6", "65", "67",
-      "6", "65", "67")
+      "1", 
+      "2", "3", "16", "15",
+      "2")
       
     assertEquals(expected, SortITCase.testResults)
   }
@@ -118,31 +94,7 @@ class SortITCase extends StreamingWithStateTestBase {
       Left((2000L, (2L, 3, "Hello"))),
       Left((3000L, (3L, 3, "Hello"))),
       Left((2000L, (3L, 1, "Hello"))),
-      Right(2000L),
-      Left((4000L, (4L, 4, "Hello"))),
-      Right(3000L),
-      Left((5000L, (5L, 5, "Hello"))),
-      Right(5000L),
-      Left((6000L, (6L, 65, "Hello"))),
-      Left((6000L, (6L, 6, "Hello"))),
-      Left((6000L, (6L, 67, "Hello"))),
-      Left((6000L, (6L, -1, "Hello"))),
-      Left((6000L, (6L, 6, "Hello"))),
-      Right(7000L),
-      Left((9000L, (6L, 9, "Hello"))),
-      Left((8500L, (6L, 18, "Hello"))),
-      Left((9000L, (6L, 7, "Hello"))),
-      Right(10000L),
-      Left((10000L, (7L, 7, "Hello World"))),
-      Left((11000L, (7L, 77, "Hello World"))),
-      Left((11000L, (7L, 17, "Hello World"))),
-      Right(12000L),
-      Left((14000L, (7L, 18, "Hello World"))),
-      Right(14000L),
-      Left((15000L, (8L, 8, "Hello World"))),
-      Right(17000L),
-      Left((20000L, (20L, 20, "Hello World"))), 
-      Right(19000L))
+      Right(2000L))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
@@ -164,9 +116,9 @@ class SortITCase extends StreamingWithStateTestBase {
     env.execute()
     
     val expected = mutable.MutableList(
-      "2", "3",
-      "2", "3", "6", "65",
-      "6", "65")
+      "1",
+      "2", "1", "3", 
+      "2", "2")
       
     assertEquals(expected, SortITCase.testResults)
   }

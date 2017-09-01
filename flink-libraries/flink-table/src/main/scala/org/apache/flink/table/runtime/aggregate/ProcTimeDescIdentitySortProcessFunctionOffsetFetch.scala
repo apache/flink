@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state.{ ListState, ListStateDescriptor }
+import org.apache.flink.api.common.state.{ ListState, ListStateDescriptor, MapState, MapStateDescriptor }
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{ FunctionInitializationContext, FunctionSnapshotContext }
@@ -37,6 +37,9 @@ import java.util.ArrayList
 import java.util.Collections
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import java.util.{List => JList}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import java.util
 
 /**
  * Process Function used for the sort based solely on proctime with offset/fetch
@@ -54,7 +57,8 @@ class ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
     extends ProcessFunction[CRow, CRow] {
 
   private var stateEventsBuffer: ListState[Row] = _
-  private var stateEventsBufferRetract: ListState[Row] = _
+  private var stateEventsBufferRetract: MapState[Integer,JList[Row]] = _
+  private var bufferedEventsLeftover: ListState[Row] = _
   
   private var outputC: CRow = _
   private var outputR: CRow = _
@@ -64,9 +68,18 @@ class ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
     val sortDescriptor = new ListStateDescriptor[Row]("sortState",
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
     stateEventsBuffer = getRuntimeContext.getListState(sortDescriptor)
-    val sortDescriptorRetract = new ListStateDescriptor[Row]("sortStateRetract",
+    val rowListTypeInfo: TypeInformation[JList[Row]] =
+      new ListTypeInfo[Row]( inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+        .asInstanceOf[TypeInformation[JList[Row]]]
+    val sortDescriptorRetract: MapStateDescriptor[Integer, JList[Row]] =
+      new MapStateDescriptor[Integer, JList[Row]]("rowmapstate",
+        BasicTypeInfo.INT_TYPE_INFO.asInstanceOf[TypeInformation[Integer]], rowListTypeInfo)
+    stateEventsBufferRetract = getRuntimeContext.getMapState(sortDescriptorRetract)
+    
+    stateEventsBuffer = getRuntimeContext.getListState(sortDescriptor)
+    val sortDescriptorLeftRetract = new ListStateDescriptor[Row]("sortStateLeftOverRetract",
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
-    stateEventsBufferRetract = getRuntimeContext.getListState(sortDescriptorRetract)
+    bufferedEventsLeftover = getRuntimeContext.getListState(sortDescriptorLeftRetract)
 
     val arity:Integer = inputRowType.getArity
     if (outputC == null) {
@@ -103,12 +116,17 @@ class ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
     //retract previous emitted results
     var element: Row = null
     var iElements = 0
-    var iter = stateEventsBufferRetract.get.iterator()
-    while (iter.hasNext()) {
-      outputR.row = iter.next()   
-      out.collect(outputR)
+    var retractionList = stateEventsBufferRetract.get(0)
+    if (retractionList == null) {
+      retractionList = new util.ArrayList[Row] 
     }
-    stateEventsBufferRetract.clear()
+    
+    //add leftover events
+    var iter = bufferedEventsLeftover.get.iterator()
+    while (iter.hasNext()) {
+      stateEventsBuffer.add(iter.next())
+    }
+    bufferedEventsLeftover.clear()
     
     //we need to build the output and emit the events in order
     iter =  stateEventsBuffer.get.iterator()
@@ -118,12 +136,22 @@ class ProcTimeDescIdentitySortProcessFunctionOffsetFetch(
       element = iter.next()
       if (iElements >= offset && (fetch == -1 || iElements < adjustedFetchLimit)) {
         outputC.row = element    
+        //for each element we emit we need to retract one ...if fetch is not infinite
+        if (fetch!= -1 && retractionList.size() >= fetch) {
+          outputR.row = retractionList.get(0)
+          retractionList.remove(0)
+          out.collect(outputR)
+        }
         out.collect(outputC)
-        stateEventsBufferRetract.add(element)
+        retractionList.add(element)
+      } else if (iElements < offset ){
+        //add for future use
+        bufferedEventsLeftover.add(element)
       }
       iElements += 1
     }
     stateEventsBuffer.clear()
+    stateEventsBufferRetract.put(0, retractionList)
     
   }
   

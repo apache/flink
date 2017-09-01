@@ -21,6 +21,7 @@ import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.common.state.MapState
 import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
@@ -53,6 +54,7 @@ class RowTimeDescSortProcessFunctionOffset(
   
   // the state which keeps the last triggering timestamp to filter late events
   private var lastTriggeringTsState: ValueState[Long] = _
+  private var bufferedEventsLeftover: ListState[Row] = _
   
   private var outputC: CRow = _
   private var outputR: CRow = _
@@ -69,6 +71,9 @@ class RowTimeDescSortProcessFunctionOffset(
         "dataState",
         keyTypeInformation,
         valueTypeInformation)
+    val sortDescriptorRetract = new ListStateDescriptor[Row]("sortStateRetract",
+        inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    bufferedEventsLeftover = getRuntimeContext.getListState(sortDescriptorRetract)
 
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
     
@@ -119,21 +124,9 @@ class RowTimeDescSortProcessFunctionOffset(
     
     //retract previous elements that were emitted
     val lastTriggeringTs = lastTriggeringTsState.value
-    var inputs: JList[Row] = dataState.get(lastTriggeringTs)
-    var i = 0
-    
-    if (null != inputs) {
-      while (i < inputs.size) {
-        if (i >= offset ) {
-          outputR.row = inputs.get(i)   
-          out.collect(outputR)
-        }
-        i += 1
-      }
-    }
     
     // gets all rows for the triggering timestamps
-    inputs = dataState.get(timestamp)
+    var inputs: JList[Row] = dataState.get(timestamp)
 
     if (null != inputs) {
       
@@ -141,24 +134,31 @@ class RowTimeDescSortProcessFunctionOffset(
       if (rowComparator.isDefined) {
         Collections.sort(inputs, rowComparator.get)
       }
+      
+      val iter = bufferedEventsLeftover.get.iterator()
+      while (iter.hasNext) {
+        inputs.add(iter.next())
+      }
+      bufferedEventsLeftover.clear()
     
       //we need to build the output and emit the events in order
-      i = 0
+      var i = 0
       while (i < inputs.size) {
         if (i >= offset ) {
           outputC.row = inputs.get(i)  
           out.collect(outputC)
+        } else {
+          bufferedEventsLeftover.add(inputs.get(i) )
         }
         i += 1
       }
     
-      //we need to  clear the events processed and keep the sort list for order-retract next time
-      dataState.put(timestamp, inputs)
+      //we need to  clear the events processed
+      dataState.remove(timestamp)
     }
     
     // remove emitted rows from state
     lastTriggeringTsState.update(timestamp)    
-    dataState.remove(lastTriggeringTs)
   }
   
 }
