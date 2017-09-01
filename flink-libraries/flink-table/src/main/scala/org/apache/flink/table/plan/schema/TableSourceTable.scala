@@ -25,9 +25,23 @@ import org.apache.flink.table.sources.TableSource
 /** Table which defines an external table via a [[TableSource]] */
 class TableSourceTable[T](
     val tableSource: TableSource[T],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+    fieldIndexes: Array[Int],
+    fieldNames: Array[String],
+    override val statistic: FlinkStatistic)
   extends FlinkTable[T](
     typeInfo = tableSource.getReturnType,
-    fieldIndexes = TableEnvironment.getFieldIndices(tableSource),
-    fieldNames = TableEnvironment.getFieldNames(tableSource),
-    statistic)
+    fieldIndexes,
+    fieldNames,
+    statistic) {
+
+  def this(
+    tableSource: TableSource[T],
+    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN) {
+
+    this(
+      tableSource,
+      TableEnvironment.getFieldIndices(tableSource),
+      TableEnvironment.getFieldNames(tableSource),
+      statistic)
+  }
+}
