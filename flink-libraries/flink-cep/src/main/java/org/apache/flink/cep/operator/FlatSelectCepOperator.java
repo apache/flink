@@ -21,6 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.PatternFlatSelectFunction;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 
@@ -45,8 +46,9 @@ public class FlatSelectCepOperator<IN, KEY, OUT>
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		boolean migratingFromOldKeyedOperator,
 		EventComparator<IN> comparator,
+		AfterMatchSkipStrategy afterMatchSkipStrategy,
 		PatternFlatSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator, comparator, function);
+		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator, comparator, function, afterMatchSkipStrategy);
 	}
 
 	private transient TimestampedCollector<OUT> collector;

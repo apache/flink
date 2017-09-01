@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
@@ -186,6 +187,37 @@ public class NFACompilerTest extends TestLogger {
 		}
 
 		assertEquals(1, endStateCount);
+	}
+
+	@Test
+	public void testSkipToNotExistsMatchingPattern() {
+		expectedException.expect(MalformedPatternException.class);
+		expectedException.expectMessage("The pattern name specified in AfterMatchSkipStrategy can not be found in the given Pattern");
+
+		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start",
+			AfterMatchSkipStrategy.skipToLast("midd")).where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("a");
+			}
+		}).next("middle").where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("d");
+				}
+			}
+		).oneOrMore().optional().next("end").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("c");
+			}
+		});
+
+		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
 	}
 
 	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {

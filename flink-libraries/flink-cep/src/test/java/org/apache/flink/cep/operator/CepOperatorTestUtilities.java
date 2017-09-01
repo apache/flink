@@ -105,7 +105,8 @@ public class CepOperatorTestUtilities {
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 					return pattern;
 				}
-			});
+			},
+			null);
 	}
 
 	private CepOperatorTestUtilities() {

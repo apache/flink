@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -92,6 +93,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	private final EventComparator<IN> comparator;
 
+	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
@@ -99,13 +102,20 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final boolean migratingFromOldKeyedOperator,
 			final EventComparator<IN> comparator,
-			final F function) {
+			final F function,
+			final AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 		this.comparator = comparator;
+
+		if (afterMatchSkipStrategy == null) {
+			this.afterMatchSkipStrategy = AfterMatchSkipStrategy.skipToNextEvent();
+		} else {
+			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
+		}
 	}
 
 	@Override

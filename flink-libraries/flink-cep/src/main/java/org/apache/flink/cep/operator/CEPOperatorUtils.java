@@ -29,6 +29,7 @@ import org.apache.flink.cep.PatternFlatTimeoutFunction;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.PatternTimeoutFunction;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -68,7 +69,8 @@ public class CEPOperatorUtils {
 				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
 				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy afterMatchSkipStrategy) {
 				return new SelectCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
@@ -76,7 +78,8 @@ public class CEPOperatorUtils {
 					nfaFactory,
 					migratingFromOldKeyedOperator,
 					comparator,
-					selectFunction
+					selectFunction,
+					afterMatchSkipStrategy
 				);
 			}
 
@@ -117,7 +120,8 @@ public class CEPOperatorUtils {
 				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
 				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy afterMatchSkipStrategy) {
 				return new FlatSelectCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
@@ -125,6 +129,7 @@ public class CEPOperatorUtils {
 					nfaFactory,
 					migratingFromOldKeyedOperator,
 					comparator,
+					pattern.getAfterMatchSkipStrategy(),
 					selectFunction
 				);
 			}
@@ -173,7 +178,8 @@ public class CEPOperatorUtils {
 				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
 				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy afterMatchSkipStrategy) {
 				return new FlatSelectTimeoutCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
@@ -183,7 +189,8 @@ public class CEPOperatorUtils {
 					comparator,
 					selectFunction,
 					timeoutFunction,
-					outputTag
+					outputTag,
+					afterMatchSkipStrategy
 				);
 			}
 
@@ -231,7 +238,8 @@ public class CEPOperatorUtils {
 				TypeSerializer<KEY> keySerializer,
 				NFACompiler.NFAFactory<IN> nfaFactory,
 				boolean migratingFromOldKeyedOperator,
-				EventComparator<IN> comparator) {
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy afterMatchSkipStrategy) {
 				return new SelectTimeoutCepOperator<>(
 					inputSerializer,
 					isProcessingTime,
@@ -241,7 +249,8 @@ public class CEPOperatorUtils {
 					comparator,
 					selectFunction,
 					timeoutFunction,
-					outputTag
+					outputTag,
+					afterMatchSkipStrategy
 				);
 			}
 
@@ -288,7 +297,8 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory,
 					true,
-					comparator));
+					comparator,
+					pattern.getAfterMatchSkipStrategy()));
 		} else {
 			KeySelector<IN, Byte> keySelector = new NullByteKeySelector<>();
 			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
@@ -302,7 +312,8 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory,
 					false,
-					comparator
+					comparator,
+					pattern.getAfterMatchSkipStrategy()
 				)).forceNonParallel();
 		}
 
@@ -316,7 +327,8 @@ public class CEPOperatorUtils {
 			TypeSerializer<K> keySerializer,
 			NFACompiler.NFAFactory<IN> nfaFactory,
 			boolean migratingFromOldKeyedOperator,
-			EventComparator<IN> comparator);
+			EventComparator<IN> comparator,
+			AfterMatchSkipStrategy afterMatchSkipStrategy);
 
 		String getKeyedOperatorName();
 

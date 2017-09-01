@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa.compiler;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
@@ -111,10 +112,12 @@ public class NFACompiler {
 		private Map<GroupPattern<T, ?>, Boolean> firstOfLoopMap = new HashMap<>();
 		private Pattern<T, ?> currentPattern;
 		private Pattern<T, ?> followingPattern;
+		private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 		private Map<String, State<T>> originalStateMap = new HashMap<>();
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
+			afterMatchSkipStrategy = pattern.getAfterMatchSkipStrategy();
 		}
 
 		/**
@@ -128,6 +131,8 @@ public class NFACompiler {
 
 			checkPatternNameUniqueness();
 
+			checkPatternSkipStrategy();
+
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
 			State<T> sinkState = createEndingState();
 			// add all the normal states
@@ -136,12 +141,35 @@ public class NFACompiler {
 			createStartState(sinkState);
 		}
 
+		AfterMatchSkipStrategy getAfterMatchSkipStrategy(){
+			return afterMatchSkipStrategy;
+		}
+
 		List<State<T>> getStates() {
 			return states;
 		}
 
 		long getWindowTime() {
 			return windowTime;
+		}
+
+		/**
+		 * Check pattern after match skip strategy.
+		 */
+		private void checkPatternSkipStrategy() {
+			if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST ||
+				afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST) {
+				Pattern<T, ?> pattern = currentPattern;
+				while (pattern.getPrevious() != null && !pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
+					pattern = pattern.getPrevious();
+				}
+
+				// pattern name match check.
+				if (!pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
+					throw new MalformedPatternException("The pattern name specified in AfterMatchSkipStrategy " +
+						"can not be found in the given Pattern");
+				}
+			}
 		}
 
 		/**

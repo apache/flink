@@ -274,7 +274,8 @@ public class CEPOperatorTest extends TestLogger {
 							return Tuple2.of(pattern, timeoutTimestamp);
 						}
 					},
-					timedOut
+					timedOut,
+					null
 				), new KeySelector<Event, Integer>() {
 				@Override
 				public Integer getKey(Event value) throws Exception {
@@ -1052,7 +1053,6 @@ public class CEPOperatorTest extends TestLogger {
 
 	private SelectCepOperator<Event, Integer, Map<String, List<Event>>> getKeyedCepOperatorWithComparator(
 		boolean isProcessingTime) {
-
 		return CepOperatorTestUtilities.getKeyedCepOpearator(isProcessingTime, new NFAFactory(), new org.apache.flink.cep.EventComparator<Event>() {
 			@Override
 			public int compare(Event o1, Event o2) {
