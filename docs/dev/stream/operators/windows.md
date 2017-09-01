@@ -578,7 +578,10 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
 </div>
 </div>
 
-
+<span class="label label-info">Note</span> The `key` parameter is the key that is extracted
+via the `KeySelector` that was specified for the `keyBy()` invocation. In case of tuple-index
+keys or string-field references this key type is always `Tuple` and you have to manually cast
+it to a tuple of the correct size to extract the key fields.
 
 A `ProcessWindowFunction` can be defined and used like this:
 
