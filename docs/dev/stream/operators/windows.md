@@ -491,15 +491,35 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
             Iterable<IN> elements,
             Collector<OUT> out) throws Exception;
 
-    /**
-     * The context holding window metadata
-     */
-    public abstract class Context {
-        /**
-         * @return The window that is being evaluated.
-         */
-        public abstract W window();
-    }
+   	/**
+   	 * The context holding window metadata.
+   	 */
+   	public abstract class Context implements java.io.Serializable {
+   	    /**
+   	     * Returns the window that is being evaluated.
+   	     */
+   	    public abstract W window();
+   
+   	    /** Returns the current processing time. */
+   	    public abstract long currentProcessingTime();
+   
+   	    /** Returns the current event-time watermark. */
+   	    public abstract long currentWatermark();
+   
+   	    /**
+   	     * State accessor for per-key and per-window state.
+   	     *
+   	     * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
+   	     * by implementing {@link ProcessWindowFunction#clear(Context)}.
+   	     */
+   	    public abstract KeyedStateStore windowState();
+   
+   	    /**
+   	     * State accessor for per-key global state.
+   	     */
+   	    public abstract KeyedStateStore globalState();
+   	}
+
 }
 {% endhighlight %}
 </div>
@@ -528,14 +548,37 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
     */
   abstract class Context {
     /**
-      * @return The window that is being evaluated.
+      * Returns the window that is being evaluated.
       */
     def window: W
+  
+    /**
+      * Returns the current processing time.
+      */
+    def currentProcessingTime: Long
+  
+    /**
+      * Returns the current event-time watermark.
+      */
+    def currentWatermark: Long
+  
+    /**
+      * State accessor for per-key and per-window state.
+      */
+    def windowState: KeyedStateStore
+  
+    /**
+      * State accessor for per-key global state.
+      */
+    def globalState: KeyedStateStore
   }
+
 }
 {% endhighlight %}
 </div>
 </div>
+
+
 
 A `ProcessWindowFunction` can be defined and used like this:
 
