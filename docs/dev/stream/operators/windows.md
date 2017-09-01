@@ -111,6 +111,11 @@ windows) assign elements to windows based on time, which can either be processin
 time. Please take a look at our section on [event time]({{ site.baseurl }}/dev/event_time.html) to learn
 about the difference between processing time and event time and how timestamps and watermarks are generated.
 
+Time-based windows have a *start timestamp* (inclusive) and an *end timestamp* (exclusive)
+that together describe the size of the window. In code, Flink uses `TimeWindow` when working with
+time-based windows, this has methods for querying the start- and end-timestamp and also an
+additional method `maxTimestamp()` that returns the largest allowed timestamp for a given windows.
+
 In the following, we show how Flink's pre-defined window assigners work and how they are used
 in a DataStream program. The following figures visualize the workings of each assigner. The purple circles
 represent elements of the stream, which are partitioned by some key (in this case *user 1*, *user 2* and *user 3*).
