@@ -85,23 +85,20 @@ public class PrometheusReporter implements MetricReporter {
 	@Override
 	public void open(MetricConfig config) {
 		String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
-		if (portsConfig != null) {
-			Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-
-			while (ports.hasNext()) {
-				int port = ports.next();
-				try {
-					httpServer = new HTTPServer(port);
-					LOG.info("Started PrometheusReporter HTTP server on port " + port + ".");
-					break;
-				} catch (IOException ioe) { //assume port conflict
-					LOG.debug("Could not start PrometheusReporter HTTP server on port " + port + ".", ioe);
-				}
+		while (ports.hasNext()) {
+			int port = ports.next();
+			try {
+				httpServer = new HTTPServer(port);
+				LOG.info("Started PrometheusReporter HTTP server on port {}.", port);
+				break;
+			} catch (IOException ioe) { //assume port conflict
+				LOG.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
 			}
-			if (httpServer == null) {
-				throw new RuntimeException("Could not start PrometheusReporter HTTP server on any configured port. Ports: " + portsConfig);
-			}
+		}
+		if (httpServer == null) {
+			throw new RuntimeException("Could not start PrometheusReporter HTTP server on any configured port. Ports: " + portsConfig);
 		}
 	}
 
@@ -142,7 +139,7 @@ public class PrometheusReporter implements MetricReporter {
 		try {
 			collector.register();
 		} catch (Exception e) {
-			LOG.warn("There was a problem registering metric {}: {}", metricName, e);
+			LOG.warn("There was a problem registering metric {}.", metricName, e);
 		}
 		collectorsByMetricName.put(metricName, collector);
 	}

@@ -166,16 +166,24 @@ public class PrometheusReporterTest extends TestLogger {
 	public void cannotStartTwoReportersOnSamePort() {
 		final MetricRegistry fixedPort1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "12345")));
 		final MetricRegistry fixedPort2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "12345")));
+
 		assertThat(fixedPort1.getReporters(), hasSize(1));
 		assertThat(fixedPort2.getReporters(), hasSize(0));
+
+		fixedPort1.shutdown();
+		fixedPort2.shutdown();
 	}
 
 	@Test
 	public void canStartTwoReportersWhenUsingPortRange() {
 		final MetricRegistry portRange1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9249-9252")));
 		final MetricRegistry portRange2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9249-9252")));
+
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));
+
+		portRange1.shutdown();
+		portRange2.shutdown();
 	}
 
 	@Test
@@ -183,9 +191,14 @@ public class PrometheusReporterTest extends TestLogger {
 		final MetricRegistry smallPortRange1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9253-9254")));
 		final MetricRegistry smallPortRange2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9253-9254")));
 		final MetricRegistry smallPortRange3 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test3", "9253-9254")));
+
 		assertThat(smallPortRange1.getReporters(), hasSize(1));
 		assertThat(smallPortRange2.getReporters(), hasSize(1));
 		assertThat(smallPortRange3.getReporters(), hasSize(0));
+
+		smallPortRange1.shutdown();
+		smallPortRange2.shutdown();
+		smallPortRange3.shutdown();
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
