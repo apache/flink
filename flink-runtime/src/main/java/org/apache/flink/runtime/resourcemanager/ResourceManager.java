@@ -35,24 +35,23 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActions;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-
 import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
@@ -76,7 +75,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * ResourceManager implementation. The resource manager is responsible for resource de-/allocation
  * and bookkeeping.
  *
- * It offers the following methods as part of its rpc interface to interact with him remotely:
+ * <p>It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
  *     <li>{@link #registerJobManager(UUID, UUID, ResourceID, String, JobID, Time)} registers a {@link JobMaster} at the resource manager</li>
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest, Time)} requests a slot from the resource manager</li>
@@ -88,10 +87,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
-	/** Unique id of the resource manager */
+	/** Unique id of the resource manager. */
 	private final ResourceID resourceId;
 
-	/** Configuration of the resource manager */
+	/** Configuration of the resource manager. */
 	private final ResourceManagerConfiguration resourceManagerConfiguration;
 
 	/** All currently registered JobMasterGateways scoped by JobID. */
@@ -100,7 +99,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** All currently registered JobMasterGateways scoped by ResourceID. */
 	private final Map<ResourceID, JobManagerRegistration> jmResourceIdRegistrations;
 
-	/** Service to retrieve the job leader ids */
+	/** Service to retrieve the job leader ids. */
 	private final JobLeaderIdService jobLeaderIdService;
 
 	/** All currently registered TaskExecutors with there framework specific worker information. */
@@ -115,13 +114,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** The heartbeat manager with job managers. */
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
-	/** Registry to use for metrics */
+	/** Registry to use for metrics. */
 	private final MetricRegistry metricRegistry;
 
-	/** Fatal error handler */
+	/** Fatal error handler. */
 	private final FatalErrorHandler fatalErrorHandler;
 
-	/** The slot manager maintains the available slots */
+	/** The slot manager maintains the available slots. */
 	private final SlotManager slotManager;
 
 	/** The service to elect a ResourceManager leader. */
@@ -268,7 +267,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					ResourceManagerException exception = new ResourceManagerException("Could not add the job " +
 						jobId + " to the job id leader service.", e);
 
-					onFatalErrorAsync(exception);
+					onFatalError(exception);
 
 					log.error("Could not add job {} to job leader id service.", jobId, e);
 					return FutureUtils.completedExceptionally(exception);
@@ -287,7 +286,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				ResourceManagerException exception = new ResourceManagerException("Cannot obtain the " +
 					"job leader id future to verify the correct job leader.", e);
 
-				onFatalErrorAsync(exception);
+				onFatalError(exception);
 
 				log.debug("Could not obtain the job leader id future to verify the correct job leader.");
 				return FutureUtils.completedExceptionally(exception);
@@ -346,7 +345,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Register a {@link TaskExecutor} at the resource manager
+	 * Register a {@link TaskExecutor} at the resource manager.
 	 *
 	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
@@ -454,7 +453,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Notification from a TaskExecutor that a slot has become available
+	 * Notification from a TaskExecutor that a slot has become available.
+	 *
 	 * @param resourceManagerLeaderId TaskExecutor's resource manager leader id
 	 * @param instanceID TaskExecutor's instance id
 	 * @param slotId The slot id of the available slot
@@ -491,13 +491,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Registers an info message listener
+	 * Registers an info message listener.
 	 *
 	 * @param address address of infoMessage listener to register to this resource manager
 	 */
 	@Override
 	public void registerInfoMessageListener(final String address) {
-		if(infoMessageListeners.containsKey(address)) {
+		if (infoMessageListeners.containsKey(address)) {
 			log.warn("Receive a duplicate registration from info message listener on ({})", address);
 		} else {
 			CompletableFuture<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService()
@@ -517,7 +517,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Unregisters an info message listener
+	 * Unregisters an info message listener.
 	 *
 	 * @param address of the  info message listener to unregister from this resource manager
 	 *
@@ -528,7 +528,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Cleanup application and shut down cluster
+	 * Cleanup application and shut down cluster.
 	 *
 	 * @param finalStatus of the Flink application
 	 * @param optionalDiagnostics for the Flink application
@@ -825,28 +825,15 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	/**
 	 * Notifies the ResourceManager that a fatal error has occurred and it cannot proceed.
-	 * This method should be used when asynchronous threads want to notify the
-	 * ResourceManager of a fatal error.
-	 *
-	 * @param t The exception describing the fatal error
-	 */
-	protected void onFatalErrorAsync(final Throwable t) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				onFatalError(t);
-			}
-		});
-	}
-
-	/**
-	 * Notifies the ResourceManager that a fatal error has occurred and it cannot proceed.
-	 * This method must only be called from within the ResourceManager's main thread.
 	 *
 	 * @param t The exception describing the fatal error
 	 */
 	protected void onFatalError(Throwable t) {
-		log.error("Fatal error occurred.", t);
+		try {
+			log.error("Fatal error occurred in ResourceManager.", t);
+		} catch (Throwable ignored) {}
+
+		// The fatal error handler implementation should make sure that this call is non-blocking
 		fatalErrorHandler.onFatalError(t);
 	}
 
@@ -855,7 +842,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Callback method when current resourceManager is granted leadership
+	 * Callback method when current resourceManager is granted leadership.
 	 *
 	 * @param newLeaderSessionID unique leadershipID
 	 */
@@ -904,13 +891,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Handles error occurring in the leader election service
+	 * Handles error occurring in the leader election service.
 	 *
 	 * @param exception Exception being thrown in the leader election service
 	 */
 	@Override
 	public void handleError(final Exception exception) {
-		onFatalErrorAsync(new ResourceManagerException("Received an error from the LeaderElectionService.", exception));
+		onFatalError(new ResourceManagerException("Received an error from the LeaderElectionService.", exception));
 	}
 
 	// ------------------------------------------------------------------------
@@ -928,7 +915,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * The framework specific code for shutting down the application. This should report the
 	 * application's final status and shut down the resource manager cleanly.
 	 *
-	 * This method also needs to make sure all pending containers that are not registered
+	 * <p>This method also needs to make sure all pending containers that are not registered
 	 * yet are returned.
 	 *
 	 * @param finalStatus The application status to report.
@@ -1029,7 +1016,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void handleError(Throwable error) {
-			onFatalErrorAsync(error);
+			onFatalError(error);
 		}
 	}
 
