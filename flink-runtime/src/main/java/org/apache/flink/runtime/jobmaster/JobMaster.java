@@ -1058,7 +1058,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	//----------------------------------------------------------------------------------------------
 
 	private class ResourceManagerConnection
-			extends RegisteredRpcConnection<ResourceManagerGateway, JobMasterRegistrationSuccess>
+			extends RegisteredRpcConnection<UUID, ResourceManagerGateway, JobMasterRegistrationSuccess>
 	{
 		private final JobID jobID;
 
@@ -1088,8 +1088,8 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		}
 
 		@Override
-		protected RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
-			return new RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess>(
+		protected RetryingRegistration<UUID, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
+			return new RetryingRegistration<UUID, ResourceManagerGateway, JobMasterRegistrationSuccess>(
 					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
 					getTargetAddress(), getTargetLeaderId())
 			{
