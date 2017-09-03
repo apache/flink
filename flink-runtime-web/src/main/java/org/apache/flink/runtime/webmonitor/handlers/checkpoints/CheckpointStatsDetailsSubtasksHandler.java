@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.SubtaskStateStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -43,6 +44,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler.writeMinMaxAvg;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -57,8 +60,8 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 
 	private final CheckpointStatsCache cache;
 
-	public CheckpointStatsDetailsSubtasksHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
-		super(executionGraphHolder);
+	public CheckpointStatsDetailsSubtasksHandler(ExecutionGraphHolder executionGraphHolder, Executor executor, CheckpointStatsCache cache) {
+		super(executionGraphHolder, executor);
 		this.cache = checkNotNull(cache);
 	}
 
@@ -68,28 +71,28 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 	}
 
 	@Override
-	public String handleJsonRequest(
-		Map<String, String> pathParams,
-		Map<String, String> queryParams,
-		JobManagerGateway jobManagerGateway) throws Exception {
+	public CompletableFuture<String> handleJsonRequest(
+			Map<String, String> pathParams,
+			Map<String, String> queryParams,
+			JobManagerGateway jobManagerGateway) {
 		return super.handleJsonRequest(pathParams, queryParams, jobManagerGateway);
 	}
 
 	@Override
-	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+	public CompletableFuture<String> handleRequest(AccessExecutionGraph graph, Map<String, String> params) {
 		long checkpointId = CheckpointStatsDetailsHandler.parseCheckpointId(params);
 		if (checkpointId == -1) {
-			return "{}";
+			return CompletableFuture.completedFuture("{}");
 		}
 
 		JobVertexID vertexId = AbstractJobVertexRequestHandler.parseJobVertexId(params);
 		if (vertexId == null) {
-			return "{}";
+			return CompletableFuture.completedFuture("{}");
 		}
 
 		CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
 		if (snapshot == null) {
-			return "{}";
+			return CompletableFuture.completedFuture("{}");
 		}
 
 		AbstractCheckpointStats checkpoint = snapshot.getHistory().getCheckpointById(checkpointId);
@@ -100,16 +103,20 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 			checkpoint = cache.tryGet(checkpointId);
 
 			if (checkpoint == null) {
-				return "{}";
+				return CompletableFuture.completedFuture("{}");
 			}
 		}
 
 		TaskStateStats taskStats = checkpoint.getTaskStateStats(vertexId);
 		if (taskStats == null) {
-			return "{}";
+			return CompletableFuture.completedFuture("{}");
 		}
 
-		return createSubtaskCheckpointDetailsJson(checkpoint, taskStats);
+		try {
+			return CompletableFuture.completedFuture(createSubtaskCheckpointDetailsJson(checkpoint, taskStats));
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(e);
+		}
 	}
 
 	/**

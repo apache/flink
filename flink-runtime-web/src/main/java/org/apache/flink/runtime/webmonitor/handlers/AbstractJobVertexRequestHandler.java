@@ -24,6 +24,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for request handlers whose response depends on a specific job vertex (defined
@@ -31,12 +33,12 @@ import java.util.Map;
  */
 public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionGraphRequestHandler {
 
-	public AbstractJobVertexRequestHandler(ExecutionGraphHolder executionGraphHolder) {
-		super(executionGraphHolder);
+	public AbstractJobVertexRequestHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+		super(executionGraphHolder, executor);
 	}
 
 	@Override
-	public final String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+	public final CompletableFuture<String> handleRequest(AccessExecutionGraph graph, Map<String, String> params) {
 		final JobVertexID vid = parseJobVertexId(params);
 
 		final AccessExecutionJobVertex jobVertex = graph.getJobVertex(vid);
@@ -66,5 +68,5 @@ public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionG
 		}
 	}
 
-	public abstract String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception;
+	public abstract CompletableFuture<String> handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params);
 }

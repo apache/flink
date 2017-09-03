@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import java.io.File;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Handles requests for uploading of jars.
@@ -33,7 +35,8 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
-	public JarUploadHandler(File jarDir) {
+	public JarUploadHandler(Executor executor, File jarDir) {
+		super(executor);
 		this.jarDir = jarDir;
 	}
 
@@ -43,34 +46,38 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(
+	public CompletableFuture<String> handleJsonRequest(
 			Map<String, String> pathParams,
 			Map<String, String> queryParams,
-			JobManagerGateway jobManagerGateway) throws Exception {
+			JobManagerGateway jobManagerGateway) {
 
 		String tempFilePath = queryParams.get("filepath");
 		String filename = queryParams.get("filename");
 
-		File tempFile;
-		if (tempFilePath != null && (tempFile = new File(tempFilePath)).exists()) {
-			if (!tempFile.getName().endsWith(".jar")) {
-				//noinspection ResultOfMethodCallIgnored
-				tempFile.delete();
-				return "{\"error\": \"Only Jar files are allowed.\"}";
-			}
+		return CompletableFuture.supplyAsync(
+			() -> {
+				File tempFile;
+				if (tempFilePath != null && (tempFile = new File(tempFilePath)).exists()) {
+					if (!tempFile.getName().endsWith(".jar")) {
+						//noinspection ResultOfMethodCallIgnored
+						tempFile.delete();
+						return "{\"error\": \"Only Jar files are allowed.\"}";
+					}
 
-			String filenameWithUUID = UUID.randomUUID() + "_" + filename;
-			File newFile = new File(jarDir, filenameWithUUID);
-			if (tempFile.renameTo(newFile)) {
-				// all went well
-				return "{\"status\": \"success\", \"filename\": \"" + filenameWithUUID + "\"}";
-			}
-			else {
-				//noinspection ResultOfMethodCallIgnored
-				tempFile.delete();
-			}
-		}
+					String filenameWithUUID = UUID.randomUUID() + "_" + filename;
+					File newFile = new File(jarDir, filenameWithUUID);
+					if (tempFile.renameTo(newFile)) {
+						// all went well
+						return "{\"status\": \"success\", \"filename\": \"" + filenameWithUUID + "\"}";
+					}
+					else {
+						//noinspection ResultOfMethodCallIgnored
+						tempFile.delete();
+					}
+				}
 
-		return "{\"error\": \"Failed to upload the file.\"}";
+				return "{\"error\": \"Failed to upload the file.\"}";
+			},
+			executor);
 	}
 }
