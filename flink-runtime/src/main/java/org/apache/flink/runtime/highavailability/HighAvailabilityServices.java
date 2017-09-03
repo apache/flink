@@ -73,6 +73,12 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderRetrievalService getResourceManagerLeaderRetriever();
 
 	/**
+	 * Gets the leader retriever for the dispatcher. This leader retrieval service
+	 * is not always accessible.
+	 */
+	LeaderRetrievalService getDispatcherLeaderRetriever();
+
+	/**
 	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
 	 *
 	 * @param jobID The identifier of the job.
@@ -98,6 +104,13 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 * @return Leader election service for the resource manager leader election
 	 */
 	LeaderElectionService getResourceManagerLeaderElectionService();
+
+	/**
+	 * Gets the leader election service for the cluster's dispatcher.
+	 *
+	 * @return Leader election service for the dispatcher leader election
+	 */
+	LeaderElectionService getDispatcherLeaderElectionService();
 
 	/**
 	 * Gets the leader election service for the given job.
