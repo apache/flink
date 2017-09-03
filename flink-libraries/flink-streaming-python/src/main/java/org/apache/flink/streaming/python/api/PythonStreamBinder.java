@@ -114,7 +114,7 @@ public class PythonStreamBinder {
 	 */
 	private void prepareFiles(String tempFilePath, String... filePaths) throws IOException, URISyntaxException,
 		NoSuchAlgorithmException {
-		PythonEnvironmentConfig.pythonTmpCachePath = tempFilePath;
+		System.setProperty(PythonEnvironmentConfig.PYTHON_TMP_CACHE_PATH_PROP, tempFilePath);
 
 		Files.createDirectories(Paths.get(tempFilePath));
 

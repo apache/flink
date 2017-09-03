@@ -359,11 +359,11 @@ public class PythonStreamExecutionEnvironment {
 	 * @return The result of the job execution.
 	 */
 	public JobExecutionResult execute(boolean local) throws Exception {
-		if (PythonEnvironmentConfig.pythonTmpCachePath == null) {
-			// Nothing to be done! Is is executed on the task manager.
+		if (!distributeFiles(local)) {
+			// Nothing to be done! It is executed on the task manager.
 			return new JobExecutionResult(null, 0, null);
 		}
-		distributeFiles(local);
+
 		JobExecutionResult result = this.env.execute();
 		cleanupDistributedFiles();
 		return result;
@@ -397,30 +397,35 @@ public class PythonStreamExecutionEnvironment {
 	 *     Exception which occurs during job execution.
 	 */
 	public JobExecutionResult execute(String job_name, Boolean local) throws Exception {
-		if (PythonEnvironmentConfig.pythonTmpCachePath == null) {
-			// Nothing to be done! Is is executed on the task manager.
+		if (!distributeFiles(local)) {
+			// Nothing to be done! It is executed on the task manager.
 			return new JobExecutionResult(null, 0, null);
 		}
-		distributeFiles(local);
 		JobExecutionResult result = this.env.execute(job_name);
 		cleanupDistributedFiles();
 		return result;
 	}
 
-	private void distributeFiles(boolean local) throws IOException, URISyntaxException {
+	private boolean distributeFiles(boolean local) throws IOException, URISyntaxException {
+		String pythonTmpCachePath = System.getProperty(PythonEnvironmentConfig.PYTHON_TMP_CACHE_PATH_PROP);
+		if (pythonTmpCachePath == null) {
+			return false;
+		}
+
 		String rootDir;
 		if (local || this.env instanceof LocalStreamEnvironment) {
 			rootDir = System.getProperty("java.io.tmpdir");
 		} else {
 			rootDir = "hdfs:///tmp";
 		}
-		PythonEnvironmentConfig.flinkHdfsPath = Paths.get(rootDir, "flink_cache_" +
+
+		String flinkHdfsPath = Paths.get(rootDir, "flink_cache_" +
 			(new Random(System.currentTimeMillis())).nextLong()).toString();
 
-		FileCache.copy(new Path(PythonEnvironmentConfig.pythonTmpCachePath),
-			new Path(PythonEnvironmentConfig.flinkHdfsPath), true);
+		FileCache.copy(new Path(pythonTmpCachePath), new Path(flinkHdfsPath), true);
 
-		this.env.registerCachedFile(PythonEnvironmentConfig.flinkHdfsPath, PythonEnvironmentConfig.FLINK_PYTHON_DC_ID);
+		this.env.registerCachedFile(flinkHdfsPath, PythonEnvironmentConfig.FLINK_PYTHON_DC_ID);
+		return true;
 	}
 
 	private void cleanupDistributedFiles() throws IOException, URISyntaxException {

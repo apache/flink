@@ -26,16 +26,5 @@ public class PythonEnvironmentConfig {
 
 	public static final String FLINK_PYTHON_PLAN_NAME = "plan.py";
 
-	/**
-	 * Holds the path for the local python files cache. Is is set only on the client side by
-	 * the python streaming plan binder.
-	 */
-	public static String pythonTmpCachePath;
-
-	/**
-	 * Holds the path in the shared storage at which the python script(s) reside. It is set on the client side
-	 * within the execution process.
-	 */
-	public static String flinkHdfsPath = "hdfs:///tmp/flink"; // "file:/tmp/flink"
-
+	public static final String PYTHON_TMP_CACHE_PATH_PROP = "python.tmp.cache.path";
 }
