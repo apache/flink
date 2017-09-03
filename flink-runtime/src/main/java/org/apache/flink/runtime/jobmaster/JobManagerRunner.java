@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -44,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -81,6 +84,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	private final JobMaster jobManager;
 
 	private final JobManagerMetricGroup jobManagerMetricGroup;
+
+	private final Time timeout;
 
 	/** flag marking the runner as shut down */
 	private volatile boolean shutdown;
@@ -207,6 +212,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				this,
 				this,
 				userCodeLoader);
+
+			this.timeout = jobManagerServices.rpcAskTimeout;
 		}
 		catch (Throwable t) {
 			// clean up everything
@@ -415,7 +422,15 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 
-					jobManager.start(leaderSessionID);
+					CompletableFuture<Acknowledge> startingFuture = jobManager.start(leaderSessionID, timeout);
+
+					startingFuture.whenCompleteAsync(
+						(Acknowledge ack, Throwable throwable) -> {
+							if (throwable != null) {
+								onFatalError(new Exception("Could not start the job manager.", throwable));
+							}
+						},
+						jobManagerServices.executorService);
 				} catch (Exception e) {
 					onFatalError(new Exception("Could not start the job manager.", e));
 				}
@@ -434,7 +449,15 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			jobManager.suspend(new Exception("JobManager is no longer the leader."));
+			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new Exception("JobManager is no longer the leader."), timeout);
+
+			suspendFuture.whenCompleteAsync(
+				(Acknowledge ack, Throwable throwable) -> {
+					if (throwable != null) {
+						onFatalError(new Exception("Could not start the job manager.", throwable));
+					}
+				},
+				jobManagerServices.executorService);
 		}
 	}
 

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -110,13 +111,16 @@ public class JobMasterTest extends TestLogger {
 				blobServer,
 				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
-				Time.of(10, TimeUnit.SECONDS),
+				testingTimeout,
 				null,
 				mock(OnCompletionActions.class),
 				testingFatalErrorHandler,
 				new FlinkUserCodeClassLoader(new URL[0]));
 
-			jobMaster.start(jmLeaderId);
+			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jmLeaderId, testingTimeout);
+
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
@@ -209,13 +213,16 @@ public class JobMasterTest extends TestLogger {
 				mock(BlobServer.class),
 				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
-				Time.of(10, TimeUnit.SECONDS),
+				testingTimeout,
 				null,
 				mock(OnCompletionActions.class),
 				testingFatalErrorHandler,
 				new FlinkUserCodeClassLoader(new URL[0]));
 
-			jobMaster.start(jmLeaderId);
+			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jmLeaderId, testingTimeout);
+
+			// wait for the start operation to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// define a leader and see that a registration happens
 			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, rmLeaderId);
