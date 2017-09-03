@@ -49,6 +49,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -71,6 +72,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	private final Configuration configuration;
 
+	private final CompletableFuture<Boolean> terminationFuture;
+
 	@GuardedBy("lock")
 	private MetricRegistry metricRegistry = null;
 
@@ -88,6 +91,11 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	protected ClusterEntrypoint(Configuration configuration) {
 		this.configuration = Preconditions.checkNotNull(configuration);
+		this.terminationFuture = new CompletableFuture<>();
+	}
+
+	public CompletableFuture<Boolean> getTerminationFuture() {
+		return terminationFuture;
 	}
 
 	protected void startCluster() {
@@ -246,6 +254,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 					exception = ExceptionUtils.firstOrSuppressed(t, exception);
 				}
 			}
+
+			terminationFuture.complete(true);
 		}
 
 		if (exception != null) {
