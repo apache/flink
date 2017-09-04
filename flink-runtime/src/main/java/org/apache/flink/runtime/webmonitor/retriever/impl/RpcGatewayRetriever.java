@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -37,14 +39,31 @@ public class RpcGatewayRetriever<T extends RpcGateway> extends LeaderGatewayRetr
 	private final RpcService rpcService;
 	private final Class<T> gatewayType;
 
-	public RpcGatewayRetriever(RpcService rpcService, Class<T> gatewayType) {
+	private final int retries;
+	private final Time retryDelay;
+
+	public RpcGatewayRetriever(
+			RpcService rpcService,
+			Class<T> gatewayType,
+			int retries,
+			Time retryDelay) {
 		this.rpcService = Preconditions.checkNotNull(rpcService);
 		this.gatewayType = Preconditions.checkNotNull(gatewayType);
+
+		Preconditions.checkArgument(retries >= 0, "The number of retries must be greater or equal to 0.");
+		this.retries = retries;
+		this.retryDelay = Preconditions.checkNotNull(retryDelay);
 	}
 
 	@Override
 	protected CompletableFuture<T> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
-		return leaderFuture.thenCompose(
-			(Tuple2<String, UUID> addressLeaderTuple) -> rpcService.connect(addressLeaderTuple.f0, gatewayType));
+		return FutureUtils.retryWithDelay(
+			() ->
+				leaderFuture.thenCompose(
+					(Tuple2<String, UUID> addressLeaderTuple) ->
+						rpcService.connect(addressLeaderTuple.f0, gatewayType)),
+			retries,
+			retryDelay,
+			rpcService.getScheduledExecutor());
 	}
 }

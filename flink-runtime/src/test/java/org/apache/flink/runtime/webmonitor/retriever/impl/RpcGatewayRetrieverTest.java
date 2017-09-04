@@ -72,7 +72,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		final String expectedValue2 = "barfoo";
 		final UUID leaderSessionId = UUID.randomUUID();
 
-		RpcGatewayRetriever<DummyGateway> gatewayRetriever = new RpcGatewayRetriever<>(rpcService, DummyGateway.class);
+		RpcGatewayRetriever<DummyGateway> gatewayRetriever = new RpcGatewayRetriever<>(rpcService, DummyGateway.class, 0, Time.milliseconds(0L));
 		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
 		DummyRpcEndpoint dummyRpcEndpoint = new DummyRpcEndpoint(rpcService, "dummyRpcEndpoint1", expectedValue);
 		DummyRpcEndpoint dummyRpcEndpoint2 = new DummyRpcEndpoint(rpcService, "dummyRpcEndpoint2", expectedValue2);

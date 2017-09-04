@@ -305,7 +305,7 @@ public class MesosApplicationMasterRunner {
 			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
 				config,
 				highAvailabilityServices,
-				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout),
+				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout, 10, Time.milliseconds(50L)),
 				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
 				webMonitorTimeout,
 				futureExecutor,
