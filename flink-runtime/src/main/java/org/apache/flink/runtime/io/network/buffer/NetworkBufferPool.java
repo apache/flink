@@ -159,23 +159,20 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;
 
-			final List<MemorySegment> segments = new ArrayList<>(numRequiredBuffers);
-			for (int i = 0 ; i < numRequiredBuffers ; i++) {
-				segments.add(availableMemorySegments.poll());
-			}
+			redistributeBuffers();
+		}
 
+		final List<MemorySegment> segments = new ArrayList<>(numRequiredBuffers);
+		for (int i = 0 ; i < numRequiredBuffers ; i++) {
 			try {
-				redistributeBuffers();
-			} catch (IOException e) {
-				if (segments.size() > 0) {
-					recycleMemorySegments(segments);
-				}
-
+				segments.add(availableMemorySegments.take());
+			} catch (InterruptedException e) {
+				recycleMemorySegments(segments);
 				ExceptionUtils.rethrowIOException(e);
 			}
-
-			return segments;
 		}
+
+		return segments;
 	}
 
 	public void recycleMemorySegments(List<MemorySegment> segments) throws IOException {

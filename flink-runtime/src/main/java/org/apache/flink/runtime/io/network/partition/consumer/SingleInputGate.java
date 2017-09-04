@@ -333,7 +333,7 @@ public class SingleInputGate implements InputGate {
 
 			InputChannel current = inputChannels.get(partitionId);
 
-			if (current.getClass() == UnknownInputChannel.class) {
+			if (current instanceof UnknownInputChannel) {
 
 				UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
 

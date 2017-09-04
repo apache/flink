@@ -150,7 +150,7 @@ public class NetworkEnvironmentTest {
 	 * @return mock with minimal functionality necessary by {@link NetworkEnvironment#registerTask(Task)}
 	 */
 	private static SingleInputGate createSingleInputGateMock(
-			final ResultPartitionType partitionType, final int channels) throws IOException {
+			final ResultPartitionType partitionType, final int channels) {
 		SingleInputGate ig = mock(SingleInputGate.class);
 		when(ig.getConsumedPartitionType()).thenReturn(partitionType);
 		when(ig.getNumberOfInputChannels()).thenReturn(channels);

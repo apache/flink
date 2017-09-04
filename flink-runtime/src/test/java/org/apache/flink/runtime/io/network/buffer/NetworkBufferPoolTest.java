@@ -24,12 +24,18 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import static org.hamcrest.core.IsCollectionContaining.hasItem;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.core.IsNot.not;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -172,44 +178,117 @@ public class NetworkBufferPoolTest {
 		}
 	}
 
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the {@link NetworkBufferPool}
+	 * currently containing the number of required free segments.
+	 */
 	@Test
-	public void testRequestAndRecycleMemorySegments() throws Exception {
+	public void testRequestMemorySegmentsLessThanTotalBuffers() throws Exception {
 		final int numBuffers = 10;
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
 
-		List<MemorySegment> segments = null;
-		// request buffers from global pool with illegal argument
+		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
-			segments = globalPool.requestMemorySegments(0);
-			fail("Should throw an IllegalArgumentException");
-		} catch (IllegalArgumentException e) {
-			assertNull(segments);
+			memorySegments = globalPool.requestMemorySegments(numBuffers / 2);
+
+			assertEquals(memorySegments.size(), numBuffers / 2);
+		} finally {
+			globalPool.recycleMemorySegments(memorySegments);
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
 		}
+	}
 
-		// common case to request buffers less than the total capacity of global pool
-		final int numRequiredBuffers = 8;
-		segments = globalPool.requestMemorySegments(numRequiredBuffers);
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the number of required
+	 * buffers exceeding the capacity of {@link NetworkBufferPool}.
+	 */
+	@Test
+	public void testRequestMemorySegmentsMoreThanTotalBuffers() throws Exception {
+		final int numBuffers = 10;
 
-		assertNotNull(segments);
-		assertEquals(segments.size(), numRequiredBuffers);
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
 
-		// recycle all the requested buffers to global pool
-		globalPool.recycleMemorySegments(segments);
-
-		assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
-
-		// uncommon case to request buffers exceeding the total capacity of global pool
+		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
-			segments = null;
-			segments = globalPool.requestMemorySegments(11);
+			memorySegments = globalPool.requestMemorySegments(numBuffers + 1);
 			fail("Should throw an IOException");
 		} catch (IOException e) {
-			assertNull(segments);
-			// recycle all the requested buffers to global pool after exception
+			assertEquals(memorySegments.size(), 0);
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
 		}
+	}
 
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the invalid argument to
+	 * cause exception.
+	 */
+	@Test
+	public void testRequestMemorySegmentsWithInvalidArgument() throws Exception {
+		final int numBuffers = 10;
+
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
+
+		List<MemorySegment> memorySegments = Collections.emptyList();
+		try {
+			// the number of requested buffers should be larger than zero
+			memorySegments = globalPool.requestMemorySegments(0);
+			fail("Should throw an IllegalArgumentException");
+		} catch (IllegalArgumentException e) {
+			assertEquals(memorySegments.size(), 0);
+			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+		}
+	}
+
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the {@link NetworkBufferPool}
+	 * currently not containing the number of required free segments (currently occupied by a buffer pool).
+	 */
+	@Test
+	public void testRequestMemorySegmentsWithBuffersTaken() throws IOException, InterruptedException {
+		final int numBuffers = 10;
+
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
+
+		final List<Buffer> buffers = new ArrayList<>(numBuffers);
+		List<MemorySegment> memorySegments = Collections.emptyList();
+		Thread bufferRecycler = null;
+		BufferPool lbp1 = null;
+		try {
+			lbp1 = networkBufferPool.createBufferPool(numBuffers / 2, numBuffers);
+
+			// take all buffers (more than the minimum required)
+			for (int i = 0; i < numBuffers; ++i) {
+				Buffer buffer = lbp1.requestBuffer();
+				buffers.add(buffer);
+				assertNotNull(buffer);
+			}
+
+			// if requestMemorySegments() blocks, this will make sure that enough buffers are freed
+			// eventually for it to continue
+			bufferRecycler = new Thread(() -> {
+				try {
+					Thread.sleep(10000);
+				} catch (InterruptedException ignored) {
+				}
+
+				for (Buffer buffer : buffers) {
+					buffer.recycle();
+				}
+			});
+			bufferRecycler.start();
+
+			// take more buffers than are freely available at the moment via requestMemorySegments()
+			memorySegments = networkBufferPool.requestMemorySegments(numBuffers / 2);
+			assertThat(memorySegments, not(hasItem(nullValue())));
+		} finally {
+			if (bufferRecycler != null) {
+				bufferRecycler.join();
+			}
+			if (lbp1 != null) {
+				lbp1.lazyDestroy();
+			}
+			networkBufferPool.recycleMemorySegments(memorySegments);
+		}
 	}
 }
