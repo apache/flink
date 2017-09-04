@@ -329,6 +329,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();
 			}
+			deserializer.clear();
 		}
 
 		// cleanup the barrier handler resources
