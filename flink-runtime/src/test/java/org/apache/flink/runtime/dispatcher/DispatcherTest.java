@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -216,8 +217,8 @@ public class DispatcherTest extends TestLogger {
 				Configuration configuration,
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
-				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
+				JobManagerServices jobManagerServices,
 				MetricRegistry metricRegistry,
 				OnCompletionActions onCompleteActions,
 				FatalErrorHandler fatalErrorHandler) throws Exception {

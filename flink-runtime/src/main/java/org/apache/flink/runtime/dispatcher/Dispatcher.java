@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -69,7 +70,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final RunningJobsRegistry runningJobsRegistry;
 
 	private final HighAvailabilityServices highAvailabilityServices;
-	private final BlobServer blobServer;
+	private final JobManagerServices jobManagerServices;
 	private final HeartbeatServices heartbeatServices;
 	private final MetricRegistry metricRegistry;
 
@@ -92,7 +93,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-		this.blobServer = Preconditions.checkNotNull(blobServer);
+		this.jobManagerServices = JobManagerServices.fromConfiguration(
+			configuration,
+			Preconditions.checkNotNull(blobServer));
 		this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices);
 		this.metricRegistry = Preconditions.checkNotNull(metricRegistry);
 		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
@@ -111,9 +114,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public void postStop() throws Exception {
-		Exception exception = null;
+		Throwable exception = null;
 
 		clearState();
+
+		try {
+			jobManagerServices.shutdown();
+		} catch (Throwable t) {
+			exception = ExceptionUtils.firstOrSuppressed(t, exception);
+		}
 
 		try {
 			submittedJobGraphStore.stop();
@@ -184,8 +193,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					configuration,
 					getRpcService(),
 					highAvailabilityServices,
-					blobServer,
 					heartbeatServices,
+					jobManagerServices,
 					metricRegistry,
 					new DispatcherOnCompleteActions(jobGraph.getJobID()),
 					fatalErrorHandler);
@@ -247,13 +256,23 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 *
 	 * <p>The state are all currently running jobs.
 	 */
-	private void clearState() {
+	private void clearState() throws Exception {
+		Exception exception = null;
+
 		// stop all currently running JobManager since they run in the same process
 		for (JobManagerRunner jobManagerRunner : jobManagerRunners.values()) {
-			jobManagerRunner.shutdown();
+			try {
+				jobManagerRunner.shutdown();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
 		}
 
 		jobManagerRunners.clear();
+
+		if (exception != null) {
+			throw exception;
+		}
 	}
 
 	/**
@@ -296,8 +315,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		Configuration configuration,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
-		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
+		JobManagerServices jobManagerServices,
 		MetricRegistry metricRegistry,
 		OnCompletionActions onCompleteActions,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
@@ -321,7 +340,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 				// clear the state if we've been the leader before
 				if (getFencingToken() != null) {
-					clearState();
+					try {
+						clearState();
+					} catch (Exception e) {
+						log.warn("Could not properly clear the Dispatcher state while granting leadership.", e);
+					}
 				}
 
 				setFencingToken(dispatcherId);
@@ -342,7 +365,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		runAsyncWithoutFencing(
 			() -> {
 				log.info("Dispatcher {} was revoked leadership.", getAddress());
-				clearState();
+				try {
+					clearState();
+				} catch (Exception e) {
+					log.warn("Could not properly clear the Dispatcher state while revoking leadership.", e);
+				}
 
 				setFencingToken(DispatcherId.generate());
 			});

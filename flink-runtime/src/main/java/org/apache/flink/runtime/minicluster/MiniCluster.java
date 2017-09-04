@@ -353,6 +353,8 @@ public class MiniCluster {
 				if (tm != null) {
 					try {
 						tm.shutDown();
+						// wait for the TaskManager to properly terminate
+						tm.getTerminationFuture().get();
 					} catch (Throwable t) {
 						exception = firstOrSuppressed(t, exception);
 					}
