@@ -146,7 +146,11 @@ public class PrometheusReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfRemovedMetric(final Metric metric, final String metricName, final MetricGroup group) {
-		CollectorRegistry.defaultRegistry.unregister(collectorsByMetricName.get(metricName));
+		try {
+			CollectorRegistry.defaultRegistry.unregister(collectorsByMetricName.get(metricName));
+		} catch (Exception e) {
+			LOG.warn("There was a problem unregistering metric {}.", metricName, e);
+		}
 		collectorsByMetricName.remove(metricName);
 	}
 
