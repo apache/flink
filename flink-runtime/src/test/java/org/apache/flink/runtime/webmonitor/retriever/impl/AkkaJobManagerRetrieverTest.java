@@ -69,7 +69,7 @@ public class AkkaJobManagerRetrieverTest extends TestLogger {
 	 */
 	@Test
 	public void testAkkaJobManagerRetrieval() throws Exception {
-		AkkaJobManagerRetriever akkaJobManagerRetriever = new AkkaJobManagerRetriever(actorSystem, timeout);
+		AkkaJobManagerRetriever akkaJobManagerRetriever = new AkkaJobManagerRetriever(actorSystem, timeout, 0, Time.milliseconds(0L));
 		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
 
 		CompletableFuture<JobManagerGateway> gatewayFuture = akkaJobManagerRetriever.getFuture();
@@ -101,5 +101,4 @@ public class AkkaJobManagerRetrieverTest extends TestLogger {
 			}
 		}
 	}
-
 }

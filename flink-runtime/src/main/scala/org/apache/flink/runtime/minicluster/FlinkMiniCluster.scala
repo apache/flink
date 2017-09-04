@@ -399,7 +399,7 @@ abstract class FlinkMiniCluster(
         WebMonitorUtils.startWebRuntimeMonitor(
           config,
           highAvailabilityServices,
-          new AkkaJobManagerRetriever(actorSystem, flinkTimeout),
+          new AkkaJobManagerRetriever(actorSystem, flinkTimeout, 10, Time.milliseconds(50L)),
           new AkkaQueryServiceRetriever(actorSystem, flinkTimeout),
           flinkTimeout,
           actorSystem.dispatcher)

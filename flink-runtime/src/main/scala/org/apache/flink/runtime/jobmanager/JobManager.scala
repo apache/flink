@@ -2229,7 +2229,7 @@ object JobManager {
         val webServer = WebMonitorUtils.startWebRuntimeMonitor(
           configuration,
           highAvailabilityServices,
-          new AkkaJobManagerRetriever(jobManagerSystem, timeout),
+          new AkkaJobManagerRetriever(jobManagerSystem, timeout, 10, Time.milliseconds(50L)),
           new AkkaQueryServiceRetriever(jobManagerSystem, timeout),
           timeout,
           futureExecutor)
