@@ -174,7 +174,7 @@ In addition to the HA configuration ([see above](#configuration)), you have to c
 
 <pre>yarn.application-attempts: 10</pre>
 
-This means that the application can be restarted 10 times before YARN fails the application. It's important to note that `yarn.resourcemanager.am.max-attempts` is an upper bound for the application restarts. Therfore, the number of application attempts set within Flink cannot exceed the YARN cluster setting with which YARN was started.
+This means that the application can be restarted 9 times for failed attempts before YARN fails the application (9 retries + 1 initial attempt). Additional restarts can be performed by YARN if required by YARN operations: Preemption, node hardware failures or reboots, or NodeManager resyncs. These restarts are not counted against `yarn.application-attempts`, see <a href="http://johnjianfang.blogspot.de/2015/04/the-number-of-maximum-attempts-of-yarn.html">Jian Fang's blog post</a>. It's important to note that `yarn.resourcemanager.am.max-attempts` is an upper bound for the application restarts. Therefore, the number of application attempts set within Flink cannot exceed the YARN cluster setting with which YARN was started.
 
 #### Container Shutdown Behaviour
 
