@@ -173,9 +173,8 @@ public class RestClient {
 				CompletableFuture<JsonResponse> future = handler.getJsonFuture();
 				channel.writeAndFlush(httpRequest);
 				return future;
-			}).thenComposeAsync(
-				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseClass),
-				executor
+			}).thenCompose(
+				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseClass)
 			);
 	}
 
