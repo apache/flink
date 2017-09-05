@@ -32,7 +32,6 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
       th Attempt
       th Host
       th Status
-
   tbody
     tr(ng-repeat="subtask in subtasks | orderBy:'host'")
       td
@@ -42,16 +41,11 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
       td
         span(ng-if="subtask.duration > -1" title="{{subtask.duration | humanizeDuration:false}}") {{subtask.duration | humanizeDuration:true}}
 
-      td
-        span(ng-if="subtask.metrics['read-bytes'] > -1" title="{{subtask.metrics['read-bytes']}} bytes")
-          | {{ subtask.metrics['read-bytes'] | humanizeBytes}}
-      td
-        span(ng-if="subtask.metrics['read-records'] > -1") {{ subtask.metrics['read-records'] | number }}
-      td
-        span(ng-if="subtask.metrics['write-bytes'] > -1" title="{{subtask.metrics['write-bytes']}} bytes")
-          | {{ subtask.metrics['write-bytes'] | humanizeBytes}}
-      td
-        span(ng-if="subtask.metrics['write-records'] > -1") {{ subtask.metrics['write-records'] | number }}
+      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['read-bytes'] | humanizeBytes }}
+      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['read-records'] | number }}
+      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['write-bytes'] | humanizeBytes }}
+      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['write-records'] | number }}
+      td(ng-if="!subtask.metrics['metrics-fetched']", colspan=4, style="text-align:center;") Fetching...
 
       td {{ subtask.attempt + 1 }}
       td {{ subtask.host }}

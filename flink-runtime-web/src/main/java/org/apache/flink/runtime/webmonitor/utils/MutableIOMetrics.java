@@ -79,6 +79,7 @@ public class MutableIOMetrics extends IOMetrics {
 					this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT, "0"));
 					this.numRecordsIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN, "0"));
 					this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT, "0"));
+					this.metricsFetched = true;
 				}
 			}
 		}
@@ -104,6 +105,7 @@ public class MutableIOMetrics extends IOMetrics {
 		gen.writeNumberField("write-bytes", this.numBytesOut);
 		gen.writeNumberField("read-records", this.numRecordsIn);
 		gen.writeNumberField("write-records", this.numRecordsOut);
+		gen.writeBooleanField("metrics-fetched", this.metricsFetched);
 		gen.writeEndObject();
 	}
 }
