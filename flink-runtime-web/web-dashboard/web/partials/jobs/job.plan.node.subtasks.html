@@ -38,10 +38,11 @@ limitations under the License.
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1" title="{{subtask.duration | humanizeDuration:false}}">{{subtask.duration | humanizeDuration:true}}</span></td>
-      <td><span ng-if="subtask.metrics['read-bytes'] &gt; -1" title="{{subtask.metrics['read-bytes']}} bytes">{{ subtask.metrics['read-bytes'] | humanizeBytes}}</span></td>
-      <td><span ng-if="subtask.metrics['read-records'] &gt; -1">{{ subtask.metrics['read-records'] | number }}</span></td>
-      <td><span ng-if="subtask.metrics['write-bytes'] &gt; -1" title="{{subtask.metrics['write-bytes']}} bytes">{{ subtask.metrics['write-bytes'] | humanizeBytes}}</span></td>
-      <td><span ng-if="subtask.metrics['write-records'] &gt; -1">{{ subtask.metrics['write-records'] | number }}</span></td>
+      <td ng-if="subtask.metrics['metrics-fetched']">{{ subtask.metrics['read-bytes'] | humanizeBytes }}</td>
+      <td ng-if="subtask.metrics['metrics-fetched']">{{ subtask.metrics['read-records'] | number }}</td>
+      <td ng-if="subtask.metrics['metrics-fetched']">{{ subtask.metrics['write-bytes'] | humanizeBytes }}</td>
+      <td ng-if="subtask.metrics['metrics-fetched']">{{ subtask.metrics['write-records'] | number }}</td>
+      <td ng-if="!subtask.metrics['metrics-fetched']" colspan="4" style="text-align:center;">Fetching...</td>
       <td>{{ subtask.attempt + 1 }}</td>
       <td>{{ subtask.host }}</td>
       <td> 
