@@ -89,6 +89,9 @@ class TestFilterableTableSource(
               iterator.remove()
             case (_, _) =>
           }
+        case expr: BinaryExpression =>
+          newSource.filterPredicates += expr
+          iterator.remove()
       }
     }
 

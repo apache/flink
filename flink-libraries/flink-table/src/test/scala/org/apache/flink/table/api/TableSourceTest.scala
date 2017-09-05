@@ -244,6 +244,32 @@ class TableSourceTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
+  @Test
+  def testBatchFilterableFullyPushedDownORANDExpressions(): Unit = {
+    val (tableSource, tableName) = filterableTableSource
+    val util = batchTestUtil()
+    val tableEnv = util.tableEnv
+
+    tableEnv.registerTableSource(tableName, tableSource)
+
+    val result = tableEnv
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where("amount = 2 || amount = 32 || amount = 50 || amount = 60 || (amount > 62 && amount < 70)")
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        "'amount === 2 || 'amount === 32 || 'amount === 50 || 'amount === 60 || 'amount > 62 " +
+          "&& " +
+          "'amount === 2 || 'amount === 32 || 'amount === 50 || 'amount === 60 || 'amount < 70"),
+      term("select", "price", "id", "amount")
+    )
+    util.verifyTable(result, expected)
+  }
+
   // stream plan
 
   @Test
