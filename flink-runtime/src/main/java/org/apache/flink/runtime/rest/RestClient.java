@@ -35,6 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
@@ -66,7 +67,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -77,14 +77,10 @@ public class RestClient {
 
 	private static final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 
-	// used to open connections to a rest server endpoint
-	private final Executor executor;
-
 	private Bootstrap bootstrap;
 
-	public RestClient(RestClientConfiguration configuration, Executor executor) {
+	public RestClient(RestClientConfiguration configuration) {
 		Preconditions.checkNotNull(configuration);
-		this.executor = Preconditions.checkNotNull(executor);
 
 		SSLEngine sslEngine = configuration.getSslEngine();
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
@@ -159,23 +155,17 @@ public class RestClient {
 	}
 
 	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, Class<P> responseClass) {
-		return CompletableFuture.supplyAsync(() -> bootstrap.connect(targetAddress, targetPort), executor)
-			.thenApply((channel) -> {
-				try {
-					return channel.sync();
-				} catch (InterruptedException e) {
-					throw new FlinkRuntimeException(e);
-				}
-			})
-			.thenApply((ChannelFuture::channel))
-			.thenCompose(channel -> {
-				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-				CompletableFuture<JsonResponse> future = handler.getJsonFuture();
-				channel.writeAndFlush(httpRequest);
-				return future;
-			}).thenCompose(
-				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseClass)
-			);
+		ChannelFuture connect = bootstrap.connect(targetAddress, targetPort);
+		Channel channel;
+		try {
+			channel = connect.sync().channel();
+		} catch (InterruptedException e) {
+			throw new FlinkRuntimeException(e);
+		}
+		ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+		CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+		channel.writeAndFlush(httpRequest);
+		return future.thenCompose(rawResponse -> parseResponse(rawResponse, responseClass));
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, Class<P> responseClass) {

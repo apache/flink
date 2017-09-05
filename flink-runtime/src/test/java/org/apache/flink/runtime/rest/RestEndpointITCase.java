@@ -67,7 +67,7 @@ public class RestEndpointITCase extends TestLogger {
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
 		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig);
-		RestClient clientEndpoint = new TestRestClient(clientConfig);
+		RestClient clientEndpoint = new RestClient(clientConfig);
 
 		try {
 			serverEndpoint.start();
@@ -144,13 +144,6 @@ public class RestEndpointITCase extends TestLogger {
 				}
 			}
 			return CompletableFuture.completedFuture(new TestResponse(request.getRequestBody().id));
-		}
-	}
-
-	private static class TestRestClient extends RestClient {
-
-		TestRestClient(RestClientConfiguration configuration) {
-			super(configuration, TestingUtils.defaultExecutor());
 		}
 	}
 
