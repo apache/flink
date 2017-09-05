@@ -42,11 +42,6 @@ public class IOMetrics implements Serializable {
 	protected double numBytesInRemotePerSecond;
 	protected double numBytesOutPerSecond;
 
-	/*
-		Fetching metrics is asynchronous. metricsFetched == false until values have been populated.
-		IO metrics values should be ignored until metricsFetched == true.
-	 */
-	protected boolean metricsFetched;
 
 	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesLocalIn, Meter bytesRemoteIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
@@ -82,7 +77,6 @@ public class IOMetrics implements Serializable {
 		this.numBytesOutPerSecond = numBytesOutPerSecond;
 		this.numRecordsInPerSecond = numRecordsInPerSecond;
 		this.numRecordsOutPerSecond = numRecordsOutPerSecond;
-		this.metricsFetched = false;
 	}
 
 	public long getNumRecordsIn() {
@@ -128,6 +122,4 @@ public class IOMetrics implements Serializable {
 	public double getNumBytesOutPerSecond() {
 		return numBytesOutPerSecond;
 	}
-
-	public boolean isEveryMetricFetched() { return metricsFetched; }
 }

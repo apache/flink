@@ -45,6 +45,12 @@ public class MutableIOMetrics extends IOMetrics {
 
 	private static final long serialVersionUID = -5460777634971381737L;
 
+	/**
+	 * Fetching metrics is asynchronous. metricsFetched == false until values have been populated.
+	 * IO metrics values should be ignored until metricsFetched == true.
+	 */
+	private boolean metricsFetched = false;
+
 	public MutableIOMetrics() {
 		super(0, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
 	}
