@@ -52,6 +52,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -102,7 +103,7 @@ public class RestClient {
 					.addLast(new PipelineErrorHandler(LOG));
 			}
 		};
-		NioEventLoopGroup group = new NioEventLoopGroup(1);
+		NioEventLoopGroup group = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-client-netty"));
 
 		bootstrap = new Bootstrap();
 		bootstrap
