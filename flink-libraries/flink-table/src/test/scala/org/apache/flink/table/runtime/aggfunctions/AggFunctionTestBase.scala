@@ -46,6 +46,8 @@ abstract class AggFunctionTestBase[T, ACC] {
 
   def retractFunc: Method = null
 
+  def ignoreMethods: List[String]  = List[String]()
+
   @Test
   // test aggregate and retract functions without partial merge
   def testAccumulateAndRetractWithoutMerge(): Unit = {
@@ -55,7 +57,8 @@ abstract class AggFunctionTestBase[T, ACC] {
       val result = aggregator.getValue(accumulator)
       validateResult[T](expected, result)
 
-      if (ifMethodExistInFunction("retract", aggregator)) {
+      if (!ignoreMethods.contains("retract") &&
+        ifMethodExistInFunction("retract", aggregator)) {
         retractVals(accumulator, vals)
         val expectedAccum = aggregator.createAccumulator()
         //The two accumulators should be exactly same
@@ -67,7 +70,8 @@ abstract class AggFunctionTestBase[T, ACC] {
   @Test
   def testAggregateWithMerge(): Unit = {
 
-    if (ifMethodExistInFunction("merge", aggregator)) {
+    if (!ignoreMethods.contains("merge") &&
+      ifMethodExistInFunction("merge", aggregator)) {
       val mergeFunc =
         aggregator.getClass.getMethod("merge", accType, classOf[java.lang.Iterable[ACC]])
       // iterate over input sets
@@ -113,7 +117,8 @@ abstract class AggFunctionTestBase[T, ACC] {
   // test aggregate functions with resetAccumulator
   def testResetAccumulator(): Unit = {
 
-    if (ifMethodExistInFunction("resetAccumulator", aggregator)) {
+    if (!ignoreMethods.contains("resetAccumulator") &&
+      ifMethodExistInFunction("resetAccumulator", aggregator)) {
       val resetAccFunc = aggregator.getClass.getMethod("resetAccumulator", accType)
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
@@ -142,18 +147,24 @@ abstract class AggFunctionTestBase[T, ACC] {
     }
   }
 
-  private def accumulateVals(vals: Seq[_]): ACC = {
+  def accumulateVals(vals: Seq[_]): ACC = {
     val accumulator = aggregator.createAccumulator()
     vals.foreach(
       v =>
-        accumulateFunc.invoke(aggregator, accumulator.asInstanceOf[Object], v.asInstanceOf[Object])
+        accumulateFunc.invoke(
+          aggregator,
+          accumulator.asInstanceOf[Object],
+          v.asInstanceOf[Object])
     )
     accumulator
   }
 
-  private def retractVals(accumulator:ACC, vals: Seq[_]) = {
+  def retractVals(accumulator:ACC, vals: Seq[_]) = {
     vals.foreach(
-      v => retractFunc.invoke(aggregator, accumulator.asInstanceOf[Object], v.asInstanceOf[Object])
+      v => retractFunc.invoke(
+        aggregator,
+        accumulator.asInstanceOf[Object],
+        v.asInstanceOf[Object])
     )
   }
 }

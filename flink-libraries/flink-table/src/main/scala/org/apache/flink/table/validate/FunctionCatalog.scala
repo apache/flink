@@ -23,7 +23,7 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.sql.{DateTimeSqlFunction, ScalarSqlFunctions}
+import org.apache.flink.table.functions.sql.{AggSqlFunctions, DateTimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
@@ -183,6 +183,7 @@ object FunctionCatalog {
     // aggregate functions
     "avg" -> classOf[Avg],
     "count" -> classOf[Count],
+    "cardinality_count" -> classOf[CardinalityCount],
     "max" -> classOf[Max],
     "min" -> classOf[Min],
     "sum" -> classOf[Sum],
@@ -335,6 +336,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SUM,
     SqlStdOperatorTable.SUM0,
     SqlStdOperatorTable.COUNT,
+    AggSqlFunctions.CARDINALITY_COUNT,
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,

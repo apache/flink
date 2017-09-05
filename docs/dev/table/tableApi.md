@@ -2704,6 +2704,17 @@ FIELD.count
       </td>
     </tr>
 
+        <tr>
+          <td>
+            {% highlight java %}
+    FIELD.cardinalityCount(rsd)
+    {% endhighlight %}
+          </td>
+          <td>
+          <p>Returns the approximate number of input rows for which <i>value</i> is not duplicate. <i>rsd<i> is the relative standard deviation for the counter. smaller values create counters that require more space. </p>
+          </td>
+        </tr>
+
     <tr>
       <td>
         {% highlight java %}

@@ -22,9 +22,9 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg}
+import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -39,6 +39,30 @@ class AggregateITCase extends StreamingWithStateTestBase {
   private val queryConfig = new StreamQueryConfig()
   queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
+  @Test
+  def testCardinalityCount(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    for (i <- 0 until 100) {
+      data.+=((i, 1L, "Hi"))
+      data.+=((i % 50, 2L, "Hello"))
+      data.+=((i % 2, 2L, "Hello world"))
+    }
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('c)
+      .select('c, 'a.cardinalityCount(0.01), 'a.cardinalityCount(0.05))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("Hello world,2,2", "Hello,49,52", "Hi,100,97")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
 
   @Test
   def testDistinct(): Unit = {

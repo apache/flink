@@ -189,6 +189,14 @@ trait ImplicitExpressionOperations {
   def count = Count(expr)
 
   /**
+    * Returns the approximate number of input rows for which the value is not duplicate.
+    *
+    * @param rsd the relative standard deviation for the counter.
+    *            smaller values create counters that require more space.
+    */
+  def cardinalityCount(rsd: Double) = CardinalityCount(rsd, expr)
+
+  /**
     * Returns the average (arithmetic mean) of the numeric field across all input values.
     */
   def avg = Avg(expr)

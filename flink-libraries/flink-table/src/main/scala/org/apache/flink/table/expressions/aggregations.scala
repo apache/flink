@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.sql.{AggSqlFunctions, SqlCardinalityCountAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -137,6 +138,32 @@ case class Count(child: Expression) extends Aggregation {
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     new SqlCountAggFunction()
+  }
+}
+
+case class CardinalityCount(rsd: Expression, child: Expression) extends Aggregation {
+
+  override private[flink] def children: Seq[Expression] = Seq(rsd, child)
+  override def toString = s"cardinatyCount($rsd, $child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(
+      AggSqlFunctions.CARDINALITY_COUNT, false, null, name, children.map(_.toRexNode): _*)
+  }
+
+  override private[flink] def resultType = BasicTypeInfo.LONG_TYPE_INFO
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    new SqlCardinalityCountAggFunction
+  }
+
+  override def validateInput(): ValidationResult = {
+    val rsdDoubleValue = rsd.asInstanceOf[Literal].value.asInstanceOf[Double]
+    if (0 >= rsdDoubleValue || rsdDoubleValue >= 1) {
+      ValidationFailure(s"Relative standard deviation should be > 0.0 and < 1.0, but get [$rsdDoubleValue].");
+    } else {
+      ValidationSuccess
+    }
   }
 }
 
