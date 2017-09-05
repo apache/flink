@@ -23,14 +23,15 @@
 
 import random
 import sys
+import time
 from org.apache.flink.api.common.functions import MapFunction
 from org.apache.flink.streaming.api.collector.selector import OutputSelector
 from org.apache.flink.streaming.api.functions.source import SourceFunction
 from org.apache.flink.api.java.utils import ParameterTool
 from org.apache.flink.streaming.python.api.environment import PythonStreamExecutionEnvironment
 
-TARGET_VAL = 100
-MAX_INT_START = 50
+BOUND = 100
+MAX_INT_START = int(BOUND / 2) - 1
 
 
 class Generator(SourceFunction):
@@ -45,8 +46,9 @@ class Generator(SourceFunction):
             counter += 1
 
     def do(self, ctx):
-        two_numbers = "{}, {}".format(random.randrange(1, MAX_INT_START), random.randrange(1, MAX_INT_START))
+        two_numbers = "{}, {}".format(random.randint(0, MAX_INT_START), random.randint(0, MAX_INT_START))
         ctx.collect(two_numbers)
+        time.sleep(0.05)
 
     def cancel(self):
         self._running = False
@@ -74,7 +76,7 @@ class OutPut(MapFunction):
 
 class StreamSelector(OutputSelector):
     def select(self, value):
-        return ["iterate"] if value[3] < TARGET_VAL else ["output"]
+        return ["iterate"] if value[3] < BOUND else ["output"]
 
 
 class Main:
@@ -95,7 +97,7 @@ class Main:
                 print("Error in reading input file. Exiting...", e)
                 sys.exit(5)
         else:
-            input_stream = env.add_source(Generator(num_iters=50))
+            input_stream = env.add_source(Generator(num_iters=100))
 
         # create an iterative data stream from the input with 5 second timeout
         it = input_stream.map(InPut()).iterate(5000)
