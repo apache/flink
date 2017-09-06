@@ -18,17 +18,24 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.{ArrayList => JArray, List => JList}
-
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.dataview.{ListView, MapView}
 import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for first value with retraction aggregate function */
 class FirstValueWithRetractAccumulator[T] {
-  var datas: ListView[T]  = _
-  var retractDatas: MapView[T,Byte] = _
+  var data: ListView[T] = _
+  var retractedData: MapView[T, Byte] = _
+
+  override def equals(obj: scala.Any): Boolean = {
+    if (obj.isInstanceOf[FirstValueWithRetractAccumulator[T]]) {
+      val target = obj.asInstanceOf[FirstValueWithRetractAccumulator[T]]
+      if (target.data.equals(this.data) && target.retractedData.equals(this.retractedData)) {
+        return true
+      }
+    }
+    false
+  }
 }
 
 /**
@@ -41,45 +48,44 @@ abstract class FirstValueWithRetractAggFunction[T]
 
   override def createAccumulator(): FirstValueWithRetractAccumulator[T] = {
     val acc = new FirstValueWithRetractAccumulator[T]
-    acc.datas = new ListView[T]
-    acc.retractDatas = new MapView[T, Byte]
+    acc.data = new ListView[T]
+    acc.retractedData = new MapView[T, Byte]
     acc
   }
 
   def accumulate(acc: FirstValueWithRetractAccumulator[T], value: Any): Unit = {
     if (null != value) {
       val v = value.asInstanceOf[T]
-      acc.datas.add(v)
+      acc.data.add(v)
     }
   }
 
   def retract(acc: FirstValueWithRetractAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      acc.retractDatas.put(v, Byte.MinValue)
+      acc.retractedData.put(v, Byte.MinValue)
     }
   }
 
   override def getValue(acc: FirstValueWithRetractAccumulator[T]): T = {
-    val it = acc.datas.get.iterator()
+    val it = acc.data.get.iterator()
     while (it.hasNext) {
       val value = it.next()
-      if (!acc.retractDatas.contains(value)) {
+      if (!acc.retractedData.contains(value)) {
         return value
       }
     }
-    acc.datas.clear()
-    acc.retractDatas.clear()
+    resetAccumulator(acc)
     null.asInstanceOf[T]
   }
 
   def resetAccumulator(acc: FirstValueWithRetractAccumulator[T]): Unit = {
-    acc.datas = new ListView[T]
-    acc.retractDatas = new MapView[T, Byte]
+    acc.data.clear()
+    acc.retractedData.clear()
   }
 
   override def getAccumulatorType: TypeInformation[FirstValueWithRetractAccumulator[T]] = {
-      TypeInformation.of(classOf[FirstValueWithRetractAccumulator[T]])
+    TypeInformation.of(classOf[FirstValueWithRetractAccumulator[T]])
   }
 
   def getValueTypeInfo: TypeInformation[_]

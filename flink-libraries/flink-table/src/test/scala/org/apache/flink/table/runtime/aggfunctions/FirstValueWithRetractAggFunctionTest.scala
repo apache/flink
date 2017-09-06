@@ -47,7 +47,7 @@ abstract class FirstValueWithRetractAggFunctionTest[T: Numeric]
     inputValueSets(0)(0)
   )
 
-  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+  override def ignoreMethods: List[String]  = List[String]("retract")
 }
 
 class ByteFirstValueWithRetractAggFunctionTest extends FirstValueWithRetractAggFunctionTest[Byte] {
@@ -112,7 +112,7 @@ class DecimalFirstValueWithRetractAggFunctionTest
     FirstValueWithRetractAccumulator[BigDecimal]] =
     new DecimalFirstValueWithRetractAggFunction()
 
-  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+  override def ignoreMethods: List[String]  = List[String]("retract")
 }
 
 class StringFirstValueWithRetractAggFunctionTest
@@ -134,5 +134,5 @@ class StringFirstValueWithRetractAggFunctionTest
   override def aggregator: AggregateFunction[String, FirstValueWithRetractAccumulator[String]] =
     new StringFirstValueWithRetractAggFunction()
 
-  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+  override def ignoreMethods: List[String]  = List[String]("retract")
 }

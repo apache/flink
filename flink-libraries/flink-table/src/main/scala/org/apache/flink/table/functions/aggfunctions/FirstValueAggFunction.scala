@@ -57,10 +57,6 @@ abstract class FirstValueAggFunction[T] extends AggregateFunction[T, FirstValueA
     null.asInstanceOf[T]
   }
 
-  override def isDeterministic: Boolean = false
-
-  override def requiresOver: Boolean = true
-
   def getValueTypeInfo: TypeInformation[T]
 
   override def getResultType(): TypeInformation[T] = getValueTypeInfo
