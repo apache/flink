@@ -21,14 +21,7 @@ package org.apache.flink.test.state.operator.restore.unkeyed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
-import java.util.Arrays;
-import java.util.Collection;
 
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
@@ -37,49 +30,31 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /**
- * Base class for all non-keyed operator restore tests.
+ * Verifies that the state of all operators is restored if a topology change removes an operator from a chain.
+ *
+ * <p>This test specifically checks that stateless operators can be removed even if all states from the previous job
+ * must be restored.
  */
-@RunWith(Parameterized.class)
-public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
+public class ChainLengthStatelessDecreaseTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-	private final String savepointPath;
-
-	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-	public static Collection<String> parameters () {
-		return Arrays.asList(
-			"nonKeyed-flink1.2",
-			"nonKeyed-flink1.3");
-	}
-
-	protected AbstractNonKeyedOperatorRestoreTestBase(String savepointPath) {
-		this.savepointPath = savepointPath;
-	}
-
-	protected AbstractNonKeyedOperatorRestoreTestBase(String savepointPath, boolean allowNonRestoredState) {
-		super(allowNonRestoredState);
-		this.savepointPath = savepointPath;
+	public ChainLengthStatelessDecreaseTest(String savepointPath) {
+		super(savepointPath, false);
 	}
 
 	@Override
-	public void createMigrationJob(StreamExecutionEnvironment env) {
-		/**
-		 * Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
+	public void createRestoredJob(StreamExecutionEnvironment env) {
+		/*
+		 * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
+		 * Modified job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> StatefulMap3)
 		 */
-		DataStream<Integer> source = createSource(env, ExecutionMode.MIGRATE);
+		DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
 
-		SingleOutputStreamOperator<Integer> first = createFirstStatefulMap(ExecutionMode.MIGRATE, source);
+		SingleOutputStreamOperator<Integer> first = createFirstStatefulMap(ExecutionMode.RESTORE, source);
 		first.startNewChain();
 
-		SingleOutputStreamOperator<Integer> second = createSecondStatefulMap(ExecutionMode.MIGRATE, first);
+		SingleOutputStreamOperator<Integer> second = createSecondStatefulMap(ExecutionMode.RESTORE, first);
 		second.startNewChain();
 
-		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
-
-		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.MIGRATE, stateless);
-	}
-
-	@Override
-	protected String getMigrationSavepointName() {
-		return savepointPath;
+		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.RESTORE, second);
 	}
 }
