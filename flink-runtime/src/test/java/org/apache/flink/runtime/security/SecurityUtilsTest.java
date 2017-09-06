@@ -55,7 +55,7 @@ public class SecurityUtilsTest {
 
 		static class Factory implements SecurityModuleFactory {
 			@Override
-			public SecurityModule createModule(SecurityUtils.SecurityConfiguration securityConfig) {
+			public SecurityModule createModule(SecurityConfiguration securityConfig) {
 				return new TestSecurityModule();
 			}
 		}
@@ -68,7 +68,7 @@ public class SecurityUtilsTest {
 
 	@Test
 	public void testModuleInstall() throws Exception {
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(
+		SecurityConfiguration sc = new SecurityConfiguration(
 			new Configuration(),
 			Collections.singletonList(new TestSecurityModule.Factory()));
 
@@ -84,7 +84,7 @@ public class SecurityUtilsTest {
 
 	@Test
 	public void testSecurityContext() throws Exception {
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(
+		SecurityConfiguration sc = new SecurityConfiguration(
 			new Configuration(),
 			Collections.singletonList(new TestSecurityModule.Factory()));
 
@@ -101,13 +101,13 @@ public class SecurityUtilsTest {
 		List<String> expectedLoginContexts = Arrays.asList("Foo bar", "Client");
 
 		Configuration testFlinkConf;
-		SecurityUtils.SecurityConfiguration testSecurityConf;
+		SecurityConfiguration testSecurityConf;
 
 		// ------- no whitespaces
 
 		testFlinkConf = new Configuration();
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,Client");
-		testSecurityConf = new SecurityUtils.SecurityConfiguration(
+		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
 			Collections.singletonList(new TestSecurityModule.Factory()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
@@ -116,7 +116,7 @@ public class SecurityUtilsTest {
 
 		testFlinkConf = new Configuration();
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar , Client");
-		testSecurityConf = new SecurityUtils.SecurityConfiguration(
+		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
 			Collections.singletonList(new TestSecurityModule.Factory()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
@@ -125,7 +125,7 @@ public class SecurityUtilsTest {
 
 		testFlinkConf = new Configuration();
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, " Foo bar , Client ");
-		testSecurityConf = new SecurityUtils.SecurityConfiguration(
+		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
 			Collections.singletonList(new TestSecurityModule.Factory()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
@@ -134,7 +134,7 @@ public class SecurityUtilsTest {
 
 		testFlinkConf = new Configuration();
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,,Client");
-		testSecurityConf = new SecurityUtils.SecurityConfiguration(
+		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
 			Collections.singletonList(new TestSecurityModule.Factory()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
@@ -143,7 +143,7 @@ public class SecurityUtilsTest {
 
 		testFlinkConf = new Configuration();
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar, ,, Client,");
-		testSecurityConf = new SecurityUtils.SecurityConfiguration(
+		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
 			Collections.singletonList(new TestSecurityModule.Factory()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());

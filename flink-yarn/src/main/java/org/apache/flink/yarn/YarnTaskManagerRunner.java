@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -114,7 +115,7 @@ public class YarnTaskManagerRunner {
 
 		try {
 
-			SecurityUtils.SecurityConfiguration sc;
+			SecurityConfiguration sc;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
@@ -131,11 +132,11 @@ public class YarnTaskManagerRunner {
 					configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 				}
 
-				sc = new SecurityUtils.SecurityConfiguration(configuration,
+				sc = new SecurityConfiguration(configuration,
 					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 
 			} else {
-				sc = new SecurityUtils.SecurityConfiguration(configuration);
+				sc = new SecurityConfiguration(configuration);
 
 			}
 

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -207,7 +208,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configDir);
 
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(configuration));
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 
 		try {
 			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {

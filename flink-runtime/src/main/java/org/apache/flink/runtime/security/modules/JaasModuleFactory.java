@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 
 /**
  * A {@link SecurityModuleFactory} for {@link JaasModule}.
@@ -26,7 +26,7 @@ import org.apache.flink.runtime.security.SecurityUtils;
 public class JaasModuleFactory implements SecurityModuleFactory {
 
 	@Override
-	public SecurityModule createModule(SecurityUtils.SecurityConfiguration securityConfig) {
+	public SecurityModule createModule(SecurityConfiguration securityConfig) {
 		return new JaasModule(securityConfig);
 	}
 }

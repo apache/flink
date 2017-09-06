@@ -29,6 +29,7 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
@@ -103,7 +104,7 @@ public class HistoryServer {
 		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
 
 		// run the history server
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(flinkConfig));
+		SecurityUtils.install(new SecurityConfiguration(flinkConfig));
 
 		try {
 			SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.util.HadoopUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -34,7 +34,7 @@ public class HadoopModuleFactory implements SecurityModuleFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopModuleFactory.class);
 
 	@Override
-	public SecurityModule createModule(SecurityUtils.SecurityConfiguration securityConfig) {
+	public SecurityModule createModule(SecurityConfiguration securityConfig) {
 		// First check if we have Hadoop in the ClassPath. If not, we simply don't do anything.
 		try {
 			Class.forName(

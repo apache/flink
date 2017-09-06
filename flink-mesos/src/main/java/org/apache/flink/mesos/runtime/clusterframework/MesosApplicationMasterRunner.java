@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.process.ProcessReaper;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -163,7 +164,7 @@ public class MesosApplicationMasterRunner {
 			}
 
 			// configure security
-			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(config);
+			SecurityConfiguration sc = new SecurityConfiguration(config);
 			SecurityUtils.install(sc);
 
 			// run the actual work in the installed security context

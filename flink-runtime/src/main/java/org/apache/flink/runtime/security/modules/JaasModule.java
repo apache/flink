@@ -21,7 +21,7 @@ package org.apache.flink.runtime.security.modules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.security.DynamicConfiguration;
 import org.apache.flink.runtime.security.KerberosUtils;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,14 +59,14 @@ public class JaasModule implements SecurityModule {
 
 	static final String JAAS_CONF_RESOURCE_NAME = "flink-jaas.conf";
 
-	private final SecurityUtils.SecurityConfiguration securityConfig;
+	private final SecurityConfiguration securityConfig;
 
 	private String priorConfigFile;
 	private javax.security.auth.login.Configuration priorConfig;
 
 	private DynamicConfiguration currentConfig;
 
-	public JaasModule(SecurityUtils.SecurityConfiguration securityConfig) {
+	public JaasModule(SecurityConfiguration securityConfig) {
 		this.securityConfig = checkNotNull(securityConfig);
 	}
 
@@ -112,7 +112,7 @@ public class JaasModule implements SecurityModule {
 		return currentConfig;
 	}
 
-	private static AppConfigurationEntry[] getAppConfigurationEntries(SecurityUtils.SecurityConfiguration securityConfig) {
+	private static AppConfigurationEntry[] getAppConfigurationEntries(SecurityConfiguration securityConfig) {
 
 		AppConfigurationEntry userKerberosAce = null;
 		if (securityConfig.useTicketCache()) {

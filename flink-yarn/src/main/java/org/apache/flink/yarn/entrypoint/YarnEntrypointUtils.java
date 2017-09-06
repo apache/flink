@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
@@ -55,7 +56,7 @@ public class YarnEntrypointUtils {
 			Configuration configuration,
 			String workingDirectory) throws Exception {
 
-		SecurityUtils.SecurityConfiguration sc;
+		SecurityConfiguration sc;
 
 		//To support Yarn Secure Integration Test Scenario
 		File krb5Conf = new File(workingDirectory, Utils.KRB5_FILE_NAME);
@@ -64,10 +65,10 @@ public class YarnEntrypointUtils {
 			hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 			hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
 
-			sc = new SecurityUtils.SecurityConfiguration(configuration,
+			sc = new SecurityConfiguration(configuration,
 				Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 		} else {
-			sc = new SecurityUtils.SecurityConfiguration(configuration);
+			sc = new SecurityConfiguration(configuration);
 		}
 
 		SecurityUtils.install(sc);

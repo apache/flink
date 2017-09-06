@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.process.ProcessReaper;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -171,7 +172,7 @@ public class YarnApplicationMasterRunner {
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			SecurityUtils.SecurityConfiguration sc;
+			SecurityConfiguration sc;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
@@ -181,10 +182,10 @@ public class YarnApplicationMasterRunner {
 				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-				sc = new SecurityUtils.SecurityConfiguration(flinkConfig,
+				sc = new SecurityConfiguration(flinkConfig,
 					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 			} else {
-				sc = new SecurityUtils.SecurityConfiguration(flinkConfig);
+				sc = new SecurityConfiguration(flinkConfig);
 			}
 
 			SecurityUtils.install(sc);

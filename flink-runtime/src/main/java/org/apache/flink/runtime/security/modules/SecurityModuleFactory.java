@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 
 /**
  * A factory for a {@link SecurityModule}. A factory can determine whether a {@link SecurityModule}
@@ -33,5 +33,5 @@ public interface SecurityModuleFactory {
 	 * of {@link SecurityModule} that this factory can create does not work in the current
 	 * environment.
 	 */
-	SecurityModule createModule(SecurityUtils.SecurityConfiguration securityConfig);
+	SecurityModule createModule(SecurityConfiguration securityConfig);
 }

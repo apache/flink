@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -141,7 +142,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
 		LOG.info("Install security context.");
 
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(configuration));
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 
 		return SecurityUtils.getInstalledContext();
 	}

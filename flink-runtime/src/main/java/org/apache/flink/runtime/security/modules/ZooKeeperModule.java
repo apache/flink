@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -44,7 +44,7 @@ public class ZooKeeperModule implements SecurityModule {
 	 */
 	private static final String ZK_LOGIN_CONTEXT_NAME = "zookeeper.sasl.clientconfig";
 
-	private final SecurityUtils.SecurityConfiguration securityConfig;
+	private final SecurityConfiguration securityConfig;
 
 	private String priorSaslEnable;
 
@@ -52,7 +52,7 @@ public class ZooKeeperModule implements SecurityModule {
 
 	private String priorLoginContextName;
 
-	public ZooKeeperModule(SecurityUtils.SecurityConfiguration securityConfig) {
+	public ZooKeeperModule(SecurityConfiguration securityConfig) {
 		this.securityConfig = checkNotNull(securityConfig);
 	}
 

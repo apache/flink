@@ -21,6 +21,7 @@ package org.apache.flink.test.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.security.DynamicConfiguration;
 import org.apache.flink.runtime.security.KerberosUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.JaasModuleFactory;
 import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
@@ -36,7 +37,7 @@ import java.util.Map;
 @Internal
 public class TestingSecurityContext {
 
-	public static void install(SecurityUtils.SecurityConfiguration config,
+	public static void install(SecurityConfiguration config,
 						Map<String, ClientSecurityConfiguration> clientSecurityConfigurationMap)
 			throws Exception {
 

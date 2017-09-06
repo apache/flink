@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.SecureTestEnvironment;
@@ -126,8 +126,8 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 		flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL,
 				SecureTestEnvironment.getHadoopServicePrincipal());
 
-		SecurityUtils.SecurityConfiguration ctx =
-			new SecurityUtils.SecurityConfiguration(
+		SecurityConfiguration ctx =
+			new SecurityConfiguration(
 				flinkConfig,
 				Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, conf)));
 		try {

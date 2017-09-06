@@ -31,6 +31,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
@@ -506,7 +507,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
 
 		final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(flinkConfiguration));
+		SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
 		int retCode = SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
 			@Override
 			public Integer call() {

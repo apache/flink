@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -127,7 +128,7 @@ public class YarnTaskExecutorRunner {
 			LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 					currentUser.getShortUserName(), yarnClientUsername);
 
-			SecurityUtils.SecurityConfiguration sc;
+			SecurityConfiguration sc;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
@@ -138,11 +139,11 @@ public class YarnTaskExecutorRunner {
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
 
-				sc = new SecurityUtils.SecurityConfiguration(configuration,
+				sc = new SecurityConfiguration(configuration,
 					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 
 			} else {
-				sc = new SecurityUtils.SecurityConfiguration(configuration);
+				sc = new SecurityConfiguration(configuration);
 			}
 
 			if (keytabPath != null && remoteKeytabPrincipal != null) {

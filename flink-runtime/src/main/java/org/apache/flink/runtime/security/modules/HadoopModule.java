@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.util.HadoopUtils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -47,12 +47,12 @@ public class HadoopModule implements SecurityModule {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopModule.class);
 
-	private final SecurityUtils.SecurityConfiguration securityConfig;
+	private final SecurityConfiguration securityConfig;
 
 	private final Configuration hadoopConfiguration;
 
 	public HadoopModule(
-		SecurityUtils.SecurityConfiguration securityConfiguration,
+		SecurityConfiguration securityConfiguration,
 		Configuration hadoopConfiguration) {
 		this.securityConfig = checkNotNull(securityConfiguration);
 		this.hadoopConfiguration = checkNotNull(hadoopConfiguration);
