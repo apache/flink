@@ -106,7 +106,7 @@ public abstract class RestServerEndpoint {
 		};
 
 		NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
-		NioEventLoopGroup workerGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-worker"));
+		NioEventLoopGroup workerGroup = new NioEventLoopGroup(new DefaultThreadFactory("flink-rest-server-netty-worker"));
 
 		bootstrap = new ServerBootstrap();
 		bootstrap
