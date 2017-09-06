@@ -22,9 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -59,10 +63,14 @@ public class SavepointLoaderTest {
 		JobVertexID jobVertexID = new JobVertexID();
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 
-		OperatorState state = mock(OperatorState.class);
-		when(state.getParallelism()).thenReturn(parallelism);
-		when(state.getOperatorID()).thenReturn(operatorID);
-		when(state.getMaxParallelism()).thenReturn(parallelism);
+		OperatorSubtaskState subtaskState = new OperatorSubtaskState(
+			new OperatorStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("testHandler", new byte[0])),
+			null,
+			null,
+			null);
+
+		OperatorState state = new OperatorState(operatorID, parallelism, parallelism);
+		state.putState(0, subtaskState);
 
 		Map<OperatorID, OperatorState> taskStates = new HashMap<>();
 		taskStates.put(operatorID, state);
