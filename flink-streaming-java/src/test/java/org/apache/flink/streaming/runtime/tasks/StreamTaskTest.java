@@ -726,7 +726,7 @@ public class StreamTaskTest extends TestLogger {
 	 * Tests that the StreamTask first closes alls its operators before setting its
 	 * state to not running (isRunning == false)
 	 *
-	 * See FLINK-7430.
+	 * <p>See FLINK-7430.
 	 */
 	@Test
 	public void testOperatorClosingBeforeStopRunning() throws Throwable {
@@ -755,13 +755,13 @@ public class StreamTaskTest extends TestLogger {
 			},
 			TestingUtils.defaultExecutor());
 
-		BlockingCloseStreamOperator.inClose.await();
+		BlockingCloseStreamOperator.IN_CLOSE.await();
 
 		// check that the StreamTask is not yet in isRunning == false
 		assertTrue(streamTask.isRunning());
 
 		// let the operator finish its close operation
-		BlockingCloseStreamOperator.finishClose.trigger();
+		BlockingCloseStreamOperator.FINISH_CLOSE.trigger();
 
 		// wait until the invoke is complete
 		invokeFuture.get();
@@ -801,13 +801,13 @@ public class StreamTaskTest extends TestLogger {
 	private static class BlockingCloseStreamOperator extends AbstractStreamOperator<Void> {
 		private static final long serialVersionUID = -9042150529568008847L;
 
-		public static final OneShotLatch inClose = new OneShotLatch();
-		public static final OneShotLatch finishClose = new OneShotLatch();
+		public static final OneShotLatch IN_CLOSE = new OneShotLatch();
+		public static final OneShotLatch FINISH_CLOSE = new OneShotLatch();
 
 		@Override
 		public void close() throws Exception {
-			inClose.trigger();
-			finishClose.await();
+			IN_CLOSE.trigger();
+			FINISH_CLOSE.await();
 			super.close();
 		}
 	}
