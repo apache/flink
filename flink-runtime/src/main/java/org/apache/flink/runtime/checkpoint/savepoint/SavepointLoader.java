@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -120,14 +121,19 @@ public class SavepointLoader {
 			} else if (allowNonRestoredState) {
 				LOG.info("Skipping savepoint state for operator {}.", operatorState.getOperatorID());
 			} else {
-				String msg = String.format("Failed to rollback to savepoint %s. " +
+				for (OperatorSubtaskState operatorSubtaskState : operatorState.getStates()) {
+					if (operatorSubtaskState.hasState()) {
+						String msg = String.format("Failed to rollback to savepoint %s. " +
 								"Cannot map savepoint state for operator %s to the new program, " +
 								"because the operator is not available in the new program. If " +
 								"you want to allow to skip this, you can set the --allowNonRestoredState " +
 								"option on the CLI.",
-						savepointPath, operatorState.getOperatorID());
+							savepointPath, operatorState.getOperatorID());
 
-				throw new IllegalStateException(msg);
+						throw new IllegalStateException(msg);
+					}
+				}
+				LOG.info("Skipping empty savepoint state for operator {}.", operatorState.getOperatorID());
 			}
 		}
 
