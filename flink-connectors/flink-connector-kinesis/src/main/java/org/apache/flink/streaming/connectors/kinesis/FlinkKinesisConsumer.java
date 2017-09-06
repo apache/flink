@@ -43,6 +43,7 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeseri
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,6 +174,10 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		// check the configuration properties for any conflicting settings
 		KinesisConfigUtil.validateConsumerConfiguration(this.configProps);
 
+		checkArgument(
+			InstantiationUtil.isSerializable(deserializer),
+			"The provided deserialization schema is not serializable: " + deserializer.getClass().getName() + ". " +
+				"Please check that it does not contain references to non-serializable instances.");
 		this.deserializer = checkNotNull(deserializer, "deserializer can not be null");
 
 		if (LOG.isInfoEnabled()) {

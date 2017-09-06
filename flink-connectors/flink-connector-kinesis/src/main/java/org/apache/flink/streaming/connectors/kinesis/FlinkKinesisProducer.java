@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
@@ -25,6 +24,7 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerial
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.PropertiesUtil;
 
 import com.amazonaws.services.kinesis.producer.Attempt;
@@ -40,9 +40,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -123,8 +123,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		// check the configuration properties for any conflicting settings
 		KinesisConfigUtil.validateProducerConfiguration(this.configProps);
 
-		ClosureCleaner.ensureSerializable(Objects.requireNonNull(schema));
-		this.schema = schema;
+		checkArgument(
+			InstantiationUtil.isSerializable(schema),
+			"The provided serialization schema is not serializable: " + schema.getClass().getName() + ". " +
+				"Please check that it does not contain references to non-serializable instances.");
+		this.schema = checkNotNull(schema);
 	}
 
 	/**
@@ -154,9 +157,12 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	}
 
 	public void setCustomPartitioner(KinesisPartitioner<OUT> partitioner) {
-		Objects.requireNonNull(partitioner);
-		ClosureCleaner.ensureSerializable(partitioner);
-		this.customPartitioner = partitioner;
+		checkArgument(
+			InstantiationUtil.isSerializable(partitioner),
+			"The provided custom partitioner is not serializable: " + partitioner.getClass().getName() + ". " +
+				"Please check that it does not contain references to non-serializable instances.");
+
+		this.customPartitioner = checkNotNull(partitioner);
 	}
 
 	// --------------------------- Lifecycle methods ---------------------------
