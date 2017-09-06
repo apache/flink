@@ -481,8 +481,8 @@ Before 0.9 Kafka did not provide any mechanisms to guarantee at-least-once or ex
 
 #### Kafka 0.9 and 0.10
 
-With Flink's checkpointing enabled, the `FlinkKafkaProducer010` can provide
-at-least-once delivery guarantees.
+With Flink's checkpointing enabled, the `FlinkKafkaProducer09` and `FlinkKafkaProducer010`
+can provide at-least-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you should also configure the setter
 methods `setLogFailuresOnly(boolean)` and `setFlushOnCheckpoint(boolean)` appropriately,
