@@ -119,6 +119,13 @@
 		</file>
 
 		<file>
+			<source>../flink-metrics/flink-metrics-slf4j/target/flink-metrics-slf4j-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-slf4j-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
 			<source>../flink-filesystems/flink-s3-fs-hadoop/target/flink-s3-fs-hadoop-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-s3-fs-hadoop-${project.version}.jar</destName>
