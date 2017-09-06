@@ -60,17 +60,23 @@ public class StreamEdge implements Serializable {
 	 */
 	private StreamPartitioner<?> outputPartitioner;
 
+	/**
+	 * The unique id for differentiating edges between the same source and target.
+	 */
+	private final int edgeSubId;
+
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
-			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
+			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag, int edgeSubId) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
+		this.edgeSubId = edgeSubId;
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
-				+ "_" + outputPartitioner;
+				+ "_" + outputPartitioner + "_" + edgeSubId;
 	}
 
 	public StreamNode getSourceVertex() {
@@ -132,6 +138,6 @@ public class StreamEdge implements Serializable {
 	public String toString() {
 		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
 				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-				+ ", outputTag=" + outputTag + ')';
+				+ ", outputTag=" + outputTag + ", edgeSubId=" + edgeSubId + ")";
 	}
 }

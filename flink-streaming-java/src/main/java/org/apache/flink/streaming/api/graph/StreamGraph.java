@@ -94,6 +94,7 @@ public class StreamGraph extends StreamingPlan {
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
 	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
+	private Map<Tuple2<Integer, Integer>, Integer> uniqueEdgeMap;
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
 		this.environment = environment;
@@ -117,6 +118,7 @@ public class StreamGraph extends StreamingPlan {
 		iterationSourceSinkPairs = new HashSet<>();
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
+		uniqueEdgeMap = new HashMap<>();
 	}
 
 	public StreamExecutionEnvironment getEnvironment() {
@@ -411,6 +413,13 @@ public class StreamGraph extends StreamingPlan {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
 			StreamNode downstreamNode = getStreamNode(downStreamVertexID);
 
+			Tuple2<Integer, Integer> edgePair = new Tuple2<>(upstreamNode.getId(), downstreamNode.getId());
+			if (!uniqueEdgeMap.containsKey(edgePair)) {
+				uniqueEdgeMap.put(edgePair, 1);
+			} else {
+				uniqueEdgeMap.put(edgePair, uniqueEdgeMap.get(edgePair) + 1);
+			}
+
 			// If no partitioner was specified and the parallelism of upstream and downstream
 			// operator matches use forward partitioning, use rebalance otherwise.
 			if (partitioner == null && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
@@ -428,7 +437,7 @@ public class StreamGraph extends StreamingPlan {
 				}
 			}
 
-			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag);
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, uniqueEdgeMap.get(edgePair));
 
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);
@@ -622,6 +631,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public Set<Tuple2<StreamNode, StreamNode>> getIterationSourceSinkPairs() {
 		return iterationSourceSinkPairs;
+	}
+
+	public Map<Tuple2<Integer, Integer>, Integer> getUniqueEdgeMap() {
+		return uniqueEdgeMap;
 	}
 
 	private void removeEdge(StreamEdge edge) {

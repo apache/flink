@@ -274,7 +274,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 			0,
 			Collections.<String>emptyList(),
 			null,
-			null
+			null,
+			0
 		)));
 
 		watermarkOperatorConfig.setStreamOperator(watermarkOperator);
@@ -287,7 +288,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 			0,
 			Collections.<String>emptyList(),
 			null,
-			null
+			null,
+			0
 		)));
 
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
@@ -297,7 +299,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 			0,
 			Collections.<String>emptyList(),
 			new BroadcastPartitioner<Object>(),
-			null));
+			null,
+			0));
 
 		tailOperatorConfig.setStreamOperator(tailOperator);
 		tailOperatorConfig.setOperatorID(new OperatorID(123L, 123L));
@@ -653,7 +656,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 				0,
 				Collections.<String>emptyList(),
 				null,
-				null
+				null,
+				0
 			);
 
 			outputEdges.add(outputEdge);

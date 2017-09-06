@@ -183,6 +183,14 @@ public class DataStreamTest {
 
 		// verify self union
 		assertTrue(streamGraph.getStreamNode(selfUnion.getId()).getInEdges().size() == 2);
+		assertTrue(streamGraph.getUniqueEdgeMap().size() == 12);
+		int selfUnionCount = 0;
+		for (Integer value : streamGraph.getUniqueEdgeMap().values()) {
+			if (value == 2) {
+				selfUnionCount++;
+			}
+		}
+		assertTrue(selfUnionCount == 2);
 		for (StreamEdge edge: streamGraph.getStreamNode(selfUnion.getId()).getInEdges()) {
 			assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 		}
