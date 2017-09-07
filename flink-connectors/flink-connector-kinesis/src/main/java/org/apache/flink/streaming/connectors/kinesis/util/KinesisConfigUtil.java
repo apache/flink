@@ -194,6 +194,11 @@ public class KinesisConfigUtil {
 
 		kpc.setCredentialsProvider(AWSUtil.getCredentialsProvider(config));
 
+		// we explicitly lower the credential refresh delay (default is 5 seconds)
+		// to avoid a ignorable interruption warning that occurs when shutting down the
+		// KPL client. See https://github.com/awslabs/amazon-kinesis-producer/issues/10.
+		kpc.setCredentialsRefreshDelay(100);
+
 		// Because of bug https://github.com/awslabs/amazon-kinesis-producer/issues/124
 		// KPL cannot set ThreadingModel and ThreadPoolSize using Java reflection
 		// Thus we have to set them explicitly
