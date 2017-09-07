@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.PatternFlatTimeoutFunction;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.util.OutputTag;
@@ -55,20 +56,18 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 	public FlatSelectTimeoutCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
-		TypeSerializer<KEY> keySerializer,
 		NFACompiler.NFAFactory<IN> nfaFactory,
-		boolean migratingFromOldKeyedOperator,
 		EventComparator<IN> comparator,
+		AfterMatchSkipStrategy skipStrategy,
 		PatternFlatSelectFunction<IN, OUT1> flatSelectFunction,
 		PatternFlatTimeoutFunction<IN, OUT2> flatTimeoutFunction,
 		OutputTag<OUT2> outputTag) {
 		super(
 			inputSerializer,
 			isProcessingTime,
-			keySerializer,
 			nfaFactory,
-			migratingFromOldKeyedOperator,
 			comparator,
+			skipStrategy,
 			new FlatSelectWrapper<>(flatSelectFunction, flatTimeoutFunction));
 		this.timedOutOutputTag = outputTag;
 	}

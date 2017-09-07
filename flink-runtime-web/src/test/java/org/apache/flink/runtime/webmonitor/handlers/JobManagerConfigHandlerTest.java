@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.Executors;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,7 +29,7 @@ import org.junit.Test;
 public class JobManagerConfigHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JobManagerConfigHandler handler = new JobManagerConfigHandler(null);
+		JobManagerConfigHandler handler = new JobManagerConfigHandler(Executors.directExecutor(), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobmanager/config", paths[0]);

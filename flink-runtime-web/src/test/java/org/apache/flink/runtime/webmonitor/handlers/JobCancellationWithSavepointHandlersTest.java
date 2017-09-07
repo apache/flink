@@ -92,7 +92,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 		when(coord.getCheckpointTimeout()).thenReturn(timeout);
 
@@ -121,7 +121,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 		when(coord.getCheckpointTimeout()).thenReturn(timeout);
 
@@ -152,7 +152,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		handler = handlers.getTriggerHandler();
 
 		try {
-			handler.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+			handler.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 			fail("Did not throw expected test Exception");
 		} catch (Exception e) {
 			IllegalStateException cause = (IllegalStateException) e.getCause();
@@ -169,7 +169,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 
 		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
@@ -187,7 +187,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		when(jobManager.cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class))).thenReturn(successfulCancelWithSavepoint);
 
 		// Trigger
-		FullHttpResponse response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		FullHttpResponse response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 
 		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class));
 
@@ -206,7 +206,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		assertEquals(location, root.get("location").asText());
 
 		// Trigger again
-		response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 		assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
@@ -225,7 +225,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		// Query progress
 		params.put("requestId", "1");
 
-		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 		assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
@@ -239,7 +239,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		// Complete
 		successfulCancelWithSavepoint.complete("_path-savepoint_");
 
-		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 
 		assertEquals(HttpResponseStatus.CREATED, response.getStatus());
 		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
@@ -255,7 +255,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 
 		// Query again, keep recent history
 
-		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 
 		assertEquals(HttpResponseStatus.CREATED, response.getStatus());
 		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
@@ -272,7 +272,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		// Query for unknown request
 		params.put("requestId", "9929");
 
-		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 		assertEquals(HttpResponseStatus.BAD_REQUEST, response.getStatus());
 		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));
@@ -295,7 +295,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(Optional.of(graph));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
 		when(graph.getCheckpointCoordinator()).thenReturn(coord);
 
 		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
@@ -319,7 +319,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		// Query progress
 		params.put("requestId", "1");
 
-		FullHttpResponse response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
+		FullHttpResponse response = progress.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
 		assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.getStatus());
 		assertEquals("application/json; charset=UTF-8", response.headers().get(HttpHeaders.Names.CONTENT_TYPE));
 		assertEquals(Integer.toString(response.content().readableBytes()), response.headers().get(HttpHeaders.Names.CONTENT_LENGTH));

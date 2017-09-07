@@ -18,11 +18,15 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.util.FlinkException;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for request handlers whose response depends on a specific subtask execution attempt
@@ -32,15 +36,15 @@ import java.util.Map;
  */
 public abstract class AbstractSubtaskAttemptRequestHandler extends AbstractSubtaskRequestHandler {
 
-	public AbstractSubtaskAttemptRequestHandler(ExecutionGraphHolder executionGraphHolder) {
-		super(executionGraphHolder);
+	public AbstractSubtaskAttemptRequestHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+		super(executionGraphHolder, executor);
 	}
 
 	@Override
-	public String handleRequest(AccessExecutionVertex vertex, Map<String, String> params) throws Exception {
+	public CompletableFuture<String> handleRequest(AccessExecutionVertex vertex, Map<String, String> params) {
 		final String attemptNumberString = params.get("attempt");
 		if (attemptNumberString == null) {
-			throw new RuntimeException("Attempt number parameter missing");
+			return FutureUtils.completedExceptionally(new FlinkException("Attempt number parameter missing"));
 		}
 
 		final int attempt;
@@ -48,7 +52,7 @@ public abstract class AbstractSubtaskAttemptRequestHandler extends AbstractSubta
 			attempt = Integer.parseInt(attemptNumberString);
 		}
 		catch (NumberFormatException e) {
-			throw new RuntimeException("Invalid attempt number parameter");
+			return FutureUtils.completedExceptionally(new FlinkException("Invalid attempt number parameter"));
 		}
 
 		final AccessExecution currentAttempt = vertex.getCurrentExecutionAttempt();
@@ -61,14 +65,14 @@ public abstract class AbstractSubtaskAttemptRequestHandler extends AbstractSubta
 			if (exec != null) {
 				return handleRequest(exec, params);
 			} else {
-				throw new RequestHandlerException("Execution for attempt " + attempt +
-					" has already been deleted.");
+				return FutureUtils.completedExceptionally(new RequestHandlerException("Execution for attempt " + attempt +
+					" has already been deleted."));
 			}
 		}
 		else {
-			throw new RuntimeException("Attempt does not exist: " + attempt);
+			return FutureUtils.completedExceptionally(new FlinkException("Attempt does not exist: " + attempt));
 		}
 	}
 
-	public abstract String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception;
+	public abstract CompletableFuture<String> handleRequest(AccessExecution execAttempt, Map<String, String> params);
 }

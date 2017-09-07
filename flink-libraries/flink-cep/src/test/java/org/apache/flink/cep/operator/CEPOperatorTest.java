@@ -21,7 +21,6 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -256,9 +255,8 @@ public class CEPOperatorTest extends TestLogger {
 				new SelectTimeoutCepOperator<>(
 					Event.createTypeSerializer(),
 					false,
-					IntSerializer.INSTANCE,
 					new NFAFactory(true),
-					true,
+					null,
 					null,
 					new PatternSelectFunction<Event, Map<String, List<Event>>>() {
 						@Override

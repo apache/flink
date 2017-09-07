@@ -29,7 +29,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -37,25 +36,21 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 
 	private static final Logger LOG = LoggerFactory.getLogger(RpcResultPartitionConsumableNotifier.class);
 
-	private final UUID jobMasterLeaderId;
 	private final JobMasterGateway jobMasterGateway;
 	private final Executor executor;
 	private final Time timeout;
 
 	public RpcResultPartitionConsumableNotifier(
-			UUID jobMasterLeaderId,
 			JobMasterGateway jobMasterGateway,
 			Executor executor,
 			Time timeout) {
-		this.jobMasterLeaderId = Preconditions.checkNotNull(jobMasterLeaderId);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.executor = Preconditions.checkNotNull(executor);
 		this.timeout = Preconditions.checkNotNull(timeout);
 	}
 	@Override
 	public void notifyPartitionConsumable(JobID jobId, ResultPartitionID partitionId, final TaskActions taskActions) {
-		CompletableFuture<Acknowledge> acknowledgeFuture = jobMasterGateway.scheduleOrUpdateConsumers(
-				jobMasterLeaderId, partitionId, timeout);
+		CompletableFuture<Acknowledge> acknowledgeFuture = jobMasterGateway.scheduleOrUpdateConsumers(partitionId, timeout);
 
 		acknowledgeFuture.whenCompleteAsync(
 			(Acknowledge ack, Throwable throwable) -> {

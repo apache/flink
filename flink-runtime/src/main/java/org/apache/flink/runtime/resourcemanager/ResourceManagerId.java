@@ -16,21 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.util.AbstractID;
+
+import java.util.UUID;
 
 /**
- * Shut down message used to trigger the shut down of an AkkaRpcActor. This
- * message is only intended for internal use by the {@link AkkaRpcService}.
+ * Fencing token for the {@link ResourceManager}.
  */
-public final class Shutdown {
+public class ResourceManagerId extends AbstractID {
 
-	private static Shutdown instance = new Shutdown();
+	private static final long serialVersionUID = -6042820142662137374L;
 
-	public static Shutdown getInstance() {
-		return instance;
+	public ResourceManagerId(byte[] bytes) {
+		super(bytes);
 	}
 
-	private Shutdown() {}
+	public ResourceManagerId(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	public ResourceManagerId(AbstractID id) {
+		super(id);
+	}
+
+	public ResourceManagerId() {
+	}
+
+	public ResourceManagerId(UUID uuid) {
+		this(uuid.getLeastSignificantBits(), uuid.getMostSignificantBits());
+	}
+
+	public UUID toUUID() {
+		return new UUID(getUpperPart(), getLowerPart());
+	}
+
+	public static ResourceManagerId generate() {
+		return new ResourceManagerId();
+	}
 }

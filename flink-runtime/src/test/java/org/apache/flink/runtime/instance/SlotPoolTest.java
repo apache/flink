@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -39,7 +40,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -88,7 +88,7 @@ public class SlotPoolTest extends TestLogger {
 			assertFalse(future.isDone());
 
 			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(UUID.class), any(UUID.class), slotRequestArgumentCaptor.capture(), any(Time.class));
+			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
 
 			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
@@ -125,7 +125,7 @@ public class SlotPoolTest extends TestLogger {
 
 			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
 			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds()).times(2))
-				.requestSlot(any(UUID.class), any(UUID.class), slotRequestArgumentCaptor.capture(), any(Time.class));
+				.requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
 
 			final List<SlotRequest> slotRequests = slotRequestArgumentCaptor.getAllValues();
 
@@ -168,7 +168,7 @@ public class SlotPoolTest extends TestLogger {
 			assertFalse(future1.isDone());
 
 			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(UUID.class), any(UUID.class), slotRequestArgumentCaptor.capture(), any(Time.class));
+			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
 
 			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
@@ -211,7 +211,7 @@ public class SlotPoolTest extends TestLogger {
 			assertFalse(future.isDone());
 
 			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(UUID.class), any(UUID.class), slotRequestArgumentCaptor.capture(), any(Time.class));
+			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
 
 			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
@@ -266,7 +266,7 @@ public class SlotPoolTest extends TestLogger {
 			CompletableFuture<SimpleSlot> future1 = slotPoolGateway.allocateSlot(mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, timeout);
 
 			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(UUID.class), any(UUID.class), slotRequestArgumentCaptor.capture(), any(Time.class));
+			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
 
 			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
 
@@ -297,7 +297,7 @@ public class SlotPoolTest extends TestLogger {
 	private static ResourceManagerGateway createResourceManagerGatewayMock() {
 		ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		when(resourceManagerGateway
-			.requestSlot(any(UUID.class), any(UUID.class), any(SlotRequest.class), any(Time.class)))
+			.requestSlot(any(JobMasterId.class), any(SlotRequest.class), any(Time.class)))
 			.thenReturn(mock(CompletableFuture.class, RETURNS_MOCKS));
 
 		return resourceManagerGateway;
@@ -308,9 +308,9 @@ public class SlotPoolTest extends TestLogger {
 			ResourceManagerGateway resourceManagerGateway) throws Exception {
 		final String jobManagerAddress = "foobar";
 
-		slotPool.start(UUID.randomUUID(), jobManagerAddress);
+		slotPool.start(JobMasterId.generate(), jobManagerAddress);
 
-		slotPool.connectToResourceManager(UUID.randomUUID(), resourceManagerGateway);
+		slotPool.connectToResourceManager(resourceManagerGateway);
 
 		return slotPool.getSelfGateway(SlotPoolGateway.class);
 	}

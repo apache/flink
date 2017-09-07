@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -33,7 +34,7 @@ import java.util.List;
 public class JobCancellationHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JobCancellationHandler handler = new JobCancellationHandler(TestingUtils.TIMEOUT());
+		JobCancellationHandler handler = new JobCancellationHandler(Executors.directExecutor(), TestingUtils.TIMEOUT());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(2, paths.length);
 		List<String> pathsList = Lists.newArrayList(paths);

@@ -18,225 +18,208 @@
 
 package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
-
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
- * Tests for the utility methods in {@link FutureUtils}
+ * Tests for the utility methods in {@link FutureUtils}.
  */
-@RunWith(Parameterized.class)
-public class FutureUtilsTest extends TestLogger{
+public class FutureUtilsTest extends TestLogger {
 
-	@Parameterized.Parameters
-	public static Collection<FutureFactory> parameters (){
-		return Arrays.asList(new ConjunctFutureFactory(), new WaitingFutureFactory());
+	/**
+	 * Tests that we can retry an operation.
+	 */
+	@Test
+	public void testRetrySuccess() throws Exception {
+		final int retries = 10;
+		final AtomicInteger atomicInteger = new AtomicInteger(0);
+		CompletableFuture<Boolean> retryFuture = FutureUtils.retry(
+			() ->
+				CompletableFuture.supplyAsync(
+					() -> {
+						if (atomicInteger.incrementAndGet() == retries) {
+							return true;
+						} else {
+							throw new FlinkFutureException("Test exception");
+						}
+					},
+					TestingUtils.defaultExecutor()),
+			retries,
+			TestingUtils.defaultExecutor());
+
+		assertTrue(retryFuture.get());
+		assertTrue(retries == atomicInteger.get());
 	}
 
-	@Parameterized.Parameter
-	public FutureFactory futureFactory;
+	/**
+	 * Tests that a retry future is failed after all retries have been consumed.
+	 */
+	@Test(expected = FutureUtils.RetryException.class)
+	public void testRetryFailure() throws Throwable {
+		final int retries = 3;
 
-	@Test
-	public void testConjunctFutureFailsOnEmptyAndNull() throws Exception {
-		try {
-			futureFactory.createFuture(null);
-			fail();
-		} catch (NullPointerException ignored) {}
-
-		try {
-			futureFactory.createFuture(Arrays.asList(
-					new CompletableFuture<>(),
-					null,
-					new CompletableFuture<>()));
-			fail();
-		} catch (NullPointerException ignored) {}
-	}
-
-	@Test
-	public void testConjunctFutureCompletion() throws Exception {
-		// some futures that we combine
-		java.util.concurrent.CompletableFuture<Object> future1 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future2 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future3 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future4 = new java.util.concurrent.CompletableFuture<>();
-
-		// some future is initially completed
-		future2.complete(new Object());
-
-		// build the conjunct future
-		ConjunctFuture<?> result = futureFactory.createFuture(Arrays.asList(future1, future2, future3, future4));
-
-		CompletableFuture<?> resultMapped = result.thenAccept(value -> {});
-
-		assertEquals(4, result.getNumFuturesTotal());
-		assertEquals(1, result.getNumFuturesCompleted());
-		assertFalse(result.isDone());
-		assertFalse(resultMapped.isDone());
-
-		// complete two more futures
-		future4.complete(new Object());
-		assertEquals(2, result.getNumFuturesCompleted());
-		assertFalse(result.isDone());
-		assertFalse(resultMapped.isDone());
-
-		future1.complete(new Object());
-		assertEquals(3, result.getNumFuturesCompleted());
-		assertFalse(result.isDone());
-		assertFalse(resultMapped.isDone());
-
-		// complete one future again
-		future1.complete(new Object());
-		assertEquals(3, result.getNumFuturesCompleted());
-		assertFalse(result.isDone());
-		assertFalse(resultMapped.isDone());
-
-		// complete the final future
-		future3.complete(new Object());
-		assertEquals(4, result.getNumFuturesCompleted());
-		assertTrue(result.isDone());
-		assertTrue(resultMapped.isDone());
-	}
-
-	@Test
-	public void testConjunctFutureFailureOnFirst() throws Exception {
-
-		java.util.concurrent.CompletableFuture<Object> future1 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future2 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future3 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future4 = new java.util.concurrent.CompletableFuture<>();
-
-		// build the conjunct future
-		ConjunctFuture<?> result = futureFactory.createFuture(Arrays.asList(future1, future2, future3, future4));
-
-		CompletableFuture<?> resultMapped = result.thenAccept(value -> {});
-
-		assertEquals(4, result.getNumFuturesTotal());
-		assertEquals(0, result.getNumFuturesCompleted());
-		assertFalse(result.isDone());
-		assertFalse(resultMapped.isDone());
-
-		future2.completeExceptionally(new IOException());
-
-		assertEquals(0, result.getNumFuturesCompleted());
-		assertTrue(result.isDone());
-		assertTrue(resultMapped.isDone());
+		CompletableFuture<?> retryFuture = FutureUtils.retry(
+			() -> FutureUtils.completedExceptionally(new FlinkException("Test exception")),
+			retries,
+			TestingUtils.defaultExecutor());
 
 		try {
-			result.get();
-			fail();
-		} catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof IOException);
-		}
-
-		try {
-			resultMapped.get();
-			fail();
-		} catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof IOException);
-		}
-	}
-
-	@Test
-	public void testConjunctFutureFailureOnSuccessive() throws Exception {
-
-		java.util.concurrent.CompletableFuture<Object> future1 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future2 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future3 = new java.util.concurrent.CompletableFuture<>();
-		java.util.concurrent.CompletableFuture<Object> future4 = new java.util.concurrent.CompletableFuture<>();
-
-		// build the conjunct future
-		ConjunctFuture<?> result = futureFactory.createFuture(Arrays.asList(future1, future2, future3, future4));
-		assertEquals(4, result.getNumFuturesTotal());
-
-		java.util.concurrent.CompletableFuture<?> resultMapped = result.thenAccept(value -> {});
-
-		future1.complete(new Object());
-		future3.complete(new Object());
-		future4.complete(new Object());
-
-		future2.completeExceptionally(new IOException());
-
-		assertEquals(3, result.getNumFuturesCompleted());
-		assertTrue(result.isDone());
-		assertTrue(resultMapped.isDone());
-
-		try {
-			result.get();
-			fail();
-		} catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof IOException);
-		}
-
-		try {
-			resultMapped.get();
-			fail();
-		} catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof IOException);
+			retryFuture.get();
+		} catch (ExecutionException ee) {
+			throw ExceptionUtils.stripExecutionException(ee);
 		}
 	}
 
 	/**
-	 * Tests that the conjunct future returns upon completion the collection of all future values
+	 * Tests that we can cancel a retry future.
 	 */
 	@Test
-	public void testConjunctFutureValue() throws ExecutionException, InterruptedException {
-		java.util.concurrent.CompletableFuture<Integer> future1 = java.util.concurrent.CompletableFuture.completedFuture(1);
-		java.util.concurrent.CompletableFuture<Long> future2 = java.util.concurrent.CompletableFuture.completedFuture(2L);
-		java.util.concurrent.CompletableFuture<Double> future3 = new java.util.concurrent.CompletableFuture<>();
+	public void testRetryCancellation() throws Exception {
+		final int retries = 10;
+		final AtomicInteger atomicInteger = new AtomicInteger(0);
+		final OneShotLatch notificationLatch = new OneShotLatch();
+		final OneShotLatch waitLatch = new OneShotLatch();
+		final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
 
-		ConjunctFuture<Collection<Number>> result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3));
+		CompletableFuture<?> retryFuture = FutureUtils.retry(
+			() ->
+				CompletableFuture.supplyAsync(
+					() -> {
+						if (atomicInteger.incrementAndGet() == 2) {
+							notificationLatch.trigger();
+							try {
+								waitLatch.await();
+							} catch (InterruptedException e) {
+								atomicThrowable.compareAndSet(null, e);
+							}
+						}
 
-		assertFalse(result.isDone());
+						throw new FlinkFutureException("Test exception");
+					},
+					TestingUtils.defaultExecutor()),
+			retries,
+			TestingUtils.defaultExecutor());
 
-		future3.complete(.1);
+		// await that we have failed once
+		notificationLatch.await();
 
-		assertTrue(result.isDone());
+		assertFalse(retryFuture.isDone());
 
-		assertThat(result.get(), IsIterableContainingInAnyOrder.<Number>containsInAnyOrder(1, 2L, .1));
-	}
+		// cancel the retry future
+		retryFuture.cancel(false);
 
-	@Test
-	public void testConjunctOfNone() throws Exception {
-		final ConjunctFuture<?> result = futureFactory.createFuture(Collections.<java.util.concurrent.CompletableFuture<Object>>emptyList());
+		// let the retry operation continue
+		waitLatch.trigger();
 
-		assertEquals(0, result.getNumFuturesTotal());
-		assertEquals(0, result.getNumFuturesCompleted());
-		assertTrue(result.isDone());
+		assertTrue(retryFuture.isCancelled());
+		assertEquals(2, atomicInteger.get());
+
+		if (atomicThrowable.get() != null) {
+			throw new FlinkException("Exception occurred in the retry operation.", atomicThrowable.get());
+		}
 	}
 
 	/**
-	 * Factory to create {@link ConjunctFuture} for testing.
+	 * Tests that retry with delay fails after having exceeded all retries.
 	 */
-	private interface FutureFactory {
-		ConjunctFuture<?> createFuture(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures);
-	}
+	@Test(expected = FutureUtils.RetryException.class)
+	public void testRetryWithDelayFailure() throws Throwable {
+		CompletableFuture<?> retryFuture = FutureUtils.retryWithDelay(
+			() -> FutureUtils.completedExceptionally(new FlinkException("Test exception")),
+			3,
+			Time.milliseconds(1L),
+			TestingUtils.defaultScheduledExecutor());
 
-	private static class ConjunctFutureFactory implements FutureFactory {
-
-		@Override
-		public ConjunctFuture<?> createFuture(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures) {
-			return FutureUtils.combineAll(futures);
+		try {
+			retryFuture.get(TestingUtils.TIMEOUT().toMilliseconds(), TimeUnit.MILLISECONDS);
+		} catch (ExecutionException ee) {
+			throw ExceptionUtils.stripExecutionException(ee);
 		}
 	}
 
-	private static class WaitingFutureFactory implements FutureFactory {
+	/**
+	 * Tests that the delay is respected between subsequent retries of a retry future with retry delay.
+	 */
+	@Test
+	public void testRetryWithDelay() throws Exception {
+		final int retries = 4;
+		final Time delay = Time.milliseconds(50L);
+		final AtomicInteger countDown = new AtomicInteger(retries);
 
-		@Override
-		public ConjunctFuture<?> createFuture(Collection<? extends java.util.concurrent.CompletableFuture<?>> futures) {
-			return FutureUtils.waitForAll(futures);
-		}
+		CompletableFuture<Boolean> retryFuture = FutureUtils.retryWithDelay(
+			() -> {
+				if (countDown.getAndDecrement() == 0) {
+					return CompletableFuture.completedFuture(true);
+				} else {
+					return FutureUtils.completedExceptionally(new FlinkException("Test exception."));
+				}
+			},
+			retries,
+			delay,
+			TestingUtils.defaultScheduledExecutor());
+
+		long start = System.currentTimeMillis();
+
+		Boolean result = retryFuture.get();
+
+		long completionTime = System.currentTimeMillis() - start;
+
+		assertTrue(result);
+		assertTrue("The completion time should be at least rertries times delay between retries.", completionTime >= retries * delay.toMilliseconds());
+	}
+
+	/**
+	 * Tests that all scheduled tasks are canceled if the retry future is being cancelled.
+	 */
+	@Test
+	public void testRetryWithDelayCancellation() {
+		ScheduledFuture<?> scheduledFutureMock = mock(ScheduledFuture.class);
+		ScheduledExecutor scheduledExecutorMock = mock(ScheduledExecutor.class);
+		doReturn(scheduledFutureMock).when(scheduledExecutorMock).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+		doAnswer(
+			(InvocationOnMock invocation) -> {
+				invocation.getArgumentAt(0, Runnable.class).run();
+				return null;
+			}).when(scheduledExecutorMock).execute(any(Runnable.class));
+
+		CompletableFuture<?> retryFuture = FutureUtils.retryWithDelay(
+			() -> FutureUtils.completedExceptionally(new FlinkException("Test exception")),
+			1,
+			TestingUtils.infiniteTime(),
+			scheduledExecutorMock);
+
+		assertFalse(retryFuture.isDone());
+
+		verify(scheduledExecutorMock).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+		retryFuture.cancel(false);
+
+		assertTrue(retryFuture.isCancelled());
+		verify(scheduledFutureMock).cancel(anyBoolean());
 	}
 }

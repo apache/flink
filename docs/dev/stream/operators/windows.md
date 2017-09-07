@@ -111,6 +111,11 @@ windows) assign elements to windows based on time, which can either be processin
 time. Please take a look at our section on [event time]({{ site.baseurl }}/dev/event_time.html) to learn
 about the difference between processing time and event time and how timestamps and watermarks are generated.
 
+Time-based windows have a *start timestamp* (inclusive) and an *end timestamp* (exclusive)
+that together describe the size of the window. In code, Flink uses `TimeWindow` when working with
+time-based windows which has methods for querying the start- and end-timestamp and also an
+additional method `maxTimestamp()` that returns the largest allowed timestamp for a given windows.
+
 In the following, we show how Flink's pre-defined window assigners work and how they are used
 in a DataStream program. The following figures visualize the workings of each assigner. The purple circles
 represent elements of the stream, which are partitioned by some key (in this case *user 1*, *user 2* and *user 3*).
@@ -460,118 +465,15 @@ The above example appends all input `Long` values to an initially empty `String`
 
 <span class="label label-danger">Attention</span> `fold()` cannot be used with session windows or other mergeable windows.
 
-### WindowFunction - The Generic Case
-
-A `WindowFunction` gets an `Iterable` containing all the elements of the window and provides
-the most flexibility of all window functions. This comes
-at the cost of performance and resource consumption, because elements cannot be incrementally
-aggregated but instead need to be buffered internally until the window is considered ready for processing.
-
-The signature of a `WindowFunction` looks as follows:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function, Serializable {
-
-  /**
-   * Evaluates the window and outputs none or several elements.
-   *
-   * @param key The key for which this window is evaluated.
-   * @param window The window that is being evaluated.
-   * @param input The elements in the window being evaluated.
-   * @param out A collector for emitting elements.
-   *
-   * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-   */
-  void apply(KEY key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception;
-}
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializable {
-
-  /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param key    The key for which this window is evaluated.
-    * @param window The window that is being evaluated.
-    * @param input  The elements in the window being evaluated.
-    * @param out    A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
-  def apply(key: KEY, window: W, input: Iterable[IN], out: Collector[OUT])
-}
-{% endhighlight %}
-</div>
-</div>
-
-A `WindowFunction` can be defined and used like this:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<Tuple2<String, Long>> input = ...;
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .apply(new MyWindowFunction());
-
-/* ... */
-
-public class MyWindowFunction implements WindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
-
-  void apply(String key, TimeWindow window, Iterable<Tuple<String, Long>> input, Collector<String> out) {
-    long count = 0;
-    for (Tuple<String, Long> in: input) {
-      count++;
-    }
-    out.collect("Window: " + window + "count: " + count);
-  }
-}
-
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .apply(new MyWindowFunction())
-
-/* ... */
-
-class MyWindowFunction extends WindowFunction[(String, Long), String, String, TimeWindow] {
-
-  def apply(key: String, window: TimeWindow, input: Iterable[(String, Long)], out: Collector[String]): () = {
-    var count = 0L
-    for (in <- input) {
-      count = count + 1
-    }
-    out.collect(s"Window $window count: $count")
-  }
-}
-{% endhighlight %}
-</div>
-</div>
-
-The example shows a `WindowFunction` to count the elements in a window. In addition, the window function adds information about the window to the output.
-
-<span class="label label-danger">Attention</span> Note that using `WindowFunction` for simple aggregates such as count is quite inefficient. The next section shows how a `ReduceFunction` can be combined with a `WindowFunction` to get both incremental aggregation and the added information of a `WindowFunction`.
-
 ### ProcessWindowFunction
 
-In places where a `WindowFunction` can be used you can also use a `ProcessWindowFunction`. This
-is very similar to `WindowFunction`, except that the interface allows to query more information
-about the context in which the window evaluation happens.
+A ProcessWindowFunction gets an Iterable containing all the elements of the window, and a Context
+object with access to time and state information, which enables it to provide more flexibility than
+other window functions. This comes at the cost of performance and resource consumption, because
+elements cannot be incrementally aggregated but instead need to be buffered internally until the
+window is considered ready for processing.
 
-This is the `ProcessWindowFunction` interface:
+The signature of `ProcessWindowFunction` looks as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -594,15 +496,35 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
             Iterable<IN> elements,
             Collector<OUT> out) throws Exception;
 
-    /**
-     * The context holding window metadata
-     */
-    public abstract class Context {
-        /**
-         * @return The window that is being evaluated.
-         */
-        public abstract W window();
-    }
+   	/**
+   	 * The context holding window metadata.
+   	 */
+   	public abstract class Context implements java.io.Serializable {
+   	    /**
+   	     * Returns the window that is being evaluated.
+   	     */
+   	    public abstract W window();
+   
+   	    /** Returns the current processing time. */
+   	    public abstract long currentProcessingTime();
+   
+   	    /** Returns the current event-time watermark. */
+   	    public abstract long currentWatermark();
+   
+   	    /**
+   	     * State accessor for per-key and per-window state.
+   	     *
+   	     * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
+   	     * by implementing {@link ProcessWindowFunction#clear(Context)}.
+   	     */
+   	    public abstract KeyedStateStore windowState();
+   
+   	    /**
+   	     * State accessor for per-key global state.
+   	     */
+   	    public abstract KeyedStateStore globalState();
+   	}
+
 }
 {% endhighlight %}
 </div>
@@ -620,7 +542,6 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
     * @param out      A collector for emitting elements.
     * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
     */
-  @throws[Exception]
   def process(
       key: KEY,
       context: Context,
@@ -632,16 +553,42 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
     */
   abstract class Context {
     /**
-      * @return The window that is being evaluated.
+      * Returns the window that is being evaluated.
       */
     def window: W
+  
+    /**
+      * Returns the current processing time.
+      */
+    def currentProcessingTime: Long
+  
+    /**
+      * Returns the current event-time watermark.
+      */
+    def currentWatermark: Long
+  
+    /**
+      * State accessor for per-key and per-window state.
+      */
+    def windowState: KeyedStateStore
+  
+    /**
+      * State accessor for per-key global state.
+      */
+    def globalState: KeyedStateStore
   }
+
 }
 {% endhighlight %}
 </div>
 </div>
 
-It can be used like this:
+<span class="label label-info">Note</span> The `key` parameter is the key that is extracted
+via the `KeySelector` that was specified for the `keyBy()` invocation. In case of tuple-index
+keys or string-field references this key type is always `Tuple` and you have to manually cast
+it to a tuple of the correct size to extract the key fields.
+
+A `ProcessWindowFunction` can be defined and used like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -652,6 +599,20 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .process(new MyProcessWindowFunction());
+
+/* ... */
+
+public class MyProcessWindowFunction implements ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
+
+  void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
+    long count = 0;
+    for (Tuple<String, Long> in: input) {
+      count++;
+    }
+    out.collect("Window: " + context.window() + "count: " + count);
+  }
+}
+
 {% endhighlight %}
 </div>
 
@@ -663,25 +624,42 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .process(new MyProcessWindowFunction())
+
+/* ... */
+
+class MyWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
+
+  def apply(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
+    var count = 0L
+    for (in <- input) {
+      count = count + 1
+    }
+    out.collect(s"Window ${context.window} count: $count")
+  }
+}
 {% endhighlight %}
 </div>
 </div>
 
-### WindowFunction with Incremental Aggregation
+The example shows a `ProcessWindowFunction` that counts the elements in a window. In addition, the window function adds information about the window to the output.
 
-A `WindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction` to
+<span class="label label-danger">Attention</span> Note that using `ProcessWindowFunction` for simple aggregates such as count is quite inefficient. The next section shows how a `ReduceFunction` can be combined with a `ProcessWindowFunction` to get both incremental aggregation and the added information of a `ProcessWindowFunction`.
+
+### ProcessWindowFunction with Incremental Aggregation
+
+A `ProcessWindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction` to
 incrementally aggregate elements as they arrive in the window.
-When the window is closed, the `WindowFunction` will be provided with the aggregated result.
+When the window is closed, the `ProcessWindowFunction` will be provided with the aggregated result.
 This allows to incrementally compute windows while having access to the
-additional window meta information of the `WindowFunction`.
+additional window meta information of the `ProcessWindowFunction`.
 
-<span class="label label-info">Note</span> You can also `ProcessWindowFunction` instead of
-`WindowFunction` for incremental window aggregation.
+<span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
+`ProcessWindowFunction` for incremental window aggregation.
 
 #### Incremental Window Aggregation with FoldFunction
 
 The following example shows how an incremental `FoldFunction` can be combined with
-a `WindowFunction` to extract the number of events in the window and return also
+a `ProcessWindowFunction` to extract the number of events in the window and return also
 the key and end time of the window.
 
 <div class="codetabs" markdown="1">
@@ -692,7 +670,7 @@ DataStream<SensorReading> input = ...;
 input
   .keyBy(<key selector>)
   .timeWindow(<window assigner>)
-  .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyWindowFunction())
+  .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyProcessWindowFunction())
 
 // Function definitions
 
@@ -706,15 +684,15 @@ private static class MyFoldFunction
   }
 }
 
-private static class MyWindowFunction
-    implements WindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
+private static class MyProcessWindowFunction
+    implements ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
 
-  public void apply(String key,
-                    TimeWindow window,
+  public void process(String key,
+                    Context context,
                     Iterable<Tuple3<String, Long, Integer>> counts,
                     Collector<Tuple3<String, Long, Integer>> out) {
     Integer count = counts.iterator().next().getField(2);
-    out.collect(new Tuple3<String, Long, Integer>(key, window.getEnd(),count));
+    out.collect(new Tuple3<String, Long, Integer>(key, context.window().getEnd(),count));
   }
 }
 
@@ -759,7 +737,7 @@ DataStream<SensorReading> input = ...;
 input
   .keyBy(<key selector>)
   .timeWindow(<window assigner>)
-  .reduce(new MyReduceFunction(), new MyWindowFunction());
+  .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
 
 // Function definitions
 
@@ -770,11 +748,11 @@ private static class MyReduceFunction implements ReduceFunction<SensorReading> {
   }
 }
 
-private static class MyWindowFunction
-    implements WindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
+private static class MyProcessWindowFunction
+    implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
 
   public void apply(String key,
-                    TimeWindow window,
+                    Context context,
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
       SensorReading min = minReadings.iterator().next();
@@ -804,6 +782,80 @@ input
       }
   )
 
+{% endhighlight %}
+</div>
+</div>
+
+### WindowFunction (Legacy)
+
+In some places where a `ProcessWindowFunction` can be used you can also use a `WindowFunction`. This
+is an older version of `ProcessWindowFunction` that provides less contextual information and does
+not have some advances features, such as per-window keyed state. This interface will be deprecated
+at some point.
+
+The signature of a `WindowFunction` looks as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function, Serializable {
+
+  /**
+   * Evaluates the window and outputs none or several elements.
+   *
+   * @param key The key for which this window is evaluated.
+   * @param window The window that is being evaluated.
+   * @param input The elements in the window being evaluated.
+   * @param out A collector for emitting elements.
+   *
+   * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+   */
+  void apply(KEY key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception;
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializable {
+
+  /**
+    * Evaluates the window and outputs none or several elements.
+    *
+    * @param key    The key for which this window is evaluated.
+    * @param window The window that is being evaluated.
+    * @param input  The elements in the window being evaluated.
+    * @param out    A collector for emitting elements.
+    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+    */
+  def apply(key: KEY, window: W, input: Iterable[IN], out: Collector[OUT])
+}
+{% endhighlight %}
+</div>
+</div>
+
+It can be used like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<Tuple2<String, Long>> input = ...;
+
+input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .apply(new MyWindowFunction());
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[(String, Long)] = ...
+
+input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .apply(new MyWindowFunction())
 {% endhighlight %}
 </div>
 </div>
@@ -1027,6 +1079,80 @@ which is the first firing of the window. In case of session windows, late firing
 as they may "bridge" the gap between two pre-existing, unmerged windows.
 
 <span class="label label-info">Attention</span> You should be aware that the elements emitted by a late firing should be treated as updated results of a previous computation, i.e., your data stream will contain multiple results for the same computation. Depending on your application, you need to take these duplicated results into account or deduplicate them.
+
+## Working with window results
+
+The result of a windowed operation is again a `DataStream`, no information about the windowed
+operations is retained in the result elements so if you want to keep meta-information about the
+window you have to manually encode that information in the result elements in your
+`ProcessWindowFunction`. The only relevant information that is set on the result elements is the
+element *timestamp*. This is set to the maximum allowed timestamp of the processed window, which
+is *end timestamp - 1*, since the window-end timestamp is exclusive. Note that this is true for both
+event-time windows and processing-time windows. i.e. after a windowed operations elements always
+have a timestamp, but this can be an event-time timestamp or a processing-time timestamp. For
+processing-time windows this has no special implications but for event-time windows this together
+with how watermarks interact with windows enables
+[consecutive windowed operations](#consecutive-windowed-operations) with the same window sizes. We
+will cover this after taking a look how watermarks interact with windows.
+
+### Interaction of watermarks and windows
+
+Before continuing in this section you might want to take a look at our section about
+[event time and watermarks]({{ site.baseurl }}/dev/event_time.html).
+
+When watermarks arrive at the window operator this triggers two things:
+ - the watermark triggers computation of all windows where the maximum timestamp (which is
+ *end-timestamp - 1*) is smaller than the new watermark
+ - the watermark is forwarded (as is) to downstream operations
+
+Intuitively, a watermark "flushes" out any windows that would be considered late in downstream
+operations once they receive that watermark.
+
+### Consecutive windowed operations
+
+As mentioned before, the way the timestamp of windowed results is computed and how watermarks
+interact with windows allows stringing together consecutive windowed operations. This can be useful
+when you want to do two consecutive windowed operations where you want to use different keys but
+still want elements from the same upstream window to end up in the same downstream window. Consider
+this example:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<Integer> input = ...;
+
+DataStream<Integer> resultsPerKey = input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .reduce(new Summer());
+
+DataStream<Integer> globalResults = resultsPerKey
+    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .process(new TopKWindowFunction());
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[Int] = ...
+
+val resultsPerKey = input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .reduce(new Summer())
+
+val globalResults = resultsPerKey
+    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .process(new TopKWindowFunction())
+{% endhighlight %}
+</div>
+</div>
+
+In this example, the results for time window `[0, 5)` from the first operation will also end up in
+time window `[0, 5)` in the subsequent windowed operation. This allows calculating a sum per key
+and then calculating the top-k elements within the same window in the second operation.
+and then calculating the top-k elements within the same window in the second operation.
 
 ## Useful state size considerations
 

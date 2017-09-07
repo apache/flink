@@ -21,6 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.PatternSelectFunction;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -39,12 +40,11 @@ public class SelectCepOperator<IN, KEY, OUT>
 	public SelectCepOperator(
 		TypeSerializer<IN> inputSerializer,
 		boolean isProcessingTime,
-		TypeSerializer<KEY> keySerializer,
 		NFACompiler.NFAFactory<IN> nfaFactory,
-		boolean migratingFromOldKeyedOperator,
 		EventComparator<IN> comparator,
+		AfterMatchSkipStrategy skipStrategy,
 		PatternSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator, comparator, function);
+		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function);
 	}
 
 	@Override

@@ -24,12 +24,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.NotFoundException;
-import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -140,48 +141,48 @@ public class JobCancellationWithSavepointHandlers {
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public FullHttpResponse handleRequest(
+		public CompletableFuture<FullHttpResponse> handleRequest(
 				Map<String, String> pathParams,
 				Map<String, String> queryParams,
-				JobManagerGateway jobManagerGateway) throws Exception {
+				JobManagerGateway jobManagerGateway) {
 
-			try {
-				if (jobManagerGateway != null) {
-					JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
-					final Optional<AccessExecutionGraph> optGraph;
+			if (jobManagerGateway != null) {
+				JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
+				final CompletableFuture<Optional<AccessExecutionGraph>> graphFuture;
 
-					try {
-						optGraph = currentGraphs.getExecutionGraph(jobId, jobManagerGateway);
-					} catch (Exception e) {
-						throw new FlinkException("Could not retrieve the execution with jobId " + jobId + " from the JobManager.", e);
-					}
+				graphFuture = currentGraphs.getExecutionGraph(jobId, jobManagerGateway);
 
-					final AccessExecutionGraph graph = optGraph.orElseThrow(
-						() -> new NotFoundException("Could not find ExecutionGraph with jobId " + jobId + '.'));
+				return graphFuture.thenApplyAsync(
+					(Optional<AccessExecutionGraph> optGraph) -> {
+						final AccessExecutionGraph graph = optGraph.orElseThrow(
+							() -> new FlinkFutureException(
+								new NotFoundException("Could not find ExecutionGraph with jobId " + jobId + '.')));
 
-					CheckpointCoordinator coord = graph.getCheckpointCoordinator();
-					if (coord == null) {
-						throw new Exception("Cannot find CheckpointCoordinator for job.");
-					}
+						CheckpointCoordinator coord = graph.getCheckpointCoordinator();
+						if (coord == null) {
+							throw new FlinkFutureException(new Exception("Cannot find CheckpointCoordinator for job."));
+						}
 
-					String targetDirectory = pathParams.get("targetDirectory");
-					if (targetDirectory == null) {
-						if (defaultSavepointDirectory == null) {
-							throw new IllegalStateException("No savepoint directory configured. " +
+						String targetDirectory = pathParams.get("targetDirectory");
+						if (targetDirectory == null) {
+							if (defaultSavepointDirectory == null) {
+								throw new IllegalStateException("No savepoint directory configured. " +
 									"You can either specify a directory when triggering this savepoint or " +
 									"configure a cluster-wide default via key '" +
 									CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.");
-						} else {
-							targetDirectory = defaultSavepointDirectory;
+							} else {
+								targetDirectory = defaultSavepointDirectory;
+							}
 						}
-					}
 
-					return handleNewRequest(jobManagerGateway, jobId, targetDirectory, coord.getCheckpointTimeout());
-				} else {
-					throw new Exception("No connection to the leading JobManager.");
-				}
-			} catch (Exception e) {
-				throw new Exception("Failed to cancel the job: " + e.getMessage(), e);
+						try {
+							return handleNewRequest(jobManagerGateway, jobId, targetDirectory, coord.getCheckpointTimeout());
+						} catch (IOException e) {
+							throw new FlinkFutureException("Could not cancel job with savepoint.", e);
+						}
+					}, executor);
+			} else {
+				return FutureUtils.completedExceptionally(new Exception("No connection to the leading JobManager."));
 			}
 		}
 
@@ -288,64 +289,63 @@ public class JobCancellationWithSavepointHandlers {
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-			try {
-				if (jobManagerGateway != null) {
-					JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
-					long requestId = Long.parseLong(pathParams.get("requestId"));
+		public CompletableFuture<FullHttpResponse> handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+			JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
+			long requestId = Long.parseLong(pathParams.get("requestId"));
 
-					synchronized (lock) {
-						Object result = completed.remove(requestId);
+			return CompletableFuture.supplyAsync(
+				() -> {
+					try {
+						synchronized (lock) {
+							Object result = completed.remove(requestId);
 
-						if (result != null) {
-							// Add to recent history
-							recentlyCompleted.add(new Tuple2<>(requestId, result));
-							if (recentlyCompleted.size() > NUM_GHOST_REQUEST_IDS) {
-								recentlyCompleted.remove();
-							}
-
-							if (result.getClass() == String.class) {
-								String savepointPath = (String) result;
-								return createSuccessResponse(requestId, savepointPath);
-							} else {
-								Throwable cause = (Throwable) result;
-								return createFailureResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, requestId, cause.getMessage());
-							}
-						} else {
-							// Check in-progress
-							Long inProgressRequestId = inProgress.get(jobId);
-							if (inProgressRequestId != null) {
-								// Sanity check
-								if (inProgressRequestId == requestId) {
-									return createInProgressResponse(requestId);
-								} else {
-									String msg = "Request ID does not belong to JobID";
-									return createFailureResponse(HttpResponseStatus.BAD_REQUEST, requestId, msg);
+							if (result != null) {
+								// Add to recent history
+								recentlyCompleted.add(new Tuple2<>(requestId, result));
+								if (recentlyCompleted.size() > NUM_GHOST_REQUEST_IDS) {
+									recentlyCompleted.remove();
 								}
-							}
 
-							// Check recent history
-							for (Tuple2<Long, Object> recent : recentlyCompleted) {
-								if (recent.f0 == requestId) {
-									if (recent.f1.getClass() == String.class) {
-										String savepointPath = (String) recent.f1;
-										return createSuccessResponse(requestId, savepointPath);
+								if (result.getClass() == String.class) {
+									String savepointPath = (String) result;
+									return createSuccessResponse(requestId, savepointPath);
+								} else {
+									Throwable cause = (Throwable) result;
+									return createFailureResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, requestId, cause.getMessage());
+								}
+							} else {
+								// Check in-progress
+								Long inProgressRequestId = inProgress.get(jobId);
+								if (inProgressRequestId != null) {
+									// Sanity check
+									if (inProgressRequestId == requestId) {
+										return createInProgressResponse(requestId);
 									} else {
-										Throwable cause = (Throwable) recent.f1;
-										return createFailureResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, requestId, cause.getMessage());
+										String msg = "Request ID does not belong to JobID";
+										return createFailureResponse(HttpResponseStatus.BAD_REQUEST, requestId, msg);
 									}
 								}
-							}
 
-							return createFailureResponse(HttpResponseStatus.BAD_REQUEST, requestId, "Unknown job/request ID");
+								// Check recent history
+								for (Tuple2<Long, Object> recent : recentlyCompleted) {
+									if (recent.f0 == requestId) {
+										if (recent.f1.getClass() == String.class) {
+											String savepointPath = (String) recent.f1;
+											return createSuccessResponse(requestId, savepointPath);
+										} else {
+											Throwable cause = (Throwable) recent.f1;
+											return createFailureResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, requestId, cause.getMessage());
+										}
+									}
+								}
+
+								return createFailureResponse(HttpResponseStatus.BAD_REQUEST, requestId, "Unknown job/request ID");
+							}
 						}
+					} catch (Exception e) {
+						throw new FlinkFutureException("Could not handle in progress request.", e);
 					}
-				} else {
-					throw new Exception("No connection to the leading JobManager.");
-				}
-			} catch (Exception e) {
-				throw new Exception("Failed to cancel the job: " + e.getMessage(), e);
-			}
+				});
 		}
 
 		private FullHttpResponse createSuccessResponse(long requestId, String savepointPath) throws IOException {

@@ -46,6 +46,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -247,7 +248,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				// termination criterion
 				if (currentEntry == null) {
-					final Map<K, List<V>> completePath = new HashMap<>();
+					final Map<K, List<V>> completePath = new LinkedHashMap<>();
 
 					while (!currentPath.isEmpty()) {
 						final SharedBufferEntry<K, V> currentPathEntry = currentPath.pop();

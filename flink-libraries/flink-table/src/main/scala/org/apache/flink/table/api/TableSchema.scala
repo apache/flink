@@ -28,13 +28,24 @@ class TableSchema(
 
   if (columnNames.length != columnTypes.length) {
     throw new TableException(
-      "Number of column indexes and column names must be equal.")
+      s"Number of field names and field types must be equal.\n" +
+        s"Number of names is ${columnNames.length}, number of types is ${columnTypes.length}.\n" +
+        s"List of field names: ${columnNames.mkString("[", ", ", "]")}.\n" +
+        s"List of field types: ${columnTypes.mkString("[", ", ", "]")}.")
   }
 
   // check uniqueness of field names
   if (columnNames.toSet.size != columnTypes.length) {
+    val duplicateFields = columnNames
+      // count occurences of field names
+      .groupBy(identity).mapValues(_.length)
+      // filter for occurences > 1 and map to field name
+      .filter(g => g._2 > 1).keys
+
     throw new TableException(
-      "Table column names must be unique.")
+      s"Field names must be unique.\n" +
+        s"List of duplicate fields: ${duplicateFields.mkString("[", ", ", "]")}.\n" +
+        s"List of all fields: ${columnNames.mkString("[", ", ", "]")}.")
   }
 
   val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap

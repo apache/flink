@@ -39,6 +39,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -532,7 +534,6 @@ public class ResourceManagerTest extends TestLogger {
 			final SlotReport slotReport = new SlotReport();
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerTaskExecutor(
-				rmLeaderSessionId,
 				taskManagerAddress,
 				taskManagerResourceID,
 				slotReport,
@@ -576,8 +577,8 @@ public class ResourceManagerTest extends TestLogger {
 		final String jobMasterAddress = "jm";
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 		final ResourceID rmResourceId = ResourceID.generate();
-		final UUID rmLeaderId = UUID.randomUUID();
-		final UUID jmLeaderId = UUID.randomUUID();
+		final ResourceManagerId rmLeaderId = ResourceManagerId.generate();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		final JobID jobId = new JobID();
 
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
@@ -590,7 +591,7 @@ public class ResourceManagerTest extends TestLogger {
 			Time.seconds(5L));
 
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jmLeaderId);
+		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);
@@ -629,12 +630,11 @@ public class ResourceManagerTest extends TestLogger {
 
 			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
-			rmLeaderElectionService.isLeader(rmLeaderId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			rmLeaderElectionService.isLeader(rmLeaderId.toUUID()).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
-				rmLeaderId,
-				jmLeaderId,
+				jobMasterId,
 				jmResourceId,
 				jobMasterAddress,
 				jobId,
@@ -666,7 +666,7 @@ public class ResourceManagerTest extends TestLogger {
 			// run the timeout runnable to simulate a heartbeat timeout
 			timeoutRunnable.run();
 
-			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).disconnectResourceManager(eq(jmLeaderId), eq(rmLeaderId), any(TimeoutException.class));
+			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).disconnectResourceManager(eq(rmLeaderId), any(TimeoutException.class));
 
 		} finally {
 			rpcService.stopService();

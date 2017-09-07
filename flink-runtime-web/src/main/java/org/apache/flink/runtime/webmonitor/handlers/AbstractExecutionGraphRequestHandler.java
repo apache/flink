@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
@@ -28,6 +30,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for request handlers whose response depends on an ExecutionGraph
@@ -37,12 +41,16 @@ public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonR
 
 	private final ExecutionGraphHolder executionGraphHolder;
 
-	public AbstractExecutionGraphRequestHandler(ExecutionGraphHolder executionGraphHolder) {
+	public AbstractExecutionGraphRequestHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+		super(executor);
 		this.executionGraphHolder = Preconditions.checkNotNull(executionGraphHolder);
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
+	public CompletableFuture<String> handleJsonRequest(
+			Map<String, String> pathParams,
+			Map<String, String> queryParams,
+			JobManagerGateway jobManagerGateway) {
 		String jidString = pathParams.get("jobid");
 		if (jidString == null) {
 			throw new RuntimeException("JobId parameter missing");
@@ -53,21 +61,20 @@ public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonR
 			jid = JobID.fromHexString(jidString);
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Invalid JobID string '" + jidString + "': " + e.getMessage());
+			return FutureUtils.completedExceptionally(new FlinkException("Invalid JobID string '" + jidString + "'", e));
 		}
 
-		final Optional<AccessExecutionGraph> optGraph;
+		final CompletableFuture<Optional<AccessExecutionGraph>> graphFuture = executionGraphHolder.getExecutionGraph(jid, jobManagerGateway);
 
-		try {
-			optGraph = executionGraphHolder.getExecutionGraph(jid, jobManagerGateway);
-		} catch (Exception e) {
-			throw new FlinkException("Could not retrieve ExecutionGraph for job with jobId " + jid + " from the JobManager.", e);
-		}
-
-		final AccessExecutionGraph graph = optGraph.orElseThrow(() -> new NotFoundException("Could not find job with jobId " + jid + '.'));
-
-		return handleRequest(graph, pathParams);
+		return graphFuture.thenComposeAsync(
+			(Optional<AccessExecutionGraph> optGraph) -> {
+				if (optGraph.isPresent()) {
+					return handleRequest(optGraph.get(), pathParams);
+				} else {
+					throw new FlinkFutureException(new NotFoundException("Could not find job with jobId " + jid + '.'));
+				}
+			}, executor);
 	}
 
-	public abstract String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception;
+	public abstract CompletableFuture<String> handleRequest(AccessExecutionGraph graph, Map<String, String> params);
 }

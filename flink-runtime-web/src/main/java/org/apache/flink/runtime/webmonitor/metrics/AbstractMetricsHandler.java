@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.metrics;
 
+import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
@@ -28,6 +29,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Abstract request handler that returns a list of all available metrics or the values for a set of metrics.
@@ -43,17 +46,27 @@ import java.util.Map;
 public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler {
 	private final MetricFetcher fetcher;
 
-	public AbstractMetricsHandler(MetricFetcher fetcher) {
+	public AbstractMetricsHandler(Executor executor, MetricFetcher fetcher) {
+		super(executor);
 		this.fetcher = Preconditions.checkNotNull(fetcher);
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) throws Exception {
-		fetcher.update();
-		String requestedMetricsList = queryParams.get("get");
-		return requestedMetricsList != null
-			? getMetricsValues(pathParams, requestedMetricsList)
-			: getAvailableMetricsList(pathParams);
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				fetcher.update();
+				String requestedMetricsList = queryParams.get("get");
+				try {
+					return requestedMetricsList != null
+						? getMetricsValues(pathParams, requestedMetricsList)
+						: getAvailableMetricsList(pathParams);
+				} catch (IOException e) {
+					throw new FlinkFutureException("Could not retrieve metrics.", e);
+				}
+			},
+			executor);
+
 	}
 
 	/**

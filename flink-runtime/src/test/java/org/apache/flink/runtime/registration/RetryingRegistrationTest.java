@@ -320,7 +320,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 	}
 
-	static class TestRetryingRegistration extends RetryingRegistration<TestRegistrationGateway, TestRegistrationSuccess> {
+	static class TestRetryingRegistration extends RetryingRegistration<UUID, TestRegistrationGateway, TestRegistrationSuccess> {
 
 		// we use shorter timeouts here to speed up the tests
 		static final long INITIAL_TIMEOUT = 20;

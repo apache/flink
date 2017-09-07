@@ -135,7 +135,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 				if (error != null) {
 					if (error instanceof RestHandlerException) {
 						RestHandlerException rhe = (RestHandlerException) error;
-						sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getErrorCode(), ctx, httpRequest);
+						sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getHttpResponseStatus(), ctx, httpRequest);
 					} else {
 						log.error("Implementation error: Unhandled exception.", error);
 						sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);

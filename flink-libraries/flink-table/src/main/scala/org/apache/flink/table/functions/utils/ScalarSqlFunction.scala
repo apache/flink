@@ -45,7 +45,7 @@ class ScalarSqlFunction(
   extends SqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(name, scalarFunction, typeFactory),
-    createOperandTypeInference(scalarFunction, typeFactory),
+    createOperandTypeInference(name, scalarFunction, typeFactory),
     createOperandTypeChecker(name, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
@@ -91,6 +91,7 @@ object ScalarSqlFunction {
   }
 
   private[flink] def createOperandTypeInference(
+      name: String,
       scalarFunction: ScalarFunction,
       typeFactory: FlinkTypeFactory)
     : SqlOperandTypeInference = {
@@ -106,7 +107,11 @@ object ScalarSqlFunction {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
         val foundSignature = getEvalMethodSignature(scalarFunction, operandTypeInfo)
-          .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
+          .getOrElse(
+            throw new ValidationException(
+              s"Given parameters of function '$name' do not match any signature. \n" +
+                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Expected: ${signaturesToString(scalarFunction, "eval")}"))
 
         val inferredTypes = scalarFunction
           .getParameterTypes(foundSignature)

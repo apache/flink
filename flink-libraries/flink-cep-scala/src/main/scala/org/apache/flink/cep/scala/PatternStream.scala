@@ -26,6 +26,8 @@ import org.apache.flink.cep.{EventComparator, PatternFlatSelectFunction, Pattern
 import org.apache.flink.streaming.api.scala.{asScalaStream, _}
 import org.apache.flink.util.Collector
 
+import org.apache.flink.cep.operator.CEPOperatorUtils
+import org.apache.flink.cep.scala.pattern.Pattern
 import scala.collection.Map
 
 /**

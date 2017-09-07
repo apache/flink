@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -40,6 +40,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumbe
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +62,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -499,38 +502,6 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.validateProducerConfiguration() tests
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testUnparsableLongForCollectionMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum number of items to pack into a PutRecords request");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "unparsableLong");
-
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForAggregationMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum number of items to pack into an aggregated record");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "unparsableLong");
-
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
 	}
 
 	// ----------------------------------------------------------------------
@@ -1029,5 +1000,36 @@ public class FlinkKinesisConsumerTest {
 		}
 
 		return fakeRestoredState;
+	}
+
+	/**
+	 * A non-serializable {@link KinesisDeserializationSchema} (because it is a nested class with reference
+	 * to the enclosing class, which is not serializable) used for testing.
+	 */
+	private final class NonSerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
+		@Override
+		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
+			return new String(recordValue);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
+	}
+
+	/**
+	 * A static, serializable {@link KinesisDeserializationSchema}.
+	 */
+	private static final class SerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
+		@Override
+		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
+			return new String(recordValue);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
 	}
 }

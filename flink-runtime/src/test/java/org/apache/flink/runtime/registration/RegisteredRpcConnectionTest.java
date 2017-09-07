@@ -141,7 +141,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
 	//  test RegisteredRpcConnection
 	// ------------------------------------------------------------------------
 
-	private static class TestRpcConnection extends RegisteredRpcConnection<TestRegistrationGateway, TestRegistrationSuccess> {
+	private static class TestRpcConnection extends RegisteredRpcConnection<UUID, TestRegistrationGateway, TestRegistrationSuccess> {
 
 		private final RpcService rpcService;
 
@@ -155,7 +155,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
 		}
 
 		@Override
-		protected RetryingRegistration<TestRegistrationGateway, RetryingRegistrationTest.TestRegistrationSuccess> generateRegistration() {
+		protected RetryingRegistration<UUID, TestRegistrationGateway, RetryingRegistrationTest.TestRegistrationSuccess> generateRegistration() {
 			return new RetryingRegistrationTest.TestRetryingRegistration(rpcService, getTargetAddress(), getTargetLeaderId());
 		}
 

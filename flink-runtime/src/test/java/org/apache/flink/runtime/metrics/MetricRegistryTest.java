@@ -205,6 +205,10 @@ public class MetricRegistryTest extends TestLogger {
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		long start = System.currentTimeMillis();
+
+		// only start counting from now on
+		TestReporter3.reportCount = 0;
+
 		for (int x = 0; x < 10; x++) {
 			Thread.sleep(100);
 			int reportCount = TestReporter3.reportCount;
@@ -218,7 +222,7 @@ public class MetricRegistryTest extends TestLogger {
 			 * or after T=50.
 			 */
 			long maxAllowedReports = (curT - start) / 50 + 2;
-			Assert.assertTrue("Too many report were triggered.", maxAllowedReports >= reportCount);
+			Assert.assertTrue("Too many reports were triggered.", maxAllowedReports >= reportCount);
 		}
 		Assert.assertTrue("No report was triggered.", TestReporter3.reportCount > 0);
 

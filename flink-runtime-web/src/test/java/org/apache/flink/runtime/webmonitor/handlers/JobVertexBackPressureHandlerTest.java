@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.BackPressureStatsTracker;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
@@ -46,7 +47,7 @@ import static org.mockito.Mockito.when;
 public class JobVertexBackPressureHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphHolder.class), mock(BackPressureStatsTracker.class), 0);
+		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), mock(BackPressureStatsTracker.class), 0);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/backpressure", paths[0]);
@@ -63,10 +64,11 @@ public class JobVertexBackPressureHandlerTest {
 
 		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(
 				mock(ExecutionGraphHolder.class),
+				Executors.directExecutor(),
 				statsTracker,
 				9999);
 
-		String response = handler.handleRequest(jobVertex, Collections.<String, String>emptyMap());
+		String response = handler.handleRequest(jobVertex, Collections.<String, String>emptyMap()).get();
 
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode = mapper.readTree(response);
@@ -96,10 +98,11 @@ public class JobVertexBackPressureHandlerTest {
 
 		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(
 				mock(ExecutionGraphHolder.class),
+				Executors.directExecutor(),
 				statsTracker,
 				9999);
 
-		String response = handler.handleRequest(jobVertex, Collections.<String, String>emptyMap());
+		String response = handler.handleRequest(jobVertex, Collections.<String, String>emptyMap()).get();
 
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode = mapper.readTree(response);
@@ -157,10 +160,11 @@ public class JobVertexBackPressureHandlerTest {
 
 		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(
 				mock(ExecutionGraphHolder.class),
+				Executors.directExecutor(),
 				statsTracker,
 				0); // <----- refresh interval should fire immediately
 
-		String response = handler.handleRequest(jobVertex, Collections.<String, String>emptyMap());
+		String response = handler.handleRequest(jobVertex, Collections.<String, String>emptyMap()).get();
 
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode = mapper.readTree(response);

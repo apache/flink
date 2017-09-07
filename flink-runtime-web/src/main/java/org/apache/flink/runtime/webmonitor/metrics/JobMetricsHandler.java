@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.metrics;
 
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Request handler that returns for a given job a list of all available metrics or the values for a set of metrics.
@@ -35,8 +36,8 @@ public class JobMetricsHandler extends AbstractMetricsHandler {
 	public static final String PARAMETER_JOB_ID = "jobid";
 	private static final String JOB_METRICS_REST_PATH = "/jobs/:jobid/metrics";
 
-	public JobMetricsHandler(MetricFetcher fetcher) {
-		super(fetcher);
+	public JobMetricsHandler(Executor executor, MetricFetcher fetcher) {
+		super(executor, fetcher);
 	}
 
 	@Override

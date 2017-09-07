@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -53,7 +54,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -118,11 +118,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 	private final Clock clock;
 
-	/** the leader id of job manager */
-	private UUID jobManagerLeaderId;
-
-	/** The leader id of resource manager */
-	private UUID resourceManagerLeaderId;
+	/** the fencing token of the job manager */
+	private JobMasterId jobMasterId;
 
 	/** The gateway to communicate with resource manager */
 	private ResourceManagerGateway resourceManagerGateway;
@@ -158,6 +155,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		this.waitingForResourceManager = new HashMap<>();
 
 		this.providerAndOwner = new ProviderAndOwner(getSelfGateway(SlotPoolGateway.class), slotRequestTimeout);
+
+		this.jobMasterId = null;
+		this.resourceManagerGateway = null;
+		this.jobManagerAddress = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,11 +173,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	/**
 	 * Start the slot pool to accept RPC calls.
 	 *
-	 * @param newJobManagerLeaderId The necessary leader id for running the job.
+	 * @param jobMasterId The necessary leader id for running the job.
 	 * @param newJobManagerAddress for the slot requests which are sent to the resource manager
 	 */
-	public void start(UUID newJobManagerLeaderId, String newJobManagerAddress) throws Exception {
-		this.jobManagerLeaderId = checkNotNull(newJobManagerLeaderId);
+	public void start(JobMasterId jobMasterId, String newJobManagerAddress) throws Exception {
+		this.jobMasterId = checkNotNull(jobMasterId);
 		this.jobManagerAddress = checkNotNull(newJobManagerAddress);
 
 		// TODO - start should not throw an exception
@@ -198,8 +199,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		stop();
 
 		// do not accept any requests
-		jobManagerLeaderId = null;
-		resourceManagerLeaderId = null;
+		jobMasterId = null;
 		resourceManagerGateway = null;
 
 		// Clear (but not release!) the available slots. The TaskManagers should re-register them
@@ -240,8 +240,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void connectToResourceManager(UUID resourceManagerLeaderId, ResourceManagerGateway resourceManagerGateway) {
-		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
+	public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {
 		this.resourceManagerGateway = checkNotNull(resourceManagerGateway);
 
 		// work on all slots waiting for this connection
@@ -255,7 +254,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 	@Override
 	public void disconnectResourceManager() {
-		this.resourceManagerLeaderId = null;
 		this.resourceManagerGateway = null;
 	}
 
@@ -319,7 +317,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
-			jobManagerLeaderId, resourceManagerLeaderId,
+			jobMasterId,
 			new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
 			resourceManagerRequestsTimeout);
 

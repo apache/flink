@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
@@ -45,6 +46,7 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -88,7 +90,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 
 	@Override
 	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, JobManagerGateway jobManagerGateway) {
-		FullHttpResponse response;
+		CompletableFuture<FullHttpResponse> responseFuture;
 
 		try {
 			// we only pass the first element in the list to the handlers.
@@ -106,29 +108,41 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			queryParams.put(WEB_MONITOR_ADDRESS_KEY,
 				(httpsEnabled ? "https://" : "http://") + address.getHostName() + ":" + address.getPort());
 
-			response = handler.handleRequest(pathParams, queryParams, jobManagerGateway);
-		}
-		catch (NotFoundException e) {
-			// this should result in a 404 error code (not found)
-			ByteBuf message = e.getMessage() == null ? Unpooled.buffer(0)
-					: Unpooled.wrappedBuffer(e.getMessage().getBytes(ENCODING));
-			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND, message);
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
-			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
-			LOG.debug("Error while handling request", e);
-		}
-		catch (Exception e) {
-			byte[] bytes = ExceptionUtils.stringifyException(e).getBytes(ENCODING);
-			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
-					HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(bytes));
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
-			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
-
-			LOG.debug("Error while handling request", e);
+			responseFuture = handler.handleRequest(pathParams, queryParams, jobManagerGateway);
+		} catch (Exception e) {
+			responseFuture = FutureUtils.completedExceptionally(e);
 		}
 
-		response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin);
+		responseFuture.whenComplete(
+			(FullHttpResponse httpResponse, Throwable throwable) -> {
+				final FullHttpResponse finalResponse;
 
-		KeepAliveWrite.flush(ctx, routed.request(), response);
+				if (throwable != null) {
+					LOG.debug("Error while handling request.", throwable);
+
+					Optional<Throwable> optNotFound = ExceptionUtils.findThrowable(throwable, NotFoundException.class);
+
+					if (optNotFound.isPresent()) {
+						// this should result in a 404 error code (not found)
+						Throwable e = optNotFound.get();
+						ByteBuf message = e.getMessage() == null ? Unpooled.buffer(0)
+							: Unpooled.wrappedBuffer(e.getMessage().getBytes(ENCODING));
+						finalResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND, message);
+						finalResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
+						finalResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, finalResponse.content().readableBytes());
+					} else {
+						byte[] bytes = ExceptionUtils.stringifyException(throwable).getBytes(ENCODING);
+						finalResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
+							HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(bytes));
+						finalResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
+						finalResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, finalResponse.content().readableBytes());
+					}
+				} else {
+					finalResponse = httpResponse;
+				}
+
+				finalResponse.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin);
+				KeepAliveWrite.flush(ctx, routed.request(), finalResponse);
+			});
 	}
 }

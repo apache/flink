@@ -27,18 +27,18 @@ public class RestHandlerException extends Exception {
 	private static final long serialVersionUID = -1358206297964070876L;
 
 	private final String errorMessage;
-	private final HttpResponseStatus errorCode;
+	private final int responseCode;
 
-	public RestHandlerException(String errorMessage, HttpResponseStatus errorCode) {
+	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus) {
 		this.errorMessage = errorMessage;
-		this.errorCode = errorCode;
+		this.responseCode = httpResponseStatus.code();
 	}
 
 	public String getErrorMessage() {
 		return errorMessage;
 	}
 
-	public HttpResponseStatus getErrorCode() {
-		return errorCode;
+	public HttpResponseStatus getHttpResponseStatus() {
+		return HttpResponseStatus.valueOf(responseCode);
 	}
 }

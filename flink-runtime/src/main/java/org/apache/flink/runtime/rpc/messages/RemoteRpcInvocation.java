@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.messages;
 
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -42,6 +42,8 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
 
 	// Transient field which is lazily initialized upon first access to the invocation data
 	private transient RemoteRpcInvocation.MethodInvocation methodInvocation;
+
+	private transient String toString;
 
 	public  RemoteRpcInvocation(
 		final String methodName,
@@ -71,6 +73,35 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
 		deserializeMethodInvocation();
 
 		return methodInvocation.getArgs();
+	}
+
+	@Override
+	public String toString() {
+		if (toString == null) {
+
+			try {
+				Class<?>[] parameterTypes = getParameterTypes();
+				String methodName = getMethodName();
+
+				StringBuilder paramTypeStringBuilder = new StringBuilder(parameterTypes.length * 5);
+
+				if (parameterTypes.length > 0) {
+					paramTypeStringBuilder.append(parameterTypes[0].getSimpleName());
+
+					for (int i = 1; i < parameterTypes.length; i++) {
+						paramTypeStringBuilder
+							.append(", ")
+							.append(parameterTypes[i].getSimpleName());
+					}
+				}
+
+				toString = "RemoteRpcInvocation(" + methodName + '(' + paramTypeStringBuilder + "))";
+			} catch (IOException | ClassNotFoundException e) {
+				toString = "Could not deserialize RemoteRpcInvocation: " + e.getMessage();
+			}
+		}
+
+		return toString;
 	}
 
 	/**

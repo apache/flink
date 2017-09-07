@@ -277,10 +277,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// we also need to make sure that no triggers fire concurrently with the close logic
 			// at the same time, this makes sure that during any "regular" exit where still
 			synchronized (lock) {
-				isRunning = false;
-
 				// this is part of the main logic, so if this fails, the task is considered failed
 				closeAllOperators();
+
+				// only set the StreamTask to not running after all operators have been closed!
+				// See FLINK-7430
+				isRunning = false;
 			}
 
 			LOG.debug("Closed operators for task {}", getName());

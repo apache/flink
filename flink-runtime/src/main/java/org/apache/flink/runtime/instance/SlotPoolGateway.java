@@ -33,7 +33,6 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Collection;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -55,10 +54,9 @@ public interface SlotPoolGateway extends RpcGateway {
 	 * Connects the SlotPool to the given ResourceManager. After this method is called, the
 	 * SlotPool will be able to request resources from the given ResourceManager.
 	 * 
-	 * @param resourceManagerLeaderId The leader session ID of the resource manager.
 	 * @param resourceManagerGateway  The RPC gateway for the resource manager.
 	 */
-	void connectToResourceManager(UUID resourceManagerLeaderId, ResourceManagerGateway resourceManagerGateway);
+	void connectToResourceManager(ResourceManagerGateway resourceManagerGateway);
 
 	/**
 	 * Disconnects the slot pool from its current Resource Manager. After this call, the pool will not

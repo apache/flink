@@ -36,6 +36,8 @@ import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -44,46 +46,31 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Collection;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link JobMaster} rpc gateway interface
  */
-public interface JobMasterGateway extends CheckpointCoordinatorGateway {
-
-	// ------------------------------------------------------------------------
-	//  Job start and stop methods
-	// ------------------------------------------------------------------------
-
-	void startJobExecution();
-
-	void suspendExecution(Throwable cause);
-
-	// ------------------------------------------------------------------------
+public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRpcGateway<JobMasterId> {
 
 	/**
 	 * Updates the task execution state for a given task.
 	 *
-	 * @param leaderSessionID    The leader id of JobManager
 	 * @param taskExecutionState New task execution state for a given task
 	 * @return Future flag of the task execution state update result
 	 */
 	CompletableFuture<Acknowledge> updateTaskExecutionState(
-			final UUID leaderSessionID,
 			final TaskExecutionState taskExecutionState);
 
 	/**
 	 * Requesting next input split for the {@link ExecutionJobVertex}. The next input split is sent back to the sender
 	 * as a {@link SerializedInputSplit} message.
 	 *
-	 * @param leaderSessionID  The leader id of JobManager
 	 * @param vertexID         The job vertex id
 	 * @param executionAttempt The execution attempt id
 	 * @return The future of the input split. If there is no further input split, will return an empty object.
 	 */
 	CompletableFuture<SerializedInputSplit> requestNextInputSplit(
-			final UUID leaderSessionID,
 			final JobVertexID vertexID,
 			final ExecutionAttemptID executionAttempt);
 
@@ -91,13 +78,11 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * Requests the current state of the partition.
 	 * The state of a partition is currently bound to the state of the producing execution.
 	 *
-	 * @param leaderSessionID The leader id of JobManager
 	 * @param intermediateResultId The execution attempt ID of the task requesting the partition state.
 	 * @param partitionId          The partition ID of the partition to request the state of.
 	 * @return The future of the partition state
 	 */
 	CompletableFuture<ExecutionState> requestPartitionState(
-			final UUID leaderSessionID,
 			final IntermediateDataSetID intermediateResultId,
 			final ResultPartitionID partitionId);
 
@@ -110,13 +95,11 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * <p>
 	 * The JobManager then can decide when to schedule the partition consumers of the given session.
 	 *
-	 * @param leaderSessionID The leader id of JobManager
 	 * @param partitionID     The partition which has already produced data
 	 * @param timeout         before the rpc call fails
 	 * @return Future acknowledge of the schedule or update operation
 	 */
 	CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(
-			final UUID leaderSessionID,
 			final ResultPartitionID partitionID,
 			@RpcTimeout final Time timeout);
 
@@ -132,13 +115,11 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	/**
 	 * Disconnects the resource manager from the job manager because of the given cause.
 	 *
-	 * @param jobManagerLeaderId identifying the job manager leader id
-	 * @param resourceManagerLeaderId identifying the resource manager leader id
+	 * @param resourceManagerId identifying the resource manager leader id
 	 * @param cause of the disconnect
 	 */
 	void disconnectResourceManager(
-		final UUID jobManagerLeaderId,
-		final UUID resourceManagerLeaderId,
+		final ResourceManagerId resourceManagerId,
 		final Exception cause);
 
 	/**
@@ -183,14 +164,12 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 *
 	 * @param taskManagerId identifying the task manager
 	 * @param slots         to offer to the job manager
-	 * @param leaderId      identifying the job leader
 	 * @param timeout       for the rpc call
 	 * @return Future set of accepted slots.
 	 */
 	CompletableFuture<Collection<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
 			final Iterable<SlotOffer> slots,
-			final UUID leaderId,
 			@RpcTimeout final Time timeout);
 
 	/**
@@ -198,12 +177,10 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 *
 	 * @param taskManagerId identifying the task manager
 	 * @param allocationId  identifying the slot to fail
-	 * @param leaderId      identifying the job leader
 	 * @param cause         of the failing
 	 */
 	void failSlot(final ResourceID taskManagerId,
 			final AllocationID allocationId,
-			final UUID leaderId,
 			final Exception cause);
 
 	/**
@@ -211,14 +188,12 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 *
 	 * @param taskManagerRpcAddress the rpc address of the task manager
 	 * @param taskManagerLocation   location of the task manager
-	 * @param leaderId              identifying the job leader
 	 * @param timeout               for the rpc call
 	 * @return Future registration response indicating whether the registration was successful or not
 	 */
 	CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
-			final UUID leaderId,
 			@RpcTimeout final Time timeout);
 
 	/**

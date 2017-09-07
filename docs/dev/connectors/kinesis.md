@@ -256,23 +256,29 @@ consumer when calling this API can also be modified by using the other keys pref
 
 ## Kinesis Producer
 
-The `FlinkKinesisProducer` is used for putting data from a Flink stream into a Kinesis stream. Note that the producer is not participating in
-Flink's checkpointing and doesn't provide exactly-once processing guarantees.
-Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details).
+The `FlinkKinesisProducer` uses [Kinesis Producer Library (KPL)](http://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-kpl.html) to put data from a Flink stream into a Kinesis stream.
+
+Note that the producer is not participating in Flink's checkpointing and doesn't provide exactly-once processing guarantees. Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details).
 
 In case of a failure or a resharding, data will be written again to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
 To put data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
 
-For the monitoring to work, the user accessing the stream needs access to the Cloud watch service.
+For the monitoring to work, the user accessing the stream needs access to the CloudWatch service.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Properties producerConfig = new Properties();
-producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+// Required configs
+producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+// Optional configs
+producerConfig.put("AggregationMaxCount", "4294967295");
+producerConfig.put("CollectionMaxCount", "1000");
+producerConfig.put("RecordTtl", "30000");
+producerConfig.put("RequestTimeout", "6000");
 
 FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), producerConfig);
 kinesis.setFailOnError(true);
@@ -286,9 +292,15 @@ simpleStringStream.addSink(kinesis);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val producerConfig = new Properties();
-producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+// Required configs
+producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+// Optional KPL configs
+producerConfig.put("AggregationMaxCount", "4294967295");
+producerConfig.put("CollectionMaxCount", "1000");
+producerConfig.put("RecordTtl", "30000");
+producerConfig.put("RequestTimeout", "6000");
 
 val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig);
 kinesis.setFailOnError(true);
@@ -301,14 +313,13 @@ simpleStringStream.addSink(kinesis);
 </div>
 </div>
 
-The above is a simple example of using the producer. Configuration for the producer with the mandatory configuration values is supplied with a `java.util.Properties`
-instance as described above for the consumer. The example demonstrates producing a single Kinesis stream in the AWS region "us-east-1".
+The above is a simple example of using the producer. To initialize `FlinkKinesisProducer`, users are required to pass in `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` via a `java.util.Properties` instance. Users can also pass in KPL's configurations as optional parameters to customize the KPL underlying `FlinkKinesisProducer`. The full list of KPL configs and explanations can be found [here](https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties). The example demonstrates producing a single Kinesis stream in the AWS region "us-east-1".
+
+If users don't specify any KPL configs and values, `FlinkKinesisProducer` will use default config values of KPL, except `RateLimit`. `RateLimit` limits the maximum allowed put rate for a shard, as a percentage of the backend limits. KPL's default value is 150 but it makes KPL throw `RateLimitExceededException` too frequently and breaks Flink sink as a result. Thus `FlinkKinesisProducer` overrides KPL's default value to 100.
 
 Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSchema`. The `KinesisSerializationSchema` allows to send the data to multiple streams. This is
 done using the `KinesisSerializationSchema.getTargetStream(T element)` method. Returning `null` there will instruct the producer to write the element to the default stream.
 Otherwise, the returned stream name is used.
-
-Other optional configuration keys for the producer can be found in `ProducerConfigConstants`.
 
 
 ## Using Non-AWS Kinesis Endpoints for Testing
@@ -317,29 +328,29 @@ It is sometimes desirable to have Flink operate as a consumer or producer agains
 [Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing functional testing of a Flink
 application. The AWS endpoint that would normally be inferred by the AWS region set in the Flink configuration must be overridden via a configuration property.
 
-To override the AWS endpoint, taking the producer for example, set the `ProducerConfigConstants.AWS_ENDPOINT` property in the
-Flink configuration, in addition to the `ProducerConfigConstants.AWS_REGION` required by Flink. Although the region is
+To override the AWS endpoint, taking the producer for example, set the `AWSConfigConstants.AWS_ENDPOINT` property in the
+Flink configuration, in addition to the `AWSConfigConstants.AWS_REGION` required by Flink. Although the region is
 required, it will not be used to determine the AWS endpoint URL.
 
-The following example shows how one might supply the `ProducerConfigConstants.AWS_ENDPOINT` configuration property:
+The following example shows how one might supply the `AWSConfigConstants.AWS_ENDPOINT` configuration property:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Properties producerConfig = new Properties();
-producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-producerConfig.put(ProducerConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
+producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val producerConfig = new Properties();
-producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-producerConfig.put(ProducerConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
+producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
 {% endhighlight %}
 </div>
 </div>

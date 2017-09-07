@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,7 +30,7 @@ import org.junit.Test;
 public class ClusterOverviewHandlerTest {
 	@Test
 	public void testGetPaths() {
-		ClusterOverviewHandler handler = new ClusterOverviewHandler(Time.seconds(0L));
+		ClusterOverviewHandler handler = new ClusterOverviewHandler(Executors.directExecutor(), Time.seconds(0L));
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/overview", paths[0]);
