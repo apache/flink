@@ -499,23 +499,22 @@ class DataStream[T](stream: JavaStream[T]) {
    * stepfunction: initialStream => (feedback, output)
    *
    * A common pattern is to use output splitting to create feedback and output DataStream.
-   * Please refer to the .split(...) method of the DataStream
+   * Please refer to the [[split]] method of the DataStream
    *
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
    * If no data received in the set time the stream terminates.
    *
-   * By default the feedback partitioning is set to match the input, to override this set
-   * the keepPartitioning flag to true
-   *
+   * Parallelism of the feedback stream must match the parallelism of the original stream.
+   * Please refer to the [[setParallelism]] method for parallelism modification
    */
   @PublicEvolving
   def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),
-                    maxWaitTimeMillis:Long = 0,
-                    keepPartitioning: Boolean = false) : DataStream[R] = {
+                    maxWaitTimeMillis:Long = 0) : DataStream[R] = {
     val iterativeStream = stream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
+
     iterativeStream.closeWith(feedback.javaStream)
     output
   }
