@@ -42,7 +42,6 @@ public class IOMetrics implements Serializable {
 	protected double numBytesInRemotePerSecond;
 	protected double numBytesOutPerSecond;
 
-
 	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesLocalIn, Meter bytesRemoteIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
 		this.numRecordsInPerSecond = recordsIn.getRate();
