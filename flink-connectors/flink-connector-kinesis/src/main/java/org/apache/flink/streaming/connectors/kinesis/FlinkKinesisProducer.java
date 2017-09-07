@@ -171,8 +171,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		super.open(parameters);
 
 		// check and pass the configuration properties
-		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.validateProducerConfiguration(configProps);
+		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
+		producerConfig.setThreadingModel(KinesisProducerConfiguration.ThreadingModel.POOLED);
 
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {

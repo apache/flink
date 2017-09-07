@@ -279,6 +279,7 @@ producerConfig.put("AggregationMaxCount", "4294967295");
 producerConfig.put("CollectionMaxCount", "1000");
 producerConfig.put("RecordTtl", "30000");
 producerConfig.put("RequestTimeout", "6000");
+producerConfig.put("ThreadPoolSize", "15");
 
 FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), producerConfig);
 kinesis.setFailOnError(true);
@@ -301,6 +302,7 @@ producerConfig.put("AggregationMaxCount", "4294967295");
 producerConfig.put("CollectionMaxCount", "1000");
 producerConfig.put("RecordTtl", "30000");
 producerConfig.put("RequestTimeout", "6000");
+producerConfig.put("ThreadPoolSize", "15");
 
 val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig);
 kinesis.setFailOnError(true);
@@ -314,6 +316,8 @@ simpleStringStream.addSink(kinesis);
 </div>
 
 The above is a simple example of using the producer. To initialize `FlinkKinesisProducer`, users are required to pass in `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` via a `java.util.Properties` instance. Users can also pass in KPL's configurations as optional parameters to customize the KPL underlying `FlinkKinesisProducer`. The full list of KPL configs and explanations can be found [here](https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties). The example demonstrates producing a single Kinesis stream in the AWS region "us-east-1".
+
+Since Flink 1.4.0, `FlinkKinesisProducer` switches its underlying KPL from a one-thread-per-request mode to a thread-pool mode. KPL in thread-pool mode uses a queue and thread pool to execute requests to Kinesis. This limits the number of threads that KPL's native process may use, and therefore greatly lowers CPU utilizations and improves efficiency. The default thread pool size is `10`. Users can set the pool size in `java.util.Properties` instance with key `ThreadPoolSize`, as shown in the above example.
 
 If users don't specify any KPL configs and values, `FlinkKinesisProducer` will use default config values of KPL, except `RateLimit`. `RateLimit` limits the maximum allowed put rate for a shard, as a percentage of the backend limits. KPL's default value is 150 but it makes KPL throw `RateLimitExceededException` too frequently and breaks Flink sink as a result. Thus `FlinkKinesisProducer` overrides KPL's default value to 100.
 
