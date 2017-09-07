@@ -91,7 +91,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 		try {
 
-			closeableRegistry.registerClosable(testCloseable);
+			closeableRegistry.registerCloseable(testCloseable);
 
 			Assert.fail("Closed registry should not accept closeables!");
 
@@ -120,7 +120,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 			return null;
 		}).when(spyCloseable).close();
 
-		closeableRegistry.registerClosable(spyCloseable);
+		closeableRegistry.registerCloseable(spyCloseable);
 
 		Assert.assertEquals(1, closeableRegistry.getNumberOfRegisteredCloseables());
 
@@ -138,7 +138,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		final C testCloseable = spy(createCloseable());
 
 		try {
-			closeableRegistry.registerClosable(testCloseable);
+			closeableRegistry.registerCloseable(testCloseable);
 			Assert.fail("Closed registry should not accept closeables!");
 		}catch (IOException ignore) {
 		}
@@ -214,10 +214,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 		@Override
 		public synchronized void close() throws IOException {
-			if (refCount != null) {
-				refCount.decrementAndGet();
-				refCount = null;
-			}
+			refCount.decrementAndGet();
 		}
 	}
 }

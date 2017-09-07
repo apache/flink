@@ -52,7 +52,7 @@ public class CloseableRegistryTest extends AbstractCloseableRegistryTest<Closeab
 			@Override
 			protected void createAndRegisterStream() throws IOException {
 				TestStream testStream = new TestStream(unclosedCounter);
-				registry.registerClosable(testStream);
+				registry.registerCloseable(testStream);
 			}
 		};
 	}
