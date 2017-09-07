@@ -98,7 +98,7 @@ public class SafetyNetCloseableRegistry extends
 	}
 
 	@Override
-	protected void doUnRegister(
+	protected boolean doUnRegister(
 		@Nonnull WrappingProxyCloseable<? extends Closeable> closeable,
 		@Nonnull Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) {
 
@@ -106,11 +106,7 @@ public class SafetyNetCloseableRegistry extends
 
 		Closeable innerCloseable = WrappingProxyUtil.stripProxy(closeable.getWrappedDelegate());
 
-		if (null == innerCloseable) {
-			return;
-		}
-
-		closeableMap.remove(innerCloseable);
+		return null != innerCloseable && closeableMap.remove(innerCloseable) != null;
 	}
 
 	@Override

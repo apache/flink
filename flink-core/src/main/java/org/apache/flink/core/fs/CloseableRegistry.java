@@ -49,7 +49,7 @@ public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Obje
 	}
 
 	@Override
-	protected void doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		closeableMap.remove(closeable);
+	protected boolean doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+		return closeableMap.remove(closeable) != null;
 	}
 }

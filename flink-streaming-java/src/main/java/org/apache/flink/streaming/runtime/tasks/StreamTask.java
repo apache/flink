@@ -707,7 +707,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
 		// let operator state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
-		cancelables.registerClosable(operatorStateBackend);
+		cancelables.registerCloseable(operatorStateBackend);
 
 		// restore if we have some old state
 		if (null != restoreStateHandles) {
@@ -740,7 +740,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				getEnvironment().getTaskKvStateRegistry());
 
 		// let keyed state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
-		cancelables.registerClosable(keyedStateBackend);
+		cancelables.registerCloseable(keyedStateBackend);
 
 		// restore if we have some old state
 		Collection<KeyedStateHandle> restoreKeyedStateHandles = null;
@@ -931,7 +931,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			} finally {
-				owner.cancelables.unregisterClosable(this);
+				owner.cancelables.unregisterCloseable(this);
 				FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 			}
 		}
@@ -1084,7 +1084,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					checkpointMetrics,
 					startAsyncPartNano);
 
-			owner.cancelables.registerClosable(asyncCheckpointRunnable);
+			owner.cancelables.registerCloseable(asyncCheckpointRunnable);
 			owner.asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
 		}
 

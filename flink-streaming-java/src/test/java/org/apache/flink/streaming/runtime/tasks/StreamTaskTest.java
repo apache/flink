@@ -1026,7 +1026,7 @@ public class StreamTaskTest extends TestLogger {
 			holder.start();
 			try {
 				// cancellation should try and cancel this
-				getCancelables().registerClosable(holder);
+				getCancelables().registerCloseable(holder);
 
 				// wait till the lock holder has the lock
 				latch.await();

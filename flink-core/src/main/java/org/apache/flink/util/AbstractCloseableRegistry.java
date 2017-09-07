@@ -68,7 +68,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * @param closeable Closeable tor register
 	 * @throws IOException exception when the registry was closed before
 	 */
-	public final void registerClosable(C closeable) throws IOException {
+	public final void registerCloseable(C closeable) throws IOException {
 
 		if (null == closeable) {
 			return;
@@ -90,14 +90,14 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 *
 	 * @param closeable instance to remove from the registry.
 	 */
-	public final void unregisterClosable(C closeable) {
+	public final boolean unregisterCloseable(C closeable) {
 
 		if (null == closeable) {
-			return;
+			return false;
 		}
 
 		synchronized (getSynchronizationLock()) {
-			doUnRegister(closeable, closeableToRef);
+			return doUnRegister(closeable, closeableToRef);
 		}
 	}
 
@@ -137,7 +137,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * Does the actual un-registration of the closeable from the registry map. This should not do any long running or
 	 * potentially blocking operations as is is executed under the registry's lock.
 	 */
-	protected abstract void doUnRegister(@Nonnull C closeable, @Nonnull Map<Closeable, T> closeableMap);
+	protected abstract boolean doUnRegister(@Nonnull C closeable, @Nonnull Map<Closeable, T> closeableMap);
 
 	/**
 	 * Returns the lock on which manipulations to members closeableToRef and closeable must be synchronized.

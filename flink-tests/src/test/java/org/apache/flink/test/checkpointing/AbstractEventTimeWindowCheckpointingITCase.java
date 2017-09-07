@@ -180,7 +180,8 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			}
 			case ROCKSDB_FULLY_ASYNC: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE));
+				String backups = tempFolder.newFolder().getAbsolutePath();
+				RocksDBStateBackend rdb = new RocksDBStateBackend(new FsStateBackend("file://" + backups));
 				rdb.setDbStoragePath(rocksDb);
 				this.stateBackend = rdb;
 				break;

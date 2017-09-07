@@ -220,7 +220,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 						environment,
 						operator.getClass().getSimpleName());
 
-					mockTask.getCancelables().registerClosable(osb);
+					mockTask.getCancelables().registerCloseable(osb);
 
 					if (null != stateHandles) {
 						osb.restore(stateHandles);
