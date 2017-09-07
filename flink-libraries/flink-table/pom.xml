@@ -114,6 +114,12 @@ under the License.
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
 		</dependency>
+		<!-- FOR RFC 4180 Compliant CSV Parser -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-csv</artifactId>
+			<version>2.9.1</version>
+		</dependency>
 
 		<!-- test dependencies -->
 

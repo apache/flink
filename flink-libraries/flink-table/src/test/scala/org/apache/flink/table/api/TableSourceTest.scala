@@ -21,7 +21,7 @@ package org.apache.flink.table.api
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
-import org.apache.flink.table.sources.{CsvTableSource, TableSource}
+import org.apache.flink.table.sources.{CsvTableSource, RFCCsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.junit.{Assert, Test}
@@ -352,6 +352,34 @@ class TableSourceTest extends TableTestBase {
       ';',
       true,
       "%%",
+      true)
+
+    Assert.assertEquals(source1, source2)
+  }
+
+  @Test
+  def testRFCCsvTableSourceBuilder(): Unit = {
+    val source1 = RFCCsvTableSource.builder()
+      .path("/path/to/csv")
+      .field("myfield", Types.STRING)
+      .field("myfield2", Types.INT)
+      .quoteCharacter('"')
+      .fieldDelimiter(",")
+      .lineDelimiter("\n")
+      .commentPrefix("#")
+      .ignoreFirstLine()
+      .ignoreParseErrors()
+      .build()
+
+    val source2 = new RFCCsvTableSource(
+      "/path/to/csv",
+      Array("myfield", "myfield2"),
+      Array(Types.STRING, Types.INT),
+      ",",
+      "\n",
+      '"',
+      true,
+      "#",
       true)
 
     Assert.assertEquals(source1, source2)
