@@ -36,13 +36,20 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="taskm
       td
         span(ng-if="v['end-time'] > -1") {{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td
-        span(ng-if="v.duration > -1" title="{{v.duration | humanizeDuration:false}}") {{v.duration | humanizeDuration:true}}
-
-      td(ng-if="tm.metrics['metrics-fetched']") {{ tm.metrics['read-bytes'] | humanizeBytes }}
-      td(ng-if="tm.metrics['metrics-fetched']") {{ tm.metrics['read-records'] | number }}
-      td(ng-if="tm.metrics['metrics-fetched']") {{ tm.metrics['write-bytes'] | humanizeBytes }}
-      td(ng-if="tm.metrics['metrics-fetched']") {{ tm.metrics['write-records'] | number }}
-      td(ng-if="!tm.metrics['metrics-fetched']", colspan=4, style="text-align:center;") Fetching...
+        span(ng-if="v.duration > -1" title="{{v.duration | humanizeDuration:false}}") {{v.duration | humanizeDuration:true}}      
+      
+      td
+        span(ng-if="tm.metrics['read-bytes-complete']") {{ tm.metrics['read-bytes'] | humanizeBytes }}
+        i(ng-if="!tm.metrics['read-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="tm.metrics['read-records-complete']") {{ tm.metrics['read-records'] | number }}
+        i(ng-if="!tm.metrics['read-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="tm.metrics['write-bytes-complete']") {{ tm.metrics['write-bytes'] | humanizeBytes }}
+        i(ng-if="!tm.metrics['write-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="tm.metrics['write-records-complete']") {{ tm.metrics['write-records'] | number }}
+        i(ng-if="!tm.metrics['write-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
 
       td {{ tm.host }}
 

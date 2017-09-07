@@ -40,12 +40,19 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
         span(ng-if="subtask['end-time'] > -1") {{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td
         span(ng-if="subtask.duration > -1" title="{{subtask.duration | humanizeDuration:false}}") {{subtask.duration | humanizeDuration:true}}
-
-      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['read-bytes'] | humanizeBytes }}
-      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['read-records'] | number }}
-      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['write-bytes'] | humanizeBytes }}
-      td(ng-if="subtask.metrics['metrics-fetched']") {{ subtask.metrics['write-records'] | number }}
-      td(ng-if="!subtask.metrics['metrics-fetched']", colspan=4, style="text-align:center;") Fetching...
+        
+      td
+        span(ng-if="subtask.metrics['read-bytes-complete']") {{ subtask.metrics['read-bytes'] | humanizeBytes }}
+        i(ng-if="!subtask.metrics['read-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="subtask.metrics['read-records-complete']") {{ subtask.metrics['read-records'] | number }}
+        i(ng-if="!subtask.metrics['read-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="subtask.metrics['write-bytes-complete']") {{ subtask.metrics['write-bytes'] | humanizeBytes }}
+        i(ng-if="!subtask.metrics['write-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="subtask.metrics['write-records-complete']") {{ subtask.metrics['write-records'] | number }}
+        i(ng-if="!subtask.metrics['write-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
 
       td {{ subtask.attempt + 1 }}
       td {{ subtask.host }}

@@ -45,12 +45,6 @@ public class MutableIOMetrics extends IOMetrics {
 
 	private static final long serialVersionUID = -5460777634971381737L;
 
-	/**
-	 * Fetching metrics is asynchronous. metricsFetched == false until values have been populated.
-	 * IO metrics values should be ignored until metricsFetched == true.
-	 */
-	private boolean metricsFetched = false;
-
 	public MutableIOMetrics() {
 		super(0, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
 	}
@@ -78,14 +72,54 @@ public class MutableIOMetrics extends IOMetrics {
 		} else { // execAttempt is still running, use MetricQueryService instead
 			if (fetcher != null) {
 				fetcher.update();
-				MetricStore.SubtaskMetricStore metrics = fetcher.getMetricStore().getSubtaskMetricStore(jobID, taskID, attempt.getParallelSubtaskIndex());
-				if (metrics != null) {
-					this.numBytesInLocal += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL, "0"));
-					this.numBytesInRemote += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE, "0"));
-					this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT, "0"));
-					this.numRecordsIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN, "0"));
-					this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT, "0"));
-					this.metricsFetched = true;
+				MetricStore metricStore = fetcher.getMetricStore();
+				synchronized (metricStore) {
+					MetricStore.SubtaskMetricStore metrics = metricStore.getSubtaskMetricStore(jobID, taskID, attempt.getParallelSubtaskIndex());
+					if (metrics != null) {
+						/**
+						 * We want to keep track of missing metrics to be able to make a difference between 0 as a value
+						 * and a missing value.
+						 * In case a metric is missing for a parallel instance of a task, we initialize if with -1 and
+						 * will be considered as incomplete
+						 */
+						if (this.numBytesInLocal >= 0 && metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL) != null){
+							this.numBytesInLocal += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL));
+						}
+						else {
+							this.numBytesInLocal = -1;
+						}
+						if (this.numBytesInRemote >= 0 && metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE) != null){
+							this.numBytesInRemote += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE));
+						}
+						else {
+							this.numBytesInRemote = -1;
+						}
+						if (this.numBytesOut >= 0 && metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT) != null){
+							this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT));
+						}
+						else {
+							this.numBytesOut = -1;
+						}
+						if (this.numRecordsIn >= 0 && metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN) != null){
+							this.numRecordsIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN));
+						}
+						else {
+							this.numRecordsIn = -1;
+						}
+						if (this.numRecordsOut >= 0 && metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT) != null){
+							this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT));
+						}
+						else {
+							this.numRecordsOut = -1;
+						}
+					}
+					else{
+						this.numBytesInLocal = -1;
+						this.numBytesInRemote = -1;
+						this.numBytesOut = -1;
+						this.numRecordsIn = -1;
+						this.numRecordsOut = -1;
+					}
 				}
 			}
 		}
@@ -106,12 +140,35 @@ public class MutableIOMetrics extends IOMetrics {
 	 * @throws IOException
 	 */
 	public void writeIOMetricsAsJson(JsonGenerator gen) throws IOException {
+		/**
+		 * Ask describe in the addIOMetrics, we want to distinguish incomplete values from 0.
+		 * However, for API backward compatibility, incomplete metrics will still be represented by the 0 value and
+		 * a boolean will indicate the completeness.
+		 */
+
 		gen.writeObjectFieldStart("metrics");
-		gen.writeNumberField("read-bytes", this.numBytesInLocal + this.numBytesInRemote);
-		gen.writeNumberField("write-bytes", this.numBytesOut);
-		gen.writeNumberField("read-records", this.numRecordsIn);
-		gen.writeNumberField("write-records", this.numRecordsOut);
-		gen.writeBooleanField("metrics-fetched", this.metricsFetched);
+
+		Long numBytesIn = (this.numBytesInLocal >= 0 && this.numBytesInRemote >= 0) ? (this.numBytesInLocal + this.numBytesInRemote) : -1;
+
+		writeIOMetricWithCompleteness(gen, "read-bytes", numBytesIn);
+		writeIOMetricWithCompleteness(gen, "write-bytes", this.numBytesOut);
+		writeIOMetricWithCompleteness(gen, "read-records", this.numRecordsIn);
+		writeIOMetricWithCompleteness(gen, "write-records", this.numRecordsOut);
+
 		gen.writeEndObject();
+	}
+
+	/**
+	 * Write the IO Metric to the JSON with its completeness attribute
+	 *
+	 * @param gen JsonGenerator to which the metrics should be written
+	 * @param fieldName Name of the added JSON attribute
+	 * @param fieldValue Value of the added JSON attribute
+	 * @throws IOException
+	 */
+	private void writeIOMetricWithCompleteness(JsonGenerator gen, String fieldName, Long fieldValue) throws IOException{
+		boolean isComplete = fieldValue >= 0;
+		gen.writeNumberField(fieldName, isComplete ? fieldValue : 0);
+		gen.writeBooleanField(fieldName + "-complete", isComplete);
 	}
 }

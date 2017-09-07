@@ -46,11 +46,18 @@ table.table.table-body-hover.table-clickable.table-activable
 
       td.td-long {{ v.name | humanizeText }}
 
-      td(ng-if="v.metrics['metrics-fetched']") {{ v.metrics['read-bytes'] | humanizeBytes }}
-      td(ng-if="v.metrics['metrics-fetched']") {{ v.metrics['read-records'] | number }}
-      td(ng-if="v.metrics['metrics-fetched']") {{ v.metrics['write-bytes'] | humanizeBytes }}
-      td(ng-if="v.metrics['metrics-fetched']") {{ v.metrics['write-records'] | number }}
-      td(ng-if="!v.metrics['metrics-fetched']", colspan=4, style="text-align:center;") Fetching...
+      td
+        span(ng-if="v.metrics['read-bytes-complete']") {{ v.metrics['read-bytes'] | humanizeBytes }}
+        i(ng-if="!v.metrics['read-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="v.metrics['read-records-complete']") {{ v.metrics['read-records'] | number }}
+        i(ng-if="!v.metrics['read-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="v.metrics['write-bytes-complete']") {{ v.metrics['write-bytes'] | humanizeBytes }}
+        i(ng-if="!v.metrics['write-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="v.metrics['write-records-complete']") {{ v.metrics['write-records'] | number }}
+        i(ng-if="!v.metrics['write-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
 
       td {{ v.parallelism }}
       td
