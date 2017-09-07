@@ -181,6 +181,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 					ProducerConfigConstants.AGGREGATION_MAX_COUNT, producerConfig.getAggregationMaxCount(), LOG));
 		}
 
+		// we explicitly lower the credential refresh delay (default is 5 seconds)
+		// to avoid a ignorable interruption warning that occurs when shutting down the
+		// KPL client. See https://github.com/awslabs/amazon-kinesis-producer/issues/10.
+		producerConfig.setCredentialsRefreshDelay(100);
+
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
