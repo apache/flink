@@ -78,6 +78,7 @@ public abstract class RestServerEndpoint {
 	private final int configuredPort;
 	private final SSLEngine sslEngine;
 	private final Path uploadDir;
+	private final int maxContentLength;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -95,6 +96,8 @@ public abstract class RestServerEndpoint {
 
 		this.uploadDir = configuration.getUploadDir();
 		createUploadDir(uploadDir, log);
+
+		this.maxContentLength = configuration.getMaxContentLength();
 
 		terminationFuture = new CompletableFuture<>();
 
@@ -156,7 +159,7 @@ public abstract class RestServerEndpoint {
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new FileUploadHandler(uploadDir))
-						.addLast(new HttpObjectAggregator(MAX_REQUEST_SIZE_BYTES))
+						.addLast(new HttpObjectAggregator(maxContentLength))
 						.addLast(handler.name(), handler)
 						.addLast(new PipelineErrorHandler(log));
 				}
