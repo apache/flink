@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -35,9 +36,11 @@ public final class RestClientConfiguration {
 
 	@Nullable
 	private final SSLEngine sslEngine;
+	private final int maxContentLength;
 
-	private RestClientConfiguration(@Nullable SSLEngine sslEngine) {
+	private RestClientConfiguration(@Nullable SSLEngine sslEngine, int maxContentLength) {
 		this.sslEngine = sslEngine;
+		this.maxContentLength = maxContentLength;
 	}
 
 	/**
@@ -48,6 +51,15 @@ public final class RestClientConfiguration {
 
 	public SSLEngine getSslEngine() {
 		return sslEngine;
+	}
+
+	/**
+	 * Returns the max content length that the REST client endpoint could handle.
+	 *
+	 * @return max content length that the REST client endpoint could handle
+	 */
+	public int getMaxContentLength() {
+		return maxContentLength;
 	}
 
 	/**
@@ -76,6 +88,11 @@ public final class RestClientConfiguration {
 			}
 		}
 
-		return new RestClientConfiguration(sslEngine);
+		int maxContentLength = config.getInteger(RestOptions.REST_CLIENT_CONTENT_MAX_MB) * 1024 * 1024;
+		if (maxContentLength <= 0) {
+			throw new ConfigurationException("Max content length for client must be a positive integer: " + maxContentLength);
+		}
+
+		return new RestClientConfiguration(sslEngine, maxContentLength);
 	}
 }

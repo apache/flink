@@ -39,13 +39,15 @@ public final class RestServerEndpointConfiguration {
 	private final int restBindPort;
 	@Nullable
 	private final SSLEngine sslEngine;
+	private final int maxContentLength;
 
-	private RestServerEndpointConfiguration(@Nullable String restBindAddress, int restBindPort, @Nullable SSLEngine sslEngine) {
+	private RestServerEndpointConfiguration(@Nullable String restBindAddress, int restBindPort, @Nullable SSLEngine sslEngine, int maxContentLength) {
 		this.restBindAddress = restBindAddress;
 
 		Preconditions.checkArgument(0 <= restBindPort && restBindPort < 65536, "The bing rest port " + restBindPort + " is out of range (0, 65536[");
 		this.restBindPort = restBindPort;
 		this.sslEngine = sslEngine;
+		this.maxContentLength = maxContentLength;
 	}
 
 	/**
@@ -76,6 +78,15 @@ public final class RestServerEndpointConfiguration {
 	}
 
 	/**
+	 * Returns the max content length that the REST server endpoint could handle.
+	 *
+	 * @return max content length that the REST server endpoint could handle
+	 */
+	public int getMaxContentLength() {
+		return maxContentLength;
+	}
+
+	/**
 	 * Creates and returns a new {@link RestServerEndpointConfiguration} from the given {@link Configuration}.
 	 *
 	 * @param config configuration from which the REST server endpoint configuration should be created from
@@ -103,6 +114,11 @@ public final class RestServerEndpointConfiguration {
 			}
 		}
 
-		return new RestServerEndpointConfiguration(address, port, sslEngine);
+		int maxContentLength = config.getInteger(RestOptions.REST_SERVER_CONTENT_MAX_MB) * 1024 * 1024;
+		if (maxContentLength <= 0) {
+			throw new ConfigurationException("Max content length for server must be a positive integer: " + maxContentLength);
+		}
+
+		return new RestServerEndpointConfiguration(address, port, sslEngine, maxContentLength);
 	}
 }

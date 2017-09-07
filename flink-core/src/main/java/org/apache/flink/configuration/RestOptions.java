@@ -35,9 +35,23 @@ public class RestOptions {
 			.defaultValue("localhost");
 
 	/**
+	 * The max content length that the server will handle.
+	 */
+	public static final ConfigOption<Integer> REST_SERVER_CONTENT_MAX_MB =
+		key("rest.server.content.max.mb")
+			.defaultValue(10);
+
+	/**
 	 * The port that the server listens on / the client connects to.
 	 */
 	public static final ConfigOption<Integer> REST_PORT =
 		key("rest.port")
 			.defaultValue(9067);
+
+	/**
+	 * The max content length that the client will handle.
+	 */
+	public static final ConfigOption<Integer> REST_CLIENT_CONTENT_MAX_MB =
+		key("rest.client.content.max.mb")
+			.defaultValue(1);
 }
