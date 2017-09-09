@@ -527,6 +527,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);
 			} catch (ClassCastException e) {
+				// Enrich error message
 				ClassCastException replace = new ClassCastException(
 						String.format("%s. Failed pushing OutputTag with id '%s' to operator. " +
 								"This can occur when multiple OutputTags with different types " +
