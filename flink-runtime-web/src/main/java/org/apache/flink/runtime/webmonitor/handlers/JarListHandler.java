@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -72,6 +73,9 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 							return name.endsWith(".jar");
 						}
 					});
+
+					// last modified ascending order
+					Arrays.sort(list, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
 
 					for (File f : list) {
 						// separate the uuid and the name parts.
