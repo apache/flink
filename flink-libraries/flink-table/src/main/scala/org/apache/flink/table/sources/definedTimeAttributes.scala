@@ -30,10 +30,16 @@ package org.apache.flink.table.sources
 trait DefinedRowtimeAttribute {
 
   /**
-    * Defines a name of the event-time attribute that represents Flink's
-    * event-time. Null if no rowtime should be available.
+    * Defines a name of the event-time attribute that represents Flink's event-time, i.e., an
+    * attribute that is aligned with the watermarks of the table.
+    * An attribute with the given name must be present in the schema of the [[TableSource]].
+    * The attribute must be of type [[Long]] or [[java.sql.Timestamp]].
     *
-    * The field will be appended to the schema provided by the [[TableSource]].
+    * The method should return null if no rowtime attribute is defined.
+    *
+    * @return The name of the field that represents the event-time field and which is aligned
+    *         with the watermarks of the table. The field must be present in the schema of the
+    *         [[TableSource]].
     */
   def getRowtimeAttribute: String
 }

@@ -19,16 +19,13 @@
 package org.apache.flink.table.runtime.stream
 
 import java.math.BigDecimal
-import java.lang.{Long => JLong, Integer => JInt}
+import java.lang.{Integer => JInt, Long => JLong}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecEnv}
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
@@ -39,13 +36,12 @@ import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.StreamITCase
-import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, StreamTableSource}
+import org.apache.flink.table.utils.TestTableSourceWithTime
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
-import scala.collection.JavaConverters._
 
 /**
   * Tests for access and materialization of time attributes.
@@ -384,22 +380,37 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerTableSource("testTable", new TestTableSource)
+
+    val rows = Seq(
+      Row.of(new JInt(1), "A", new JLong(1000L)),
+      Row.of(new JInt(2), "B", new JLong(2000L)),
+      Row.of(new JInt(3), "C", new JLong(3000L)),
+      Row.of(new JInt(4), "D", new JLong(4000L)),
+      Row.of(new JInt(5), "E", new JLong(5000L)),
+      Row.of(new JInt(6), "F", new JLong(6000L)))
+    val rowType = new RowTypeInfo(
+      Array(Types.INT, Types.STRING, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
+      Array("a", "b", "rowtime")
+    )
+
+    tEnv.registerTableSource(
+      "testTable",
+      new TestTableSourceWithTime(rows, rowType, "rowtime", "proctime"))
     StreamITCase.clear
 
     val result = tEnv
       .scan("testTable")
       .where('a % 2 === 1)
-      .select('rowtime, 'a, 'b, 'c)
+      .select('rowtime, 'a, 'b)
       .toAppendStream[Row]
 
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
-      "1970-01-01 00:00:01.0,1,A,1000",
-      "1970-01-01 00:00:03.0,3,C,3000",
-      "1970-01-01 00:00:05.0,5,E,5000")
+      "1970-01-01 00:00:01.0,1,A",
+      "1970-01-01 00:00:03.0,3,C",
+      "1970-01-01 00:00:05.0,5,E")
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -445,42 +456,5 @@ object TimeAttributesITCase {
     var b: Long = _
     var b2: String = "skip me"
     var c: String = _
-  }
-}
-
-class TestTableSource
-    extends StreamTableSource[Row]
-    with DefinedRowtimeAttribute
-    with DefinedProctimeAttribute {
-
-  override def getDataStream(env: JStreamExecEnv): DataStream[Row] = {
-
-    def toRow(i: Int, s: String, l: Long) = Row.of(i.asInstanceOf[JInt], s, l.asInstanceOf[JLong])
-
-    val rows = Seq(
-      toRow(1, "A", 1000L),
-      toRow(2, "B", 2000L),
-      toRow(3, "C", 3000L),
-      toRow(4, "D", 4000L),
-      toRow(5, "E", 5000L),
-      toRow(6, "F", 6000L)
-    )
-
-    env
-      .fromCollection(rows.asJava).returns(getReturnType)
-      .assignTimestampsAndWatermarks(new AscendingTimestampExtractor[Row] {
-        override def extractAscendingTimestamp(r: Row): Long = r.getField(2).asInstanceOf[Long]
-      })
-  }
-
-  override def getRowtimeAttribute: String = "rowtime"
-
-  override def getProctimeAttribute: String = "proctime"
-
-  override def getReturnType: TypeInformation[Row] = {
-    new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
-      Array("a", "b", "c")
-    )
   }
 }
