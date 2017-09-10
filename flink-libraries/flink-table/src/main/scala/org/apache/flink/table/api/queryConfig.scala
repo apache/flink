@@ -22,18 +22,7 @@ import _root_.java.io.Serializable
 
 import org.apache.flink.api.common.time.Time
 
-class QueryConfig private[table] extends Serializable {
-}
-
-object QueryConfig {
-  def getQueryConfigFromTableEnv(tableEnv: TableEnvironment): QueryConfig = {
-    tableEnv match {
-      case s: StreamTableEnvironment => s.queryConfig
-      case b: BatchTableEnvironment => new BatchQueryConfig
-      case _ => null
-    }
-  }
-}
+class QueryConfig private[table] extends Serializable {}
 
 /**
   * The [[BatchQueryConfig]] holds parameters to configure the behavior of batch queries.

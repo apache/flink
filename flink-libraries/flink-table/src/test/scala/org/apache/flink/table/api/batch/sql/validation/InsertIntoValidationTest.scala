@@ -32,12 +32,12 @@ class InsertIntoValidationTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
-    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getTypes
     val fieldNames = Seq("d", "e", "f").toArray
-    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink(fieldTypes, fieldNames)
-    util.tableEnv.registerTableSink("targetTable", sink)
+    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getTypes
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
+    util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
     val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
-    util.tableEnv.sqlUpdate(sql, QueryConfig.getQueryConfigFromTableEnv(util.tableEnv))
+    util.tableEnv.sqlUpdate(sql, util.tableEnv.queryConfig)
   }
 }

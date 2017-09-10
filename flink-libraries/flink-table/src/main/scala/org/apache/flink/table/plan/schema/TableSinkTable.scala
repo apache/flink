@@ -18,16 +18,28 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.schema.Statistic
+import org.apache.calcite.schema.impl.AbstractTable
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
 
 /** Table which defines an external table via a [[TableSink]] */
 class TableSinkTable[T](
     val tableSink: TableSink[T],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable[T](
-    typeInfo = tableSink.getOutputType,
-    fieldIndexes = TableEnvironment.getFieldIndices(tableSink),
-    fieldNames = TableEnvironment.getFieldNames(tableSink),
-    statistic)
+    val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends AbstractTable {
+
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+    flinkTypeFactory.buildLogicalRowType(tableSink.getFieldNames, tableSink.getFieldTypes)
+  }
+
+  /**
+    * Returns statistics of current table
+    *
+    * @return statistics of current table
+    */
+  override def getStatistic: Statistic = statistic
+}

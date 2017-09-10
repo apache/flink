@@ -127,10 +127,10 @@ class TableEnvironmentITCase(
     val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
 
-    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
     val fieldNames = Seq("d", "e", "f").toArray
-    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink(fieldTypes, fieldNames)
-    tEnv.registerTableSink("targetTable", sink)
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
     val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
     tEnv.sqlUpdate(sql)

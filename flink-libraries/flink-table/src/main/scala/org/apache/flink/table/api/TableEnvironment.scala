@@ -417,13 +417,19 @@ abstract class TableEnvironment(val config: TableConfig) {
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit
 
   /**
-    * Registers an external [[TableSink]] in this [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML clause.
+    * Registers an external [[TableSink]] with given field names and types in this
+    * [[TableEnvironment]]'s catalog. Registered sink tables can be referenced in SQL DML clause.
     *
-    * @param name        The name under which the [[TableSink]] is registered.
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param fieldNames The field names related to the [[TableSink]].
+    * @param fieldTypes The field types related to the [[TableSink]].
     * @param tableSink The [[TableSink]] to register.
     */
-  def registerTableSink(name: String, tableSink: TableSink[_]): Unit
+  def registerTableSink(
+      name: String,
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]],
+      tableSink: TableSink[_]): Unit
 
   /**
     * Replaces a registered Table with another Table under the same name.
@@ -512,12 +518,12 @@ abstract class TableEnvironment(val config: TableConfig) {
     *   tEnv.sql(s"SELECT * FROM $table")
     * }}}
     *
-    * @param sql The SQL string to evaluate.
+    * @param query The SQL query to evaluate.
     * @return The result of the query as Table.
     */
   @deprecated("use [[sqlQuery()]] instead")
-  def sql(sql: String): Table = {
-    sqlQuery(sql)
+  def sql(query: String): Table = {
+    sqlQuery(query)
   }
 
   /**
@@ -534,13 +540,13 @@ abstract class TableEnvironment(val config: TableConfig) {
     *   tEnv.sqlSelect(s"SELECT * FROM $table")
     * }}}
     *
-    * @param sql The SQL string to evaluate.
-    * @return The result of the query as Table or null of the DML insert operation.
+    * @param query The SQL query to evaluate.
+    * @return The result of the query as Table
     */
-  def sqlQuery(sql: String): Table = {
+  def sqlQuery(query: String): Table = {
     val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
-    val parsed = planner.parse(sql)
+    val parsed = planner.parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
       // validate the sql query
       val validated = planner.validate(parsed)
@@ -549,60 +555,58 @@ abstract class TableEnvironment(val config: TableConfig) {
       new Table(this, LogicalRelNode(relational.rel))
     } else {
       throw new TableException(
-        "Unsupported sql query! sqlQuery Only accept SELECT, UNION, INTERSECT, EXCEPT, VALUES, " +
-          "WITH, ORDER_BY, EXPLICIT_TABLE")
+        "Unsupported SQL query! sqlQuery() only accepts SQL queries of type SELECT, UNION, " +
+          "INTERSECT, EXCEPT, VALUES, WITH, ORDER_BY, and EXPLICIT_TABLE.")
     }
   }
 
   /**
-    * Evaluates a SQL statement which must be an SQL Data Manipulation Language (DML) statement,
-    * such as INSERT, UPDATE or DELETE; or an SQL statement that returns nothing, such as a DDL
-    * statement;
-    * Currently only support a SQL INSERT statement on registered tables and has no return value.
+    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * Currently only SQL INSERT statement on registered tables are supported.
     *
     * All tables referenced by the query must be registered in the TableEnvironment. But
     * [[Table.toString]] will automatically register an unique table name and return the
-    * table name. So it allows to call SQL directly on tables like this:
+    * table name except table sink table(Table sink tables are not automatically registered via
+    * [[Table.toString]]). So it allows to call SQL directly on tables like this:
     *
     * {{{
-    *   /// register table sink for insertion
-    *   tEnv.registerTableSink("target_table", ...
+    *   // should register the table sink which will be inserted into
+    *   tEnv.registerTableSink("target_table", fieldNames, fieldsTypes, tableSink)
     *   val sourceTable: Table = ...
     *   // sourceTable is not registered to the table environment
     *   tEnv.sqlInsert(s"INSERT INTO target_table SELECT * FROM $sourceTable")
     * }}}
     *
-    * @param sql The SQL String to evaluate.
+    * @param stmt The SQL statement to evaluate.
     */
-  def sqlUpdate(sql: String): Unit = {
-    sqlUpdate(sql, QueryConfig.getQueryConfigFromTableEnv(this))
+  def sqlUpdate(stmt: String): Unit = {
+    sqlUpdate(stmt, this.queryConfig)
   }
 
   /**
-    * Evaluates a SQL statement which must be an SQL Data Manipulation Language (DML) statement,
-    * such as INSERT, UPDATE or DELETE; or an SQL statement that returns nothing, such as a DDL
-    * statement;
-    * Currently only support a SQL INSERT statement on registered tables and has no return value.
+    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * Currently only SQL INSERT statement on registered tables are supported.
     *
     * All tables referenced by the query must be registered in the TableEnvironment. But
     * [[Table.toString]] will automatically register an unique table name and return the
-    * table name. So it allows to call SQL directly on tables like this:
+    * table name except table sink table(Table sink tables are not automatically registered via
+    * [[Table.toString]]). So it allows to call SQL directly on tables like this:
     *
     * {{{
-    *   /// register table sink for insertion
-    *   tEnv.registerTableSink("target_table", ...
+    *   // should register the table sink which will be inserted into
+    *   tEnv.registerTableSink("target_table", fieldNames, fieldsTypes, tableSink)
     *   val sourceTable: Table = ...
     *   // sourceTable is not registered to the table environment
     *   tEnv.sqlInsert(s"INSERT INTO target_table SELECT * FROM $sourceTable")
     * }}}
     *
-    * @param sql The SQL String to evaluate.
+    * @param stmt The SQL statement to evaluate.
     * @param config The [[QueryConfig]] to use.
     */
-  def sqlUpdate(sql: String, config: QueryConfig): Unit = {
+  def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
     val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
-    val parsed = planner.parse(sql)
+    val parsed = planner.parse(stmt)
     parsed match {
       case insert: SqlInsert => {
         // validate the sql query
@@ -618,9 +622,10 @@ abstract class TableEnvironment(val config: TableConfig) {
         val sinkTable = targetTable.asInstanceOf[TableSinkTable[_]]
         if (null != insert.getTargetColumnList && insert.getTargetColumnList.size() !=
           sinkTable.fieldTypes.length) {
+
           throw new TableException(
-            "SQL INSERT do not support insert partial columns of the target table due to table " +
-              "columns haven’t nullable property definition for now!")
+            "SQL INSERT requires that the schema of the inserted records exactly matches the " +
+              "schema of the target table. Record schema:${} Target table schema:${}")
         }
 
         writeToSink(
@@ -629,7 +634,8 @@ abstract class TableEnvironment(val config: TableConfig) {
           config)
       }
       case _ =>
-        throw new TableException("Unsupported sql query! sqlUpdate only accept INSERT currently.")
+        throw new TableException(
+          "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
     }
   }
 
@@ -713,6 +719,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   private[flink] def getFrameworkConfig: FrameworkConfig = {
     frameworkConfig
+  }
+
+  /** Returns the [[QueryConfig]] depends on the concrete type of this TableEnvironment. */
+  private[flink] def queryConfig: QueryConfig = this match {
+    case _: BatchTableEnvironment => new BatchQueryConfig
+    case _: StreamTableEnvironment => new StreamQueryConfig
+    case _ => ???
   }
 
   /**
@@ -1140,29 +1153,5 @@ object TableEnvironment {
   def getFieldIndices[A](tableSource: TableSource[A]): Array[Int] = tableSource match {
     case d: DefinedFieldNames => d.getFieldIndices
     case _ => TableEnvironment.getFieldIndices(tableSource.getReturnType)
-  }
-
-  /**
-    * Returns field names for a given [[TableSink]].
-    *
-    * @param tableSink The TableSink to extract field names from.
-    * @tparam A The type of the TableSink.
-    * @return An array holding the field names.
-    */
-  def getFieldNames[A](tableSink: TableSink[A]): Array[String] = tableSink match {
-      case d: DefinedFieldNames => d.getFieldNames
-      case _ => TableEnvironment.getFieldNames(tableSink.getOutputType)
-    }
-
-  /**
-    * Returns field indices for a given [[TableSink]].
-    *
-    * @param tableSink The TableSink to extract field indices from.
-    * @tparam A The type of the TableSink.
-    * @return An array holding the field indices.
-    */
-  def getFieldIndices[A](tableSink: TableSink[A]): Array[Int] = tableSink match {
-    case d: DefinedFieldNames => d.getFieldIndices
-    case _ => TableEnvironment.getFieldIndices(tableSink.getOutputType)
   }
 }

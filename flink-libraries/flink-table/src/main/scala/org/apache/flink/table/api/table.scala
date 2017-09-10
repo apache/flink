@@ -763,7 +763,7 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
-    writeToSink(sink, QueryConfig.getQueryConfigFromTableEnv(this.tableEnv))
+    writeToSink(sink, this.tableEnv.queryConfig)
   }
 
   /**
@@ -794,7 +794,7 @@ class Table(
   }
 
   /**
-    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableSink name
+    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableName
     * represents a registered [[TableSink]] which defines an external storage location.
     *
     * A batch [[Table]] can only be written to a
@@ -804,14 +804,13 @@ class Table(
     * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].*
     *
     * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
-    * @tparam T The data type that the [[TableSink]] expects.
     */
-  def insertInto[T](tableName: String): Unit = {
-    insertInto(tableName, QueryConfig.getQueryConfigFromTableEnv(this.tableEnv))
+  def insertInto(tableName: String): Unit = {
+    insertInto(tableName, this.tableEnv.queryConfig)
   }
 
   /**
-    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableSink name
+    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableName
     * represents a registered [[TableSink]] which defines an external storage location.
     *
     * A batch [[Table]] can only be written to a
@@ -822,13 +821,12 @@ class Table(
     *
     * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
     * @param conf The [[QueryConfig]] to use.
-    * @tparam T The data type that the [[TableSink]] expects.
     */
-  def insertInto[T](tableName: String, conf: QueryConfig): Unit = {
+  def insertInto(tableName: String, conf: QueryConfig): Unit = {
     require(tableName != null && !tableName.isEmpty, "tableSink must not be null or empty.")
     // validate if the tableSink is registered
     if (!tableEnv.isRegistered(tableName)) {
-      throw TableException("tableSink must be registered.")
+      throw TableException("No table $tableName registered.")
     }
     // find if the tableSink is registered //, include validation internally
     tableEnv.getTable(tableName) match {
@@ -838,18 +836,19 @@ class Table(
         val srcFieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
           .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
         // column count validation
-        if (srcFieldTypes.length != sink.fieldTypes.length) {
-          throw TableException(s"source column count doesn't match target table[$tableName]'s.")
-        }
         // column type validation, no need to validate field names
-        if (sink.fieldTypes.zipWithIndex.exists(f => f._1 != srcFieldTypes(f._2))) {
+        if (srcFieldTypes.length != sink.tableSink.getFieldTypes.length ||
+          sink.tableSink.getFieldTypes.zip(srcFieldTypes).exists(f => f._1 != f._2)) {
+          //Schema of inserted table must exactly match the schema of the target table.
+          // TODO Inserted// table: [a: INTEGER, b: VARCHAR], Destination table: [a: INTEGER, b: VARCHAR, c: LONG].
           throw TableException(s"source row type doesn't match target table[$tableName]'s.")
         }
         // emit the table to the configured table sink
         tableEnv.writeToSink(this, sink.tableSink, conf)
       }
       case _ =>
-        throw new TableException("InsertInto operation needs a registered TableSink Table!")
+        throw new TableException(s"A Table can only be emitted to a TableSink. $tableName was not" +
+          s" registered as a TableSink.")
     }
   }
 

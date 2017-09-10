@@ -37,21 +37,16 @@ object MemoryTableSinkUtil {
     MemoryTableSinkUtil.results.clear()
   }
 
-  final class UnsafeMemoryAppendTableSink(
-      fieldTypes: Array[TypeInformation[_]],
-      fieldNames: Array[String]
-  ) extends TableSinkBase[Row] with BatchTableSink[Row] with AppendStreamTableSink[Row] {
-
-    override def getFieldTypes: Array[TypeInformation[_]] = fieldTypes
-
-    override def getFieldNames: Array[String] = fieldNames
+  final class UnsafeMemoryAppendTableSink
+    extends TableSinkBase[Row] with BatchTableSink[Row]
+    with AppendStreamTableSink[Row] {
 
     override def getOutputType: TypeInformation[Row] = {
       new RowTypeInfo(getFieldTypes, getFieldNames)
     }
 
     override protected def copy: TableSinkBase[Row] = {
-      new UnsafeMemoryAppendTableSink(fieldTypes, fieldNames)
+      new UnsafeMemoryAppendTableSink
     }
 
     override def emitDataSet(dataSet: DataSet[Row]): Unit = {
