@@ -387,14 +387,70 @@ StreamTableSource[T] extends TableSource[T] {
 </div>
 </div>
 
-**Note:** If a Table needs to be processed in event-time, the `DataStream` returned by the `getDataStream()` method must carry timestamps and watermarks. Please see the documentation on [timestamp and watermark assignment]({{ site.baseurl }}/dev/event_timestamps_watermarks.html) for details on how to assign timestamps and watermarks.
+**IMPORTANT:** Time-based operations on streaming tables such as windows require explicitly specified [time attributes]({{ site.baseurl }}/dev/table/streaming.html#time-attributes) (both for the [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows)). A `StreamTableSource` defines 
 
-**Note:** Time-based operations on streaming tables such as windows in both the [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) require explicitly specified time attributes. 
+- an *event-time attribute* by implementing the `DefinedRowtimeAttribute` interface and
+- a *processing-time attribute* by implementing the `DefinedProctimeAttribute` interface.
 
-- `DefinedRowtimeAttribute` provides the `getRowtimeAttribute()` method to specify the name of the event-time time attribute.
-- `DefinedProctimeAttribute` provides the `getProctimeAttribute()` method to specify the name of the processing-time time attribute.
+Both are described in the following sections.
 
-Please see the documentation on [time attributes]({{ site.baseurl }}/dev/table/streaming.html#time-attributes) for details.
+#### DefinedRowtimeAttribute
+
+The `DefinedRowtimeAttribute` interface provides a single method.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DefinedRowtimeAttribute {
+
+  public String getRowtimeAttribute();
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+DefinedRowtimeAttribute {
+
+  def getRowtimeAttribute(): String
+}
+{% endhighlight %}
+</div>
+</div>
+
+The `getRowtimeAttribute()` method returns the name of the field that holds the event-time timestamps for the rows of the table. The field must exist in the schema of the `StreamTableSource` and be of type `LONG` or `TIMESTAMP`. Moreover, the `DataStream` returned by `StreamTableSource.getDataStream()` must have [watermarks]({{ site.baseurl }}/dev/event_timestamps_watermarks.html) assigned which are aligned with the values of the specified timestamp field. 
+
+Please see the documentation on [timestamp and watermark assignment]({{ site.baseurl }}/dev/event_timestamps_watermarks.html) for details on how to assign watermarks. Please note that the timestamps of a `DataStream` (the ones which are assigned by a `TimestampAssigner`) are ignored. Only the values of the `TableSource`'s rowtime field are relevant.
+
+**Note:** A `TableSource` that returns a rowtime attribute does not support projection pushdown.
+
+#### DefinedProctimeAttribute
+
+The `DefinedProctimeAttribute` interface provides a single method.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DefinedProctimeAttribute {
+
+  public String getProctimeAttribute();
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+DefinedProctimeAttribute {
+
+  def getProctimeAttribute(): String
+}
+{% endhighlight %}
+</div>
+</div>
+
+The `getProctimeAttribute()` method returns the name of a field that is appended to each row returned by the `StreamTableSource`. The appended field serves as a processing time timestamp and can be used in time-based operations.
+
+**Note:** A `TableSource` that returns a processing time attribute does not support projection pushdown.
 
 {% top %}
 
