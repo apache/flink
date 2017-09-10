@@ -18,8 +18,14 @@
 
 package org.apache.flink.table.api.validation
 
-import org.apache.flink.table.api.Types
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.sources.CsvTableSource
+import org.apache.flink.table.utils.TestTableSourceWithTime
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class TableSourceValidationTest {
@@ -47,5 +53,89 @@ class TableSourceValidationTest {
       .path("/path/to/csv")
       // should fail, field can be empty
       .build()
+  }
+
+  @Test(expected = classOf[TableException])
+  def testNonExistingRowtimeField(): Unit = {
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "amount")
+    )
+    val ts = new TestTableSourceWithTime(
+      Seq[Row](),
+      rowType,
+      "rTime",
+      null
+    )
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    // should fail because configured rowtime field is not in schema
+    tEnv.registerTableSource("testTable", ts)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidTypeRowtimeField(): Unit = {
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "amount")
+    )
+    val ts = new TestTableSourceWithTime(
+      Seq[Row](),
+      rowType,
+      "name",
+      null
+    )
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    // should fail because configured rowtime field is not of type Long or Timestamp
+    tEnv.registerTableSource("testTable", ts)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testEmptyRowtimeField(): Unit = {
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "amount")
+    )
+    val ts = new TestTableSourceWithTime(
+      Seq[Row](),
+      rowType,
+      "",
+      null
+    )
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    // should fail because configured rowtime field is empty
+    tEnv.registerTableSource("testTable", ts)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testEmptyProctimeField(): Unit = {
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "amount")
+    )
+    val ts = new TestTableSourceWithTime(
+      Seq[Row](),
+      rowType,
+      null,
+      ""
+    )
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    // should fail because configured proctime field is empty
+    tEnv.registerTableSource("testTable", ts)
   }
 }
