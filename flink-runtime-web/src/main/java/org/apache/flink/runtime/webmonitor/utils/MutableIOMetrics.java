@@ -113,7 +113,7 @@ public class MutableIOMetrics extends IOMetrics {
 							this.numRecordsOut = -1;
 						}
 					}
-					else{
+					else {
 						this.numBytesInLocal = -1;
 						this.numBytesInRemote = -1;
 						this.numBytesOut = -1;
@@ -159,7 +159,7 @@ public class MutableIOMetrics extends IOMetrics {
 	}
 
 	/**
-	 * Write the IO Metric to the JSON with its completeness attribute
+	 * Write the IO Metric to the JSON with its completeness attribute.
 	 *
 	 * @param gen JsonGenerator to which the metrics should be written
 	 * @param fieldName Name of the added JSON attribute
