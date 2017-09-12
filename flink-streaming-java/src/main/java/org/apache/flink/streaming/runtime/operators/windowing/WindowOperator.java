@@ -134,9 +134,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected final OutputTag<IN> lateDataOutputTag;
 
 	/**
-	* Metrics about the lost data due to arrive late
+	* Metrics about the lost data due to arrive late.
 	* */
-	protected final String METRICS_LOST_DATA = "lost_data";
+	protected final String loseData = "lost_data";
 
 	protected Counter lostDataCount;
 
@@ -216,7 +216,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public void open() throws Exception {
 		super.open();
 
-		this.lostDataCount = metrics.counter(METRICS_LOST_DATA);
+		this.lostDataCount = metrics.counter(loseData);
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		internalTimerService =
