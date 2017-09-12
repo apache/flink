@@ -153,6 +153,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 
 				// drop if the window is already late
 				if (isWindowLate(actualWindow)) {
+					this.lostDataCount.inc();
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
@@ -195,6 +196,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 
 				// check if the window is already inactive
 				if (isWindowLate(window)) {
+					this.lostDataCount.inc();
 					continue;
 				}
 				isSkippedElement = false;

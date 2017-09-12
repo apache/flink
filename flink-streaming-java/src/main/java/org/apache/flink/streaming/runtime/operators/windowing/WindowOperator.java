@@ -41,6 +41,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -132,6 +133,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected final OutputTag<IN> lateDataOutputTag;
 
+	/**
+	* Metrics about the lost data due to arrive late
+	* */
+	protected final String METRICS_LOST_DATA = "lost_data";
+
+	protected Counter lostDataCount;
+
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
 	// ------------------------------------------------------------------------
@@ -208,6 +216,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public void open() throws Exception {
 		super.open();
 
+		this.lostDataCount = metrics.counter(METRICS_LOST_DATA);
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		internalTimerService =
@@ -333,6 +342,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				// drop if the window is already late
 				if (isWindowLate(actualWindow)) {
+					this.lostDataCount.inc();
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
@@ -372,6 +382,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				// drop if the window is already late
 				if (isWindowLate(window)) {
+					this.lostDataCount.inc();
 					continue;
 				}
 				isSkippedElement = false;
