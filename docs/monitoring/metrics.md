@@ -894,7 +894,7 @@ Thus, in order to infer the metric identifier:
       <td>The number of bytes this task emits per second.</td>
     </tr>
     <tr>
-      <th rowspan="4"><strong>Task/Operator</strong></th>
+      <th rowspan="5"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
       <td>The total number of records this operator/task has received.</td>
     </tr>
@@ -909,6 +909,10 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>numRecordsOutPerSecond</td>
       <td>The number of records this operator/task sends per second.</td>
+    </tr>
+    <tr>
+      <td>numLateRecordsDropped</td>
+      <td>The number of records this operator/task has dropped due to arriving late.</td>
     </tr>
     <tr>
       <th rowspan="2"><strong>Operator</strong></th>

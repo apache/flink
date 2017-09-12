@@ -229,8 +229,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		// element not handled by any window
 		// late arriving tag has been set
 		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
-		if (isSkippedElement && lateDataOutputTag != null && isElementLate(element)) {
-			sideOutput(element);
+		if (isSkippedElement && isElementLate(element)) {
+			if (lateDataOutputTag != null){
+				sideOutput(element);
+			} else {
+				this.numLateRecordsDropped.inc();
+			}
 		}
 	}
 
