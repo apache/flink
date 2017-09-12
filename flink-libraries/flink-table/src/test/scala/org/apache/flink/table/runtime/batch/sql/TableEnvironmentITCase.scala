@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import java.util
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
@@ -127,7 +125,7 @@ class TableEnvironmentITCase(
     val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
 
-    val fieldNames = Seq("d", "e", "f").toArray
+    val fieldNames = Array("d", "e", "f")
     val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
     val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)

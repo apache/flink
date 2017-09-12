@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.batch.sql.validation
+package org.apache.flink.table.api.batch.table.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{MemoryTableSinkUtil, TableTestBase}
 import org.junit._
 
 class InsertIntoValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testInconsistentLengthInsert(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
@@ -37,11 +37,12 @@ class InsertIntoValidationTest extends TableTestBase {
     val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
     util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
-    util.tableEnv.sqlUpdate(sql)
+    util.tableEnv.scan("sourceTable")
+      .select('a, 'b, 'c)
+      .insertInto("targetTable")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testUnmatchedTypesInsert(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
@@ -51,22 +52,8 @@ class InsertIntoValidationTest extends TableTestBase {
     val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
     util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
-    util.tableEnv.sqlUpdate(sql)
-  }
-
-  /** test unsupported partial insert **/
-  @Test(expected = classOf[TableException])
-  def testUnsupportedPartialInsert(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
-
-    val fieldNames = Array("d", "e", "f")
-    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getTypes
-    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
-    util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
-
-    val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
-    util.tableEnv.sqlUpdate(sql, util.tableEnv.queryConfig)
+    util.tableEnv.scan("sourceTable")
+      .select('a, 'b, 'c)
+      .insertInto("targetTable")
   }
 }

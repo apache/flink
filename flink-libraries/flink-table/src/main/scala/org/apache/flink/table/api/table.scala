@@ -835,13 +835,16 @@ class Table(
         val rowType = getRelNode.getRowType
         val srcFieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
           .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
-        // column count validation
-        // column type validation, no need to validate field names
+        // column length and types validation, no need to validate field names
         if (srcFieldTypes.length != sink.tableSink.getFieldTypes.length ||
           sink.tableSink.getFieldTypes.zip(srcFieldTypes).exists(f => f._1 != f._2)) {
-          //Schema of inserted table must exactly match the schema of the target table.
-          // TODO Inserted// table: [a: INTEGER, b: VARCHAR], Destination table: [a: INTEGER, b: VARCHAR, c: LONG].
-          throw TableException(s"source row type doesn't match target table[$tableName]'s.")
+          val srcFieldsInfo = rowType.getFieldNames.asScala.zip(srcFieldTypes).map(
+            f => s"${f._1}: ${f._2.getTypeClass.getSimpleName}")
+          val sinkFieldsInfo = sink.tableSink.getFieldNames.zip(sink.tableSink.getFieldTypes).map(
+            f => s"${f._1}: ${f._2.getTypeClass.getSimpleName}")
+          throw TableException(s"Schema of inserted table must exactly match the schema of the " +
+            s"target table $tableName. Inserted table: [$srcFieldsInfo], target " +
+            s"table: [$sinkFieldsInfo] ")
         }
         // emit the table to the configured table sink
         tableEnv.writeToSink(this, sink.tableSink, conf)

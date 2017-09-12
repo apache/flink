@@ -621,7 +621,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         // validate unsupported partial insertion to sink table
         val sinkTable = targetTable.asInstanceOf[TableSinkTable[_]]
         if (null != insert.getTargetColumnList && insert.getTargetColumnList.size() !=
-          sinkTable.fieldTypes.length) {
+          sinkTable.tableSink.getFieldTypes.length) {
 
           throw new TableException(
             "SQL INSERT requires that the schema of the inserted records exactly matches the " +

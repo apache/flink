@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.stream.sql.validation
+package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, TableException, Types, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.junit.Test
 
 class InsertIntoValidationTest {
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testInconsistentLengthInsert(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -36,16 +36,17 @@ class InsertIntoValidationTest {
     val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
 
-    val fieldNames = Array("d", "e")
+    val fieldNames = Array("d", "f")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.LONG)
     val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
-    tEnv.sqlUpdate(sql)
+    tEnv.scan("sourceTable")
+      .select('a, 'b, 'c)
+      .insertInto("targetTable")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testUnmatchedTypesInsert(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -58,25 +59,8 @@ class InsertIntoValidationTest {
     val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
-    tEnv.sqlUpdate(sql)
-  }
-
-  /** test unsupported partial insert **/
-  @Test(expected = classOf[TableException])
-  def testUnsupportedPartialInsert(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
-    tEnv.registerTable("sourceTable", t)
-
-    val fieldNames = Array("d", "e", "f")
-    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
-    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
-
-    val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
-    tEnv.sqlUpdate(sql)
+    tEnv.scan("sourceTable")
+      .select('a, 'b, 'c)
+      .insertInto("targetTable")
   }
 }

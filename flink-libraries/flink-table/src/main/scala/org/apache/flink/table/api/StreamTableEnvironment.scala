@@ -163,6 +163,14 @@ abstract class StreamTableEnvironment(
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit = {
     checkValidTableName(name)
+    if (null == fieldNames || null == fieldTypes) {
+      throw new TableException("fieldNames and fieldTypes should not be empty!")
+    }
+    if (fieldNames.length != fieldTypes.length) {
+      val errorMsg = "Field names and types should have same length! Passing fieldNames " +
+        s"length: ${fieldNames.length} but fieldTypes length: ${fieldTypes.length}"
+      throw new TableException(errorMsg)
+    }
 
     tableSink match {
       case streamTableSink@(_: AppendStreamTableSink[_] | _: UpsertStreamTableSink[_] |
