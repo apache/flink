@@ -438,11 +438,11 @@ Flink metric types are mapped to Prometheus metric types as follows:
 | Flink     | Prometheus | Note                                     |
 | --------- |------------|------------------------------------------|
 | Counter   | Gauge      |Prometheus counters cannot be decremented.|
-| Gauge     | Gauge      |                                          |
+| Gauge     | Gauge      |Only numbers and booleans are supported.  |
 | Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
 | Meter     | Gauge      |The gauge exports the meter's rate.       |
 
-All Flink metrics variables, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>` and `<operator_name>`, are exported to Prometheus as labels. 
+All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
