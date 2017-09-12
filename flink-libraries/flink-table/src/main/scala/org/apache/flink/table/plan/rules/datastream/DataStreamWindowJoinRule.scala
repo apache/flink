@@ -55,10 +55,7 @@ class DataStreamWindowJoinRule
 
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {
-        val procTimeAttrInOutput = join.getRowType.getFieldList.asScala
-          .exists(f => FlinkTypeFactory.isProctimeIndicatorType(f.getType))
-
-        !remainingPredsAccessTime && !procTimeAttrInOutput
+        !remainingPredsAccessTime
       } else {
         // Check that no event-time attributes are in the input.
         // The proc-time join implementation does ensure that record timestamp are correctly set.

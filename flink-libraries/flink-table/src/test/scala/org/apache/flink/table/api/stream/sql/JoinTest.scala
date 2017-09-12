@@ -70,6 +70,44 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testRowTimeInnerJoinWithOnClause() = {
+
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.c BETWEEN t2.c - INTERVAL '10' SECOND AND t2.c + INTERVAL '1' HOUR
+        |""".stripMargin
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c")
+          ),
+          term("where",
+            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
+              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+          term("join", "a, c, a0, b, c0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
   def testProcessingTimeInnerJoinWithWhereClause() = {
 
     val sqlQuery =
@@ -99,6 +137,44 @@ class JoinTest extends TableTestBase {
             "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
               "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b0 AS b")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testRowTimeInnerJoinWithWhereClause() = {
+
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.c BETWEEN t2.c - INTERVAL '10' MINUTE AND t2.c + INTERVAL '1' HOUR
+        |""".stripMargin
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c")
+          ),
+          term("where",
+            "AND(=(a, a0), >=(c, -(c0, 600000)), " +
+              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+          term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
         term("select", "a", "b0 AS b")

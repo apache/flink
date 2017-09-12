@@ -39,16 +39,22 @@ import scala.collection.JavaConverters._
   */
 object WindowJoinUtil {
 
-  case class WindowBounds(isEventTime: Boolean, leftLowerBound: Long, leftUpperBound: Long,
-    leftTimeIdx: Int, rightTimeIdx: Int)
+  case class WindowBounds(
+    isEventTime: Boolean,
+    leftLowerBound: Long,
+    leftUpperBound: Long,
+    leftTimeIdx: Int,
+    rightTimeIdx: Int)
 
   protected case class WindowBound(bound: Long, isLeftLower: Boolean)
+
   protected case class TimePredicate(
     isEventTime: Boolean,
     leftInputOnLeftSide: Boolean,
     leftTimeIdx: Int,
     rightTimeIdx: Int,
     pred: RexCall)
+
   protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
 
   /**
@@ -118,15 +124,24 @@ object WindowJoinUtil {
       case _ =>
         Some(otherPreds.reduceLeft((l, r) => RelOptUtil.andJoinFilters(rexBuilder, l, r)))
     }
-    if (timePreds.head.leftInputOnLeftSide) {
-      val bounds = Some(WindowBounds(timePreds.head.isEventTime, leftLowerBound, leftUpperBound,
-        timePreds.head.leftTimeIdx, timePreds.last.rightTimeIdx - leftLogicalFieldCnt))
-      (bounds, remainCondition)
+
+    val bounds = if (timePreds.head.leftInputOnLeftSide) {
+      Some(WindowBounds(
+        timePreds.head.isEventTime,
+        leftLowerBound,
+        leftUpperBound,
+        timePreds.head.leftTimeIdx,
+        timePreds.head.rightTimeIdx))
     } else {
-      val bounds = Some(WindowBounds(timePreds.head.isEventTime, leftLowerBound, leftUpperBound,
-        timePreds.last.rightTimeIdx, timePreds.head.leftTimeIdx - leftLogicalFieldCnt))
-      (bounds, remainCondition)
+      Some(WindowBounds(
+        timePreds.head.isEventTime,
+        leftLowerBound,
+        leftUpperBound,
+        timePreds.head.rightTimeIdx,
+        timePreds.head.leftTimeIdx))
     }
+
+    (bounds, remainCondition)
   }
 
   /**
@@ -232,8 +247,11 @@ object WindowJoinUtil {
         inputType.getFieldList.get(idx).getType match {
           case t: TimeIndicatorRelDataType =>
             // time attribute access. Remember time type and side of input
-            val isLeftInput = idx < leftFieldCount
-            Seq(TimeAttributeAccess(t.isEventTime, isLeftInput, idx))
+            if (idx < leftFieldCount) {
+              Seq(TimeAttributeAccess(t.isEventTime, true, idx))
+            } else {
+              Seq(TimeAttributeAccess(t.isEventTime, false, idx - leftFieldCount))
+            }
           case _ =>
             // not a time attribute access.
             Seq()
