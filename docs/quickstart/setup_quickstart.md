@@ -284,7 +284,7 @@ window of processing time, as long as words are floating in.
   as words are floating in, e.g.:
 
   ~~~bash
-  $ tail -f log/flink-*-jobmanager-*.out
+  $ tail -f log/flink-*-taskmanager-*.out
   lorem : 1
   bye : 1
   ipsum : 4
