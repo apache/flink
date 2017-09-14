@@ -371,6 +371,8 @@ object FlinkTypeFactory {
       val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
       mapRelDataType.typeInfo
 
+    case BINARY => PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
+
     case _@t =>
       throw TableException(s"Type is not supported: $t")
   }
