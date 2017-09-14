@@ -497,7 +497,9 @@ env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment
 env.setBufferTimeout(timeoutMillis)
 
-env.genereateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
+def myMap : Long => Long = _ + 1 // `generateSequence` returns a `DataStream[Long]` type
+
+env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
 {% endhighlight %}
 </div>
 </div>
@@ -619,7 +621,7 @@ import org.apache.flink.contrib.streaming.DataStreamUtils
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.getJavaStream).asScala
+val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStream).asScala
 {% endhighlight %}
 </div>
 </div>
