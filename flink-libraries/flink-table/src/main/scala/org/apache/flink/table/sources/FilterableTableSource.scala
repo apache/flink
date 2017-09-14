@@ -20,6 +20,7 @@ package org.apache.flink.table.sources
 
 import java.util.{List => JList}
 
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.expressions.Expression
 /**
   * Adds support for filtering push-down to a [[TableSource]].
@@ -44,8 +45,7 @@ trait FilterableTableSource[T] {
     * @param predicates A list contains conjunctive predicates, you should pick and remove all
     *                   expressions that can be pushed down. The remaining elements of this list
     *                   will further evaluated by framework.
-    * @return A new cloned instance of [[TableSource]] with or without any filters been
-    *         pushed into it.
+    * @return A new cloned instance of [[TableSource]]
     */
   def applyPredicate(predicates: JList[Expression]): TableSource[T]
 
@@ -54,5 +54,10 @@ trait FilterableTableSource[T] {
     * the returned instance of [[applyPredicate]].
     */
   def isFilterPushedDown: Boolean
+
+  /**
+    * @param relBuilder Builder for relational expressions.
+    */
+  def setRelBuilder(relBuilder: RelBuilder): Unit
 
 }

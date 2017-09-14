@@ -20,6 +20,7 @@ package org.apache.flink.table.utils
 
 import java.util.{List => JList}
 
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
@@ -97,6 +98,8 @@ class TestFilterableTableSource(
   }
 
   override def isFilterPushedDown: Boolean = filterPushedDown
+
+  override def setRelBuilder(relBuilder: RelBuilder): Unit = {}
 
   private def generateDynamicCollection(): Seq[Row] = {
     Preconditions.checkArgument(filterPredicates.length == filterValues.length)

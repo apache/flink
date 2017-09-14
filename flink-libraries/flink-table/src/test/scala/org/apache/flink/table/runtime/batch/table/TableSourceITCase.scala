@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.utils.TestFilterableTableSource
+import org.apache.flink.table.utils.{TestFilterableTableSource, TestPartitionableTableSource}
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -74,6 +74,36 @@ class TableSourceITCase(
 
     val expected = Seq(
       "5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testPartitionableTableSourceWithPartitionFields(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerTableSource("partitionable_table", new TestPartitionableTableSource)
+
+    val results = tEnv.scan("partitionable_table")
+      .where('part === "2" || 'part === "1" && 'id > 2)
+      .collect()
+
+    val expected = Seq("3,John,2,part=1#part=2", "4,nosharp,2,part=1#part=2").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testPartitionableTableSourceWithoutPartitionFields(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerTableSource("partitionable_table", new TestPartitionableTableSource)
+
+    val results = tEnv.scan("partitionable_table")
+      .where('name === "Lucy")
+      .collect()
+
+    val expected = Seq("6,Lucy,3,null").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

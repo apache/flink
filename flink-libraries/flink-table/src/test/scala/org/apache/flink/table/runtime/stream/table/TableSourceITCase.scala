@@ -24,7 +24,7 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
-import org.apache.flink.table.utils.TestFilterableTableSource
+import org.apache.flink.table.utils.{TestFilterableTableSource, TestPartitionableTableSource}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -75,6 +75,44 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
 
     val expected = mutable.MutableList(
       "5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testPartitionableTableSourceWithPartitionFields(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    tEnv.registerTableSource("partitionable_table", new TestPartitionableTableSource)
+
+    tEnv.scan("partitionable_table")
+      .where('part === "2" || 'part === "1" && 'id > 2)
+      .addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = mutable.MutableList("3,John,2,part=1#part=2", "4,nosharp,2,part=1#part=2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testPartitionPruningRuleNotAppliedWithoutPartitionFields(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    tEnv.registerTableSource("partitionable_table", new TestPartitionableTableSource)
+
+    tEnv.scan("partitionable_table")
+      .where('name === "Lucy")
+      .addSink(new StreamITCase.StringSink[Row])
+
+    env.execute()
+
+    val expected = mutable.MutableList("6,Lucy,3,null")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

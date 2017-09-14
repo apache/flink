@@ -66,12 +66,13 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
     Preconditions.checkArgument(!filterableSource.isFilterPushedDown)
 
+    val relBuilder = call.builder()
     val program = calc.getProgram
     val functionCatalog = FunctionCatalog.withBuiltIns
     val (predicates, unconvertedRexNodes) =
       RexProgramExtractor.extractConjunctiveConditions(
         program,
-        call.builder().getRexBuilder,
+        relBuilder.getRexBuilder,
         functionCatalog)
     if (predicates.isEmpty) {
       // no condition can be translated to expression
@@ -81,10 +82,10 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
     val remainingPredicates = new util.LinkedList[Expression]()
     predicates.foreach(e => remainingPredicates.add(e))
 
+    filterableSource.setRelBuilder(relBuilder)
     val newTableSource = filterableSource.applyPredicate(remainingPredicates)
 
     // check whether framework still need to do a filter
-    val relBuilder = call.builder()
     val remainingCondition = {
       if (!remainingPredicates.isEmpty || unconvertedRexNodes.nonEmpty) {
         relBuilder.push(scan)
