@@ -78,6 +78,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Stream;
 
 /**
  * A {@link AbstractKeyedStateBackend} that keeps state on the Java Heap and will serialize state to
@@ -210,6 +211,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		return stateTable;
+	}
+
+	@Override
+	public <N> Stream<K> getKeys(String field, N namespace) {
+		if (!stateTables.containsKey(field)) {
+			return Stream.empty();
+		}
+		StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateTables.get(field);
+		return table.getKeys(namespace);
 	}
 
 	private boolean hasRegisteredState() {

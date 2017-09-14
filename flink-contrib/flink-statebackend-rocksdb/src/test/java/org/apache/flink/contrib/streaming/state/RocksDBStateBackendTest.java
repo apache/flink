@@ -74,8 +74,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Stream;
 
 import static junit.framework.TestCase.assertNotNull;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -439,6 +441,32 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		// just the root directory left
 		assertEquals(1, allFilesInDbDir.size());
+	}
+
+	@Test
+	public void testGetKeys() throws Exception {
+		String fieldName = "get-keys-test";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+
+			int[] expectedKeys = {0, 42, 44, 1337};
+			for (int key : expectedKeys) {
+				backend.setCurrentKey(key);
+				keyedState.update(key * 2);
+			}
+
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
+				int[] actualKeys = keysStream.mapToInt(value -> value.intValue()).toArray();
+				assertArrayEquals(expectedKeys, actualKeys);
+			}
+		}
+		finally {
+			IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
 	}
 
 	@Test
