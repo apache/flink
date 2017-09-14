@@ -67,7 +67,7 @@ under the License.
 		<module>flink-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
-	<!--	<module>flink-tests</module>-->
+		<module>flink-tests</module>
 		<module>flink-test-utils-parent</module>
 		<module>flink-libraries</module>
 		<module>flink-scala-shell</module>
@@ -84,13 +84,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-<<<<<<< HEAD
 		<hadoop.version>2.4.1</hadoop.version>
-=======
-		<!-- Internal property to reduce build times on TravisCi -->
-		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<hadoop.version>2.8.0</hadoop.version>
->>>>>>> 76d80f86be9162b32581306d489fd58fcc86f6ca
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
