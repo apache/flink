@@ -134,7 +134,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected final OutputTag<IN> lateDataOutputTag;
 
-	protected final static String LATE_ELEMENTS_METRIC_NAME = "numLateRecords";
+	protected static final  String LATE_ELEMENTS_METRIC_NAME = "numLateRecords";
 
 	protected final Counter lostDataCount = new SimpleCounter();
 
