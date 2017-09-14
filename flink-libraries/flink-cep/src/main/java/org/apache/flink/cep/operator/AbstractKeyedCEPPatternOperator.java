@@ -329,7 +329,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	 */
 	private void processEvent(NFA<IN> nfa, IN event, long timestamp)  {
 		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
-			nfa.process(event, timestamp);
+			nfa.process(event, timestamp, afterMatchSkipStrategy);
 
 		try {
 			processMatchedSequences(patterns.f0, timestamp);
