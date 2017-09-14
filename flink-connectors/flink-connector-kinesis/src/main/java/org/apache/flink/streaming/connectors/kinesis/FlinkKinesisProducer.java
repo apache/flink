@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kinesis;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.InstantiationUtil;
@@ -172,8 +171,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 		// check and pass the configuration properties
 		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
-		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
-		producerConfig.setThreadingModel(KinesisProducerConfiguration.ThreadingModel.POOLED);
 
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {

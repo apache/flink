@@ -37,7 +37,7 @@ import static org.junit.Assert.assertEquals;
  * Tests for KinesisConfigUtil.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({KinesisConfigUtil.class})
+@PrepareForTest(KinesisConfigUtil.class)
 public class KinesisConfigUtilTest {
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
@@ -73,6 +73,25 @@ public class KinesisConfigUtilTest {
 		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(150, kpc.getRateLimit());
+	}
+
+	@Test
+	public void testDefaultThreadingModelInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(KinesisProducerConfiguration.ThreadingModel.POOLED, kpc.getThreadingModel());
+	}
+
+	@Test
+	public void testCustomizedThreadingModelSizeInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigUtil.THREADING_MODEL, "PER_REQUEST");
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(KinesisProducerConfiguration.ThreadingModel.PER_REQUEST, kpc.getThreadingModel());
 	}
 
 	@Test

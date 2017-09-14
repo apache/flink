@@ -53,6 +53,11 @@ public class KinesisConfigUtil {
 	protected static final String RATE_LIMIT = "RateLimit";
 
 	/**
+	 * The threading model that KinesisProducer will use.
+	 **/
+	protected static final String THREADING_MODEL = "ThreadingModel";
+
+	/**
 	 * The maximum number of threads that the native process' thread pool will be configured with.
 	 **/
 	protected static final String THREAD_POOL_SIZE = "ThreadPoolSize";
@@ -187,9 +192,18 @@ public class KinesisConfigUtil {
 
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
 
+		kpc.setCredentialsProvider(AWSUtil.getCredentialsProvider(config));
+
 		// Because of bug https://github.com/awslabs/amazon-kinesis-producer/issues/124
-		// KPL cannot set ThreadPoolSize using Java reflection
-		// Thus we have to set ThreadPoolSize explicitly
+		// KPL cannot set ThreadingModel and ThreadPoolSize using Java reflection
+		// Thus we have to set them explicitly
+		if (config.containsKey(THREADING_MODEL)) {
+			kpc.setThreadingModel(
+					KinesisProducerConfiguration.ThreadingModel.valueOf(config.getProperty(THREADING_MODEL)));
+		} else {
+			kpc.setThreadingModel(KinesisProducerConfiguration.ThreadingModel.POOLED);
+		}
+
 		if (config.containsKey(THREAD_POOL_SIZE)) {
 			kpc.setThreadPoolSize(Integer.parseInt(config.getProperty(THREAD_POOL_SIZE)));
 		} else {
