@@ -79,8 +79,8 @@ public class MutableIOMetrics extends IOMetrics {
 						/**
 						 * We want to keep track of missing metrics to be able to make a difference between 0 as a value
 						 * and a missing value.
-						 * In case a metric is missing for a parallel instance of a task, we initialize if with -1 and
-						 * will be considered as incomplete
+						 * In case a metric is missing for a parallel instance of a task, we initialize it with -1 and
+						 * consider it as incomplete.
 						 */
 						if (this.numBytesInLocal >= 0 && metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL) != null){
 							this.numBytesInLocal += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL));
@@ -141,7 +141,7 @@ public class MutableIOMetrics extends IOMetrics {
 	 */
 	public void writeIOMetricsAsJson(JsonGenerator gen) throws IOException {
 		/**
-		 * Ask describe in the addIOMetrics, we want to distinguish incomplete values from 0.
+		 * As described in {@link addIOMetrics}, we want to distinguish incomplete values from 0.
 		 * However, for API backward compatibility, incomplete metrics will still be represented by the 0 value and
 		 * a boolean will indicate the completeness.
 		 */
