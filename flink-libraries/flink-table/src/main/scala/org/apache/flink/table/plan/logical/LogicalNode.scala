@@ -99,7 +99,11 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
   def resolveReference(tableEnv: TableEnvironment, name: String): Option[NamedExpression] = {
     // try to resolve a field
     val childrenOutput = children.flatMap(_.output)
-    val fieldCandidates = childrenOutput.filter(_.name.equalsIgnoreCase(name))
+    val fieldCandidates = if (tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()) {
+      childrenOutput.filter(_.name.equals(name))
+    } else {
+      childrenOutput.filter(_.name.equalsIgnoreCase(name))
+    }
     if (fieldCandidates.length > 1) {
       failValidation(s"Reference $name is ambiguous.")
     } else if (fieldCandidates.nonEmpty) {
