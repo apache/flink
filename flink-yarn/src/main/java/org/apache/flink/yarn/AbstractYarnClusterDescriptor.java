@@ -1352,8 +1352,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
 		final  Map<String, String> startCommandValues = new HashMap<>();
-		startCommandValues.put("java", "%JAVA_HOME%/bin/java");//For AP yarn cluster
-		//startCommandValues.put("java", "$JAVA_HOME/bin/java");//For HDI yarn cluster
+		//startCommandValues.put("java", "%JAVA_HOME%/bin/java");//For AP yarn cluster
+		startCommandValues.put("java", "$JAVA_HOME/bin/java");//For HDI yarn cluster
 		startCommandValues.put("jvmmem", "-Xmx" +
 			Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) +
 			"m");
