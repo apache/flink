@@ -58,15 +58,18 @@ public class TemplateManager {
 
 	/**
 	 * Constructor.
-	 * @throws IOException
 	 */
-	private TemplateManager() throws IOException {
+	private TemplateManager() {
 		Configuration templateConf;
 		templateConf = new Configuration();
 		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
-		template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
+		try {
+			template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
+		} catch (IOException e) {
+			throw new RuntimeException("Couldn't read sorter template.", e);
+		}
 	}
 
 
@@ -74,9 +77,8 @@ public class TemplateManager {
 	 * A method to get a singleton instance
 	 * or create one if it hasn't been created yet.
 	 * @return The singleton instance.
-	 * @throws IOException
 	 */
-	public static synchronized TemplateManager getInstance() throws IOException {
+	public static synchronized TemplateManager getInstance() {
 		if (templateManager == null){
 			templateManager = new TemplateManager();
 		}

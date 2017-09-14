@@ -67,10 +67,15 @@ public class SorterFactory {
 	private HashMap<String, Constructor> constructorCache;
 
 	/**
-	 * Constructor.
-	 * @throws IOException
+	 * This is only for testing. If an error occurs, we want to fail the test, instead of falling back
+	 * to a non-generated sorter.
 	 */
-	private SorterFactory() throws IOException {
+	public boolean forceCodeGeneration = false;
+
+	/**
+	 * Constructor.
+	 */
+	private SorterFactory() {
 		this.templateManager = TemplateManager.getInstance();
 		this.classCompiler = new SimpleCompiler();
 		this.constructorCache = new HashMap<>();
@@ -80,9 +85,8 @@ public class SorterFactory {
 	 * A method to get a singleton instance
 	 * or create one if it hasn't been created yet.
 	 * @return
-	 * @throws IOException
 	 */
-	public static synchronized SorterFactory getInstance() throws IOException {
+	public static synchronized SorterFactory getInstance() {
 		if (sorterFactory == null){
 			sorterFactory = new SorterFactory();
 		}
@@ -98,60 +102,73 @@ public class SorterFactory {
 	 * @param comparator
 	 * @param memory
 	 * @return
-	 * @throws IOException
-	 * @throws TemplateException
-	 * @throws ClassNotFoundException
-	 * @throws IllegalAccessException
-	 * @throws InstantiationException
-	 * @throws NoSuchMethodException
-	 * @throws InvocationTargetException
 	 */
-	@SuppressWarnings("unchecked")
-	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
-
-		InMemorySorter<T> sorter;
-
+	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
 		if (config.isCodeGenerationForSorterEnabled()){
-			SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
-
-			Constructor sorterConstructor;
-
-			synchronized (this){
-				if (constructorCache.getOrDefault(sorterModel.getSorterName(), null) != null) {
-					sorterConstructor = constructorCache.get(sorterModel.getSorterName());
+			try {
+				return createCodegenSorter(serializer, comparator, memory);
+			} catch (IOException | TemplateException | ClassNotFoundException | IllegalAccessException |
+					InstantiationException | NoSuchMethodException | InvocationTargetException | CompileException e) {
+				String msg = "Serializer: " + serializer +
+						"[" + serializer + "], comparator: [" + comparator + "], exception: " + e.toString();
+				if (!forceCodeGeneration) {
+					LOG.warn("An error occurred while trying to create a code generated sorter. Using non-codegen sorter instead. " + msg);
+					return createNonCodegenSorter(serializer, comparator, memory);
 				} else {
-					String sorterName = sorterModel.getSorterName();
-					String generatedCode = this.templateManager.getGeneratedCode(sorterModel);
-					this.classCompiler.cook(generatedCode);
-
-					sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
-						TypeSerializer.class, TypeComparator.class, List.class
-					);
-
-					constructorCache.put(sorterName, sorterConstructor);
+					throw new RuntimeException("An error occurred while trying to create a code generated sorter. Failing the job, because forceCodeGeneration. " + msg);
 				}
 			}
-
-			sorter = (InMemorySorter<T>) sorterConstructor.newInstance(serializer, comparator, memory);
-
-			if (LOG.isInfoEnabled()){
-				LOG.info("Using a custom sorter : " + sorter.toString());
-			}
 		} else {
-			// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-			if (comparator.supportsSerializationWithKeyNormalization() &&
-					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING &&
-					comparator.isNormalizedKeyPrefixOnly(comparator.getNormalizeKeyLen())) {
-				// Note about the last part of the condition:
-				// FixedLengthRecordSorter doesn't do an additional check after the bytewise comparison, so
-				// we cannot choose that if the normalized key doesn't always determine the order.
-				// (cf. the part of NormalizedKeySorter.compare after the if)
-				sorter = new FixedLengthRecordSorter<>(serializer, comparator.duplicate(), memory);
+			return createNonCodegenSorter(serializer, comparator, memory);
+		}
+	}
+
+	private <T> InMemorySorter<T> createCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
+			throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
+		SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
+
+		Constructor sorterConstructor;
+
+		synchronized (this){
+			if (constructorCache.getOrDefault(sorterModel.getSorterName(), null) != null) {
+				sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 			} else {
-				sorter = new NormalizedKeySorter<>(serializer, comparator.duplicate(), memory);
+				String sorterName = sorterModel.getSorterName();
+				String generatedCode = this.templateManager.getGeneratedCode(sorterModel);
+				this.classCompiler.cook(generatedCode);
+
+				sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
+						TypeSerializer.class, TypeComparator.class, List.class
+				);
+
+				constructorCache.put(sorterName, sorterConstructor);
 			}
 		}
 
+		@SuppressWarnings("unchecked")
+		InMemorySorter<T> sorter = (InMemorySorter<T>) sorterConstructor.newInstance(serializer, comparator, memory);
+
+		if (LOG.isInfoEnabled()){
+			LOG.info("Using a custom sorter : " + sorter.toString());
+		}
+
+		return sorter;
+	}
+
+	private <T> InMemorySorter<T> createNonCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
+		InMemorySorter<T> sorter;
+		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
+		if (comparator.supportsSerializationWithKeyNormalization() &&
+				serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING &&
+				comparator.isNormalizedKeyPrefixOnly(comparator.getNormalizeKeyLen())) {
+			// Note about the last part of the condition:
+			// FixedLengthRecordSorter doesn't do an additional check after the bytewise comparison, so
+			// we cannot choose that if the normalized key doesn't always determine the order.
+			// (cf. the part of NormalizedKeySorter.compare after the if)
+			sorter = new FixedLengthRecordSorter<>(serializer, comparator.duplicate(), memory);
+		} else {
+			sorter = new NormalizedKeySorter<>(serializer, comparator.duplicate(), memory);
+		}
 		return sorter;
 	}
 }

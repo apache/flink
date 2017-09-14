@@ -79,6 +79,7 @@ public class CodeGenerationSorterBaseTest {
 	public void beforeTest() throws IOException {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
 		this.sorterFactory = SorterFactory.getInstance();
+		this.sorterFactory.forceCodeGeneration = true;
 
 		Assert.assertTrue("Code generation for sorter is enabled", executionConfig.isCodeGenerationForSorterEnabled());
 	}

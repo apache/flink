@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.runtime.codegeneration.SorterFactory;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.junit.After;
@@ -54,7 +55,7 @@ import java.util.Collection;
  *       // test code
  *       env.execute();
  *   }
-
+ *
  * }</pre>
  */
 public class MultipleProgramsTestBase extends TestBaseUtils {
@@ -93,7 +94,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	@Before
 	public void setupEnvironment() {
-
 		switch(mode){
 			case CLUSTER:
 				new TestEnvironment(cluster, 4, false).setAsContext();
@@ -102,9 +102,8 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				new TestEnvironment(cluster, 4, true).setAsContext();
 				break;
 			case CLUSTER_WITH_CODEGENERATION_ENABLED:
-				TestEnvironment env = new TestEnvironment(cluster, 4, false);
-				env.setAsContext();
-				env.getConfig().setCodeGenerationForSorterEnabled(true);
+				new TestEnvironment(cluster, 4, false, true).setAsContext();
+				SorterFactory.getInstance().forceCodeGeneration = true; // Fail fast if an error occurs with codegen
 				break;
 			case COLLECTION:
 				new CollectionTestEnvironment().setAsContext();
