@@ -23,6 +23,8 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 
+import java.util.stream.Stream;
+
 /**
  * A keyed state backend provides methods for managing keyed state.
  *
@@ -35,6 +37,14 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 	 * @param newKey The new current key.
 	 */
 	void setCurrentKey(K newKey);
+
+	/**
+	 * @return A stream of all keys for the given state and namespace. Modifications to the state during iterating
+	 * 		   over it keys are not supported.
+	 * @param state State variable for which existing keys will be returned.
+	 * @param namespace Namespace for which existing keys will be returned.
+	 */
+	<N> Stream<K> getKeys(String state, N namespace);
 
 	/**
 	 * Creates or retrieves a keyed state backed by this state backend.
