@@ -20,6 +20,7 @@ package org.apache.flink.api.io.parquet;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -43,6 +44,8 @@ import java.util.Map;
 
 /**
  * A {@link ParquetRecordConverter} is used to convert Parquet records into {@link Row}.
+ *
+ * TODO supports more Flink TypeInformation
  */
 public class ParquetRecordConverter extends GroupConverter {
 
@@ -71,6 +74,9 @@ public class ParquetRecordConverter extends GroupConverter {
 					put(BasicTypeInfo.DATE_TYPE_INFO, new DateConverterCreator());
 					put(BasicTypeInfo.BIG_DEC_TYPE_INFO, new BigDecConverterCreator());
 					put(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, new ByteArrayConverterCreator());
+					put(SqlTimeTypeInfo.DATE, new SqlDateConverterCreator());
+					put(SqlTimeTypeInfo.TIME, new SqlTimeConverterCreator());
+					put(SqlTimeTypeInfo.TIMESTAMP, new SqlTimestampConverterCreator());
 				}
 			};
 
@@ -385,6 +391,63 @@ public class ParquetRecordConverter extends GroupConverter {
 				@Override
 				public void addBinary(Binary value) {
 					fieldSetter.set(value.getBytes());
+				}
+			};
+		}
+	}
+
+	private static class SqlDateConverterCreator extends PrimitiveConverterCreator {
+
+		@Override
+		protected void validatePrimitiveType(PrimitiveType type) {
+			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT32
+					&& type.getOriginalType() == OriginalType.DATE);
+		}
+
+		@Override
+		protected Converter newConverter(RowFieldSetter fieldSetter) {
+			return new ParquetPrimitiveConverter(fieldSetter) {
+				@Override
+				public void addInt(int value) {
+					fieldSetter.set(new java.sql.Date(value));
+				}
+			};
+		}
+	}
+
+	private static class SqlTimeConverterCreator extends PrimitiveConverterCreator {
+
+		@Override
+		protected void validatePrimitiveType(PrimitiveType type) {
+			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT32
+					&& type.getOriginalType() == OriginalType.TIME_MILLIS);
+		}
+
+		@Override
+		protected Converter newConverter(RowFieldSetter fieldSetter) {
+			return new ParquetPrimitiveConverter(fieldSetter) {
+				@Override
+				public void addInt(int value) {
+					fieldSetter.set(new java.sql.Time(value));
+				}
+			};
+		}
+	}
+
+	private static class SqlTimestampConverterCreator extends PrimitiveConverterCreator {
+
+		@Override
+		protected void validatePrimitiveType(PrimitiveType type) {
+			Preconditions.checkArgument(type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT64
+					&& type.getOriginalType() == OriginalType.TIMESTAMP_MILLIS);
+		}
+
+		@Override
+		protected Converter newConverter(RowFieldSetter fieldSetter) {
+			return new ParquetPrimitiveConverter(fieldSetter) {
+				@Override
+				public void addLong(long value) {
+					fieldSetter.set(new java.sql.Timestamp(value));
 				}
 			};
 		}

@@ -47,9 +47,14 @@ public class PojoParquetInputFormat<OUT> extends ParquetInputFormat<OUT> {
 	}
 
 	public PojoParquetInputFormat(Path filePath, PojoTypeInfo<OUT> pojoTypeInfo, String[] fieldNames) {
+		this(filePath, pojoTypeInfo, fieldNames, new ExecutionConfig());
+	}
+
+	public PojoParquetInputFormat(Path filePath, PojoTypeInfo<OUT> pojoTypeInfo, String[] fieldNames,
+			ExecutionConfig config) {
 		super(filePath, extractTypeInfo(pojoTypeInfo, fieldNames), fieldNames);
 
-		this.pojoSerializer = pojoTypeInfo.createSerializer(new ExecutionConfig());
+		this.pojoSerializer = pojoTypeInfo.createSerializer(config);
 		this.pojoTypeClass = pojoTypeInfo.getTypeClass();
 	}
 

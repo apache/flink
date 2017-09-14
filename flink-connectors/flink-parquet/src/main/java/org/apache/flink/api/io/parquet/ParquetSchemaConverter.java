@@ -35,6 +35,8 @@ import java.util.Map;
 /**
  * A {@link ParquetSchemaConverter} is used to convert Parquet {@link MessageType} to
  * Flink field-name and {@link TypeInformation} pairs, and vice versa.
+ *
+ * TODO supports more Flink TypeInformation and Parquet MessageType
  */
 public class ParquetSchemaConverter {
 
@@ -51,7 +53,7 @@ public class ParquetSchemaConverter {
 				case REQUIRED:
 					result.put(name, convertType(type));
 					break;
-				case REPEATED:
+				default:
 					throw new UnsupportedOperationException(type + " is not supported");
 			}
 		}

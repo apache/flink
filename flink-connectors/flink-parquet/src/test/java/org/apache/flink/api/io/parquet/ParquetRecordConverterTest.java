@@ -20,6 +20,7 @@ package org.apache.flink.api.io.parquet;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Row;
 
@@ -67,7 +68,10 @@ public class ParquetRecordConverterTest {
 				Types.required(BINARY).as(OriginalType.ENUM).named("binary_original_enum"),
 				Types.required(BINARY).as(OriginalType.JSON).named("binary_original_json"),
 				Types.required(BINARY).as(OriginalType.BSON).named("binary_original_bson"),
-				Types.required(BINARY).as(OriginalType.DECIMAL).precision(9).scale(2).named("binary_original_decimal"))
+				Types.required(BINARY).as(OriginalType.DECIMAL).precision(9).scale(2).named("binary_original_decimal"),
+				Types.repeated(INT32).as(OriginalType.DATE).named("int32_original_sql_date"),
+				Types.repeated(INT32).as(OriginalType.TIME_MILLIS).named("int32_original_sql_time"),
+				Types.repeated(INT64).as(OriginalType.TIMESTAMP_MILLIS).named("int32_original_sql_timestamp"))
 				.named("flink-parquet");
 
 		TypeInformation<?>[] fieldTypes = {
@@ -88,7 +92,10 @@ public class ParquetRecordConverterTest {
 				BasicTypeInfo.STRING_TYPE_INFO, // 14
 				BasicTypeInfo.STRING_TYPE_INFO, // 15
 				PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, // 16
-				BasicTypeInfo.BIG_DEC_TYPE_INFO // 17
+				BasicTypeInfo.BIG_DEC_TYPE_INFO, // 17
+				SqlTimeTypeInfo.DATE, // 18
+				SqlTimeTypeInfo.TIME, //19
+				SqlTimeTypeInfo.TIMESTAMP // 20
 		};
 		ParquetRecordConverter recordConverter = new ParquetRecordConverter(parquetSchema.asGroupType(), fieldTypes);
 
@@ -112,9 +119,12 @@ public class ParquetRecordConverterTest {
 		((PrimitiveConverter) recordConverter.getConverter(16)).addBinary(Binary.fromString("bson")); // byte
 		((PrimitiveConverter) recordConverter.getConverter(17)).addBinary(
 				Binary.fromConstantByteArray(new BigDecimal(9.998).unscaledValue().toByteArray())); // binary -> big_dec
+		((PrimitiveConverter) recordConverter.getConverter(18)).addInt(100); // sql_date
+		((PrimitiveConverter) recordConverter.getConverter(19)).addInt(200); // sql_time
+		((PrimitiveConverter) recordConverter.getConverter(20)).addLong(300); // sql_timestamp
 
 		Row row = recordConverter.getCurrentRecord();
-		assertEquals(18, row.getArity());
+		assertEquals(21, row.getArity());
 		assertEquals(true, row.getField(0));
 		assertEquals(6.66f, row.getField(1));
 		assertEquals(8.88d, row.getField(2));
@@ -133,6 +143,9 @@ public class ParquetRecordConverterTest {
 		assertEquals("{}", row.getField(15));
 		assertArrayEquals("bson".getBytes(), (byte[]) row.getField(16));
 		assertEquals(new BigDecimal(9.998).unscaledValue(), ((BigDecimal) row.getField(17)).unscaledValue());
+		assertEquals(new java.sql.Date(100), row.getField(18));
+		assertEquals(new java.sql.Time(200), row.getField(19));
+		assertEquals(new java.sql.Timestamp(300), row.getField(20));
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
