@@ -43,7 +43,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
@@ -136,7 +135,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected static final  String LATE_ELEMENTS_METRIC_NAME = "numLateRecords";
 
-	protected final Counter lostDataCount = new SimpleCounter();
+	protected Counter lostDataCount;
 
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
@@ -214,7 +213,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public void open() throws Exception {
 		super.open();
 
-		metrics.counter(LATE_ELEMENTS_METRIC_NAME, this.lostDataCount);
+		this.lostDataCount = metrics.counter(LATE_ELEMENTS_METRIC_NAME);
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		internalTimerService =
