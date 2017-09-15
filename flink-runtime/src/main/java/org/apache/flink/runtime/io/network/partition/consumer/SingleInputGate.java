@@ -315,7 +315,7 @@ public class SingleInputGate implements InputGate {
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
 			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
-					&& inputChannel.getClass() == UnknownInputChannel.class) {
+					&& inputChannel instanceof UnknownInputChannel) {
 
 				numberOfUninitializedChannels++;
 			}

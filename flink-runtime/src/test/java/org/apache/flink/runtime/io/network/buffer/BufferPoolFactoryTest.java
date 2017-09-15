@@ -150,7 +150,7 @@ public class BufferPoolFactoryTest {
 		assertEquals(1, third.getNumBuffers());
 
 		// similar to #verifyAllBuffersReturned()
-		String msg = "Did not return all buffers to network buffer pool after test.";
+		String msg = "Wrong number of available segments after create buffer pools.";
 		assertEquals(msg, 3, globalPool.getNumberOfAvailableMemorySegments());
 		// in case buffers have actually been requested, we must release them again
 		globalPool.destroy();
@@ -186,7 +186,7 @@ public class BufferPoolFactoryTest {
 		assertEquals(2, first.getNumBuffers());
 		assertEquals(2, second.getNumBuffers());
 
-		String msg = "Did not return all buffers to network buffer pool after test.";
+		String msg = "Wrong number of available segments after create buffer pool and request segments.";
 		assertEquals(msg, 4, globalPool.getNumberOfAvailableMemorySegments());
 
 		globalPool.recycleMemorySegments(segmentList1);
@@ -204,6 +204,7 @@ public class BufferPoolFactoryTest {
 		assertEquals(5, first.getNumBuffers());
 		assertEquals(5, second.getNumBuffers());
 
+		globalPool.destroyAllBufferPools();
 		globalPool.destroy();
 	}
 

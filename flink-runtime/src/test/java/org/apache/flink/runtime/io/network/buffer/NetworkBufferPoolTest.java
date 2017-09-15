@@ -20,7 +20,11 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,6 +44,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class NetworkBufferPoolTest {
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void testCreatePoolAfterDestroy() {
@@ -188,14 +195,14 @@ public class NetworkBufferPoolTest {
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
 
-		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
-			memorySegments = globalPool.requestMemorySegments(numBuffers / 2);
-
+			List<MemorySegment> memorySegments = globalPool.requestMemorySegments(numBuffers / 2);
 			assertEquals(memorySegments.size(), numBuffers / 2);
-		} finally {
+
 			globalPool.recycleMemorySegments(memorySegments);
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+		} finally {
+			globalPool.destroy();
 		}
 	}
 
@@ -209,13 +216,13 @@ public class NetworkBufferPoolTest {
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
 
-		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
-			memorySegments = globalPool.requestMemorySegments(numBuffers + 1);
+			globalPool.requestMemorySegments(numBuffers + 1);
 			fail("Should throw an IOException");
 		} catch (IOException e) {
-			assertEquals(memorySegments.size(), 0);
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+		} finally {
+			globalPool.destroy();
 		}
 	}
 
@@ -229,14 +236,14 @@ public class NetworkBufferPoolTest {
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
 
-		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
 			// the number of requested buffers should be larger than zero
-			memorySegments = globalPool.requestMemorySegments(0);
+			globalPool.requestMemorySegments(0);
 			fail("Should throw an IllegalArgumentException");
 		} catch (IllegalArgumentException e) {
-			assertEquals(memorySegments.size(), 0);
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
+		} finally {
+			globalPool.destroy();
 		}
 	}
 
@@ -264,11 +271,13 @@ public class NetworkBufferPoolTest {
 				assertNotNull(buffer);
 			}
 
-			// if requestMemorySegments() blocks, this will make sure that enough buffers are freed
-			// eventually for it to continue
+			// requestMemorySegments() below will and wait for buffers
+			// this will make sure that enough buffers are freed eventually for it to continue
+			final OneShotLatch isRunning = new OneShotLatch();
 			bufferRecycler = new Thread(() -> {
 				try {
-					Thread.sleep(10000);
+					isRunning.trigger();
+					Thread.sleep(100);
 				} catch (InterruptedException ignored) {
 				}
 
@@ -279,6 +288,7 @@ public class NetworkBufferPoolTest {
 			bufferRecycler.start();
 
 			// take more buffers than are freely available at the moment via requestMemorySegments()
+			isRunning.await();
 			memorySegments = networkBufferPool.requestMemorySegments(numBuffers / 2);
 			assertThat(memorySegments, not(hasItem(nullValue())));
 		} finally {
@@ -289,6 +299,42 @@ public class NetworkBufferPoolTest {
 				lbp1.lazyDestroy();
 			}
 			networkBufferPool.recycleMemorySegments(memorySegments);
+			networkBufferPool.destroy();
 		}
+	}
+
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)}, verifying it may be aborted in
+	 * case of a concurrent {@link NetworkBufferPool#destroy()} call.
+	 */
+	@Test
+	public void testRequestMemorySegmentsInterruptable() throws Exception {
+		final int numBuffers = 10;
+
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
+		MemorySegment segment = globalPool.requestMemorySegment();
+		assertNotNull(segment);
+
+		final OneShotLatch isRunning = new OneShotLatch();
+		CheckedThread asyncRequest = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				isRunning.trigger();
+				globalPool.requestMemorySegments(10);
+			}
+		};
+		asyncRequest.start();
+
+		// We want the destroy call inside the blocking part of the globalPool.requestMemorySegments()
+		// call above. We cannot guarantee this though but make it highly probable:
+		isRunning.await();
+		Thread.sleep(10);
+		globalPool.destroy();
+
+		segment.free();
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("destroyed");
+		asyncRequest.sync();
 	}
 }

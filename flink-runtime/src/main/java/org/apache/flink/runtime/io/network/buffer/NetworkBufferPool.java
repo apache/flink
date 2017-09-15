@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -163,13 +164,20 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		}
 
 		final List<MemorySegment> segments = new ArrayList<>(numRequiredBuffers);
-		for (int i = 0 ; i < numRequiredBuffers ; i++) {
-			try {
-				segments.add(availableMemorySegments.take());
-			} catch (InterruptedException e) {
-				recycleMemorySegments(segments);
-				ExceptionUtils.rethrowIOException(e);
+		try {
+			while (segments.size() < numRequiredBuffers) {
+				if (isDestroyed) {
+					throw new IllegalStateException("Buffer pool is destroyed.");
+				}
+
+				final MemorySegment segment = availableMemorySegments.poll(2, TimeUnit.SECONDS);
+				if (segment != null) {
+					segments.add(segment);
+				}
 			}
+		} catch (Throwable e) {
+			recycleMemorySegments(segments);
+			ExceptionUtils.rethrowIOException(e);
 		}
 
 		return segments;
