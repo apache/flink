@@ -78,4 +78,21 @@ class DataStreamCalcITCase extends StreamingMultipleProgramsTestBase {
     val expected = mutable.MutableList("Hello", "Hello world")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testUnionWithAnyType(): Unit = {
+    val list = List((1, new NODE), (2, new NODE))
+    val list2 = List((3, new NODE), (4, new NODE))
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val s1 = tEnv.fromDataStream(env.fromCollection(list))
+    val s2 = tEnv.fromDataStream(env.fromCollection(list2))
+    val result = s1.unionAll(s2).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+  }
+
+  class NODE {
+    val x = new java.util.HashMap[String, String]()
+  }
 }
