@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -267,7 +266,7 @@ public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  imp
 		}
 	}
 
-	@Override
+	//deprecated for CheckpointedRestoring
 	public void restoreState(HashMap<EventhubPartition, String> eventhubPartitionOffsets) throws Exception {
 		LOGGER.info("{} (taskIdx={}) restoring offsets from an older version.",
 			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
