@@ -346,12 +346,12 @@ class AggregateITCase(
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
-      "1,[1:1]",
-      "2,[2:1]", "2,[2:1]",
-      "3,[3:1]", "3,[3:2]",
-      "4,[4:2]", "4,[4:2]",
-      "5,[5:1]", "5,[5:1]", "5,[5:3]",
-      "6,[6:1]", "6,[6:2]", "6,[6:3]"
+      "1,{1=1}",
+      "2,{2=1}", "2,{2=1}",
+      "3,{3=1}", "3,{3=2}",
+      "4,{4=2}", "4,{4=2}",
+      "5,{5=1}", "5,{5=1}", "5,{5=3}",
+      "6,{6=1}", "6,{6=2}", "6,{6=3}"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)

@@ -18,12 +18,11 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.commons.collections4.multiset.AbstractMultiSet;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.MultisetSerializer;
+
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -33,19 +32,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements in the Multiset.
  */
 @PublicEvolving
-public final class MultisetTypeInfo<T> extends TypeInformation<AbstractMultiSet<T>> {
+public final class MultisetTypeInfo<T> extends MapTypeInfo<T, Integer> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final TypeInformation<T> elementTypeInfo;
-
 
 	public MultisetTypeInfo(Class<T> elementTypeClass) {
-		this.elementTypeInfo = of(checkNotNull(elementTypeClass, "elementTypeClass"));
+		super(elementTypeClass, Integer.class);
 	}
 
 	public MultisetTypeInfo(TypeInformation<T> elementTypeInfo) {
-		this.elementTypeInfo = checkNotNull(elementTypeInfo, "elementTypeInfo");
+		super(elementTypeInfo, BasicTypeInfo.INT_TYPE_INFO);
 	}
 
 	// ------------------------------------------------------------------------
@@ -56,7 +53,7 @@ public final class MultisetTypeInfo<T> extends TypeInformation<AbstractMultiSet<
 	 * Gets the type information for the elements contained in the Multiset
 	 */
 	public TypeInformation<T> getElementTypeInfo() {
-		return elementTypeInfo;
+		return getKeyTypeInfo();
 	}
 
 	// ------------------------------------------------------------------------
@@ -87,8 +84,8 @@ public final class MultisetTypeInfo<T> extends TypeInformation<AbstractMultiSet<
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public Class<AbstractMultiSet<T>> getTypeClass() {
-		return (Class<AbstractMultiSet<T>>)(Class<?>)AbstractMultiSet.class;
+	public Class<Map<T, Integer>> getTypeClass() {
+		return (Class<Map<T, Integer>>)(Class<?>)Map.class;
 	}
 
 	@Override
@@ -96,17 +93,11 @@ public final class MultisetTypeInfo<T> extends TypeInformation<AbstractMultiSet<
 		return false;
 	}
 
-	@Override
-	public TypeSerializer<AbstractMultiSet<T>> createSerializer(ExecutionConfig config) {
-		TypeSerializer<T> elementTypeSerializer = elementTypeInfo.createSerializer(config);
-		return new MultisetSerializer<>(elementTypeSerializer);
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "Multiset<" + elementTypeInfo + '>';
+		return "Multiset<" + getKeyTypeInfo() + '>';
 	}
 
 	@Override
@@ -116,7 +107,7 @@ public final class MultisetTypeInfo<T> extends TypeInformation<AbstractMultiSet<
 		}
 		else if (obj instanceof MultisetTypeInfo) {
 			final MultisetTypeInfo<?> other = (MultisetTypeInfo<?>) obj;
-			return other.canEqual(this) && elementTypeInfo.equals(other.elementTypeInfo);
+			return other.canEqual(this) && getKeyTypeInfo().equals(other.getKeyTypeInfo());
 		} else {
 			return false;
 		}
@@ -124,7 +115,7 @@ public final class MultisetTypeInfo<T> extends TypeInformation<AbstractMultiSet<
 
 	@Override
 	public int hashCode() {
-		return 31 * elementTypeInfo.hashCode() + 1;
+		return 31 * getKeyTypeInfo().hashCode() + 1;
 	}
 
 	@Override

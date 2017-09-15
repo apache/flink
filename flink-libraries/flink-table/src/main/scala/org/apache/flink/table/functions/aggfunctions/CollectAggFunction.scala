@@ -19,36 +19,49 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.lang.{Iterable => JIterable}
+import java.util
+import java.util.function.BiFunction
 
-import org.apache.commons.collections4.multiset.{AbstractMultiSet, HashMultiSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.functions.AggregateFunction
 
+import scala.collection.JavaConverters._
+
 /** The initial accumulator for Collect aggregate function */
-class CollectAccumulator[E] extends JTuple1[AbstractMultiSet[E]]
+class CollectAccumulator[E] extends JTuple1[util.Map[E, Integer]]
 
 abstract class CollectAggFunction[E]
-  extends AggregateFunction[AbstractMultiSet[E], CollectAccumulator[E]] {
+  extends AggregateFunction[util.Map[E, Integer], CollectAccumulator[E]] {
+
+  @transient
+  private lazy val addFunction = new BiFunction[Integer, Integer, Integer] {
+    override def apply(t: Integer, u: Integer): Integer = t + u
+  }
 
   override def createAccumulator(): CollectAccumulator[E] = {
     val acc = new CollectAccumulator[E]()
-    acc.f0 = new HashMultiSet()
+    acc.f0 = new util.HashMap[E, Integer]()
     acc
   }
 
   def accumulate(accumulator: CollectAccumulator[E], value: E): Unit = {
     if (value != null) {
-      accumulator.f0.add(value)
+      if (accumulator.f0.containsKey(value)) {
+        val add = (x: Integer, y: Integer) => x + y
+        accumulator.f0.merge(value, 1, addFunction)
+      } else {
+        accumulator.f0.put(value, 1)
+      }
     }
   }
 
-  override def getValue(accumulator: CollectAccumulator[E]): AbstractMultiSet[E] = {
+  override def getValue(accumulator: CollectAccumulator[E]): util.Map[E, Integer] = {
     if (accumulator.f0.size() > 0) {
-      new HashMultiSet(accumulator.f0)
+      new util.HashMap(accumulator.f0)
     } else {
-      null.asInstanceOf[AbstractMultiSet[E]]
+      null.asInstanceOf[util.Map[E, Integer]]
     }
   }
 
@@ -59,19 +72,23 @@ abstract class CollectAggFunction[E]
   override def getAccumulatorType: TypeInformation[CollectAccumulator[E]] = {
     new TupleTypeInfo(
       classOf[CollectAccumulator[E]],
-      new GenericTypeInfo[AbstractMultiSet[E]](classOf[AbstractMultiSet[E]]))
+      new GenericTypeInfo[util.Map[E, Integer]](classOf[util.Map[E, Integer]]))
   }
 
   def merge(acc: CollectAccumulator[E], its: JIterable[CollectAccumulator[E]]): Unit = {
     val iter = its.iterator()
     while (iter.hasNext) {
-      acc.f0.addAll(iter.next().f0)
+      for ((k: E, v: Integer) <- iter.next().f0.asScala) {
+        acc.f0.merge(k, v, addFunction)
+      }
     }
   }
 
-  def retract(acc: CollectAccumulator[E], value: Any): Unit = {
+  def retract(acc: CollectAccumulator[E], value: E): Unit = {
     if (value != null) {
-      acc.f0.remove(value)
+      if (0 == acc.f0.merge(value, -1, addFunction)) {
+        acc.f0.remove(value)
+      }
     }
   }
 }

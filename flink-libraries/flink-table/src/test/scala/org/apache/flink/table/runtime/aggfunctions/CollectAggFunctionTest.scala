@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.runtime.aggfunctions
 
-import com.google.common.collect.ImmutableList
-import org.apache.commons.collections4.multiset.{AbstractMultiSet, HashMultiSet}
+import java.util
+
+import com.google.common.collect.ImmutableMap
+import org.apache.curator
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
 
@@ -27,161 +29,194 @@ import org.apache.flink.table.functions.aggfunctions._
   * Test case for built-in collect aggregate functions
   */
 class StringCollectAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[String], CollectAccumulator[String]] {
+  extends AggFunctionTestBase[util.Map[String, Integer], CollectAccumulator[String]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq("a", "a", "b", null, "c", null, "d", "e", null, "f"),
+    Seq("a", "a", "b", null, "c", null, "d", "e", null, "f", null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[String]] = {
-    val set1 = new HashMultiSet[String]()
-    set1.addAll(ImmutableList.of("a", "a", "b", "c", "d", "e", "f"))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[String, Integer]] = {
+    val map = new util.HashMap[String, Integer]()
+    map.put("a", 2)
+    map.put("b", 1)
+    map.put("c", 1)
+    map.put("d", 1)
+    map.put("e", 1)
+    map.put("f", 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[String], CollectAccumulator[String]] =
+  override def aggregator: AggregateFunction[
+    util.Map[String, Integer], CollectAccumulator[String]] =
     new StringCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class IntCollectAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Int], CollectAccumulator[Int]] {
+  extends AggFunctionTestBase[util.Map[Int, Integer], CollectAccumulator[Int]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq(1, 1, 2, null, 3, null, 4, 5, null, 6),
+    Seq(1, 1, 2, null, 3, null, 4, 5, null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Int]] = {
-    val set1 = new HashMultiSet[Int]()
-    set1.addAll(ImmutableList.of(1, 1, 2, 3, 4, 5, 6))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Int, Integer]] = {
+    val map = new util.HashMap[Int, Integer]()
+    map.put(1, 2)
+    map.put(2, 1)
+    map.put(3, 1)
+    map.put(4, 1)
+    map.put(5, 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Int], CollectAccumulator[Int]] =
+  override def aggregator: AggregateFunction[util.Map[Int, Integer], CollectAccumulator[Int]] =
     new IntCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class ByteCollectAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Byte], CollectAccumulator[Byte]] {
+  extends AggFunctionTestBase[util.Map[Byte, Integer], CollectAccumulator[Byte]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq(1.toByte, 1.toByte, 2.toByte, null, 3.toByte, null, 4.toByte, 5.toByte, null, 6.toByte),
+    Seq(1.toByte, 1.toByte, 2.toByte, null, 3.toByte, null, 4.toByte, 5.toByte, null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Byte]] = {
-    val set1 = new HashMultiSet[Byte]()
-    set1.addAll(ImmutableList.of(1, 1, 2, 3, 4, 5, 6))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Byte, Integer]] = {
+    val map = new util.HashMap[Byte, Integer]()
+    map.put(1, 2)
+    map.put(2, 1)
+    map.put(3, 1)
+    map.put(4, 1)
+    map.put(5, 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Byte], CollectAccumulator[Byte]] =
+  override def aggregator: AggregateFunction[util.Map[Byte, Integer], CollectAccumulator[Byte]] =
     new ByteCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class ShortCollectAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Short], CollectAccumulator[Short]] {
+  extends AggFunctionTestBase[util.Map[Short, Integer], CollectAccumulator[Short]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(1.toShort, 1.toShort, 2.toShort, null,
-      3.toShort, null, 4.toShort, 5.toShort, null, 6.toShort),
+      3.toShort, null, 4.toShort, 5.toShort, null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Short]] = {
-    val set1 = new HashMultiSet[Short]()
-    set1.addAll(ImmutableList.of(1, 1, 2, 3, 4, 5, 6))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Short, Integer]] = {
+    val map = new util.HashMap[Short, Integer]()
+    map.put(1, 2)
+    map.put(2, 1)
+    map.put(3, 1)
+    map.put(4, 1)
+    map.put(5, 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Short], CollectAccumulator[Short]] =
+  override def aggregator: AggregateFunction[util.Map[Short, Integer], CollectAccumulator[Short]] =
     new ShortCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class LongCollectAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Long], CollectAccumulator[Long]] {
+  extends AggFunctionTestBase[util.Map[Long, Integer], CollectAccumulator[Long]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq(1L, 1L, 2L, null, 3L, null, 4L, 5L, null, 6L),
+    Seq(1L, 1L, 2L, null, 3L, null, 4L, 5L, null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Long]] = {
-    val set1 = new HashMultiSet[Long]()
-    set1.addAll(ImmutableList.of(1, 1, 2, 3, 4, 5, 6))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Long, Integer]] = {
+    val map = new util.HashMap[Long, Integer]()
+    map.put(1, 2)
+    map.put(2, 1)
+    map.put(3, 1)
+    map.put(4, 1)
+    map.put(5, 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Long], CollectAccumulator[Long]] =
+  override def aggregator: AggregateFunction[util.Map[Long, Integer], CollectAccumulator[Long]] =
     new LongCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class FloatAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Float], CollectAccumulator[Float]] {
+  extends AggFunctionTestBase[util.Map[Float, Integer], CollectAccumulator[Float]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq(1f, 1f, 2f, null, 3.2f, null, 4f, 5f, null, 6f),
+    Seq(1f, 1f, 2f, null, 3.2f, null, 4f, 5f, null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Float]] = {
-    val set1 = new HashMultiSet[Float]()
-    set1.addAll(ImmutableList.of(1f, 1f, 2f, 3.2f, 4f, 5f, 6f))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Float, Integer]] = {
+    val map = new util.HashMap[Float, Integer]()
+    map.put(1, 2)
+    map.put(2, 1)
+    map.put(3.2f, 1)
+    map.put(4, 1)
+    map.put(5, 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Float], CollectAccumulator[Float]] =
+  override def aggregator: AggregateFunction[util.Map[Float, Integer], CollectAccumulator[Float]] =
     new FloatCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class DoubleAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Double], CollectAccumulator[Double]] {
+  extends AggFunctionTestBase[util.Map[Double, Integer], CollectAccumulator[Double]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq(1d, 1d, 2d, null, 3.2d, null, 4d, 5d, null, 6d),
+    Seq(1d, 1d, 2d, null, 3.2d, null, 4d, 5d, null),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Double]] = {
-    val set1 = new HashMultiSet[Double]()
-    set1.addAll(ImmutableList.of(1, 1, 2, 3.2, 4, 5, 6))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Double, Integer]] = {
+    val map = new util.HashMap[Double, Integer]()
+    map.put(1, 2)
+    map.put(2, 1)
+    map.put(3.2d, 1)
+    map.put(4, 1)
+    map.put(5, 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Double], CollectAccumulator[Double]] =
+  override def aggregator: AggregateFunction[
+    util.Map[Double, Integer], CollectAccumulator[Double]] =
     new DoubleCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class ObjectAggFunctionTest
-  extends AggFunctionTestBase[AbstractMultiSet[Object], CollectAccumulator[Object]] {
+  extends AggFunctionTestBase[util.Map[Object, Integer], CollectAccumulator[Object]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(Tuple2(1, "a"), Tuple2(1, "a"), null, Tuple2(2, "b")),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[AbstractMultiSet[Object]] = {
-    val set1 = new HashMultiSet[Object]()
-    set1.addAll(ImmutableList.of(Tuple2(1, "a"), Tuple2(1, "a"), Tuple2(2, "b")))
-    Seq(set1, null)
+  override def expectedResults: Seq[util.Map[Object, Integer]] = {
+    val map = new util.HashMap[Object, Integer]()
+    map.put(Tuple2(1, "a"), 2)
+    map.put(Tuple2(2, "b"), 1)
+    Seq(map, null)
   }
 
-  override def aggregator: AggregateFunction[AbstractMultiSet[Object], CollectAccumulator[Object]] =
+  override def aggregator: AggregateFunction[
+    util.Map[Object, Integer], CollectAccumulator[Object]] =
     new ObjectCollectAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
