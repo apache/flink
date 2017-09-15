@@ -53,7 +53,12 @@ of the Elasticsearch installation:
     <tr>
         <td>flink-connector-elasticsearch5{{ site.scala_version_suffix }}</td>
         <td>1.3.0</td>
-        <td>5.x</td>
+        <td>5.2 and previous versions</td>
+    </tr>
+    <tr>
+        <td>flink-connector-elasticsearch5.3{{ site.scala_version_suffix }}</td>
+        <td>1.3.0</td>
+        <td>5.3 and later versions</td>
     </tr>
   </tbody>
 </table>
