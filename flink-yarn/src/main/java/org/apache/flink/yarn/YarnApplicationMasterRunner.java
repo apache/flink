@@ -94,7 +94,7 @@ public class YarnApplicationMasterRunner {
 	private static final FiniteDuration TASKMANAGER_REGISTRATION_TIMEOUT = new FiniteDuration(5, TimeUnit.MINUTES);
 
 	/** The process environment variables. */
-	private static final Map<String, String> ENV = getSystemEnv();//System.getenv();
+	private static final Map<String, String> ENV = getSystemEnv();
 
 	/** The exit code returned if the initialization of the application master failed. */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
@@ -102,20 +102,19 @@ public class YarnApplicationMasterRunner {
 	/** The exit code returned if the process exits because a critical actor died. */
 	private static final int ACTOR_DIED_EXIT_CODE = 32;
 
-
 	/**
-	 * Add this private static method to convert the hostname to lowercase
+	 * Add this private static method to convert the hostname to lowercase.
 	 */
 	private static Map<String, String> getSystemEnv(){
 		final Map<String, String> origSysEnv = System.getenv();
 		final Map<String, String> modifiedEnv = new HashMap<>();
 
-		for(Map.Entry<String, String> entry : origSysEnv.entrySet()){
+		for (Map.Entry<String, String> entry : origSysEnv.entrySet()){
 			modifiedEnv.put(entry.getKey(), entry.getValue());
 		}
 
 		String hostName = modifiedEnv.get(Environment.NM_HOST.key());
-		if(hostName != null){
+		if (hostName != null){
 			modifiedEnv.put(Environment.NM_HOST.key(), hostName.toLowerCase());
 		}
 

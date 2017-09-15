@@ -371,8 +371,12 @@ public class BootstrapTools {
 			Class<?> mainClass) {
 
 		final Map<String, String> startCommandValues = new HashMap<>();
-		//startCommandValues.put("java", "%JAVA_HOME%/bin/java");//For AP yarn cluster
-		startCommandValues.put("java", "$JAVA_HOME/bin/java");//For HDI yarn cluster
+		if (System.getProperty("os.name").toLowerCase().startsWith("windows")){
+			startCommandValues.put("java", "%JAVA_HOME%/bin/java");
+		}
+		else {
+			startCommandValues.put("java", "$JAVA_HOME/bin/java");
+		}
 
 		ArrayList<String> params = new ArrayList<>();
 		params.add(String.format("-Xms%dm", tmParams.taskManagerHeapSizeMB()));
