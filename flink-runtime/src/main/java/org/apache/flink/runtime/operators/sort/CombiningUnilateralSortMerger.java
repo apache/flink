@@ -106,7 +106,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int maxNumFileHandles, float startSpillingFraction,
 			boolean handleLargeRecords, boolean objectReuseEnabled)
-		throws IOException, MemoryAllocationException {
+	throws IOException, MemoryAllocationException
+	{
 		this(combineStub, memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, handleLargeRecords, objectReuseEnabled);
 	}
@@ -138,7 +139,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-		throws IOException, MemoryAllocationException {
+	throws IOException, MemoryAllocationException
+	{
 		super(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false,
 			handleLargeRecords, objectReuseEnabled);

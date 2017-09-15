@@ -158,7 +158,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int maxNumFileHandles, float startSpillingFraction,
 			boolean handleLargeRecords, boolean objectReuseEnabled)
-		throws IOException, MemoryAllocationException {
+	throws IOException, MemoryAllocationException
+	{
 		this(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, handleLargeRecords, objectReuseEnabled);
 	}
@@ -168,7 +169,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-		throws IOException, MemoryAllocationException {
+	throws IOException, MemoryAllocationException
+	{
 		this(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false, handleLargeRecords,
 			objectReuseEnabled);
@@ -180,7 +182,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-		throws IOException {
+	throws IOException
+	{
 		this(memoryManager, memory, ioManager, input, parentTask, serializerFactory, comparator,
 			numSortBuffers, maxNumFileHandles, startSpillingFraction, false, handleLargeRecords,
 			objectReuseEnabled);
@@ -193,7 +196,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean noSpillingMemory, boolean handleLargeRecords,
 			boolean objectReuseEnabled)
-		throws IOException, MemoryAllocationException {
+	throws IOException, MemoryAllocationException
+	{
 		this(memoryManager, memoryManager.allocatePages(parentTask, memoryManager.computeNumberOfPages(memoryFraction)),
 				ioManager, input, parentTask, serializerFactory, comparator,
 				numSortBuffers, maxNumFileHandles, startSpillingFraction, noSpillingMemory, handleLargeRecords,
@@ -207,7 +211,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean noSpillingMemory, boolean handleLargeRecords,
 			boolean objectReuseEnabled)
-		throws IOException {
+	throws IOException
+	{
 		// sanity checks
 		if (memoryManager == null | (ioManager == null && !noSpillingMemory) | serializerFactory == null | comparator == null) {
 			throw new NullPointerException();
@@ -335,9 +340,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			}
 			
 			final TypeComparator<E> comp = comparator.duplicate();
-			final InMemorySorter<E> buffer;
-
-			buffer = SorterFactory.getInstance()
+			final InMemorySorter<E> buffer = SorterFactory.getInstance()
 				.createSorter(parentTask.getExecutionConfig(), serializerFactory.getSerializer(), comp, sortSegments);
 
 			// add to empty queue
