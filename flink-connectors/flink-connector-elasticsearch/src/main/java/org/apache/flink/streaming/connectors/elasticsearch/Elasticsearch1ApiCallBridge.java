@@ -40,7 +40,7 @@ import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 1.x.
  */
-public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
+public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 
 	private static final long serialVersionUID = -2632363720584123682L;
 

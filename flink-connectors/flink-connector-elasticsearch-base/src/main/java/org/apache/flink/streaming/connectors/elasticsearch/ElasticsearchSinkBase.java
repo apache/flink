@@ -152,7 +152,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private boolean flushOnCheckpoint = true;
 
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
-	private transient BulkProcessorIndexer requestIndexer;
+	private transient RequestIndexer requestIndexer;
 
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
@@ -280,7 +280,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
-		requestIndexer = new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
+		requestIndexer = callBridge.createRequestIndex(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
 
 	@Override

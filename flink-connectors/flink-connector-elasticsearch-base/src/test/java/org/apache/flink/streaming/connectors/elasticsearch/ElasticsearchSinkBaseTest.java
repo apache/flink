@@ -510,7 +510,7 @@ public class ElasticsearchSinkBaseTest {
 		}
 	}
 
-	private static class DummyElasticsearchApiCallBridge implements ElasticsearchApiCallBridge {
+	private static class DummyElasticsearchApiCallBridge extends ElasticsearchApiCallBridge {
 
 		private static final long serialVersionUID = -4272760730959041699L;
 

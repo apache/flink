@@ -42,7 +42,7 @@ import java.util.Map;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 2.x.
  */
-public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
+public class Elasticsearch2ApiCallBridge extends ElasticsearchApiCallBridge {
 
 	private static final long serialVersionUID = 2638252694744361079L;
 

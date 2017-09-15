@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * An {@link ElasticsearchApiCallBridge} is used to bridge incompatible Elasticsearch Java API calls across different versions.
@@ -36,7 +37,7 @@ import java.util.Map;
  * is allowed, the call bridge will hold reference to the created embedded node. Each instance of the sink will hold
  * exactly one instance of the call bridge, and state cleanup is performed when the sink is closed.
  */
-public interface ElasticsearchApiCallBridge extends Serializable {
+public abstract class ElasticsearchApiCallBridge implements Serializable {
 
 	/**
 	 * Creates an Elasticsearch {@link Client}.
@@ -44,7 +45,7 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
 	 */
-	Client createClient(Map<String, String> clientConfig);
+	public abstract Client createClient(Map<String, String> clientConfig);
 
 	/**
 	 * Extracts the cause of failure of a bulk item action.
@@ -52,7 +53,7 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	 * @param bulkItemResponse the bulk item response to extract cause of failure
 	 * @return the extracted {@link Throwable} from the response ({@code null} is the response is successful).
 	 */
-	@Nullable Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
+	public abstract @Nullable Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
 
 	/**
 	 * Set backoff-related configurations on the provided {@link BulkProcessor.Builder}.
@@ -61,13 +62,30 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	 * @param builder the {@link BulkProcessor.Builder} to configure.
 	 * @param flushBackoffPolicy user-provided backoff retry settings ({@code null} if the user disabled backoff retries).
 	 */
-	void configureBulkProcessorBackoff(
+	public abstract void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
 		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
 
 	/**
+	 * Creates an RequestIndexer instance.
+	 *
+	 * @param bulkProcessor The instance of BulkProcessor
+	 * @param flushOnCheckpoint If true, the producer will wait until all outstanding action requests have been sent to Elasticsearch.
+	 * @param numPendingRequests Number of pending action requests not yet acknowledged by Elasticsearch.
+	 * @return The created RequestIndexer.
+	 */
+	public RequestIndexer createRequestIndex(
+		BulkProcessor bulkProcessor,
+		boolean flushOnCheckpoint,
+		AtomicLong numPendingRequests) {
+		return new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
+	}
+
+	/**
 	 * Perform any necessary state cleanup.
 	 */
-	void cleanup();
+	public void cleanup() {
+		// nothing to cleanup
+	}
 
 }
