@@ -697,7 +697,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 					public boolean filter(Tuple2<Integer, String> rec) throws Exception {
 						return rec.f1.equals("a");
 					}
-				});
+				}).times(2);
 
 		PatternStream<Tuple2<Integer, String>> pStream = CEP.pattern(input, pattern);
 
@@ -710,7 +710,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
-		expected = "(1,a)\n(2,a)\n(3,a)\n(4,a)";
+		expected = "(1,a)\n(3,a)";
 
 		env.execute();
 	}
