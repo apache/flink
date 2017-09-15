@@ -32,15 +32,13 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link EchoGraph}.
  */
-public class EchoGraphTest
-extends GraphGeneratorTestBase {
+public class EchoGraphTest extends GraphGeneratorTestBase {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
-	public void testGraphWithEvenVertexCountWithOddVertexDegree()
-			throws Exception {
+	public void testGraphWithEvenVertexCountWithOddVertexDegree() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, 10, 3)
 			.generate();
 
@@ -54,8 +52,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphWithOddVertexCountWithEvenVertexDegree()
-			throws Exception {
+	public void testGraphWithOddVertexCountWithEvenVertexDegree() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, 9, 2)
 			.generate();
 
@@ -68,8 +65,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphWithOddVertexCountWithOddVertexDegree()
-			throws Exception {
+	public void testGraphWithOddVertexCountWithOddVertexDegree() throws Exception {
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Vertex count or vertex degree must be an even number but not both.");
 
@@ -77,8 +73,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphWithEvenVertexCountWithEvenVertexDegree()
-			throws Exception {
+	public void testGraphWithEvenVertexCountWithEvenVertexDegree() throws Exception {
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Vertex count or vertex degree must be an even number but not both.");
 
@@ -86,8 +81,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphWithVertexDegreeTooLarge()
-			throws Exception {
+	public void testGraphWithVertexDegreeTooLarge() throws Exception {
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Vertex degree must be less than the vertex count.");
 
@@ -95,8 +89,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 10;
 		int vertexDegree = 3;
 
@@ -114,8 +107,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, 10, 3)

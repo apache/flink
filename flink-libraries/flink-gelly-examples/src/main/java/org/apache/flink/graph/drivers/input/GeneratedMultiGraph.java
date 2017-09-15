@@ -50,7 +50,7 @@ extends GeneratedGraph<LongValue> {
 
 		// simplify after the translation to improve the performance of the
 		// simplify operators by processing smaller data types
-		return simplify.simplify(graph);
+		return simplify.simplify(graph, parallelism.getValue().intValue());
 	}
 
 	public abstract Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception;

@@ -283,6 +283,11 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 		}
 
 		@Override
+		public String toString() {
+			return toPrintableString();
+		}
+
+		@Override
 		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
 

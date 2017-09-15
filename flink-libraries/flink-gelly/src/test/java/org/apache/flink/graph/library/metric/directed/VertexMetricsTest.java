@@ -18,10 +18,9 @@
 
 package org.apache.flink.graph.library.metric.directed;
 
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.metric.directed.VertexMetrics.Result;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
@@ -32,24 +31,39 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link VertexMetrics}.
  */
-public class VertexMetricsTest
-extends AsmTestBase {
+public class VertexMetricsTest extends AsmTestBase {
 
-	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
-		Result expectedResult = new Result(6, 7, 0, 13, 4, 2, 3, 6);
-
-		Result vertexMetrics = new VertexMetrics<IntValue, NullValue, NullValue>()
-			.run(directedSimpleGraph)
+	/**
+	 * Validate a test result.
+	 *
+	 * @param graph input graph
+	 * @param includeZeroDegreeVertices whether to include zero-degree vertices
+	 * @param result expected {@link Result}
+	 * @param averageDegree result average degree
+	 * @param density result density
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T extends Comparable<T>> void validate(
+			Graph<T, NullValue, NullValue> graph, boolean includeZeroDegreeVertices,
+			Result result, float averageDegree, float density) throws Exception {
+		Result vertexMetrics = new VertexMetrics<T, NullValue, NullValue>()
+			.setIncludeZeroDegreeVertices(includeZeroDegreeVertices)
+			.run(graph)
 			.execute();
 
-		assertEquals(expectedResult, vertexMetrics);
+		assertEquals(result, vertexMetrics);
+		assertEquals(averageDegree, vertexMetrics.getAverageDegree(), ACCURACY);
+		assertEquals(density, vertexMetrics.getDensity(), ACCURACY);
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
+		validate(directedSimpleGraph, false, new Result(6, 7, 0, 13, 4, 2, 3, 6), 7f / 6, 7f / 30);
+	}
+
+	@Test
+	public void testWithCompleteGraph() throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
 		long expectedBidirectionalEdges = completeGraphVertexCount * expectedDegree / 2;
 		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
@@ -58,52 +72,25 @@ extends AsmTestBase {
 		Result expectedResult = new Result(completeGraphVertexCount, 0, expectedBidirectionalEdges,
 			expectedTriplets, expectedDegree, expectedDegree, expectedDegree, expectedMaximumTriplets);
 
-		Result vertexMetrics = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.run(completeGraph)
-			.execute();
-
-		assertEquals(expectedResult, vertexMetrics);
-		assertEquals(expectedDegree, vertexMetrics.getAverageDegree(), ACCURACY);
-		assertEquals(1.0f, vertexMetrics.getDensity(), ACCURACY);
+		validate(completeGraph, false, expectedResult, expectedDegree, 1.0f);
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
-		Result expectedResult;
-
-		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0, 0);
-
-		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.setIncludeZeroDegreeVertices(false)
-			.run(emptyGraph)
-			.execute();
-
-		assertEquals(expectedResult, withoutZeroDegreeVertices);
-		assertEquals(Float.NaN, withoutZeroDegreeVertices.getAverageDegree(), ACCURACY);
-		assertEquals(Float.NaN, withoutZeroDegreeVertices.getDensity(), ACCURACY);
-
-		expectedResult = new Result(3, 0, 0, 0, 0, 0, 0, 0);
-
-		Result withZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.setIncludeZeroDegreeVertices(true)
-			.run(emptyGraph)
-			.execute();
-
-		assertEquals(expectedResult, withZeroDegreeVertices);
-		assertEquals(0.0f, withZeroDegreeVertices.getAverageDegree(), ACCURACY);
-		assertEquals(0.0f, withZeroDegreeVertices.getDensity(), ACCURACY);
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validate(emptyGraphWithVertices, false, new Result(0, 0, 0, 0, 0, 0, 0, 0), Float.NaN, Float.NaN);
+		validate(emptyGraphWithVertices, true, new Result(3, 0, 0, 0, 0, 0, 0, 0), 0.0f, 0.0f);
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		Result expectedResult =  new Result(0, 0, 0, 0, 0, 0, 0, 0);
+		validate(emptyGraphWithoutVertices, false, expectedResult, Float.NaN, Float.NaN);
+		validate(emptyGraphWithoutVertices, true, expectedResult, Float.NaN, Float.NaN);
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
 		Result expectedResult = new Result(902, 8875, 1567, 1003442, 463, 334, 342, 106953);
-
-		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph(10, 16))
-			.execute();
-
-		assertEquals(expectedResult, withoutZeroDegreeVertices);
+		validate(directedRMatGraph(10, 16), false, expectedResult, 13.3137472f, 0.0147766f);
 	}
 }

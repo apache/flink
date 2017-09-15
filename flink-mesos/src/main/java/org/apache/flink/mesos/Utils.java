@@ -74,11 +74,12 @@ public class Utils {
 	/**
 	 * Construct a scalar resource value.
 	 */
-	public static Protos.Resource scalar(String name, double value) {
+	public static Protos.Resource scalar(String name, String role, double value) {
 		return Protos.Resource.newBuilder()
 			.setName(name)
 			.setType(Protos.Value.Type.SCALAR)
 			.setScalar(Protos.Value.Scalar.newBuilder().setValue(value))
+			.setRole(role)
 			.build();
 	}
 
@@ -92,11 +93,12 @@ public class Utils {
 	/**
 	 * Construct a ranges resource value.
 	 */
-	public static Protos.Resource ranges(String name, Protos.Value.Range... ranges) {
+	public static Protos.Resource ranges(String name, String role, Protos.Value.Range... ranges) {
 		return Protos.Resource.newBuilder()
 			.setName(name)
 			.setType(Protos.Value.Type.RANGES)
 			.setRanges(Protos.Value.Ranges.newBuilder().addAllRange(Arrays.asList(ranges)).build())
+			.setRole(role)
 			.build();
 	}
 }

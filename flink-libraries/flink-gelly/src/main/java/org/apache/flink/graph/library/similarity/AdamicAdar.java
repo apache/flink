@@ -410,7 +410,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		@Override
 		public void reduce(Iterable<Tuple3<T, T, FloatValue>> values, Collector<Result<T>> out)
 				throws Exception {
-			float sum = 0;
+			double sum = 0;
 			Tuple3<T, T, FloatValue> edge = null;
 
 			for (Tuple3<T, T, FloatValue> next : values) {
@@ -421,7 +421,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			if (sum >= minimumScore) {
 				output.setVertexId0(edge.f0);
 				output.setVertexId1(edge.f1);
-				output.setAdamicAdarScore(sum);
+				output.setAdamicAdarScore((float) sum);
 				out.collect(output);
 			}
 		}
