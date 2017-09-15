@@ -121,9 +121,9 @@ abstract class GeneratedAggregations extends Function {
   def close()
 }
 
-class SingleElementIterable[T] extends java.lang.Iterable[T] {
+class SingleElementIterable[T] extends java.lang.Iterable[T] with Serializable {
 
-  class SingleElementIterator extends java.util.Iterator[T] {
+  class SingleElementIterator extends java.util.Iterator[T] with Serializable {
 
     var element: T = _
     var newElement: Boolean = false
