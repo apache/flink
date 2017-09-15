@@ -138,7 +138,7 @@ public class EventhubClientWrapper implements Serializable {
 			maxPrefetchCount = maxEventRate + 1;
 		}
 		else {
-			maxEventRate = maxPrefetchCount - 1;
+			this.maxEventRate = maxPrefetchCount - 1;
 		}
 
 		this.createReceiverInternal();
