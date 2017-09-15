@@ -60,8 +60,7 @@ import java.util.Properties;
 
 public class FlinkEventHubConsumer<T> extends RichParallelSourceFunction<T>  implements
 	CheckpointedFunction,
-	ResultTypeQueryable<T>,
-	CheckpointedRestoring<HashMap<EventhubPartition, String>> {
+	ResultTypeQueryable<T> {
 	private static final long serialVersionUID = -3247976470793561346L;
 	protected static final Logger LOGGER = LoggerFactory.getLogger(FlinkEventHubConsumer.class);
 	protected static final String DEFAULTOFFSETSTATENAME = "flink.eventhub.offset";
