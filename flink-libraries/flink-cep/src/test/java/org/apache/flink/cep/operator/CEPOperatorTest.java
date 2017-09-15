@@ -572,7 +572,7 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(2L, harness.numEventTimeTimers());
 			assertTrue(operator.hasNonEmptyNFA(42));
-			assertEquals(1L, operator.getPQSize(42));
+			assertEquals(3L, operator.getPQSize(42));
 			assertTrue(operator.hasNonEmptyNFA(43));
 			assertTrue(!operator.hasNonEmptyPQ(43));
 
@@ -998,7 +998,7 @@ public class CEPOperatorTest extends TestLogger {
 			assertTrue(!operator.hasNonEmptyNFA(43));
 
 			harness.processWatermark(3L);
-			assertTrue(!operator.hasNonEmptyPQ(42));
+			assertTrue(operator.hasNonEmptyPQ(42));
 			assertTrue(!operator.hasNonEmptyPQ(43));
 			assertTrue(operator.hasNonEmptyNFA(42));
 			assertTrue(operator.hasNonEmptyNFA(43));
@@ -1017,15 +1017,50 @@ public class CEPOperatorTest extends TestLogger {
 			harness.open();
 
 			harness.processElement(new StreamRecord<>(endEvent, 6L));
-			harness.processWatermark(6L);
+			harness.processWatermark(7L);
 
 			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent1, endEvent);
 			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent2, endEvent);
 			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent1, endEvent);
 			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent2, endEvent);
-			verifyWatermark(harness.getOutput().poll(), 6L);
+			verifyWatermark(harness.getOutput().poll(), 7L);
 		} finally {
 			harness.close();
+		}
+	}
+
+	@Test
+	public void testCEPWatermarkSemantic() throws Exception {
+		Event startEvent = new Event(42, "start", 1.0);
+		SubEvent middleEvent = new SubEvent(42, "foo2", 2.0, 10.0);
+		Event endEvent = new Event(42, "end", 1.0);
+
+		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperatorWithComparator(false);
+
+		try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator)) {
+			harness.open();
+
+			harness.processWatermark(0L);
+			verifyWatermark(harness.getOutput().poll(), 0L);
+
+			harness.processElement(new StreamRecord<>(startEvent, 1L));
+			harness.processElement(new StreamRecord<>(middleEvent, 2L));
+			harness.processElement(new StreamRecord<>(endEvent, 3L));
+
+			assertTrue(operator.hasNonEmptyPQ(42));
+			assertTrue(!operator.hasNonEmptyNFA(42));
+
+			harness.processWatermark(3L);
+			verifyWatermark(harness.getOutput().poll(), 3L);
+
+			assertTrue(operator.hasNonEmptyPQ(42));
+			assertTrue(operator.hasNonEmptyNFA(42));
+
+			harness.processWatermark(4L);
+			assertTrue(!operator.hasNonEmptyPQ(42));
+
+			verifyPattern(harness.getOutput().poll(), startEvent, middleEvent, endEvent);
+			verifyWatermark(harness.getOutput().poll(), 4L);
 		}
 	}
 
