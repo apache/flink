@@ -763,7 +763,11 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
-    writeToSink(sink, this.tableEnv.queryConfig)
+    val queryConfig = Option(this.tableEnv) match {
+      case None => null
+      case _ => this.tableEnv.queryConfig
+    }
+    writeToSink(sink, queryConfig)
   }
 
   /**

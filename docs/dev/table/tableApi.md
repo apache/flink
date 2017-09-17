@@ -146,6 +146,39 @@ Operations
 
 The Table API supports the following operations. Please note that not all operations are available in both batch and streaming yet; they are tagged accordingly.
 
+### Insert
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+  		<td>
+        <strong>Scan</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+  		<td>
+        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered table.</p>
+{% highlight java %}
+tableEnv.insertInto("Results");
+{% endhighlight %}
+      </td>
+  	</tr>
+
+  </tbody>
+</table>
+</div>
+</div>
+
+{% top %}
+
 ### Scan, Projection, and Filter
 
 <div class="codetabs" markdown="1">

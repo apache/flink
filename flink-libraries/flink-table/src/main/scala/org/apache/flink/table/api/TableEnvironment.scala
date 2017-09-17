@@ -725,7 +725,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] def queryConfig: QueryConfig = this match {
     case _: BatchTableEnvironment => new BatchQueryConfig
     case _: StreamTableEnvironment => new StreamQueryConfig
-    case _ => ???
+    case _ => null
   }
 
   /**

@@ -50,7 +50,7 @@ tableEnv.registerExternalCatalog("extCat", ...);
 // create a Table from a Table API query
 Table tapiResult = tableEnv.scan("table1").select(...);
 // create a Table from a SQL query
-Table sqlResult  = tableEnv.sql("SELECT ... FROM table2 ... ");
+Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.writeToSink(...);
@@ -77,7 +77,7 @@ tableEnv.registerExternalCatalog("extCat", ...)
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
 // Create a Table from a SQL query
-val sqlResult  = tableEnv.sql("SELECT ... FROM table2 ...")
+val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.writeToSink(...)
@@ -236,6 +236,52 @@ tableEnv.registerTableSource("CsvTable", csvSource)
 
 {% top %}
 
+### Register a TableSink
+
+A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
+
+Flink aims to provide TableSources for common data formats and storage systems. Please see the documentation about [Table Sources and Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) page for details about available sinks and instructions for how to implement a custom `TableSink`.
+
+A `TableSink` is registered in a `TableEnvironment` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// create a TableSink
+TableSink csvSink = new CsvTableSink("/path/to/file", ...);
+
+// define the field names and types
+String[] fieldNames = {"a", "b", "c"};
+TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
+
+// register the TableSink as table "CsvSinkTable"
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// create a TableSink
+val csvSink: TableSink = new CsvTableSink("/path/to/file", ...)
+
+// define the field names and types
+val fieldNames: Arary[String] = Array("a", "b", "c")
+val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.LONG)
+
+// register the TableSink as table "CsvSinkTable"
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink)
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
 Register an External Catalog
 ----------------------------
 
@@ -353,7 +399,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // register Orders table
 
 // compute revenue for all customers from France
-Table revenue = tableEnv.sql(
+Table revenue = tableEnv.sqlQuery(
     "SELECT cID, cName, SUM(revenue) AS revSum " +
     "FROM Orders " +
     "WHERE cCountry = 'FRANCE' " +
@@ -373,7 +419,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // register Orders table
 
 // compute revenue for all customers from France
-Table revenue = tableEnv.sql(""" 
+Table revenue = tableEnv.sqlQuery("""
   |SELECT cID, cName, SUM(revenue) AS revSum
   |FROM Orders
   |WHERE cCountry = 'FRANCE'
@@ -381,6 +427,59 @@ Table revenue = tableEnv.sql("""
   """.stripMargin)
 
 // emit or convert Table
+// execute query
+{% endhighlight %}
+
+</div>
+</div>
+
+The following example shows how to specify a update query to insert the result to a registered Table.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// register Orders table
+...
+
+// register SinkResult table
+...
+
+// compute revenue for all customers from France and emit to SinkResult
+tableEnv.sqlUpdate(
+    "INSERT INTO SinkResult" +
+    "SELECT cID, cName, SUM(revenue) AS revSum " +
+    "FROM Orders " +
+    "WHERE cCountry = 'FRANCE' " +
+    "GROUP BY cID, cName"
+  );
+
+// execute query
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// register Orders table
+...
+
+// register SinkResult table
+...
+
+// compute revenue for all customers from France and emit to SinkResult
+tableEnv.sqlUpdate("""
+  |INSERT INTO SinkResult
+  |SELECT cID, cName, SUM(revenue) AS revSum
+  |FROM Orders
+  |WHERE cCountry = 'FRANCE'
+  |GROUP BY cID, cName
+  """.stripMargin)
+
 // execute query
 {% endhighlight %}
 
@@ -407,6 +506,14 @@ A batch `Table` can only be written to a `BatchTableSink`, while a streaming tab
 
 Please see the documentation about [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) for details about available sinks and instructions for how to implement a custom `TableSink`.
 
+There're two ways to emit a table:
+
+1. Using `Table.writeToSink` which derives output schema from the input table.
+2. Pre-defines the output schema and register the table sink via `registerTableSink`, using
+`Table.insertInto(tableName, ...`(like `INSERT INTO table1 SELECT ...` in SQL)
+
+The following example shows how to emit a Table:
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -416,11 +523,26 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // compute a result Table using Table API operators and/or SQL queries
 Table result = ...
 
+// 1. Via writeToSink method
 // create a TableSink
-TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
+TableSink sink1 = new CsvTableSink("/path/to/file", fieldDelim = "|");
 
 // write the result Table to the TableSink
 result.writeToSink(sink);
+
+// 2. Or register a table sink first and using insertInto method
+// create a TableSink
+TableSink sink2 = new CsvTableSink("/path/to/file", fieldDelim = "|");
+
+// define the field names and types
+String[] fieldNames = {"a", "b", "c"};
+TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
+
+// register the TableSink as table "CsvSinkTable"
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink2);
+
+// insert the result Table to the "CsvSinkTable"
+result.insertTo("CsvSinkTable");
 
 // execute the program
 {% endhighlight %}
@@ -434,11 +556,26 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
 
+// 1. Via writeToSink method
 // create a TableSink
 val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
 
 // write the result Table to the TableSink
 result.writeToSink(sink)
+
+// 2. Or register a table sink first and using insertInto method
+// create a TableSink
+val sink2: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
+
+// define the field names and types
+val fieldNames: Array[String] = Array("a", "b", "c")
+val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
+
+// register the TableSink as table "CsvSinkTable"
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink2)
+
+// insert the result Table to the "CsvSinkTable"
+result.insertTo("CsvSinkTable")
 
 // execute the program
 {% endhighlight %}
@@ -458,7 +595,7 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 A Table API or SQL query is translated when:
 
-* the `Table` is emitted to a `TableSink`, i.e., when `Table.writeToSink()` is called.
+* the `Table` is emitted to a `TableSink` or a registered sink table, i.e., when `Table.writeToSink()` or `Table.insertInto()`is called.
 * the `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-dataStream-and-dataSet-api)).
 
 Once translated, a Table API or SQL query is handled like a regular DataStream or DataSet program and is executed when `StreamExecutionEnvironment.execute()` or `ExecutionEnvironment.execute()` is called.
