@@ -33,6 +33,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -155,13 +156,37 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 */
 	public static ParameterTool fromPropertiesFile(String path) throws IOException {
 		File propertiesFile = new File(path);
-		if (!propertiesFile.exists()) {
-			throw new FileNotFoundException("Properties file " + propertiesFile.getAbsolutePath() + " does not exist");
+		return fromPropertiesFile(propertiesFile);
+	}
+
+	/**
+	 * Returns {@link ParameterTool} for the given {@link Properties} file.
+	 *
+	 * @param file File object to the properties file
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If the file does not exist
+	 * @see Properties
+	 */
+	public static ParameterTool fromPropertiesFile(File file) throws IOException {
+		if (!file.exists()) {
+			throw new FileNotFoundException("Properties file " + file.getAbsolutePath() + " does not exist");
 		}
+		try (FileInputStream fis = new FileInputStream(file)) {
+			return fromPropertiesFile(fis);
+		}
+	}
+
+	/**
+	 * Returns {@link ParameterTool} for the given InputStream from {@link Properties} file.
+	 *
+	 * @param inputStream InputStream from the properties file
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If the file does not exist
+	 * @see Properties
+	 */
+	public static ParameterTool fromPropertiesFile(InputStream inputStream) throws IOException {
 		Properties props = new Properties();
-		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
-			props.load(fis);
-		}
+		props.load(inputStream);
 		return fromMap((Map) props);
 	}
 
