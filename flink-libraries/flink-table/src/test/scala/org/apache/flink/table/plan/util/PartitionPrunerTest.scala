@@ -46,10 +46,10 @@ class PartitionPrunerTest {
   val tEnv = TableEnvironment.getTableEnvironment(env)
   val relBuilder = tEnv.getRelBuilder
 
-  def getPrunedPartitions(
+  def getRemainingPartitions(
     allPartitions: JList[Partition],
     partitionPredicate: Array[Expression]): JList[Partition] = {
-    PartitionPruner.INSTANCE.getPrunedPartitions(
+    PartitionPruner.INSTANCE.getRemainingPartitions(
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -70,38 +70,38 @@ class PartitionPrunerTest {
   def testEmptyPartitions(): Unit = {
     val allPartitions = new JArrayList[Partition]()
     val predicate = Array[Expression]('part1 === "p1")
-    val prunedPartitions = getPrunedPartitions(allPartitions, predicate)
-    assertTrue(prunedPartitions.isEmpty)
+    val remainingPartitions = getRemainingPartitions(allPartitions, predicate)
+    assertTrue(remainingPartitions.isEmpty)
   }
 
   @Test
   def testOnePartition(): Unit = {
     val predicate1 = resolveFields(Array[Expression]('part1 === "p1"))
-    val prunedPartitions1 = getPrunedPartitions(allPartitions, predicate1)
-    assertEquals(1, prunedPartitions1.size())
-    assertEquals("part1=p1,part2=2", prunedPartitions1.get(0).getOriginValue)
+    val remainingPartitions1 = getRemainingPartitions(allPartitions, predicate1)
+    assertEquals(1, remainingPartitions1.size())
+    assertEquals("part1=p1,part2=2", remainingPartitions1.get(0).getOriginValue)
 
     val predicate2 = resolveFields(Array[Expression]('part2 === 4))
-    val prunedPartitions2 = getPrunedPartitions(allPartitions, predicate2)
-    assertEquals(1, prunedPartitions2.size())
-    assertEquals("part1=p3,part2=4", prunedPartitions2.get(0).getOriginValue)
+    val remainingPartitions2 = getRemainingPartitions(allPartitions, predicate2)
+    assertEquals(1, remainingPartitions2.size())
+    assertEquals("part1=p3,part2=4", remainingPartitions2.get(0).getOriginValue)
   }
 
   @Test
   def testTwoPartitionAnd(): Unit = {
     val predicate = resolveFields(Array[Expression]('part1 === "p3", 'part2 === 4))
-    val prunedPartitions = getPrunedPartitions(allPartitions, predicate)
-    assertEquals(1, prunedPartitions.size())
-    assertEquals("part1=p3,part2=4", prunedPartitions.get(0).getOriginValue)
+    val remainingPartitions = getRemainingPartitions(allPartitions, predicate)
+    assertEquals(1, remainingPartitions.size())
+    assertEquals("part1=p3,part2=4", remainingPartitions.get(0).getOriginValue)
   }
 
   @Test
   def testTwoPartitionOr(): Unit = {
     val predicate = resolveFields(Array[Expression]('part1 === "p1" || 'part2 === 4))
-    val prunedPartitions = getPrunedPartitions(allPartitions, predicate)
-    assertEquals(2, prunedPartitions.size())
-    assertEquals("part1=p1,part2=2", prunedPartitions.get(0).getOriginValue)
-    assertEquals("part1=p3,part2=4", prunedPartitions.get(1).getOriginValue)
+    val remainingPartitions = getRemainingPartitions(allPartitions, predicate)
+    assertEquals(2, remainingPartitions.size())
+    assertEquals("part1=p1,part2=2", remainingPartitions.get(0).getOriginValue)
+    assertEquals("part1=p3,part2=4", remainingPartitions.get(1).getOriginValue)
   }
 
 }

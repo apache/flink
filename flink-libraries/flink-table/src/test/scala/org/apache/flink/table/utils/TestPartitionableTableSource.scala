@@ -38,8 +38,8 @@ import scala.collection.mutable
 
 class TestPartitionableTableSource(
   val filterPushDown: Boolean = false,
-  val partitionPruned: Boolean = false,
-  val prunedPartitions: JList[Partition] = new JArrayList()
+  val partitionPrunedApplied: Boolean = false,
+  val remainingPartitions: JList[Partition] = new JArrayList()
 ) extends PartitionableTableSource[Row]
   with StreamTableSource[Row]
   with BatchTableSource[Row] {
@@ -67,14 +67,15 @@ class TestPartitionableTableSource(
   }
 
   private def getPartitionData: Array[Seq[Row]] = {
-    val remainingParts = if (partitionPruned) {
-      prunedPartitions.asScala.map(_.getOriginValue.toString).sorted.mkString("#")
+    val remainingParts = if (isPartitionPrunedApplied) {
+      remainingPartitions.asScala.map(_.getOriginValue.toString).sorted.mkString("#")
     } else {
       null
     }
 
     val remainingData = data.filterKeys {
-      key => !partitionPruned || prunedPartitions.asScala.map(_.getOriginValue).contains(key)
+      key => !isPartitionPrunedApplied ||
+        remainingPartitions.asScala.map(_.getOriginValue).contains(key)
     }.values.toArray
 
     remainingData.foreach {
@@ -106,25 +107,25 @@ class TestPartitionableTableSource(
     Array(BasicTypeInfo.STRING_TYPE_INFO)
   }
 
-  override def supportDropPartitionPredicate: Boolean = true
+  override def supportDropPartitionPredicates: Boolean = true
 
   override def explainSource(): String = {
-    val partitions = getPrunedPartitions.asScala.map(_.getOriginValue).mkString(",")
+    val partitions = getRemainingPartitions.asScala.map(_.getOriginValue).mkString(",")
     s"TestPartitionableTableSource=(filterPushDown=$filterPushDown," +
-      s"partitionPruned=$isPartitionPruned,prunedPartitions=$partitions)"
+      s"isPartitionPrunedApplied=$isPartitionPrunedApplied,remainingPartitions=$partitions)"
   }
 
   override def isFilterPushedDown: Boolean = filterPushDown
 
-  override def isPartitionPruned: Boolean = partitionPruned
+  override def isPartitionPrunedApplied: Boolean = partitionPrunedApplied
 
-  override def getPrunedPartitions: JList[Partition] = prunedPartitions
+  override def getRemainingPartitions: JList[Partition] = remainingPartitions
 
-  override def applyPrunedPartitionsAndPredicate(
-    partitionPruned: Boolean,
-    prunedPartitions: JList[Partition],
+  override def applyRemainingPartitionsAndPredicates(
+    isPartitionPrunedApplied: Boolean,
+    remainingPartitions: JList[Partition],
     predicates: JList[Expression]): TableSource[Row] = {
-    new TestPartitionableTableSource(true, partitionPruned, prunedPartitions)
+    new TestPartitionableTableSource(true, isPartitionPrunedApplied, remainingPartitions)
   }
 
 }

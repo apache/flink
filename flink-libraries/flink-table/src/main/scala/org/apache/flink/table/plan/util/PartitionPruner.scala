@@ -43,21 +43,25 @@ import scala.collection.JavaConverters._
   *
   * Creates partition filter instance (a [[FlatMapFunction]]) with partition predicates by code-gen,
   * and then evaluates all partition values against the partition filter to get final partitions.
-  *
   */
 abstract class PartitionPruner extends Compiler[FlatMapFunction[Row, Boolean]] {
 
   /**
-    * get pruned partitions from all partitions by partition filters
+    * Gets remaining partitions from all partitions by partition filters.
+    *
+    * There are three main steps to do partition pruning:
+    * First, convert predicate expressions to RexNode
+    * Second, create code-gen with the RexNode, and create filter instance by code-gen result
+    * Finally, do filter against all partitions, and get final remaining partitions
     *
     * @param partitionFieldNames Partition field names.
     * @param partitionFieldTypes Partition field types.
     * @param allPartitions       All partition values.
     * @param partitionPredicates A filter expression that will be applied against partition values.
     * @param relBuilder          Builder for relational expressions.
-    * @return Pruned partitions.
+    * @return Remaining partitions after applied filter expression against all partition values.
     */
-  def getPrunedPartitions(
+  def getRemainingPartitions(
     partitionFieldNames: Array[String],
     partitionFieldTypes: Array[TypeInformation[_]],
     allPartitions: JList[Partition],
@@ -69,6 +73,7 @@ abstract class PartitionPruner extends Compiler[FlatMapFunction[Row, Boolean]] {
     }
 
     // convert predicates to RexNode
+    Preconditions.checkNotNull(relBuilder)
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val relDataType = typeFactory.buildLogicalRowType(partitionFieldNames, partitionFieldTypes)
     val predicateRexNode = convertPredicatesToRexNode(partitionPredicates, relBuilder, relDataType)
@@ -103,6 +108,8 @@ abstract class PartitionPruner extends Compiler[FlatMapFunction[Row, Boolean]] {
     val clazz = compile(getClass.getClassLoader, genFunction.name, genFunction.code)
     val function = clazz.newInstance()
 
+    // boolean values stores whether a partition is retained(the value corresponding the
+    // partition is true) or dropped(the value is false)
     val results: JList[Boolean] = new JArrayList[Boolean](allPartitions.size)
     val collector = new ListCollector[Boolean](results)
 
@@ -113,14 +120,15 @@ abstract class PartitionPruner extends Compiler[FlatMapFunction[Row, Boolean]] {
         function.flatMap(row, collector)
     }
 
-    // get pruned partitions
+    // get remaining partitions by boolean results
     allPartitions.asScala.zipWithIndex.filter {
       case (_, index) => results.get(index)
     }.unzip._1.asJava
   }
 
   /**
-    * create new Row from partition, set partition values to corresponding positions of row.
+    * Creates new Row from a [[Partition]],
+    * set partition values corresponding to partition field names to a row.
     */
   def convertPartitionToRow(
     partitionFieldNames: Array[String],
@@ -149,7 +157,10 @@ abstract class PartitionPruner extends Compiler[FlatMapFunction[Row, Boolean]] {
   }
 
   /**
-    * Convert partition field value to expect type object value
+    * Converts partition field value to expect type object value
+    *
+    * e.g. on file system, log files are split by year, partition is file name(e.g. "2015", "2016").
+    * The expected partition schema type is INT, So we should convert string value to int value.
     *
     * @param partitionFieldValue partition field value
     * @param partitionFieldType  partition field types
@@ -167,7 +178,8 @@ abstract class PartitionPruner extends Compiler[FlatMapFunction[Row, Boolean]] {
 class DefaultPartitionPrunerImpl extends PartitionPruner {
 
   // by default supports BasicTypeInfo conversion, excluding DATE_TYPE_INFO and VOID_TYPE_INFO
-  override def convertPartitionFieldValue(partitionFieldValue: Any,
+  override def convertPartitionFieldValue(
+    partitionFieldValue: Any,
     partitionFieldType: TypeInformation[_]): Any = {
     partitionFieldValue match {
       case null => null
