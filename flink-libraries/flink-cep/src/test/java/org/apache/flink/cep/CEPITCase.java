@@ -21,6 +21,7 @@ package org.apache.flink.cep;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -678,5 +679,39 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		public int compare(Event o1, Event o2) {
 			return Double.compare(o1.getPrice(), o2.getPrice());
 		}
+	}
+
+	@Test
+	public void testSimpleAfterMatchSkip() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple2<Integer, String>> input = env.fromElements(
+			new Tuple2<>(1, "a"),
+			new Tuple2<>(2, "a"),
+			new Tuple2<>(3, "a"),
+			new Tuple2<>(4, "a"));
+
+		Pattern<Tuple2<Integer, String>, ?> pattern =
+			Pattern.<Tuple2<Integer, String>>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+				.where(new SimpleCondition<Tuple2<Integer, String>>() {
+					@Override
+					public boolean filter(Tuple2<Integer, String> rec) throws Exception {
+						return rec.f1.equals("a");
+					}
+				}).times(2);
+
+		PatternStream<Tuple2<Integer, String>> pStream = CEP.pattern(input, pattern);
+
+		DataStream<Tuple2<Integer, String>> result = pStream.select(new PatternSelectFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>() {
+			@Override
+			public Tuple2<Integer, String> select(Map<String, List<Tuple2<Integer, String>>> pattern) throws Exception {
+				return pattern.get("start").get(0);
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		expected = "(1,a)\n(3,a)";
+
+		env.execute();
 	}
 }
