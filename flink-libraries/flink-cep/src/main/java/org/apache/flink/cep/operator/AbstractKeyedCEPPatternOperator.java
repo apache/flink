@@ -229,7 +229,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		NFA<IN> nfa = getNFA();
 
 		// STEP 2
-		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
+		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() < timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
 			sort(elementQueueState.get(timestamp)).forEachOrdered(
 				event -> processEvent(nfa, event, timestamp)
