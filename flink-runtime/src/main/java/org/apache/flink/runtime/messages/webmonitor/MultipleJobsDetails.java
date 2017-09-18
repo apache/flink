@@ -18,64 +18,95 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
-import java.util.Arrays;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.commons.collections.CollectionUtils;
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 
 /**
  * An actor messages describing details of various jobs. This message is sent for example
- * in response to the {@link org.apache.flink.runtime.messages.webmonitor.RequestJobDetails}
- * message.
+ * in response to the {@link RequestJobDetails} message.
  */
-public class MultipleJobsDetails implements java.io.Serializable {
+public class MultipleJobsDetails implements ResponseBody, Serializable {
 
 	private static final long serialVersionUID = -1526236139616019127L;
 	
-	private static final JobDetails[] EMPTY = new JobDetails[0];
-	
-	private final JobDetails[] runningJobs;
-	private final JobDetails[] finishedJobs;
+	public static final String FIELD_NAME_JOBS_RUNNING = "running";
+	public static final String FIELD_NAME_JOBS_FINISHED = "finished";
 
-	public MultipleJobsDetails(JobDetails[] running, JobDetails[] finished) {
-		this.runningJobs = running == null ? EMPTY : running;
-		this.finishedJobs = finished == null ? EMPTY : finished;
+	@JsonProperty(FIELD_NAME_JOBS_RUNNING)
+	private final Collection<JobDetails> running;
+
+	@JsonProperty(FIELD_NAME_JOBS_FINISHED)
+	private final Collection<JobDetails> finished;
+
+	@JsonCreator
+	public MultipleJobsDetails(
+			@JsonProperty(FIELD_NAME_JOBS_RUNNING) Collection<JobDetails> running,
+			@JsonProperty(FIELD_NAME_JOBS_FINISHED) Collection<JobDetails> finished) {
+		this.running = running == null ? Collections.emptyList() : running;
+		this.finished = finished == null ? Collections.emptyList() : finished;
 	}
 	
 	// ------------------------------------------------------------------------
 
-	public JobDetails[] getRunningJobs() {
-		return runningJobs;
+	public Collection<JobDetails> getRunning() {
+		return running;
 	}
 
-	public JobDetails[] getFinishedJobs() {
-		return finishedJobs;
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public int hashCode() {
-		return Arrays.deepHashCode(runningJobs) + Arrays.deepHashCode(finishedJobs);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
-		else if (obj instanceof MultipleJobsDetails) {
-			MultipleJobsDetails that = (MultipleJobsDetails) obj;
-			return Arrays.deepEquals(this.runningJobs, that.runningJobs) &&
-					Arrays.deepEquals(this.finishedJobs, that.finishedJobs);
-		}
-		else {
-			return false;
-		}
+	public Collection<JobDetails> getFinished() {
+		return finished;
 	}
 
 	@Override
 	public String toString() {
-		return "MultipleJobsDetails {" +
-				"running=" + Arrays.toString(runningJobs) +
-				", finished=" + Arrays.toString(finishedJobs) +
-				'}';
+		return "MultipleJobsDetails{" +
+			"running=" + running +
+			", finished=" + finished +
+			'}';
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		MultipleJobsDetails that = (MultipleJobsDetails) o;
+
+		return CollectionUtils.isEqualCollection(running, that.running) &&
+			CollectionUtils.isEqualCollection(finished, that.finished);
+	}
+
+	@Override
+	public int hashCode() {
+		// the hash code only depends on the collection elements, not the collection itself!
+		int result = 1;
+
+		Iterator<JobDetails> iterator = running.iterator();
+
+		while (iterator.hasNext()) {
+			JobDetails jobDetails = iterator.next();
+			result = 31 * result + (jobDetails == null ? 0 : jobDetails.hashCode());
+		}
+
+		iterator = finished.iterator();
+
+		while (iterator.hasNext()) {
+			JobDetails jobDetails = iterator.next();
+			result = 31 * result + (jobDetails == null ? 0 : jobDetails.hashCode());
+		}
+
+		return result;
+	}
+
+	// ------------------------------------------------------------------------
 }

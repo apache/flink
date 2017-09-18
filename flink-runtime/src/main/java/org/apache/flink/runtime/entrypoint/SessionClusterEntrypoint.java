@@ -75,7 +75,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 			rpcService,
 			DispatcherGateway.class,
-			uuid -> new DispatcherId(uuid),
+			DispatcherId::new,
 			10,
 			Time.milliseconds(50L));
 

@@ -253,6 +253,7 @@ public final class WebMonitorUtils {
 
 		long started = job.getStatusTimestamp(JobStatus.CREATED);
 		long finished = status.isGloballyTerminalState() ? job.getStatusTimestamp(status) : -1L;
+		long duration = (finished >= 0L ? finished : System.currentTimeMillis()) - started;
 
 		int[] countsPerStatus = new int[ExecutionState.values().length];
 		long lastChanged = 0;
@@ -271,9 +272,16 @@ public final class WebMonitorUtils {
 
 		lastChanged = Math.max(lastChanged, finished);
 
-		return new JobDetails(job.getJobID(), job.getJobName(),
-				started, finished, status, lastChanged,
-				countsPerStatus, numTotalTasks);
+		return new JobDetails(
+			job.getJobID(),
+			job.getJobName(),
+			started,
+			finished,
+			duration,
+			status,
+			lastChanged,
+			countsPerStatus,
+			numTotalTasks);
 	}
 
 	/**

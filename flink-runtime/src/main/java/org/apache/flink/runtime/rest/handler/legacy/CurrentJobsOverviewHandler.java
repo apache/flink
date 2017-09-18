@@ -21,11 +21,15 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -45,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Request handler that returns a summary of the job status.
  */
-public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
+public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler implements LegacyRestHandler<DispatcherGateway, MultipleJobsDetails, EmptyMessageParameters> {
 
 	private static final String ALL_JOBS_REST_PATH = "/joboverview";
 	private static final String RUNNING_JOBS_REST_PATH = "/joboverview/running";
@@ -66,6 +70,11 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		this.timeout = checkNotNull(timeout);
 		this.includeRunningJobs = includeRunningJobs;
 		this.includeFinishedJobs = includeFinishedJobs;
+	}
+
+	@Override
+	public CompletableFuture<MultipleJobsDetails> handleRequest(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, DispatcherGateway gateway) {
+		return gateway.requestJobDetails(timeout);
 	}
 
 	@Override
@@ -92,24 +101,26 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 					StringWriter writer = new StringWriter();
 					try {
 						JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+						final JobDetails.JobDetailsSerializer jobDetailsSerializer = new JobDetails.JobDetailsSerializer();
+
 						gen.writeStartObject();
 
 						if (includeRunningJobs && includeFinishedJobs) {
-							gen.writeArrayFieldStart("running");
-							for (JobDetails detail : result.getRunningJobs()) {
-								writeJobDetailOverviewAsJson(detail, gen, now);
+							gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_RUNNING);
+							for (JobDetails detail : result.getRunning()) {
+								jobDetailsSerializer.serialize(detail, gen, null);
 							}
 							gen.writeEndArray();
 
-							gen.writeArrayFieldStart("finished");
-							for (JobDetails detail : result.getFinishedJobs()) {
-								writeJobDetailOverviewAsJson(detail, gen, now);
+							gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_FINISHED);
+							for (JobDetails detail : result.getFinished()) {
+								jobDetailsSerializer.serialize(detail, gen, null);
 							}
 							gen.writeEndArray();
 						} else {
 							gen.writeArrayFieldStart("jobs");
-							for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
-								writeJobDetailOverviewAsJson(detail, gen, now);
+							for (JobDetails detail : includeRunningJobs ? result.getRunning() : result.getFinished()) {
+								jobDetailsSerializer.serialize(detail, gen, null);
 							}
 							gen.writeEndArray();
 						}
@@ -138,10 +149,13 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 			StringWriter writer = new StringWriter();
 			try (JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer)) {
 				gen.writeStartObject();
-				gen.writeArrayFieldStart("running");
+				gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_RUNNING);
 				gen.writeEndArray();
-				gen.writeArrayFieldStart("finished");
-				writeJobDetailOverviewAsJson(WebMonitorUtils.createDetailsForJob(graph), gen, System.currentTimeMillis());
+				gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_FINISHED);
+
+				final JobDetails.JobDetailsSerializer jobDetailsSerializer = new JobDetails.JobDetailsSerializer();
+				jobDetailsSerializer.serialize(WebMonitorUtils.createDetailsForJob(graph), gen, null);
+
 				gen.writeEndArray();
 				gen.writeEndObject();
 			}
@@ -149,34 +163,5 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 			String path = ALL_JOBS_REST_PATH;
 			return Collections.singleton(new ArchivedJson(path, json));
 		}
-	}
-
-	public static void writeJobDetailOverviewAsJson(JobDetails details, JsonGenerator gen, long now) throws IOException {
-		gen.writeStartObject();
-
-		gen.writeStringField("jid", details.getJobId().toString());
-		gen.writeStringField("name", details.getJobName());
-		gen.writeStringField("state", details.getStatus().name());
-
-		gen.writeNumberField("start-time", details.getStartTime());
-		gen.writeNumberField("end-time", details.getEndTime());
-		gen.writeNumberField("duration", (details.getEndTime() <= 0 ? now : details.getEndTime()) - details.getStartTime());
-		gen.writeNumberField("last-modification", details.getLastUpdateTime());
-
-		gen.writeObjectFieldStart("tasks");
-		gen.writeNumberField("total", details.getNumTasks());
-
-		final int[] perState = details.getNumVerticesPerExecutionState();
-		gen.writeNumberField("pending", perState[ExecutionState.CREATED.ordinal()] +
-				perState[ExecutionState.SCHEDULED.ordinal()] +
-				perState[ExecutionState.DEPLOYING.ordinal()]);
-		gen.writeNumberField("running", perState[ExecutionState.RUNNING.ordinal()]);
-		gen.writeNumberField("finished", perState[ExecutionState.FINISHED.ordinal()]);
-		gen.writeNumberField("canceling", perState[ExecutionState.CANCELING.ordinal()]);
-		gen.writeNumberField("canceled", perState[ExecutionState.CANCELED.ordinal()]);
-		gen.writeNumberField("failed", perState[ExecutionState.FAILED.ordinal()]);
-		gen.writeEndObject();
-
-		gen.writeEndObject();
 	}
 }

@@ -177,6 +177,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		}
 	}
 
+	public JobMasterGateway getJobManagerGateway() {
+		return jobManager.getSelfGateway(JobMasterGateway.class);
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Lifecycle management
 	//----------------------------------------------------------------------------------------------

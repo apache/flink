@@ -50,8 +50,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ClusterOverviewHandler extends AbstractJsonRequestHandler implements LegacyRestHandler<DispatcherGateway, StatusOverviewWithVersion, EmptyMessageParameters> {
 
-
-
 	private static final String version = EnvironmentInformation.getVersion();
 
 	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
