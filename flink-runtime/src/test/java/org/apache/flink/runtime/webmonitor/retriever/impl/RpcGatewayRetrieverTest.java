@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -36,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -72,7 +74,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		final String expectedValue2 = "barfoo";
 		final UUID leaderSessionId = UUID.randomUUID();
 
-		RpcGatewayRetriever<DummyGateway> gatewayRetriever = new RpcGatewayRetriever<>(rpcService, DummyGateway.class);
+		RpcGatewayRetriever<UUID, DummyGateway> gatewayRetriever = new RpcGatewayRetriever<>(rpcService, DummyGateway.class, Function.identity(), 0, Time.milliseconds(0L));
 		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
 		DummyRpcEndpoint dummyRpcEndpoint = new DummyRpcEndpoint(rpcService, "dummyRpcEndpoint1", expectedValue);
 		DummyRpcEndpoint dummyRpcEndpoint2 = new DummyRpcEndpoint(rpcService, "dummyRpcEndpoint2", expectedValue2);
@@ -115,7 +117,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 	/**
 	 * Testing RpcGateway.
 	 */
-	public interface DummyGateway extends RpcGateway {
+	public interface DummyGateway extends FencedRpcGateway<UUID> {
 		CompletableFuture<String> foobar(@RpcTimeout Time timeout);
 	}
 
@@ -131,6 +133,11 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		@Override
 		public CompletableFuture<String> foobar(Time timeout) {
 			return CompletableFuture.completedFuture(value);
+		}
+
+		@Override
+		public UUID getFencingToken() {
+			return HighAvailabilityServices.DEFAULT_LEADER_ID;
 		}
 	}
 }

@@ -166,7 +166,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			}
 
 			for (int i = 0; i < webMonitor.length; i++) {
-				jobManagerRetrievers[i] = new AkkaJobManagerRetriever(jobManagerSystem[i], TIMEOUT);
+				jobManagerRetrievers[i] = new AkkaJobManagerRetriever(jobManagerSystem[i], TIMEOUT, 0, Time.milliseconds(50L));
 
 				webMonitor[i] = new WebRuntimeMonitor(
 					config,
@@ -315,7 +315,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				config,
 				mock(LeaderRetrievalService.class),
 				mock(BlobView.class),
-				new AkkaJobManagerRetriever(actorSystem, TIMEOUT),
+				new AkkaJobManagerRetriever(actorSystem, TIMEOUT, 0, Time.milliseconds(50L)),
 				new AkkaQueryServiceRetriever(actorSystem, TIMEOUT),
 				TIMEOUT,
 				TestingUtils.defaultExecutor());
@@ -496,7 +496,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			config,
 			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			highAvailabilityServices.createBlobStore(),
-			new AkkaJobManagerRetriever(jmActorSystem, timeout),
+			new AkkaJobManagerRetriever(jmActorSystem, timeout, 0, Time.milliseconds(50L)),
 			new AkkaQueryServiceRetriever(jmActorSystem, timeout),
 			timeout,
 			TestingUtils.defaultExecutor());
