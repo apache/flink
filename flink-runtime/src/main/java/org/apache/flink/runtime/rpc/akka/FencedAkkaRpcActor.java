@@ -58,7 +58,10 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 						"not match the expected fencing token {}.", message, fencingToken, rpcEndpoint.getFencingToken());
 				}
 
-				sendErrorIfSender(new FencingTokenMismatchException("Expected fencing token " + rpcEndpoint.getFencingToken() + ", actual fencing token " + fencingToken));
+				sendErrorIfSender(
+					new FencingTokenMismatchException("Fencing token mismatch: Ignoring message " + message +
+						" because the fencing token " + fencingToken + " did not match the expected fencing token " +
+						rpcEndpoint.getFencingToken() + '.'));
 			}
 		} else if (message instanceof UnfencedMessage) {
 			super.handleMessage(((UnfencedMessage<?>) message).getPayload());
