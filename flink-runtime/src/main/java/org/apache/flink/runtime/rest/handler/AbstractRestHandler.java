@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -192,7 +193,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	private static void sendResponse(@Nonnull ChannelHandlerContext ctx, @Nonnull HttpRequest httpRequest, @Nonnull HttpResponseStatus statusCode, @Nonnull String message) {
 		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, statusCode);
 
-		response.headers().set(CONTENT_TYPE, "application/json");
+		response.headers().set(CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
 
 		if (HttpHeaders.isKeepAlive(httpRequest)) {
 			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
