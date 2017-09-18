@@ -187,7 +187,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		when(jobManager.cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class))).thenReturn(successfulCancelWithSavepoint);
 
 		// Trigger
-		FullHttpResponse response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager).get();
+		FullHttpResponse response = trigger.handleRequest(params, Collections.emptyMap(), jobManager).get();
 
 		verify(jobManager).cancelJobWithSavepoint(eq(jobId), eq("custom-directory"), any(Time.class));
 

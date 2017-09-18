@@ -29,10 +29,11 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -130,7 +131,7 @@ public final class WebMonitorUtils {
 	public static WebMonitor startWebRuntimeMonitor(
 			Configuration config,
 			HighAvailabilityServices highAvailabilityServices,
-			JobManagerRetriever jobManagerRetriever,
+			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Time timeout,
 			Executor executor) {
@@ -143,7 +144,7 @@ public final class WebMonitorUtils {
 				Configuration.class,
 				LeaderRetrievalService.class,
 				BlobView.class,
-				JobManagerRetriever.class,
+				LeaderGatewayRetriever.class,
 				MetricQueryServiceRetriever.class,
 				Time.class,
 				Executor.class);

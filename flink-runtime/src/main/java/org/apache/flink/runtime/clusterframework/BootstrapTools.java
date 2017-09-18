@@ -33,9 +33,10 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
 
@@ -186,7 +187,7 @@ public class BootstrapTools {
 	public static WebMonitor startWebMonitorIfConfigured(
 			Configuration config,
 			HighAvailabilityServices highAvailabilityServices,
-			JobManagerRetriever jobManagerRetriever,
+			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Time timeout,
 			Executor executor,

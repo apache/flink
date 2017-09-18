@@ -35,6 +35,7 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
@@ -165,7 +166,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			}
 
 			for (int i = 0; i < webMonitor.length; i++) {
-				jobManagerRetrievers[i] = new AkkaJobManagerRetriever(jobManagerSystem[i], TIMEOUT);
+				jobManagerRetrievers[i] = new AkkaJobManagerRetriever(jobManagerSystem[i], TIMEOUT, 0, Time.milliseconds(50L));
 
 				webMonitor[i] = new WebRuntimeMonitor(
 					config,
@@ -314,7 +315,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				config,
 				mock(LeaderRetrievalService.class),
 				mock(BlobView.class),
-				new AkkaJobManagerRetriever(actorSystem, TIMEOUT),
+				new AkkaJobManagerRetriever(actorSystem, TIMEOUT, 0, Time.milliseconds(50L)),
 				new AkkaQueryServiceRetriever(actorSystem, TIMEOUT),
 				TIMEOUT,
 				TestingUtils.defaultExecutor());
@@ -495,7 +496,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			config,
 			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			highAvailabilityServices.createBlobStore(),
-			new AkkaJobManagerRetriever(jmActorSystem, timeout),
+			new AkkaJobManagerRetriever(jmActorSystem, timeout, 0, Time.milliseconds(50L)),
 			new AkkaQueryServiceRetriever(jmActorSystem, timeout),
 			timeout,
 			TestingUtils.defaultExecutor());
@@ -509,11 +510,11 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 	private void waitForLeaderNotification(
 			String expectedJobManagerURL,
-			AkkaJobManagerRetriever retriever,
+			GatewayRetriever<JobManagerGateway> retriever,
 			Deadline deadline) throws Exception {
 
 		while (deadline.hasTimeLeft()) {
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
+			Optional<JobManagerGateway> optJobManagerGateway = retriever.getNow();
 
 			if (optJobManagerGateway.isPresent() && Objects.equals(expectedJobManagerURL, optJobManagerGateway.get().getAddress())) {
 				return;

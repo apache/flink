@@ -26,7 +26,7 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.Preconditions;
@@ -53,7 +53,7 @@ import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.Metr
 public class MetricFetcher {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricFetcher.class);
 
-	private final JobManagerRetriever retriever;
+	private final GatewayRetriever<JobManagerGateway> retriever;
 	private final MetricQueryServiceRetriever queryServiceRetriever;
 	private final Executor executor;
 	private final Time timeout;
@@ -64,7 +64,7 @@ public class MetricFetcher {
 	private long lastUpdateTime;
 
 	public MetricFetcher(
-			JobManagerRetriever retriever,
+			GatewayRetriever<JobManagerGateway> retriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Executor executor,
 			Time timeout) {
@@ -98,7 +98,7 @@ public class MetricFetcher {
 
 	private void fetchMetrics() {
 		try {
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
+			Optional<JobManagerGateway> optJobManagerGateway = retriever.getNow();
 			if (optJobManagerGateway.isPresent()) {
 				final JobManagerGateway jobManagerGateway = optJobManagerGateway.get();
 

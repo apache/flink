@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.metrics;
 
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.TestLogger;
 
@@ -43,7 +43,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testHandleRequest() throws Exception {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
 			TestingUtils.TIMEOUT());
@@ -96,7 +96,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testInvalidListDoesNotFail() {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
 			TestingUtils.TIMEOUT());
@@ -126,7 +126,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testInvalidGetDoesNotFail() {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
 			TestingUtils.TIMEOUT());

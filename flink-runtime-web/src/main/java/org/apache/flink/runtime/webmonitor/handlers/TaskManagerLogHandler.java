@@ -36,8 +36,9 @@ import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.RedirectHandler;
+import org.apache.flink.runtime.webmonitor.WebHandler;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -89,7 +90,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * example.</p>
  */
 @ChannelHandler.Sharable
-public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
+public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> implements WebHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerLogHandler.class);
 
 	private static final String TASKMANAGER_LOG_REST_PATH = "/taskmanagers/:taskmanagerid/log";
@@ -120,7 +121,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	}
 
 	public TaskManagerLogHandler(
-		JobManagerRetriever retriever,
+		GatewayRetriever<JobManagerGateway> retriever,
 		Executor executor,
 		CompletableFuture<String> localJobManagerAddressPromise,
 		Time timeout,
@@ -128,7 +129,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		Configuration config,
 		boolean httpsEnabled,
 		BlobView blobView) {
-		super(retriever, localJobManagerAddressPromise, timeout, httpsEnabled);
+		super(localJobManagerAddressPromise, retriever, timeout, httpsEnabled);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;

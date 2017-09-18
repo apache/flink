@@ -30,7 +30,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
-import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import javax.annotation.Nullable;
 
@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
  * <p>This interface constitutes the operations an external component can
  * trigger on the JobManager.
  */
-public interface JobManagerGateway extends RpcGateway {
+public interface JobManagerGateway extends RestfulGateway {
 
 	/**
 	 * Requests the BlobServer port.

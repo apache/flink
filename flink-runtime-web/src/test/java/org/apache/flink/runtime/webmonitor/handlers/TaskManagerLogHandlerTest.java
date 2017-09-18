@@ -30,7 +30,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -63,7 +63,7 @@ public class TaskManagerLogHandlerTest {
 	@Test
 	public void testGetPaths() {
 		TaskManagerLogHandler handlerLog = new TaskManagerLogHandler(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			Executors.directExecutor(),
 			CompletableFuture.completedFuture("/jm/address"),
 			TestingUtils.TIMEOUT(),
@@ -76,7 +76,7 @@ public class TaskManagerLogHandlerTest {
 		Assert.assertEquals("/taskmanagers/:taskmanagerid/log", pathsLog[0]);
 
 		TaskManagerLogHandler handlerOut = new TaskManagerLogHandler(
-			mock(JobManagerRetriever.class),
+			mock(GatewayRetriever.class),
 			Executors.directExecutor(),
 			CompletableFuture.completedFuture("/jm/address"),
 			TestingUtils.TIMEOUT(),
@@ -113,8 +113,8 @@ public class TaskManagerLogHandlerTest {
 		when(jobManagerGateway.requestTaskManagerInstance(any(InstanceID.class), any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(Optional.of(taskManager)));
 
-		JobManagerRetriever retriever = mock(JobManagerRetriever.class);
-		when(retriever.getJobManagerGatewayNow())
+		GatewayRetriever<JobManagerGateway> retriever = mock(GatewayRetriever.class);
+		when(retriever.getNow())
 			.thenReturn(Optional.of(jobManagerGateway));
 
 		TaskManagerLogHandler handler = new TaskManagerLogHandler(
