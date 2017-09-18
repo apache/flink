@@ -553,7 +553,7 @@ Thus, in order to infer the metric identifier:
     <tr>                                                           
       <th rowspan="12"><strong>Job-/TaskManager</strong></th>
       <td rowspan="12">Status.JVM.Memory</td>
-      <td>Memory.Heap.Used</td>
+      <td>Heap.Used</td>
       <td>The amount of heap memory currently used.</td>
     </tr>
     <tr>
