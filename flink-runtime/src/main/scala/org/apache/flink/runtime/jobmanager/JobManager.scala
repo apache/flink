@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.IOException
 import java.net._
+import java.util
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, Future => _, TimeoutException => _, _}
 import java.util.function.{BiFunction, Consumer}
@@ -1694,10 +1695,12 @@ class JobManager(
             val future = (archive ? msg)(timeout)
             future.onSuccess {
               case archiveDetails: MultipleJobsDetails =>
-                theSender ! new MultipleJobsDetails(ourDetails, archiveDetails.getFinishedJobs())
+                theSender ! new MultipleJobsDetails(
+                  util.Arrays.asList(ourDetails: _*),
+                  archiveDetails.getFinished())
             }(context.dispatcher)
           } else {
-            theSender ! new MultipleJobsDetails(ourDetails, null)
+            theSender ! new MultipleJobsDetails(util.Arrays.asList(ourDetails: _*), null)
           }
           
         case _ => log.error("Unrecognized info message " + actorMessage)

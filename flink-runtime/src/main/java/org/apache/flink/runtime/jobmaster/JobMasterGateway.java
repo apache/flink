@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateServerAddress;
@@ -209,4 +210,6 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	 * @param resourceID unique id of the resource manager
 	 */
 	void heartbeatFromResourceManager(final ResourceID resourceID);
+
+	CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
 }

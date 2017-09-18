@@ -38,6 +38,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -49,6 +51,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -235,7 +238,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
-		// TODO: return proper list of running jobs
 		return CompletableFuture.completedFuture(jobManagerRunners.keySet());
 	}
 
@@ -256,6 +258,23 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				6,
 				7,
 				8));
+	}
+
+	@Override
+	public CompletableFuture<MultipleJobsDetails> requestJobDetails(Time timeout) {
+		final int numberJobsRunning = jobManagerRunners.size();
+
+		ArrayList<CompletableFuture<JobDetails>> individualJobDetails = new ArrayList<>(numberJobsRunning);
+
+		for (JobManagerRunner jobManagerRunner : jobManagerRunners.values()) {
+			individualJobDetails.add(jobManagerRunner.getJobManagerGateway().requestJobDetails(timeout));
+		}
+
+		CompletableFuture<Collection<JobDetails>> combinedJobDetails = FutureUtils.combineAll(individualJobDetails);
+
+		return combinedJobDetails.thenApply(
+			(Collection<JobDetails> jobDetails) ->
+				new MultipleJobsDetails(jobDetails, null));
 	}
 
 	/**
