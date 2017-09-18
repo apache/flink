@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.retriever;
 
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -38,19 +39,23 @@ public interface GatewayRetriever<T extends RpcGateway> {
 	CompletableFuture<T> getFuture();
 
 	/**
-	 * Returns the currently retrieved object if there is such an object. Otherwise
+	 * Returns the currently retrieved gateway if there is such an object. Otherwise
 	 * it returns an empty optional.
 	 *
 	 * @return Optional object to retrieve
-	 * @throws Exception if the future has been completed with an exception
 	 */
-	default Optional<T> getNow() throws Exception {
+	default Optional<T> getNow() {
 		CompletableFuture<T> leaderFuture = getFuture();
 		if (leaderFuture != null) {
-			CompletableFuture<T> currentLeaderFuture = leaderFuture;
-
-			if (currentLeaderFuture.isDone()) {
-				return Optional.of(currentLeaderFuture.get());
+			if (leaderFuture.isCompletedExceptionally() || leaderFuture.isCancelled()) {
+				return Optional.empty();
+			} else if (leaderFuture.isDone()) {
+				try {
+					return Optional.of(leaderFuture.get());
+				} catch (Exception e) {
+					// this should never happen
+					throw new FlinkRuntimeException("Unexpected error while accessing the retrieved gateway.", e);
+				}
 			} else {
 				return Optional.empty();
 			}

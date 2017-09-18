@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Retrieves and stores the current leader address.
@@ -35,15 +35,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class LeaderRetriever implements LeaderRetrievalListener {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	// False if we have to create a new JobManagerGateway future when being notified
-	// about a new leader address
-	private final AtomicBoolean firstTimeUsage;
-
-	protected volatile CompletableFuture<Tuple2<String, UUID>> leaderFuture;
+	private AtomicReference<CompletableFuture<Tuple2<String, UUID>>> atomicLeaderFuture;
 
 	public LeaderRetriever() {
-		firstTimeUsage = new AtomicBoolean(true);
-		leaderFuture = new CompletableFuture<>();
+		atomicLeaderFuture = new AtomicReference<>(new CompletableFuture<>());
 	}
 
 	/**
@@ -55,7 +50,7 @@ public class LeaderRetriever implements LeaderRetrievalListener {
 	 * @throws Exception if the leader future has been completed with an exception
 	 */
 	public Optional<Tuple2<String, UUID>> getLeaderNow() throws Exception {
-		CompletableFuture<Tuple2<String, UUID>> leaderFuture = this.leaderFuture;
+		CompletableFuture<Tuple2<String, UUID>> leaderFuture = this.atomicLeaderFuture.get();
 		if (leaderFuture != null) {
 			CompletableFuture<Tuple2<String, UUID>> currentLeaderFuture = leaderFuture;
 
@@ -73,25 +68,23 @@ public class LeaderRetriever implements LeaderRetrievalListener {
 	 * Returns the current JobManagerGateway future.
 	 */
 	public CompletableFuture<Tuple2<String, UUID>> getLeaderFuture() {
-		return leaderFuture;
+		return atomicLeaderFuture.get();
 	}
 
 	@Override
 	public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
 		if (leaderAddress != null && !leaderAddress.equals("")) {
 			try {
-				final CompletableFuture<Tuple2<String, UUID>> newLeaderFuture;
+				final CompletableFuture<Tuple2<String, UUID>> newLeaderFuture = CompletableFuture.completedFuture(Tuple2.of(leaderAddress, leaderSessionID));
 
-				if (firstTimeUsage.compareAndSet(true, false)) {
-					newLeaderFuture = leaderFuture;
-				} else {
-					newLeaderFuture = createNewFuture();
-					leaderFuture = newLeaderFuture;
+				final CompletableFuture<Tuple2<String, UUID>> oldLeaderFuture = atomicLeaderFuture.getAndSet(newLeaderFuture);
+
+				if (!oldLeaderFuture.isDone()) {
+					// initial leader future
+					oldLeaderFuture.complete(Tuple2.of(leaderAddress, leaderSessionID));
 				}
 
-				log.info("New leader reachable under {}:{}.", leaderAddress, leaderSessionID);
-
-				newLeaderFuture.complete(Tuple2.of(leaderAddress, leaderSessionID));
+				notifyNewLeaderAddress(newLeaderFuture);
 			}
 			catch (Exception e) {
 				handleError(e);
@@ -103,10 +96,8 @@ public class LeaderRetriever implements LeaderRetrievalListener {
 	public void handleError(Exception exception) {
 		log.error("Received error from LeaderRetrievalService.", exception);
 
-		leaderFuture.completeExceptionally(exception);
+		atomicLeaderFuture.get().completeExceptionally(exception);
 	}
 
-	protected CompletableFuture<Tuple2<String, UUID>> createNewFuture() {
-		return new CompletableFuture<>();
-	}
+	protected void notifyNewLeaderAddress(CompletableFuture<Tuple2<String, UUID>> newLeaderAddressFuture) {}
 }
