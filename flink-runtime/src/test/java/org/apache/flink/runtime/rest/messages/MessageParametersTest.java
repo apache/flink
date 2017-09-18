@@ -50,13 +50,13 @@ public class MessageParametersTest extends TestLogger {
 		private final TestQueryParameter queryParameter = new TestQueryParameter();
 
 		@Override
-		public Collection<MessagePathParameter<?>> getPathParameters() {
-			return Collections.singleton(pathParameter);
+		protected void addPathParameters(Collection<MessagePathParameter<?>> pathParameters) {
+			pathParameters.add(pathParameter);
 		}
 
 		@Override
-		public Collection<MessageQueryParameter<?>> getQueryParameters() {
-			return Collections.singleton(queryParameter);
+		protected void addQueryParameters(Collection<MessageQueryParameter<?>> queryParameters) {
+			queryParameters.add(queryParameter);
 		}
 	}
 

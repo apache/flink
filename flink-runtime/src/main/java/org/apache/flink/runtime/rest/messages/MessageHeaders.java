@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
 
 /**
  * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data required for their http headers.
@@ -74,5 +77,12 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	 * @return new message parameters object
 	 */
 	M getUnresolvedMessageParameters();
+
+	/**
+	 * Returns the {@link RestAPIVersion}s that this header supports.
+	 *
+	 * @return supported api versions
+	 */
+	Collection<RestAPIVersion> getSupportedAPIVersions();
 
 }

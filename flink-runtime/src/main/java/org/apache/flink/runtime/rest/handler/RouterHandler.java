@@ -42,6 +42,7 @@ public class RouterHandler extends Handler {
 
 	@Override
 	protected void respondNotFound(ChannelHandlerContext ctx, HttpRequest request) {
+		LOG.debug("Request could not be routed to any handler. Uri:{} Method:{}", request.getUri(), request.getMethod());
 		AbstractRestHandler.sendErrorResponse(new ErrorResponseBody("Not found."), HttpResponseStatus.NOT_FOUND, ctx, request);
 	}
 }

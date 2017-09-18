@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.VersionPathParameter;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -126,7 +127,11 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 			CompletableFuture<P> response;
 			try {
 				HandlerRequest<R, M> handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
-				response = handleRequest(handlerRequest);
+				if (messageHeaders.getSupportedAPIVersions().contains(handlerRequest.getPathParameter(VersionPathParameter.class))) {
+					response = handleRequest(handlerRequest);
+				} else {
+					response = FutureUtils.completedExceptionally(new RestHandlerException("Not Found.", HttpResponseStatus.NOT_FOUND));
+				}
 			} catch (Exception e) {
 				response = FutureUtils.completedExceptionally(e);
 			}

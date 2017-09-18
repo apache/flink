@@ -20,28 +20,49 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * This class defines the path/query {@link MessageParameter}s that can be used for a request.
  */
 public abstract class MessageParameters {
+	public final VersionPathParameter versionPathParameter = new VersionPathParameter();
 
 	/**
-	 * Returns the collection of {@link MessagePathParameter} that the request supports. The collection should not be
-	 * modifiable.
+	 * Returns the collection of {@link MessagePathParameter} that the request supports.
 	 *
 	 * @return collection of all supported message path parameters
 	 */
-	public abstract Collection<MessagePathParameter<?>> getPathParameters();
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		Collection<MessagePathParameter<?>> pathParameters = new ArrayList<>();
+		pathParameters.add(versionPathParameter);
+		addPathParameters(pathParameters);
+		return Collections.unmodifiableCollection(pathParameters);
+	}
 
 	/**
-	 * Returns the collection of {@link MessageQueryParameter} that the request supports. The collection should not be
-	 * modifiable.
+	 * Returns the collection of {@link MessageQueryParameter} that the request supports.
 	 *
 	 * @return collection of all supported message query parameters
 	 */
-	public abstract Collection<MessageQueryParameter<?>> getQueryParameters();
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		Collection<MessageQueryParameter<?>> queryParameters = new ArrayList<>();
+		addQueryParameters(queryParameters);
+		return Collections.unmodifiableCollection(queryParameters);
+
+	}
+
+	/**
+	 * Adds all {@link MessagePathParameter}s that the request supports to the given collection.
+	 */
+	protected abstract void addPathParameters(Collection<MessagePathParameter<?>> pathParameters);
+
+	/**
+	 * Adds all{@link MessageQueryParameter}s that the request supports. to the given collection.
+	 */
+	protected abstract void addQueryParameters(Collection<MessageQueryParameter<?>> queryParameters);
 
 	/**
 	 * Returns whether all mandatory parameters have been resolved.
