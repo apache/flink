@@ -36,7 +36,7 @@ import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSourceTable}
+import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSinkTable, TableSourceTable}
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
@@ -102,6 +102,56 @@ abstract class BatchTableEnvironment(
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")
+    }
+  }
+
+  /**
+    * Registers an external [[TableSink]] with given field names and types in this
+    * [[TableEnvironment]]'s catalog. Registered sink tables can be referenced in SQL DML clause.
+    *
+    * Examples:
+    *
+    * - predefine a table sink and its field names and types
+    * {{{
+    *   val fieldNames: Array[String]  = Array("a", "b", "c")
+    *   val fieldTypes: Array[TypeInformation[_]]  = Array(Types.STRING, Types.INT, Types.LONG)
+    *   val tableSink: TableSink = new YourTableSinkImpl(...)
+    * }}}
+    *
+    * -  register an alias for this table sink to catalog
+    * {{{
+    *   tableEnv.registerTableSink("example_sink_table", fieldNames, fieldsTypes, tableSink)
+    * }}}
+    *
+    * -  use the registered sink in SQL directly
+    * {{{
+    *   tableEnv.sqlInsert("INSERT INTO example_sink_table SELECT a, b, c FROM sourceTable")
+    * }}}
+    *
+    * @param name      The name under which the [[TableSink]] is registered.
+    * @param tableSink The [[TableSink]] to register.
+    */
+  def registerTableSink(
+      name: String,
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]],
+      tableSink: TableSink[_]): Unit = {
+    checkValidTableName(name)
+    if (null == fieldNames || null == fieldTypes) {
+      throw new TableException("fieldNames and fieldTypes should not be empty!")
+    }
+    if (fieldNames.length != fieldTypes.length) {
+      val errorMsg = "Field names and types should have same length! Passing fieldNames " +
+        s"length: ${fieldNames.length} but fieldTypes length: ${fieldTypes.length}"
+      throw new TableException(errorMsg)
+    }
+
+    tableSink match {
+      case batchTableSink: BatchTableSink[_] =>
+        val configuredSink = batchTableSink.configure(fieldNames, fieldTypes)
+        registerTableInternal(name, new TableSinkTable(configuredSink))
+      case _ =>
+        throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment")
     }
   }
 

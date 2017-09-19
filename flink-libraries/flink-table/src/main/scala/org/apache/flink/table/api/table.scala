@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionPar
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
+import org.apache.flink.table.plan.schema.TableSinkTable
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.annotation.varargs
@@ -762,13 +763,10 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
-
-    def queryConfig = this.tableEnv match {
-      case s: StreamTableEnvironment => s.queryConfig
-      case b: BatchTableEnvironment => new BatchQueryConfig
-      case _ => null
+    val queryConfig = Option(this.tableEnv) match {
+      case None => null
+      case _ => this.tableEnv.queryConfig
     }
-
     writeToSink(sink, queryConfig)
   }
 
@@ -797,6 +795,68 @@ class Table(
 
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink, conf)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableName
+    * represents a registered [[TableSink]] which defines an external storage location.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].*
+    *
+    * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
+    */
+  def insertInto(tableName: String): Unit = {
+    insertInto(tableName, this.tableEnv.queryConfig)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] specified by given name. The tableName
+    * represents a registered [[TableSink]] which defines an external storage location.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].*
+    *
+    * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
+    * @param conf The [[QueryConfig]] to use.
+    */
+  def insertInto(tableName: String, conf: QueryConfig): Unit = {
+    require(tableName != null && !tableName.isEmpty, "tableSink must not be null or empty.")
+    // validate if the tableSink is registered
+    if (!tableEnv.isRegistered(tableName)) {
+      throw TableException("No table $tableName registered.")
+    }
+    // find if the tableSink is registered //, include validation internally
+    tableEnv.getTable(tableName) match {
+      case sink: TableSinkTable[_] => {
+        // get row type info of upstream table
+        val rowType = getRelNode.getRowType
+        val srcFieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
+          .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
+        // column length and types validation, no need to validate field names
+        if (srcFieldTypes.length != sink.tableSink.getFieldTypes.length ||
+          sink.tableSink.getFieldTypes.zip(srcFieldTypes).exists(f => f._1 != f._2)) {
+          val srcFieldsInfo = rowType.getFieldNames.asScala.zip(srcFieldTypes).map(
+            f => s"${f._1}: ${f._2.getTypeClass.getSimpleName}")
+          val sinkFieldsInfo = sink.tableSink.getFieldNames.zip(sink.tableSink.getFieldTypes).map(
+            f => s"${f._1}: ${f._2.getTypeClass.getSimpleName}")
+          throw TableException(s"Schema of inserted table must exactly match the schema of the " +
+            s"target table $tableName. Inserted table: [$srcFieldsInfo], target " +
+            s"table: [$sinkFieldsInfo] ")
+        }
+        // emit the table to the configured table sink
+        tableEnv.writeToSink(this, sink.tableSink, conf)
+      }
+      case _ =>
+        throw new TableException(s"A Table can only be emitted to a TableSink. $tableName was not" +
+          s" registered as a TableSink.")
+    }
   }
 
   /**

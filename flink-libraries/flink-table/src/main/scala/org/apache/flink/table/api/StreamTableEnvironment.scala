@@ -42,12 +42,12 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
+import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable, TableSinkTable}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
-import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
+import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
@@ -79,7 +79,7 @@ abstract class StreamTableEnvironment(
   // the naming pattern for internally registered tables.
   private val internalNamePattern = "^_DataStreamTable_[0-9]+$".r
 
-  def queryConfig: StreamQueryConfig = new StreamQueryConfig
+  override def queryConfig: StreamQueryConfig = new StreamQueryConfig
 
   /**
     * Checks if the chosen table name is valid.
@@ -128,6 +128,72 @@ abstract class StreamTableEnvironment(
             "StreamTableEnvironment")
     }
   }
+
+  /**
+    * Registers an external [[TableSink]] with given field names and types in this
+    * [[TableEnvironment]]'s catalog. Registered sink tables can be referenced in SQL DML clause.
+    *
+    * Examples:
+    *
+    * - predefine a table sink and its field names and types
+    * {{{
+    *   val fieldNames: Array[String]  = Array("a", "b", "c")
+    *   val fieldTypes: Array[TypeInformation[_]]  = Array(Types.STRING, Types.INT, Types.LONG)
+    *   val tableSink: TableSink = new YourTableSinkImpl(...)
+    * }}}
+    *
+    * -  register an alias for this table sink to catalog
+    * {{{
+    *   tableEnv.registerTableSink("example_sink_table", fieldNames, fieldsTypes, tableSink)
+    * }}}
+    *
+    * -  use the registered sink in SQL directly
+    * {{{
+    *   tableEnv.sqlInsert("INSERT INTO example_sink_table SELECT a, b, c FROM sourceTable")
+    * }}}
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param fieldNames The field names related to the [[TableSink]].
+    * @param fieldTypes The field types related to the [[TableSink]].
+    * @param tableSink The [[TableSink]] to register.
+    */
+  def registerTableSink(
+      name: String,
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]],
+      tableSink: TableSink[_]): Unit = {
+    checkValidTableName(name)
+    if (null == fieldNames || null == fieldTypes) {
+      throw new TableException("fieldNames and fieldTypes should not be empty!")
+    }
+    if (fieldNames.length != fieldTypes.length) {
+      val errorMsg = "Field names and types should have same length! Passing fieldNames " +
+        s"length: ${fieldNames.length} but fieldTypes length: ${fieldTypes.length}"
+      throw new TableException(errorMsg)
+    }
+
+    tableSink match {
+      case streamTableSink@(_: AppendStreamTableSink[_] | _: UpsertStreamTableSink[_] |
+              _: RetractStreamTableSink[_]) =>
+        val configuredSink = streamTableSink.configure(fieldNames, fieldTypes)
+        registerTableInternal(name, new TableSinkTable(configuredSink))
+      case _ =>
+        throw new TableException(
+          "Only AppendStreamTableSink, UpsertStreamTableSink and RetractStreamTableSink can be " +
+            "registered in StreamTableEnvironment.")
+    }
+  }
+
+  /**
+    * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name  The name under which the table will be registered.
+    * @param table The table to register.
+    */
+  override def registerTable(
+      name: String,
+      table: Table): Unit = super.registerTable(name, table)
 
   /**
     * Writes a [[Table]] to a [[TableSink]].

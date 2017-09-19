@@ -275,7 +275,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Int)]("MyTable" , 'long, 'int, 'proctime.proctime)
 
-    val result = util.tableEnv.sql("SELECT COUNT(long) FROM MyTable GROUP BY proctime")
+    val result = util.tableEnv.sqlQuery("SELECT COUNT(long) FROM MyTable GROUP BY proctime")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -300,7 +300,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Int)]("MyTable" , 'long, 'int, 'proctime.proctime)
 
-    val result = util.tableEnv.sql("SELECT MIN(proctime) FROM MyTable GROUP BY long")
+    val result = util.tableEnv.sqlQuery("SELECT MIN(proctime) FROM MyTable GROUP BY long")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -325,7 +325,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int)
 
-    val result = util.tableEnv.sql(
+    val result = util.tableEnv.sqlQuery(
       "SELECT TUMBLE_END(rowtime, INTERVAL '0.1' SECOND) AS `rowtime`, `long`, " +
         "SUM(`int`) FROM MyTable " +
         "GROUP BY `long`, TUMBLE(rowtime, INTERVAL '0.1' SECOND)")
@@ -355,7 +355,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int)
 
-    val result = util.tableEnv.sql("SELECT MIN(rowtime), long FROM MyTable " +
+    val result = util.tableEnv.sqlQuery("SELECT MIN(rowtime), long FROM MyTable " +
       "GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)")
 
     val expected = unaryNode(
