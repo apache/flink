@@ -112,6 +112,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
+			Option.empty(),
 			Option.apply("jm"),
 			Option.apply("arch"),
 			TestingJobManager.class,

@@ -282,22 +282,7 @@ public class MesosApplicationMasterRunner {
 				ioExecutor,
 				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
-			// 1: the JobManager
-			LOG.debug("Starting JobManager actor");
-
-			// we start the JobManager with its standard name
-			ActorRef jobManager = JobManager.startJobManagerActors(
-				config,
-				actorSystem,
-				futureExecutor,
-				ioExecutor,
-				highAvailabilityServices,
-				Option.apply(JobMaster.JOB_MANAGER_NAME),
-				Option.apply(JobMaster.ARCHIVE_NAME),
-				getJobManagerClass(),
-				getArchivistClass())._1();
-
-			// 2: the web monitor
+			// 1: the web monitor
 			LOG.debug("Starting Web Frontend");
 
 			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
@@ -309,12 +294,27 @@ public class MesosApplicationMasterRunner {
 				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
 				webMonitorTimeout,
 				futureExecutor,
-				AkkaUtils.getAkkaURL(actorSystem, jobManager),
 				LOG);
 			if (webMonitor != null) {
-				final URL webMonitorURL = new URL("http", appMasterHostname, webMonitor.getServerPort(), "/");
+				final URL webMonitorURL = new URL(webMonitor.getRestAddress());
 				mesosConfig.frameworkInfo().setWebuiUrl(webMonitorURL.toExternalForm());
 			}
+
+			// 2: the JobManager
+			LOG.debug("Starting JobManager actor");
+
+			// we start the JobManager with its standard name
+			ActorRef jobManager = JobManager.startJobManagerActors(
+				config,
+				actorSystem,
+				futureExecutor,
+				ioExecutor,
+				highAvailabilityServices,
+				webMonitor != null ? Option.apply(webMonitor.getRestAddress()) : Option.empty(),
+				Option.apply(JobMaster.JOB_MANAGER_NAME),
+				Option.apply(JobMaster.ARCHIVE_NAME),
+				getJobManagerClass(),
+				getArchivistClass())._1();
 
 			// 3: Flink's Mesos ResourceManager
 			LOG.debug("Starting Mesos Flink Resource Manager");

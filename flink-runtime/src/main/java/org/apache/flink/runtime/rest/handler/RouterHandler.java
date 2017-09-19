@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -42,6 +43,6 @@ public class RouterHandler extends Handler {
 
 	@Override
 	protected void respondNotFound(ChannelHandlerContext ctx, HttpRequest request) {
-		AbstractRestHandler.sendErrorResponse(new ErrorResponseBody("Not found."), HttpResponseStatus.NOT_FOUND, ctx, request);
+		HandlerUtils.sendErrorResponse(ctx, request, new ErrorResponseBody("Not found."), HttpResponseStatus.NOT_FOUND);
 	}
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.util.ExceptionUtils;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -36,6 +38,10 @@ public final class ErrorResponseBody implements ResponseBody {
 
 	public ErrorResponseBody(String error) {
 		this(Collections.singletonList(error));
+	}
+
+	public ErrorResponseBody(Throwable throwable) {
+		this(ExceptionUtils.stringifyException(throwable));
 	}
 
 	@JsonCreator

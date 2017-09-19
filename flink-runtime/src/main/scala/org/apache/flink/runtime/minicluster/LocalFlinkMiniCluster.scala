@@ -120,7 +120,11 @@ class LocalFlinkMiniCluster(
   // Start methods for the distributed components
   //------------------------------------------------------------------------------------------------
 
-  override def startJobManager(index: Int, system: ActorSystem): ActorRef = {
+  override def startJobManager(
+      index: Int,
+      system: ActorSystem,
+      optRestAddress: Option[String])
+    : ActorRef = {
     val config = originalConfiguration.clone()
 
     val jobManagerName = getJobManagerName(index)
@@ -176,7 +180,8 @@ class LocalFlinkMiniCluster(
         highAvailabilityServices.getSubmittedJobGraphStore(),
         highAvailabilityServices.getCheckpointRecoveryFactory(),
         jobRecoveryTimeout,
-        metricsRegistry),
+        metricsRegistry,
+        optRestAddress),
       jobManagerName)
   }
 
@@ -291,7 +296,8 @@ class LocalFlinkMiniCluster(
       submittedJobGraphStore: SubmittedJobGraphStore,
       checkpointRecoveryFactory: CheckpointRecoveryFactory,
       jobRecoveryTimeout: FiniteDuration,
-      metricsRegistry: Option[MetricRegistry])
+      metricsRegistry: Option[MetricRegistry],
+      optRestAddress: Option[String])
     : Props = {
 
     JobManager.getJobManagerProps(
@@ -310,7 +316,8 @@ class LocalFlinkMiniCluster(
       submittedJobGraphStore,
       checkpointRecoveryFactory,
       jobRecoveryTimeout,
-      metricsRegistry)
+      metricsRegistry,
+      optRestAddress)
   }
 
   def getTaskManagerProps(

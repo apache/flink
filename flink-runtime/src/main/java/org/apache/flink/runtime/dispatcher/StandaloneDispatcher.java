@@ -32,6 +32,8 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.Optional;
+
 /**
  * Dispatcher implementation which spawns a {@link JobMaster} for each
  * submitted {@link JobGraph} within in the same process. This dispatcher
@@ -46,7 +48,8 @@ public class StandaloneDispatcher extends Dispatcher {
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			Optional<String> restAddress) throws Exception {
 		super(
 			rpcService,
 			endpointId,
@@ -55,7 +58,8 @@ public class StandaloneDispatcher extends Dispatcher {
 			blobServer,
 			heartbeatServices,
 			metricRegistry,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			restAddress);
 	}
 
 	@Override
