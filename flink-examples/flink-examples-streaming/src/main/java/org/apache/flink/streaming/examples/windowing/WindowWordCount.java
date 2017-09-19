@@ -68,8 +68,8 @@ public class WindowWordCount {
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
 
-		final int windowSize = params.getInt("window", 250);
-		final int slideSize = params.getInt("slide", 150);
+		final int windowSize = params.getInt("window", 10);
+		final int slideSize = params.getInt("slide", 5);
 
 		DataStream<Tuple2<String, Integer>> counts =
 		// split up the lines in pairs (2-tuples) containing: (word,1)

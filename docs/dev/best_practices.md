@@ -47,8 +47,14 @@ The `ParameterTool` provides a set of predefined static methods for reading the 
 
 The following method will read a [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) file and provide the key/value pairs:
 {% highlight java %}
-String propertiesFile = "/home/sam/flink/myjob.properties";
+String propertiesFilePath = "/home/sam/flink/myjob.properties";
+ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFilePath);
+
+File propertiesFile = new File(propertiesFilePath);
 ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile);
+
+InputStream propertiesFileInputStream = new FileInputStream(file);
+ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputStream);
 {% endhighlight %}
 
 

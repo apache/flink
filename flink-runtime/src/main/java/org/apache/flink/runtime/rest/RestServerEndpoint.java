@@ -38,6 +38,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCode
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,8 +105,8 @@ public abstract class RestServerEndpoint {
 			}
 		};
 
-		NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
-		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+		NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
+		NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("flink-rest-server-netty-worker"));
 
 		bootstrap = new ServerBootstrap();
 		bootstrap
