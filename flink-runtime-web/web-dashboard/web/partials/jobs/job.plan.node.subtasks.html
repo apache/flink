@@ -38,10 +38,10 @@ limitations under the License.
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1" title="{{subtask.duration | humanizeDuration:false}}">{{subtask.duration | humanizeDuration:true}}</span></td>
-      <td><span ng-if="subtask.metrics['read-bytes'] &gt; -1" title="{{subtask.metrics['read-bytes']}} bytes">{{ subtask.metrics['read-bytes'] | humanizeBytes}}</span></td>
-      <td><span ng-if="subtask.metrics['read-records'] &gt; -1">{{ subtask.metrics['read-records'] | number }}</span></td>
-      <td><span ng-if="subtask.metrics['write-bytes'] &gt; -1" title="{{subtask.metrics['write-bytes']}} bytes">{{ subtask.metrics['write-bytes'] | humanizeBytes}}</span></td>
-      <td><span ng-if="subtask.metrics['write-records'] &gt; -1">{{ subtask.metrics['write-records'] | number }}</span></td>
+      <td><span ng-if="subtask.metrics['read-bytes-complete']">{{ subtask.metrics['read-bytes'] | humanizeBytes }}</span><i ng-if="!subtask.metrics['read-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="subtask.metrics['read-records-complete']">{{ subtask.metrics['read-records'] | number }}</span><i ng-if="!subtask.metrics['read-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="subtask.metrics['write-bytes-complete']">{{ subtask.metrics['write-bytes'] | humanizeBytes }}</span><i ng-if="!subtask.metrics['write-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="subtask.metrics['write-records-complete']">{{ subtask.metrics['write-records'] | number }}</span><i ng-if="!subtask.metrics['write-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
       <td>{{ subtask.attempt + 1 }}</td>
       <td>{{ subtask.host }}</td>
       <td> 
