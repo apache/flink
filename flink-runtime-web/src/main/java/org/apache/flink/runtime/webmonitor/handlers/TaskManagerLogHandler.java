@@ -36,7 +36,7 @@ import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.webmonitor.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.webmonitor.WebHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
@@ -127,9 +127,8 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 		Time timeout,
 		FileMode fileMode,
 		Configuration config,
-		boolean httpsEnabled,
 		BlobView blobView) {
-		super(localJobManagerAddressPromise, retriever, timeout, httpsEnabled);
+		super(localJobManagerAddressPromise, retriever, timeout);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;

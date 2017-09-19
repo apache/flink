@@ -21,7 +21,8 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
+import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
@@ -38,14 +39,13 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils.ENCODING;
+import static org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils.ENCODING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -70,10 +70,9 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 			RequestHandler handler,
 			GatewayRetriever<JobManagerGateway> retriever,
 			CompletableFuture<String> localJobManagerAddressFuture,
-			Time timeout,
-			boolean httpsEnabled) {
+			Time timeout) {
 
-		super(localJobManagerAddressFuture, retriever, timeout, httpsEnabled);
+		super(localJobManagerAddressFuture, retriever, timeout);
 		this.handler = checkNotNull(handler);
 		this.allowOrigin = cfg.getAllowOrigin();
 	}
@@ -98,9 +97,7 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 				pathParams.put(key, URLDecoder.decode(routed.pathParams().get(key), ENCODING.toString()));
 			}
 
-			InetSocketAddress address = (InetSocketAddress) ctx.channel().localAddress();
-			queryParams.put(WEB_MONITOR_ADDRESS_KEY,
-				(httpsEnabled ? "https://" : "http://") + address.getHostName() + ":" + address.getPort());
+			queryParams.put(WEB_MONITOR_ADDRESS_KEY, localAddressFuture.get());
 
 			responseFuture = handler.handleRequest(pathParams, queryParams, jobManagerGateway);
 

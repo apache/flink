@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.rest.handler.util;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -37,6 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import javax.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -53,31 +52,26 @@ public class HandlerRedirectUtils {
 
 	public static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
-	public static Optional<CompletableFuture<String>> getRedirectAddress(
-			String localJobManagerAddress,
+	public static CompletableFuture<Optional<String>> getRedirectAddress(
+			String localRestAddress,
 			RestfulGateway restfulGateway,
 			Time timeout) {
 
-		final String leaderAddress = restfulGateway.getAddress();
-
-		final String jobManagerName = localJobManagerAddress.substring(localJobManagerAddress.lastIndexOf("/") + 1);
-
-		if (!localJobManagerAddress.equals(leaderAddress) &&
-			!leaderAddress.equals(AkkaUtils.getLocalAkkaURL(jobManagerName))) {
-
-			return Optional.of(restfulGateway.requestRestAddress(timeout));
-
-		} else {
-			return Optional.empty();
-		}
+		return restfulGateway.requestRestAddress(timeout).thenApply(
+			(String remoteRestAddress) -> {
+				if (Objects.equals(localRestAddress, remoteRestAddress)) {
+					return Optional.empty();
+				} else {
+					return Optional.of(remoteRestAddress);
+				}
+			});
 	}
 
-	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) {
+	public static HttpResponse getRedirectResponse(String redirectAddress, String path) {
 		checkNotNull(redirectAddress, "Redirect address");
 		checkNotNull(path, "Path");
 
-		String protocol = httpsEnabled ? "https" : "http";
-		String newLocation = String.format("%s://%s%s", protocol, redirectAddress, path);
+		String newLocation = String.format("%s%s", redirectAddress, path);
 
 		HttpResponse redirectResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);

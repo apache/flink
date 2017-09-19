@@ -74,7 +74,8 @@ abstract class ContaineredJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[FlinkMetricRegistry])
+    metricsRegistry: Option[FlinkMetricRegistry],
+    optRestAddress: Option[String])
   extends JobManager(
     flinkConfiguration,
     futureExecutor,
@@ -90,7 +91,8 @@ abstract class ContaineredJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricsRegistry) {
+    metricsRegistry,
+    optRestAddress) {
 
   val jobPollingInterval: FiniteDuration
 

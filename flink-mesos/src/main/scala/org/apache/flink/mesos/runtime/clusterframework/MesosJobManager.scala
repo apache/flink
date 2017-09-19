@@ -66,7 +66,8 @@ class MesosJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[FlinkMetricRegistry])
+    metricsRegistry: Option[FlinkMetricRegistry],
+    optRestAddress: Option[String])
   extends ContaineredJobManager(
     flinkConfiguration,
     futureExecutor,
@@ -82,7 +83,8 @@ class MesosJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricsRegistry) {
+    metricsRegistry,
+    optRestAddress) {
 
   val jobPollingInterval: FiniteDuration = 5 seconds
 

@@ -69,7 +69,6 @@ public class TaskManagerLogHandlerTest {
 			TestingUtils.TIMEOUT(),
 			TaskManagerLogHandler.FileMode.LOG,
 			new Configuration(),
-			false,
 			new VoidBlobStore());
 		String[] pathsLog = handlerLog.getPaths();
 		Assert.assertEquals(1, pathsLog.length);
@@ -82,7 +81,6 @@ public class TaskManagerLogHandlerTest {
 			TestingUtils.TIMEOUT(),
 			TaskManagerLogHandler.FileMode.STDOUT,
 			new Configuration(),
-			false,
 			new VoidBlobStore());
 		String[] pathsOut = handlerOut.getPaths();
 		Assert.assertEquals(1, pathsOut.length);
@@ -124,7 +122,6 @@ public class TaskManagerLogHandlerTest {
 			TestingUtils.TIMEOUT(),
 			TaskManagerLogHandler.FileMode.LOG,
 			new Configuration(),
-			false,
 			new VoidBlobStore());
 
 		final AtomicReference<String> exception = new AtomicReference<>();

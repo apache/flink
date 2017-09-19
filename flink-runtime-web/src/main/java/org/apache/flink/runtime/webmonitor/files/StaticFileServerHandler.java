@@ -27,7 +27,8 @@ package org.apache.flink.runtime.webmonitor.files;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.webmonitor.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.util.MimeTypes;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -111,10 +112,9 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 			GatewayRetriever<T> retriever,
 			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
-			File rootPath,
-			boolean httpsEnabled) throws IOException {
+			File rootPath) throws IOException {
 
-		super(localJobManagerAddressFuture, retriever, timeout, httpsEnabled);
+		super(localJobManagerAddressFuture, retriever, timeout);
 
 		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
 	}

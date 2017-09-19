@@ -152,7 +152,11 @@ abstract class FlinkMiniCluster(
 
   def startResourceManager(index: Int, system: ActorSystem): ActorRef
 
-  def startJobManager(index: Int, system: ActorSystem): ActorRef
+  def startJobManager(
+    index: Int,
+    system: ActorSystem,
+    optRestAddress: Option[String])
+  : ActorRef
 
   def startTaskManager(index: Int, system: ActorSystem): ActorRef
 
@@ -328,7 +332,12 @@ abstract class FlinkMiniCluster(
         } else {
           startJobManagerActorSystem(i)
         }
-        (actorSystem, startJobManager(i, actorSystem))
+
+        if (i == 0) {
+          webMonitor = startWebServer(originalConfiguration, actorSystem)
+        }
+
+        (actorSystem, startJobManager(i, actorSystem, webMonitor.map(_.getRestAddress)))
       }).unzip
 
     jobManagerActorSystems = Some(jmActorSystems)
@@ -370,10 +379,6 @@ abstract class FlinkMiniCluster(
     taskManagerActorSystems = Some(tmActorSystems)
     taskManagerActors = Some(tmActors)
 
-    val jobManagerAkkaURL = AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0))
-
-    webMonitor = startWebServer(originalConfiguration, jmActorSystems(0), jobManagerAkkaURL)
-
     if(waitForTaskManagerRegistration) {
       waitForTaskManagersToBeRegistered()
     }
@@ -383,8 +388,7 @@ abstract class FlinkMiniCluster(
 
   def startWebServer(
       config: Configuration,
-      actorSystem: ActorSystem,
-      jobManagerAkkaURL: String)
+      actorSystem: ActorSystem)
     : Option[WebMonitor] = {
     if(
       config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false) &&
@@ -405,7 +409,7 @@ abstract class FlinkMiniCluster(
           actorSystem.dispatcher)
       )
 
-      webServer.foreach(_.start(jobManagerAkkaURL))
+      webServer.foreach(_.start())
 
       webServer
     } else {
