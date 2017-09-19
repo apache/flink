@@ -99,7 +99,7 @@ public class RestClient {
 
 				socketChannel.pipeline()
 					.addLast(new HttpClientCodec())
-					.addLast(new HttpObjectAggregator(1024 * 1024))
+					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
 					.addLast(new ClientHandler())
 					.addLast(new PipelineErrorHandler(LOG));
 			}

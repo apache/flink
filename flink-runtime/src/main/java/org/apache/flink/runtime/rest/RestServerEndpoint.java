@@ -59,6 +59,7 @@ public abstract class RestServerEndpoint {
 	private final String configuredAddress;
 	private final int configuredPort;
 	private final SSLEngine sslEngine;
+	private final int maxContentLength;
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
@@ -68,6 +69,7 @@ public abstract class RestServerEndpoint {
 		this.configuredAddress = configuration.getEndpointBindAddress();
 		this.configuredPort = configuration.getEndpointBindPort();
 		this.sslEngine = configuration.getSslEngine();
+		this.maxContentLength = configuration.getMaxContentLength();
 	}
 
 	/**
@@ -99,7 +101,7 @@ public abstract class RestServerEndpoint {
 
 				ch.pipeline()
 					.addLast(new HttpServerCodec())
-					.addLast(new HttpObjectAggregator(1024 * 1024 * 10))
+					.addLast(new HttpObjectAggregator(maxContentLength))
 					.addLast(handler.name(), handler)
 					.addLast(new PipelineErrorHandler(log));
 			}
