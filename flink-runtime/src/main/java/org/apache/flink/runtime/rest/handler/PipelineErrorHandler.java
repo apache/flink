@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -45,7 +46,11 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<HttpReques
 	protected void channelRead0(ChannelHandlerContext ctx, HttpRequest message) {
 		// we can't deal with this message. No one in the pipeline handled it. Log it.
 		logger.warn("Unknown message received: {}", message);
-		AbstractRestHandler.sendErrorResponse(new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST, ctx, message);
+		HandlerUtils.sendErrorResponse(
+			ctx,
+			message,
+			new ErrorResponseBody("Bad request received."),
+			HttpResponseStatus.BAD_REQUEST);
 	}
 
 	@Override
