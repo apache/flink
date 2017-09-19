@@ -16,38 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.runtime.rest.RestServerEndpoint;
+import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 /**
- * Generic response body for communicating errors on the server.
+ * REST endpoint for the {@link Dispatcher} component.
  */
-public final class ErrorResponseBody implements ResponseBody {
+public class DispatcherRestEndpoint extends RestServerEndpoint {
 
-	static final String FIELD_NAME_ERRORS = "errors";
-
-	@JsonProperty(FIELD_NAME_ERRORS)
-	public final List<String> errors;
-
-	public ErrorResponseBody(String error) {
-		this(Collections.singletonList(error));
+	public DispatcherRestEndpoint(RestServerEndpointConfiguration configuration) {
+		super(configuration);
 	}
 
-	public ErrorResponseBody(Throwable throwable) {
-		this(ExceptionUtils.stringifyException(throwable));
-	}
-
-	@JsonCreator
-	public ErrorResponseBody(
-		@JsonProperty(FIELD_NAME_ERRORS) List<String> errors) {
-
-		this.errors = errors;
+	@Override
+	protected Collection<AbstractRestHandler<?, ?, ?, ?>> initializeHandlers() {
+		return Collections.emptySet();
 	}
 }

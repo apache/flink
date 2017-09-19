@@ -22,15 +22,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+
+import java.util.Optional;
 
 /**
  * Base class for session cluster entry points.
@@ -40,6 +44,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	private ResourceManager<?> resourceManager;
 
 	private Dispatcher dispatcher;
+
+	private DispatcherRestEndpoint dispatcherRestEndpoint;
 
 	public SessionClusterEntrypoint(Configuration configuration) {
 		super(configuration);
@@ -53,6 +59,12 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
+
+		dispatcherRestEndpoint = new DispatcherRestEndpoint(
+			RestServerEndpointConfiguration.fromConfiguration(configuration));
+
+		LOG.debug("Starting Dispatcher REST endpoint.");
+		dispatcherRestEndpoint.start();
 
 		resourceManager = createResourceManager(
 			configuration,
@@ -70,7 +82,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			blobServer,
 			heartbeatServices,
 			metricRegistry,
-			this);
+			this,
+			Optional.of(dispatcherRestEndpoint.getRestAddress()));
 
 		LOG.debug("Starting ResourceManager.");
 		resourceManager.start();
@@ -111,7 +124,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
-		FatalErrorHandler fatalErrorHandler) throws Exception {
+		FatalErrorHandler fatalErrorHandler,
+		Optional<String> restAddress) throws Exception {
 
 		// create the default dispatcher
 		return new StandaloneDispatcher(
@@ -122,7 +136,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			blobServer,
 			heartbeatServices,
 			metricRegistry,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			restAddress);
 	}
 
 	protected abstract ResourceManager<?> createResourceManager(

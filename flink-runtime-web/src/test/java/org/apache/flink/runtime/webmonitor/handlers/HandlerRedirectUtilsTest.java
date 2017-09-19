@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -38,40 +39,36 @@ import static org.mockito.Mockito.when;
  */
 public class HandlerRedirectUtilsTest extends TestLogger {
 
-	private static final String localJobManagerAddress = "akka.tcp://flink@127.0.0.1:1234/user/foobar";
-	private static final String remoteHostname = "127.0.0.2";
-	private static final int webPort = 1235;
-	private static final String remoteURL = remoteHostname + ':' + webPort;
-	private static final String remotePath = "akka.tcp://flink@" + remoteURL + "/user/jobmanager";
+	private static final String localRestAddress = "http://127.0.0.1:1234";
+	private static final String remoteRestAddress = "http://127.0.0.2:1234";
 
 	@Test
-	public void testGetRedirectAddressWithLocalAkkaPath() throws Exception {
+	public void testGetRedirectAddressWithLocalEqualsRemoteRESTAddress() throws Exception {
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
-		when(jobManagerGateway.getAddress()).thenReturn("akka://flink/user/foobar");
+		when(jobManagerGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(localRestAddress));
 
-		Optional<CompletableFuture<String>> redirectingAddress = HandlerRedirectUtils.getRedirectAddress(
-			localJobManagerAddress,
+		CompletableFuture<Optional<String>> redirectingAddressFuture = HandlerRedirectUtils.getRedirectAddress(
+			localRestAddress,
 			jobManagerGateway,
 			Time.seconds(3L));
 
-		Assert.assertFalse(redirectingAddress.isPresent());
+		Assert.assertTrue(redirectingAddressFuture.isDone());
+		// no redirection needed
+		Assert.assertFalse(redirectingAddressFuture.get().isPresent());
 	}
 
 	@Test
 	public void testGetRedirectAddressWithRemoteAkkaPath() throws Exception {
 		JobManagerGateway jobManagerGateway = mock(AkkaJobManagerGateway.class);
-		when(jobManagerGateway.getAddress()).thenReturn(remotePath);
-		when(jobManagerGateway.getHostname()).thenReturn(remoteHostname);
-		when(jobManagerGateway.requestWebPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(webPort));
-		when(jobManagerGateway.requestRestAddress(any(Time.class))).thenCallRealMethod();
+		when(jobManagerGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(remoteRestAddress));
 
-		Optional<CompletableFuture<String>> optRedirectingAddress = HandlerRedirectUtils.getRedirectAddress(
-			localJobManagerAddress,
+		CompletableFuture<Optional<String>> optRedirectingAddress = HandlerRedirectUtils.getRedirectAddress(
+			localRestAddress,
 			jobManagerGateway,
 			Time.seconds(3L));
 
-		Assert.assertTrue(optRedirectingAddress.isPresent());
+		Assert.assertTrue(optRedirectingAddress.isDone());
 
-		Assert.assertEquals(remoteURL, optRedirectingAddress.get().get());
+		Assert.assertEquals(remoteRestAddress, optRedirectingAddress.get().get());
 	}
 }

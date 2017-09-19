@@ -92,6 +92,7 @@ public class StandaloneMiniCluster {
 			scheduledExecutorService,
 			scheduledExecutorService,
 			highAvailabilityServices,
+			Option.empty(),
 			JobManager.class,
 			MemoryArchivist.class);
 

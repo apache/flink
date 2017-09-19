@@ -30,8 +30,11 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -43,11 +46,14 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
@@ -60,13 +66,25 @@ public class RestEndpointITCase extends TestLogger {
 	private static final Time timeout = Time.seconds(10L);
 
 	@Test
-	public void testEndpoints() throws ConfigurationException, IOException, InterruptedException, ExecutionException {
+	public void testEndpoints() throws Exception {
 		Configuration config = new Configuration();
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
-		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig);
+		final String address = "localhost";
+		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
+		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(address));
+		GatewayRetriever<RestfulGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
+		when(mockGatewayRetriever.getNow()).thenReturn(Optional.of(mockRestfulGateway));
+
+		TestHandler testHandler = new TestHandler(
+			CompletableFuture.completedFuture(address),
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT,
+			true);
+
+		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
 		RestClient clientEndpoint = new TestRestClient(clientConfig);
 
 		try {
@@ -111,26 +129,39 @@ public class RestEndpointITCase extends TestLogger {
 
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
 
-		TestRestServerEndpoint(RestServerEndpointConfiguration configuration) {
+		private final TestHandler testHandler;
+
+		TestRestServerEndpoint(RestServerEndpointConfiguration configuration, TestHandler testHandler) {
 			super(configuration);
+
+			this.testHandler = Preconditions.checkNotNull(testHandler);
 		}
 
 		@Override
-		protected Collection<AbstractRestHandler<?, ?, ?>> initializeHandlers() {
-			return Collections.singleton(new TestHandler());
+		protected Collection<AbstractRestHandler<?, ?, ?, ?>> initializeHandlers() {
+			return Collections.singleton(testHandler);
 		}
 	}
 
-	private static class TestHandler extends AbstractRestHandler<TestRequest, TestResponse, TestParameters> {
+	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
 
 		public static final Object LOCK = new Object();
 
-		TestHandler() {
-			super(new TestHeaders());
+		TestHandler(
+			CompletableFuture<String> localAddressFuture,
+			GatewayRetriever<RestfulGateway> leaderRetriever,
+			Time timeout,
+			boolean httpsEnabled) {
+			super(
+				localAddressFuture,
+				leaderRetriever,
+				timeout,
+				httpsEnabled,
+				new TestHeaders());
 		}
 
 		@Override
-		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request) throws RestHandlerException {
+		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request, RestfulGateway gateway) throws RestHandlerException {
 			Assert.assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
 			Assert.assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
