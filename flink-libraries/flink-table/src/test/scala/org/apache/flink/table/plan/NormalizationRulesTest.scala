@@ -23,6 +23,7 @@ import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder}
+import org.apache.flink.table.plan.optimize.{FlinkBatchPrograms, FlinkStreamPrograms}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -33,12 +34,15 @@ class NormalizationRulesTest extends TableTestBase {
   def testApplyNormalizationRuleForBatchSQL(): Unit = {
     val util = batchTestUtil()
 
+    val builder = new CalciteConfigBuilder()
+    val programs = builder.getBatchPrograms
     // rewrite distinct aggregate
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-        .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
-        .replaceLogicalOptRuleSet(RuleSets.ofList())
-        .replacePhysicalOptRuleSet(RuleSets.ofList())
-        .build()
+    programs.getFlinkRuleSetProgram(FlinkBatchPrograms.NORMALIZATION)
+      .getOrElse(throw new RuntimeException(s"${FlinkBatchPrograms.NORMALIZATION} does not exist"))
+      .replaceAll(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
+    programs.remove(FlinkBatchPrograms.LOGICAL)
+    programs.remove(FlinkBatchPrograms.PHYSICAL)
+    val cc: CalciteConfig = builder.build()
     util.tableEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -67,13 +71,15 @@ class NormalizationRulesTest extends TableTestBase {
   def testApplyNormalizationRuleForStreamSQL(): Unit = {
     val util = streamTestUtil()
 
+    val builder = new CalciteConfigBuilder()
+    val programs = builder.getStreamPrograms
     // rewrite distinct aggregate
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-        .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
-        .replaceLogicalOptRuleSet(RuleSets.ofList())
-        .replacePhysicalOptRuleSet(RuleSets.ofList())
-        .build()
-    util.tableEnv.getConfig.setCalciteConfig(cc)
+    programs.getFlinkRuleSetProgram(FlinkStreamPrograms.NORMALIZATION)
+      .getOrElse(throw new RuntimeException(s"${FlinkBatchPrograms.NORMALIZATION} does not exist"))
+      .replaceAll(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
+    programs.remove(FlinkStreamPrograms.LOGICAL)
+    programs.remove(FlinkStreamPrograms.PHYSICAL)
+    util.tableEnv.getConfig.setCalciteConfig(builder.build())
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 

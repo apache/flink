@@ -18,14 +18,11 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.tools.{RuleSet, RuleSets}
+import org.apache.flink.table.plan.optimize._
 import org.apache.flink.util.Preconditions
-
-import scala.collection.JavaConverters._
 
 /**
   * Builder for creating a Calcite configuration.
@@ -33,30 +30,14 @@ import scala.collection.JavaConverters._
 class CalciteConfigBuilder {
 
   /**
-    * Defines the normalization rule set. Normalization rules are dedicated for rewriting
-    * predicated logical plan before volcano optimization.
+    * Defines the optimize programs for batch table plan.
     */
-  private var replaceNormRules: Boolean = false
-  private var normRuleSets: List[RuleSet] = Nil
+  private var batchPrograms = FlinkBatchPrograms.buildPrograms()
 
   /**
-    * Defines the logical optimization rule set.
+    * Defines the optimize programs for stream table plan.
     */
-  private var replaceLogicalOptRules: Boolean = false
-  private var logicalOptRuleSets: List[RuleSet] = Nil
-
-  /**
-    * Defines the physical optimization rule set.
-    */
-  private var replacePhysicalOptRules: Boolean = false
-  private var physicalOptRuleSets: List[RuleSet] = Nil
-
-  /**
-    * Defines the decoration rule set. Decoration rules are dedicated for rewriting predicated
-    * logical plan after volcano optimization.
-    */
-  private var replaceDecoRules: Boolean = false
-  private var decoRuleSets: List[RuleSet] = Nil
+  private var streamPrograms = FlinkStreamPrograms.buildPrograms()
 
   /**
     * Defines the SQL operator tables.
@@ -65,92 +46,43 @@ class CalciteConfigBuilder {
   private var operatorTables: List[SqlOperatorTable] = Nil
 
   /**
+    * Gets batch table optimize programs.
+    *
+    * @return batch table optimize programs instance.
+    */
+  def getBatchPrograms: FlinkChainedPrograms[BatchOptimizeContext] = batchPrograms
+
+  /**
+    * Replaces the built-in batch table optimize programs.
+    */
+  def replaceBatchPrograms(
+    programs: FlinkChainedPrograms[BatchOptimizeContext])
+  : CalciteConfigBuilder = {
+    batchPrograms = Preconditions.checkNotNull(programs)
+    this
+  }
+
+  /**
+    * Gets stream table optimize programs.
+    *
+    * @return stream table optimize programs instance.
+    */
+  def getStreamPrograms: FlinkChainedPrograms[StreamOptimizeContext] = streamPrograms
+
+  /**
+    * Replaces the built-in stream table optimize programs.
+    */
+  def replaceStreamPrograms(
+    programs: FlinkChainedPrograms[StreamOptimizeContext])
+  : CalciteConfigBuilder = {
+    streamPrograms = Preconditions.checkNotNull(programs)
+    this
+  }
+
+  /**
     * Defines a SQL parser configuration.
     */
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
-
-  /**
-    * Replaces the built-in normalization rule set with the given rule set.
-    */
-  def replaceNormRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(replaceRuleSet)
-    normRuleSets = List(replaceRuleSet)
-    replaceNormRules = true
-    this
-  }
-
-  /**
-    * Appends the given normalization rule set to the built-in rule set.
-    */
-  def addNormRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(addedRuleSet)
-    normRuleSets = addedRuleSet :: normRuleSets
-    this
-  }
-
-  /**
-    * Replaces the built-in optimization rule set with the given rule set.
-    */
-  def replaceLogicalOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(replaceRuleSet)
-    logicalOptRuleSets = List(replaceRuleSet)
-    replaceLogicalOptRules = true
-    this
-  }
-
-  /**
-    * Appends the given optimization rule set to the built-in rule set.
-    */
-  def addLogicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(addedRuleSet)
-    logicalOptRuleSets = addedRuleSet :: logicalOptRuleSets
-    this
-  }
-
-  /**
-    * Replaces the built-in optimization rule set with the given rule set.
-    */
-  def replacePhysicalOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(replaceRuleSet)
-    physicalOptRuleSets = List(replaceRuleSet)
-    replacePhysicalOptRules = true
-    this
-  }
-
-  /**
-    * Appends the given optimization rule set to the built-in rule set.
-    */
-  def addPhysicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(addedRuleSet)
-    physicalOptRuleSets = addedRuleSet :: physicalOptRuleSets
-    this
-  }
-
-  /**
-    * Replaces the built-in decoration rule set with the given rule set.
-    *
-    * The decoration rules are applied after the cost-based optimization phase.
-    * The decoration phase allows to rewrite the optimized plan and is not cost-based.
-    *
-    */
-  def replaceDecoRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(replaceRuleSet)
-    decoRuleSets = List(replaceRuleSet)
-    replaceDecoRules = true
-    this
-  }
-
-  /**
-    * Appends the given decoration rule set to the built-in rule set.
-    *
-    * The decoration rules are applied after the cost-based optimization phase.
-    * The decoration phase allows to rewrite the optimized plan and is not cost-based.
-    */
-  def addDecoRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(addedRuleSet)
-    decoRuleSets = addedRuleSet :: decoRuleSets
-    this
-  }
 
   /**
     * Replaces the built-in SQL operator table with the given table.
@@ -181,47 +113,19 @@ class CalciteConfigBuilder {
   }
 
   private class CalciteConfigImpl(
-      val getNormRuleSet: Option[RuleSet],
-      val replacesNormRuleSet: Boolean,
-      val getLogicalOptRuleSet: Option[RuleSet],
-      val replacesLogicalOptRuleSet: Boolean,
-      val getPhysicalOptRuleSet: Option[RuleSet],
-      val replacesPhysicalOptRuleSet: Boolean,
-      val getDecoRuleSet: Option[RuleSet],
-      val replacesDecoRuleSet: Boolean,
+      val getBatchPrograms: FlinkChainedPrograms[BatchOptimizeContext],
+      val getStreamPrograms: FlinkChainedPrograms[StreamOptimizeContext],
       val getSqlOperatorTable: Option[SqlOperatorTable],
       val replacesSqlOperatorTable: Boolean,
       val getSqlParserConfig: Option[SqlParser.Config])
     extends CalciteConfig
 
-
-  /**
-    * Convert the [[RuleSet]] List to [[Option]] type
-    */
-  private def getRuleSet(inputRuleSet: List[RuleSet]): Option[RuleSet] = {
-    inputRuleSet match {
-      case Nil => None
-      case h :: Nil => Some(h)
-      case _ =>
-        // concat rule sets
-        val concatRules =
-          inputRuleSet.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
-        Some(RuleSets.ofList(concatRules.asJava))
-    }
-  }
-
   /**
     * Builds a new [[CalciteConfig]].
     */
   def build(): CalciteConfig = new CalciteConfigImpl(
-    getRuleSet(normRuleSets),
-    replaceNormRules,
-    getRuleSet(logicalOptRuleSets),
-    replaceLogicalOptRules,
-    getRuleSet(physicalOptRuleSets),
-    replacePhysicalOptRules,
-    getRuleSet(decoRuleSets),
-    replaceDecoRules,
+    getBatchPrograms,
+    getStreamPrograms,
     operatorTables match {
       case Nil => None
       case h :: Nil => Some(h)
@@ -239,44 +143,14 @@ class CalciteConfigBuilder {
 trait CalciteConfig {
 
   /**
-    * Returns whether this configuration replaces the built-in normalization rule set.
+    * Returns batch table optimize programs.
     */
-  def replacesNormRuleSet: Boolean
+  def getBatchPrograms: FlinkChainedPrograms[BatchOptimizeContext]
 
   /**
-    * Returns a custom normalization rule set.
+    * Returns stream table optimize programs.
     */
-  def getNormRuleSet: Option[RuleSet]
-
-  /**
-    * Returns whether this configuration replaces the built-in logical optimization rule set.
-    */
-  def replacesLogicalOptRuleSet: Boolean
-
-  /**
-    * Returns a custom logical optimization rule set.
-    */
-  def getLogicalOptRuleSet: Option[RuleSet]
-
-  /**
-    * Returns whether this configuration replaces the built-in physical optimization rule set.
-    */
-  def replacesPhysicalOptRuleSet: Boolean
-
-  /**
-    * Returns a custom physical optimization rule set.
-    */
-  def getPhysicalOptRuleSet: Option[RuleSet]
-
-  /**
-    * Returns whether this configuration replaces the built-in decoration rule set.
-    */
-  def replacesDecoRuleSet: Boolean
-
-  /**
-    * Returns a custom decoration rule set.
-    */
-  def getDecoRuleSet: Option[RuleSet]
+  def getStreamPrograms: FlinkChainedPrograms[StreamOptimizeContext]
 
   /**
     * Returns whether this configuration replaces the built-in SQL operator table.

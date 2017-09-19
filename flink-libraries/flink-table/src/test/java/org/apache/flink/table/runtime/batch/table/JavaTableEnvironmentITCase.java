@@ -31,14 +31,13 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.CalciteConfigBuilder;
+import org.apache.flink.table.plan.optimize.FlinkBatchPrograms;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.Row;
 
-import org.apache.calcite.tools.RuleSets;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -474,11 +473,10 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
-		CalciteConfig cc = new CalciteConfigBuilder()
-				.replaceLogicalOptRuleSet(RuleSets.ofList())
-				.replacePhysicalOptRuleSet(RuleSets.ofList())
-				.build();
-		tableEnv.getConfig().setCalciteConfig(cc);
+		CalciteConfigBuilder builder = new CalciteConfigBuilder();
+		builder.getBatchPrograms().remove(FlinkBatchPrograms.LOGICAL());
+		builder.getBatchPrograms().remove(FlinkBatchPrograms.PHYSICAL());
+		tableEnv.getConfig().setCalciteConfig(builder.build());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
