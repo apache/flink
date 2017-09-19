@@ -141,7 +141,7 @@ This allows the job to finish processing all inflight data.
 #### Trigger a Savepoint
 
 {% highlight bash %}
-./bin/flink savepoint <jobID> [savepointDirectory]
+./bin/flink savepoint <jobId> [savepointDirectory]
 {% endhighlight %}
 
 This will trigger a savepoint for the job with ID `jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
@@ -154,7 +154,7 @@ If you don't specify a target directory, you need to have [configured a default 
 #### Trigger a Savepoint with YARN
 
 {% highlight bash %}
-./bin/flink savepoint <jobID> [savepointDirectory] -yid <yarnAppId>
+./bin/flink savepoint <jobId> [savepointDirectory] -yid <yarnAppId>
 {% endhighlight %}
 
 This will trigger a savepoint for the job with ID `jobId` and YARN application ID `yarnAppId`, and returns the path of the created savepoint.
