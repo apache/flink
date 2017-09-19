@@ -23,6 +23,8 @@ import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.SnappyHadoopInputStreamFactory;
+import org.apache.flink.api.common.io.compression.SnappyXerialInputStreamFactory;
 import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
@@ -80,6 +82,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	private static long DEFAULT_OPENING_TIMEOUT;
 
 	/**
+	 * Whether Hadoop Snappy codec should be used for .snappy files decompression
+	 */
+	private static boolean USE_HADOOP_SNAPPY;
+
+	/**
 	 * A mapping of file extensions to decompression algorithms based on DEFLATE. Such compressions lead to
 	 * unsplittable files.
 	 */
@@ -113,6 +120,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		} else {
 			DEFAULT_OPENING_TIMEOUT = to;
 		}
+
+		USE_HADOOP_SNAPPY = configuration.getBoolean(ConfigConstants.FS_USE_HADOOP_SNAPPY_KEY,
+			ConfigConstants.DEFAULT_FS_USE_HADOOP_SNAPPY);
 	}
 
 	private static void initDefaultInflaterInputStreamFactories() {
@@ -121,6 +131,8 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 				GzipInflaterInputStreamFactory.getInstance(),
 				Bzip2InputStreamFactory.getInstance(),
 				XZInputStreamFactory.getInstance(),
+				USE_HADOOP_SNAPPY ? SnappyHadoopInputStreamFactory.getInstance() :
+					SnappyXerialInputStreamFactory.getInstance()
 		};
 		for (InflaterInputStreamFactory<?> inputStreamFactory : defaultFactories) {
 			for (String fileExtension : inputStreamFactory.getCommonFileExtensions()) {
