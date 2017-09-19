@@ -48,6 +48,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * Hyperlink-Induced Topic Search computes two interdependent scores for every
@@ -168,7 +169,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
-			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -192,7 +192,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
-			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -387,12 +386,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 
-			Collection<DoubleValue> var;
-			var = getRuntimeContext().getBroadcastVariable(HUBBINESS_SUM_SQUARED);
-			hubbinessRootSumSquared = Math.sqrt(var.iterator().next().getValue());
+			Collection<DoubleValue> hubbinessSumSquared = getRuntimeContext().getBroadcastVariable(HUBBINESS_SUM_SQUARED);
+			Iterator<DoubleValue> hubbinessSumSquaredIterator = hubbinessSumSquared.iterator();
+			this.hubbinessRootSumSquared = hubbinessSumSquaredIterator.hasNext() ? Math.sqrt(hubbinessSumSquaredIterator.next().getValue()) : Double.NaN;
 
-			var = getRuntimeContext().getBroadcastVariable(AUTHORITY_SUM_SQUARED);
-			authorityRootSumSquared = Math.sqrt(var.iterator().next().getValue());
+			Collection<DoubleValue> authoritySumSquared = getRuntimeContext().getBroadcastVariable(AUTHORITY_SUM_SQUARED);
+			Iterator<DoubleValue> authoritySumSquaredIterator = authoritySumSquared.iterator();
+			authorityRootSumSquared = authoritySumSquaredIterator.hasNext() ? Math.sqrt(authoritySumSquaredIterator.next().getValue()) : Double.NaN;
 		}
 
 		@Override

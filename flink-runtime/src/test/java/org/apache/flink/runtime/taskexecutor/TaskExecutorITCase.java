@@ -68,6 +68,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
@@ -188,7 +189,10 @@ public class TaskExecutorITCase extends TestLogger {
 			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
 			// notify the RM that it is the leader
-			rmLeaderElectionService.isLeader(rmLeaderId);
+			CompletableFuture<UUID> isLeaderFuture = rmLeaderElectionService.isLeader(rmLeaderId);
+
+			// wait for the completion of the leader election
+			assertEquals(rmLeaderId, isLeaderFuture.get());
 
 			// notify the TM about the new RM leader
 			rmLeaderRetrievalService.notifyListener(rmAddress, rmLeaderId);
@@ -216,6 +220,8 @@ public class TaskExecutorITCase extends TestLogger {
 			if (testingFatalErrorHandler.hasExceptionOccurred()) {
 				testingFatalErrorHandler.rethrowError();
 			}
+
+			rpcService.stopService();
 		}
 
 

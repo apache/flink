@@ -137,6 +137,11 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 		}
 
 		@Override
+		public String toString() {
+			return toPrintableString();
+		}
+
+		@Override
 		public String toPrintableString() {
 			return "triplet count: " + tripletCount
 				+ ", triangle count: " + triangleCount

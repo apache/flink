@@ -27,9 +27,9 @@ package org.apache.flink.runtime.webmonitor.files;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.RedirectHandler;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -37,7 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
-import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
@@ -47,14 +46,10 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -71,7 +66,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.CompletableFuture;
 
@@ -97,10 +91,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * example.</p>
  */
 @ChannelHandler.Sharable
-public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
-
-	/** Default logger, if none is specified. */
-	private static final Logger DEFAULT_LOGGER = LoggerFactory.getLogger(StaticFileServerHandler.class);
+public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectHandler<T> {
 
 	/** Timezone in which this server answers its "if-modified" requests. */
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
@@ -113,47 +104,19 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 	// ------------------------------------------------------------------------
 
-	private final JobManagerRetriever retriever;
-
-	private final CompletableFuture<String> localJobManagerAddressFuture;
-
-	private final Time timeout;
-
 	/** The path in which the static documents are. */
 	private final File rootPath;
 
-	/** Whether the web service has https enabled. */
-	private final boolean httpsEnabled;
-
-	/** The log for all error reporting. */
-	private final Logger logger;
-
-	private String localJobManagerAddress;
-
 	public StaticFileServerHandler(
-			JobManagerRetriever retriever,
-			CompletableFuture<String> localJobManagerAddressPromise,
+			GatewayRetriever<T> retriever,
+			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
 			File rootPath,
 			boolean httpsEnabled) throws IOException {
 
-		this(retriever, localJobManagerAddressPromise, timeout, rootPath, httpsEnabled, DEFAULT_LOGGER);
-	}
+		super(localJobManagerAddressFuture, retriever, timeout, httpsEnabled);
 
-	public StaticFileServerHandler(
-			JobManagerRetriever retriever,
-			CompletableFuture<String> localJobManagerAddressFuture,
-			Time timeout,
-			File rootPath,
-			boolean httpsEnabled,
-			Logger logger) throws IOException {
-
-		this.retriever = checkNotNull(retriever);
-		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
-		this.timeout = checkNotNull(timeout);
 		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
-		this.httpsEnabled = httpsEnabled;
-		this.logger = checkNotNull(logger);
 	}
 
 	// ------------------------------------------------------------------------
@@ -161,53 +124,28 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		if (localJobManagerAddressFuture.isDone()) {
-			if (localJobManagerAddress == null) {
-				localJobManagerAddress = localJobManagerAddressFuture.get();
-			}
+	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, T gateway) throws Exception {
+		final HttpRequest request = routed.request();
+		final String requestPath;
 
-			final HttpRequest request = routed.request();
-			String requestPath = routed.path();
-
-			// make sure we request the "index.html" in case there is a directory request
-			if (requestPath.endsWith("/")) {
-				requestPath = requestPath + "index.html";
-			}
-
-			// in case the files being accessed are logs or stdout files, find appropriate paths.
-			if (requestPath.equals("/jobmanager/log") || requestPath.equals("/jobmanager/stdout")) {
-				requestPath = "";
-			}
-
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getJobManagerGatewayNow();
-
-			if (optJobManagerGateway.isPresent()) {
-				// Redirect to leader if necessary
-				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
-					localJobManagerAddress, optJobManagerGateway.get(), timeout);
-
-				if (redirectAddress != null) {
-					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(
-						redirectAddress, requestPath, httpsEnabled);
-					KeepAliveWrite.flush(ctx, routed.request(), redirect);
-				}
-				else {
-					respondAsLeader(ctx, request, requestPath);
-				}
-			}
-			else {
-				KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
-			}
-		} else {
-			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
+		// make sure we request the "index.html" in case there is a directory request
+		if (routed.path().endsWith("/")) {
+			requestPath = routed.path() + "index.html";
 		}
+		// in case the files being accessed are logs or stdout files, find appropriate paths.
+		else if (routed.path().equals("/jobmanager/log") || routed.path().equals("/jobmanager/stdout")) {
+			requestPath = "";
+		} else {
+			requestPath = routed.path();
+		}
+
+		respondToRequest(channelHandlerContext, request, requestPath);
 	}
 
 	/**
 	 * Response when running with leading JobManager.
 	 */
-	private void respondAsLeader(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
+	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
 			throws IOException, ParseException, URISyntaxException {
 
 		// convert to absolute path

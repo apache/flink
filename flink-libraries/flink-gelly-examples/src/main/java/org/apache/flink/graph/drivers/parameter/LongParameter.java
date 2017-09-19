@@ -21,7 +21,10 @@ package org.apache.flink.graph.drivers.parameter;
 import org.apache.flink.api.java.utils.ParameterTool;
 
 /**
- * A {@link Parameter} storing a {@link Long}.
+ * A {@link Parameter} storing a {@link Long} within <tt>min</tt> and
+ * <tt>max</tt> bounds (inclusive).
+ *
+ * <p>Note that the default value may be outside of these bounds.
  */
 public class LongParameter
 extends SimpleParameter<Long> {
@@ -46,21 +49,14 @@ extends SimpleParameter<Long> {
 	/**
 	 * Set the default value.
 	 *
+	 * <p>The default may set to any value and is not restricted by setting the
+	 * minimum or maximum values.
+	 *
 	 * @param defaultValue the default value.
 	 * @return this
 	 */
 	public LongParameter setDefaultValue(long defaultValue) {
 		super.setDefaultValue(defaultValue);
-
-		if (hasMinimumValue) {
-			Util.checkParameter(defaultValue >= minimumValue,
-				"Default value (" + defaultValue + ") must be greater than or equal to minimum (" + minimumValue + ")");
-		}
-
-		if (hasMaximumValue) {
-			Util.checkParameter(defaultValue <= maximumValue,
-				"Default value (" + defaultValue + ") must be less than or equal to maximum (" + maximumValue + ")");
-		}
 
 		return this;
 	}
@@ -68,14 +64,14 @@ extends SimpleParameter<Long> {
 	/**
 	 * Set the minimum value.
 	 *
+	 * <p>If a maximum value has been set then the minimum value must not be
+	 * greater than the maximum value.
+	 *
 	 * @param minimumValue the minimum value
 	 * @return this
 	 */
 	public LongParameter setMinimumValue(long minimumValue) {
-		if (hasDefaultValue) {
-			Util.checkParameter(minimumValue <= defaultValue,
-				"Minimum value (" + minimumValue + ") must be less than or equal to default (" + defaultValue + ")");
-		} else if (hasMaximumValue) {
+		if (hasMaximumValue) {
 			Util.checkParameter(minimumValue <= maximumValue,
 				"Minimum value (" + minimumValue + ") must be less than or equal to maximum (" + maximumValue + ")");
 		}
@@ -89,14 +85,14 @@ extends SimpleParameter<Long> {
 	/**
 	 * Set the maximum value.
 	 *
+	 * <p>If a minimum value has been set then the maximum value must not be
+	 * less than the minimum value.
+	 *
 	 * @param maximumValue the maximum value
 	 * @return this
 	 */
 	public LongParameter setMaximumValue(long maximumValue) {
-		if (hasDefaultValue) {
-			Util.checkParameter(maximumValue >= defaultValue,
-				"Maximum value (" + maximumValue + ") must be greater than or equal to default (" + defaultValue + ")");
-		} else if (hasMinimumValue) {
+		if (hasMinimumValue) {
 			Util.checkParameter(maximumValue >= minimumValue,
 				"Maximum value (" + maximumValue + ") must be greater than or equal to minimum (" + minimumValue + ")");
 		}
@@ -109,16 +105,21 @@ extends SimpleParameter<Long> {
 
 	@Override
 	public void configure(ParameterTool parameterTool) {
-		value = hasDefaultValue ? parameterTool.getLong(name, defaultValue) : parameterTool.getLong(name);
+		if (hasDefaultValue && !parameterTool.has(name)) {
+			// skip checks for min and max when using default value
+			value = defaultValue;
+		} else {
+			value = parameterTool.getLong(name);
 
-		if (hasMinimumValue) {
-			Util.checkParameter(value >= minimumValue,
-				name + " must be greater than or equal to " + minimumValue);
-		}
+			if (hasMinimumValue) {
+				Util.checkParameter(value >= minimumValue,
+					name + " must be greater than or equal to " + minimumValue);
+			}
 
-		if (hasMaximumValue) {
-			Util.checkParameter(value <= maximumValue,
-				name + " must be less than or equal to " + maximumValue);
+			if (hasMaximumValue) {
+				Util.checkParameter(value <= maximumValue,
+					name + " must be less than or equal to " + maximumValue);
+			}
 		}
 	}
 

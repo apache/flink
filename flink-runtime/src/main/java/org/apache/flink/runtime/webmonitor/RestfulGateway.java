@@ -16,31 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.retriever.impl;
+package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.JobManagerRetriever;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * JobManagerRetriever implementation for Flip-6 JobManager.
+ * Gateway for restful endpoints.
+ *
+ * <p>Gateways which implement this method run a REST endpoint which is reachable
+ * under the returned address.
  */
-public class RpcJobManagerRetriever extends JobManagerRetriever {
+public interface RestfulGateway extends RpcGateway {
 
-	private final RpcService rpcService;
-
-	public RpcJobManagerRetriever(
-		RpcService rpcService) {
-
-		this.rpcService = Preconditions.checkNotNull(rpcService);
-	}
-
-	@Override
-	protected CompletableFuture<JobManagerGateway> createJobManagerGateway(String leaderAddress, UUID leaderId) throws Exception {
-		return rpcService.connect(leaderAddress, JobManagerGateway.class);
-	}
+	/**
+	 * Requests the REST address of this {@link RpcEndpoint}.
+	 *
+	 * @param timeout for this operation
+	 * @return Future REST endpoint address
+	 */
+	CompletableFuture<String> requestRestAddress(Time timeout);
 }

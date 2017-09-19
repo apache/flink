@@ -30,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link GridGraph}.
  */
-public class GridGraphTest
-extends GraphGeneratorTestBase {
+public class GridGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(2, false)
 			.addDimension(3, false)
@@ -51,8 +49,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(2, true)
 			.addDimension(3, true)
@@ -77,8 +74,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)

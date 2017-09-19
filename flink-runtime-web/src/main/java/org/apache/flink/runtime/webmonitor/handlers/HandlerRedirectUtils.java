@@ -21,18 +21,24 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 
+import javax.annotation.Nullable;
+
+import java.nio.charset.Charset;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,29 +51,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class HandlerRedirectUtils {
 
-	public static String getRedirectAddress(
-			String localJobManagerAddress,
-			JobManagerGateway jobManagerGateway,
-			Time timeout) throws Exception {
+	public static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
-		final String leaderAddress = jobManagerGateway.getAddress();
+	public static Optional<CompletableFuture<String>> getRedirectAddress(
+			String localJobManagerAddress,
+			RestfulGateway restfulGateway,
+			Time timeout) {
+
+		final String leaderAddress = restfulGateway.getAddress();
 
 		final String jobManagerName = localJobManagerAddress.substring(localJobManagerAddress.lastIndexOf("/") + 1);
 
 		if (!localJobManagerAddress.equals(leaderAddress) &&
 			!leaderAddress.equals(AkkaUtils.getLocalAkkaURL(jobManagerName))) {
-			// We are not the leader and need to redirect
-			final String hostname = jobManagerGateway.getHostname();
 
-			final CompletableFuture<Integer> webMonitorPortFuture = jobManagerGateway.requestWebPort(timeout);
-			final int webMonitorPort = webMonitorPortFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			return String.format("%s:%d", hostname, webMonitorPort);
+			return Optional.of(restfulGateway.requestRestAddress(timeout));
+
 		} else {
-			return null;
+			return Optional.empty();
 		}
 	}
 
-	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) throws Exception {
+	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) {
 		checkNotNull(redirectAddress, "Redirect address");
 		checkNotNull(path, "Path");
 
@@ -93,5 +98,32 @@ public class HandlerRedirectUtils {
 		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, MimeTypes.getMimeTypeForExtension("txt"));
 
 		return unavailableResponse;
+	}
+
+	public static HttpResponse getResponse(HttpResponseStatus status, @Nullable String message) {
+		ByteBuf messageByteBuf = message == null ? Unpooled.buffer(0)
+			: Unpooled.wrappedBuffer(message.getBytes(ENCODING));
+		FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, messageByteBuf);
+		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
+		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+
+		return response;
+	}
+
+	public static HttpResponse getErrorResponse(Throwable throwable) {
+		return getErrorResponse(throwable, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	public static HttpResponse getErrorResponse(Throwable throwable, HttpResponseStatus status) {
+		byte[] bytes = ExceptionUtils.stringifyException(throwable).getBytes(ENCODING);
+		FullHttpResponse response = new DefaultFullHttpResponse(
+			HttpVersion.HTTP_1_1,
+			status,
+			Unpooled.wrappedBuffer(bytes));
+
+		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=" + ENCODING.name());
+		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+
+		return response;
 	}
 }

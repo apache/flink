@@ -198,8 +198,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			.setSlaveId(slaveId)
 			.setTaskId(taskID)
 			.setName(taskID.getValue())
-			.addResources(scalar("cpus", assignment.getRequest().getCPUs()))
-			.addResources(scalar("mem", assignment.getRequest().getMemory()));
+			.addResources(scalar("cpus", mesosConfiguration.frameworkInfo().getRole(), assignment.getRequest().getCPUs()))
+			.addResources(scalar("mem", mesosConfiguration.frameworkInfo().getRole(), assignment.getRequest().getMemory()));
 
 		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
 		final Protos.Environment.Builder env = cmd.getEnvironmentBuilder();
@@ -224,7 +224,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		for (int i = 0; i < TM_PORT_KEYS.length; i++) {
 			int port = assignment.getAssignedPorts().get(i);
 			String key = TM_PORT_KEYS[i];
-			taskInfo.addResources(ranges("ports", range(port, port)));
+			taskInfo.addResources(ranges("ports", mesosConfiguration.frameworkInfo().getRole(), range(port, port)));
 			dynamicProperties.setInteger(key, port);
 		}
 

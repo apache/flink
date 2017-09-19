@@ -24,6 +24,7 @@ import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.metric.ChecksumHashCode;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 import org.junit.Test;
@@ -33,12 +34,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link MaximumDegree}.
  */
-public class MaximumDegreeTest
-extends AsmTestBase {
+public class MaximumDegreeTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		Graph<IntValue, NullValue, NullValue> graph = undirectedSimpleGraph
 			.run(new MaximumDegree<>(3));
 
@@ -63,8 +62,25 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithVertices
+			.run(new MaximumDegree<>(1));
+
+		assertEquals(emptyGraphVertexCount, graph.getVertices().collect().size());
+		assertEquals(0, graph.getEdges().collect().size());
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithoutVertices
+			.run(new MaximumDegree<>(1));
+
+		assertEquals(0, graph.getVertices().collect().size());
+		assertEquals(0, graph.getEdges().collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
 		Checksum checksum = undirectedRMatGraph(10, 16)
 			.run(new MaximumDegree<>(16))
 			.run(new ChecksumHashCode<>())
