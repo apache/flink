@@ -157,6 +157,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			Executor executor) throws Exception {
 
 		return new DispatcherRestEndpoint(
+			configuration,
 			RestServerEndpointConfiguration.fromConfiguration(configuration),
 			dispatcherGatewayRetriever,
 			RestHandlerConfiguration.fromConfiguration(configuration),
