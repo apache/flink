@@ -885,7 +885,7 @@ Thus, in order to infer the metric identifier:
       <td>The number of records this operator/task sends per second.</td>
     </tr>
     <tr>
-          <td>numLateElementsDropped</td>
+          <td>numLateRecordsDropped</td>
           <td>The number of records dropped this window operator/task due to arrived late</td>
     </tr>
     <tr>
