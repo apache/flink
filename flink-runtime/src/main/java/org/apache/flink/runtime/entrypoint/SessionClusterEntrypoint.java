@@ -159,6 +159,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		return new DispatcherRestEndpoint(
 			RestServerEndpointConfiguration.fromConfiguration(configuration),
 			dispatcherGatewayRetriever,
+			configuration,
 			RestHandlerConfiguration.fromConfiguration(configuration),
 			executor);
 	}

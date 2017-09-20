@@ -19,8 +19,17 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationInfo;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationInfoEntry;
+import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -34,55 +43,67 @@ import java.util.concurrent.Executor;
 /**
  * Returns the Job Manager's configuration.
  */
-public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
+public class JobManagerConfigHandler extends AbstractJsonRequestHandler
+		implements LegacyRestHandler<DispatcherGateway, ClusterConfigurationInfo, EmptyMessageParameters> {
 
-	private static final String JOBMANAGER_CONFIG_REST_PATH = "/jobmanager/config";
-
-	private final Configuration config;
+	private final ClusterConfigurationInfo clusterConfig;
+	private final String clusterConfigJson;
 
 	public JobManagerConfigHandler(Executor executor, Configuration config) {
 		super(executor);
-		this.config = config;
+
+		Preconditions.checkNotNull(config);
+		this.clusterConfig = ClusterConfigurationInfo.from(config);
+		this.clusterConfigJson = createConfigJson(config);
 	}
 
 	@Override
 	public String[] getPaths() {
-		return new String[]{JOBMANAGER_CONFIG_REST_PATH};
+		return new String[]{ClusterConfigurationInfoHeaders.CLUSTER_CONFIG_REST_PATH};
 	}
 
 	@Override
-	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
-		return CompletableFuture.supplyAsync(
-			() -> {
-				try {
-					StringWriter writer = new StringWriter();
-					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+	public CompletableFuture<ClusterConfigurationInfo> handleRequest(
+			HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+			DispatcherGateway gateway) {
 
-					gen.writeStartArray();
-					for (String key : config.keySet()) {
-						gen.writeStartObject();
-						gen.writeStringField("key", key);
+		return CompletableFuture.completedFuture(clusterConfig);
+	}
 
-						// Mask key values which contain sensitive information
-						if (key.toLowerCase().contains("password")) {
-							String value = config.getString(key, null);
-							if (value != null) {
-								value = "******";
-							}
-							gen.writeStringField("value", value);
-						} else {
-							gen.writeStringField("value", config.getString(key, null));
-						}
-						gen.writeEndObject();
-					}
-					gen.writeEndArray();
+	@Override
+	public CompletableFuture<String> handleJsonRequest(
+			Map<String, String> pathParams,
+			Map<String, String> queryParams,
+			JobManagerGateway jobManagerGateway) {
 
-					gen.close();
-					return writer.toString();
-				} catch (IOException e) {
-					throw new CompletionException(new FlinkException("Could not write configuration.", e));
+		return CompletableFuture.completedFuture(clusterConfigJson);
+	}
+
+	private static String createConfigJson(Configuration config) {
+		try {
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
+			gen.writeStartArray();
+			for (String key : config.keySet()) {
+				gen.writeStartObject();
+				gen.writeStringField(ClusterConfigurationInfoEntry.FIELD_NAME_CONFIG_KEY, key);
+
+				String value = config.getString(key, null);
+				// Mask key values which contain sensitive information
+				if (value != null && key.toLowerCase().contains("password")) {
+					value = "******";
 				}
-			},
-			executor);
+				gen.writeStringField(ClusterConfigurationInfoEntry.FIELD_NAME_CONFIG_VALUE, value);
+
+				gen.writeEndObject();
+			}
+			gen.writeEndArray();
+
+			gen.close();
+			return writer.toString();
+		} catch (IOException e) {
+			throw new CompletionException(new FlinkException("Could not write configuration.", e));
+		}
 	}
 }
