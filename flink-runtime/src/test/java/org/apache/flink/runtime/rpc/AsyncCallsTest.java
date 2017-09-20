@@ -25,7 +25,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.exceptions.FencingTokenMismatchException;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -231,7 +231,7 @@ public class AsyncCallsTest extends TestLogger {
 
 			fail("The async call operation should fail due to the changed fencing token.");
 		} catch (ExecutionException e) {
-			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 		}
 	}
 
@@ -346,10 +346,19 @@ public class AsyncCallsTest extends TestLogger {
 				UUID initialFencingToken,
 				OneShotLatch enteringSetNewFencingToken,
 				OneShotLatch triggerSetNewFencingToken) {
-			super(rpcService, initialFencingToken);
+			super(rpcService);
 
 			this.enteringSetNewFencingToken = enteringSetNewFencingToken;
 			this.triggerSetNewFencingToken = triggerSetNewFencingToken;
+
+			// make it look as if we are running in the main thread
+			currentMainThread.set(Thread.currentThread());
+
+			try {
+				setFencingToken(initialFencingToken);
+			} finally {
+				currentMainThread.set(null);
+			}
 		}
 
 		@Override

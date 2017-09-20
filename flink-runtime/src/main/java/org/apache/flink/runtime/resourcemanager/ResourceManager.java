@@ -139,7 +139,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 
-		super(rpcService, resourceManagerEndpointId, ResourceManagerId.generate());
+		super(rpcService, resourceManagerEndpointId);
 
 		this.resourceId = checkNotNull(resourceId);
 		this.resourceManagerConfiguration = checkNotNull(resourceManagerConfiguration);
@@ -772,13 +772,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public void revokeLeadership() {
 		runAsyncWithoutFencing(
 			() -> {
-				final ResourceManagerId newResourceManagerId = ResourceManagerId.generate();
-
-				log.info("ResourceManager {} was revoked leadership. Setting fencing token to {}.", getAddress(), newResourceManagerId);
+				log.info("ResourceManager {} was revoked leadership. Clearing fencing token.", getAddress());
 
 				clearState();
 
-				setFencingToken(newResourceManagerId);
+				setFencingToken(null);
 
 				slotManager.suspend();
 			});

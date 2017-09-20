@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
-import org.apache.flink.runtime.rpc.exceptions.FencingTokenMismatchException;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
 import org.apache.flink.runtime.rpc.messages.UnfencedMessage;
@@ -45,23 +45,36 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 	@Override
 	protected void handleMessage(Object message) {
 		if (message instanceof FencedMessage) {
-			@SuppressWarnings("unchecked")
-			FencedMessage<F, ?> fencedMessage = ((FencedMessage<F, ?>) message);
 
-			F fencingToken = fencedMessage.getFencingToken();
+			final F expectedFencingToken = rpcEndpoint.getFencingToken();
 
-			if (Objects.equals(rpcEndpoint.getFencingToken(), fencingToken)) {
-				super.handleMessage(fencedMessage.getPayload());
-			} else {
+			if (expectedFencingToken == null) {
 				if (log.isDebugEnabled()) {
-					log.debug("Fencing token mismatch: Ignoring message {} because the fencing token {} did " +
-						"not match the expected fencing token {}.", message, fencingToken, rpcEndpoint.getFencingToken());
+					log.debug("Fencing token not set: Ignoring message {} because the fencing token is null.", message);
 				}
 
 				sendErrorIfSender(
-					new FencingTokenMismatchException("Fencing token mismatch: Ignoring message " + message +
-						" because the fencing token " + fencingToken + " did not match the expected fencing token " +
-						rpcEndpoint.getFencingToken() + '.'));
+					new FencingTokenException(
+						"Fencing token not set: Ignoring message " + message + " because the fencing token is null."));
+			} else {
+				@SuppressWarnings("unchecked")
+				FencedMessage<F, ?> fencedMessage = ((FencedMessage<F, ?>) message);
+
+				F fencingToken = fencedMessage.getFencingToken();
+
+				if (Objects.equals(expectedFencingToken, fencingToken)) {
+					super.handleMessage(fencedMessage.getPayload());
+				} else {
+					if (log.isDebugEnabled()) {
+						log.debug("Fencing token mismatch: Ignoring message {} because the fencing token {} did " +
+							"not match the expected fencing token {}.", message, fencingToken, expectedFencingToken);
+					}
+
+					sendErrorIfSender(
+						new FencingTokenException("Fencing token mismatch: Ignoring message " + message +
+							" because the fencing token " + fencingToken + " did not match the expected fencing token " +
+							expectedFencingToken + '.'));
+				}
 			}
 		} else if (message instanceof UnfencedMessage) {
 			super.handleMessage(((UnfencedMessage<?>) message).getPayload());

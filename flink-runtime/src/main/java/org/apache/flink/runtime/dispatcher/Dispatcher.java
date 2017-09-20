@@ -93,7 +93,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			Optional<String> restAddress) throws Exception {
-		super(rpcService, endpointId, DispatcherId.generate());
+		super(rpcService, endpointId);
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
@@ -384,7 +384,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					log.warn("Could not properly clear the Dispatcher state while revoking leadership.", e);
 				}
 
-				setFencingToken(DispatcherId.generate());
+				// clear the fencing token indicating that we don't have the leadership right now
+				setFencingToken(null);
 			});
 	}
 
