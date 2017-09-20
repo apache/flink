@@ -27,10 +27,10 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.LegacyRestHandlerAdapter;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
-import org.apache.flink.runtime.rest.handler.legacy.JobManagerConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationInfo;
@@ -119,7 +119,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			leaderRetriever,
 			timeout,
 			ClusterConfigurationInfoHeaders.getInstance(),
-			new JobManagerConfigHandler(
+			new ClusterConfigHandler(
 				executor,
 				clusterConfiguration));
 

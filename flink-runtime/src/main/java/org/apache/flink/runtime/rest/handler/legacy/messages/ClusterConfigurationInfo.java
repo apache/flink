@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.rest.handler.legacy.JobManagerConfigHandler;
+import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
 import java.util.ArrayList;
 
 /**
- * Response of the {@link JobManagerConfigHandler}, respresented as a list
+ * Response of the {@link ClusterConfigHandler}, respresented as a list
  * of key-value pairs of the cluster {@link Configuration}.
  */
 public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry> implements ResponseBody {

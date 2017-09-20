@@ -43,13 +43,13 @@ import java.util.concurrent.Executor;
 /**
  * Returns the Job Manager's configuration.
  */
-public class JobManagerConfigHandler extends AbstractJsonRequestHandler
+public class ClusterConfigHandler extends AbstractJsonRequestHandler
 		implements LegacyRestHandler<DispatcherGateway, ClusterConfigurationInfo, EmptyMessageParameters> {
 
 	private final ClusterConfigurationInfo clusterConfig;
 	private final String clusterConfigJson;
 
-	public JobManagerConfigHandler(Executor executor, Configuration config) {
+	public ClusterConfigHandler(Executor executor, Configuration config) {
 		super(executor);
 
 		Preconditions.checkNotNull(config);
