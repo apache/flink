@@ -21,7 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -37,15 +36,19 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the recovery of files of a {@link BlobCache} from a HA store.
+ * Tests for the recovery of files of a {@link BlobCacheService} from a HA store.
  */
 public class BlobCacheRecoveryTest extends TestLogger {
 
@@ -60,7 +63,6 @@ public class BlobCacheRecoveryTest extends TestLogger {
 	public void testBlobCacheRecovery() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
@@ -80,9 +82,9 @@ public class BlobCacheRecoveryTest extends TestLogger {
 	/**
 	 * Helper to test that the {@link BlobServer} recovery from its HA store works.
 	 *
-	 * <p>Uploads two BLOBs to one {@link BlobServer} via a {@link BlobCache} and expects a second
-	 * {@link BlobCache} to be able to retrieve them from a second {@link BlobServer} that is
-	 * configured with the same HA store.
+	 * <p>Uploads two BLOBs to one {@link BlobServer} via a {@link BlobCacheService} and expects a
+	 * second {@link BlobCacheService} to be able to retrieve them from a second {@link BlobServer}
+	 * that is configured with the same HA store.
 	 *
 	 * @param config
 	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
@@ -104,10 +106,10 @@ public class BlobCacheRecoveryTest extends TestLogger {
 			BlobServer server0 = new BlobServer(config, blobStore);
 			BlobServer server1 = new BlobServer(config, blobStore);
 			// use VoidBlobStore as the HA store to force download from each server's HA store
-			BlobCache cache0 = new BlobCache(
+			BlobCacheService cache0 = new BlobCacheService(
 				new InetSocketAddress("localhost", server0.getPort()), config,
 				new VoidBlobStore());
-			BlobCache cache1 = new BlobCache(
+			BlobCacheService cache1 = new BlobCacheService(
 				new InetSocketAddress("localhost", server1.getPort()), config,
 				new VoidBlobStore())) {
 
@@ -124,13 +126,15 @@ public class BlobCacheRecoveryTest extends TestLogger {
 
 			// Put job-related HA data
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
-			keys[0] = put(cache0, jobId[0], expected, true); // Request 1
-			keys[1] = put(cache0, jobId[1], expected2, true); // Request 2
+			keys[0] = put(cache0, jobId[0], expected, PERMANENT_BLOB); // Request 1
+			keys[1] = put(cache0, jobId[1], expected2, PERMANENT_BLOB); // Request 2
 
 			// put non-HA data
-			nonHAKey = put(cache0, jobId[0], expected2, false);
+			nonHAKey = put(cache0, jobId[0], expected2, TRANSIENT_BLOB);
 			assertNotEquals(keys[0], nonHAKey);
-			assertEquals(keys[1], nonHAKey);
+			assertThat(keys[0].getHash(), not(equalTo(nonHAKey.getHash())));
+			assertNotEquals(keys[1], nonHAKey);
+			assertThat(keys[1].getHash(), equalTo(nonHAKey.getHash()));
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
@@ -138,11 +142,11 @@ public class BlobCacheRecoveryTest extends TestLogger {
 			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
 
 			// Verify HA requests from cache1 (connected to server1) with no immediate access to the file
-			verifyContents(cache1, jobId[0], keys[0], expected, true);
-			verifyContents(cache1, jobId[1], keys[1], expected2, true);
+			verifyContents(cache1, jobId[0], keys[0], expected);
+			verifyContents(cache1, jobId[1], keys[1], expected2);
 
 			// Verify non-HA file is not accessible from server1
-			verifyDeleted(cache1, jobId[0], nonHAKey, true);
+			verifyDeleted(cache1, jobId[0], nonHAKey);
 		}
 	}
 }

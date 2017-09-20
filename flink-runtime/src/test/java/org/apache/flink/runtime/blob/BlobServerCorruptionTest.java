@@ -21,7 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.util.TestLogger;
 
@@ -37,6 +36,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.junit.Assert.assertNotNull;
@@ -64,7 +64,6 @@ public class BlobServerCorruptionTest extends TestLogger {
 
 		final Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
@@ -108,7 +107,7 @@ public class BlobServerCorruptionTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId, data, true);
+			BlobKey key = put(server, jobId, data, PERMANENT_BLOB);
 			assertNotNull(key);
 
 			// delete local file to make sure that the GET requests downloads from HA
@@ -131,7 +130,7 @@ public class BlobServerCorruptionTest extends TestLogger {
 			expectedException.expect(IOException.class);
 			expectedException.expectMessage("data corruption");
 
-			get(server, jobId, key, true);
+			get(server, jobId, key);
 		}
 	}
 }

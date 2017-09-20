@@ -23,16 +23,18 @@ import org.apache.flink.configuration.Configuration;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The BLOB cache provides access to BLOB services for permanent and transient BLOBs.
  */
-public class BlobCache implements BlobService {
+public class BlobCacheService implements BlobService {
 
 	/** Caching store for permanent BLOBs. */
-	private final PermanentBlobCache permanentBlobStore;
+	private final PermanentBlobCache permanentBlobCache;
 
 	/** Store for transient BLOB files. */
-	private final TransientBlobCache transientBlobStore;
+	private final TransientBlobCache transientBlobCache;
 
 	/**
 	 * Instantiates a new BLOB cache.
@@ -47,34 +49,48 @@ public class BlobCache implements BlobService {
 	 * @throws IOException
 	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
 	 */
-	public BlobCache(
+	public BlobCacheService(
 			final InetSocketAddress serverAddress,
 			final Configuration blobClientConfig,
 			final BlobView blobView) throws IOException {
 
-		this.permanentBlobStore = new PermanentBlobCache(serverAddress, blobClientConfig, blobView);
-		this.transientBlobStore = new TransientBlobCache(serverAddress, blobClientConfig);
+		this(new PermanentBlobCache(serverAddress, blobClientConfig, blobView),
+			new TransientBlobCache(serverAddress, blobClientConfig));
+	}
+
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param permanentBlobCache
+	 * 		BLOB cache to use for permanent BLOBs
+	 * @param transientBlobCache
+	 * 		BLOB cache to use for transient BLOBs
+	 */
+	public BlobCacheService(
+			PermanentBlobCache permanentBlobCache, TransientBlobCache transientBlobCache) {
+		this.permanentBlobCache = checkNotNull(permanentBlobCache);
+		this.transientBlobCache = checkNotNull(transientBlobCache);
 	}
 
 	@Override
-	public PermanentBlobCache getPermanentBlobStore() {
-		return permanentBlobStore;
+	public PermanentBlobCache getPermanentBlobService() {
+		return permanentBlobCache;
 	}
 
 	@Override
-	public TransientBlobCache getTransientBlobStore() {
-		return transientBlobStore;
+	public TransientBlobCache getTransientBlobService() {
+		return transientBlobCache;
 	}
 
 	@Override
 	public void close() throws IOException {
-		permanentBlobStore.close();
-		transientBlobStore.close();
+		permanentBlobCache.close();
+		transientBlobCache.close();
 	}
 
 	@Override
 	public int getPort() {
 		// NOTE: both blob stores connect to the same server!
-		return permanentBlobStore.getPort();
+		return permanentBlobCache.getPort();
 	}
 }

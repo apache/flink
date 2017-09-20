@@ -33,6 +33,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
 import static org.junit.Assert.fail;
 
@@ -54,7 +57,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchRetries(config, new VoidBlobStore(), null, false);
+		testBlobFetchRetries(config, new VoidBlobStore(), null, TRANSIENT_BLOB);
 	}
 
 	/**
@@ -67,7 +70,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchRetries(config, new VoidBlobStore(), new JobID(), false);
+		testBlobFetchRetries(config, new VoidBlobStore(), new JobID(), TRANSIENT_BLOB);
 	}
 
 	/**
@@ -88,7 +91,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testBlobFetchRetries(config, blobStoreService, new JobID(), true);
+			testBlobFetchRetries(config, blobStoreService, new JobID(), PERMANENT_BLOB);
 		} finally {
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
@@ -103,25 +106,27 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 * @param config
 	 * 		configuration to use (the BlobCache will get some additional settings
 	 * 		set compared to this one)
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
 	private static void testBlobFetchRetries(
 			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
-			boolean highAvailability) throws IOException {
+			BlobKey.BlobType blobType) throws IOException {
 
 		final byte[] data = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
 
 		try (
 			BlobServer server = new TestingFailingBlobServer(config, blobStore, 2);
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
 
 			// upload some blob
-			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailability);
+			final BlobKey key = put(server, jobId, data, blobType);
 
 			// trigger a download - it should fail the first two times, but retry, and succeed eventually
-			verifyContents(cache, jobId, key, data, highAvailability);
+			verifyContents(cache, jobId, key, data);
 		}
 	}
 
@@ -135,7 +140,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), null, false);
+		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), null, TRANSIENT_BLOB);
 	}
 
 	/**
@@ -148,7 +153,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), new JobID(), false);
+		testBlobFetchWithTooManyFailures(config, new VoidBlobStore(), new JobID(), TRANSIENT_BLOB);
 	}
 
 	/**
@@ -169,7 +174,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 		try {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testBlobFetchWithTooManyFailures(config, blobStoreService, new JobID(), true);
+			testBlobFetchWithTooManyFailures(config, blobStoreService, new JobID(), PERMANENT_BLOB);
 		} finally {
 			if (blobStoreService != null) {
 				blobStoreService.closeAndCleanupAllData();
@@ -184,26 +189,28 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 * @param config
 	 * 		configuration to use (the BlobCache will get some additional settings
 	 * 		set compared to this one)
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
 	private static void testBlobFetchWithTooManyFailures(
 			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
-			boolean highAvailability) throws IOException {
+			BlobKey.BlobType blobType) throws IOException {
 
 		final byte[] data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
 
 		try (
 			BlobServer server = new TestingFailingBlobServer(config, blobStore, 0, 10);
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
 
 			// upload some blob
-			final BlobKey key = BlobServerPutTest.put(server, jobId, data, highAvailability);
+			final BlobKey key = put(server, jobId, data, blobType);
 
 			// trigger a download - it should fail eventually
 			try {
-				verifyContents(cache, jobId, key, data, highAvailability);
+				verifyContents(cache, jobId, key, data);
 				fail("This should fail");
 			}
 			catch (IOException e) {

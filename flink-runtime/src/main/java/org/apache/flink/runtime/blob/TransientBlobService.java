@@ -26,17 +26,16 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * A service to retrieve transient binary large objects (BLOBs).
- * <p>
- * These include per-job BLOBs that are , e.g. a job's JAR files, parts of an off-loaded {@link
- * org.apache.flink.runtime.deployment.TaskDeploymentDescriptor} or files in the {@link
- * org.apache.flink.api.common.cache.DistributedCache}.
- * <p>
- * Note: None of these BLOBs is highly available (HA). This case is covered by BLOBs in the {@link
- * PermanentBlobService}.
- * <p>
- * TODO: change API to not rely on local files but return {@link InputStream} objects instead and
- * change getFile to get-and-delete semantics
+ * A service to retrieve transient binary large objects (BLOBs) which are deleted on the
+ * {@link BlobServer} when they are retrieved.
+ *
+ * <p>These may include per-job BLOBs like files in the {@link
+ * org.apache.flink.api.common.cache.DistributedCache}, for example.
+ *
+ * <p>Note: None of these BLOBs is highly available (HA). This case is covered by BLOBs in the
+ * {@link PermanentBlobService}.
+ *
+ * <p>TODO: change API to not rely on local files but return {@link InputStream} objects
  */
 public interface TransientBlobService extends Closeable {
 
@@ -58,7 +57,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		if any other error occurs when retrieving the file
 	 */
-	File getFile(BlobKey key) throws IOException;
+	File getFile(TransientBlobKey key) throws IOException;
 
 	/**
 	 * Returns the path to a local copy of the file associated with the provided job ID and blob
@@ -76,7 +75,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		if any other error occurs when retrieving the file
 	 */
-	File getFile(JobID jobId, BlobKey key) throws IOException;
+	File getFile(JobID jobId, TransientBlobKey key) throws IOException;
 
 	// --------------------------------------------------------------------------------------------
 	//  PUT
@@ -93,7 +92,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	BlobKey put(byte[] value) throws IOException;
+	TransientBlobKey putTransient(byte[] value) throws IOException;
 
 	/**
 	 * Uploads the data of the given byte array for the given job to the BLOB server.
@@ -108,7 +107,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	BlobKey put(JobID jobId, byte[] value) throws IOException;
+	TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException;
 
 	/**
 	 * Uploads the (job-unrelated) data from the given input stream to the BLOB server.
@@ -122,7 +121,7 @@ public interface TransientBlobService extends Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	BlobKey put(InputStream inputStream) throws IOException;
+	TransientBlobKey putTransient(InputStream inputStream) throws IOException;
 
 	/**
 	 * Uploads the data from the given input stream for the given job to the BLOB server.
@@ -138,14 +137,14 @@ public interface TransientBlobService extends Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	BlobKey put(JobID jobId, InputStream inputStream) throws IOException;
+	TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException;
 
 	// --------------------------------------------------------------------------------------------
 	//  DELETE
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Deletes the (job-unrelated) file associated with the provided blob key.
+	 * Deletes the (job-unrelated) file associated with the provided blob key from the local cache.
 	 *
 	 * @param key
 	 * 		associated with the file to be deleted
@@ -153,10 +152,10 @@ public interface TransientBlobService extends Closeable {
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	boolean delete(BlobKey key);
+	boolean deleteFromCache(TransientBlobKey key);
 
 	/**
-	 * Deletes the file associated with the provided job ID and blob key.
+	 * Deletes the file associated with the provided job ID and blob key from the local cache.
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
@@ -166,6 +165,6 @@ public interface TransientBlobService extends Closeable {
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	boolean delete(JobID jobId, BlobKey key);
+	boolean deleteFromCache(JobID jobId, TransientBlobKey key);
 
 }

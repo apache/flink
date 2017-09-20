@@ -22,8 +22,12 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.MessageDigest;
+import java.util.Arrays;
 
+import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 
 /**
@@ -36,6 +40,14 @@ final class BlobInputStream extends InputStream {
 	 * The wrapped input stream from the underlying TCP connection.
 	 */
 	private final InputStream wrappedInputStream;
+
+	/**
+	 * The wrapped output stream from the underlying TCP connection.
+	 *
+	 * <p>This is used to signal the success or failure of the read operation after receiving the
+	 * whole BLOB and verifying the checksum.
+	 */
+	private final OutputStream wrappedOutputStream;
 
 	/**
 	 * The BLOB key if the GET operation has been performed on a content-addressable BLOB, otherwise <code>null<code>.
@@ -65,12 +77,17 @@ final class BlobInputStream extends InputStream {
 	 *        the underlying input stream to read from
 	 * @param blobKey
 	 *        the expected BLOB key for content-addressable BLOBs, <code>null</code> for non-content-addressable BLOBs.
+	 * @param wrappedOutputStream
+	 *        the underlying output stream to write the result to
+	 *
 	 * @throws IOException
 	 *         throws if an I/O error occurs while reading the BLOB data from the BLOB server
 	 */
-	BlobInputStream(final InputStream wrappedInputStream, final BlobKey blobKey) throws IOException {
+	BlobInputStream(
+		final InputStream wrappedInputStream, final BlobKey blobKey, OutputStream wrappedOutputStream) throws IOException {
 		this.wrappedInputStream = wrappedInputStream;
 		this.blobKey = blobKey;
+		this.wrappedOutputStream = wrappedOutputStream;
 		this.bytesToReceive = readLength(wrappedInputStream);
 		if (this.bytesToReceive < 0) {
 			throw new FileNotFoundException();
@@ -106,10 +123,12 @@ final class BlobInputStream extends InputStream {
 		if (this.md != null) {
 			this.md.update((byte) read);
 			if (this.bytesReceived == this.bytesToReceive) {
-				final BlobKey computedKey = new BlobKey(this.md.digest());
-				if (!computedKey.equals(this.blobKey)) {
+				final byte[] computedKey = this.md.digest();
+				if (!Arrays.equals(computedKey, this.blobKey.getHash())) {
+					this.wrappedOutputStream.write(RETURN_ERROR);
 					throw new IOException("Detected data corruption during transfer");
 				}
+				this.wrappedOutputStream.write(RETURN_OKAY);
 			}
 		}
 
@@ -140,10 +159,12 @@ final class BlobInputStream extends InputStream {
 		if (this.md != null) {
 			this.md.update(b, off, read);
 			if (this.bytesReceived == this.bytesToReceive) {
-				final BlobKey computedKey = new BlobKey(this.md.digest());
-				if (!computedKey.equals(this.blobKey)) {
+				final byte[] computedKey = this.md.digest();
+				if (!Arrays.equals(computedKey, this.blobKey.getHash())) {
+					this.wrappedOutputStream.write(RETURN_ERROR);
 					throw new IOException("Detected data corruption during transfer");
 				}
+				this.wrappedOutputStream.write(RETURN_OKAY);
 			}
 		}
 

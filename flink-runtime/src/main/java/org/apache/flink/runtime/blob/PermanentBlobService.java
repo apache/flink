@@ -26,9 +26,9 @@ import java.io.IOException;
 
 /**
  * A service to retrieve permanent binary large objects (BLOBs).
- * <p>
- * These include per-job BLOBs that are covered by high-availability (HA) mode, e.g. a job's JAR
- * files, parts of an off-loaded {@link org.apache.flink.runtime.deployment.TaskDeploymentDescriptor}
+ *
+ * <p>These may include per-job BLOBs that are covered by high-availability (HA) mode, e.g. a job's
+ * JAR files or (parts of) an off-loaded {@link org.apache.flink.runtime.deployment.TaskDeploymentDescriptor}
  * or files in the {@link org.apache.flink.api.common.cache.DistributedCache}.
  */
 public interface PermanentBlobService extends Closeable {
@@ -49,6 +49,6 @@ public interface PermanentBlobService extends Closeable {
 	 * @throws IOException
 	 * 		if any other error occurs when retrieving the file
 	 */
-	File getHAFile(JobID jobId, BlobKey key) throws IOException;
+	File getFile(JobID jobId, PermanentBlobKey key) throws IOException;
 
 }
