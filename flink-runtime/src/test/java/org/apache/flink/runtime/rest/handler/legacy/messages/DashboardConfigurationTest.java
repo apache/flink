@@ -18,39 +18,23 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
-import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-
 /**
  * Tests for the {@link DashboardConfiguration}.
  */
-public class DashboardConfigurationTest extends TestLogger {
+public class DashboardConfigurationTest extends RestResponseMarshallingTestBase<DashboardConfiguration> {
 
-	/**
-	 * Tests that we can marshal and unmarshal {@link DashboardConfiguration} objects.
-	 */
-	@Test
-	public void testJsonMarshalling() throws JsonProcessingException {
-		final DashboardConfiguration expected = new DashboardConfiguration(
+	@Override
+	protected Class<DashboardConfiguration> getTestResponseClass() {
+		return DashboardConfiguration.class;
+	}
+
+	@Override
+	protected DashboardConfiguration getTestResponseInstance() {
+		return new DashboardConfiguration(
 			1L,
 			"foobar",
 			42,
 			"version",
 			"revision");
-
-		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-
-		JsonNode marshaled = objectMapper.valueToTree(expected);
-
-		final DashboardConfiguration unmarshaled = objectMapper.treeToValue(marshaled, DashboardConfiguration.class);
-
-		assertEquals(expected, unmarshaled);
 	}
 }

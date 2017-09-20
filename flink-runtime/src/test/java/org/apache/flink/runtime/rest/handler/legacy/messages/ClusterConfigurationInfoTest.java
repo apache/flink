@@ -18,36 +18,22 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
-import org.apache.flink.runtime.rest.util.RestMapperUtils;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-
 /**
  * Tests for the {@link ClusterConfigurationInfo}.
  */
-public class ClusterConfigurationInfoTest {
+public class ClusterConfigurationInfoTest extends RestResponseMarshallingTestBase<ClusterConfigurationInfo> {
 
-	/**
-	 * Tests that we can marshal and unmarshal {@link ClusterConfigurationInfo} objects.
-	 */
-	@Test
-	public void testJsonMarshalling() throws JsonProcessingException {
+	@Override
+	protected Class<ClusterConfigurationInfo> getTestResponseClass() {
+		return ClusterConfigurationInfo.class;
+	}
+
+	@Override
+	protected ClusterConfigurationInfo getTestResponseInstance() {
 		final ClusterConfigurationInfo expected = new ClusterConfigurationInfo(2);
 		expected.add(new ClusterConfigurationInfoEntry("key1", "value1"));
 		expected.add(new ClusterConfigurationInfoEntry("key2", "value2"));
 
-		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-
-		JsonNode marshaled = objectMapper.valueToTree(expected);
-
-		final ClusterConfigurationInfo unmarshaled = objectMapper.treeToValue(marshaled, ClusterConfigurationInfo.class);
-
-		assertEquals(expected, unmarshaled);
+		return expected;
 	}
 }
