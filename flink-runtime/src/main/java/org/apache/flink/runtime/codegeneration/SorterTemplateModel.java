@@ -40,7 +40,7 @@ class SorterTemplateModel {
 	//                                   Constants
 	// ------------------------------------------------------------------------
 
-	static final String TEMPLATE_NAME = "sorter.ftlh";
+	static final String TEMPLATE_NAME = "sorter.ftl";
 
 	/** We don't split to chunks above this size. */
 	private static final int SPLITTING_THRESHOLD = 32;

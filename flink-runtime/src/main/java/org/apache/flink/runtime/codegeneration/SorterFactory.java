@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.codegeneration;
 
+import freemarker.template.Version;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -82,7 +83,7 @@ public class SorterFactory {
 		this.classCompiler = new SimpleCompiler();
 		this.constructorCache = new HashMap<>();
 		Configuration templateConf;
-		templateConf = new Configuration();
+		templateConf = new Configuration(new Version(2,3,26));
 		templateConf.setClassForTemplateLoading(SorterFactory.class, "/templates");
 		templateConf.setDefaultEncoding("UTF-8");
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);

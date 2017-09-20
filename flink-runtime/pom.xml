@@ -207,13 +207,13 @@ under the License.
 		<dependency>
 			<groupId>org.freemarker</groupId>
 			<artifactId>freemarker</artifactId>
-			<version>2.3.20</version>
+			<version>2.3.26-incubating</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
-			<version>2.7.5</version>
+			<version>${janino.version}</version>
 		</dependency>
 
 	</dependencies>
