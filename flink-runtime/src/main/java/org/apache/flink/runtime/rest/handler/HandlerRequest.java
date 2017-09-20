@@ -42,6 +42,10 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
 	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
 
+	public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
+		this(requestBody, messageParameters, Collections.emptyMap(), Collections.emptyMap());
+	}
+
 	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters) throws HandlerRequestException {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
 		Preconditions.checkNotNull(messageParameters);
