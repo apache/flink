@@ -19,18 +19,20 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.JobManagerConfigHandler;
+import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfiguration;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for the {@link JobManagerConfigHandler}.
+ * Message headers for the {@link ClusterConfigHandler}.
  */
 public final class ClusterConfigurationHeaders implements MessageHeaders<EmptyRequestBody, ClusterConfiguration, EmptyMessageParameters> {
 
 	private static final ClusterConfigurationHeaders INSTANCE = new ClusterConfigurationHeaders();
 
+	// TODO this REST path is inappropriately set due to legacy design reasons, and ideally should be '/config';
+	// TODO changing it would require corresponding path changes in flink-runtime-web
 	public static final String CLUSTER_CONFIG_REST_PATH = "/jobmanager/config";
 
 	private ClusterConfigurationHeaders() {}
