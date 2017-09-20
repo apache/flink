@@ -51,70 +51,68 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 
 	protected final ClusterBuilder builder;
 
-	private final AtomicInteger updatesPending = new AtomicInteger();
+	protected final AtomicInteger updatesPending = new AtomicInteger();
 
 	/**
-	 * If true, the producer will wait until all outstanding action requests have been sent to C*.
+	 * A default callback to a message sent to C*.
+	 * @param <V>
 	 */
-	private boolean flushOnCheckpoint = true;
+	protected class DefaultMessageCallback<V> implements FutureCallback<V> {
+		@Override
+		public void onSuccess(V ignored) {
+			int pending = updatesPending.decrementAndGet();
 
-	CassandraSinkBase(ClusterBuilder builder) {
-		this.builder = builder;
-		ClosureCleaner.clean(builder, true);
+			if (log.isTraceEnabled()) {
+				log.trace("onSuccess {} => {}", pending + 1, pending);
+			}
+
+			if (pending == 0) {
+				synchronized (updatesPending) {
+					updatesPending.notifyAll();
+				}
+			}
+		}
+
+		@Override
+		public void onFailure(Throwable t) {
+			int pending = updatesPending.decrementAndGet();
+
+			if (log.isTraceEnabled()) {
+				log.trace("onFailure {} => {}", pending + 1, pending);
+			}
+
+			if (pending == 0) {
+				synchronized (updatesPending) {
+					updatesPending.notifyAll();
+				}
+			}
+			asyncError = t;
+
+			log.error("Error while sending value.", t);
+		}
 	}
 
 	/**
-	 * If set to true, the Flink producer will wait for all in-flight messages in the Cassandra client
-	 * to be acknowledged on a checkpoint, so that producer can guarantee those messages are part of the checkpoint.
-	 *
-	 * @param isFlush a boolean flag indicating the flushing mode (true = flushPending on checkpoint)
+	 * If true, the producer will wait until all in-flight mutations have been sent to C* before performing a checkpoint.
 	 */
-	public void setFlushOnCheckpoint(boolean isFlush) {
-		this.flushOnCheckpoint = isFlush;
+	private final boolean flushOnCheckpoint;
+
+	CassandraSinkBase(ClusterBuilder builder, boolean isFlushOnCheckpoint) {
+		this.builder = builder;
+		this.flushOnCheckpoint = isFlushOnCheckpoint;
+		this.callback = new DefaultMessageCallback<>();
+		ClosureCleaner.clean(builder, true);
 	}
 
 	@Override
 	public void open(Configuration configuration) {
-		this.callback = new FutureCallback<V>() {
-			@Override
-			public void onSuccess(V ignored) {
-				int pending = updatesPending.decrementAndGet();
-
-				if (log.isTraceEnabled()) {
-					log.trace("onSuccess {} => {}", pending + 1, pending);
-				}
-
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
-			}
-
-			@Override
-			public void onFailure(Throwable t) {
-				int pending = updatesPending.decrementAndGet();
-
-				if (log.isTraceEnabled()) {
-					log.trace("onFailure {} => {}", pending + 1, pending);
-				}
-
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
-				asyncError = t;
-
-				log.error("Error while sending value.", t);
-			}
-		};
 		this.cluster = builder.getCluster();
 		this.session = cluster.connect();
 	}
 
 	@Override
 	public void invoke(IN value) throws Exception {
+		//TODO: 1. asyncError was not reset. 2. Should unify error handling logic in CassandraSinkBase
 		if (asyncError != null) {
 			throw new IOException("Error while sending value.", asyncError);
 		}

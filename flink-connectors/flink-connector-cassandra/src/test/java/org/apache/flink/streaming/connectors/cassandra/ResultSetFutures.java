@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -48,19 +47,6 @@ public class ResultSetFutures {
 	public static ResultSetFuture immediateFailedFuture(Throwable throwable) {
 		checkNotNull(throwable);
 		return new ImmediateFailedResultSetFuture(throwable);
-	}
-
-	public static ResultSetFuture immediateCancelledFuture() {
-		return new ImmediateCancelledResultSetFuture();
-	}
-
-	public static ResultSetFuture delayedFuture(@Nullable ResultSet value) {
-		return new DelayedSuccessfulResultSetFuture(value);
-	}
-
-	public static ResultSetFuture delayedFailedFuture(Throwable throwable) {
-		checkNotNull(throwable);
-		return new DelayedFailedResultSetFuture(throwable);
 	}
 
 	/**
@@ -147,64 +133,6 @@ public class ResultSetFutures {
 
 		@Override
 		public ResultSet get() throws ExecutionException {
-			throw new ExecutionException(thrown);
-		}
-	}
-
-	private static class ImmediateCancelledResultSetFuture extends ImmediateResultSetFuture {
-
-		protected final CancellationException thrown;
-
-		ImmediateCancelledResultSetFuture() {
-			this.thrown = new CancellationException("Immediate cancelled future.");
-		}
-
-		@Override
-		public boolean isCancelled() {
-			return true;
-		}
-
-		@Override
-		public ResultSet get() {
-			throw thrown;
-		}
-	}
-
-	/**
-	 * A type of {@link ResultSetFuture} that returns result with a delay. There are 2 types supported
-	 * 1. Future was successful.
-	 * 2. Future has failed with an exception.
-	 */
-	private static class DelayedSuccessfulResultSetFuture extends ImmediateSuccessfulResultSetFuture {
-
-		DelayedSuccessfulResultSetFuture(@Nullable ResultSet value) {
-			super(value);
-		}
-
-		public ResultSet get() {
-			try {
-				Thread.sleep(3000);
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Interrupted, unfinished " + this.getClass().getName() + " task");
-			} finally {
-				return value;
-			}
-		}
-	}
-
-	private static class DelayedFailedResultSetFuture<V> extends ImmediateFailedResultSetFuture<V> {
-
-		DelayedFailedResultSetFuture(Throwable thrown) {
-			super(thrown);
-		}
-
-		public ResultSet get() throws ExecutionException {
-			try {
-				Thread.sleep(3000);
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Interrupted, unfinished " + this.getClass().getName() + " task");
-			}
-
 			throw new ExecutionException(thrown);
 		}
 	}

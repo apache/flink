@@ -233,6 +233,7 @@ public class CassandraSink<IN> {
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
+		protected boolean isPendingOnFlush = true;
 
 		public CassandraSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			this.input = input;
@@ -320,6 +321,11 @@ public class CassandraSink<IN> {
 			return this;
 		}
 
+		public CassandraSinkBuilder<IN> disablePendingOnFlush() {
+			this.isPendingOnFlush = false;
+			return this;
+		}
+
 		/**
 		 * Finalizes the configuration of this sink.
 		 *
@@ -330,10 +336,10 @@ public class CassandraSink<IN> {
 			sanityCheck();
 			return isWriteAheadLogEnabled
 				? createWriteAheadSink()
-				: createSink();
+				: createSink(isPendingOnFlush);
 		}
 
-		protected abstract CassandraSink<IN> createSink() throws Exception;
+		protected abstract CassandraSink<IN> createSink(boolean isPendingOnFlush) throws Exception;
 
 		protected abstract CassandraSink<IN> createWriteAheadSink() throws Exception;
 
@@ -362,8 +368,8 @@ public class CassandraSink<IN> {
 		}
 
 		@Override
-		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
+		public CassandraSink<IN> createSink(boolean isPendingOnFlush) throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder, isPendingOnFlush)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -392,8 +398,8 @@ public class CassandraSink<IN> {
 		}
 
 		@Override
-		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
+		public CassandraSink<IN> createSink(boolean isPendingOnFlush) throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, isPendingOnFlush)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -421,8 +427,8 @@ public class CassandraSink<IN> {
 		}
 
 		@Override
-		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder)).name("Cassandra Sink"));
+		public CassandraSink<IN> createSink(boolean isPendingOnFlush) throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder, isPendingOnFlush)).name("Cassandra Sink"));
 		}
 
 		@Override
