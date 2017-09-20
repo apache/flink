@@ -103,19 +103,23 @@ public class SorterFactory {
 	 * @param memory
 	 * @return
 	 */
-	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
+	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer,
+											TypeComparator<T> comparator, List<MemorySegment> memory) {
 		if (config.isCodeGenerationForSorterEnabled()){
 			try {
 				return createCodegenSorter(serializer, comparator, memory);
 			} catch (IOException | TemplateException | ClassNotFoundException | IllegalAccessException |
 					InstantiationException | NoSuchMethodException | InvocationTargetException | CompileException e) {
+
 				String msg = "Serializer: " + serializer +
 						"[" + serializer + "], comparator: [" + comparator + "], exception: " + e.toString();
 				if (!forceCodeGeneration) {
-					LOG.warn("An error occurred while trying to create a code generated sorter. Using non-codegen sorter instead. " + msg);
+					LOG.warn("An error occurred while trying to create a code-generated sorter. " +
+							"Using non-codegen sorter instead. " + msg);
 					return createNonCodegenSorter(serializer, comparator, memory);
 				} else {
-					throw new RuntimeException("An error occurred while trying to create a code generated sorter. Failing the job, because forceCodeGeneration. " + msg);
+					throw new RuntimeException("An error occurred while trying to create a code-generated sorter. " +
+							"Failing the job, because forceCodeGeneration is true. " + msg);
 				}
 			}
 		} else {
@@ -123,8 +127,10 @@ public class SorterFactory {
 		}
 	}
 
-	private <T> InMemorySorter<T> createCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
-			throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
+	private <T> InMemorySorter<T> createCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
+													List<MemorySegment> memory)
+			throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException,
+			InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 		SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
 
 		Constructor sorterConstructor;
@@ -155,7 +161,8 @@ public class SorterFactory {
 		return sorter;
 	}
 
-	private <T> InMemorySorter<T> createNonCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
+	private <T> InMemorySorter<T> createNonCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
+														List<MemorySegment> memory) {
 		InMemorySorter<T> sorter;
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (comparator.supportsSerializationWithKeyNormalization() &&
