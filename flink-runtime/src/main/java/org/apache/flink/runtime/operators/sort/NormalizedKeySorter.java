@@ -309,7 +309,7 @@ public class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
 	
-	protected long readPointer(int logicalPosition) {
+	protected final long readPointer(int logicalPosition) {
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -320,17 +320,17 @@ public class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		return (this.sortIndex.get(bufferNum).getLong(segmentOffset * this.indexEntrySize)) & POINTER_MASK;
 	}
 	
-	protected T getRecordFromBuffer(T reuse, long pointer) throws IOException {
+	protected final T getRecordFromBuffer(T reuse, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(reuse, this.recordBuffer);
 	}
 
-	protected T getRecordFromBuffer(long pointer) throws IOException {
+	protected final T getRecordFromBuffer(long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(this.recordBuffer);
 	}
 	
-	protected int compareRecords(long pointer1, long pointer2) {
+	protected final int compareRecords(long pointer1, long pointer2) {
 		this.recordBuffer.setReadPosition(pointer1);
 		this.recordBufferForComparison.setReadPosition(pointer2);
 		
@@ -341,11 +341,11 @@ public class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		}
 	}
 	
-	protected boolean memoryAvailable() {
+	protected final boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
 	}
 	
-	protected MemorySegment nextMemorySegment() {
+	protected final MemorySegment nextMemorySegment() {
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
 
